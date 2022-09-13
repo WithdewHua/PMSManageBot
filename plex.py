@@ -50,7 +50,7 @@ class Plex:
         """Verify if specified user has permission with all libraries"""
         if self.get_username_by_user_id(user_id) == "水长东":
             return True
-        return self.my_plex_account.user(user_id).server(self.plex_server_name).allLibraries
+        return True  if self.my_plex_account.user(user_id).server(self.plex_server_name).numLibraries == 5 else False
         
     def update_user_shared_libs(self, user_id, libs: list):
         """update shared libraries with specified user by id"""

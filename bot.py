@@ -21,13 +21,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 普通命令：
 /info - 查看个人信息
-/bind - 绑定 Plex 用户，格式为 /bind plex 邮箱
+/bind - 绑定 Plex 用户，格式为 `/bind 邮箱` (注意空格)
 /credits_rank - 查看积分榜
 
 管理员命令：
 /set_donation - 设置捐赠金额
     """
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=body_text)
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=body_text, parse_mode="markdown")
     
 async def bind(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
