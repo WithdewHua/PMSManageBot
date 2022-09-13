@@ -95,7 +95,7 @@ async def credits_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     chat_id = update._effective_chat.id
     _db = DB()
     res = _db.get_credits_rank()
-    rank = [f"{i}. {info[2]}: {info[3]}" for i, info in enumerate(res, 1) if i <= 10]
+    rank = [f"{i}. {info[2]}: {info[3]:.2f}" for i, info in enumerate(res, 1) if i <= 10]
     body_text = """
 <strong>积分榜</strong>
 ==================
@@ -128,12 +128,12 @@ async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     res = _db.update_user_credits(credits, tg_id=tg_id)
     if not res:
         _db.close()
-        await context.bot.send_message(chat_id_=chat_id, text="错误：更新积分失败，请检查")
+        await context.bot.send_message(chat_id=chat_id, text="错误：更新积分失败，请检查")
         return
     res = _db.update_user_donation(donate, tg_id=tg_id)
     if not res:
         _db.close()
-        await context.bot.send_message(chat_id_=chat_id, text="错误：更新积分失败，请检查")
+        await context.bot.send_message(chat_id=chat_id, text="错误：更新积分失败，请检查")
         return
     _db.close()
     await context.bot.send_message(chat_id=chat_id, text=f"信息：成功为 {tg_id} 设置捐赠金额 {donation}")
