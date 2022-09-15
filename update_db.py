@@ -42,6 +42,27 @@ def update_plex_info():
         _db.con.commit()
     finally:
         _db.close()
+
+
+def update_all_lib():
+    try:
+        _db = DB()
+        _plex = Plex()
+        users = _plex.users_by_id
+        all_libs = _plex.get_libraries()
+        for uid, user in users.items():
+            _info = _db.cur.execute("select * from user where plex_id=?", (uid,))
+            _info = _info.fetchone()
+            if not _info:
+                continue
+            cur_libs = _plex.get_user_shared_libs_by_id(uid)
+            all_lib_flag = 1 if not set(all_libs).difference(set(cur_libs)) else 0
+            _db.cur.execute("UPDATE user SET all_lib=? WHERE plex_id=?", (all_lib_flag, uid))
+            _db.con.commit()
+    except Exception as e:
+        print(e)
+    finally:
+        _db.close()
         
         
 if __name__ == "__main__":

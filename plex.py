@@ -1,6 +1,7 @@
 #!/user/bin/env python3
 
 from plexapi.server import PlexServer
+from plexapi.myplex import Section
 from settings import PLEX_BASE_URL, PLEX_API_TOKEN
 
 
@@ -44,7 +45,8 @@ class Plex:
         """get shared libraries with specified user by id"""
         if self.get_username_by_user_id(user_id) == "水长东":
             return self.get_libraries()
-        return [section.title for section in self.my_plex_account.user(user_id).server(self.plex_server_name).sections()]
+        data = self.my_plex_account.user(user_id).server(self.plex_server_name)._server.query(self.my_plex_account.FRIENDSERVERS.format(machineId=self.plex_server.machineIdentifier, serverId=self.my_plex_account.user(user_id).server(self.plex_server_name).id))
+        return [section.title for section in self.plex_server.findItems(data, Section, rtag="SharedServer", **{"shared": 1})]
         
     def verify_all_libraries(self, user_id) -> bool:
         """Verify if specified user has permission with all libraries"""
