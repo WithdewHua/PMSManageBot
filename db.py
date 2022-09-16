@@ -15,14 +15,15 @@ class DB:
         
     def create_table(self):
         try:
-            self.cur.execute("CREATE TABLE user(plex_id, tg_id, credits, donate, plex_email, plex_username, init_lib, all_lib)")
-            self.con.commit()
+            self.cur.execute("CREATE TABLE user(plex_id, tg_id, credits, donate, plex_email, plex_username, init_lib, all_lib, unlock_time)")
         except sqlite3.OperationalError:
             logging.warning("Table is created already, skip...")
+        else:
+            self.con.commit()
     
-    def add_user(self, plex_id, tg_id, plex_email, plex_username, credits: int=0, donate: int=0, all_lib=0):
+    def add_user(self, plex_id, tg_id, plex_email, plex_username, credits: int=0, donate: int=0, all_lib=0, unlock_time=None):
         try:
-            self.cur.execute("INSERT INTO user VALUES (?, ?, ?, ?, ?, ?, ?)", (plex_id, tg_id, credits, donate, plex_email, plex_username, all_lib))
+            self.cur.execute("INSERT INTO user VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (plex_id, tg_id, credits, donate, plex_email, plex_username, all_lib, unlock_time))
         except Exception as e:
             logging.error(f"Error: {e}")
             return False
@@ -62,12 +63,12 @@ class DB:
             self.con.commit()
         return True
 
-    def update_all_lib_flag(self, all_lib: int, plex_id=None, tg_id=None):
+    def update_all_lib_flag(self, all_lib: int, unlock_time=None, plex_id=None, tg_id=None):
         try:
             if plex_id:
-                self.cur.execute("UPDATE user SET all_lib=? WHERE plex_id=?", (all_lib, plex_id))
+                self.cur.execute("UPDATE user SET all_lib=?,unlock_time=? WHERE plex_id=?", (all_lib, unlock_time, plex_id))
             elif tg_id:
-                self.cur.execute("UPDATE user SET all_lib=? WHERE tg_id=?", (all_lib, tg_id))            
+                self.cur.execute("UPDATE user SET all_lib=?,unlock_time=? WHERE tg_id=?", (all_lib, unlock_time, tg_id))            
             else:
                 logging.error("Error: there is no enough params")
         except Exception as e:
@@ -76,8 +77,6 @@ class DB:
         else:
             self.con.commit()
         return True
-
-       
 
     def get_info_by_tg_id(self, tg_id):
         rslt = self.cur.execute("SELECT * FROM user WHERE tg_id = ?", (tg_id,))

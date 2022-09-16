@@ -1,12 +1,13 @@
 import logging
+import time
 
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
 from plex import Plex
 from db import DB
 from tautulli import Tautulli
-from settings import TG_API_TOKEN, ADMIN_CHAT_ID
-from utils import get_user_total_duration
+from settings import TG_API_TOKEN, ADMIN_CHAT_ID, UNLOCK_CREDITS
+from utils import get_user_total_duration, caculate_credits_fund
 
 
 logging.basicConfig(
@@ -22,14 +23,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 普通命令：
 /info - 查看个人信息
 /bind - 绑定 Plex 用户，格式为 `/bind 邮箱` (注意空格)
-/unlock - 解锁全部库权限, 消耗 100 积分
-/lock - 关闭 NSFW 权限, 返还 50 积分
+/unlock - 解锁全部库权限, 消耗 {} 积分
+/lock - 关闭 NSFW 权限, 积分返还规则：一天内返还 90%, 7 天内 70%, 一月内 50%，超出一个月 0
 /credits\_rank - 查看积分榜
 /donation\_rank - 查看捐赠榜
 
 管理员命令：
 /set\_donation - 设置捐赠金额
-    """
+    """.format(UNLOCK_CREDITS)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=body_text, parse_mode="markdown")
 
 # 绑定账户
@@ -111,11 +112,11 @@ async def unlock(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         _db.close()
         await context.bot.send_message(chat_id=chat_id, text="错误: 您已拥有全部库权限, 无需解锁")
         return
-    if _credits < 100:
+    if _credits < UNLOCK_CREDITS:
         await context.bot.send_message(chat_id=chat_id, text="错误: 您的积分不足, 解锁失败")
         _db.close()
         return
-    _credits -= 100
+    _credits -= UNLOCK_CREDITS
     _plex = Plex()
     # 更新权限
     try:
@@ -124,13 +125,15 @@ async def unlock(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await context.bot.send_message(chat_id=chat_id, text="错误: 更新权限失败, 请联系管理员")
         _db.close()
         return
+    # 解锁权限的时间
+    unlock_time = time.time()
     # 更新数据库
     res = _db.update_user_credits(_credits, plex_id=_plex_id)
     if not res:
         _db.close()
         await context.bot.send_message(chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员")
         return
-    res = _db.update_all_lib_flag(all_lib=1, plex_id=_plex_id)
+    res = _db.update_all_lib_flag(all_lib=1, unlock_time=unlock_time, plex_id=_plex_id)
     if not res:
         _db.close()
         await context.bot.send_message(chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员")
@@ -150,11 +153,13 @@ async def lock(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     _plex_id = _info[0]
     _credits = _info[2]
     _all_lib = _info[6]
+    _unlock_time = _info[7]
     if _all_lib == 0:
         _db.close()
         await context.bot.send_message(chat_id=chat_id, text="错误: 您未解锁 NSFW 内容")
         return
-    _credits += 50
+    _credits_fund = caculate_credits_fund(_unlock_time, UNLOCK_CREDITS)
+    _credits += _credits_fund
     _plex = Plex()
     # 更新权限
     sections = _plex.get_libraries()
@@ -172,13 +177,13 @@ async def lock(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         _db.close()
         await context.bot.send_message(chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员")
         return
-    res = _db.update_all_lib_flag(all_lib=1, plex_id=_plex_id)
+    res = _db.update_all_lib_flag(all_lib=0, unlock_time=None, plex_id=_plex_id)
     if not res:
         _db.close()
         await context.bot.send_message(chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员")
         return
     _db.close()
-    await context.bot.send_message(chat_id=chat_id, text="信息: 成功关闭 NSFW 内容")
+    await context.bot.send_message(chat_id=chat_id, text=f"信息: 成功关闭 NSFW 内容, 退回积分 {_credits_fund}")
 
    
 # 积分榜
@@ -199,7 +204,7 @@ async def donation_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     chat_id = update._effective_chat.id
     _db = DB()
     res = _db.get_donation_rank()
-    rank = [f"{i}. {info[2]}: {info[3]}" for i, info in enumerate(res, 1) if info[3] > 0]
+    rank = [f"{i}. {info[2]}: {info[3]:.2f}" for i, info in enumerate(res, 1) if info[3] > 0]
     body_text = """
 <strong>捐赠榜</strong>
 ==================
