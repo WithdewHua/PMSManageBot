@@ -163,7 +163,7 @@ async def lock(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     _plex = Plex()
     # 更新权限
     sections = _plex.get_libraries()
-    for section in ["NSFW", "NC17-Movies"]:
+    for section in ["NSFW", "NC17 Movies"]:
         sections.remove(section) 
     try:
         _plex.update_user_shared_libs(_plex_id, sections)
