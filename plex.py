@@ -2,7 +2,7 @@
 
 from plexapi.server import PlexServer
 from plexapi.myplex import Section
-from settings import PLEX_BASE_URL, PLEX_API_TOKEN
+from settings import PLEX_BASE_URL, PLEX_API_TOKEN, NSFW_LIBS
 
 
 class Plex:
@@ -57,3 +57,8 @@ class Plex:
     def update_user_shared_libs(self, user_id, libs: list):
         """update shared libraries with specified user by id"""
         self.my_plex_account.updateFriend(self.my_plex_account.user(user_id), self.plex_server, sections=libs)
+
+    def invite_friend(self, user, libs=None):
+        if libs is None:
+            libs = list(set(self.get_libraries()).difference(set(NSFW_LIBS)))
+        self.my_plex_account.inviteFriend(user, self.plex_server, sections=libs)

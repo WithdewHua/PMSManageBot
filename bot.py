@@ -1,12 +1,17 @@
 import logging
-import time
+from time import time
+
+from uuid import uuid3, NAMESPACE_URL
 
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
 from plex import Plex
 from db import DB
 from tautulli import Tautulli
-from settings import TG_API_TOKEN, ADMIN_CHAT_ID, UNLOCK_CREDITS
+from settings import (
+    TG_API_TOKEN, ADMIN_CHAT_ID, UNLOCK_CREDITS, INVITATION_CREDITS,
+    NSFW_LIBS
+)
 from utils import get_user_total_duration, caculate_credits_fund
 
 
@@ -25,12 +30,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 /bind - 绑定 Plex 用户，格式为 `/bind 邮箱` (注意空格)
 /unlock - 解锁全部库权限, 消耗 {} 积分
 /lock - 关闭 NSFW 权限, 积分返还规则：一天内返还 90%, 7 天内 70%, 一月内 50%，超出一个月 0
+/exchange - 生成邀请码，消耗 {} 积分
+/redeem - 兑换邀请码，格式为 `/redeem 邮箱 邀请码` (注意空格)
 /credits\_rank - 查看积分榜
 /donation\_rank - 查看捐赠榜
 
 管理员命令：
 /set\_donation - 设置捐赠金额
-    """.format(UNLOCK_CREDITS)
+    """.format(UNLOCK_CREDITS, INVITATION_CREDITS)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=body_text, parse_mode="markdown")
 
 # 绑定账户
@@ -76,11 +83,85 @@ async def bind(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     await context.bot.send_message(chat_id=chat_id, text=f"信息： 绑定用户 {plex_id} 成功")
 
+# 生成邀请码
+async def exchange(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update._effective_chat.id
+    _db = DB()
+    _info = _db.get_info_by_tg_id(chat_id)
+    if _info is None:
+        _db.close()
+        await context.bot.send_message(chat_id=chat_id, text="错误：未绑定 Plex，请先绑定")
+        return
+    _credits = _info[2] 
+    _plex_id = _info[0]
+    # 检查剩余积分
+    if _credits < INVITATION_CREDITS:
+        _db.close()
+        await context.bot.send_message(chat_id=chat_id, text="错误：您的积分不足，无法兑换邀请码")
+        return
+    _credits -= INVITATION_CREDITS
+    # 生成邀请码
+    _code = uuid3(NAMESPACE_URL, str(_plex_id + time())).hex
+    # 更新数据库
+    # > 先更新邀请码
+    res = _db.add_invitation_code(code=_code, owner=chat_id)
+    if not res:
+        _db.close()
+        await context.bot.send_message(chat_id=chat_id, text="错误: 更新邀请码失败, 请联系管理员")
+        return
+    # > 再更新积分情况
+    res = _db.update_user_credits(_credits, plex_id=_plex_id)
+    if not res:
+        _db.close()
+        await context.bot.send_message(chat_id=chat_id, text="错误: 更新积分失败, 请联系管理员")
+        return
+    _db.close()
+    await context.bot.send_message(chat_id=chat_id, text="""信息: 生成邀请码成功，邀请码为 `{}`""".format(_code), parse_mode="markdown")
+
+# 用户兑换邀请码
+async def redeem(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update._effective_chat.id
+    text = update.message.text
+    text_parts = text.split()
+    if len(text_parts) != 3:
+        await context.bot.send_message(chat_id=chat_id, text="错误：请按照格式填写")
+        return
+    plex_email = text_parts[1]
+    code = text_parts[2]
+    _db = DB()
+    res = _db.verify_invitation_code_is_used(code)
+    if not res:
+        await context.bot.send_message(chat_id=chat_id, text="错误：您输入的邀请码无效")
+        _db.close()
+        return
+    if res[0]:
+        await context.bot.send_message(chat_id=chat_id, text="错误：您输入的邀请码已被使用")
+        _db.close()
+        return
+    _plex = Plex()
+    # 检查该用户是否已经被邀请
+    if plex_email in _plex.users_by_email:
+        await context.bot.send_message(chat_id=chat_id, text="错误：该用户已被邀请")
+        _db.close()
+        return
+    # 发送邀请
+    _plex.invite_friend(plex_email)
+    # 更新邀请码状态
+    res = _db.update_invitation_status(code=code, used_by=plex_email)
+    if not res:
+        await context.bot.send_message(chat_id=chat_id, text="错误：更新邀请码状态失败，请联系管理员")
+        _db.close()
+        return
+    _db.close()
+    await context.bot.send_message(chat_id=chat_id, text="信息：兑换邀请码成功，请登录 Plex 确认邀请")
+
+
 # 查看个人信息
 async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
     _db = DB()
     _info = _db.get_info_by_tg_id(chat_id)
+    _codes = _db.get_invitation_code_by_owner(chat_id)
     _db.close()
     if _info is None:
         await context.bot.send_message(chat_id=chat_id, text="错误：未绑定 Plex，请先绑定")
@@ -93,6 +174,7 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 <strong>可用积分：</strong>{credits:.2f}
 <strong>捐赠金额：</strong>{donate:.2f}
 <strong>当前权限：</strong>{"全部" if all_lib == 1 else "部分"}
+<strong>可用邀请码：</strong>{"无" if not _codes else ", ".join(_codes)}
 """
     await context.bot.send_message(chat_id=chat_id, text=body_text, parse_mode="HTML")
 
@@ -163,7 +245,7 @@ async def lock(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     _plex = Plex()
     # 更新权限
     sections = _plex.get_libraries()
-    for section in ["NSFW", "NC17 Movies"]:
+    for section in NSFW_LIBS:
         sections.remove(section) 
     try:
         _plex.update_user_shared_libs(_plex_id, sections)
@@ -266,6 +348,8 @@ if __name__ == '__main__':
     set_donation_handler = CommandHandler("set_donation", set_donation)
     unlock_handler = CommandHandler("unlock", unlock)
     lock_handler = CommandHandler("lock", lock)
+    exchange_handler = CommandHandler("exchange", exchange)
+    redeem_handler = CommandHandler("redeem", redeem)
     application.add_handler(start_handler)
     application.add_handler(bind_handler)
     application.add_handler(info_handler)
@@ -274,6 +358,8 @@ if __name__ == '__main__':
     application.add_handler(set_donation_handler)
     application.add_handler(unlock_handler)
     application.add_handler(lock_handler)
+    application.add_handler(exchange_handler)
+    application.add_handler(redeem_handler)
 
     application.run_polling()
 
