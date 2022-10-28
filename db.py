@@ -15,21 +15,32 @@ class DB:
         
     def create_table(self):
         try:
-            self.cur.execute("CREATE TABLE user(plex_id, tg_id, credits, donate, plex_email, plex_username, init_lib, all_lib, unlock_time)")
+            self.cur.execute("CREATE TABLE user(plex_id, tg_id, credits, donate, plex_email, plex_username, init_lib, all_lib, unlock_time, watched_time)")
         except sqlite3.OperationalError:
             logging.warning("Table user is created already, skip...")
         else:
             self.con.commit()
     
-    def add_user(self, plex_id, tg_id, plex_email, plex_username, credits: int=0, donate: int=0, all_lib=0, unlock_time=None):
+    def add_user(self, plex_id, tg_id, plex_email, plex_username, credits: int=0, donate: int=0, all_lib=0, unlock_time=None, watched_time=0):
         try:
-            self.cur.execute("INSERT INTO user VALUES (?, ?, ?, ?, ?, ?, ?, ?)", (plex_id, tg_id, credits, donate, plex_email, plex_username, all_lib, unlock_time))
+            self.cur.execute("INSERT INTO user VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", (plex_id, tg_id, credits, donate, plex_email, plex_username, all_lib, unlock_time, watched_time))
         except Exception as e:
             logging.error(f"Error: {e}")
             return False
         else:
             self.con.commit()
         return True
+
+    def update_user(self, plex_id, tg_id):
+        try:
+            self.cur.execute("UPDATE user SET tg_id=? WHERE plex_id=?", (plex_id, tg_id))
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            return False
+        else:
+            self.con.commit()
+        return True
+
 
     def add_invitation_code(self, code, owner, is_used=0, used_by=None) -> bool:
         try:
@@ -104,6 +115,11 @@ class DB:
         info = rslt.fetchone()
         return info
 
+    def get_info_by_plex_id(self, plex_id):
+        rslt = self.cur.execute("SELECT * FROM user WHERE plex_id = ?", (plex_id,))
+        info = rslt.fetchone()
+        return info
+
     def get_credits_rank(self):
         rslt = self.cur.execute("SELECT plex_id,tg_id,plex_username,credits FROM user ORDER BY credits DESC")
         res = rslt.fetchall()
@@ -111,6 +127,11 @@ class DB:
 
     def get_donation_rank(self):
         rslt = self.cur.execute("SELECT plex_id,tg_id,plex_username,donate FROM user ORDER BY donate DESC")
+        res = rslt.fetchall()
+        return res
+
+    def get_watched_time_rank(self):
+        rslt = self.cur.execute("SELECT plex_id,tg_id,plex_username,watched_time FROM user ORDER BY watched_time DESC")
         res = rslt.fetchall()
         return res
 

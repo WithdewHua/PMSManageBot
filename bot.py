@@ -13,6 +13,7 @@ from settings import (
     NSFW_LIBS
 )
 from utils import get_user_total_duration, caculate_credits_fund
+from update_db import add_all_plex_user
 
 
 logging.basicConfig(
@@ -34,9 +35,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 /redeem - 兑换邀请码，格式为 `/redeem 邮箱 邀请码` (注意空格)
 /credits\_rank - 查看积分榜
 /donation\_rank - 查看捐赠榜
+/play\_duration\_rank - 查看观看时长榜
 
 管理员命令：
 /set\_donation - 设置捐赠金额
+/update\_database - 更新数据库
+
+群组：https://t.me/+VCHVfOhRTAxmOGE9
     """.format(UNLOCK_CREDITS, INVITATION_CREDITS)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=body_text, parse_mode="markdown")
 
@@ -63,25 +68,33 @@ async def bind(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         _db.close()
         await context.bot.send_message(chat_id=chat_id, text="错误：该用户不是 @WithdewHua 好友，请检查输入的邮箱")
         return
-    plex_username = _plex.get_username_by_user_id(plex_id)
-    plex_cur_libs = _plex.get_user_shared_libs_by_id(plex_id)
-    plex_all_lib = 1 if not set(_plex.get_libraries()).difference(set(plex_cur_libs)) else 0
-    # 初始化积分
-    try:
-        user_total_duration = get_user_total_duration(Tautulli().get_home_stats(365, "duration", len(_plex.users_by_id), stat_id="top_users"))
-    except Exception as e:
+    # 检查数据库中是否存在该 plex_id，如存在直接更新 tg_id
+    if _db.get_info_by_plex_id(plex_id):
+        rslt = _db.update_user(plex_id, chat_id)
         _db.close()
-        logging.error("Error: ", e)
-        await context.bot.send_message(chat_id=chat_id, text="错误：获取用户观看时长失败，请联系管理员 @WithdewHua")
-        return
-    credits = user_total_duration.get(plex_id, 0)
-    # 写入数据库
-    rslt = _db.add_user(plex_id, chat_id, email, plex_username, credits=credits, all_lib=plex_all_lib)
-    _db.close()
-    if not rslt:
-        await context.bot.send_message(chat_id=chat_id, text="错误：数据库错误，请联系管理员 @WithdewHua")
-        return
-    await context.bot.send_message(chat_id=chat_id, text=f"信息： 绑定用户 {plex_id} 成功")
+        if not rslt:
+            await context.bot.send_message(chat_id=chat_id, text="错误：数据库错误，请联系管理员 @WithdewHua")
+            return
+    else:
+        plex_username = _plex.get_username_by_user_id(plex_id)
+        plex_cur_libs = _plex.get_user_shared_libs_by_id(plex_id)
+        plex_all_lib = 1 if not set(_plex.get_libraries()).difference(set(plex_cur_libs)) else 0
+        # 初始化积分
+        try:
+            user_total_duration = get_user_total_duration(Tautulli().get_home_stats(1365, "duration", len(_plex.users_by_id), stat_id="top_users"))
+        except Exception as e:
+            _db.close()
+            logging.error("Error: ", e)
+            await context.bot.send_message(chat_id=chat_id, text="错误：获取用户观看时长失败，请联系管理员 @WithdewHua")
+            return
+        credits = user_total_duration.get(plex_id, 0)
+        # 写入数据库
+        rslt = _db.add_user(plex_id, chat_id, email, plex_username, credits=credits, all_lib=plex_all_lib, watched_time=credits)
+        _db.close()
+        if not rslt:
+            await context.bot.send_message(chat_id=chat_id, text="错误：数据库错误，请联系管理员 @WithdewHua")
+            return
+    await context.bot.send_message(chat_id=chat_id, text=f"信息： 绑定用户 {plex_id} 成功，请加入群组 https://t.me/+VCHVfOhRTAxmOGE9 并仔细阅读群置顶")
 
 # 生成邀请码
 async def exchange(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -153,7 +166,7 @@ async def redeem(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         _db.close()
         return
     _db.close()
-    await context.bot.send_message(chat_id=chat_id, text="信息：兑换邀请码成功，请登录 Plex 确认邀请")
+    await context.bot.send_message(chat_id=chat_id, text="信息：兑换邀请码成功，请登录 Plex 确认邀请，更多帮助请加入群组 https://t.me/+VCHVfOhRTAxmOGE9")
 
 
 # 查看个人信息
@@ -169,10 +182,12 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     credits = _info[2]
     donate = _info[3]
     all_lib = _info[6]
+    watched_time = _info[8]
     body_text = f"""
 <strong>Plex 用户名：</strong>{_info[5]}
 <strong>可用积分：</strong>{credits:.2f}
 <strong>捐赠金额：</strong>{donate:.2f}
+<strong>总观看时长：</strong>{watched_time:.2f}h
 <strong>当前权限：</strong>{"全部" if all_lib == 1 else "部分"}
 <strong>可用邀请码：</strong>{"无" if not _codes else ", ".join(_codes)}
 """
@@ -298,6 +313,21 @@ async def donation_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await context.bot.send_message(chat_id=chat_id, text=body_text, parse_mode="HTML")
 
 
+# 观看时长榜
+async def watched_time_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update._effective_chat.id
+    _db = DB()
+    res = _db.get_watched_time_rank()
+    rank = [f"{i}. {info[2]}: {info[3]:.2f}" for i, info in enumerate(res, 1) if i <= 10]
+    body_text = """
+<strong>观看时长榜 (Hour)</strong>
+==================
+{}
+    """.format("\n".join(rank))        
+    await context.bot.send_message(chat_id=chat_id, text=body_text, parse_mode="HTML")
+
+
+
 # 管理员命令: 设置捐赠信息
 async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
@@ -336,6 +366,20 @@ async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     # 通知该用户
     await context.bot.send_message(chat_id=tg_id, text=f"通知：感谢您的捐赠，已为您增加积分 {donation * 2}")
 
+# 管理员命令：更新数据库
+async def update_database(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update._effective_chat.id
+    if chat_id not in ADMIN_CHAT_ID:
+        await context.bot.send_message(chat_id=chat_id, text="错误：越权操作")
+        return
+    try:
+        add_all_plex_user()
+    except Exception as e:
+        await context.bot.send_message(chat_id=chat_id, text="错误：更新数据库失败，请检查")
+        return
+    
+    await context.bot.send_message(chat_id=chat_id, text=f"信息：更新数据库成功")
+
 
 if __name__ == '__main__':
     application = ApplicationBuilder().token(TG_API_TOKEN).build()
@@ -345,21 +389,25 @@ if __name__ == '__main__':
     info_handler = CommandHandler("info", info)
     credits_rank_handler = CommandHandler("credits_rank", credits_rank)
     donation_rank_handler = CommandHandler("donation_rank", donation_rank)
+    watched_time_rank_handler = CommandHandler("play_duration_rank", watched_time_rank)
     set_donation_handler = CommandHandler("set_donation", set_donation)
     unlock_handler = CommandHandler("unlock", unlock)
     lock_handler = CommandHandler("lock", lock)
     exchange_handler = CommandHandler("exchange", exchange)
     redeem_handler = CommandHandler("redeem", redeem)
+    update_database_handler = CommandHandler("update_database", update_database)
     application.add_handler(start_handler)
     application.add_handler(bind_handler)
     application.add_handler(info_handler)
     application.add_handler(credits_rank_handler)
     application.add_handler(donation_rank_handler)
+    application.add_handler(watched_time_rank_handler)
     application.add_handler(set_donation_handler)
     application.add_handler(unlock_handler)
     application.add_handler(lock_handler)
     application.add_handler(exchange_handler)
     application.add_handler(redeem_handler)
+    application.add_handler(update_database_handler)
 
     application.run_polling()
 
