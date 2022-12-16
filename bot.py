@@ -151,6 +151,7 @@ async def redeem(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await context.bot.send_message(chat_id=chat_id, text="错误：您输入的邀请码已被使用")
         _db.close()
         return
+    owner = res[1]
     _plex = Plex()
     # 检查该用户是否已经被邀请
     if plex_email in _plex.users_by_email:
@@ -167,6 +168,8 @@ async def redeem(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     _db.close()
     await context.bot.send_message(chat_id=chat_id, text="信息：兑换邀请码成功，请登录 Plex 确认邀请，更多帮助请加入群组 https://t.me/+VCHVfOhRTAxmOGE9")
+    for admin in ADMIN_CHAT_ID:
+        await context.bot.send_message(chat_id=admin, text=f"信息：tg://user?id={owner} 成功邀请 {plex_email}")
 
 
 # 查看个人信息

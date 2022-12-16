@@ -136,7 +136,7 @@ class DB:
         return res
 
     def verify_invitation_code_is_used(self, code):
-        rslt = self.cur.execute("SELECT is_used FROM invitation WHERE code=?", (code,))
+        rslt = self.cur.execute("SELECT is_used,owner FROM invitation WHERE code=?", (code,))
         res = rslt.fetchone()
         return res
 
