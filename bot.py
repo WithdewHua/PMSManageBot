@@ -29,8 +29,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 普通命令：
 /info - 查看个人信息
 /bind - 绑定 Plex 用户，格式为 `/bind 邮箱` (注意空格)
-/unlock - 解锁全部库权限, 消耗 {} 积分
-/lock - 关闭 NSFW 权限, 积分返还规则：一天内返还 90%, 7 天内 70%, 一月内 50%，超出一个月 0
+/unlock_nsfw - 解锁 NSFW 相关库权限, 消耗 {} 积分
+/lock_nsfw - 关闭 NSFW 权限, 积分返还规则：一天内返还 90%, 7 天内 70%, 一月内 50%，超出一个月 0
 /exchange - 生成邀请码，消耗 {} 积分
 /redeem - 兑换邀请码，格式为 `/redeem 邮箱 邀请码` (注意空格)
 /credits\_rank - 查看积分榜
@@ -196,8 +196,8 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 """
     await context.bot.send_message(chat_id=chat_id, text=body_text, parse_mode="HTML")
 
-# 解锁所有库权限
-async def unlock(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+# 解锁 nsfw 库权限
+async def unlock_nsfw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
     _db = DB()
     _info = _db.get_info_by_tg_id(chat_id)
@@ -226,7 +226,7 @@ async def unlock(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         _db.close()
         return
     # 解锁权限的时间
-    unlock_time = time.time()
+    unlock_time = time()
     # 更新数据库
     res = _db.update_user_credits(_credits, plex_id=_plex_id)
     if not res:
@@ -242,7 +242,7 @@ async def unlock(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await context.bot.send_message(chat_id=chat_id, text="信息: 解锁成功, 请尽情享受")
 
  # 锁定 NSFW 权限
-async def lock(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def lock_nsfw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
     _db = DB()
     _info = _db.get_info_by_tg_id(chat_id)
@@ -394,8 +394,8 @@ if __name__ == '__main__':
     donation_rank_handler = CommandHandler("donation_rank", donation_rank)
     watched_time_rank_handler = CommandHandler("play_duration_rank", watched_time_rank)
     set_donation_handler = CommandHandler("set_donation", set_donation)
-    unlock_handler = CommandHandler("unlock", unlock)
-    lock_handler = CommandHandler("lock", lock)
+    unlock_nsfw_handler = CommandHandler("unlock_nsfw", unlock_nsfw)
+    lock_nsfw_handler = CommandHandler("lock_nsfw", lock_nsfw)
     exchange_handler = CommandHandler("exchange", exchange)
     redeem_handler = CommandHandler("redeem", redeem)
     update_database_handler = CommandHandler("update_database", update_database)
@@ -406,8 +406,8 @@ if __name__ == '__main__':
     application.add_handler(donation_rank_handler)
     application.add_handler(watched_time_rank_handler)
     application.add_handler(set_donation_handler)
-    application.add_handler(unlock_handler)
-    application.add_handler(lock_handler)
+    application.add_handler(unlock_nsfw_handler)
+    application.add_handler(lock_nsfw_handler)
     application.add_handler(exchange_handler)
     application.add_handler(redeem_handler)
     application.add_handler(update_database_handler)

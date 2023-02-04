@@ -34,6 +34,7 @@ def update_credits():
         
 
 def update_plex_info():
+    """更新 plex 用户信息"""
     _db = DB()
     _plex = Plex()
     try:
@@ -51,6 +52,7 @@ def update_plex_info():
 
 
 def update_all_lib():
+    """更新用户资料库权限状态"""
     _db = DB()
     _plex = Plex()
     try:
@@ -74,7 +76,10 @@ def update_all_lib():
         _db.close()
         
 
+
+
 def update_watched_time():
+    """更新用户观看时长"""
     duration = get_user_total_duration(Tautulli().get_home_stats(1365, "duration", len(Plex().users_by_id), "top_users"))
     _db = DB()
     try:

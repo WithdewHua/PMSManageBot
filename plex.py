@@ -1,5 +1,7 @@
 #!/user/bin/env python3
 
+import logging
+
 from plexapi.server import PlexServer
 from plexapi.myplex import Section
 from settings import PLEX_BASE_URL, PLEX_API_TOKEN, NSFW_LIBS
@@ -52,7 +54,7 @@ class Plex:
         """Verify if specified user has permission with all libraries"""
         if self.get_username_by_user_id(user_id) == "水长东":
             return True
-        return True  if self.my_plex_account.user(user_id).server(self.plex_server_name).numLibraries == 5 else False
+        return True  if self.my_plex_account.user(user_id).server(self.plex_server_name).numLibraries == 6 else False
         
     def update_user_shared_libs(self, user_id, libs: list):
         """update shared libraries with specified user by id"""
@@ -62,3 +64,21 @@ class Plex:
         if libs is None:
             libs = list(set(self.get_libraries()).difference(set(NSFW_LIBS)))
         self.my_plex_account.inviteFriend(user, self.plex_server, sections=libs)
+
+    def add_shared_libs_for_all_users(self, add_sections=[]):
+        """更新所有用户的资料库权限"""
+
+        for email, user_info in self.users_by_email.items():
+            if (not email) or email == "i@10101.io":
+                continue
+            else:
+                try:
+                    cur_libs = self.get_user_shared_libs_by_id(user_info[0])
+                    cur_libs.extend(add_sections)
+                    new_libs = list(set(cur_libs))
+                    self.update_user_shared_libs(user_info[0], libs=new_libs)
+                except:
+                    logging.error(f"Failed to update libraries({', '.join(new_libs)}) for {user_info[1].username}")
+                    continue
+
+
