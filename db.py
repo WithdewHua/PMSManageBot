@@ -33,7 +33,7 @@ class DB:
 
     def update_user(self, plex_id, tg_id):
         try:
-            self.cur.execute("UPDATE user SET tg_id=? WHERE plex_id=?", (plex_id, tg_id))
+            self.cur.execute("UPDATE user SET tg_id=? WHERE plex_id=?", (tg_id, plex_id))
         except Exception as e:
             logging.error(f"Error: {e}")
             return False

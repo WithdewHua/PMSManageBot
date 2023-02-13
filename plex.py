@@ -45,14 +45,14 @@ class Plex:
 
     def get_user_shared_libs_by_id(self, user_id) -> list:
         """get shared libraries with specified user by id"""
-        if self.get_username_by_user_id(user_id) == "水长东":
+        if self.get_username_by_user_id(user_id) == "GGBond":
             return self.get_libraries()
         data = self.my_plex_account.user(user_id).server(self.plex_server_name)._server.query(self.my_plex_account.FRIENDSERVERS.format(machineId=self.plex_server.machineIdentifier, serverId=self.my_plex_account.user(user_id).server(self.plex_server_name).id))
         return [section.title for section in self.plex_server.findItems(data, Section, rtag="SharedServer", **{"shared": 1})]
         
     def verify_all_libraries(self, user_id) -> bool:
         """Verify if specified user has permission with all libraries"""
-        if self.get_username_by_user_id(user_id) == "水长东":
+        if self.get_username_by_user_id(user_id) == "GGBond":
             return True
         return True  if self.my_plex_account.user(user_id).server(self.plex_server_name).numLibraries == 6 else False
         
