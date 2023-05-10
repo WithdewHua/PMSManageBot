@@ -29,8 +29,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 普通命令：
 /info - 查看个人信息
 /bind - 绑定 Plex 用户，格式为 `/bind 邮箱` (注意空格)
-/unlock_nsfw - 解锁 NSFW 相关库权限, 消耗 {} 积分
-/lock_nsfw - 关闭 NSFW 权限, 积分返还规则：一天内返还 90%, 7 天内 70%, 一月内 50%，超出一个月 0
+/unlock\_nsfw - 解锁 NSFW 相关库权限, 消耗 {} 积分
+/lock\_nsfw - 关闭 NSFW 权限, 积分返还规则：一天内返还 90%, 7 天内 70%, 一月内 50%，超出一个月 0
 /exchange - 生成邀请码，消耗 {} 积分
 /redeem - 兑换邀请码，格式为 `/redeem 邮箱 邀请码` (注意空格)
 /credits\_rank - 查看积分榜
