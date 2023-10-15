@@ -1,4 +1,5 @@
 import logging
+import textwrap
 from time import time
 
 from uuid import uuid3, NAMESPACE_URL
@@ -6,6 +7,7 @@ from uuid import uuid3, NAMESPACE_URL
 from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
 from plex import Plex
+from emby import Emby
 from db import DB
 from tautulli import Tautulli
 from settings import (
@@ -16,37 +18,38 @@ from utils import get_user_total_duration, caculate_credits_fund
 from update_db import add_all_plex_user
 
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
-
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     body_text = """
-欢迎来到 FunMedia 小助手
+    欢迎来到 FunMedia 小助手
 
-普通命令：
-/info - 查看个人信息
-/bind - 绑定 Plex 用户，格式为 `/bind 邮箱` (注意空格)
-/unlock\_nsfw - 解锁 NSFW 相关库权限, 消耗 {} 积分
-/lock\_nsfw - 关闭 NSFW 权限, 积分返还规则：一天内返还 90%, 7 天内 70%, 一月内 50%，超出一个月 0
-/exchange - 生成邀请码，消耗 {} 积分
-/redeem - 兑换邀请码，格式为 `/redeem 邮箱 邀请码` (注意空格)
-/credits\_rank - 查看积分榜
-/donation\_rank - 查看捐赠榜
-/play\_duration\_rank - 查看观看时长榜
+    公共命令：
+    /info - 查看个人信息
+    /exchange - 生成邀请码，消耗 {} 积分
+    /credits\_rank - 查看积分榜
+    /donation\_rank - 查看捐赠榜
+    /play\_duration\_rank - 查看观看时长榜
 
-管理员命令：
-/set\_donation - 设置捐赠金额
-/update\_database - 更新数据库
 
-群组：https://t.me/+VCHVfOhRTAxmOGE9
+    Plex 命令:
+    /bind\_plex - 绑定 Plex 用户，格式为 `/bind_plex 邮箱` (注意空格)
+    /unlock\_nsfw\_plex - 解锁 NSFW 相关库权限, 消耗 {} 积分
+    /lock\_nsfw\_plex - 关闭 NSFW 权限, 积分返还规则：一天内返还 90%, 7 天内 70%, 一月内 50%，超出一个月 0
+    /redeem\_plex - 兑换邀请码，格式为 `/redeem_plex 邮箱 邀请码` (注意空格)
+    
+    Emby 命令:
+    /bind\_emby - 绑定 Emby 用户，格式为 `/bind_emby 用户名` (注意空格)
+    /redeem\_emby - 兑换邀请码，格式为 `/redeem_emby 用户名 邀请码` (注意空格)
+
+    管理员命令：
+    /set\_donation - 设置捐赠金额
+    /update\_database - 更新数据库
+
+    群组：https://t.me/+VCHVfOhRTAxmOGE9
     """.format(UNLOCK_CREDITS, INVITATION_CREDITS)
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=body_text, parse_mode="markdown")
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=textwrap.dedent(body_text), parse_mode="markdown")
 
 # 绑定账户
-async def bind(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def bind_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
     text = update.message.text
     text = text.split()
@@ -55,7 +58,7 @@ async def bind(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     email = text[1]
     _db = DB()
-    _info = _db.get_info_by_tg_id(chat_id)
+    _info = _db.get_plex_info_by_tg_id(chat_id)
     if _info:
         _db.close()
         await context.bot.send_message(chat_id=chat_id, text="信息：已绑定 Plex 账户，请勿重复操作")
@@ -69,52 +72,123 @@ async def bind(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await context.bot.send_message(chat_id=chat_id, text="错误：该用户不是 @WithdewHua 好友，请检查输入的邮箱")
         return
     # 检查数据库中是否存在该 plex_id，如存在直接更新 tg_id
-    if _db.get_info_by_plex_id(plex_id):
-        rslt = _db.update_user(plex_id, chat_id)
+    plex_info = _db.get_plex_info_by_plex_id(plex_id)
+
+    if plex_info:
+        rslt = _db.update_user_tg_id(chat_id, plex_id=plex_id)
         _db.close()
         if not rslt:
             await context.bot.send_message(chat_id=chat_id, text="错误：数据库错误，请联系管理员 @WithdewHua")
             return
+        # plex 用户表中的积分信息
+        plex_credits = plex_info[2]
+        # 清空 plex 用户表中积分信息
+        _db.update_user_credits(0, plex_id=plex_info[0])
     else:
         plex_username = _plex.get_username_by_user_id(plex_id)
         plex_cur_libs = _plex.get_user_shared_libs_by_id(plex_id)
         plex_all_lib = 1 if not set(_plex.get_libraries()).difference(set(plex_cur_libs)) else 0
         # 初始化积分
         try:
-            user_total_duration = get_user_total_duration(Tautulli().get_home_stats(1365, "duration", len(_plex.users_by_id), stat_id="top_users"))
+            user_total_duration = get_user_total_duration(Tautulli().get_home_stats(
+                1365, 
+                "duration", 
+                len(_plex.users_by_id), stat_id="top_users")
+            )
         except Exception as e:
             _db.close()
             logging.error("Error: ", e)
             await context.bot.send_message(chat_id=chat_id, text="错误：获取用户观看时长失败，请联系管理员 @WithdewHua")
             return
-        credits = user_total_duration.get(plex_id, 0)
+        plex_credits = user_total_duration.get(plex_id, 0)
         # 写入数据库
-        rslt = _db.add_user(plex_id, chat_id, email, plex_username, credits=credits, all_lib=plex_all_lib, watched_time=credits)
+        rslt = _db.add_plex_user(
+            plex_id=plex_id, tg_id=chat_id, plex_email=email, plex_username=plex_username, 
+            credits=0, all_lib=plex_all_lib, watched_time=plex_credits
+        )
+
         _db.close()
         if not rslt:
             await context.bot.send_message(chat_id=chat_id, text="错误：数据库错误，请联系管理员 @WithdewHua")
             return
-    await context.bot.send_message(chat_id=chat_id, text=f"信息： 绑定用户 {plex_id} 成功，请加入群组 https://t.me/+VCHVfOhRTAxmOGE9 并仔细阅读群置顶")
+    # 获取用户数据表信息
+    stats_info = _db.get_stats_by_tg_id(chat_id)
+    # 更新用户数据表
+    if stats_info:
+        tg_user_credits = stats_info[2] + plex_credits
+        _db.update_user_credits(tg_user_credits, tg_id=chat_id)
+    else:
+        _db.add_user_data(chat_id, credits=plex_credits)
+ 
+    await context.bot.send_message(
+        chat_id=chat_id, 
+        text=f"信息： 绑定 Plex 用户 {plex_id} 成功，请加入群组 https://t.me/+VCHVfOhRTAxmOGE9 并仔细阅读群置顶"
+    )
+
+async def bind_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    text = update.message.text
+    text = text.split()
+    if len(text) != 2:
+        await context.bot.send_message(chat_id=chat_id, text="错误：请按照格式填写")
+        return
+    emby_username = text[1]
+    db = DB()
+    info = db.get_emby_info_by_tg_id(chat_id)
+    if info:
+        db.close()
+        await context.bot.send_message(chat_id=chat_id, text="信息: 已绑定 Emby 账户, 请勿重复操作")
+        return
+    emby = Emby()
+    # 检查 emby 用户是否存在
+    uid = emby.get_uid_from_username(emby_username)
+    if not uid:
+        db.close()
+        await context.bot.send_message(chat_id=chat_id, text=f"错误: {emby_username} 不存在")
+    emby_info = db.get_emby_info_by_emby_username(emby_username)
+    # 更新 emby 用户表
+    # todo: 更新观看时间等信息
+    if emby_info:
+        emby_credits = info[6]
+        # 更新 tg id
+        db.update_user_tg_id(chat_id, emby_id=uid)
+        # 清空 emby 用户表中的积分信息
+        db.update_user_credits(0, emby_id=uid)
+    else:
+        emby_credits = 0
+        db.add_emby_user(emby_username, emby_id=uid, tg_id=chat_id)
+    # 更新用户数据表
+    stats_info = db.get_stats_by_tg_id(chat_id)
+    if stats_info:
+        tg_user_credits = stats_info[2] + emby_credits
+        db.update_user_credits(tg_user_credits, tg_id=chat_id)
+    else:
+        db.add_user_data(chat_id, credits=emby_credits)
+
+    await context.bot.send_message(
+        chat_id=chat_id, 
+        text=f"信息： 绑定 Emby 用户 {emby_username} 成功，请加入群组 https://t.me/+VCHVfOhRTAxmOGE9 并仔细阅读群置顶"
+    )
 
 # 生成邀请码
 async def exchange(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
     _db = DB()
-    _info = _db.get_info_by_tg_id(chat_id)
-    if _info is None:
+    _info = _db.get_stats_by_tg_id(chat_id)
+    if not _info:
         _db.close()
-        await context.bot.send_message(chat_id=chat_id, text="错误：未绑定 Plex，请先绑定")
+        await context.bot.send_message(chat_id=chat_id, text="错误：未绑定 Plex/Emby，请先绑定")
         return
     _credits = _info[2] 
-    _plex_id = _info[0]
     # 检查剩余积分
     if _credits < INVITATION_CREDITS:
         _db.close()
         await context.bot.send_message(chat_id=chat_id, text="错误：您的积分不足，无法兑换邀请码")
         return
+    # 减去积分
     _credits -= INVITATION_CREDITS
     # 生成邀请码
-    _code = uuid3(NAMESPACE_URL, str(_plex_id + time())).hex
+    _code = uuid3(NAMESPACE_URL, str(chat_id + time())).hex
     # 更新数据库
     # > 先更新邀请码
     res = _db.add_invitation_code(code=_code, owner=chat_id)
@@ -123,16 +197,19 @@ async def exchange(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await context.bot.send_message(chat_id=chat_id, text="错误: 更新邀请码失败, 请联系管理员")
         return
     # > 再更新积分情况
-    res = _db.update_user_credits(_credits, plex_id=_plex_id)
+    res = _db.update_user_credits(_credits, tg_id=chat_id)
     if not res:
         _db.close()
         await context.bot.send_message(chat_id=chat_id, text="错误: 更新积分失败, 请联系管理员")
         return
     _db.close()
-    await context.bot.send_message(chat_id=chat_id, text="""信息: 生成邀请码成功，邀请码为 `{}`""".format(_code), parse_mode="markdown")
+    await context.bot.send_message(
+        chat_id=chat_id, 
+        text="""信息: 生成邀请码成功，邀请码为 `{}`""".format(_code), parse_mode="markdown"
+    )
 
 # 用户兑换邀请码
-async def redeem(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def redeem_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
     text = update.message.text
     text_parts = text.split()
@@ -171,43 +248,108 @@ async def redeem(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     for admin in ADMIN_CHAT_ID:
         await context.bot.send_message(chat_id=admin, text=f"信息：tg://user?id={owner} 成功邀请 {plex_email}")
 
+async def redeem_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update._effective_chat.id
+    text = update.message.text
+    text_parts = text.split()
+    if len(text_parts) != 3:
+        await context.bot.send_message(chat_id=chat_id, text="错误: 请按照格式填写")
+        return
+    emby_username, redeem_code = text_parts[1:]
+    _db = DB()
+    # 检查邀请码有效性
+    res = _db.verify_invitation_code_is_used(redeem_code)
+    if not res:
+        await context.bot.send_message(chat_id=chat_id, text="错误：您输入的邀请码无效")
+        _db.close()
+        return
+    if res[0]:
+        await context.bot.send_message(chat_id=chat_id, text="错误：您输入的邀请码已被使用")
+        _db.close()
+        return
+    code_owner = res[1]
+    # 检查该用户是否存在
+    if _db.get_emby_info_by_emby_username(emby_username):
+        await context.bot.send_message(chat_id=chat_id, text="错误: 该用户已存在")
+        _db.close()
+        return
+    # 创建用户
+    emby = Emby()
+    flag, msg = emby.add_user(username=emby_username)
+    if flag:
+        # 更新数据库
+        _db.add_emby_user(emby_username, emby_id=msg)
+    else:
+        await context.bot.send_message(chat_id=chat_id, text=f"错误: {msg}, 请联系 @WithdewHua")
+        _db.close()
+        return
+    # 创建成功,更新邀请码状态
+    res = _db.update_invitation_status(code=redeem_code, used_by=emby_username)
+    if not res:
+        await context.bot.send_message(chat_id=chat_id, text="错误：更新邀请码状态失败，请联系管理员")
+        _db.close()
+        return
+    _db.close()
+    await context.bot.send_message(
+        chat_id=chat_id, 
+        text=f"信息：兑换邀请码成功，用户名为 `{emby_username}`, 密码为空, 请及时登录 Emby 修改密码，更多帮助请加入群组 https://t.me/+VCHVfOhRTAxmOGE9"
+    )
+    for admin in ADMIN_CHAT_ID:
+        await context.bot.send_message(chat_id=admin, text=f"信息：tg://user?id={code_owner} 成功邀请 {emby_username}")
+
 
 # 查看个人信息
 async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
     _db = DB()
-    _info = _db.get_info_by_tg_id(chat_id)
+    _plex_info = _db.get_plex_info_by_tg_id(chat_id)
+    _emby_info = _db.get_emby_info_by_tg_id(chat_id)
+    _stats_info = _db.get_stats_by_tg_id(chat_id)
     _codes = _db.get_invitation_code_by_owner(chat_id)
     _db.close()
-    if _info is None:
-        await context.bot.send_message(chat_id=chat_id, text="错误：未绑定 Plex，请先绑定")
+    if _plex_info is None and _emby_info is None:
+        await context.bot.send_message(chat_id=chat_id, text="错误：Plex/Emby 均未绑定，请先绑定任一")
         return
-    credits = _info[2]
-    donate = _info[3]
-    all_lib = _info[6]
-    watched_time = _info[8]
+    _credits, _donation = _stats_info[2], _stats_info[1]
     body_text = f"""
-<strong>Plex 用户名：</strong>{_info[5]}
-<strong>可用积分：</strong>{credits:.2f}
-<strong>捐赠金额：</strong>{donate:.2f}
-<strong>总观看时长：</strong>{watched_time:.2f}h
-<strong>当前权限：</strong>{"全部" if all_lib == 1 else "部分"}
+{'=' * 44}
+<strong>可用积分: </strong>{_credits:.2f}
+<strong>捐赠金额: </strong>{_donation}
 <strong>可用邀请码：</strong>{"无" if not _codes else ", ".join(_codes)}
+{'=' * 44}
+
+"""
+    if _plex_info:
+        body_text += f"""
+{'=' * 20} Plex {'=' * 20}
+<strong>Plex 用户名：</strong>{_plex_info[4]}
+<strong>总观看时长：</strong>{_plex_info[7]:.2f}h
+<strong>当前权限：</strong>{"全部" if _plex_info[5] == 1 else "部分"}
+
+"""
+    if _emby_info:
+        body_text += f"""
+{'=' * 20} Emby {'=' * 20}
+<strong>Emby 用户名: </strong>{_emby_info[0]}
+<strong>总观看时长：</strong>{_emby_info[5]:.2f}h
+<strong>当前权限：</strong>{"全部" if _emby_info[3] == 1 else "部分"}
 """
     await context.bot.send_message(chat_id=chat_id, text=body_text, parse_mode="HTML")
 
 # 解锁 nsfw 库权限
-async def unlock_nsfw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def unlock_nsfw_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
     _db = DB()
-    _info = _db.get_info_by_tg_id(chat_id)
+    _info = _db.get_plex_info_by_tg_id(chat_id)
     if not _info:
         await context.bot.send_message(chat_id=chat_id, text="错误: 未查询到用户, 请先绑定")
         _db.close()
         return
+    # 用户数据
+    _stats_info = _db.get_stats_by_tg_id(chat_id)
     _plex_id = _info[0]
-    _credits = _info[2]
-    _all_lib = _info[6]
+    _credits = _stats_info[2]
+    _all_lib = _info[5]
     if _all_lib == 1:
         _db.close()
         await context.bot.send_message(chat_id=chat_id, text="错误: 您已拥有全部库权限, 无需解锁")
@@ -228,7 +370,7 @@ async def unlock_nsfw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     # 解锁权限的时间
     unlock_time = time()
     # 更新数据库
-    res = _db.update_user_credits(_credits, plex_id=_plex_id)
+    res = _db.update_user_credits(_credits, tg_id=chat_id)
     if not res:
         _db.close()
         await context.bot.send_message(chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员")
@@ -241,19 +383,20 @@ async def unlock_nsfw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     _db.close()
     await context.bot.send_message(chat_id=chat_id, text="信息: 解锁成功, 请尽情享受")
 
- # 锁定 NSFW 权限
-async def lock_nsfw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+# 锁定 NSFW 权限
+async def lock_nsfw_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
     _db = DB()
-    _info = _db.get_info_by_tg_id(chat_id)
+    _info = _db.get_plex_info_by_tg_id(chat_id)
     if not _info:
         await context.bot.send_message(chat_id=chat_id, text="错误: 未查询到用户, 请先绑定")
         _db.close()
         return
+    _stats_info = _db.get_stats_by_tg_id(chat_id)
     _plex_id = _info[0]
-    _credits = _info[2]
-    _all_lib = _info[6]
-    _unlock_time = _info[7]
+    _credits = _stats_info[2]
+    _all_lib = _info[5]
+    _unlock_time = _info[6]
     if _all_lib == 0:
         _db.close()
         await context.bot.send_message(chat_id=chat_id, text="错误: 您未解锁 NSFW 内容")
@@ -272,7 +415,7 @@ async def lock_nsfw(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         _db.close()
         return
     # 更新数据库
-    res = _db.update_user_credits(_credits, plex_id=_plex_id)
+    res = _db.update_user_credits(_credits, tg_id=chat_id)
     if not res:
         _db.close()
         await context.bot.send_message(chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员")
@@ -291,20 +434,24 @@ async def credits_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     chat_id = update._effective_chat.id
     _db = DB()
     res = _db.get_credits_rank()
-    rank = [f"{i}. {info[2]}: {info[3]:.2f}" for i, info in enumerate(res, 1) if i <= 10]
+    rank = [f"{i}. tg://user?id={info[0]}: {info[1]:.2f}" for i, info in enumerate(res, 1) if i <= 10]
     body_text = """
 <strong>积分榜</strong>
 ==================
 {}
+==================
+
+⚠️只统计 TG 绑定用户
     """.format("\n".join(rank))        
     await context.bot.send_message(chat_id=chat_id, text=body_text, parse_mode="HTML")
+
 
 # 捐赠榜
 async def donation_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
     _db = DB()
     res = _db.get_donation_rank()
-    rank = [f"{i}. {info[2]}: {info[3]:.2f}" for i, info in enumerate(res, 1) if info[3] > 0]
+    rank = [f"{i}. tg://user?id={info[0]}: {info[1]:.2f}" for i, info in enumerate(res, 1) if info[1] > 0]
     body_text = """
 <strong>捐赠榜</strong>
 ==================
@@ -320,15 +467,14 @@ async def donation_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def watched_time_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
     _db = DB()
-    res = _db.get_watched_time_rank()
+    res = _db.get_plex_watched_time_rank()
     rank = [f"{i}. {info[2]}: {info[3]:.2f}" for i, info in enumerate(res, 1) if i <= 10]
     body_text = """
-<strong>观看时长榜 (Hour)</strong>
+<strong>Plex 观看时长榜 (Hour)</strong>
 ==================
 {}
     """.format("\n".join(rank))        
     await context.bot.send_message(chat_id=chat_id, text=body_text, parse_mode="HTML")
-
 
 
 # 管理员命令: 设置捐赠信息
@@ -345,13 +491,13 @@ async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     tg_id = int(text[1])
     donation = float(text[2])
     _db = DB()
-    info = _db.get_info_by_tg_id(tg_id)
+    info = _db.get_stats_by_tg_id(tg_id)
     if not info:
-        await context.bot.send_message(chat_id=chat_id, text=f"错误：用户 {tg_id} 非好友，请确认")
+        await context.bot.send_message(chat_id=chat_id, text=f"错误：用户 {tg_id} 不存在，请确认")
         _db.close()
         return
     _credits = info[2]
-    _donation = info[3]
+    _donation = info[1]
     credits = _credits + donation * 2
     donate = _donation + donation
     res = _db.update_user_credits(credits, tg_id=tg_id)
@@ -365,7 +511,7 @@ async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await context.bot.send_message(chat_id=chat_id, text="错误：更新积分失败，请检查")
         return
     _db.close()
-    await context.bot.send_message(chat_id=chat_id, text=f"信息：成功为 {tg_id} 设置捐赠金额 {donation}")
+    await context.bot.send_message(chat_id=chat_id, text=f"信息：成功为 tg://user?id={tg_id} 设置捐赠金额 {donation}")
     # 通知该用户
     await context.bot.send_message(chat_id=tg_id, text=f"通知：感谢您的捐赠，已为您增加积分 {donation * 2}")
 
@@ -381,35 +527,40 @@ async def update_database(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await context.bot.send_message(chat_id=chat_id, text="错误：更新数据库失败，请检查")
         return
     
-    await context.bot.send_message(chat_id=chat_id, text=f"信息：更新数据库成功")
+    await context.bot.send_message(chat_id=chat_id, text="信息：更新数据库成功")
 
 
 if __name__ == '__main__':
     application = ApplicationBuilder().token(TG_API_TOKEN).build()
 
     start_handler = CommandHandler('start', start)
-    bind_handler = CommandHandler("bind", bind)
+    bind_plex_handler = CommandHandler("bind_plex", bind_plex)
+    bind_emby_handler = CommandHandler("bind_emby", bind_emby)
     info_handler = CommandHandler("info", info)
     credits_rank_handler = CommandHandler("credits_rank", credits_rank)
     donation_rank_handler = CommandHandler("donation_rank", donation_rank)
     watched_time_rank_handler = CommandHandler("play_duration_rank", watched_time_rank)
     set_donation_handler = CommandHandler("set_donation", set_donation)
-    unlock_nsfw_handler = CommandHandler("unlock_nsfw", unlock_nsfw)
-    lock_nsfw_handler = CommandHandler("lock_nsfw", lock_nsfw)
+    unlock_nsfw_plex_handler = CommandHandler("unlock_nsfw_plex", unlock_nsfw_plex)
+    lock_nsfw_plex_handler = CommandHandler("lock_nsfw_plex", lock_nsfw_plex)
     exchange_handler = CommandHandler("exchange", exchange)
-    redeem_handler = CommandHandler("redeem", redeem)
+    redeem_plex_handler = CommandHandler("redeem_plex", redeem_plex)
+    redeem_emby_handler = CommandHandler("redeem_emby", redeem_emby)
     update_database_handler = CommandHandler("update_database", update_database)
+
     application.add_handler(start_handler)
-    application.add_handler(bind_handler)
+    application.add_handler(bind_plex_handler)
+    application.add_handler(bind_emby_handler)
     application.add_handler(info_handler)
     application.add_handler(credits_rank_handler)
     application.add_handler(donation_rank_handler)
     application.add_handler(watched_time_rank_handler)
     application.add_handler(set_donation_handler)
-    application.add_handler(unlock_nsfw_handler)
-    application.add_handler(lock_nsfw_handler)
+    application.add_handler(unlock_nsfw_plex_handler)
+    application.add_handler(lock_nsfw_plex_handler)
     application.add_handler(exchange_handler)
-    application.add_handler(redeem_handler)
+    application.add_handler(redeem_plex_handler)
+    application.add_handler(redeem_emby_handler)
     application.add_handler(update_database_handler)
 
     application.run_polling()

@@ -1,3 +1,6 @@
+from uuid import uuid3, NAMESPACE_URL
+from time import time
+
 from tautulli import Tautulli
 from db import DB
 from utils import get_user_total_duration
@@ -16,14 +19,23 @@ def update_credits():
         for user in users:
             plex_id = user[0]
             credits_inc = duration.get(plex_id, 0)
-            res = _db.cur.execute("SELECT credits,watched_time FROM user WHERE plex_id=?", (plex_id,)).fetchone()
+            res = _db.cur.execute("SELECT credits,watched_time,tg_id FROM user WHERE plex_id=?", (plex_id,)).fetchone()
             if not res:
                 continue
-            credits_init = res[0]
             watched_time_init = res[1]
-            credits = credits_init + credits_inc
-            watched_time = watched_time_init + credits_inc
-            _db.cur.execute("UPDATE user SET credits=?,watched_time=? WHERE plex_id=?", (credits, watched_time, plex_id))
+            tg_id = res[2]
+            if not tg_id:
+                credits_init = res[0]
+                credits = credits_init + credits_inc
+                watched_time = watched_time_init + credits_inc
+                _db.cur.execute("UPDATE user SET credits=?,watched_time=? WHERE plex_id=?", (credits, watched_time, plex_id))
+            else:
+                credits_init = _db.cur.execute("SELECT credits FROM statistics WHERE tg_id=?", (tg_id,)).fetchone()[0]
+                credits = credits_init + credits_inc
+                watched_time = watched_time_init + credits_inc
+                _db.cur.execute("UPDATE user SET watched_time=? WHERE plex_id=?", (watched_time, plex_id))
+                _db.cur.execute("UPDATE statistics SET credits=? WHERE tg_id=?", (credits, tg_id))
+
 
     except Exception as e:
         print(e)
@@ -122,7 +134,7 @@ def add_all_plex_user():
                 print(e)
                 continue
             all_lib_flag = 1 if not set(all_libs).difference(set(cur_libs)) else 0
-            _db.add_user(plex_id=user.id, tg_id=None, plex_email=user.email, plex_username=user.username, credits=watched_time, all_lib=all_lib_flag, watched_time=watched_time)
+            _db.add_plex_user(plex_id=user.id, tg_id=None, plex_email=user.email, plex_username=user.username, credits=watched_time, all_lib=all_lib_flag, watched_time=watched_time)
 
     except Exception as e:
         print(e)
@@ -131,7 +143,25 @@ def add_all_plex_user():
     finally:
         _db.close()
 
+
+def add_redeem_code(tg_id=None):
+    db = DB()
+    if tg_id is None:
+        tg_id = [u[0] for u in db.cur.execute("SELECT tg_id FROM statistics").fetchall()]
+    elif not isinstance(tg_id, list):
+        tg_id = [tg_id]
+    try:
+        for uid in tg_id:
+            code = uuid3(NAMESPACE_URL, str(uid + time())).hex
+            db.add_invitation_code(code, owner=uid)
+    except Exception as e:
+        print(e)
+    else:
+        db.con.commit()
+    finally:
+        db.close()
         
+
 if __name__ == "__main__":
     update_credits()
     update_plex_info()
