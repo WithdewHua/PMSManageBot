@@ -4,7 +4,11 @@ import logging
 
 from plexapi.server import PlexServer
 from plexapi.myplex import Section
-from settings import PLEX_BASE_URL, PLEX_API_TOKEN, NSFW_LIBS
+from settings import (
+    PLEX_BASE_URL, PLEX_API_TOKEN, NSFW_LIBS,
+    PLEX_ADMIN_USER,
+    PLEX_ADMIN_EMAIL,
+)
 
 
 class Plex:
@@ -45,14 +49,14 @@ class Plex:
 
     def get_user_shared_libs_by_id(self, user_id) -> list:
         """get shared libraries with specified user by id"""
-        if self.get_username_by_user_id(user_id) == "GGBond":
+        if self.get_username_by_user_id(user_id) == PLEX_ADMIN_USER:
             return self.get_libraries()
         data = self.my_plex_account.user(user_id).server(self.plex_server_name)._server.query(self.my_plex_account.FRIENDSERVERS.format(machineId=self.plex_server.machineIdentifier, serverId=self.my_plex_account.user(user_id).server(self.plex_server_name).id))
         return [section.title for section in self.plex_server.findItems(data, Section, rtag="SharedServer", **{"shared": 1})]
         
     def verify_all_libraries(self, user_id) -> bool:
         """Verify if specified user has permission with all libraries"""
-        if self.get_username_by_user_id(user_id) == "GGBond":
+        if self.get_username_by_user_id(user_id) == PLEX_ADMIN_EMAIL:
             return True
         return True  if self.my_plex_account.user(user_id).server(self.plex_server_name).numLibraries == 6 else False
         
@@ -69,7 +73,7 @@ class Plex:
         """更新所有用户的资料库权限"""
 
         for email, user_info in self.users_by_email.items():
-            if (not email) or email == "i@10101.io":
+            if (not email) or email == PLEX_ADMIN_EMAIL:
                 continue
             else:
                 try:
