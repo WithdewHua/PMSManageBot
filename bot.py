@@ -151,7 +151,7 @@ async def bind_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # 更新 emby 用户表
     # todo: 更新观看时间等信息
     if emby_info:
-        emby_credits = info[6]
+        emby_credits = emby_info[6]
         # 更新 tg id
         db.update_user_tg_id(chat_id, emby_id=uid)
         # 清空 emby 用户表中的积分信息
