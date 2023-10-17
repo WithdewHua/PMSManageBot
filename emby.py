@@ -3,6 +3,8 @@
 import requests
 import json
 
+from typing import Optional
+
 from log import logger
 from settings import (
     EMBY_BASE_URL,
@@ -53,7 +55,7 @@ class Emby:
         except Exception as e:
             return False, str(e)
 
-    def get_uid_from_username(self, username: str) -> str:
+    def get_uid_from_username(self, username: str) -> Optional[str]:
         headers = {"accept": "application/json"}
 
         params = {
@@ -67,6 +69,11 @@ class Emby:
         response = requests.get(url=self.base_url + "/Users/Query", params=params, headers=headers)
 
         response_json = response.json()
+
+        name = response_json["Items"][0]['Name']
+        # 判断用户名是否一致
+        if name != username:
+            return None
 
         return response_json["Items"][0]["Id"]
 
