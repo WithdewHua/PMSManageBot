@@ -45,7 +45,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     /update\_database - 更新数据库
 
     群组：https://t.me/+VCHVfOhRTAxmOGE9
-    """.format(UNLOCK_CREDITS, INVITATION_CREDITS)
+    """.format(INVITATION_CREDITS, UNLOCK_CREDITS)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=textwrap.dedent(body_text), parse_mode="markdown")
 
 # 绑定账户
@@ -76,8 +76,8 @@ async def bind_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if plex_info:
         rslt = _db.update_user_tg_id(chat_id, plex_id=plex_id)
-        _db.close()
         if not rslt:
+            _db.close()
             await context.bot.send_message(chat_id=chat_id, text="错误：数据库错误，请联系管理员 @WithdewHua")
             return
         # plex 用户表中的积分信息
@@ -120,6 +120,7 @@ async def bind_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         _db.add_user_data(chat_id, credits=plex_credits)
  
+    _db.close()
     await context.bot.send_message(
         chat_id=chat_id, 
         text=f"信息： 绑定 Plex 用户 {plex_id} 成功，请加入群组 https://t.me/+VCHVfOhRTAxmOGE9 并仔细阅读群置顶"
@@ -145,6 +146,7 @@ async def bind_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not uid:
         db.close()
         await context.bot.send_message(chat_id=chat_id, text=f"错误: {emby_username} 不存在")
+        return
     emby_info = db.get_emby_info_by_emby_username(emby_username)
     # 更新 emby 用户表
     # todo: 更新观看时间等信息
@@ -165,6 +167,7 @@ async def bind_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     else:
         db.add_user_data(chat_id, credits=emby_credits)
 
+    db.close()
     await context.bot.send_message(
         chat_id=chat_id, 
         text=f"信息： 绑定 Emby 用户 {emby_username} 成功，请加入群组 https://t.me/+VCHVfOhRTAxmOGE9 并仔细阅读群置顶"
@@ -244,7 +247,12 @@ async def redeem_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         _db.close()
         return
     _db.close()
-    await context.bot.send_message(chat_id=chat_id, text="信息：兑换邀请码成功，请登录 Plex 确认邀请，更多帮助请加入群组 https://t.me/+VCHVfOhRTAxmOGE9")
+    await context.bot.send_message(
+            chat_id=chat_id, 
+            text=f"信息：兑换邀请码成功，请登录 Plex 确认邀请，"
+            f"确认邀请后, 可使用 `/bind_plex {plex_email}` 绑定机器人获取更多功能, "
+            f"更多帮助请加入群组 https://t.me/+VCHVfOhRTAxmOGE9"
+        )
     for admin in ADMIN_CHAT_ID:
         await context.bot.send_message(chat_id=admin, text=f"信息：tg://user?id={owner} 成功邀请 {plex_email}")
 
@@ -292,7 +300,8 @@ async def redeem_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     _db.close()
     await context.bot.send_message(
         chat_id=chat_id, 
-        text=f"信息：兑换邀请码成功，用户名为 `{emby_username}`, 密码为空, 请及时登录 Emby 修改密码，更多帮助请加入群组 https://t.me/+VCHVfOhRTAxmOGE9"
+        text=f"信息：兑换邀请码成功，用户名为 `{emby_username}`, 密码为空, 请及时登录 Emby 修改密码，"
+        f"可使用 `/bind_emby {emby_username}`绑定机器人获取更多功能, 更多帮助请加入群组 https://t.me/+VCHVfOhRTAxmOGE9"
     )
     for admin in ADMIN_CHAT_ID:
         await context.bot.send_message(chat_id=admin, text=f"信息：tg://user?id={code_owner} 成功邀请 {emby_username}")

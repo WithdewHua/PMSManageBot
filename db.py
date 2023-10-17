@@ -91,11 +91,11 @@ class DB:
             self.con.commit()
         return True
 
-    def add_user_data(self, tg_id, credits=None, donation=None):
+    def add_user_data(self, tg_id, credits=0, donation=0):
         try:
             self.cur.execute(
                 "INSERT INTO statistics VALUES (?, ?, ?)",
-                (tg_id, credits, donation)
+                (tg_id, donation, credits)
             )
         except Exception as e:
             logging.error(f"Error: {e}")
@@ -149,15 +149,10 @@ class DB:
             self.con.commit()
         return True
 
-    def update_user_donation(self, donation: int, plex_id=None, tg_id=None):
+    def update_user_donation(self, donation: int, tg_id):
         """Update user's donation"""
         try:
-            if plex_id:
-                self.cur.execute("UPDATE user SET donate=? WHERE plex_id=?", (donation, plex_id))
-            elif tg_id:
-                self.cur.execute("UPDATE user SET donate=? WHERE tg_id=?", (donation, tg_id))            
-            else:
-                logging.error("Error: there is no enough params")
+            self.cur.execute("UPDATE statistics SET donation=? WHERE tg_id=?", (donation, tg_id))            
         except Exception as e:
             logging.error(f"Error: {e}")
             return False
