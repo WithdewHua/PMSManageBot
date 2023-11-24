@@ -22,16 +22,16 @@ TG_API_TOKEN = ""
 ADMIN_CHAT_ID = []
 
 # tautulli
-TAUTULLI_URL = ''
-TAUTULLI_APIKEY = ''
-TAUTULLI_PUBLIC_URL = '/'
+TAUTULLI_URL = ""
+TAUTULLI_APIKEY = ""
+TAUTULLI_PUBLIC_URL = "/"
 
 if not TAUTULLI_URL:
-    TAUTULLI_URL = CONFIG.data['auth'].get('tautulli_baseurl')
+    TAUTULLI_URL = CONFIG.data["auth"].get("tautulli_baseurl")
 if not TAUTULLI_APIKEY:
-    TAUTULLI_APIKEY = CONFIG.data['auth'].get('tautulli_apikey')
+    TAUTULLI_APIKEY = CONFIG.data["auth"].get("tautulli_apikey")
 if not TAUTULLI_PUBLIC_URL:
-    TAUTULLI_PUBLIC_URL = CONFIG.data['auth'].get('tautulli_public_url')
+    TAUTULLI_PUBLIC_URL = CONFIG.data["auth"].get("tautulli_public_url")
 
 VERIFY_SSL = False
 

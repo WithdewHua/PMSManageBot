@@ -9,12 +9,14 @@ from typing import Optional
 
 class DB:
     """class DB"""
-    
-    def __init__(self, db=os.path.join(os.path.split(os.path.realpath(__file__))[0], "data.db")):
+
+    def __init__(
+        self, db=os.path.join(os.path.split(os.path.realpath(__file__))[0], "data.db")
+    ):
         self.con = sqlite3.connect(db)
         self.cur = self.con.cursor()
         # self.create_table()
-        
+
     def create_table(self):
         try:
             self.cur.executescript(
@@ -47,21 +49,31 @@ class DB:
             logging.warning("Table user is created already, skip...")
         else:
             self.con.commit()
-    
+
     def add_plex_user(
-            self, 
-            plex_id: Optional[int] = None, 
-            tg_id: Optional[int] = None, 
-            plex_email: Optional[str] = None, 
-            plex_username: Optional[str] = None, 
-            credits: int=0, all_lib=0, unlock_time=None, watched_time=0,
-        ):
+        self,
+        plex_id: Optional[int] = None,
+        tg_id: Optional[int] = None,
+        plex_email: Optional[str] = None,
+        plex_username: Optional[str] = None,
+        credits: int = 0,
+        all_lib=0,
+        unlock_time=None,
+        watched_time=0,
+    ):
         try:
             self.cur.execute(
-                "INSERT INTO user VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                "INSERT INTO user VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
-                    plex_id, tg_id, credits, plex_email, plex_username, all_lib, unlock_time, watched_time,
-                )
+                    plex_id,
+                    tg_id,
+                    credits,
+                    plex_email,
+                    plex_username,
+                    all_lib,
+                    unlock_time,
+                    watched_time,
+                ),
             )
         except Exception as e:
             logging.error(f"Error: {e}")
@@ -71,18 +83,27 @@ class DB:
         return True
 
     def add_emby_user(
-        self, emby_username: str,
+        self,
+        emby_username: str,
         emby_id: Optional[str] = None,
         tg_id: Optional[int] = None,
         emby_is_unlock: Optional[int] = 0,
         emby_unlock_time: Optional[int] = None,
         emby_watched_time: float = 0,
         emby_credits: float = 0,
-        ) -> bool:
+    ) -> bool:
         try:
             self.cur.execute(
                 "INSERT INTO emby_user VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (emby_username, emby_id, tg_id, emby_is_unlock, emby_unlock_time, emby_watched_time, emby_credits)
+                (
+                    emby_username,
+                    emby_id,
+                    tg_id,
+                    emby_is_unlock,
+                    emby_unlock_time,
+                    emby_watched_time,
+                    emby_credits,
+                ),
             )
         except Exception as e:
             logging.error(f"Error: {e}")
@@ -94,8 +115,7 @@ class DB:
     def add_user_data(self, tg_id, credits=0, donation=0):
         try:
             self.cur.execute(
-                "INSERT INTO statistics VALUES (?, ?, ?)",
-                (tg_id, donation, credits)
+                "INSERT INTO statistics VALUES (?, ?, ?)", (tg_id, donation, credits)
             )
         except Exception as e:
             logging.error(f"Error: {e}")
@@ -104,12 +124,16 @@ class DB:
             self.con.commit()
         return True
 
-    def update_user_tg_id(self, tg_id, plex_id = None, emby_id = None):
+    def update_user_tg_id(self, tg_id, plex_id=None, emby_id=None):
         try:
             if plex_id:
-                self.cur.execute("UPDATE user SET tg_id=? WHERE plex_id=?", (tg_id, plex_id))
+                self.cur.execute(
+                    "UPDATE user SET tg_id=? WHERE plex_id=?", (tg_id, plex_id)
+                )
             if emby_id:
-                self.cur.execute("UPDATE emby_user SET tg_id=? WHERE emby_id=?", (tg_id, emby_id))
+                self.cur.execute(
+                    "UPDATE emby_user SET tg_id=? WHERE emby_id=?", (tg_id, emby_id)
+                )
         except Exception as e:
             logging.error(f"Error: {e}")
             return False
@@ -117,10 +141,12 @@ class DB:
             self.con.commit()
         return True
 
-
     def add_invitation_code(self, code, owner, is_used=0, used_by=None) -> bool:
         try:
-            self.cur.execute("INSERT INTO invitation VALUES (?, ?, ?, ?)", (code, owner, is_used, used_by))
+            self.cur.execute(
+                "INSERT INTO invitation VALUES (?, ?, ?, ?)",
+                (code, owner, is_used, used_by),
+            )
         except Exception as e:
             logging.error(f"Error: {e}")
             return False
@@ -129,17 +155,25 @@ class DB:
         return True
 
     def get_stats_by_tg_id(self, tg_id):
-        return self.cur.execute("SELECT * from statistics WHERE tg_id=?", (tg_id,)).fetchone()
-        
+        return self.cur.execute(
+            "SELECT * from statistics WHERE tg_id=?", (tg_id,)
+        ).fetchone()
+
     def update_user_credits(self, credits: int, plex_id=None, emby_id=None, tg_id=None):
         """Update user's credits"""
         try:
             if tg_id:
-                self.cur.execute("UPDATE statistics SET credits=? WHERE tg_id=?", (credits, tg_id))
+                self.cur.execute(
+                    "UPDATE statistics SET credits=? WHERE tg_id=?", (credits, tg_id)
+                )
             elif plex_id:
-                self.cur.execute("UPDATE user SET credits=? WHERE plex_id=?", (credits, plex_id))
+                self.cur.execute(
+                    "UPDATE user SET credits=? WHERE plex_id=?", (credits, plex_id)
+                )
             elif emby_id:
-                self.cur.execute("UPDATE emby_user SET credits=? WHERE emby_id=?", (credits, emby_id))
+                self.cur.execute(
+                    "UPDATE emby_user SET credits=? WHERE emby_id=?", (credits, emby_id)
+                )
             else:
                 logging.error("Error: there is no enough params")
         except Exception as e:
@@ -152,7 +186,9 @@ class DB:
     def update_user_donation(self, donation: int, tg_id):
         """Update user's donation"""
         try:
-            self.cur.execute("UPDATE statistics SET donation=? WHERE tg_id=?", (donation, tg_id))            
+            self.cur.execute(
+                "UPDATE statistics SET donation=? WHERE tg_id=?", (donation, tg_id)
+            )
         except Exception as e:
             logging.error(f"Error: {e}")
             return False
@@ -162,7 +198,10 @@ class DB:
 
     def update_invitation_status(self, code, used_by):
         try:
-            self.cur.execute("UPDATE invitation SET is_used=?,used_by=? WHERE code=?", (1, used_by, code))
+            self.cur.execute(
+                "UPDATE invitation SET is_used=?,used_by=? WHERE code=?",
+                (1, used_by, code),
+            )
         except Exception as e:
             logging.error(f"Error: {e}")
             return False
@@ -170,15 +209,20 @@ class DB:
             self.con.commit()
         return True
 
-
-    def update_all_lib_flag(self, all_lib: int, unlock_time=None, plex_id=None, tg_id=None):
+    def update_all_lib_flag(
+        self, all_lib: int, unlock_time=None, plex_id=None, tg_id=None
+    ):
         try:
             if plex_id:
-                self.cur.execute("UPDATE user SET all_lib=?,unlock_time=? WHERE plex_id=?", (all_lib, unlock_time, plex_id))
+                self.cur.execute(
+                    "UPDATE user SET all_lib=?,unlock_time=? WHERE plex_id=?",
+                    (all_lib, unlock_time, plex_id),
+                )
             elif tg_id:
                 self.cur.execute(
-                    "UPDATE user SET all_lib=?,unlock_time=? WHERE tg_id=?", (all_lib, unlock_time, tg_id)
-                )            
+                    "UPDATE user SET all_lib=?,unlock_time=? WHERE tg_id=?",
+                    (all_lib, unlock_time, tg_id),
+                )
             else:
                 logging.error("Error: there is no enough params")
         except Exception as e:
@@ -199,36 +243,57 @@ class DB:
         return info
 
     def get_emby_info_by_emby_username(self, username: str):
-        return self.cur.execute("SELECT * FROM emby_user WHERE emby_username = ?", (username,)).fetchone()
+        return self.cur.execute(
+            "SELECT * FROM emby_user WHERE emby_username = ?", (username,)
+        ).fetchone()
 
     def get_emby_info_by_tg_id(self, tg_id):
-        return self.cur.execute("SELECT * FROM emby_user WHERE tg_id = ?", (tg_id,)).fetchone()
+        return self.cur.execute(
+            "SELECT * FROM emby_user WHERE tg_id = ?", (tg_id,)
+        ).fetchone()
 
     def get_credits_rank(self):
-        rslt = self.cur.execute("SELECT tg_id,credits FROM statistics ORDER BY credits DESC")
+        rslt = self.cur.execute(
+            "SELECT tg_id,credits FROM statistics ORDER BY credits DESC"
+        )
         res = rslt.fetchall()
         return res
 
     def get_donation_rank(self):
-        rslt = self.cur.execute("SELECT tg_id,donation FROM statistics ORDER BY donation DESC")
+        rslt = self.cur.execute(
+            "SELECT tg_id,donation FROM statistics ORDER BY donation DESC"
+        )
         res = rslt.fetchall()
         return res
 
     def get_plex_watched_time_rank(self):
-        rslt = self.cur.execute("SELECT plex_id,tg_id,plex_username,watched_time FROM user ORDER BY watched_time DESC")
+        rslt = self.cur.execute(
+            "SELECT plex_id,tg_id,plex_username,watched_time FROM user ORDER BY watched_time DESC"
+        )
         res = rslt.fetchall()
         return res
 
+    def get_emby_watched_time_rank(self):
+        return self.cur.execute(
+            "SELECT emby_id,emby_username,emby_watched_time FROM emby_user ORDER BY emby_watched_time DESC"
+        ).fetchall()
+
     def verify_invitation_code_is_used(self, code):
-        rslt = self.cur.execute("SELECT is_used,owner FROM invitation WHERE code=?", (code,))
+        rslt = self.cur.execute(
+            "SELECT is_used,owner FROM invitation WHERE code=?", (code,)
+        )
         res = rslt.fetchone()
         return res
 
     def get_invitation_code_by_owner(self, tg_id, is_available=True):
         if is_available:
-            rslt = self.cur.execute("SELECT code FROM invitation WHERE owner=? and is_used=0", (tg_id,))
+            rslt = self.cur.execute(
+                "SELECT code FROM invitation WHERE owner=? and is_used=0", (tg_id,)
+            )
         else:
-            rslt = self.cur.execute("SELECT code FROM invitation WHERE owner=?", (tg_id,))
+            rslt = self.cur.execute(
+                "SELECT code FROM invitation WHERE owner=?", (tg_id,)
+            )
         res = rslt.fetchall()
         res = [_[0] for _ in res]
         return res

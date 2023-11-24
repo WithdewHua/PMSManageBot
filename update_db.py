@@ -5,12 +5,15 @@ from tautulli import Tautulli
 from db import DB
 from utils import get_user_total_duration
 from plex import Plex
+from emby import Emby
 
 
 def update_credits():
     """更新积分及观看时长"""
     # 获取一天内的观看时长
-    duration = get_user_total_duration(Tautulli().get_home_stats(1, "duration", len(Plex().users_by_id), "top_users"))
+    duration = get_user_total_duration(
+        Tautulli().get_home_stats(1, "duration", len(Plex().users_by_id), "top_users")
+    )
     _db = DB()
     try:
         # update credits and watched_time
@@ -19,7 +22,10 @@ def update_credits():
         for user in users:
             plex_id = user[0]
             credits_inc = duration.get(plex_id, 0)
-            res = _db.cur.execute("SELECT credits,watched_time,tg_id FROM user WHERE plex_id=?", (plex_id,)).fetchone()
+            res = _db.cur.execute(
+                "SELECT credits,watched_time,tg_id FROM user WHERE plex_id=?",
+                (plex_id,),
+            ).fetchone()
             if not res:
                 continue
             watched_time_init = res[1]
@@ -28,14 +34,23 @@ def update_credits():
                 credits_init = res[0]
                 credits = credits_init + credits_inc
                 watched_time = watched_time_init + credits_inc
-                _db.cur.execute("UPDATE user SET credits=?,watched_time=? WHERE plex_id=?", (credits, watched_time, plex_id))
+                _db.cur.execute(
+                    "UPDATE user SET credits=?,watched_time=? WHERE plex_id=?",
+                    (credits, watched_time, plex_id),
+                )
             else:
-                credits_init = _db.cur.execute("SELECT credits FROM statistics WHERE tg_id=?", (tg_id,)).fetchone()[0]
+                credits_init = _db.cur.execute(
+                    "SELECT credits FROM statistics WHERE tg_id=?", (tg_id,)
+                ).fetchone()[0]
                 credits = credits_init + credits_inc
                 watched_time = watched_time_init + credits_inc
-                _db.cur.execute("UPDATE user SET watched_time=? WHERE plex_id=?", (watched_time, plex_id))
-                _db.cur.execute("UPDATE statistics SET credits=? WHERE tg_id=?", (credits, tg_id))
-
+                _db.cur.execute(
+                    "UPDATE user SET watched_time=? WHERE plex_id=?",
+                    (watched_time, plex_id),
+                )
+                _db.cur.execute(
+                    "UPDATE statistics SET credits=? WHERE tg_id=?", (credits, tg_id)
+                )
 
     except Exception as e:
         print(e)
@@ -43,7 +58,50 @@ def update_credits():
         _db.con.commit()
     finally:
         _db.close()
-        
+
+
+def update_emby_credits():
+    """更新 emby 积分及观看时长"""
+    # 获取所有用户的观看时长
+    emby = Emby()
+    duration = emby.get_user_total_play_time()
+    _db = DB()
+    try:
+        # 获取数据库中的观看时长信息
+        users = _db.cur.execute(
+            "select emby_id, tg_id, emby_watched_time, emby_credits from emby_user"
+        ).fetchall()
+        for user in users:
+            playduration = float(int(duration.get(user[0], 0)) / 3600)
+            if playduration == 0:
+                continue
+            credits_inc = playduration - user[2]
+            if not user[1]:
+                _credits = user[3] + credits_inc
+                _db.cur.execute(
+                    "UPDATE emby_user SET emby_watched_time=?,emby_credits=? WHERE emby_id=?",
+                    (playduration, _credits, user[0]),
+                )
+            else:
+                credits_init = _db.cur.execute(
+                    "SELECT credits FROM statistics WHERE tg_id=?", (user[1],)
+                ).fetchone()[0]
+                _credits = credits_init + credits_inc
+                _db.cur.execute(
+                    "UPDATE emby_user SET emby_watched_time=? WHERE emby_id=?",
+                    (playduration, user[0]),
+                )
+                _db.cur.execute(
+                    "UPDATE statistics SET credits=? WHERE tg_id=?", (_credits, user[1])
+                )
+
+    except Exception as e:
+        print(e)
+    else:
+        _db.con.commit()
+    finally:
+        _db.close()
+
 
 def update_plex_info():
     """更新 plex 用户信息"""
@@ -54,7 +112,10 @@ def update_plex_info():
         for uid, user in users.items():
             email = user[1].email
             username = user[0]
-            _db.cur.execute("UPDATE user SET plex_username=?,plex_email=? WHERE plex_id=?", (username, email, uid))
+            _db.cur.execute(
+                "UPDATE user SET plex_username=?,plex_email=? WHERE plex_id=?",
+                (username, email, uid),
+            )
     except Exception as e:
         print(e)
     else:
@@ -79,20 +140,24 @@ def update_all_lib():
                 continue
             cur_libs = _plex.get_user_shared_libs_by_id(user[0])
             all_lib_flag = 1 if not set(all_libs).difference(set(cur_libs)) else 0
-            _db.cur.execute("UPDATE user SET all_lib=? WHERE plex_email=?", (all_lib_flag, email))
+            _db.cur.execute(
+                "UPDATE user SET all_lib=? WHERE plex_email=?", (all_lib_flag, email)
+            )
     except Exception as e:
         print(e)
     else:
         _db.con.commit()
     finally:
         _db.close()
-        
-
 
 
 def update_watched_time():
     """更新用户观看时长"""
-    duration = get_user_total_duration(Tautulli().get_home_stats(1365, "duration", len(Plex().users_by_id), "top_users"))
+    duration = get_user_total_duration(
+        Tautulli().get_home_stats(
+            36500, "duration", len(Plex().users_by_id), "top_users"
+        )
+    )
     _db = DB()
     try:
         res = _db.cur.execute("select plex_id from user")
@@ -100,8 +165,11 @@ def update_watched_time():
         for user in users:
             plex_id = user[0]
             watched_time = duration.get(plex_id, 0)
-            _db.cur.execute("UPDATE user SET watched_time=? WHERE plex_id=?", (watched_time, plex_id))
-    
+            _db.cur.execute(
+                "UPDATE user SET watched_time=? WHERE plex_id=?",
+                (watched_time, plex_id),
+            )
+
     except Exception as e:
         print(e)
     else:
@@ -113,7 +181,11 @@ def update_watched_time():
 def add_all_plex_user():
     """将所有 plex 用户均加入到数据库中"""
 
-    duration = get_user_total_duration(Tautulli().get_home_stats(1365, "duration", len(Plex().users_by_id), "top_users"))
+    duration = get_user_total_duration(
+        Tautulli().get_home_stats(
+            36500, "duration", len(Plex().users_by_id), "top_users"
+        )
+    )
     _plex = Plex()
     users = [user for user in _plex.my_plex_account.users()]
     users.append(_plex.my_plex_account)
@@ -134,7 +206,15 @@ def add_all_plex_user():
                 print(e)
                 continue
             all_lib_flag = 1 if not set(all_libs).difference(set(cur_libs)) else 0
-            _db.add_plex_user(plex_id=user.id, tg_id=None, plex_email=user.email, plex_username=user.username, credits=watched_time, all_lib=all_lib_flag, watched_time=watched_time)
+            _db.add_plex_user(
+                plex_id=user.id,
+                tg_id=None,
+                plex_email=user.email,
+                plex_username=user.username,
+                credits=watched_time,
+                all_lib=all_lib_flag,
+                watched_time=watched_time,
+            )
 
     except Exception as e:
         print(e)
@@ -147,7 +227,9 @@ def add_all_plex_user():
 def add_redeem_code(tg_id=None):
     db = DB()
     if tg_id is None:
-        tg_id = [u[0] for u in db.cur.execute("SELECT tg_id FROM statistics").fetchall()]
+        tg_id = [
+            u[0] for u in db.cur.execute("SELECT tg_id FROM statistics").fetchall()
+        ]
     elif not isinstance(tg_id, list):
         tg_id = [tg_id]
     try:
@@ -160,9 +242,10 @@ def add_redeem_code(tg_id=None):
         db.con.commit()
     finally:
         db.close()
-        
+
 
 if __name__ == "__main__":
     update_credits()
     update_plex_info()
     # add_all_plex_user()
+    update_emby_credits()
