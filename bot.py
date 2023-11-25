@@ -34,22 +34,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
     Plex 命令:
+    /redeem\_plex - 兑换邀请码，格式为 `/redeem_plex 邮箱 邀请码` (注意空格)
     /bind\_plex - 绑定 Plex 用户，格式为 `/bind_plex 邮箱` (注意空格)
     /unlock\_nsfw\_plex - 解锁 NSFW 相关库权限, 消耗 {} 积分
     /lock\_nsfw\_plex - 关闭 NSFW 权限, 积分返还规则：一天内返还 90%, 7 天内 70%, 一月内 50%，超出一个月 0
-    /redeem\_plex - 兑换邀请码，格式为 `/redeem_plex 邮箱 邀请码` (注意空格)
     
     Emby 命令:
-    /bind\_emby - 绑定 Emby 用户，格式为 `/bind_emby 用户名` (注意空格)
     /redeem\_emby - 兑换邀请码，格式为 `/redeem_emby 用户名 邀请码` (注意空格)
-
+    /bind\_emby - 绑定 Emby 用户，格式为 `/bind_emby 用户名` (注意空格)
+    /unlock\_nsfw\_emby - 解锁 NSFW 相关库权限, 消耗 {} 积分
+    /lock\_nsfw\_emby - 关闭 NSFW 权限, 积分返还规则：一天内返还 90%, 7 天内 70%, 一月内 50%，超出一个月 0
+ 
     管理员命令：
     /set\_donation - 设置捐赠金额
     /update\_database - 更新数据库
 
     群组：https://t.me/+VCHVfOhRTAxmOGE9
     """.format(
-        INVITATION_CREDITS, UNLOCK_CREDITS
+        INVITATION_CREDITS, UNLOCK_CREDITS, UNLOCK_CREDITS
     )
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
@@ -478,6 +480,105 @@ async def lock_nsfw_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
 
+# 解锁 emby nsfw 库权限
+async def unlock_nsfw_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update._effective_chat.id
+    _db = DB()
+    _info = _db.get_emby_info_by_tg_id(chat_id)
+    if not _info:
+        await context.bot.send_message(chat_id=chat_id, text="错误: 未查询到用户, 请先绑定")
+        _db.close()
+        return
+    # 用户数据
+    _stats_info = _db.get_stats_by_tg_id(chat_id)
+    _emby_id = _info[1]
+    _credits = _stats_info[2]
+    _is_unlock = _info[3]
+    if _is_unlock == 1:
+        _db.close()
+        await context.bot.send_message(chat_id=chat_id, text="错误: 您已拥有全部库权限, 无需解锁")
+        return
+    if _credits < UNLOCK_CREDITS:
+        await context.bot.send_message(chat_id=chat_id, text="错误: 您的积分不足, 解锁失败")
+        _db.close()
+        return
+    _credits -= UNLOCK_CREDITS
+    _emby = Emby()
+    # 更新权限
+    flag, msg = _emby.add_user_library(user_id=_emby_id)
+    if not flag:
+        await context.bot.send_message(
+            chat_id=chat_id, text=f"错误: 更新权限失败 ({msg}), 请联系管理员"
+        )
+        _db.close()
+        return
+    # 解锁权限的时间
+    unlock_time = time()
+    # 更新数据库
+    res = _db.update_user_credits(_credits, tg_id=chat_id)
+    if not res:
+        _db.close()
+        await context.bot.send_message(chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员")
+        return
+    res = _db.update_all_lib_flag(
+        all_lib=1, unlock_time=unlock_time, tg_id=chat_id, media_server="emby"
+    )
+    if not res:
+        _db.close()
+        await context.bot.send_message(chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员")
+        return
+    _db.close()
+    await context.bot.send_message(chat_id=chat_id, text="信息: 解锁成功, 请尽情享受")
+
+
+# 锁定 emby NSFW 权限
+async def lock_nsfw_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update._effective_chat.id
+    _db = DB()
+    _info = _db.get_emby_info_by_tg_id(chat_id)
+    if not _info:
+        await context.bot.send_message(chat_id=chat_id, text="错误: 未查询到用户, 请先绑定")
+        _db.close()
+        return
+    _stats_info = _db.get_stats_by_tg_id(chat_id)
+    _emby_id = _info[1]
+    _credits = _stats_info[2]
+    _is_unlock = _info[3]
+    _unlock_time = _info[4]
+    if _is_unlock == 0:
+        _db.close()
+        await context.bot.send_message(chat_id=chat_id, text="错误: 您未解锁 NSFW 内容")
+        return
+    _credits_fund = caculate_credits_fund(_unlock_time, UNLOCK_CREDITS)
+    _credits += _credits_fund
+    _emby = Emby()
+    # 更新权限
+    flag, msg = _emby.remove_user_library(user_id=_emby_id)
+    if not flag:
+        await context.bot.send_message(
+            chat_id=chat_id, text=f"错误: 更新权限失败 ({msg}), 请联系管理员"
+        )
+        _db.close()
+        return
+    # 更新数据库
+    res = _db.update_user_credits(_credits, tg_id=chat_id)
+    if not res:
+        _db.close()
+        await context.bot.send_message(chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员")
+        return
+    res = _db.update_all_lib_flag(
+        all_lib=0, unlock_time=None, tg_id=chat_id, media_server="emby"
+    )
+    if not res:
+        _db.close()
+        await context.bot.send_message(chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员")
+        return
+    _db.close()
+    await context.bot.send_message(
+        chat_id=chat_id, text=f"信息: 成功关闭 NSFW 内容, 退回积分 {_credits_fund}"
+    )
+
+
 # 积分榜
 async def credits_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
@@ -627,6 +728,8 @@ if __name__ == "__main__":
     exchange_handler = CommandHandler("exchange", exchange)
     redeem_plex_handler = CommandHandler("redeem_plex", redeem_plex)
     redeem_emby_handler = CommandHandler("redeem_emby", redeem_emby)
+    unlock_nsfw_emby_handler = CommandHandler("unlock_nsfw_emby", unlock_nsfw_emby)
+    lock_nsfw_emby_handler = CommandHandler("lock_nsfw_emby", lock_nsfw_emby)
     update_database_handler = CommandHandler("update_database", update_database)
 
     application.add_handler(start_handler)
@@ -642,6 +745,8 @@ if __name__ == "__main__":
     application.add_handler(exchange_handler)
     application.add_handler(redeem_plex_handler)
     application.add_handler(redeem_emby_handler)
+    application.add_handler(unlock_nsfw_emby_handler)
+    application.add_handler(lock_nsfw_emby_handler)
     application.add_handler(update_database_handler)
 
     application.run_polling()

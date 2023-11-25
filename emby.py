@@ -3,7 +3,7 @@
 import requests
 import json
 
-from typing import Optional
+from typing import Optional, Any
 
 from log import logger
 from settings import (
@@ -11,6 +11,7 @@ from settings import (
     EMBY_API_TOKEN,
     EMBY_ADMIN_USER,
     EMBY_USER_TEMPLATE,
+    NSFW_LIBS,
 )
 
 
@@ -98,3 +99,110 @@ class Emby:
             user_stats.update({user_id: play_duration})
 
         return user_stats
+
+    def get_libraries(self) -> dict[str, dict[str, Any]]:
+        headers = {"accept": "application/json"}
+        params = {"api_key": self.api_token}
+
+        response = requests.get(
+            url=self.base_url + "/Library/SelectableMediaFolders",
+            headers=headers,
+            params=params,
+        )
+
+        libs = response.json()
+        libraries = {}
+        for lib in libs:
+            name = lib.get("Name")
+            guid = lib.get("Guid")
+            subfolders = lib.get("SubFolders", [])
+            subfolders_id = [folder.get("Id") for folder in subfolders]
+            libraries.update({name: {"guid": guid, "subfolders_id": subfolders_id}})
+
+        return libraries
+
+    def add_user_library(self, user_id, library=NSFW_LIBS):
+        headers = {"accept": "application/json", "Content-Type": "application/json"}
+        params = {"api_key": self.api_token}
+
+        # 先获取该用户的 policy
+        response = requests.get(
+            url=self.base_url + f"/Users/{user_id}", params=params, headers=headers
+        )
+        policy = response.json().get("Policy")
+
+        libraries = self.get_libraries()
+
+        for lib_name in library:
+            lib = libraries.get(lib_name)
+            guid = lib.get("guid")
+            subfolders_id = lib.get("subfolders_id")
+            enabled_folders = policy.get("EnabledFolders")
+            excluded_subfolders = policy.get("ExcludedSubFolders")
+            # 增加资料库权限
+            enabled_folders.append(guid)
+            for subfolder in subfolders_id:
+                subfolder_id = f"{guid}_{subfolder}"
+                if subfolder_id in excluded_subfolders:
+                    excluded_subfolders.remove(subfolder_id)
+
+        # 更新权限设置
+        try:
+            response = requests.post(
+                url=self.base_url + f"/Users/{user_id}/Policy",
+                data=json.dumps(policy),
+                params=params,
+                headers=headers,
+            )
+            if response:
+                if response.status_code in [200, 204]:
+                    return True, "ok"
+                else:
+                    return False, response.text
+            else:
+                return False, "Unknown error"
+        except Exception as e:
+            return False, str(e)
+
+    def remove_user_library(self, user_id, library=NSFW_LIBS):
+        headers = {"accept": "application/json", "Content-Type": "application/json"}
+        params = {"api_key": self.api_token}
+
+        # 先获取该用户的 policy
+        response = requests.get(
+            url=self.base_url + f"/Users/{user_id}", headers=headers, params=params
+        )
+        policy = response.json().get("Policy")
+
+        libraries = self.get_libraries()
+
+        for lib_name in library:
+            lib = libraries.get(lib_name)
+            guid = lib.get("guid")
+            subfolders_id = lib.get("subfolders_id")
+            enabled_folders = policy.get("EnabledFolders")
+            excluded_subfolders = policy.get("ExcludedSubFolders")
+            # 更新资料库权限
+            enabled_folders.remove(guid)
+            for subfolder in subfolders_id:
+                subfolder_id = f"{guid}_{subfolder}"
+                if subfolder_id not in excluded_subfolders:
+                    excluded_subfolders.append(subfolder_id)
+
+        # 更新权限设置
+        try:
+            response = requests.post(
+                url=self.base_url + f"/Users/{user_id}/Policy",
+                data=json.dumps(policy),
+                params=params,
+                headers=headers,
+            )
+            if response:
+                if response.status_code in [200, 204]:
+                    return True, "ok"
+                else:
+                    return False, response.text
+            else:
+                return False, "Unknown error"
+        except Exception as e:
+            return False, str(e)

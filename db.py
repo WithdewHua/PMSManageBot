@@ -210,21 +210,39 @@ class DB:
         return True
 
     def update_all_lib_flag(
-        self, all_lib: int, unlock_time=None, plex_id=None, tg_id=None
+        self,
+        all_lib: int,
+        unlock_time=None,
+        plex_id=None,
+        emby_id=None,
+        tg_id=None,
+        media_server="plex",
     ):
         try:
-            if plex_id:
-                self.cur.execute(
-                    "UPDATE user SET all_lib=?,unlock_time=? WHERE plex_id=?",
-                    (all_lib, unlock_time, plex_id),
-                )
-            elif tg_id:
-                self.cur.execute(
-                    "UPDATE user SET all_lib=?,unlock_time=? WHERE tg_id=?",
-                    (all_lib, unlock_time, tg_id),
-                )
+            if media_server.lower() == "plex":
+                if plex_id:
+                    self.cur.execute(
+                        "UPDATE user SET all_lib=?,unlock_time=? WHERE plex_id=?",
+                        (all_lib, unlock_time, plex_id),
+                    )
+                elif tg_id:
+                    self.cur.execute(
+                        "UPDATE user SET all_lib=?,unlock_time=? WHERE tg_id=?",
+                        (all_lib, unlock_time, tg_id),
+                    )
+            elif media_server.lower() == "emby":
+                if emby_id:
+                    self.cur.execute(
+                        "UPDATE emby_user SET emby_is_unlock=?,emby_unlock_time=? WHERE emby_id=?",
+                        (all_lib, unlock_time, emby_id),
+                    )
+                elif tg_id:
+                    self.cur.execute(
+                        "UPDATE emby_user SET emby_is_unlock=?,emby_unlock_time=? WHERE tg_id=?",
+                        (all_lib, unlock_time, tg_id),
+                    )
             else:
-                logging.error("Error: there is no enough params")
+                logging.error(f"Error: please specify correct media server")
         except Exception as e:
             logging.error(f"Error: {e}")
             return False
