@@ -132,8 +132,8 @@ async def bind_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             watched_time=plex_credits,
         )
 
-        _db.close()
         if not rslt:
+            _db.close()
             await context.bot.send_message(
                 chat_id=chat_id, text="错误：数据库错误，请联系管理员 @WithdewHua"
             )
