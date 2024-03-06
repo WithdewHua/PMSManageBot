@@ -63,7 +63,7 @@ class DB:
     ):
         try:
             self.cur.execute(
-                "INSERT INTO user VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO user VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     plex_id,
                     tg_id,
