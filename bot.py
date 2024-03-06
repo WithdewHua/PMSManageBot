@@ -16,6 +16,8 @@ from settings import (
     UNLOCK_CREDITS,
     INVITATION_CREDITS,
     NSFW_LIBS,
+    PLEX_REGISTER,
+    EMBY_REGISTER,
 )
 from utils import get_user_total_duration, caculate_credits_fund
 from update_db import add_all_plex_user
@@ -250,6 +252,8 @@ async def redeem_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if len(text_parts) != 3:
         await context.bot.send_message(chat_id=chat_id, text="错误：请按照格式填写")
         return
+    if not PLEX_REGISTER:
+        await context.bot.send_message(chat_id=chat_id, text="错误：Plex 暂停注册")
     plex_email = text_parts[1]
     code = text_parts[2]
     _db = DB()
@@ -297,6 +301,8 @@ async def redeem_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if len(text_parts) != 3:
         await context.bot.send_message(chat_id=chat_id, text="错误: 请按照格式填写")
         return
+    if not EMBY_REGISTER:
+        await context.bot.send_message(chat_id=chat_id, text="错误：Emby 暂停注册")
     emby_username, redeem_code = text_parts[1:]
     _db = DB()
     # 检查邀请码有效性

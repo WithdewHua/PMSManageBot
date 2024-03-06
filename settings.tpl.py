@@ -5,6 +5,7 @@ from plexapi.server import CONFIG
 LOG_LEVEL = "DEBUG"
 
 # plex
+PLEX_REGISTER = True
 PLEX_BASE_URL = ""
 PLEX_API_TOKEN = ""
 PLEX_ADMIN_USER = ""
@@ -36,6 +37,7 @@ if not TAUTULLI_PUBLIC_URL:
 VERIFY_SSL = False
 
 # emby
+EMBY_REGISTER = True
 EMBY_BASE_URL = ""
 EMBY_API_TOKEN = ""
 EMBY_ADMIN_USER = ""
