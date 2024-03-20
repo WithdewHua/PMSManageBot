@@ -16,9 +16,7 @@ logFormatter = logging.Formatter(fmt=logging_format, datefmt=logging_datefmt)
 
 logger = logging.getLogger()
 logger.setLevel(getattr(logging, LOG_LEVEL))
-while (
-    logger.handlers
-):  # Remove un-format logging in Stream, or all of messages are appearing more than once.
+while logger.handlers:  # Remove un-format logging in Stream, or all of messages are appearing more than once.
     logger.handlers.pop()
 
 consoleHandler = logging.StreamHandler()
