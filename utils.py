@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 
+import requests
+import logging
+
 from time import time
+
+from settings import TG_API_TOKEN
 
 
 def get_user_total_duration(home_stats: dict):
@@ -27,3 +32,14 @@ def caculate_credits_fund(unlock_time, unlock_credits: int):
         return unlock_credits * 0.5
     else:
         return 0
+
+
+def get_user_name_from_tg_id(chat_id, token=TG_API_TOKEN):
+    """Get telegram user's info"""
+    response = requests.get(url=f"https://api.telegram.org/bot{token}/getChat?chat_id={chat_id}")
+    if not response.ok:
+        logging.error(f"Error: failed to get info. for {chat_id}")
+        return chat_id
+    result = response.json().get("result", {})
+    return result.get("first_name") or result.get("username") or chat_id
+

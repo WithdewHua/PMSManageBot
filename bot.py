@@ -19,7 +19,7 @@ from settings import (
     PLEX_REGISTER,
     EMBY_REGISTER,
 )
-from utils import get_user_total_duration, caculate_credits_fund
+from utils import get_user_total_duration, caculate_credits_fund, get_user_name_from_tg_id
 from update_db import add_all_plex_user
 
 
@@ -309,7 +309,7 @@ async def redeem_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     )
     for admin in ADMIN_CHAT_ID:
         await context.bot.send_message(
-            chat_id=admin, text=f"信息：tg://user?id={owner} 成功邀请 {plex_email}"
+            chat_id=admin, text=f"信息：{get_user_name_from_tg_id(owner)} 成功邀请 {plex_email}"
         )
 
 
@@ -371,7 +371,7 @@ async def redeem_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     for admin in ADMIN_CHAT_ID:
         await context.bot.send_message(
             chat_id=admin,
-            text=f"信息：tg://user?id={code_owner} 成功邀请 {emby_username}",
+            text=f"信息：{get_user_name_from_tg_id(code_owner)} 成功邀请 {emby_username}",
         )
 
 
@@ -653,10 +653,11 @@ async def credits_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     _db = DB()
     res = _db.get_credits_rank()
     rank = [
-        f"{i}. tg://user?id={info[0]}: {info[1]:.2f}"
+        f"{i}. {get_user_name_from_tg_id(info[0])}: {info[1]:.2f}"
         for i, info in enumerate(res, 1)
-        if i <= 10
+        if i  <= 10
     ]
+
     body_text = """
 <strong>积分榜</strong>
 ==================
@@ -665,6 +666,7 @@ async def credits_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 ⚠️只统计 TG 绑定用户
     """.format("\n".join(rank))
+    logging.info(body_text)
     await context.bot.send_message(chat_id=chat_id, text=body_text, parse_mode="HTML")
 
 
@@ -674,10 +676,11 @@ async def donation_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     _db = DB()
     res = _db.get_donation_rank()
     rank = [
-        f"{i}. tg://user?id={info[0]}: {info[1]:.2f}"
+        f"{i}. {get_user_name_from_tg_id(info[0])}: {info[1]:.2f}"
         for i, info in enumerate(res, 1)
         if info[1] > 0
     ]
+
     body_text = """
 <strong>捐赠榜</strong>
 ==================
@@ -686,6 +689,7 @@ async def donation_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 衷心感谢各位的支持!
     """.format("\n".join(rank))
+    logging.info(body_text)
     await context.bot.send_message(chat_id=chat_id, text=body_text, parse_mode="HTML")
 
 
@@ -768,9 +772,10 @@ async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         return
     _db.close()
+
     await context.bot.send_message(
         chat_id=chat_id,
-        text=f"信息：成功为 tg://user?id={tg_id} 设置捐赠金额 {donation}",
+        text=f"信息：成功为 {get_user_name_from_tg_id(tg_id)} 设置捐赠金额 {donation}",
     )
     # 通知该用户
     await context.bot.send_message(
