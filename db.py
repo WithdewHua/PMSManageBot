@@ -172,7 +172,7 @@ class DB:
                 )
             elif emby_id:
                 self.cur.execute(
-                    "UPDATE emby_user SET credits=? WHERE emby_id=?", (credits, emby_id)
+                    "UPDATE emby_user SET emby_credits=? WHERE emby_id=?", (credits, emby_id)
                 )
             else:
                 logging.error("Error: there is no enough params")

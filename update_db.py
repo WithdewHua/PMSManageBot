@@ -83,16 +83,21 @@ def update_emby_credits():
                     (playduration, _credits, user[0]),
                 )
             else:
-                credits_init = _db.cur.execute(
-                    "SELECT credits FROM statistics WHERE tg_id=?", (user[1],)
-                ).fetchone()[0]
-                _credits = credits_init + credits_inc
+                stats_info = _db.get_stats_by_tg_id(user[1])
+                # statistics 表中有数据
+                if stats_info:
+                    credits_init = stats_info[2]
+                    _credits = credits_init + credits_inc
+                    _db.update_user_credits(_credits, tg_id=user[1])
+                else:
+                    # 清空 emby_user 表中积分信息
+                    _db.update_user_credits(0, emby_id=user[0])
+                    # 在 statistic 表中增加用户数据
+                    _db.add_user_data(user[1], credits=user[3] + credits_inc)
+                # 更新 emby_user 表中观看时间
                 _db.cur.execute(
                     "UPDATE emby_user SET emby_watched_time=? WHERE emby_id=?",
                     (playduration, user[0]),
-                )
-                _db.cur.execute(
-                    "UPDATE statistics SET credits=? WHERE tg_id=?", (_credits, user[1])
                 )
 
     except Exception as e:
