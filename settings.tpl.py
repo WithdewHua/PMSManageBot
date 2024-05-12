@@ -1,8 +1,15 @@
+from pathlib import Path
+
 from plexapi.server import CONFIG
 
 
 # log
 LOG_LEVEL = "DEBUG"
+
+# data folder
+DATA_DIR = Path(__file__).cwd() / "data"
+if not DATA_DIR.exists():
+    DATA_DIR.mkdir()
 
 # plex
 PLEX_REGISTER = True

@@ -2,10 +2,12 @@
 
 import requests
 import logging
+import pickle
 
 from time import time
+from pathlib import Path
 
-from settings import TG_API_TOKEN
+from settings import TG_API_TOKEN, DATA_DIR
 
 
 def get_user_total_duration(home_stats: dict):
@@ -35,11 +37,35 @@ def caculate_credits_fund(unlock_time, unlock_credits: int):
 
 
 def get_user_name_from_tg_id(chat_id, token=TG_API_TOKEN):
-    """Get telegram user's info"""
+    """Get telegram user's info
+    cache format: {tg_id: {"first_name": first_name, "username": username, "added": timestamp}}
+    """
+    cache_file = DATA_DIR / "tg_user_info.cache"
+    cache = {}
+    if cache_file.exists():
+        cache = pickle.load(open(cache_file, "rb"))
+    # get from cache if exists
+    current_time = time()
+    if cache and chat_id in cache:
+        user_info = cache.get(chat_id)
+        # if not expire (7d)
+        if current_time - user_info.get("added") < 7 * 24 * 3600:
+           return user_info.get("first_name") or user_info.get("username") or chat_id
     response = requests.get(url=f"https://api.telegram.org/bot{token}/getChat?chat_id={chat_id}")
     if not response.ok:
         logging.error(f"Error: failed to get info. for {chat_id}")
         return chat_id
     result = response.json().get("result", {})
+    # add cache
+    cache.update(
+        {
+            chat_id: {
+                "first_name": result.get("first_name"),
+                "username": result.get("username"),
+                "added": current_time,
+            }
+        }
+    )
+    pickle.dump(cache, open(cache_file, "wb"))
     return result.get("first_name") or result.get("username") or chat_id
 

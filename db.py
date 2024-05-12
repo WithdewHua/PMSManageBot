@@ -2,16 +2,17 @@
 
 import sqlite3
 import logging
-import os
 
 from typing import Optional
+
+from settings import DATA_DIR
 
 
 class DB:
     """class DB"""
 
     def __init__(
-        self, db=os.path.join(os.path.split(os.path.realpath(__file__))[0], "data.db")
+        self, db=DATA_DIR / "data.db"
     ):
         self.con = sqlite3.connect(db)
         self.cur = self.con.cursor()
