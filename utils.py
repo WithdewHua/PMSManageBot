@@ -43,7 +43,8 @@ def get_user_name_from_tg_id(chat_id, token=TG_API_TOKEN):
     cache_file = DATA_DIR / "tg_user_info.cache"
     cache = {}
     if cache_file.exists():
-        cache = pickle.load(open(cache_file, "rb"))
+        with open(cache_file, "rb") as f:
+            cache = pickle.load(f)
     # get from cache if exists
     current_time = time()
     if cache and chat_id in cache:
@@ -66,6 +67,7 @@ def get_user_name_from_tg_id(chat_id, token=TG_API_TOKEN):
             }
         }
     )
-    pickle.dump(cache, open(cache_file, "wb"))
+    with open(cache_file, "wb") as f:
+        pickle.dump(cache, f)
     return result.get("first_name") or result.get("username") or chat_id
 
