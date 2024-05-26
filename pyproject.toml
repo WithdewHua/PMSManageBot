@@ -12,7 +12,7 @@ dependencies = [
     "urllib3==1.26.9",
 ]
 readme = "README.md"
-requires-python = ">= 3.8"
+requires-python = ">= 3.11"
 
 [build-system]
 requires = ["hatchling"]

@@ -817,6 +817,7 @@ async def set_register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             chat_id=chat_id, text="错误: 请指定正确的媒体服务器"
         )
         return
+    global PLEX_REGISTER, EMBY_REGISTER
     if server.lower() == "plex":
         PLEX_REGISTER = True if flag else False
     elif server.lower() == "emby":
