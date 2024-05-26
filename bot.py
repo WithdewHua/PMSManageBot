@@ -828,7 +828,7 @@ async def set_register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         EMBY_REGISTER = True if flag != "0" else False
     await context.bot.send_message(
         chat_id=chat_id,
-        text=f"信息: 设置 {server} 注册状态为 {'开启' if flag else '关闭'}",
+        text=f"信息: 设置 {server} 注册状态为 {'开启' if flag != '0' else '关闭'}",
     )
 
 
