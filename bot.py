@@ -269,7 +269,11 @@ async def redeem_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
     if not PLEX_REGISTER:
         await context.bot.send_message(chat_id=chat_id, text="错误：Plex 暂停注册")
+        return
     plex_email = text_parts[1]
+    if "@" not in plex_email:
+        await context.bot.send_message(chat_id=chat_id, text="错误: 请输入正确的邮箱")
+        return
     code = text_parts[2]
     _db = DB()
     res = _db.verify_invitation_code_is_used(code)
@@ -819,9 +823,9 @@ async def set_register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
     global PLEX_REGISTER, EMBY_REGISTER
     if server.lower() == "plex":
-        PLEX_REGISTER = True if flag else False
+        PLEX_REGISTER = True if flag != "0" else False
     elif server.lower() == "emby":
-        EMBY_REGISTER = True if flag else False
+        EMBY_REGISTER = True if flag != "0" else False
     await context.bot.send_message(
         chat_id=chat_id,
         text=f"信息: 设置 {server} 注册状态为 {'开启' if flag else '关闭'}",
