@@ -243,13 +243,19 @@ class DB:
                         (all_lib, unlock_time, tg_id),
                     )
             else:
-                logging.error(f"Error: please specify correct media server")
+                logging.error("Error: please specify correct media server")
         except Exception as e:
             logging.error(f"Error: {e}")
             return False
         else:
             self.con.commit()
         return True
+
+    def get_plex_users_num(self):
+        rslt = self.cur.execute(
+            "SELECT count(*) FROM user"
+        )
+        return rslt.fetchone()[0]
 
     def get_plex_info_by_tg_id(self, tg_id):
         rslt = self.cur.execute("SELECT * FROM user WHERE tg_id = ?", (tg_id,))

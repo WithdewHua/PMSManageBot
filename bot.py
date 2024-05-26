@@ -295,7 +295,12 @@ async def redeem_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         _db.close()
         return
     # 发送邀请
-    _plex.invite_friend(plex_email)
+    if not _plex.invite_friend(plex_email):
+        await context.bot.send_message(
+            chat_id=chat_id, text="错误: 邀请失败，请联系管理员"
+        )
+        _db.close()
+        return
     # 更新邀请码状态
     res = _db.update_invitation_status(code=code, used_by=plex_email)
     if not res:

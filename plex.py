@@ -91,9 +91,15 @@ class Plex:
         )
 
     def invite_friend(self, user, libs=None):
-        if libs is None:
-            libs = list(set(self.get_libraries()).difference(set(NSFW_LIBS)))
-        self.my_plex_account.inviteFriend(user, self.plex_server, sections=libs)
+        try:
+            if libs is None:
+                libs = list(set(self.get_libraries()).difference(set(NSFW_LIBS)))
+            self.my_plex_account.inviteFriend(user, self.plex_server, sections=libs)
+        except Exception as e:
+            logging.error(e)
+            return False
+        else:
+            return True
 
     def add_shared_libs_for_all_users(self, add_sections=[]):
         """更新所有用户的资料库权限"""
