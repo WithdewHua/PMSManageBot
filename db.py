@@ -11,9 +11,7 @@ from settings import DATA_DIR
 class DB:
     """class DB"""
 
-    def __init__(
-        self, db=DATA_DIR / "data.db"
-    ):
+    def __init__(self, db=DATA_DIR / "data.db"):
         self.con = sqlite3.connect(db)
         self.cur = self.con.cursor()
         # self.create_table()
@@ -43,6 +41,10 @@ class DB:
 
                 CREATE TABLE emby_user(
                     emby_username, emby_id, tg_id, emby_is_unlock, emby_unlock_time, emby_watched_time, emby_credits
+                );
+
+                CREATE TABLE overseerr(
+                    user_id, user_email, tg_id
                 );
                 """
             )
@@ -113,6 +115,19 @@ class DB:
             self.con.commit()
         return True
 
+    def add_overseerr_user(self, user_id: int, user_email: str, tg_id: int):
+        try:
+            self.cur.execute(
+                "INSERT INTO overseerr VALUES (?, ?, ?)",
+                (user_id, user_email, tg_id),
+            )
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            return False
+        else:
+            self.con.commit()
+            return True
+
     def add_user_data(self, tg_id, credits=0, donation=0):
         try:
             self.cur.execute(
@@ -173,7 +188,8 @@ class DB:
                 )
             elif emby_id:
                 self.cur.execute(
-                    "UPDATE emby_user SET emby_credits=? WHERE emby_id=?", (credits, emby_id)
+                    "UPDATE emby_user SET emby_credits=? WHERE emby_id=?",
+                    (credits, emby_id),
                 )
             else:
                 logging.error("Error: there is no enough params")
@@ -252,9 +268,7 @@ class DB:
         return True
 
     def get_plex_users_num(self):
-        rslt = self.cur.execute(
-            "SELECT count(*) FROM user"
-        )
+        rslt = self.cur.execute("SELECT count(*) FROM user")
         return rslt.fetchone()[0]
 
     def get_plex_info_by_tg_id(self, tg_id):
@@ -275,6 +289,16 @@ class DB:
     def get_emby_info_by_tg_id(self, tg_id):
         return self.cur.execute(
             "SELECT * FROM emby_user WHERE tg_id = ?", (tg_id,)
+        ).fetchone()
+
+    def get_overseerr_info_by_tg_id(self, tg_id):
+        return self.cur.execute(
+            "SELECT * FROM overseerr WHERE tg_id = ?", (tg_id,)
+        ).fetchone()
+
+    def get_overseerr_info_by_email(self, email):
+        return self.cur.execute(
+            "SELECT * FROM overseerr WHERE user_email = ?", (email,)
         ).fetchone()
 
     def get_credits_rank(self):

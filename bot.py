@@ -8,6 +8,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
 from plex import Plex
 from emby import Emby
+from overseerr import Overseerr
 from db import DB
 from tautulli import Tautulli
 from settings import (
@@ -19,7 +20,11 @@ from settings import (
     PLEX_REGISTER,
     EMBY_REGISTER,
 )
-from utils import get_user_total_duration, caculate_credits_fund, get_user_name_from_tg_id
+from utils import (
+    get_user_total_duration,
+    caculate_credits_fund,
+    get_user_name_from_tg_id,
+)
 from update_db import add_all_plex_user
 
 
@@ -47,6 +52,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     /bind\_emby - 绑定 Emby 用户，格式为 `/bind_emby 用户名` (注意空格)
     /unlock\_nsfw\_emby - 解锁 NSFW 相关库权限, 消耗 {} 积分
     /lock\_nsfw\_emby - 关闭 NSFW 权限, 积分返还规则：一天内返还 90%, 7 天内 70%, 一月内 50%，超出一个月 0
+
+    Overseerr 命令:
+    /create\_overseerr - 创建 Overseerr 账户，格式为 `/create_overseerr 邮箱 密码` (注意空格)
  
     管理员命令：
     /set\_donation - 设置捐赠金额
@@ -93,6 +101,13 @@ async def bind_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     plex_info = _db.get_plex_info_by_plex_id(plex_id)
 
     if plex_info:
+        tg_id = plex_info[1]
+        if tg_id:
+            _db.close()
+            await context.bot.send_message(
+                chat_id=chat_id, text="错误：该 Plex 账户已经绑定 TG"
+            )
+            return
         rslt = _db.update_user_tg_id(chat_id, plex_id=plex_id)
         if not rslt:
             _db.close()
@@ -188,6 +203,12 @@ async def bind_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # 更新 emby 用户表
     # todo: 更新观看时间等信息
     if emby_info:
+        if emby_info[2]:
+            db.close()
+            await context.bot.send_message(
+                chat_id=chat_id, text="错误：该 Emby 账户已经绑定 TG"
+            )
+            return
         emby_credits = emby_info[6]
         # 更新 tg id
         db.update_user_tg_id(chat_id, emby_id=uid)
@@ -318,7 +339,8 @@ async def redeem_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     )
     for admin in ADMIN_CHAT_ID:
         await context.bot.send_message(
-            chat_id=admin, text=f"信息：{get_user_name_from_tg_id(owner)} 成功邀请 {plex_email}"
+            chat_id=admin,
+            text=f"信息：{get_user_name_from_tg_id(owner)} 成功邀请 {plex_email}",
         )
 
 
@@ -656,6 +678,69 @@ async def lock_nsfw_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
 
+# 创建 overseerr 用户
+async def create_overseerr(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update._effective_chat.id
+    text = update.message.text
+    text_parts = text.split()
+    if len(text_parts) != 3:
+        await context.bot.send_message(chat_id=chat_id, text="错误: 请按照格式填写")
+        return
+    email, password = text_parts[1:]
+    if len(password) < 8:
+        await context.bot.send_message(chat_id=chat_id, text="错误：密码长度至少为 8")
+        return
+    db = DB()
+    try:
+        # 检查是否绑定了 Emby
+        emby_info = db.get_emby_info_by_tg_id(tg_id=chat_id)
+        plex_info = db.get_plex_info_by_tg_id(tg_id=chat_id)
+        overseerr_info = db.get_overseerr_info_by_tg_id(tg_id=chat_id)
+        overseerr_info_by_email = db.get_overseerr_info_by_email(email=email)
+        if not emby_info:
+            await context.bot.send_message(
+                chat_id=chat_id, text="错误: 未绑定 Emby 帐号，不允许创建 Overseer 账户"
+            )
+            raise
+        if plex_info:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="错误：您已绑定 Plex 账户，请使用 Plex 帐号登录 Overseer",
+            )
+            raise
+        if overseerr_info:
+            await context.bot.send_message(
+                chat_id=chat_id, text="错误：您已创建过 Overseerr 账户，请勿重复创建"
+            )
+            raise
+        if overseerr_info_by_email:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text="错误：已存在该邮箱创建的 Overseerr 账户，请勿重复创建",
+            )
+            raise
+        # 创建账户
+        _overseerr = Overseerr()
+        flag, msg = _overseerr.add_user(email, password)
+        if not flag:
+            logging.error(f"Failed to create overseerr user: {msg}")
+            await context.bot.send_message(
+                chat_id=chat_id, text="错误：创建账户失败，请联系管理员"
+            )
+            raise
+        # 保存至数据库
+        rslt = db.add_overseerr_user(user_id=msg, user_email=email, tg_id=chat_id)
+        if not rslt:
+            await context.bot.send_message(
+                chat_id=chat_id, text="错误：数据库操作失败，请联系管理员"
+            )
+            raise
+    except Exception as e:
+        logging.error(e)
+    finally:
+        db.close()
+
+
 # 积分榜
 async def credits_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
@@ -664,7 +749,7 @@ async def credits_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     rank = [
         f"{i}. {get_user_name_from_tg_id(info[0])}: {info[1]:.2f}"
         for i, info in enumerate(res, 1)
-        if i  <= 10
+        if i <= 10
     ]
 
     body_text = """
@@ -855,6 +940,7 @@ if __name__ == "__main__":
     redeem_emby_handler = CommandHandler("redeem_emby", redeem_emby)
     unlock_nsfw_emby_handler = CommandHandler("unlock_nsfw_emby", unlock_nsfw_emby)
     lock_nsfw_emby_handler = CommandHandler("lock_nsfw_emby", lock_nsfw_emby)
+    create_overseerr_handler = CommandHandler("create_overseerr", create_overseerr)
     update_database_handler = CommandHandler("update_database", update_database)
     get_register_status_handler = CommandHandler("register_status", get_register_status)
     set_register_handler = CommandHandler("set_register", set_register)
@@ -874,6 +960,7 @@ if __name__ == "__main__":
     application.add_handler(redeem_emby_handler)
     application.add_handler(unlock_nsfw_emby_handler)
     application.add_handler(lock_nsfw_emby_handler)
+    application.add_handler(create_overseerr_handler)
     application.add_handler(update_database_handler)
     application.add_handler(get_register_status_handler)
     application.add_handler(set_register_handler)

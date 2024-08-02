@@ -51,8 +51,10 @@ def get_user_name_from_tg_id(chat_id, token=TG_API_TOKEN):
         user_info = cache.get(chat_id)
         # if not expire (7d)
         if current_time - user_info.get("added") < 7 * 24 * 3600:
-           return user_info.get("first_name") or user_info.get("username") or chat_id
-    response = requests.get(url=f"https://api.telegram.org/bot{token}/getChat?chat_id={chat_id}")
+            return user_info.get("first_name") or user_info.get("username") or chat_id
+    response = requests.get(
+        url=f"https://api.telegram.org/bot{token}/getChat?chat_id={chat_id}"
+    )
     if not response.ok:
         logging.error(f"Error: failed to get info. for {chat_id}")
         return chat_id
@@ -70,4 +72,3 @@ def get_user_name_from_tg_id(chat_id, token=TG_API_TOKEN):
     with open(cache_file, "wb") as f:
         pickle.dump(cache, f)
     return result.get("first_name") or result.get("username") or chat_id
-

@@ -18,6 +18,10 @@ PLEX_API_TOKEN = ""
 PLEX_ADMIN_USER = ""
 PLEX_ADMIN_EMAIL = ""
 
+# Overseerr
+OVERSEERR_BASE_URL = ""
+OVERSEERR_API_TOKEN = ""
+
 # library
 NSFW_LIBS = ["NSFW", "NC17 Movies"]
 
