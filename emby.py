@@ -1,15 +1,12 @@
 #! /usr/bin/env python3
 
-import requests
 import json
+from typing import Any, Optional
 
-from typing import Optional, Any
-
-from log import logger
+import requests
 from settings import (
-    EMBY_BASE_URL,
     EMBY_API_TOKEN,
-    EMBY_ADMIN_USER,
+    EMBY_BASE_URL,
     EMBY_USER_TEMPLATE,
     NSFW_LIBS,
 )

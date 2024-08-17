@@ -1,31 +1,30 @@
 import logging
 import textwrap
 from time import time
+from uuid import NAMESPACE_URL, uuid3
 
-from uuid import uuid3, NAMESPACE_URL
-
-from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler
-from plex import Plex
+from db import DB
 from emby import Emby
 from overseerr import Overseerr
-from db import DB
-from tautulli import Tautulli
+from plex import Plex
 from settings import (
-    TG_API_TOKEN,
     ADMIN_CHAT_ID,
-    UNLOCK_CREDITS,
+    EMBY_REGISTER,
     INVITATION_CREDITS,
     NSFW_LIBS,
     PLEX_REGISTER,
-    EMBY_REGISTER,
+    TG_API_TOKEN,
+    UNLOCK_CREDITS,
 )
+from tautulli import Tautulli
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from update_db import add_all_plex_user
 from utils import (
-    get_user_total_duration,
     caculate_credits_fund,
     get_user_name_from_tg_id,
+    get_user_total_duration,
 )
-from update_db import add_all_plex_user
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -421,11 +420,13 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
     _credits, _donation = _stats_info[2], _stats_info[1]
+    _codes = "" if not _codes else "\n".join(_codes)
     body_text = f"""
 {'=' * 44}
 <strong>可用积分: </strong>{_credits:.2f}
 <strong>捐赠金额: </strong>{_donation}
-<strong>可用邀请码：</strong>{"无" if not _codes else ", ".join(_codes)}
+<strong>可用邀请码：</strong>
+{_codes}
 {'=' * 44}
 
 """
@@ -480,7 +481,7 @@ async def unlock_nsfw_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # 更新权限
     try:
         _plex.update_user_shared_libs(_plex_id, _plex.get_libraries())
-    except:
+    except Exception:
         await context.bot.send_message(
             chat_id=chat_id, text="错误: 更新权限失败, 请联系管理员"
         )
@@ -536,7 +537,7 @@ async def lock_nsfw_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         sections.remove(section)
     try:
         _plex.update_user_shared_libs(_plex_id, sections)
-    except:
+    except Exception:
         await context.bot.send_message(
             chat_id=chat_id, text="错误: 更新权限失败, 请联系管理员"
         )
@@ -885,7 +886,7 @@ async def update_database(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         return
     try:
         add_all_plex_user()
-    except Exception as e:
+    except Exception:
         await context.bot.send_message(
             chat_id=chat_id, text="错误：更新数据库失败，请检查"
         )

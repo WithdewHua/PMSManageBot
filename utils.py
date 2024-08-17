@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 
-import requests
 import logging
 import pickle
-
 from time import time
-from pathlib import Path
 
-from settings import TG_API_TOKEN, DATA_DIR
+import requests
+from settings import DATA_DIR, TG_API_TOKEN
 
 
 def get_user_total_duration(home_stats: dict):
