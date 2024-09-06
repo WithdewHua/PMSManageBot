@@ -750,7 +750,7 @@ async def credits_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     rank = [
         f"{i}. {get_user_name_from_tg_id(info[0])}: {info[1]:.2f}"
         for i, info in enumerate(res, 1)
-        if i <= 10
+        if i <= 30
     ]
 
     body_text = """
@@ -794,13 +794,13 @@ async def watched_time_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     _db = DB()
     res = _db.get_plex_watched_time_rank()
     rank = [
-        f"{i}. {info[2]}: {info[3]:.2f}" for i, info in enumerate(res, 1) if i <= 10
+        f"{i}. {info[2]}: {info[3]:.2f}" for i, info in enumerate(res, 1) if i <= 15
     ]
     emby_res = _db.get_emby_watched_time_rank()
     emby_rank = [
         f"{i}. {info[1]}: {info[2]:.2f}"
         for i, info in enumerate(emby_res, 1)
-        if i <= 10
+        if i <= 15
     ]
     body_text = """
 <strong>观看时长榜 (Hour)</strong>
