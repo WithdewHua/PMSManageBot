@@ -14,6 +14,7 @@ from settings import (
     NSFW_LIBS,
     PLEX_REGISTER,
     TG_API_TOKEN,
+    TG_GROUP,
     UNLOCK_CREDITS,
 )
 from tautulli import Tautulli
@@ -59,8 +60,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     /set\_donation - 设置捐赠金额
     /update\_database - 更新数据库
     /set\_register - 设置可注册状态
-
-    群组：https://t.me/+VCHVfOhRTAxmOGE9
     """.format(INVITATION_CREDITS, UNLOCK_CREDITS, UNLOCK_CREDITS)
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
@@ -169,7 +168,7 @@ async def bind_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     _db.close()
     await context.bot.send_message(
         chat_id=chat_id,
-        text=f"信息： 绑定 Plex 用户 {plex_id} 成功，请加入群组 https://t.me/+VCHVfOhRTAxmOGE9 并仔细阅读群置顶",
+        text=f"信息： 绑定 Plex 用户 {plex_id} 成功，请加入群组 {TG_GROUP} 并仔细阅读群置顶",
     )
 
 
@@ -227,7 +226,7 @@ async def bind_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     db.close()
     await context.bot.send_message(
         chat_id=chat_id,
-        text=f"信息： 绑定 Emby 用户 {emby_username} 成功，请加入群组 https://t.me/+VCHVfOhRTAxmOGE9 并仔细阅读群置顶",
+        text=f"信息： 绑定 Emby 用户 {emby_username} 成功，请加入群组 {TG_GROUP} 并仔细阅读群置顶",
     )
 
 
@@ -334,7 +333,7 @@ async def redeem_plex(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         chat_id=chat_id,
         text=f"信息：兑换邀请码成功，请登录 Plex 确认邀请，"
         f"确认邀请后, 可使用 `/bind_plex {plex_email}` 绑定机器人获取更多功能, "
-        f"更多帮助请加入群组 https://t.me/+VCHVfOhRTAxmOGE9",
+        f"更多帮助请加入群组 {TG_GROUP}",
     )
     for admin in ADMIN_CHAT_ID:
         await context.bot.send_message(
@@ -396,7 +395,7 @@ async def redeem_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await context.bot.send_message(
         chat_id=chat_id,
         text=f"信息：兑换邀请码成功，用户名为 `{emby_username}`, 密码为空, 请及时登录 Emby 修改密码，"
-        f"可使用 `/bind_emby {emby_username}`绑定机器人获取更多功能, 更多帮助请加入群组 https://t.me/+VCHVfOhRTAxmOGE9",
+        f"可使用 `/bind_emby {emby_username}`绑定机器人获取更多功能, 更多帮助请加入群组 {TG_GROUP}",
     )
     for admin in ADMIN_CHAT_ID:
         await context.bot.send_message(

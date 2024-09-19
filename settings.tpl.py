@@ -2,7 +2,6 @@ from pathlib import Path
 
 from plexapi.server import CONFIG
 
-
 # log
 LOG_LEVEL = "DEBUG"
 
@@ -32,6 +31,7 @@ INVITATION_CREDITS = 218
 # TG
 TG_API_TOKEN = ""
 ADMIN_CHAT_ID = []
+TG_GROUP = "https://t.me/xxxx"
 
 # tautulli
 TAUTULLI_URL = ""
