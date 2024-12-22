@@ -1,11 +1,12 @@
 import requests
-
-from settings import OVERSEERR_BASE_URL, OVERSEERR_API_TOKEN
+from app.config import settings
 
 
 class Overseerr:
     def __init__(
-        self, base_url: str = OVERSEERR_BASE_URL, api_token: str = OVERSEERR_API_TOKEN
+        self,
+        base_url: str = settings.OVERSEERR_BASE_URL,
+        api_token: str = settings.OVERSEERR_API_TOKEN,
     ) -> None:
         self.base_url = base_url
         self.api_token = api_token

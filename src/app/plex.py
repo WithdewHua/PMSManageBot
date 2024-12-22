@@ -2,21 +2,19 @@
 
 import logging
 
-from plexapi.server import PlexServer
+from app.config import settings
 from plexapi.myplex import Section
-from settings import (
-    PLEX_BASE_URL,
-    PLEX_API_TOKEN,
-    NSFW_LIBS,
-    PLEX_ADMIN_USER,
-    PLEX_ADMIN_EMAIL,
-)
+from plexapi.server import PlexServer
 
 
 class Plex:
     """class Plex"""
 
-    def __init__(self, base_url: str = PLEX_BASE_URL, token: str = PLEX_API_TOKEN):
+    def __init__(
+        self,
+        base_url: str = settings.PLEX_BASE_URL,
+        token: str = settings.PLEX_API_TOKEN,
+    ):
         self.plex_server = PlexServer(baseurl=base_url, token=token)
         self.my_plex_account = self.plex_server.myPlexAccount()
         self.plex_server_name = self.plex_server.friendlyName
@@ -50,7 +48,7 @@ class Plex:
 
     def get_user_shared_libs_by_id(self, user_id) -> list:
         """get shared libraries with specified user by id"""
-        if self.get_username_by_user_id(user_id) == PLEX_ADMIN_USER:
+        if self.get_username_by_user_id(user_id) == settings.PLEX_ADMIN_USER:
             return self.get_libraries()
         data = (
             self.my_plex_account.user(user_id)
@@ -73,7 +71,7 @@ class Plex:
 
     def verify_all_libraries(self, user_id) -> bool:
         """Verify if specified user has permission with all libraries"""
-        if self.get_username_by_user_id(user_id) == PLEX_ADMIN_EMAIL:
+        if self.get_username_by_user_id(user_id) == settings.PLEX_ADMIN_EMAIL:
             return True
         return (
             True
@@ -93,7 +91,9 @@ class Plex:
     def invite_friend(self, user, libs=None):
         try:
             if libs is None:
-                libs = list(set(self.get_libraries()).difference(set(NSFW_LIBS)))
+                libs = list(
+                    set(self.get_libraries()).difference(set(settings.NSFW_LIBS))
+                )
             self.my_plex_account.inviteFriend(user, self.plex_server, sections=libs)
         except Exception as e:
             logging.error(e)
@@ -105,7 +105,7 @@ class Plex:
         """更新所有用户的资料库权限"""
 
         for email, user_info in self.users_by_email.items():
-            if (not email) or email == PLEX_ADMIN_EMAIL:
+            if (not email) or email == settings.PLEX_ADMIN_EMAIL:
                 continue
             else:
                 try:
@@ -113,7 +113,7 @@ class Plex:
                     cur_libs.extend(add_sections)
                     new_libs = list(set(cur_libs))
                     self.update_user_shared_libs(user_info[0], libs=new_libs)
-                except:
+                except Exception:
                     logging.error(
                         f"Failed to update libraries({', '.join(new_libs)}) for {user_info[1].username}"
                     )

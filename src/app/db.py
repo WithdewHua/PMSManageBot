@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 
-import sqlite3
 import logging
-
+import sqlite3
 from typing import Optional
 
-from settings import DATA_DIR
+from app.config import settings
 
 
 class DB:
     """class DB"""
 
-    def __init__(self, db=DATA_DIR / "data.db"):
+    def __init__(self, db=settings.DATA_PATH / "data.db"):
         self.con = sqlite3.connect(db)
         self.cur = self.con.cursor()
         # self.create_table()

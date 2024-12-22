@@ -4,23 +4,21 @@ import json
 from typing import Any, Optional
 
 import requests
-from settings import (
-    EMBY_API_TOKEN,
-    EMBY_BASE_URL,
-    EMBY_USER_TEMPLATE,
-    NSFW_LIBS,
-)
+from app.config import settings
+from app.log import logger
 
 
 class Emby:
     def __init__(
-        self, base_url: str = EMBY_BASE_URL, api_token: str = EMBY_API_TOKEN
+        self,
+        base_url: str = settings.EMBY_BASE_URL,
+        api_token: str = settings.EMBY_API_TOKEN,
     ) -> None:
         self.base_url = base_url
         self.api_token = api_token
 
     def add_user(
-        self, username: str, user_template: str = EMBY_USER_TEMPLATE
+        self, username: str, user_template: str = settings.EMBY_USER_TEMPLATE
     ) -> tuple[bool, str]:
         header = {"accept": "application/json", "Content-Type": "application/json"}
 
@@ -118,7 +116,7 @@ class Emby:
 
         return libraries
 
-    def add_user_library(self, user_id, library=NSFW_LIBS):
+    def add_user_library(self, user_id, library=settings.NSFW_LIBS):
         headers = {"accept": "application/json", "Content-Type": "application/json"}
         params = {"api_key": self.api_token}
 
@@ -161,7 +159,7 @@ class Emby:
         except Exception as e:
             return False, str(e)
 
-    def remove_user_library(self, user_id, library=NSFW_LIBS):
+    def remove_user_library(self, user_id, library=settings.NSFW_LIBS):
         headers = {"accept": "application/json", "Content-Type": "application/json"}
         params = {"api_key": self.api_token}
 
@@ -203,3 +201,55 @@ class Emby:
                 return False, "Unknown error"
         except Exception as e:
             return False, str(e)
+
+    def __get_url(self, url) -> list:
+        headers = {
+            "accept": "application/json",
+            "X-Emby-Token": self.api_token,
+        }
+        try:
+            res = requests.get(url, headers=headers)
+            res.raise_for_status()
+        except requests.RequestException as e:
+            logger.error(f"Failed to get {url}: {e}")
+            return []
+        else:
+            return res.json().get("Items", [])
+
+    def get_users(self) -> list:
+        url = f"{self.base_url}/Users/Query"
+        return self.__get_url(url)
+
+    def get_devices(self) -> list:
+        url = f"{self.base_url}/Devices"
+        return self.__get_url(url)
+
+    def get_devices_per_user(self) -> list:
+        users = self.get_users()
+        devices = self.get_devices()
+        user_data = []
+        for user in users:
+            per_user_devices = set()
+            per_user_ip = set()
+            per_user_apps = set()
+            user_id = user.get("Id")
+            user_name = user.get("Name")
+            for device in devices:
+                if device.get("LastUserId") != user_id:
+                    continue
+                device_name = device.get("Name")
+                app_name = device.get("AppName")
+                ip_addr = device.get("IpAddress")
+                per_user_devices.add(device_name)
+                per_user_ip.add(ip_addr)
+                per_user_apps.add(app_name)
+            user_data.append(
+                {
+                    "user_id": user_id,
+                    "user_name": user_name,
+                    "devices": per_user_devices,
+                    "ip": per_user_ip,
+                    "clients": per_user_apps,
+                }
+            )
+        return user_data

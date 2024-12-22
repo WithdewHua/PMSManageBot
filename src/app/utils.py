@@ -5,7 +5,7 @@ import pickle
 from time import time
 
 import requests
-from settings import DATA_DIR, TG_API_TOKEN
+from app.config import settings
 
 
 def get_user_total_duration(home_stats: dict):
@@ -34,11 +34,11 @@ def caculate_credits_fund(unlock_time, unlock_credits: int):
         return 0
 
 
-def get_user_name_from_tg_id(chat_id, token=TG_API_TOKEN):
+def get_user_name_from_tg_id(chat_id, token=settings.TG_API_TOKEN):
     """Get telegram user's info
     cache format: {tg_id: {"first_name": first_name, "username": username, "added": timestamp}}
     """
-    cache_file = DATA_DIR / "tg_user_info.cache"
+    cache_file = settings.DATA_PATH / "tg_user_info.cache"
     cache = {}
     if cache_file.exists():
         with open(cache_file, "rb") as f:

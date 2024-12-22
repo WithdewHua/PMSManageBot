@@ -7,6 +7,7 @@ authors = [
 ]
 dependencies = [
     "plexapi==4.13.0",
+    "pydantic-settings>=2.7.0",
     "python-telegram-bot==20.0a2",
     "requests==2.28.0",
     "urllib3==1.26.9",
@@ -18,15 +19,8 @@ requires-python = ">= 3.11"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.rye]
-managed = true
-dev-dependencies = [
-    "ruff>=0.3.1",
-    "pre-commit>=3.8.0",
-]
-
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["."]
+packages = ["src/app"]

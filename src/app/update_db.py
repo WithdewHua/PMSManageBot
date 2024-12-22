@@ -1,11 +1,11 @@
-from uuid import uuid3, NAMESPACE_URL
 from time import time
+from uuid import NAMESPACE_URL, uuid3
 
-from tautulli import Tautulli
-from db import DB
-from utils import get_user_total_duration
-from plex import Plex
-from emby import Emby
+from app.db import DB
+from app.emby import Emby
+from app.plex import Plex
+from app.tautulli import Tautulli
+from app.utils import get_user_total_duration
 
 
 def update_credits():

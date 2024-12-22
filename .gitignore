@@ -304,5 +304,5 @@ cython_debug/
 # End of https://www.toptal.com/developers/gitignore/api/python,pycharm,visualstudiocode
 
 # custom
-settings.py
+config.py
 *.db

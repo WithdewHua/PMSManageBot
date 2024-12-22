@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 #
 
+from app.config import settings
 from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.exceptions import RequestException
-from settings import TAUTULLI_APIKEY, TAUTULLI_URL
 
 
 class Tautulli(object):
     def __init__(
-        self, url=TAUTULLI_URL, apikey=TAUTULLI_APIKEY, verify_ssl=False, debug=None
+        self,
+        url=settings.TAUTULLI_URL,
+        apikey=settings.TAUTULLI_APIKEY,
+        verify_ssl=settings.TAUTULLI_VERIFY_SSL,
+        debug=None,
     ):
         self.url = url
         self.apikey = apikey
