@@ -15,6 +15,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     /credits\_rank - 查看积分榜
     /donation\_rank - 查看捐赠榜
     /play\_duration\_rank - 查看观看时长榜
+    /device\_rank - 查看设备榜
     /register\_status - 查看 Plex/Emby 是否可注册
 
 
@@ -49,4 +50,4 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 start_handler = CommandHandler("start", start)
 
-__all__ = [start_handler]
+__all__ = ["start_handler"]

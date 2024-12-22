@@ -304,8 +304,8 @@ lock_nsfw_plex_handler = CommandHandler("lock_nsfw_plex", lock_nsfw_plex)
 redeem_plex_handler = CommandHandler("redeem_plex", redeem_plex)
 
 __all__ = [
-    bind_plex_handler,
-    unlock_nsfw_plex_handler,
-    lock_nsfw_plex_handler,
-    redeem_plex_handler,
+    "bind_plex_handler",
+    "unlock_nsfw_plex_handler",
+    "lock_nsfw_plex_handler",
+    "redeem_plex_handler",
 ]

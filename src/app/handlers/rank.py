@@ -89,10 +89,12 @@ async def device_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await context.bot.send_message(chat_id=chat_id, text="错误：越权操作")
         return
     emby = Emby()
-    devices_data = sorted(emby.get_devices_per_user(), key=lambda x: len(x["devices"]))
+    devices_data = sorted(
+        emby.get_devices_per_user(), key=lambda x: len(x["devices"]), reverse=True
+    )
     rank = [
         f"{i}. {user_devices.get('user_name')}: 设备 {len(user_devices.get('devices'))}, 客户端 {len(user_devices.get('clients'))}, IP {len(user_devices.get('ip'))}"
-        for i, user_devices in enumerate(devices_data[:10], 1)
+        for i, user_devices in enumerate(devices_data[:30], 1)
     ]
 
     body_text = """
@@ -111,8 +113,8 @@ watched_time_rank_handler = CommandHandler("play_duration_rank", watched_time_ra
 device_rank_handler = CommandHandler("device_rank", device_rank)
 
 __all__ = [
-    credits_rank_handler,
-    donation_rank_handler,
-    watched_time_rank_handler,
-    device_rank_handler,
+    "credits_rank_handler",
+    "donation_rank_handler",
+    "watched_time_rank_handler",
+    "device_rank_handler",
 ]

@@ -9,8 +9,8 @@ async def get_register_status(
 ) -> None:
     chat_id = update._effective_chat.id
     text = f"""
-Plex: {"可注册" if PLEX_REGISTER else "注册关闭"}
-Emby: {"可注册" if EMBY_REGISTER else "注册关闭"}
+Plex: {"可注册" if settings.PLEX_REGISTER else "注册关闭"}
+Emby: {"可注册" if settings.EMBY_REGISTER else "注册关闭"}
     """
     await context.bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
 
@@ -32,11 +32,10 @@ async def set_register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             chat_id=chat_id, text="错误: 请指定正确的媒体服务器"
         )
         return
-    global PLEX_REGISTER, EMBY_REGISTER
     if server.lower() == "plex":
-        PLEX_REGISTER = True if flag != "0" else False
+        settings.PLEX_REGISTER = True if flag != "0" else False
     elif server.lower() == "emby":
-        EMBY_REGISTER = True if flag != "0" else False
+        settings.EMBY_REGISTER = True if flag != "0" else False
     await context.bot.send_message(
         chat_id=chat_id,
         text=f"信息: 设置 {server} 注册状态为 {'开启' if flag != '0' else '关闭'}",
@@ -46,4 +45,4 @@ async def set_register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 get_register_status_handler = CommandHandler("register_status", get_register_status)
 set_register_handler = CommandHandler("set_register", set_register)
 
-__all__ = [get_register_status_handler, set_register_handler]
+__all__ = ["get_register_status_handler", "set_register_handler"]

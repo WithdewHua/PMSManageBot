@@ -252,8 +252,8 @@ unlock_nsfw_emby_handler = CommandHandler("unlock_nsfw_emby", unlock_nsfw_emby)
 lock_nsfw_emby_handler = CommandHandler("lock_nsfw_emby", lock_nsfw_emby)
 
 __all__ = [
-    bind_emby_handler,
-    redeem_emby_handler,
-    unlock_nsfw_emby_handler,
-    lock_nsfw_emby_handler,
+    "bind_emby_handler",
+    "redeem_emby_handler",
+    "unlock_nsfw_emby_handler",
+    "lock_nsfw_emby_handler",
 ]

@@ -223,8 +223,8 @@ exchange_handler = CommandHandler("exchange", exchange)
 create_overseerr_handler = CommandHandler("create_overseerr", create_overseerr)
 
 __all__ = [
-    info_handler,
-    set_donation_handler,
-    exchange_handler,
-    create_overseerr_handler,
+    "info_handler",
+    "set_donation_handler",
+    "exchange_handler",
+    "create_overseerr_handler",
 ]

@@ -25,4 +25,4 @@ async def update_database(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 update_database_handler = CommandHandler("update_database", update_database)
 
-__all__ = [update_database_handler]
+__all__ = ["update_database_handler"]
