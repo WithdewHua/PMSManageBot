@@ -75,7 +75,8 @@ def update_emby_credits():
             playduration = float(int(duration.get(user[0], 0)) / 3600)
             if playduration == 0:
                 continue
-            credits_inc = playduration - user[2]
+            # 最大记 8
+            credits_inc = min(playduration - user[2], 8)
             if not user[1]:
                 _credits = user[3] + credits_inc
                 _db.cur.execute(
