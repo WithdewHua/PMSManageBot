@@ -30,6 +30,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     /bind\_emby - 绑定 Emby 用户，格式为 `/bind_emby 用户名` (注意空格)
     /unlock\_nsfw\_emby - 解锁 NSFW 相关库权限, 消耗 {} 积分
     /lock\_nsfw\_emby - 关闭 NSFW 权限, 积分返还规则：一天内返还 90%, 7 天内 70%, 一月内 50%，超出一个月 0
+    /bind\_emby\_line - 绑定 Emby 线路，格式为 `/bind_emby_line 线路` (注意空格)
+    /unbind\_emby\_line - 解绑 Emby 线路
 
     Overseerr 命令:
     /create\_overseerr - 创建 Overseerr 账户，格式为 `/create_overseerr 邮箱 密码` (注意空格)

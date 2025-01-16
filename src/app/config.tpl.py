@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     EMBY_ADMIN_USER: str = ""
     EMBY_USER_TEMPLATE: str = ""
 
+    # redis
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+
     def __init__(self, **kwargs):
         super().__init__(self, **kwargs)
         if not self.DATA_PATH.exists():

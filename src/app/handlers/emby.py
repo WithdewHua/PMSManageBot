@@ -1,5 +1,6 @@
 from time import time
 
+from app.cache import emby_user_defined_line_cache
 from app.config import settings
 from app.db import DB
 from app.emby import Emby
@@ -246,14 +247,86 @@ async def lock_nsfw_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
 
+async def bind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    text = update.message.text
+    text = text.split()
+    if len(text) != 2:
+        await context.bot.send_message(chat_id=chat_id, text="错误：请按照格式填写")
+        return
+    line = text[1]
+    db = DB()
+    info = db.get_emby_info_by_tg_id(chat_id)
+    # 未绑定 tg
+    if not info:
+        db.close()
+        await context.bot.send_message(
+            chat_id=chat_id, text="错误: 未绑定 emby 账户，请先绑定"
+        )
+        return
+    emby_username = info[0]
+    emby_line = info[7]
+    if emby_line == line:
+        db.close()
+        await context.bot.send_message(
+            chat_id=chat_id, text=f"信息: 已绑定 {emby_line}, 无需重复绑定"
+        )
+        return
+    # 更新数据库
+    res = db.set_emby_line(chat_id, line)
+    if not res:
+        db.close()
+        await context.bot.send_message(
+            chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员"
+        )
+        return
+    await emby_user_defined_line_cache.put(emby_username, line)
+    db.close()
+    await context.bot.send_message(
+        chat_id=chat_id, text=f"信息: 绑定 Emby 线路 {line} 成功"
+    )
+
+
+async def unbind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id = update.effective_chat.id
+    db = DB()
+    info = db.get_emby_info_by_tg_id(chat_id)
+    if not info:
+        db.close()
+        await context.bot.send_message(
+            chat_id=chat_id, text="错误: 未绑定 emby 账户，请先绑定"
+        )
+        return
+    emby_line = info[7]
+    if not emby_line:
+        db.close()
+        await context.bot.send_message(
+            chat_id=chat_id, text="错误: 未绑定 emby 线路，无需解绑"
+        )
+        return
+    # 更新数据库
+    res = db.set_emby_line(chat_id, None)
+    if not res:
+        db.close()
+        await context.bot.send_message(
+            chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员"
+        )
+        return
+    await emby_user_defined_line_cache.delete(info[0])
+
+
 bind_emby_handler = CommandHandler("bind_emby", bind_emby)
 redeem_emby_handler = CommandHandler("redeem_emby", redeem_emby)
 unlock_nsfw_emby_handler = CommandHandler("unlock_nsfw_emby", unlock_nsfw_emby)
 lock_nsfw_emby_handler = CommandHandler("lock_nsfw_emby", lock_nsfw_emby)
+bind_emby_line_handler = CommandHandler("bind_emby_line", bind_emby_line)
+unbind_emby_line_handler = CommandHandler("unbind_emby_line", unbind_emby_line)
 
 __all__ = [
     "bind_emby_handler",
     "redeem_emby_handler",
     "unlock_nsfw_emby_handler",
     "lock_nsfw_emby_handler",
+    "bind_emby_line_handler",
+    "unbind_emby_line_handler",
 ]

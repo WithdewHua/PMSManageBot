@@ -99,6 +99,7 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 <strong>Emby 用户名: </strong>{_emby_info[0]}
 <strong>总观看时长：</strong>{_emby_info[5]:.2f}h
 <strong>当前权限：</strong>{"全部" if _emby_info[3] == 1 else "部分"}
+<strong>当前线路：</strong>{_emby_info[7]}
 """
     await context.bot.send_message(chat_id=chat_id, text=body_text, parse_mode="HTML")
 

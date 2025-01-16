@@ -39,7 +39,7 @@ class DB:
                 );
 
                 CREATE TABLE emby_user(
-                    emby_username, emby_id, tg_id, emby_is_unlock, emby_unlock_time, emby_watched_time, emby_credits
+                    emby_username, emby_id, tg_id, emby_is_unlock, emby_unlock_time, emby_watched_time, emby_credits, emby_line
                 );
 
                 CREATE TABLE overseerr(
@@ -93,10 +93,11 @@ class DB:
         emby_unlock_time: Optional[int] = None,
         emby_watched_time: float = 0,
         emby_credits: float = 0,
+        emby_line: Optional[str] = None,
     ) -> bool:
         try:
             self.cur.execute(
-                "INSERT INTO emby_user VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO emby_user VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     emby_username,
                     emby_id,
@@ -105,6 +106,7 @@ class DB:
                     emby_unlock_time,
                     emby_watched_time,
                     emby_credits,
+                    emby_line,
                 ),
             )
         except Exception as e:
@@ -345,6 +347,23 @@ class DB:
         res = rslt.fetchall()
         res = [_[0] for _ in res]
         return res
+
+    def set_emby_line(self, tg_id, line):
+        try:
+            self.cur.execute(
+                "UPDATE emby_user SET emby_line=? WHERE tg_id=?", (line, tg_id)
+            )
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            return False
+        else:
+            self.con.commit()
+        return True
+
+    def get_emby_line(self, tg_id):
+        return self.cur.execute(
+            "SELECT emby_line FROM emby_user WHERE tg_id=?", (tg_id,)
+        ).fetchone()[0]
 
     def close(self):
         self.cur.close()
