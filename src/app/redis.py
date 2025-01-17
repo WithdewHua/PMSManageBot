@@ -11,9 +11,9 @@ class Redis:
         decode_responses=True,
     ):
         self._pool = redis.ConnectionPool(
-            host=host, port=port, decode_responses=decode_responses
+            db=db, host=host, port=port, decode_responses=decode_responses
         )
-        self.client = redis.Redis(db=db, connection_pool=self._pool)
+        self.client = redis.Redis(connection_pool=self._pool)
 
     def get_connection(self):
         return self.client

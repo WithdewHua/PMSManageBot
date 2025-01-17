@@ -23,7 +23,7 @@ class RedisCache:
         """
         self.capacity = capacity
         self.ttl_seconds = ttl_seconds
-        self.redis_client = Redis().get_connection()
+        self.redis_client = Redis(db=db).get_connection()
         self._cache_key_prefix = cache_key_prefix  # Redis键的前缀
         self._cache_usage_key = (
             f"{self._cache_key_prefix.removesuffix(':')}_usage"
