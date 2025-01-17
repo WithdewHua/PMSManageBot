@@ -8,10 +8,11 @@ from app.redis import Redis
 class RedisCache:
     def __init__(
         self,
+        db: int = 0,
         capacity: int = 0,
         ttl_seconds: int = None,
         cache_key_prefix: str = "cache:",
-        cache_usage_track: bool = True,
+        cache_usage_track: bool = False,
     ):
         """
         初始化基于Redis的缓存
@@ -107,15 +108,18 @@ class RedisCache:
         """删除缓存条目"""
         cache_key = self._get_cache_key(key)
 
-        pipeline = self.redis_client.pipeline()
-        pipeline.delete(cache_key)
+        if self.redis_client.exists(cache_key):
+            pipeline = self.redis_client.pipeline()
+            pipeline.delete(cache_key)
 
-        if self._cache_usage_key:
-            pipeline.zrem(self._cache_usage_key, key)
+            if self._cache_usage_key:
+                pipeline.zrem(self._cache_usage_key, key)
 
-        pipeline.execute()
+            pipeline.execute()
 
-        logger.info(f"Deleted key from cache: {key}")
+            logger.info(f"Deleted key from cache: {key}")
+        else:
+            logger.info(f"Key not found in cache: {key}")
 
     def clear(self):
         """清空缓存"""
@@ -160,6 +164,6 @@ class RedisCache:
 
 # Emby Line Cache
 emby_user_defined_line_cache = RedisCache(
+    db=2,
     cache_key_prefix="emby_user_defined_line:",
-    cache_usage_track=False,
 )

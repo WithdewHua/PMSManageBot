@@ -273,6 +273,7 @@ async def bind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         return
     # 更新数据库
+    emby_user_defined_line_cache.put(emby_username, line)
     res = db.set_emby_line(chat_id, line)
     if not res:
         db.close()
@@ -280,7 +281,6 @@ async def bind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员"
         )
         return
-    await emby_user_defined_line_cache.put(emby_username, line)
     db.close()
     await context.bot.send_message(
         chat_id=chat_id, text=f"信息: 绑定 Emby 线路 {line} 成功"
@@ -305,6 +305,7 @@ async def unbind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         return
     # 更新数据库
+    emby_user_defined_line_cache.delete(info[0])
     res = db.set_emby_line(chat_id, None)
     if not res:
         db.close()
@@ -312,7 +313,10 @@ async def unbind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员"
         )
         return
-    await emby_user_defined_line_cache.delete(info[0])
+    db.close()
+    await context.bot.send_message(
+        chat_id=chat_id, text=f"信息: 解绑 Emby 线路 {emby_line} 成功"
+    )
 
 
 bind_emby_handler = CommandHandler("bind_emby", bind_emby)
