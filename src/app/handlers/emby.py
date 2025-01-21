@@ -79,6 +79,7 @@ async def redeem_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         return
     if not settings.EMBY_REGISTER:
         await context.bot.send_message(chat_id=chat_id, text="错误：Emby 暂停注册")
+        return
     emby_username, redeem_code = text_parts[1:]
     _db = DB()
     # 检查邀请码有效性
