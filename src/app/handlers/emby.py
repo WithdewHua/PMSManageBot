@@ -252,62 +252,93 @@ async def bind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     chat_id = update.effective_chat.id
     text = update.message.text
     text = text.split()
-    if len(text) != 2:
+    if len(text) not in [2, 3]:
         await context.bot.send_message(chat_id=chat_id, text="错误：请按照格式填写")
         return
-    line = text[1]
     db = DB()
-    info = db.get_emby_info_by_tg_id(chat_id)
-    # 未绑定 tg
-    if not info:
-        db.close()
-        await context.bot.send_message(
-            chat_id=chat_id, text="错误: 未绑定 emby 账户，请先绑定"
-        )
-        return
+    if len(text) == 2:
+        line = text[1]
+        info = db.get_emby_info_by_tg_id(chat_id)
+        # 未绑定 tg
+        if not info:
+            db.close()
+            await context.bot.send_message(
+                chat_id=chat_id, text="错误: 未绑定 emby 账户，请先绑定"
+            )
+            return
+        emby_id = info[1]
+    if len(text) == 3:
+        emby_id, line = text[1:]
+        info = db.get_emby_info_by_emby_id(emby_id)
+        if not info:
+            db.close()
+            await context.bot.send_message(
+                chat_id=chat_id, text="错误: 未查询到用户, 请检查 emby id"
+            )
+            return
+
     emby_username = info[0]
     emby_line = info[7]
     if emby_line == line:
         db.close()
         await context.bot.send_message(
-            chat_id=chat_id, text=f"信息: 已绑定 {emby_line}, 无需重复绑定"
+            chat_id=chat_id,
+            text=f"信息: {emby_username} 已绑定 {emby_line}, 无需重复绑定",
         )
         return
     # 更新数据库
     emby_user_defined_line_cache.put(emby_username, line)
-    res = db.set_emby_line(chat_id, line)
+    res = db.set_emby_line(line, emby_id=emby_id)
     if not res:
         db.close()
         await context.bot.send_message(
             chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员"
         )
         return
+
     db.close()
     await context.bot.send_message(
-        chat_id=chat_id, text=f"信息: 绑定 Emby 线路 {line} 成功"
+        chat_id=chat_id, text=f"信息: {emby_username} 绑定 Emby 线路 {line} 成功"
     )
 
 
 async def unbind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update.effective_chat.id
-    db = DB()
-    info = db.get_emby_info_by_tg_id(chat_id)
-    if not info:
-        db.close()
-        await context.bot.send_message(
-            chat_id=chat_id, text="错误: 未绑定 emby 账户，请先绑定"
-        )
+    text = update.message.text
+    text = text.split()
+    if len(text) not in [1, 2]:
+        await context.bot.send_message(chat_id=chat_id, text="错误：请按照格式填写")
         return
+    db = DB()
+    if len(text) == 1:
+        info = db.get_emby_info_by_tg_id(chat_id)
+        if not info:
+            db.close()
+            await context.bot.send_message(
+                chat_id=chat_id, text="错误: 未绑定 emby 账户，请先绑定"
+            )
+            return
+        emby_id = info[1]
+    if len(text) == 2:
+        emby_id = text[1]
+        info = db.get_emby_info_by_emby_id(emby_id)
+        if not info:
+            db.close()
+            await context.bot.send_message(
+                chat_id=chat_id, text="错误: 未查询到用户, 请检查 emby id"
+            )
+            return
+    emby_username = info[0]
     emby_line = info[7]
     if not emby_line:
         db.close()
         await context.bot.send_message(
-            chat_id=chat_id, text="错误: 未绑定 emby 线路，无需解绑"
+            chat_id=chat_id, text=f"错误: {emby_username} 未绑定 emby 线路，无需解绑"
         )
         return
     # 更新数据库
-    emby_user_defined_line_cache.delete(info[0])
-    res = db.set_emby_line(chat_id, None)
+    emby_user_defined_line_cache.delete(emby_username)
+    res = db.set_emby_line(line=None, emby_id=emby_id)
     if not res:
         db.close()
         await context.bot.send_message(
@@ -316,7 +347,7 @@ async def unbind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
     db.close()
     await context.bot.send_message(
-        chat_id=chat_id, text=f"信息: 解绑 Emby 线路 {emby_line} 成功"
+        chat_id=chat_id, text=f"信息: {emby_username} 解绑 Emby 线路 {emby_line} 成功"
     )
 
 

@@ -292,6 +292,11 @@ class DB:
             "SELECT * FROM emby_user WHERE tg_id = ?", (tg_id,)
         ).fetchone()
 
+    def get_emby_info_by_emby_id(self, emby_id):
+        return self.cur.execute(
+            "SELECT * FROM emby_user WHERE emby_id = ?", (emby_id,)
+        ).fetchone()
+
     def get_overseerr_info_by_tg_id(self, tg_id):
         return self.cur.execute(
             "SELECT * FROM overseerr WHERE tg_id = ?", (tg_id,)
@@ -348,11 +353,16 @@ class DB:
         res = [_[0] for _ in res]
         return res
 
-    def set_emby_line(self, tg_id, line):
+    def set_emby_line(self, line, tg_id=None, emby_id=None):
         try:
-            self.cur.execute(
-                "UPDATE emby_user SET emby_line=? WHERE tg_id=?", (line, tg_id)
-            )
+            if tg_id:
+                self.cur.execute(
+                    "UPDATE emby_user SET emby_line=? WHERE tg_id=?", (line, tg_id)
+                )
+            elif emby_id:
+                self.cur.execute(
+                    "UPDATE emby_user SET emby_line=? WHERE emby_id=?", (line, emby_id)
+                )
         except Exception as e:
             logging.error(f"Error: {e}")
             return False
