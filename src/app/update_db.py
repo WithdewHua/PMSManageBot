@@ -230,7 +230,7 @@ def add_all_plex_user():
         _db.close()
 
 
-def add_redeem_code(tg_id=None):
+def add_redeem_code(tg_id=None, num=1):
     db = DB()
     if tg_id is None:
         tg_id = [
@@ -240,8 +240,9 @@ def add_redeem_code(tg_id=None):
         tg_id = [tg_id]
     try:
         for uid in tg_id:
-            code = uuid3(NAMESPACE_URL, str(uid + time())).hex
-            db.add_invitation_code(code, owner=uid)
+            for _ in range(num):
+                code = uuid3(NAMESPACE_URL, str(uid + time())).hex
+                db.add_invitation_code(code, owner=uid)
     except Exception as e:
         print(e)
     else:

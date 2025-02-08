@@ -175,11 +175,12 @@ async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
     text = update.message.text
     text = text.split()
-    if len(text) != 3:
+    if len(text) not in [3, 4]:
         await context.bot.send_message(chat_id=chat_id, text="错误：请按照格式填写")
         return
     tg_id = int(text[1])
     donation = float(text[2])
+    add_credits = True if len(text) == 3 else False
     _db = DB()
     info = _db.get_stats_by_tg_id(tg_id)
     if not info:
@@ -192,29 +193,31 @@ async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     _donation = info[1]
     credits = _credits + donation * 2
     donate = _donation + donation
-    res = _db.update_user_credits(credits, tg_id=tg_id)
-    if not res:
-        _db.close()
-        await context.bot.send_message(
-            chat_id=chat_id, text="错误：更新积分失败，请检查"
-        )
-        return
     res = _db.update_user_donation(donate, tg_id=tg_id)
     if not res:
         _db.close()
         await context.bot.send_message(
-            chat_id=chat_id, text="错误：更新积分失败，请检查"
+            chat_id=chat_id, text="错误：更新捐赠金额失败，请检查"
         )
         return
+    if add_credits:
+        res = _db.update_user_credits(credits, tg_id=tg_id)
+        if not res:
+            _db.close()
+            await context.bot.send_message(
+                chat_id=chat_id, text="错误：更新积分失败，请检查"
+            )
+            return
+        # 通知该用户
+        await context.bot.send_message(
+            chat_id=tg_id, text=f"通知：感谢您的捐赠，已为您增加积分 {donation * 2}"
+        )
+
     _db.close()
 
     await context.bot.send_message(
         chat_id=chat_id,
         text=f"信息：成功为 {get_user_name_from_tg_id(tg_id)} 设置捐赠金额 {donation}",
-    )
-    # 通知该用户
-    await context.bot.send_message(
-        chat_id=tg_id, text=f"通知：感谢您的捐赠，已为您增加积分 {donation * 2}"
     )
 
 
