@@ -287,7 +287,7 @@ async def bind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
         return
     # 更新数据库
-    emby_user_defined_line_cache.put(emby_username, line)
+    emby_user_defined_line_cache.put(str(emby_username).lower(), line)
     res = db.set_emby_line(line, emby_id=emby_id)
     if not res:
         db.close()
@@ -337,7 +337,7 @@ async def unbind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         return
     # 更新数据库
-    emby_user_defined_line_cache.delete(emby_username)
+    emby_user_defined_line_cache.delete(str(emby_username).lower())
     res = db.set_emby_line(line=None, emby_id=emby_id)
     if not res:
         db.close()
