@@ -8,7 +8,7 @@ import * as directives from 'vuetify/directives'
 import '@mdi/font/css/materialdesignicons.css'
 import axios from 'axios'
 
-// 获取正确的环境变量 - 修复为使用 Vue CLI 的环境变量方式
+// 获取正确的环境变量
 const apiBaseUrl = process.env.VUE_APP_API_URL || 'http://localhost:6000'
 
 // API 配置
