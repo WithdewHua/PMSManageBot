@@ -1,7 +1,7 @@
 [project]
 name = "pmsmanagebot"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.2.0"
+description = "Telegram bot for managing Plex/Emby media servers with WebApp support"
 authors = [
     { name = "WithdewHua", email = "i@10101.io" }
 ]
@@ -12,6 +12,10 @@ dependencies = [
     "redis>=5.2.1",
     "requests==2.28.0",
     "urllib3==1.26.9",
+    "fastapi==0.103.0",
+    "uvicorn==0.23.2",
+    "python-multipart==0.0.6",
+    "itsdangerous>=2.2.0",
 ]
 readme = "README.md"
 requires-python = ">= 3.11"
@@ -25,3 +29,8 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/app"]
+
+[dependency-groups]
+dev = [
+    "fastapi[standard]>=0.103.0",
+]

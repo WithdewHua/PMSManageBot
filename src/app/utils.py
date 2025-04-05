@@ -70,3 +70,15 @@ def get_user_name_from_tg_id(chat_id, token=settings.TG_API_TOKEN):
     with open(cache_file, "wb") as f:
         pickle.dump(cache, f)
     return result.get("first_name") or result.get("username") or chat_id
+
+
+class SingletonMeta(type):
+    """Singleton metaclass"""
+
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            instance = super().__call__(*args, **kwargs)
+            cls._instances[cls] = instance
+        return cls._instances[cls]

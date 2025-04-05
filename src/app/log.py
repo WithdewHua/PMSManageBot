@@ -21,3 +21,6 @@ while logger.handlers:  # Remove un-format logging in Stream, or all of messages
 consoleHandler = logging.StreamHandler()
 consoleHandler.setFormatter(logFormatter)
 logger.addHandler(consoleHandler)
+
+# uvicorn 日志
+uvicorn_logger = logging.getLogger("uvicorn")

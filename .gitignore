@@ -306,3 +306,14 @@ cython_debug/
 # custom
 config.py
 *.db
+
+# Node.js / Vue
+webapp-frontend/node_modules/
+webapp-frontend/dist/
+webapp-frontend/.env.local
+webapp-frontend/.env.*.local
+webapp-frontend/npm-debug.log*
+webapp-frontend/yarn-debug.log*
+webapp-frontend/yarn-error.log*
+webapp-frontend/package-lock.json
+webapp-frontend/yarn.lock

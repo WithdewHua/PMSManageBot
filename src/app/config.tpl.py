@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     ADMIN_CHAT_ID: list = []
     TG_GROUP: str = ""
 
+    # WebApp
+    ENABLE_WEBAPP: bool = True  # 是否启用 WebApp
+    WEBAPP_URL: str = "https://yourdomain.com"  # WebApp 的公开 URL
+    WEBAPP_PORT: int = 5000  # WebApp 服务器监听端口
+    WEBAPP_HOST: str = "127.0.0.1"  # WebApp 服务器监听地址
+    WEBAPP_STATIC_DIR: str = "../webapp-frontend/dist"  # WebApp 前端静态文件目录
+    SESSION_SECRET_KEY: str = ""  # 用于会话加密的密钥
+
     # tautulli
     TAUTULLI_URL: str = ""
     TAUTULLI_APIKEY: str = ""
