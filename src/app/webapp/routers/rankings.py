@@ -30,6 +30,7 @@ async def get_rankings(request: Request):
                 donation_rankings = [
                     {"name": get_user_name_from_tg_id(info[0]), "donation": info[1]}
                     for info in donation_data
+                    if info[1] > 0
                 ]
         except Exception as e:
             logger.error(f"获取捐赠排行失败: {str(e)}")
@@ -44,11 +45,13 @@ async def get_rankings(request: Request):
                 watched_time_rank_plex = [
                     {"name": info[2], "watched_time": info[3]}
                     for info in plex_watch_time_data
+                    if info[3] > 0
                 ]
             if emby_watch_time_data:
                 watched_time_rank_emby = [
                     {"name": info[1], "watched_time": info[2]}
                     for info in emby_watch_time_data
+                    if info[2] > 0
                 ]
         except Exception as e:
             logger.error(f"获取播放时长排行失败: {str(e)}")
@@ -62,6 +65,7 @@ async def get_rankings(request: Request):
                 credits_rankings = [
                     {"name": get_user_name_from_tg_id(info[0]), "credits": info[1]}
                     for info in credits_data
+                    if info[1] > 0
                 ]
         except Exception as e:
             logger.error(f"获取积分排行失败: {str(e)}")

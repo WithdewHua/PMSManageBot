@@ -48,6 +48,10 @@ html, body {
   width: 100%;
 }
 
+html {
+  overflow-y: auto;
+}
+
 .theme--dark {
   background-color: #212121;
   color: #ffffff;
@@ -72,6 +76,11 @@ html, body {
   border-radius: 3px; /* 滑动条圆角 */
 }
 
+/* 修复滑动条可能引起的边缘问题 */
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* 深色模式下滑动条颜色 */
 .theme--dark ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
@@ -85,5 +94,36 @@ html, body {
 
 .v-main {
   padding-right: 0 !important;
+}
+
+/* 修改选中tab的颜色为 #9333ea */
+.v-bottom-navigation .v-btn--active {
+  color: #9333ea !important;
+}
+
+.v-bottom-navigation .v-btn--active .v-icon {
+  color: #9333ea !important;
+}
+
+/* 修改排行榜内部标签栏选中的颜色 */
+.v-tab--selected {
+  color: #9333ea !important;
+}
+
+.v-tab--selected .v-icon {
+  color: #9333ea !important;
+}
+
+/* 修改标签滑动条颜色 */
+.v-tabs-slider {
+  background-color: #9333ea !important;
+}
+
+/* 确保底部导航栏延伸到边缘 */
+.v-bottom-navigation {
+  width: 100% !important;
+  margin: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
 }
 </style>

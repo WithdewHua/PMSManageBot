@@ -22,14 +22,14 @@
           <!-- 积分榜 -->
           <v-window-item value="credits">
             <v-list lines="two">
-              <v-list-subheader>积分榜</v-list-subheader>
+              <!-- <v-list-subheader>积分榜</v-list-subheader> -->
               <v-list-item
                 v-for="(item, index) in rankings.credits_rank"
                 :key="`credits-${index}`"
                 :class="{ 'bg-primary-subtle': item.is_self }"
               >
                 <template v-slot:prepend>
-                  <div class="rank-number">{{ index + 1 }}</div>
+                  <div class="rank-number" :class="`rank-${index + 1}`">{{ index + 1 }}</div>
                 </template>
                 <v-list-item-title>{{ item.name }}</v-list-item-title>
                 <v-list-item-subtitle>
@@ -45,14 +45,14 @@
           <!-- 捐赠榜 -->
           <v-window-item value="donation">
             <v-list lines="two">
-              <v-list-subheader>捐赠榜</v-list-subheader>
+              <!-- <v-list-subheader>捐赠榜</v-list-subheader> -->
               <v-list-item
                 v-for="(item, index) in rankings.donation_rank"
                 :key="`donation-${index}`"
                 :class="{ 'bg-primary-subtle': item.is_self }"
               >
                 <template v-slot:prepend>
-                  <div class="rank-number">{{ index + 1 }}</div>
+                  <div class="rank-number" :class="`rank-${index + 1}`">{{ index + 1 }}</div>
                 </template>
                 <v-list-item-title>{{ item.name }}</v-list-item-title>
                 <v-list-item-subtitle>
@@ -67,41 +67,62 @@
 
           <!-- 观看时长榜 -->
           <v-window-item value="watched">
-            <v-list lines="two">
-              <v-list-subheader>Plex 观看时长榜</v-list-subheader>
-              <v-list-item
-                v-for="(item, index) in rankings.watched_time_rank_plex"
-                :key="`plex-watched-${index}`"
-                :class="{ 'bg-primary-subtle': item.is_self }"
-              >
-                <template v-slot:prepend>
-                  <div class="rank-number">{{ index + 1 }}</div>
-                </template>
-                <v-list-item-title>{{ item.name }}</v-list-item-title>
-                <v-list-item-subtitle>
-                  {{ item.watched_time.toFixed(2) }} 小时
-                </v-list-item-subtitle>
-              </v-list-item>
-              <v-divider class="my-3"></v-divider>
-              
-              <v-list-subheader>Emby 观看时长榜</v-list-subheader>
-              <v-list-item
-                v-for="(item, index) in rankings.watched_time_rank_emby"
-                :key="`emby-watched-${index}`"
-                :class="{ 'bg-primary-subtle': item.is_self }"
-              >
-                <template v-slot:prepend>
-                  <div class="rank-number">{{ index + 1 }}</div>
-                </template>
-                <v-list-item-title>{{ item.name }}</v-list-item-title>
-                <v-list-item-subtitle>
-                  {{ item.watched_time.toFixed(2) }} 小时
-                </v-list-item-subtitle>
-              </v-list-item>
-              <v-list-item v-if="rankings.watched_time_rank_plex.length === 0 && rankings.watched_time_rank_emby.length === 0" class="text-center">
+            <div v-if="rankings.watched_time_rank_plex.length === 0 && rankings.watched_time_rank_emby.length === 0" class="text-center my-5">
+              <v-list-item>
                 <v-list-item-title>暂无数据</v-list-item-title>
               </v-list-item>
-            </v-list>
+            </div>
+            <v-row v-else>
+              <!-- Plex 观看时长榜 -->
+              <v-col cols="12" md="6">
+                <v-card>
+                  <v-card-title>Plex 观看时长榜</v-card-title>
+                  <v-list lines="two">
+                    <v-list-item
+                      v-for="(item, index) in rankings.watched_time_rank_plex"
+                      :key="`plex-watched-${index}`"
+                      :class="{ 'bg-primary-subtle': item.is_self }"
+                    >
+                      <template v-slot:prepend>
+                        <div class="rank-number" :class="`rank-${index + 1}`">{{ index + 1 }}</div>
+                      </template>
+                      <v-list-item-title>{{ item.name }}</v-list-item-title>
+                      <v-list-item-subtitle>
+                        {{ item.watched_time.toFixed(2) }} 小时
+                      </v-list-item-subtitle>
+                    </v-list-item>
+                    <v-list-item v-if="rankings.watched_time_rank_plex.length === 0" class="text-center">
+                      <v-list-item-title>暂无数据</v-list-item-title>
+                    </v-list-item>
+                  </v-list>
+                </v-card>
+              </v-col>
+              
+              <!-- Emby 观看时长榜 -->
+              <v-col cols="12" md="6">
+                <v-card>
+                  <v-card-title>Emby 观看时长榜</v-card-title>
+                  <v-list lines="two">
+                    <v-list-item
+                      v-for="(item, index) in rankings.watched_time_rank_emby"
+                      :key="`emby-watched-${index}`"
+                      :class="{ 'bg-primary-subtle': item.is_self }"
+                    >
+                      <template v-slot:prepend>
+                        <div class="rank-number" :class="`rank-${index + 1}`">{{ index + 1 }}</div>
+                      </template>
+                      <v-list-item-title>{{ item.name }}</v-list-item-title>
+                      <v-list-item-subtitle>
+                        {{ item.watched_time.toFixed(2) }} 小时
+                      </v-list-item-subtitle>
+                    </v-list-item>
+                    <v-list-item v-if="rankings.watched_time_rank_emby.length === 0" class="text-center">
+                      <v-list-item-title>暂无数据</v-list-item-title>
+                    </v-list-item>
+                  </v-list>
+                </v-card>
+              </v-col>
+            </v-row>
           </v-window-item>
         </v-window>
       </div>
@@ -153,15 +174,45 @@ export default {
 }
 
 .rank-number {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--v-primary-base);
-  color: white;
+  background-color: #e0e0e0;
+  color: #333;
   font-weight: bold;
+  font-size: 16px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-right: 16px; /* 增加右边距 */
+}
+
+.rank-1 {
+  background-color: #FFD700; /* 金色 */
+  color: #000;
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+  box-shadow: 0 2px 6px rgba(255, 215, 0, 0.5);
+}
+
+.rank-2 {
+  background-color: #C0C0C0; /* 银色 */
+  color: #000;
+  width: 34px;
+  height: 34px;
+  font-size: 17px;
+  box-shadow: 0 2px 5px rgba(192, 192, 192, 0.5);
+}
+
+.rank-3 {
+  background-color: #CD7F32; /* 铜色 */
+  color: #000;
+  width: 34px;
+  height: 34px;
+  font-size: 17px;
+  box-shadow: 0 2px 5px rgba(205, 127, 50, 0.5);
 }
 
 .bg-primary-subtle {
