@@ -1,4 +1,3 @@
-<!-- filepath: /Users/withdewhua/Documents/Projects/PMSManageBot/webapp-frontend/src/App.vue -->
 <template>
   <v-app>
     <v-main>
@@ -57,5 +56,34 @@ html, body {
 .theme--light {
   background-color: #ffffff;
   color: #212121;
+}
+
+/* 自定义滑动条样式 */
+::-webkit-scrollbar {
+  width: 5px; /* 设置滑动条宽度 */
+}
+
+::-webkit-scrollbar-track {
+  background: transparent; /* 滑动条轨道背景 */
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2); /* 滑动条颜色 */
+  border-radius: 3px; /* 滑动条圆角 */
+}
+
+/* 深色模式下滑动条颜色 */
+.theme--dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 确保没有右侧边距 */
+.v-application {
+  max-width: 100% !important;
+  overflow-x: hidden !important;
+}
+
+.v-main {
+  padding-right: 0 !important;
 }
 </style>

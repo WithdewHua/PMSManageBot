@@ -1,12 +1,14 @@
 from app.db import DB
 from app.log import uvicorn_logger as logger
 from app.utils import get_user_name_from_tg_id
+from app.webapp.middlewares import require_telegram_auth
 from fastapi import APIRouter, HTTPException, Request
 
 router = APIRouter(prefix="/api", tags=["rankings"])
 
 
 @router.get("/rankings")
+@require_telegram_auth
 async def get_rankings(request: Request):
     """获取排行榜数据"""
     logger.info("开始获取排行榜数据")
