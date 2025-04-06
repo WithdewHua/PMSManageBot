@@ -54,7 +54,7 @@ async def get_invite_points_info(
         error_message = None
 
         if not can_generate:
-            error_message = f"积分不足，您当前积分 {user_credits}，需要 {required_points} 积分才能生成邀请码"
+            error_message = "积分不足，无法生成邀请码"
 
         return InvitePointsResponse(
             required_points=required_points,
@@ -76,6 +76,7 @@ async def get_invite_points_info(
 @router.post("/generate", response_model=GenerateInviteCodeResponse)
 @require_telegram_auth
 async def generate_invite_code(
+    request: Request,
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
     """

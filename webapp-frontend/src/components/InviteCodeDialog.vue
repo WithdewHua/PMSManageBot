@@ -13,7 +13,7 @@
           </div>
           <div v-else>
             <p>生成一个新的邀请码需要消耗 <strong>{{ invitePointsRequired }}</strong> 积分</p>
-            <p>您当前积分: <strong>{{ userCurrentPoints }}</strong></p>
+            <p>您当前积分: <strong>{{ userCurrentPoints.toFixed(2) }}</strong></p>
             <div v-if="errorMessage" class="error-message mt-2">
               {{ errorMessage }}
             </div>
