@@ -12,20 +12,31 @@
 
       <div v-else>
         <v-card class="mb-4">
-          <v-card-title class="text-center">个人信息</v-card-title>
+          <v-card-title class="text-center">
+            <v-icon start>mdi-account-circle</v-icon> 个人信息
+          </v-card-title>
           <v-card-text>
             <div class="d-flex justify-space-between mb-2 align-center">
-              <div>可用积分：</div>
+              <div class="d-flex align-center">
+                <v-icon size="small" color="primary" class="mr-2">mdi-star-circle</v-icon>
+                <span>可用积分：</span>
+              </div>
               <div class="font-weight-bold">{{ userInfo.credits.toFixed(2) }}</div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
-              <div>捐赠金额：</div>
+              <div class="d-flex align-center">
+                <v-icon size="small" color="success" class="mr-2">mdi-currency-usd</v-icon>
+                <span>捐赠金额：</span>
+              </div>
               <div class="font-weight-bold">{{ userInfo.donation.toFixed(2) }}</div>
             </div>
             <v-divider class="my-3"></v-divider>
 
             <div v-if="userInfo.invitation_codes && userInfo.invitation_codes.length > 0">
-              <div class="font-weight-bold mb-2">可用邀请码：</div>
+              <div class="font-weight-bold mb-2 d-flex align-center">
+                <v-icon size="small" color="info" class="mr-2">mdi-ticket-account</v-icon>
+                <span>可用邀请码：</span>
+              </div>
               <div v-for="(code, index) in userInfo.invitation_codes" :key="index" class="mb-1">
                 <v-chip size="small" color="primary" @click="copyToClipboard(code)">
                   {{ code }}
@@ -33,7 +44,10 @@
                 </v-chip>
               </div>
             </div>
-            <div v-else class="text-center text-subtitle-2 my-2">暂无可用邀请码</div>
+            <div v-else class="text-center text-subtitle-2 my-2">
+              <v-icon color="grey" class="mr-1">mdi-ticket-confirmation-outline</v-icon>
+              暂无可用邀请码
+            </div>
           </v-card-text>
         </v-card>
 
@@ -44,26 +58,40 @@
           </v-card-title>
           <v-card-text>
             <div class="d-flex justify-space-between mb-2 align-center">
-              <div>用户名：</div>
+              <div class="d-flex align-center">
+                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-account</v-icon>
+                <span>用户名：</span>
+              </div>
               <div>{{ userInfo.plex_info.username }}</div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
-              <div>邮箱：</div>
+              <div class="d-flex align-center">
+                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-email</v-icon>
+                <span>邮箱：</span>
+              </div>
               <div>{{ userInfo.plex_info.email }}</div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
-              <div>观看时长：</div>
+              <div class="d-flex align-center">
+                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-clock-time-four-outline</v-icon>
+                <span>观看时长：</span>
+              </div>
               <div>{{ userInfo.plex_info.watched_time.toFixed(2) }} 小时</div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
-              <div>资料库权限：</div>
+              <div class="d-flex align-center">
+                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-folder-multiple</v-icon>
+                <span>资料库权限：</span>
+              </div>
               <v-chip 
                 :color="userInfo.plex_info.all_lib ? 'success' : 'warning'" 
                 size="small"
                 @click="openNsfwDialog('plex', userInfo.plex_info.all_lib)"
-                class="cursor-pointer"
+                class="clickable-chip"
+                elevation="1"
               >
                 {{ userInfo.plex_info.all_lib ? '全部' : '部分' }}
+                <v-icon end size="x-small" class="ml-1">mdi-pencil</v-icon>
               </v-chip>
             </div>
           </v-card-text>
@@ -76,26 +104,40 @@
           </v-card-title>
           <v-card-text>
             <div class="d-flex justify-space-between mb-2 align-center">
-              <div>用户名：</div>
+              <div class="d-flex align-center">
+                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-account</v-icon>
+                <span>用户名：</span>
+              </div>
               <div>{{ userInfo.emby_info.username }}</div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
-              <div>观看时长：</div>
+              <div class="d-flex align-center">
+                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-clock-time-four-outline</v-icon>
+                <span>观看时长：</span>
+              </div>
               <div>{{ userInfo.emby_info.watched_time.toFixed(2) }} 小时</div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
-              <div>资料库权限：</div>
+              <div class="d-flex align-center">
+                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-folder-multiple</v-icon>
+                <span>资料库权限：</span>
+              </div>
               <v-chip 
                 :color="userInfo.emby_info.all_lib ? 'success' : 'warning'" 
                 size="small"
                 @click="openNsfwDialog('emby', userInfo.emby_info.all_lib)"
-                class="cursor-pointer"
+                class="clickable-chip"
+                elevation="1"
               >
                 {{ userInfo.emby_info.all_lib ? '全部' : '部分' }}
+                <v-icon end size="x-small" class="ml-1">mdi-pencil</v-icon>
               </v-chip>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
-              <div>绑定线路：</div>
+              <div class="d-flex align-center">
+                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-connection</v-icon>
+                <span>绑定线路：</span>
+              </div>
               <emby-line-selector 
                 :current-value="userInfo.emby_info.line" 
                 @line-changed="updateEmbyLine"
@@ -111,7 +153,10 @@
           </v-card-title>
           <v-card-text>
             <div class="d-flex justify-space-between mb-2 align-center">
-              <div>邮箱：</div>
+              <div class="d-flex align-center">
+                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-email</v-icon>
+                <span>邮箱：</span>
+              </div>
               <div>{{ userInfo.overseerr_info.email }}</div>
             </div>
           </v-card-text>
@@ -119,6 +164,7 @@
 
         <div v-if="!userInfo.plex_info && !userInfo.emby_info" class="text-center my-8">
           <v-alert type="info">
+            <v-icon start>mdi-information</v-icon>
             您尚未绑定任何媒体服务账户，请使用 /bind_plex 或 /bind_emby 命令进行绑定
           </v-alert>
         </div>
@@ -231,5 +277,28 @@ export default {
 
 .cursor-pointer {
   cursor: pointer;
+}
+
+/* 添加图标右侧边距 */
+.mr-2 {
+  margin-right: 8px;
+}
+
+/* 左侧边距 */
+.ml-1 {
+  margin-left: 4px;
+}
+
+/* 可点击chip样式 */
+.clickable-chip {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 1px solid transparent;
+}
+
+.clickable-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  border-color: currentColor;
 }
 </style>
