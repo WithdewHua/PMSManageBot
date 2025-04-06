@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import UserInfo from '../views/UserInfo.vue'
 import Rankings from '../views/Rankings.vue'
 
@@ -20,8 +20,17 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(process.env.BASE_URL),
+  history: createWebHashHistory(process.env.BASE_URL),
   routes
 })
+
+// 确保初始化时路由正确
+router.beforeEach((to, from, next) => {
+  if (to.path === '/' && to.hash === '') {
+    next({ path: '/user-info' });
+  } else {
+    next();
+  }
+});
 
 export default router

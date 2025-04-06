@@ -51,6 +51,18 @@ apiClient.interceptors.response.use(
 // 导出 API 客户端以便在其他文件中使用
 export { apiClient };
 
+// 确保 Telegram WebApp 已准备就绪
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.Telegram && window.Telegram.WebApp) {
+    window.Telegram.WebApp.ready();
+    
+    // 设置初始路由
+    if (window.location.hash === '' || window.location.hash === '#/') {
+      router.replace({ name: 'user-info' });
+    }
+  }
+});
+
 const vuetify = createVuetify({
   components,
   directives,

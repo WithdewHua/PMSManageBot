@@ -26,14 +26,27 @@ export default {
   },
   watch: {
     activeTab(val) {
-      this.$router.push({ name: val })
+      if (this.$route.name !== val) {
+        this.$router.push({ name: val })
+      }
+    },
+    '$route'(to) {
+      // 监听路由变化，更新底部导航
+      if (to.name) {
+        this.activeTab = to.name;
+      }
     }
   },
   mounted() {
-    // 根据当前路由设置活动标签
+    // 初始化时强制导航到正确路由
     const routeName = this.$route.name
     if (routeName) {
       this.activeTab = routeName
+    } else {
+      // 如果当前没有路由名称（在根路径），强制导航到user-info
+      this.$nextTick(() => {
+        this.$router.replace({ name: 'user-info' });
+      });
     }
   }
 }
