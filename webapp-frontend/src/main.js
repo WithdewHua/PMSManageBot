@@ -1,12 +1,16 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
+import axios from 'axios'
+// 引入 Vuetify
 import { createVuetify } from 'vuetify'
 import 'vuetify/styles'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
+import { aliases, mdi } from 'vuetify/iconsets/mdi'
 import '@mdi/font/css/materialdesignicons.css'
-import axios from 'axios'
+// 引入 Service Worker 注册
+import registerServiceWorker from './registerServiceWorker'
 
 // 获取正确的环境变量
 const apiBaseUrl = process.env.VUE_APP_API_URL || 'http://localhost:6000'
@@ -63,9 +67,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// 注册 Service Worker
+registerServiceWorker();
+
 const vuetify = createVuetify({
   components,
   directives,
+  icons: {
+    defaultSet: 'mdi',
+    aliases,
+    sets: {
+      mdi,
+    },
+  },
   theme: {
     defaultTheme: window.Telegram?.WebApp?.colorScheme || 'light'
   }
