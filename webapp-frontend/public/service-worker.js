@@ -1,17 +1,13 @@
 // 缓存版本，需要更新缓存时更改此版本号
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v1.2';
 const CACHE_NAME = `funmedia-assistant-${CACHE_VERSION}`;
 
-// 需要缓存的资源
+// 基础缓存资源（只缓存核心导航资源）
 const urlsToCache = [
   '/',
   '/index.html',
   '/favicon.ico',
-  '/css/app.css',
-  '/js/app.js',
-  '/js/chunk-vendors.js',
-  '/img/icons/android-chrome-192x192.png',
-  '/img/icons/android-chrome-512x512.png'
+  '/manifest.json'
 ];
 
 // 安装 Service Worker
@@ -57,7 +53,14 @@ self.addEventListener('fetch', event => {
         })
     );
   } else {
-    // 对其他资源使用缓存优先策略
+    // 判断资源类型进行缓存
+    const url = new URL(event.request.url);
+    const extension = url.pathname.split('.').pop().toLowerCase();
+    
+    // 判断是否为需要缓存的静态资源
+    const shouldCache = ['js', 'css', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'ico', 'woff', 'woff2', 'ttf', 'eot'].includes(extension);
+    
+    // 对可缓存的静态资源使用缓存优先策略
     event.respondWith(
       caches.match(event.request)
         .then(response => {
@@ -72,18 +75,22 @@ self.addEventListener('fetch', event => {
           return fetch(fetchRequest)
             .then(response => {
               // 检查是否收到有效响应
-              if (!response || response.status !== 200 || response.type !== 'basic') {
+              if (!response || response.status !== 200) {
                 return response;
               }
               
-              // 克隆响应，因为响应是一个流，只能使用一次
-              const responseToCache = response.clone();
-              
-              // 打开缓存并存储响应
-              caches.open(CACHE_NAME)
-                .then(cache => {
-                  cache.put(event.request, responseToCache);
-                });
+              // 如果是可缓存的资源类型，则进行缓存
+              if (shouldCache) {
+                // 克隆响应，因为响应是一个流，只能使用一次
+                const responseToCache = response.clone();
+                
+                // 打开缓存并存储响应
+                caches.open(CACHE_NAME)
+                  .then(cache => {
+                    console.log('缓存资源:', url.pathname);
+                    cache.put(event.request, responseToCache);
+                  });
+              }
                 
               return response;
             });
