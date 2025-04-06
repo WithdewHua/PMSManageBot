@@ -57,7 +57,12 @@
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div>资料库权限：</div>
-              <v-chip :color="userInfo.plex_info.all_lib ? 'success' : 'warning'" size="small">
+              <v-chip 
+                :color="userInfo.plex_info.all_lib ? 'success' : 'warning'" 
+                size="small"
+                @click="openNsfwDialog('plex', userInfo.plex_info.all_lib)"
+                class="cursor-pointer"
+              >
                 {{ userInfo.plex_info.all_lib ? '全部' : '部分' }}
               </v-chip>
             </div>
@@ -80,7 +85,12 @@
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div>资料库权限：</div>
-              <v-chip :color="userInfo.emby_info.all_lib ? 'success' : 'warning'" size="small">
+              <v-chip 
+                :color="userInfo.emby_info.all_lib ? 'success' : 'warning'" 
+                size="small"
+                @click="openNsfwDialog('emby', userInfo.emby_info.all_lib)"
+                class="cursor-pointer"
+              >
                 {{ userInfo.emby_info.all_lib ? '全部' : '部分' }}
               </v-chip>
             </div>
@@ -114,17 +124,26 @@
         </div>
       </div>
     </v-container>
+    
+    <!-- 使用NSFW对话框组件 -->
+    <nsfw-dialog 
+      ref="nsfwDialog" 
+      :current-credits="userInfo.credits"
+      @operation-completed="handleNsfwOperationCompleted"
+    />
   </div>
 </template>
 
 <script>
 import { getUserInfo } from '@/api'
 import EmbyLineSelector from '@/components/EmbyLineSelector.vue'
+import NsfwDialog from '@/components/NsfwDialog.vue'
 
 export default {
   name: 'UserInfo',
   components: {
-    EmbyLineSelector
+    EmbyLineSelector,
+    NsfwDialog
   },
   data() {
     return {
@@ -174,6 +193,27 @@ export default {
       if (this.userInfo && this.userInfo.emby_info) {
         this.userInfo.emby_info.line = line;
       }
+    },
+    
+    // 打开NSFW权限管理对话框
+    openNsfwDialog(service, isAllLib) {
+      // 通过引用调用子组件方法
+      this.$refs.nsfwDialog.open(service, isAllLib);
+    },
+    
+    // 处理NSFW操作完成后的状态更新
+    handleNsfwOperationCompleted(result) {
+      const { service, isUnlock, cost } = result;
+      
+      // 更新资料库权限状态
+      if (service === 'plex' && this.userInfo.plex_info) {
+        this.userInfo.plex_info.all_lib = isUnlock;
+      } else if (service === 'emby' && this.userInfo.emby_info) {
+        this.userInfo.emby_info.all_lib = isUnlock;
+      }
+      
+      // 更新用户积分
+      this.userInfo.credits -= cost;
     }
   }
 }
@@ -187,5 +227,9 @@ export default {
 /* 确保所有d-flex内的项目垂直居中 */
 .d-flex {
   align-items: center;
+}
+
+.cursor-pointer {
+  cursor: pointer;
 }
 </style>

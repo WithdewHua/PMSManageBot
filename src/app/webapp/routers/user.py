@@ -1,3 +1,4 @@
+from time import time
 from typing import List
 
 from app.cache import emby_user_defined_line_cache
@@ -7,7 +8,7 @@ from app.emby import Emby
 from app.log import uvicorn_logger as logger
 from app.plex import Plex
 from app.tautulli import Tautulli
-from app.utils import get_user_total_duration
+from app.utils import caculate_credits_fund, get_user_total_duration
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.models import TelegramUser, UserInfo
@@ -440,3 +441,242 @@ async def unbind_emby_line(
     finally:
         db.close()
         logger.debug("数据库连接已关闭")
+
+
+@router.get("/nsfw-info")
+@require_telegram_auth
+async def get_nsfw_info(
+    request: Request,
+    service: str,
+    operation: str,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取NSFW操作所需积分或可退回积分"""
+    tg_id = user.id
+
+    if service not in ["plex", "emby"]:
+        raise HTTPException(status_code=400, detail="不支持的服务类型")
+
+    if operation not in ["unlock", "lock"]:
+        raise HTTPException(status_code=400, detail="不支持的操作类型")
+
+    _db = DB()
+    try:
+        if operation == "unlock":
+            # 解锁操作返回所需积分
+            return {"cost": settings.UNLOCK_CREDITS}
+        else:
+            # 锁定操作计算可返还积分
+            if service == "plex":
+                info = _db.get_plex_info_by_tg_id(tg_id)
+                if not info or info[5] != 1:
+                    raise HTTPException(status_code=400, detail="您尚未解锁 NSFW 内容")
+                unlock_time = info[6]
+            else:
+                info = _db.get_emby_info_by_tg_id(tg_id)
+                if not info or info[3] != 1:
+                    raise HTTPException(status_code=400, detail="您尚未解锁 NSFW 内容")
+                unlock_time = info[4]
+
+            # 计算可返还积分
+            credits_fund = caculate_credits_fund(unlock_time, settings.UNLOCK_CREDITS)
+            return {"refund": credits_fund}
+    except Exception as e:
+        logger.error(f"获取 NSFW 信息时发生错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取NSFW信息失败")
+    finally:
+        _db.close()
+
+
+@router.post("/nsfw/{operation}")
+@require_telegram_auth
+async def nsfw_operation(
+    request: Request,
+    operation: str,
+    data: dict = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """执行NSFW权限操作"""
+    if operation not in ["unlock", "lock"]:
+        raise HTTPException(status_code=400, detail="不支持的操作类型")
+
+    service = data.get("service")
+    if service not in ["plex", "emby"]:
+        raise HTTPException(status_code=400, detail="不支持的服务类型")
+
+    tg_id = user.id
+    _db = DB()
+
+    try:
+        # 获取用户统计信息
+        stats_info = _db.get_stats_by_tg_id(tg_id)
+        if not stats_info:
+            raise HTTPException(status_code=404, detail="用户不存在")
+
+        credits = stats_info[2]
+
+        if operation == "unlock":
+            # 解锁操作
+            if service == "plex":
+                # 获取Plex信息
+                plex_info = _db.get_plex_info_by_tg_id(tg_id)
+                if not plex_info:
+                    raise HTTPException(status_code=404, detail="Plex账户未绑定")
+
+                plex_id = plex_info[0]
+                all_lib = plex_info[5]
+
+                if all_lib == 1:
+                    raise HTTPException(status_code=400, detail="您已拥有全部库权限")
+
+                if credits < settings.UNLOCK_CREDITS:
+                    raise HTTPException(status_code=400, detail="积分不足")
+
+                # 扣除积分
+                credits -= settings.UNLOCK_CREDITS
+
+                # 更新权限
+                _plex = Plex()
+                try:
+                    _plex.update_user_shared_libs(plex_id, _plex.get_libraries())
+                except Exception:
+                    raise HTTPException(status_code=500, detail="更新权限失败")
+
+                # 解锁时间
+                unlock_time = time()
+
+                # 更新数据库
+                if not _db.update_user_credits(credits, tg_id=tg_id):
+                    raise HTTPException(status_code=500, detail="更新积分失败")
+
+                if not _db.update_all_lib_flag(
+                    all_lib=1, unlock_time=unlock_time, plex_id=plex_id
+                ):
+                    raise HTTPException(status_code=500, detail="更新权限状态失败")
+
+            else:
+                # 获取Emby信息
+                emby_info = _db.get_emby_info_by_tg_id(tg_id)
+                if not emby_info:
+                    raise HTTPException(status_code=404, detail="Emby账户未绑定")
+
+                emby_id = emby_info[1]
+                all_lib = emby_info[3]
+
+                if all_lib == 1:
+                    raise HTTPException(status_code=400, detail="您已拥有全部库权限")
+
+                if credits < settings.UNLOCK_CREDITS:
+                    raise HTTPException(status_code=400, detail="积分不足")
+
+                # 扣除积分
+                credits -= settings.UNLOCK_CREDITS
+
+                # 更新权限
+                _emby = Emby()
+                flag, msg = _emby.add_user_library(user_id=emby_id)
+                if not flag:
+                    raise HTTPException(status_code=500, detail=f"更新权限失败: {msg}")
+
+                # 解锁时间
+                unlock_time = time()
+
+                # 更新数据库
+                if not _db.update_user_credits(credits, tg_id=tg_id):
+                    raise HTTPException(status_code=500, detail="更新积分失败")
+
+                if not _db.update_all_lib_flag(
+                    all_lib=1, unlock_time=unlock_time, tg_id=tg_id, media_server="emby"
+                ):
+                    raise HTTPException(status_code=500, detail="更新权限状态失败")
+
+        else:
+            # 锁定操作
+            if service == "plex":
+                # 获取Plex信息
+                plex_info = _db.get_plex_info_by_tg_id(tg_id)
+                if not plex_info:
+                    raise HTTPException(status_code=404, detail="Plex账户未绑定")
+
+                plex_id = plex_info[0]
+                all_lib = plex_info[5]
+                unlock_time = plex_info[6]
+
+                if all_lib == 0:
+                    raise HTTPException(status_code=400, detail="您未解锁NSFW内容")
+
+                # 计算返还积分
+                credits_fund = caculate_credits_fund(
+                    unlock_time, settings.UNLOCK_CREDITS
+                )
+                credits += credits_fund
+
+                # 更新权限
+                _plex = Plex()
+                sections = _plex.get_libraries()
+                for section in settings.NSFW_LIBS:
+                    if section in sections:
+                        sections.remove(section)
+
+                try:
+                    _plex.update_user_shared_libs(plex_id, sections)
+                except Exception:
+                    raise HTTPException(status_code=500, detail="更新权限失败")
+
+                # 更新数据库
+                if not _db.update_user_credits(credits, tg_id=tg_id):
+                    raise HTTPException(status_code=500, detail="更新积分失败")
+
+                if not _db.update_all_lib_flag(
+                    all_lib=0, unlock_time=None, plex_id=plex_id
+                ):
+                    raise HTTPException(status_code=500, detail="更新权限状态失败")
+
+            else:
+                # 获取Emby信息
+                emby_info = _db.get_emby_info_by_tg_id(tg_id)
+                if not emby_info:
+                    raise HTTPException(status_code=404, detail="Emby账户未绑定")
+
+                emby_id = emby_info[1]
+                all_lib = emby_info[3]
+                unlock_time = emby_info[4]
+
+                if all_lib == 0:
+                    raise HTTPException(status_code=400, detail="您未解锁NSFW内容")
+
+                # 计算返还积分
+                credits_fund = caculate_credits_fund(
+                    unlock_time, settings.UNLOCK_CREDITS
+                )
+                credits += credits_fund
+
+                # 更新权限
+                _emby = Emby()
+                flag, msg = _emby.remove_user_library(user_id=emby_id)
+                if not flag:
+                    raise HTTPException(status_code=500, detail=f"更新权限失败: {msg}")
+
+                # 更新数据库
+                if not _db.update_user_credits(credits, tg_id=tg_id):
+                    raise HTTPException(status_code=500, detail="更新积分失败")
+
+                if not _db.update_all_lib_flag(
+                    all_lib=0, unlock_time=None, tg_id=tg_id, media_server="emby"
+                ):
+                    raise HTTPException(status_code=500, detail="更新权限状态失败")
+
+        return {
+            "success": True,
+            "message": f"NSFW 内容已{'解锁' if operation == 'unlock' else '锁定'}",
+            "credits": credits,
+        }
+
+    except HTTPException:
+        # 向上传递HTTP异常
+        raise
+    except Exception as e:
+        logger.error(f"执行 NSFW 操作时发生错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="操作失败，请稍后再试")
+    finally:
+        _db.close()
