@@ -77,17 +77,17 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     _credits, _donation = _stats_info[2], _stats_info[1]
     _codes = "" if not _codes else "\n".join(_codes)
     body_text = f"""
-{'=' * 44}
+{"=" * 44}
 <strong>可用积分: </strong>{_credits:.2f}
 <strong>捐赠金额: </strong>{_donation}
 <strong>可用邀请码：</strong>
 {_codes}
-{'=' * 44}
+{"=" * 44}
 
 """
     if _plex_info:
         body_text += f"""
-{'=' * 20} Plex {'=' * 20}
+{"=" * 20} Plex {"=" * 20}
 <strong>Plex 用户名：</strong>{_plex_info[4]}
 <strong>总观看时长：</strong>{_plex_info[7]:.2f}h
 <strong>当前权限：</strong>{"全部" if _plex_info[5] == 1 else "部分"}
@@ -95,7 +95,7 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 """
     if _emby_info:
         body_text += f"""
-{'=' * 20} Emby {'=' * 20}
+{"=" * 20} Emby {"=" * 20}
 <strong>Emby 用户名: </strong>{_emby_info[0]}
 <strong>总观看时长：</strong>{_emby_info[5]:.2f}h
 <strong>当前权限：</strong>{"全部" if _emby_info[3] == 1 else "部分"}

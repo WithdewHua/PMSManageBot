@@ -14,11 +14,11 @@
         <v-card class="mb-4">
           <v-card-title class="text-center">个人信息</v-card-title>
           <v-card-text>
-            <div class="d-flex justify-space-between mb-2">
+            <div class="d-flex justify-space-between mb-2 align-center">
               <div>可用积分：</div>
               <div class="font-weight-bold">{{ userInfo.credits.toFixed(2) }}</div>
             </div>
-            <div class="d-flex justify-space-between mb-2">
+            <div class="d-flex justify-space-between mb-2 align-center">
               <div>捐赠金额：</div>
               <div class="font-weight-bold">{{ userInfo.donation.toFixed(2) }}</div>
             </div>
@@ -43,19 +43,19 @@
             <v-icon start>mdi-plex</v-icon> Plex 账户
           </v-card-title>
           <v-card-text>
-            <div class="d-flex justify-space-between mb-2">
+            <div class="d-flex justify-space-between mb-2 align-center">
               <div>用户名：</div>
               <div>{{ userInfo.plex_info.username }}</div>
             </div>
-            <div class="d-flex justify-space-between mb-2">
+            <div class="d-flex justify-space-between mb-2 align-center">
               <div>邮箱：</div>
               <div>{{ userInfo.plex_info.email }}</div>
             </div>
-            <div class="d-flex justify-space-between mb-2">
+            <div class="d-flex justify-space-between mb-2 align-center">
               <div>观看时长：</div>
               <div>{{ userInfo.plex_info.watched_time.toFixed(2) }} 小时</div>
             </div>
-            <div class="d-flex justify-space-between mb-2">
+            <div class="d-flex justify-space-between mb-2 align-center">
               <div>资料库权限：</div>
               <v-chip :color="userInfo.plex_info.all_lib ? 'success' : 'warning'" size="small">
                 {{ userInfo.plex_info.all_lib ? '全部' : '部分' }}
@@ -70,23 +70,26 @@
             <v-icon start>mdi-server</v-icon> Emby 账户
           </v-card-title>
           <v-card-text>
-            <div class="d-flex justify-space-between mb-2">
+            <div class="d-flex justify-space-between mb-2 align-center">
               <div>用户名：</div>
               <div>{{ userInfo.emby_info.username }}</div>
             </div>
-            <div class="d-flex justify-space-between mb-2">
+            <div class="d-flex justify-space-between mb-2 align-center">
               <div>观看时长：</div>
               <div>{{ userInfo.emby_info.watched_time.toFixed(2) }} 小时</div>
             </div>
-            <div class="d-flex justify-space-between mb-2">
+            <div class="d-flex justify-space-between mb-2 align-center">
               <div>资料库权限：</div>
               <v-chip :color="userInfo.emby_info.all_lib ? 'success' : 'warning'" size="small">
                 {{ userInfo.emby_info.all_lib ? '全部' : '部分' }}
               </v-chip>
             </div>
-            <div class="d-flex justify-space-between mb-2" v-if="userInfo.emby_info.line">
+            <div class="d-flex justify-space-between mb-2 align-center">
               <div>绑定线路：</div>
-              <div>{{ userInfo.emby_info.line }}</div>
+              <emby-line-selector 
+                :current-value="userInfo.emby_info.line" 
+                @line-changed="updateEmbyLine"
+              ></emby-line-selector>
             </div>
           </v-card-text>
         </v-card>
@@ -97,7 +100,7 @@
             <v-icon start>mdi-movie-search</v-icon> Overseerr 账户
           </v-card-title>
           <v-card-text>
-            <div class="d-flex justify-space-between mb-2">
+            <div class="d-flex justify-space-between mb-2 align-center">
               <div>邮箱：</div>
               <div>{{ userInfo.overseerr_info.email }}</div>
             </div>
@@ -116,9 +119,13 @@
 
 <script>
 import { getUserInfo } from '@/api'
+import EmbyLineSelector from '@/components/EmbyLineSelector.vue'
 
 export default {
   name: 'UserInfo',
+  components: {
+    EmbyLineSelector
+  },
   data() {
     return {
       userInfo: {
@@ -162,6 +169,11 @@ export default {
       }).catch(err => {
         console.error('复制失败:', err)
       })
+    },
+    updateEmbyLine(line) {
+      if (this.userInfo && this.userInfo.emby_info) {
+        this.userInfo.emby_info.line = line;
+      }
     }
   }
 }
@@ -170,5 +182,10 @@ export default {
 <style scoped>
 .user-info-container {
   padding-bottom: 56px; /* 为底部导航栏留出空间 */
+}
+
+/* 确保所有d-flex内的项目垂直居中 */
+.d-flex {
+  align-items: center;
 }
 </style>

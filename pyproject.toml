@@ -16,6 +16,7 @@ dependencies = [
     "uvicorn==0.23.2",
     "python-multipart==0.0.6",
     "itsdangerous>=2.2.0",
+    "pydantic[email]>=2.10.4",
 ]
 readme = "README.md"
 requires-python = ">= 3.11"
@@ -29,8 +30,3 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/app"]
-
-[dependency-groups]
-dev = [
-    "fastapi[standard]>=0.103.0",
-]

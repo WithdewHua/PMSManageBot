@@ -1,3 +1,7 @@
+from typing import List
+
+from app.cache import emby_user_defined_line_cache
+from app.config import settings
 from app.db import DB
 from app.emby import Emby
 from app.log import uvicorn_logger as logger
@@ -30,6 +34,18 @@ class BindEmbyRequest(BaseModel):
     """绑定Emby请求模型"""
 
     username: str = Field(..., min_length=2)
+
+
+class EmbyLineRequest(BaseModel):
+    """Emby线路请求模型"""
+
+    line: str = Field(..., min_length=1)
+
+
+class EmbyLinesResponse(BaseModel):
+    """Emby线路列表响应模型"""
+
+    lines: List[str]
 
 
 @router.get("/info")
@@ -320,6 +336,107 @@ async def bind_emby_account(
     except Exception as e:
         logger.error(f"绑定Emby账户时发生错误: {str(e)}")
         return BindResponse(success=False, message="绑定失败，发生未知错误")
+    finally:
+        db.close()
+        logger.debug("数据库连接已关闭")
+
+
+@router.get("/emby_lines", response_model=EmbyLinesResponse)
+@require_telegram_auth
+async def get_emby_lines(
+    request: Request,
+    telegram_user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取可用的Emby线路列表"""
+    return EmbyLinesResponse(lines=settings.EMBY_STREAM_BACKEND)
+
+
+@router.post("/bind/emby_line", response_model=BindResponse)
+@require_telegram_auth
+async def bind_emby_line(
+    request: Request,
+    data: EmbyLineRequest = Body(...),
+    telegram_user: TelegramUser = Depends(get_telegram_user),
+):
+    """绑定Emby线路"""
+    tg_id = telegram_user.id
+    line = data.line
+
+    logger.info(f"用户 {telegram_user.username or tg_id} 尝试绑定 Emby 线路 {line}")
+
+    db = DB()
+    try:
+        # 检查用户是否绑定了Emby账户
+        emby_info = db.get_emby_info_by_tg_id(tg_id)
+        if not emby_info:
+            logger.warning(f"用户 {telegram_user.username or tg_id} 未绑定 Emby 账户")
+            return BindResponse(success=False, message="您尚未绑定Emby账户，请先绑定")
+        emby_username, emby_line = emby_info[0], emby_info[7]
+        if emby_line == line:
+            logger.warning(f"用户 {telegram_user.username or tg_id} 已绑定该线路")
+            return BindResponse(success=False, message="该线路已绑定，请勿重复操作")
+
+        # 更新用户线路设置
+        success = db.set_emby_line(line, tg_id=tg_id)
+
+        if not success:
+            logger.error(f"设置用户 {tg_id} 的 Emby 线路失败")
+            return BindResponse(success=False, message="设置线路失败")
+
+        # 更新 redis 缓存
+        emby_user_defined_line_cache.put(str(emby_username).lower(), line)
+
+        logger.info(f"用户 {telegram_user.username or tg_id} 成功绑定 Emby 线路 {line}")
+        return BindResponse(success=True, message=f"绑定线路 {line} 成功！")
+
+    except Exception as e:
+        logger.error(f"绑定Emby线路时发生错误: {str(e)}")
+        return BindResponse(success=False, message=f"绑定失败: {str(e)}")
+    finally:
+        db.close()
+        logger.debug("数据库连接已关闭")
+
+
+@router.post("/unbind/emby_line", response_model=BindResponse)
+@require_telegram_auth
+async def unbind_emby_line(
+    request: Request,
+    telegram_user: TelegramUser = Depends(get_telegram_user),
+):
+    """解绑Emby线路（恢复自动选择）"""
+    tg_id = telegram_user.id
+
+    logger.info(f"用户 {telegram_user.username or tg_id} 尝试解绑 Emby 线路")
+
+    db = DB()
+    try:
+        # 检查用户是否绑定了Emby账户
+        emby_info = db.get_emby_info_by_tg_id(tg_id)
+        if not emby_info:
+            logger.warning(f"用户 {telegram_user.username or tg_id} 未绑定Emby账户")
+            return BindResponse(success=False, message="您尚未绑定 Emby 账户，请先绑定")
+        emby_username, emby_line = emby_info[0], emby_info[7]
+        if not emby_line:
+            logger.warning(
+                f"用户 {telegram_user.username or tg_id} 未绑定线路，无需解绑"
+            )
+            return BindResponse(success=False, message="您未绑定线路，无需解绑")
+
+        success = db.set_emby_line(None, tg_id=tg_id)
+        if not success:
+            logger.error(f"重置用户 {tg_id} 的 Emby 线路失败")
+            return BindResponse(success=False, message="重置线路失败")
+        from app.cache import emby_user_defined_line_cache
+
+        # 删除 redis 缓存
+        emby_user_defined_line_cache.delete(str(emby_username).lower())
+
+        logger.info(f"用户 {telegram_user.username or tg_id} 成功解绑 Emby 线路")
+        return BindResponse(success=True, message="已切换到自动选择线路")
+
+    except Exception as e:
+        logger.error(f"解绑Emby线路时发生错误: {str(e)}")
+        return BindResponse(success=False, message=f"解绑失败: {str(e)}")
     finally:
         db.close()
         logger.debug("数据库连接已关闭")
