@@ -29,18 +29,11 @@
       <transition name="slide-up">
         <div v-if="showActionMenu" class="action-menu">
           <div class="menu-grid">
-            <div class="menu-item" @click="handleAction('redeem_plex')">
+            <div class="menu-item" @click="openRedeemCodeDialog()">
               <div class="menu-icon-wrapper">
-                <v-icon color="white" size="18">mdi-server-network</v-icon>
+                <v-icon color="white" size="18">mdi-ticket-confirmation</v-icon>
               </div>
-              <span>兑换 Plex 邀请码</span>
-            </div>
-            
-            <div class="menu-item" @click="handleAction('redeem_emby')">
-              <div class="menu-icon-wrapper">
-                <v-icon color="white" size="18">mdi-filmstrip</v-icon>
-              </div>
-              <span>兑换 Emby 邀请码</span>
+              <span>兑换邀请码</span>
             </div>
 
             <div class="menu-item" @click="openInviteCodeDialog">
@@ -63,7 +56,6 @@
               </div>
               <span>绑定 Emby 账户</span>
             </div>
-            
           </div>
         </div>
       </transition>
@@ -71,17 +63,23 @@
     
     <!-- 使用邀请码对话框组件 -->
     <invite-code-dialog ref="inviteCodeDialog" />
+    
+    <!-- 使用兑换码对话框组件 -->
+    <redeem-code-dialog ref="redeemCodeDialog" />
   </div>
 </template>
 
 <script>
 // 导入邀请码对话框组件
 import InviteCodeDialog from './InviteCodeDialog.vue';
+// 导入兑换对话框组件
+import RedeemCodeDialog from './RedeemCodeDialog.vue';
 
 export default {
   name: 'BottomMenu',
   components: {
-    InviteCodeDialog
+    InviteCodeDialog,
+    RedeemCodeDialog
   },
   props: {
     // 当前激活的标签，从父组件传入
@@ -140,6 +138,12 @@ export default {
     openInviteCodeDialog() {
       this.showActionMenu = false;
       this.$refs.inviteCodeDialog.open();
+    },
+    
+    // 打开兑换码对话框
+    openRedeemCodeDialog(type = null) {
+      this.showActionMenu = false;
+      this.$refs.redeemCodeDialog.open(type);
     }
   }
 }

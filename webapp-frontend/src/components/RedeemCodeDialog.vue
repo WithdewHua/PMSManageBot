@@ -1,0 +1,249 @@
+<template>
+  <v-dialog v-model="showDialog" max-width="500">
+    <v-card>
+      <v-card-title class="headline">兑换邀请码</v-card-title>
+      <v-card-text>
+        <v-form ref="form" v-model="valid" lazy-validation>
+          <!-- 服务类型选择 -->
+          <v-radio-group
+            v-model="serviceType"
+            row
+            required
+            class="mb-3"
+          >
+            <v-radio
+              value="plex"
+              label="Plex"
+              color="primary"
+            ></v-radio>
+            <v-radio
+              value="emby"
+              label="Emby"
+              color="primary"
+            ></v-radio>
+          </v-radio-group>
+
+          <!-- 邀请码输入框 -->
+          <v-text-field
+            v-model="inviteCode"
+            label="邀请码"
+            :rules="inviteCodeRules"
+            required
+            outlined
+            dense
+            hide-details="auto"
+            class="mb-3"
+          ></v-text-field>
+          
+          <!-- 根据所选服务显示对应输入框 -->
+          <v-text-field
+            v-if="serviceType === 'plex'"
+            v-model="email"
+            label="Plex 邮箱"
+            :rules="emailRules"
+            type="email"
+            required
+            outlined
+            dense
+            hide-details="auto"
+            class="mb-3"
+          ></v-text-field>
+          
+          <v-text-field
+            v-if="serviceType === 'emby'"
+            v-model="username"
+            label="Emby 用户名"
+            :rules="usernameRules"
+            required
+            outlined
+            dense
+            hide-details="auto"
+            class="mb-3"
+          ></v-text-field>
+
+          <div v-if="errorMessage" class="error-message mt-3">
+            {{ errorMessage }}
+          </div>
+          <div v-if="successMessage" class="success-message mt-3">
+            {{ successMessage }}
+          </div>
+        </v-form>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn 
+          text 
+          color="grey" 
+          @click="closeDialog"
+          :disabled="loading"
+        >
+          取消
+        </v-btn>
+        <v-btn 
+          color="primary" 
+          @click="redeemCode"
+          :loading="loading"
+          :disabled="loading || !valid"
+        >
+          确认兑换
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+</template>
+
+<script>
+import { redeemMediaServiceInviteCode, getMediaServiceRegisterStatus } from '../services/mediaServiceApi';
+
+export default {
+  name: 'RedeemCodeDialog',
+  data() {
+    return {
+      showDialog: false,
+      valid: false,
+      loading: false,
+      serviceType: 'emby', // 默认选择Emby
+      inviteCode: '',
+      email: '',
+      username: '',
+      errorMessage: '',
+      successMessage: '',
+      registerStatus: {
+        plex: true,
+        emby: true
+      },
+      inviteCodeRules: [
+        v => !!v || '请输入邀请码',
+        v => v.length >= 6 || '邀请码长度不正确'
+      ],
+      emailRules: [
+        v => !!v || '请输入 Plex 邮箱',
+        v => /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v) || '请输入有效的邮箱地址'
+      ],
+      usernameRules: [
+        v => !!v || '请输入 Emby 用户名',
+        v => v.length >= 2 || '用户名太短',
+      ]
+    }
+  },
+  methods: {
+    open(type = null) {
+      this.resetForm();
+      if (type && (type === 'plex' || type === 'emby')) {
+        this.serviceType = type;
+      }
+      this.showDialog = true;
+      this.checkRegisterStatus();
+    },
+    closeDialog() {
+      this.showDialog = false;
+    },
+    resetForm() {
+      this.inviteCode = '';
+      this.email = '';
+      this.username = '';
+      this.errorMessage = '';
+      this.successMessage = '';
+      if (this.$refs.form) {
+        this.$refs.form.resetValidation();
+      }
+    },
+    // 检查注册状态
+    async checkRegisterStatus() {
+      try {
+        const status = await getMediaServiceRegisterStatus();
+        this.registerStatus = status;
+        
+        // 如果当前选择的服务不可注册，提示用户
+        if (this.serviceType === 'plex' && !this.registerStatus.plex) {
+          this.errorMessage = 'Plex 当前不接受新用户注册';
+        } else if (this.serviceType === 'emby' && !this.registerStatus.emby) {
+          this.errorMessage = 'Emby 当前不接受新用户注册';
+        }
+      } catch (error) {
+        console.error('获取注册状态失败:', error);
+      }
+    },
+    async redeemCode() {
+      // 根据当前服务类型验证表单
+      if (!this.$refs.form.validate()) {
+        return;
+      }
+
+      // 检查服务注册状态
+      if (this.serviceType === 'plex' && !this.registerStatus.plex) {
+        this.errorMessage = 'Plex 当前不接受新用户注册';
+        return;
+      } else if (this.serviceType === 'emby' && !this.registerStatus.emby) {
+        this.errorMessage = 'Emby 当前不接受新用户注册';
+        return;
+      }
+
+      // 确保根据服务类型，对应字段有值
+      if ((this.serviceType === 'plex' && !this.email) || 
+          (this.serviceType === 'emby' && !this.username)) {
+        this.errorMessage = `请填写${this.serviceType === 'plex' ? 'Plex 邮箱' : 'Emby 用户名'}`;
+        return;
+      }
+
+      this.loading = true;
+      this.errorMessage = '';
+      this.successMessage = '';
+
+      try {
+        // 构建请求数据
+        const requestData = {
+          code: this.inviteCode,
+          // 根据服务类型添加对应字段
+          ...(this.serviceType === 'plex' ? { email: this.email } : { username: this.username })
+        };
+
+        // 使用服务函数发送请求
+        const response = await redeemMediaServiceInviteCode(this.serviceType, requestData);
+
+        if (response.success) {
+          this.successMessage = response.message || `邀请码兑换成功！已添加到 ${this.serviceType === 'plex' ? 'Plex' : 'Emby'}。`;
+          
+          // 3秒后自动关闭对话框
+          setTimeout(() => {
+            this.closeDialog();
+          }, 3000);
+        } else {
+          this.errorMessage = response.message || '兑换失败，请稍后再试。';
+        }
+      } catch (error) {
+        console.error(`兑换 ${this.serviceType} 邀请码失败:`, error);
+        this.errorMessage = error.response?.data?.message || error.message || '服务器错误，请稍后再试。';
+      } finally {
+        this.loading = false;
+      }
+    }
+  },
+  watch: {
+    // 当服务类型变化时，清除对应的错误信息
+    serviceType() {
+      this.errorMessage = '';
+      this.successMessage = '';
+
+      // 检查新选择的服务是否可注册
+      if (this.serviceType === 'plex' && !this.registerStatus.plex) {
+        this.errorMessage = 'Plex 当前不接受新用户注册';
+      } else if (this.serviceType === 'emby' && !this.registerStatus.emby) {
+        this.errorMessage = 'Emby 当前不接受新用户注册';
+      }
+    }
+  }
+}
+</script>
+
+<style scoped>
+.error-message {
+  color: #ff5252;
+  font-size: 14px;
+}
+
+.success-message {
+  color: #4caf50;
+  font-size: 14px;
+}
+</style>
