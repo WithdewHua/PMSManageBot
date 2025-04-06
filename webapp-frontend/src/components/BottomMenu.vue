@@ -43,18 +43,11 @@
               <span>生成邀请码</span>
             </div>
             
-            <div class="menu-item" @click="handleAction('bind_plex')">
+            <div class="menu-item" @click="openBindAccountDialog()">
               <div class="menu-icon-wrapper">
                 <v-icon color="white" size="18">mdi-link-variant</v-icon>
               </div>
-              <span>绑定 Plex 账户</span>
-            </div>
-            
-            <div class="menu-item" @click="handleAction('bind_emby')">
-              <div class="menu-icon-wrapper">
-                <v-icon color="white" size="18">mdi-link</v-icon>
-              </div>
-              <span>绑定 Emby 账户</span>
+              <span>绑定媒体账户</span>
             </div>
           </div>
         </div>
@@ -66,6 +59,9 @@
     
     <!-- 使用兑换码对话框组件 -->
     <redeem-code-dialog ref="redeemCodeDialog" />
+    
+    <!-- 绑定账户对话框组件 -->
+    <bind-account-dialog ref="bindAccountDialog" />
   </div>
 </template>
 
@@ -74,12 +70,15 @@
 import InviteCodeDialog from './InviteCodeDialog.vue';
 // 导入兑换对话框组件
 import RedeemCodeDialog from './RedeemCodeDialog.vue';
+// 导入绑定账户对话框组件
+import BindAccountDialog from './BindAccountDialog.vue';
 
 export default {
   name: 'BottomMenu',
   components: {
     InviteCodeDialog,
-    RedeemCodeDialog
+    RedeemCodeDialog,
+    BindAccountDialog
   },
   props: {
     // 当前激活的标签，从父组件传入
@@ -144,6 +143,12 @@ export default {
     openRedeemCodeDialog(type = null) {
       this.showActionMenu = false;
       this.$refs.redeemCodeDialog.open(type);
+    },
+    
+    // 打开绑定账户对话框
+    openBindAccountDialog(type = null) {
+      this.showActionMenu = false;
+      this.$refs.bindAccountDialog.open(type);
     }
   }
 }
