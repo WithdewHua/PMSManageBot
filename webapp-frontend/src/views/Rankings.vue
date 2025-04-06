@@ -15,7 +15,7 @@
         <v-tabs v-model="activeTab" grow fixed-tabs>
           <v-tab value="credits">积分榜</v-tab>
           <v-tab value="donation">捐赠榜</v-tab>
-          <v-tab value="watched">观看时长</v-tab>
+          <v-tab value="watched">观看时长榜</v-tab>
         </v-tabs>
 
         <v-window v-model="activeTab">
@@ -73,10 +73,26 @@
               </v-list-item>
             </div>
             <v-row v-else>
-              <!-- Plex 观看时长榜 -->
-              <v-col cols="12" md="6">
-                <v-card>
-                  <v-card-title>Plex 观看时长榜</v-card-title>
+              <v-col cols="12">
+                <div class="d-flex justify-space-between align-center mb-4">
+                  <!-- <h3 class="text-h6">观看时长榜</h3> -->
+                  <v-select
+                    v-model="watchedTimeSource"
+                    :items="[
+                      { title: 'Plex', value: 'plex' },
+                      { title: 'Emby', value: 'emby' }
+                    ]"
+                    item-title="title"
+                    item-value="value"
+                    density="compact"
+                    hide-details
+                    class="watched-source-select"
+                    style="max-width: 200px;"
+                  ></v-select>
+                </div>
+                
+                <!-- Plex 观看时长榜 -->
+                <v-card v-if="watchedTimeSource === 'plex'">
                   <v-list lines="two">
                     <v-list-item
                       v-for="(item, index) in rankings.watched_time_rank_plex"
@@ -96,12 +112,9 @@
                     </v-list-item>
                   </v-list>
                 </v-card>
-              </v-col>
-              
-              <!-- Emby 观看时长榜 -->
-              <v-col cols="12" md="6">
-                <v-card>
-                  <v-card-title>Emby 观看时长榜</v-card-title>
+                
+                <!-- Emby 观看时长榜 -->
+                <v-card v-if="watchedTimeSource === 'emby'">
                   <v-list lines="two">
                     <v-list-item
                       v-for="(item, index) in rankings.watched_time_rank_emby"
@@ -138,6 +151,7 @@ export default {
   data() {
     return {
       activeTab: 'credits',
+      watchedTimeSource: 'plex', // 默认显示 Plex 观看时长榜
       rankings: {
         credits_rank: [],
         donation_rank: [],
@@ -217,5 +231,9 @@ export default {
 
 .bg-primary-subtle {
   background-color: rgba(var(--v-theme-primary), 0.1);
+}
+
+.watched-source-select {
+  min-width: 180px;
 }
 </style>
