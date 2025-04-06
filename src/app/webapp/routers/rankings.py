@@ -1,22 +1,21 @@
 from app.db import DB
 from app.log import uvicorn_logger as logger
 from app.utils import get_user_name_from_tg_id
+from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
-from fastapi import APIRouter, HTTPException, Request
+from app.webapp.models import TelegramUser
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 router = APIRouter(prefix="/api", tags=["rankings"])
 
 
 @router.get("/rankings")
 @require_telegram_auth
-async def get_rankings(request: Request):
+async def get_rankings(
+    request: Request, user: TelegramUser = Depends(get_telegram_user)
+):
     """获取排行榜数据"""
-    logger.info("开始获取排行榜数据")
-
-    # 从请求状态中获取验证过的 Telegram 数据
-    # telegram_data = request.state.telegram_data
-
-    # 可以选择在此处验证用户权限
+    logger.info(f"{user.username or user.first_name or user.id} 开始获取排行榜数据")
 
     # 连接数据库
     db = DB()
@@ -69,6 +68,8 @@ async def get_rankings(request: Request):
                 ]
         except Exception as e:
             logger.error(f"获取积分排行失败: {str(e)}")
+
+        logger.info(f"{user.username or user.first_name or user.id} 获取排行榜数据成功")
 
         return {
             "donation_rank": donation_rankings,
