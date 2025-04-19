@@ -1,6 +1,7 @@
 #!/user/bin/env python3
 
 import logging
+from typing import Union
 
 from app.config import settings
 from plexapi.myplex import Section
@@ -101,8 +102,11 @@ class Plex:
         else:
             return True
 
-    def add_shared_libs_for_all_users(self, add_sections=[]):
+    def add_shared_libs_for_all_users(self, add_sections: Union[str, list]):
         """更新所有用户的资料库权限"""
+
+        if isinstance(add_sections, str):
+            add_sections = [add_sections]
 
         for email, user_info in self.users_by_email.items():
             if (not email) or email == settings.PLEX_ADMIN_EMAIL:

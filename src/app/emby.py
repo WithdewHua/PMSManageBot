@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 
 import json
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 import requests
 from app.config import settings
@@ -134,6 +134,9 @@ class Emby:
             subfolders_id = lib.get("subfolders_id")
             enabled_folders = policy.get("EnabledFolders")
             excluded_subfolders = policy.get("ExcludedSubFolders")
+            # 如果已经有该资料库的权限，则跳过
+            if guid in enabled_folders:
+                continue
             # 增加资料库权限
             enabled_folders.append(guid)
             for subfolder in subfolders_id:
@@ -177,6 +180,9 @@ class Emby:
             subfolders_id = lib.get("subfolders_id")
             enabled_folders = policy.get("EnabledFolders")
             excluded_subfolders = policy.get("ExcludedSubFolders")
+            # 如果没有该资料库的权限，则跳过
+            if guid not in enabled_folders:
+                continue
             # 更新资料库权限
             enabled_folders.remove(guid)
             for subfolder in subfolders_id:
@@ -253,3 +259,14 @@ class Emby:
                 }
             )
         return user_data
+
+    def update_all_users_library(self, library: Union[str, list]) -> None:
+        if isinstance(library, str):
+            library = [library]
+        users = self.get_users()
+        for user in users:
+            user_id = user.get("Id")
+            user_name = user.get("Name")
+            if user_name.lower() in ["ggbond", "huahua"]:
+                continue
+            self.add_user_library(user_id, library)
