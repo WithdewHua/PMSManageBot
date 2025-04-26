@@ -12,6 +12,8 @@ from app.handlers.status import *
 from app.handlers.user import *
 from app.handlers.webapp import *  # 导入新的 WebApp 处理程序
 from app.log import logger
+from app.scheduler import Scheduler
+from app.update_db import update_credits, update_emby_credits, update_plex_info
 from telegram.ext import ApplicationBuilder
 
 
@@ -39,6 +41,46 @@ def start_api_server():
 def start_bot(application):
     """启动 Telegram Bot"""
     application.run_polling()
+
+
+def add_init_scheduler_job():
+    """添加调度任务"""
+    scheduler = Scheduler()
+    # 每天凌晨 12:05 更新 plex 积分
+    scheduler.add_job(
+        func=update_credits,
+        trigger="cron",
+        id="update_credits",
+        replace_existing=True,
+        max_instances=1,
+        day_of_week="*",
+        hour=0,
+        minute=5,
+    )
+    logger.info("添加定时任务：每天凌晨 12:05 更新 Plex 积分")
+    scheduler.add_job(
+        func=update_emby_credits,
+        trigger="cron",
+        id="update_emby_credits",
+        replace_existing=True,
+        max_instances=1,
+        day_of_week="*",
+        hour=0,
+        minute=5,
+    )
+    logger.info("添加定时任务：每天凌晨 12:05 更新 Emby 积分")
+    # 每天凌晨 12:00 更新 plex 用户信息
+    scheduler.add_job(
+        func=update_plex_info,
+        trigger="cron",
+        id="update_plex_info",
+        replace_existing=True,
+        max_instances=1,
+        day_of_week="*",
+        hour=0,
+        minute=0,
+    )
+    logger.info("添加定时任务：每天凌晨 12:00 更新 Plex 用户信息")
 
 
 if __name__ == "__main__":
@@ -69,3 +111,6 @@ if __name__ == "__main__":
     # 启动 Telegram Bot（在主线程中）
     logger.info("启动 Telegram Bot...")
     start_bot(application)
+
+    # 启动定时任务
+    add_init_scheduler_job()
