@@ -86,6 +86,10 @@ def add_init_scheduler_job():
 if __name__ == "__main__":
     logger.info("启动 PMSManageBot 服务...")
 
+    # 启动定时任务
+    logger.info("启动调度器...")
+    add_init_scheduler_job()
+
     # 初始化 Telegram Bot 应用
     application = ApplicationBuilder().token(settings.TG_API_TOKEN).build()
 
@@ -111,6 +115,3 @@ if __name__ == "__main__":
     # 启动 Telegram Bot（在主线程中）
     logger.info("启动 Telegram Bot...")
     start_bot(application)
-
-    # 启动定时任务
-    add_init_scheduler_job()
