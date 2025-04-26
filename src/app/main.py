@@ -46,7 +46,7 @@ def start_bot(application):
 def add_init_scheduler_job():
     """添加调度任务"""
     scheduler = Scheduler()
-    # 每天凌晨 12:05 更新 plex 积分
+    # 每天凌晨 12:00 更新 plex 积分
     scheduler.add_job(
         func=update_credits,
         trigger="cron",
@@ -55,9 +55,9 @@ def add_init_scheduler_job():
         max_instances=1,
         day_of_week="*",
         hour=0,
-        minute=5,
+        minute=0,
     )
-    logger.info("添加定时任务：每天凌晨 12:05 更新 Plex 积分")
+    logger.info("添加定时任务：每天凌晨 12:00 更新 Plex 积分")
     scheduler.add_job(
         func=update_emby_credits,
         trigger="cron",
@@ -66,10 +66,10 @@ def add_init_scheduler_job():
         max_instances=1,
         day_of_week="*",
         hour=0,
-        minute=5,
+        minute=0,
     )
-    logger.info("添加定时任务：每天凌晨 12:05 更新 Emby 积分")
-    # 每天凌晨 12:00 更新 plex 用户信息
+    logger.info("添加定时任务：每天凌晨 12:00 更新 Emby 积分")
+    # 每天中午 12:00 更新 plex 用户信息
     scheduler.add_job(
         func=update_plex_info,
         trigger="cron",
@@ -77,10 +77,10 @@ def add_init_scheduler_job():
         replace_existing=True,
         max_instances=1,
         day_of_week="*",
-        hour=0,
+        hour=12,
         minute=0,
     )
-    logger.info("添加定时任务：每天凌晨 12:00 更新 Plex 用户信息")
+    logger.info("添加定时任务：每天中午 12:00 更新 Plex 用户信息")
 
 
 if __name__ == "__main__":
