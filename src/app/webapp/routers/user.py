@@ -368,6 +368,13 @@ async def bind_emby_line(
             return BindResponse(success=False, message="该线路已绑定，请勿重复操作")
 
         # 更新用户线路设置
+        is_premium = emby_info[8] == 1
+        if not is_premium:
+            for _line in settings.EMBY_PREMIUM_STREAM_BACKEND:
+                if _line in line:
+                    return BindResponse(
+                        success=False, message="您不是 premium 用户，无法绑定该线路"
+                    )
         success = db.set_emby_line(line, tg_id=tg_id)
 
         if not success:
