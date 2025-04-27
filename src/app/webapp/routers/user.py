@@ -332,15 +332,13 @@ async def get_emby_lines(
         logger.warning(
             f"用户 {telegram_user.username or telegram_user.id} 未绑定 Emby 账户"
         )
-        return EmbyLinesResponse(lines=[])
+        return BindResponse(success=False, message="您未绑定 Emby 账户，无法查看线路")
     is_premium = emby_info[8] == 1
     if not is_premium:
         return EmbyLinesResponse(lines=settings.EMBY_STREAM_BACKEND)
     else:
         return EmbyLinesResponse(
-            lines=settings.EMBY_STREAM_BACKEND.extend(
-                settings.EMBY_PREMIUM_STREAM_BACKEND
-            )
+            lines=settings.EMBY_STREAM_BACKEND + settings.EMBY_PREMIUM_STREAM_BACKEND
         )
 
 
