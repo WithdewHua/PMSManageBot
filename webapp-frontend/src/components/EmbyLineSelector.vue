@@ -141,16 +141,28 @@ export default {
       this.loading = true;
       
       try {
+        let response;
+        
         if (line === 'AUTO') {
           // 解绑线路
-          await unbindEmbyLine();
-          this.currentLine = 'AUTO';
-          this.showSuccessMessage('已切换到自动选择线路');
+          response = await unbindEmbyLine();
+          if (response.success) {
+            this.currentLine = 'AUTO';
+            this.showSuccessMessage(response.message || '已切换到自动选择线路');
+          } else {
+            this.showErrorMessage(response.message || '切换线路失败');
+            return;
+          }
         } else {
           // 绑定线路
-          await bindEmbyLine(line);
-          this.currentLine = line;
-          this.showSuccessMessage(`已切换到${line}线路`);
+          response = await bindEmbyLine(line);
+          if (response.success) {
+            this.currentLine = line;
+            this.showSuccessMessage(response.message || `已切换到${line}线路`);
+          } else {
+            this.showErrorMessage(response.message || '切换线路失败');
+            return;
+          }
         }
         
         // 通知父组件更新
