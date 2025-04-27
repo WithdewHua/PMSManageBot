@@ -3,7 +3,7 @@ import hmac
 import json
 
 from app.config import settings
-from app.webapp.models import TelegramUser
+from app.webapp.schemas import TelegramUser
 from fastapi import HTTPException, Request, status
 
 

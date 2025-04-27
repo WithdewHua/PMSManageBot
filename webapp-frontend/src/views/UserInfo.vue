@@ -108,7 +108,18 @@
                 <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-account</v-icon>
                 <span>用户名：</span>
               </div>
-              <div>{{ userInfo.emby_info.username }}</div>
+              <div class="d-flex align-center">
+                {{ userInfo.emby_info.username }}
+                <v-icon 
+                  v-if="userInfo.emby_info.is_premium" 
+                  size="small" 
+                  color="amber-darken-2" 
+                  class="ml-1" 
+                  title="会员用户"
+                >
+                  mdi-crown
+                </v-icon>
+              </div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">

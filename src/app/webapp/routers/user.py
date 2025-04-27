@@ -1,5 +1,4 @@
 from time import time
-from typing import List
 
 from app.cache import emby_user_defined_line_cache
 from app.config import settings
@@ -11,42 +10,18 @@ from app.tautulli import Tautulli
 from app.utils import caculate_credits_fund, get_user_total_duration
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
-from app.webapp.models import TelegramUser, UserInfo
+from app.webapp.schemas import (
+    BindEmbyRequest,
+    BindPlexRequest,
+    BindResponse,
+    EmbyLineRequest,
+    EmbyLinesResponse,
+    TelegramUser,
+    UserInfo,
+)
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
-from pydantic import BaseModel, EmailStr, Field
 
 router = APIRouter(prefix="/api/user", tags=["user"])
-
-
-class BindResponse(BaseModel):
-    """绑定响应模型"""
-
-    success: bool
-    message: str
-
-
-class BindPlexRequest(BaseModel):
-    """绑定Plex请求模型"""
-
-    email: EmailStr
-
-
-class BindEmbyRequest(BaseModel):
-    """绑定Emby请求模型"""
-
-    username: str = Field(..., min_length=2)
-
-
-class EmbyLineRequest(BaseModel):
-    """Emby线路请求模型"""
-
-    line: str = Field(..., min_length=1)
-
-
-class EmbyLinesResponse(BaseModel):
-    """Emby线路列表响应模型"""
-
-    lines: List[str]
 
 
 @router.get("/info")
@@ -92,6 +67,7 @@ async def get_user_info(
                     "watched_time": emby_info[5],
                     "all_lib": emby_info[3] == 1,
                     "line": emby_info[7],
+                    "is_premium": emby_info[8] == 1,
                 }
                 logger.debug(f"用户 {tg_id} 的Emby信息获取成功")
             else:
@@ -349,7 +325,23 @@ async def get_emby_lines(
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
     """获取可用的Emby线路列表"""
-    return EmbyLinesResponse(lines=settings.EMBY_STREAM_BACKEND)
+    db = DB()
+    # 获取 emby 用户信息，确认是否是 premium 用户
+    emby_info = db.get_emby_info_by_tg_id(telegram_user.id)
+    if not emby_info:
+        logger.warning(
+            f"用户 {telegram_user.username or telegram_user.id} 未绑定 Emby 账户"
+        )
+        return EmbyLinesResponse(lines=[])
+    is_premium = emby_info[8] == 1
+    if not is_premium:
+        return EmbyLinesResponse(lines=settings.EMBY_STREAM_BACKEND)
+    else:
+        return EmbyLinesResponse(
+            lines=settings.EMBY_STREAM_BACKEND.extend(
+                settings.EMBY_PREMIUM_STREAM_BACKEND
+            )
+        )
 
 
 @router.post("/bind/emby_line", response_model=BindResponse)

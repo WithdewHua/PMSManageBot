@@ -8,7 +8,7 @@ from app.log import uvicorn_logger as logger
 from app.plex import Plex
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
-from app.webapp.models import (
+from app.webapp.schemas import (
     GenerateInviteCodeResponse,
     InvitePointsResponse,
     RedeemInviteCodeRequest,

@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 
 
 class TelegramUser(BaseModel):
@@ -25,3 +25,34 @@ class UserInfo(BaseModel):
     plex_info: Optional[Dict[str, Any]] = None
     emby_info: Optional[Dict[str, Any]] = None
     overseerr_info: Optional[Dict[str, Any]] = None
+
+
+class BindResponse(BaseModel):
+    """绑定响应模型"""
+
+    success: bool
+    message: str
+
+
+class BindPlexRequest(BaseModel):
+    """绑定Plex请求模型"""
+
+    email: EmailStr
+
+
+class BindEmbyRequest(BaseModel):
+    """绑定Emby请求模型"""
+
+    username: str = Field(..., min_length=2)
+
+
+class EmbyLineRequest(BaseModel):
+    """Emby线路请求模型"""
+
+    line: str = Field(..., min_length=1)
+
+
+class EmbyLinesResponse(BaseModel):
+    """Emby线路列表响应模型"""
+
+    lines: List[str]

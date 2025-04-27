@@ -39,7 +39,7 @@ class DB:
                 );
 
                 CREATE TABLE emby_user(
-                    emby_username, emby_id, tg_id, emby_is_unlock, emby_unlock_time, emby_watched_time, emby_credits, emby_line
+                    emby_username, emby_id, tg_id, emby_is_unlock, emby_unlock_time, emby_watched_time, emby_credits, emby_line, is_premium
                 );
 
                 CREATE TABLE overseerr(
@@ -94,10 +94,11 @@ class DB:
         emby_watched_time: float = 0,
         emby_credits: float = 0,
         emby_line: Optional[str] = None,
+        is_premium: Optional[int] = 0,
     ) -> bool:
         try:
             self.cur.execute(
-                "INSERT INTO emby_user VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO emby_user VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     emby_username,
                     emby_id,
@@ -107,6 +108,7 @@ class DB:
                     emby_watched_time,
                     emby_credits,
                     emby_line,
+                    is_premium,
                 ),
             )
         except Exception as e:

@@ -3,7 +3,7 @@ from app.log import uvicorn_logger as logger
 from app.utils import get_user_name_from_tg_id
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
-from app.webapp.models import TelegramUser
+from app.webapp.schemas import TelegramUser
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 router = APIRouter(prefix="/api", tags=["rankings"])
