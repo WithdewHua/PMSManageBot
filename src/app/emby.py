@@ -49,7 +49,7 @@ class Emby:
         headers = {"accept": "application/json"}
 
         params = {
-            "IsHidden": "false",
+            "IsHidden": "true",
             "IsDisabled": "false",
             "Limit": "1",
             "NameStartsWithOrGreater": username,
