@@ -105,7 +105,17 @@
                       <v-list-item-title>{{ item.name }}</v-list-item-title>
                       <v-list-item-subtitle>
                         {{ item.watched_time.toFixed(2) }} 小时
-                        <span class="ml-2" v-html="getWatchLevelIcons(item.watched_time)" :title="`观看等级：${item.watched_time.toFixed(2)}小时`"></span>
+                        <span class="ml-2 d-flex align-center level-icons-container" :title="`观看等级：${item.watched_time.toFixed(2)}小时`">
+                          <v-icon 
+                            v-for="(icon, iconIndex) in getWatchLevelIcons(item.watched_time)" 
+                            :key="`plex-rank-icon-${index}-${iconIndex}`"
+                            :color="icon.color" 
+                            size="small" 
+                            :class="icon.class"
+                          >
+                            {{ icon.icon }}
+                          </v-icon>
+                        </span>
                       </v-list-item-subtitle>
                     </v-list-item>
                     <v-list-item v-if="rankings.watched_time_rank_plex.length === 0" class="text-center">
@@ -128,7 +138,17 @@
                       <v-list-item-title>{{ item.name }}</v-list-item-title>
                       <v-list-item-subtitle>
                         {{ item.watched_time.toFixed(2) }} 小时
-                        <span class="ml-2" v-html="getWatchLevelIcons(item.watched_time)" :title="`观看等级：${item.watched_time.toFixed(2)}小时`"></span>
+                        <span class="ml-2 d-flex align-center level-icons-container" :title="`观看等级：${item.watched_time.toFixed(2)}小时`">
+                          <v-icon 
+                            v-for="(icon, iconIndex) in getWatchLevelIcons(item.watched_time)" 
+                            :key="`emby-rank-icon-${index}-${iconIndex}`"
+                            :color="icon.color" 
+                            size="small" 
+                            :class="icon.class"
+                          >
+                            {{ icon.icon }}
+                          </v-icon>
+                        </span>
                       </v-list-item-subtitle>
                     </v-list-item>
                     <v-list-item v-if="rankings.watched_time_rank_emby.length === 0" class="text-center">
@@ -150,9 +170,10 @@ import { getRankings } from '@/api'
 import { getWatchLevelIcons } from '@/utils/watchLevel.js'
 
 export default {
+  name: "Rankings",
   data() {
     return {
-      tab: 'credits',
+      activeTab: 'credits',
       watchedTimeSource: 'plex',
       rankings: {
         credits_rank: [],

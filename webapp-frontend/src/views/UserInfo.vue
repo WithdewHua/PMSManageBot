@@ -84,7 +84,18 @@
                 <span>观看等级：</span>
               </div>
               <div class="d-flex align-center" :title="`观看时长: ${userInfo.plex_info.watched_time.toFixed(2)}小时`">
-                <span v-html="getWatchLevelIcons(userInfo.plex_info.watched_time)"></span>
+                <template v-if="watchLevelIcons(userInfo.plex_info.watched_time).length > 0">
+                  <v-icon 
+                    v-for="(icon, index) in watchLevelIcons(userInfo.plex_info.watched_time)" 
+                    :key="`plex-icon-${index}`"
+                    :color="icon.color" 
+                    size="small" 
+                    :class="icon.class"
+                  >
+                    {{ icon.icon }}
+                  </v-icon>
+                </template>
+                <span v-else-if="showNoWatchTimeText(userInfo.plex_info.watched_time)" class="text-grey">暂无观看记录</span>
               </div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
@@ -143,7 +154,18 @@
                 <span>观看等级：</span>
               </div>
               <div class="d-flex align-center" :title="`观看时长: ${userInfo.emby_info.watched_time.toFixed(2)}小时`">
-                <span v-html="getWatchLevelIcons(userInfo.emby_info.watched_time)"></span>
+                <template v-if="watchLevelIcons(userInfo.emby_info.watched_time).length > 0">
+                  <v-icon 
+                    v-for="(icon, index) in watchLevelIcons(userInfo.emby_info.watched_time)" 
+                    :key="`emby-icon-${index}`"
+                    :color="icon.color" 
+                    size="small"
+                    :class="icon.class"
+                  >
+                    {{ icon.icon }}
+                  </v-icon>
+                </template>
+                <span v-else-if="showNoWatchTimeText(userInfo.emby_info.watched_time)" class="text-grey">暂无观看记录</span>
               </div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
@@ -213,7 +235,7 @@
 import { getUserInfo } from '@/api'
 import EmbyLineSelector from '@/components/EmbyLineSelector.vue'
 import NsfwDialog from '@/components/NsfwDialog.vue'
-import { getWatchLevelIcons } from '@/utils/watchLevel.js'
+import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
 
 export default {
   name: 'UserInfo',
@@ -291,9 +313,14 @@ export default {
       // 更新用户积分
       this.userInfo.credits -= cost;
     },
-    // 使用导入的方法，传递参数 showEmptyText=true 以显示"暂无观看记录"文本
-    getWatchLevelIcons(watchedTime) {
-      return getWatchLevelIcons(watchedTime, true);
+    // 使用导入的方法获取观看等级图标
+    watchLevelIcons(watchedTime) {
+      return getWatchLevelIcons(watchedTime);
+    },
+    
+    // 检查是否显示"暂无观看记录"文本
+    showNoWatchTimeText(watchedTime) {
+      return showNoWatchTimeText(watchedTime);
     }
   }
 }

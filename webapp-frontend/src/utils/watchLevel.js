@@ -1,28 +1,33 @@
 /**
- * 根据观看时长计算并返回等级图标
+ * 根据观看时长计算并返回等级图标数组
  * 100小时 = 1颗星星
  * 4颗星星 = 1个月亮 (400小时)
  * 4个月亮 = 1个太阳 (1600小时)
  * 4个太阳 = 1个皇冠 (6400小时)
  * 
  * @param {Number} watchedTime 观看时长（小时）
- * @param {Boolean} showEmptyText 是否在无观看记录时显示文本（默认为false）
- * @return {String} 包含图标的HTML字符串
+ * @return {Array} 包含图标对象的数组
  */
-export function getWatchLevelIcons(watchedTime, showEmptyText = false) {
+export function getWatchLevelIcons(watchedTime) {
   const hourPerStar = 100;
   const starsPerMoon = 4;
   const moonsPerSun = 4;
   const sunsPerCrown = 4;
   
-  let result = '';
+  let icons = [];
   let remainingHours = watchedTime;
   
   // 计算皇冠数量
   const crownHours = hourPerStar * starsPerMoon * moonsPerSun * sunsPerCrown;
   if (remainingHours >= crownHours) {
     const crowns = Math.floor(remainingHours / crownHours);
-    result += `<v-icon color="amber-darken-2" size="small" class="mr-1">mdi-crown</v-icon>`.repeat(crowns);
+    for (let i = 0; i < crowns; i++) {
+      icons.push({ 
+        icon: 'mdi-crown', 
+        color: 'amber-darken-2',
+        class: 'level-icon crown-icon'
+      });
+    }
     remainingHours %= crownHours;
   }
   
@@ -30,7 +35,13 @@ export function getWatchLevelIcons(watchedTime, showEmptyText = false) {
   const sunHours = hourPerStar * starsPerMoon * moonsPerSun;
   if (remainingHours >= sunHours) {
     const suns = Math.floor(remainingHours / sunHours);
-    result += `<v-icon color="amber" size="small" class="mr-1">mdi-weather-sunny</v-icon>`.repeat(suns);
+    for (let i = 0; i < suns; i++) {
+      icons.push({ 
+        icon: 'mdi-white-balance-sunny', 
+        color: 'orange',
+        class: 'level-icon sun-icon'
+      });
+    }
     remainingHours %= sunHours;
   }
   
@@ -38,25 +49,49 @@ export function getWatchLevelIcons(watchedTime, showEmptyText = false) {
   const moonHours = hourPerStar * starsPerMoon;
   if (remainingHours >= moonHours) {
     const moons = Math.floor(remainingHours / moonHours);
-    result += `<v-icon color="blue" size="small" class="mr-1">mdi-moon-waning-crescent</v-icon>`.repeat(moons);
+    for (let i = 0; i < moons; i++) {
+      icons.push({ 
+        icon: 'mdi-moon-waxing-crescent', 
+        color: 'blue-lighten-3',
+        class: 'level-icon moon-icon'
+      });
+    }
     remainingHours %= moonHours;
   }
   
   // 计算星星数量
   if (remainingHours >= hourPerStar) {
     const stars = Math.floor(remainingHours / hourPerStar);
-    result += `<v-icon color="yellow-darken-2" size="small" class="mr-1">mdi-star</v-icon>`.repeat(stars);
+    for (let i = 0; i < stars; i++) {
+      icons.push({ 
+        icon: 'mdi-star', 
+        color: 'yellow',
+        class: 'level-icon star-icon'
+      });
+    }
     remainingHours %= hourPerStar;
   }
   
   // 如果没有任何图标但有观看时间，显示一个未填充的星星
-  if (result === '' && watchedTime > 0) {
-    result = `<v-icon color="grey" size="small">mdi-star-outline</v-icon>`;
-  } else if (result === '' && watchedTime === 0 && showEmptyText) {
-    result = `<span class="text-grey">暂无观看记录</span>`;
+  if (icons.length === 0 && watchedTime > 0) {
+    icons.push({ 
+      icon: 'mdi-star-outline', 
+      color: 'grey',
+      class: 'level-icon'
+    });
   }
   
-  return result;
+  return icons;
+}
+
+/**
+ * 检查是否应该显示"暂无观看记录"文本
+ * 
+ * @param {Number} watchedTime 观看时长（小时）
+ * @return {Boolean} 是否显示暂无记录文本
+ */
+export function showNoWatchTimeText(watchedTime) {
+  return watchedTime === 0;
 }
 
 /**

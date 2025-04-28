@@ -127,4 +127,49 @@ html {
 .v-tabs-slider {
   background-color: #9333ea !important;
 }
+
+/* 全局样式 */
+:root {
+  --bottom-menu-height: 56px;
+}
+
+/* QQ风格的等级图标样式 */
+.level-icon {
+  margin-right: 2px !important;
+  transform: scale(1.1);
+}
+
+.star-icon {
+  color: #ffd700 !important; /* 明亮的金色星星 */
+  filter: drop-shadow(0 0 1px rgba(255, 215, 0, 0.7));
+}
+
+.moon-icon {
+  color: #5b9bd5 !important; /* 明亮的蓝色月亮 */
+  filter: drop-shadow(0 0 1px rgba(91, 155, 213, 0.7));
+}
+
+.sun-icon {
+  color: #ff9933 !important; /* 明亮的橙色太阳 */
+  filter: drop-shadow(0 0 1px rgba(255, 153, 51, 0.7));
+}
+
+.crown-icon {
+  color: #ffcc00 !important; /* 明亮的金色皇冠 */
+  filter: drop-shadow(0 0 2px rgba(255, 204, 0, 0.8));
+  transform: scale(1.2);
+}
+
+.level-icons-container {
+  display: inline-flex !important;
+  align-items: center;
+  padding: 1px 4px;
+  background-color: rgba(0,0,0,0.03);
+  border-radius: 10px;
+  margin-left: 5px;
+}
+
+[class*="theme--dark"] .level-icons-container {
+  background-color: rgba(255,255,255,0.05);
+}
 </style>
