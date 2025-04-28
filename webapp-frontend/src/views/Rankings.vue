@@ -105,6 +105,7 @@
                       <v-list-item-title>{{ item.name }}</v-list-item-title>
                       <v-list-item-subtitle>
                         {{ item.watched_time.toFixed(2) }} 小时
+                        <span class="ml-2" v-html="getWatchLevelIcons(item.watched_time)" :title="`观看等级：${item.watched_time.toFixed(2)}小时`"></span>
                       </v-list-item-subtitle>
                     </v-list-item>
                     <v-list-item v-if="rankings.watched_time_rank_plex.length === 0" class="text-center">
@@ -127,6 +128,7 @@
                       <v-list-item-title>{{ item.name }}</v-list-item-title>
                       <v-list-item-subtitle>
                         {{ item.watched_time.toFixed(2) }} 小时
+                        <span class="ml-2" v-html="getWatchLevelIcons(item.watched_time)" :title="`观看等级：${item.watched_time.toFixed(2)}小时`"></span>
                       </v-list-item-subtitle>
                     </v-list-item>
                     <v-list-item v-if="rankings.watched_time_rank_emby.length === 0" class="text-center">
@@ -145,13 +147,13 @@
 
 <script>
 import { getRankings } from '@/api'
+import { getWatchLevelIcons } from '@/utils/watchLevel.js'
 
 export default {
-  name: 'Rankings',
   data() {
     return {
-      activeTab: 'credits',
-      watchedTimeSource: 'plex', // 默认显示 Plex 观看时长榜
+      tab: 'credits',
+      watchedTimeSource: 'plex',
       rankings: {
         credits_rank: [],
         donation_rank: [],
@@ -177,6 +179,11 @@ export default {
         this.loading = false
         console.error('获取排行榜信息失败:', err)
       }
+    },
+    
+    // 使用导入的工具函数，直接传递观看时间参数
+    getWatchLevelIcons(watchedTime) {
+      return getWatchLevelIcons(watchedTime);
     }
   }
 }

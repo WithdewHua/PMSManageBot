@@ -80,6 +80,15 @@
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
+                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-star-face</v-icon>
+                <span>观看等级：</span>
+              </div>
+              <div class="d-flex align-center" :title="`观看时长: ${userInfo.plex_info.watched_time.toFixed(2)}小时`">
+                <span v-html="getWatchLevelIcons(userInfo.plex_info.watched_time)"></span>
+              </div>
+            </div>
+            <div class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
                 <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-folder-multiple</v-icon>
                 <span>资料库权限：</span>
               </div>
@@ -127,6 +136,15 @@
                 <span>观看时长：</span>
               </div>
               <div>{{ userInfo.emby_info.watched_time.toFixed(2) }} 小时</div>
+            </div>
+            <div class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-star-face</v-icon>
+                <span>观看等级：</span>
+              </div>
+              <div class="d-flex align-center" :title="`观看时长: ${userInfo.emby_info.watched_time.toFixed(2)}小时`">
+                <span v-html="getWatchLevelIcons(userInfo.emby_info.watched_time)"></span>
+              </div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
@@ -195,6 +213,7 @@
 import { getUserInfo } from '@/api'
 import EmbyLineSelector from '@/components/EmbyLineSelector.vue'
 import NsfwDialog from '@/components/NsfwDialog.vue'
+import { getWatchLevelIcons } from '@/utils/watchLevel.js'
 
 export default {
   name: 'UserInfo',
@@ -271,6 +290,10 @@ export default {
       
       // 更新用户积分
       this.userInfo.credits -= cost;
+    },
+    // 使用导入的方法，传递参数 showEmptyText=true 以显示"暂无观看记录"文本
+    getWatchLevelIcons(watchedTime) {
+      return getWatchLevelIcons(watchedTime, true);
     }
   }
 }
