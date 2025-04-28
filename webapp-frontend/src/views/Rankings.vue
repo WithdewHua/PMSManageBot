@@ -104,18 +104,18 @@
                       </template>
                       <v-list-item-title>{{ item.name }}</v-list-item-title>
                       <v-list-item-subtitle>
-                        {{ item.watched_time.toFixed(2) }} 小时
-                        <span class="ml-2 d-flex align-center level-icons-container" :title="`观看等级：${item.watched_time.toFixed(2)}小时`">
-                          <v-icon 
-                            v-for="(icon, iconIndex) in getWatchLevelIcons(item.watched_time)" 
-                            :key="`plex-rank-icon-${index}-${iconIndex}`"
-                            :color="icon.color" 
-                            size="small" 
-                            :class="icon.class"
-                          >
-                            {{ icon.icon }}
-                          </v-icon>
-                        </span>
+                        <div class="d-flex align-center watched-time-container">
+                          <span class="watched-time-text">{{ item.watched_time.toFixed(2) }} 小时</span>
+                          <div class="level-icons-wrapper">
+                            <span 
+                              v-for="(icon, iconIndex) in getWatchLevelIcons(item.watched_time)" 
+                              :key="`plex-rank-icon-${index}-${iconIndex}`"
+                              :class="['emoji-icon', icon.class]"
+                            >
+                              {{ icon.icon }}
+                            </span>
+                          </div>
+                        </div>
                       </v-list-item-subtitle>
                     </v-list-item>
                     <v-list-item v-if="rankings.watched_time_rank_plex.length === 0" class="text-center">
@@ -137,18 +137,18 @@
                       </template>
                       <v-list-item-title>{{ item.name }}</v-list-item-title>
                       <v-list-item-subtitle>
-                        {{ item.watched_time.toFixed(2) }} 小时
-                        <span class="ml-2 d-flex align-center level-icons-container" :title="`观看等级：${item.watched_time.toFixed(2)}小时`">
-                          <v-icon 
-                            v-for="(icon, iconIndex) in getWatchLevelIcons(item.watched_time)" 
-                            :key="`emby-rank-icon-${index}-${iconIndex}`"
-                            :color="icon.color" 
-                            size="small" 
-                            :class="icon.class"
-                          >
-                            {{ icon.icon }}
-                          </v-icon>
-                        </span>
+                        <div class="d-flex align-center watched-time-container">
+                          <span class="watched-time-text">{{ item.watched_time.toFixed(2) }} 小时</span>
+                          <div class="level-icons-wrapper">
+                            <span 
+                              v-for="(icon, iconIndex) in getWatchLevelIcons(item.watched_time)" 
+                              :key="`emby-rank-icon-${index}-${iconIndex}`"
+                              :class="['emoji-icon', icon.class]"
+                            >
+                              {{ icon.icon }}
+                            </span>
+                          </div>
+                        </div>
                       </v-list-item-subtitle>
                     </v-list-item>
                     <v-list-item v-if="rankings.watched_time_rank_emby.length === 0" class="text-center">
@@ -263,5 +263,37 @@ export default {
 
 .watched-source-select {
   min-width: 180px;
+}
+
+.watched-time-container {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.watched-time-text {
+  margin-right: 10px;
+  white-space: nowrap;
+}
+
+.level-icons-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.emoji-icon {
+  font-size: 15px;
+  line-height: 1;
+  display: inline-flex;
+  margin: 0 1px;
+}
+
+/* 确保图标不会被遮挡或压缩 */
+.v-list-item-subtitle {
+  overflow: visible !important;
+  white-space: normal !important;
+  display: block;
 }
 </style>

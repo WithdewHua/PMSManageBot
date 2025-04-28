@@ -74,26 +74,19 @@
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
                 <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-clock-time-four-outline</v-icon>
-                <span>观看时长：</span>
-              </div>
-              <div>{{ userInfo.plex_info.watched_time.toFixed(2) }} 小时</div>
-            </div>
-            <div class="d-flex justify-space-between mb-2 align-center">
-              <div class="d-flex align-center">
-                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-star-face</v-icon>
                 <span>观看等级：</span>
               </div>
               <div class="d-flex align-center" :title="`观看时长: ${userInfo.plex_info.watched_time.toFixed(2)}小时`">
                 <template v-if="watchLevelIcons(userInfo.plex_info.watched_time).length > 0">
-                  <v-icon 
-                    v-for="(icon, index) in watchLevelIcons(userInfo.plex_info.watched_time)" 
-                    :key="`plex-icon-${index}`"
-                    :color="icon.color" 
-                    size="small" 
-                    :class="icon.class"
-                  >
-                    {{ icon.icon }}
-                  </v-icon>
+                  <div class="level-icons-container" @click="showWatchTimeDialog(userInfo.plex_info.watched_time)">
+                    <span 
+                      v-for="(icon, index) in watchLevelIcons(userInfo.plex_info.watched_time)" 
+                      :key="`plex-icon-${index}`"
+                      :class="['emoji-icon', icon.class]"
+                    >
+                      {{ icon.icon }}
+                    </span>
+                  </div>
                 </template>
                 <span v-else-if="showNoWatchTimeText(userInfo.plex_info.watched_time)" class="text-grey">暂无观看记录</span>
               </div>
@@ -144,26 +137,19 @@
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
                 <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-clock-time-four-outline</v-icon>
-                <span>观看时长：</span>
-              </div>
-              <div>{{ userInfo.emby_info.watched_time.toFixed(2) }} 小时</div>
-            </div>
-            <div class="d-flex justify-space-between mb-2 align-center">
-              <div class="d-flex align-center">
-                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-star-face</v-icon>
                 <span>观看等级：</span>
               </div>
               <div class="d-flex align-center" :title="`观看时长: ${userInfo.emby_info.watched_time.toFixed(2)}小时`">
                 <template v-if="watchLevelIcons(userInfo.emby_info.watched_time).length > 0">
-                  <v-icon 
-                    v-for="(icon, index) in watchLevelIcons(userInfo.emby_info.watched_time)" 
-                    :key="`emby-icon-${index}`"
-                    :color="icon.color" 
-                    size="small"
-                    :class="icon.class"
-                  >
-                    {{ icon.icon }}
-                  </v-icon>
+                  <div class="level-icons-container" @click="showWatchTimeDialog(userInfo.emby_info.watched_time)">
+                    <span 
+                      v-for="(icon, index) in watchLevelIcons(userInfo.emby_info.watched_time)" 
+                      :key="`emby-icon-${index}`"
+                      :class="['emoji-icon', icon.class]"
+                    >
+                      {{ icon.icon }}
+                    </span>
+                  </div>
                 </template>
                 <span v-else-if="showNoWatchTimeText(userInfo.emby_info.watched_time)" class="text-grey">暂无观看记录</span>
               </div>
@@ -321,6 +307,20 @@ export default {
     // 检查是否显示"暂无观看记录"文本
     showNoWatchTimeText(watchedTime) {
       return showNoWatchTimeText(watchedTime);
+    },
+
+    // 显示观看时长对话框
+    showWatchTimeDialog(watchedTime) {
+      const message = `观看时长：${watchedTime.toFixed(2)} 小时`;
+      
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.showPopup({
+          title: '观看时长信息',
+          message: message
+        });
+      } else {
+        alert(message);
+      }
     }
   }
 }
@@ -361,5 +361,38 @@ export default {
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   border-color: currentColor;
+}
+
+.emoji-icon {
+  font-size: 14px;
+  margin-left: 4px;
+  line-height: 1;
+}
+
+.level-icons-container {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.level-icons-container:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.level-icons-container:active {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* 等级图标样式 */
+.crown-icon {
+  margin-right: 2px;
+}
+
+.star-icon {
+  margin-right: 1px;
 }
 </style>

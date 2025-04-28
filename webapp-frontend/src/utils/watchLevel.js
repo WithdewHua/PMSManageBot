@@ -23,8 +23,7 @@ export function getWatchLevelIcons(watchedTime) {
     const crowns = Math.floor(remainingHours / crownHours);
     for (let i = 0; i < crowns; i++) {
       icons.push({ 
-        icon: 'mdi-crown', 
-        color: 'amber-darken-2',
+        icon: '👑', 
         class: 'level-icon crown-icon'
       });
     }
@@ -37,8 +36,7 @@ export function getWatchLevelIcons(watchedTime) {
     const suns = Math.floor(remainingHours / sunHours);
     for (let i = 0; i < suns; i++) {
       icons.push({ 
-        icon: 'mdi-white-balance-sunny', 
-        color: 'orange',
+        icon: '☀️', 
         class: 'level-icon sun-icon'
       });
     }
@@ -51,8 +49,7 @@ export function getWatchLevelIcons(watchedTime) {
     const moons = Math.floor(remainingHours / moonHours);
     for (let i = 0; i < moons; i++) {
       icons.push({ 
-        icon: 'mdi-moon-waxing-crescent', 
-        color: 'blue-lighten-3',
+        icon: '🌙', 
         class: 'level-icon moon-icon'
       });
     }
@@ -64,8 +61,7 @@ export function getWatchLevelIcons(watchedTime) {
     const stars = Math.floor(remainingHours / hourPerStar);
     for (let i = 0; i < stars; i++) {
       icons.push({ 
-        icon: 'mdi-star', 
-        color: 'yellow',
+        icon: '⭐', 
         class: 'level-icon star-icon'
       });
     }
@@ -75,9 +71,8 @@ export function getWatchLevelIcons(watchedTime) {
   // 如果没有任何图标但有观看时间，显示一个未填充的星星
   if (icons.length === 0 && watchedTime > 0) {
     icons.push({ 
-      icon: 'mdi-star-outline', 
-      color: 'grey',
-      class: 'level-icon'
+      icon: '☆', 
+      class: 'level-icon star-icon'
     });
   }
   
