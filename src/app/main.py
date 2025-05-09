@@ -10,7 +10,6 @@ from app.handlers.rank import *
 from app.handlers.start import *
 from app.handlers.status import *
 from app.handlers.user import *
-from app.handlers.webapp import *  # 导入新的 WebApp 处理程序
 from app.log import logger
 from app.scheduler import Scheduler
 from app.update_db import update_credits, update_emby_credits, update_plex_info

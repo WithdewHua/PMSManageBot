@@ -7,6 +7,7 @@ from app.emby import Emby
 from app.utils import (
     caculate_credits_fund,
     get_user_name_from_tg_id,
+    send_message,
 )
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
@@ -17,15 +18,19 @@ async def bind_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = update.message.text
     text = text.split()
     if len(text) != 2:
-        await context.bot.send_message(chat_id=chat_id, text="错误：请按照格式填写")
+        await send_message(
+            chat_id=chat_id, text="错误：请按照格式填写", context=context
+        )
         return
     emby_username = text[1]
     db = DB()
     info = db.get_emby_info_by_tg_id(chat_id)
     if info:
         db.close()
-        await context.bot.send_message(
-            chat_id=chat_id, text="信息: 已绑定 Emby 账户, 请勿重复操作"
+        await send_message(
+            chat_id=chat_id,
+            text="信息: 已绑定 Emby 账户, 请勿重复操作",
+            context=context,
         )
         return
     emby = Emby()
@@ -33,8 +38,8 @@ async def bind_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     uid = emby.get_uid_from_username(emby_username)
     if not uid:
         db.close()
-        await context.bot.send_message(
-            chat_id=chat_id, text=f"错误: {emby_username} 不存在"
+        await send_message(
+            chat_id=chat_id, text=f"错误: {emby_username} 不存在", context=context
         )
         return
     emby_info = db.get_emby_info_by_emby_username(emby_username)
@@ -43,8 +48,8 @@ async def bind_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if emby_info:
         if emby_info[2]:
             db.close()
-            await context.bot.send_message(
-                chat_id=chat_id, text="错误：该 Emby 账户已经绑定 TG"
+            await send_message(
+                chat_id=chat_id, text="错误：该 Emby 账户已经绑定 TG", context=context
             )
             return
         emby_credits = emby_info[6]
@@ -64,9 +69,10 @@ async def bind_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         db.add_user_data(chat_id, credits=emby_credits)
 
     db.close()
-    await context.bot.send_message(
+    await send_message(
         chat_id=chat_id,
         text=f"信息： 绑定 Emby 用户 {emby_username} 成功，请加入群组 {settings.TG_GROUP} 并仔细阅读群置顶",
+        context=context,
     )
 
 
@@ -75,29 +81,33 @@ async def redeem_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     text = update.message.text
     text_parts = text.split()
     if len(text_parts) != 3:
-        await context.bot.send_message(chat_id=chat_id, text="错误: 请按照格式填写")
+        await send_message(
+            chat_id=chat_id, text="错误: 请按照格式填写", context=context
+        )
         return
     if not settings.EMBY_REGISTER:
-        await context.bot.send_message(chat_id=chat_id, text="错误：Emby 暂停注册")
+        await send_message(chat_id=chat_id, text="错误：Emby 暂停注册", context=context)
         return
     emby_username, redeem_code = text_parts[1:]
     _db = DB()
     # 检查邀请码有效性
     res = _db.verify_invitation_code_is_used(redeem_code)
     if not res:
-        await context.bot.send_message(chat_id=chat_id, text="错误：您输入的邀请码无效")
+        await send_message(
+            chat_id=chat_id, text="错误：您输入的邀请码无效", context=context
+        )
         _db.close()
         return
     if res[0]:
-        await context.bot.send_message(
-            chat_id=chat_id, text="错误：您输入的邀请码已被使用"
+        await send_message(
+            chat_id=chat_id, text="错误：您输入的邀请码已被使用", context=context
         )
         _db.close()
         return
     code_owner = res[1]
     # 检查该用户是否存在
     if _db.get_emby_info_by_emby_username(emby_username):
-        await context.bot.send_message(chat_id=chat_id, text="错误: 该用户已存在")
+        await send_message(chat_id=chat_id, text="错误: 该用户已存在", context=context)
         _db.close()
         return
     # 创建用户
@@ -107,29 +117,33 @@ async def redeem_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         # 更新数据库
         _db.add_emby_user(emby_username, emby_id=msg)
     else:
-        await context.bot.send_message(
-            chat_id=chat_id, text=f"错误: {msg}, 请联系 @WithdewHua"
+        await send_message(
+            chat_id=chat_id, text=f"错误: {msg}, 请联系 @WithdewHua", context=context
         )
         _db.close()
         return
     # 创建成功,更新邀请码状态
     res = _db.update_invitation_status(code=redeem_code, used_by=emby_username)
     if not res:
-        await context.bot.send_message(
-            chat_id=chat_id, text="错误：更新邀请码状态失败，请联系管理员"
+        await send_message(
+            chat_id=chat_id,
+            text="错误：更新邀请码状态失败，请联系管理员",
+            context=context,
         )
         _db.close()
         return
     _db.close()
-    await context.bot.send_message(
+    await send_message(
         chat_id=chat_id,
         text=f"信息：兑换邀请码成功，用户名为 `{emby_username}`, 密码为空, 请及时登录 Emby 修改密码，"
         f"可使用 `/bind_emby {emby_username}`绑定机器人获取更多功能, 更多帮助请加入群组 {settings.TG_GROUP}",
+        context=context,
     )
     for admin in settings.ADMIN_CHAT_ID:
-        await context.bot.send_message(
+        await send_message(
             chat_id=admin,
             text=f"信息：{get_user_name_from_tg_id(code_owner)} 成功邀请 {emby_username}",
+            context=context,
         )
 
 
@@ -139,8 +153,8 @@ async def unlock_nsfw_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     _db = DB()
     _info = _db.get_emby_info_by_tg_id(chat_id)
     if not _info:
-        await context.bot.send_message(
-            chat_id=chat_id, text="错误: 未查询到用户, 请先绑定"
+        await send_message(
+            chat_id=chat_id, text="错误: 未查询到用户, 请先绑定", context=context
         )
         _db.close()
         return
@@ -151,13 +165,13 @@ async def unlock_nsfw_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     _is_unlock = _info[3]
     if _is_unlock == 1:
         _db.close()
-        await context.bot.send_message(
-            chat_id=chat_id, text="错误: 您已拥有全部库权限, 无需解锁"
+        await send_message(
+            chat_id=chat_id, text="错误: 您已拥有全部库权限, 无需解锁", context=context
         )
         return
     if _credits < settings.UNLOCK_CREDITS:
-        await context.bot.send_message(
-            chat_id=chat_id, text="错误: 您的积分不足, 解锁失败"
+        await send_message(
+            chat_id=chat_id, text="错误: 您的积分不足, 解锁失败", context=context
         )
         _db.close()
         return
@@ -166,8 +180,10 @@ async def unlock_nsfw_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     # 更新权限
     flag, msg = _emby.add_user_library(user_id=_emby_id)
     if not flag:
-        await context.bot.send_message(
-            chat_id=chat_id, text=f"错误: 更新权限失败 ({msg}), 请联系管理员"
+        await send_message(
+            chat_id=chat_id,
+            text=f"错误: 更新权限失败 ({msg}), 请联系管理员",
+            context=context,
         )
         _db.close()
         return
@@ -177,8 +193,8 @@ async def unlock_nsfw_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     res = _db.update_user_credits(_credits, tg_id=chat_id)
     if not res:
         _db.close()
-        await context.bot.send_message(
-            chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员"
+        await send_message(
+            chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员", context=context
         )
         return
     res = _db.update_all_lib_flag(
@@ -186,12 +202,14 @@ async def unlock_nsfw_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     )
     if not res:
         _db.close()
-        await context.bot.send_message(
-            chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员"
+        await send_message(
+            chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员", context=context
         )
         return
     _db.close()
-    await context.bot.send_message(chat_id=chat_id, text="信息: 解锁成功, 请尽情享受")
+    await send_message(
+        chat_id=chat_id, text="信息: 解锁成功, 请尽情享受", context=context
+    )
 
 
 # 锁定 emby NSFW 权限
@@ -200,8 +218,8 @@ async def lock_nsfw_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     _db = DB()
     _info = _db.get_emby_info_by_tg_id(chat_id)
     if not _info:
-        await context.bot.send_message(
-            chat_id=chat_id, text="错误: 未查询到用户, 请先绑定"
+        await send_message(
+            chat_id=chat_id, text="错误: 未查询到用户, 请先绑定", context=context
         )
         _db.close()
         return
@@ -212,7 +230,9 @@ async def lock_nsfw_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     _unlock_time = _info[4]
     if _is_unlock == 0:
         _db.close()
-        await context.bot.send_message(chat_id=chat_id, text="错误: 您未解锁 NSFW 内容")
+        await send_message(
+            chat_id=chat_id, text="错误: 您未解锁 NSFW 内容", context=context
+        )
         return
     _credits_fund = caculate_credits_fund(_unlock_time, settings.UNLOCK_CREDITS)
     _credits += _credits_fund
@@ -220,8 +240,10 @@ async def lock_nsfw_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     # 更新权限
     flag, msg = _emby.remove_user_library(user_id=_emby_id)
     if not flag:
-        await context.bot.send_message(
-            chat_id=chat_id, text=f"错误: 更新权限失败 ({msg}), 请联系管理员"
+        await send_message(
+            chat_id=chat_id,
+            text=f"错误: 更新权限失败 ({msg}), 请联系管理员",
+            context=context,
         )
         _db.close()
         return
@@ -229,8 +251,8 @@ async def lock_nsfw_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     res = _db.update_user_credits(_credits, tg_id=chat_id)
     if not res:
         _db.close()
-        await context.bot.send_message(
-            chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员"
+        await send_message(
+            chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员", context=context
         )
         return
     res = _db.update_all_lib_flag(
@@ -238,13 +260,15 @@ async def lock_nsfw_emby(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
     if not res:
         _db.close()
-        await context.bot.send_message(
-            chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员"
+        await send_message(
+            chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员", context=context
         )
         return
     _db.close()
-    await context.bot.send_message(
-        chat_id=chat_id, text=f"信息: 成功关闭 NSFW 内容, 退回积分 {_credits_fund}"
+    await send_message(
+        chat_id=chat_id,
+        text=f"信息: 成功关闭 NSFW 内容, 退回积分 {_credits_fund}",
+        context=context,
     )
 
 
@@ -253,7 +277,9 @@ async def bind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     text = update.message.text
     text = text.split()
     if len(text) not in [2, 3]:
-        await context.bot.send_message(chat_id=chat_id, text="错误：请按照格式填写")
+        await send_message(
+            chat_id=chat_id, text="错误：请按照格式填写", context=context
+        )
         return
     db = DB()
     if len(text) == 2:
@@ -262,8 +288,10 @@ async def bind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # 未绑定 tg
         if not info:
             db.close()
-            await context.bot.send_message(
-                chat_id=chat_id, text="错误: 未绑定 emby 账户，请先绑定"
+            await send_message(
+                chat_id=chat_id,
+                text="错误: 未绑定 emby 账户，请先绑定",
+                context=context,
             )
             return
         emby_id = info[1]
@@ -272,8 +300,10 @@ async def bind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         info = db.get_emby_info_by_emby_id(emby_id)
         if not info:
             db.close()
-            await context.bot.send_message(
-                chat_id=chat_id, text="错误: 未查询到用户, 请检查 emby id"
+            await send_message(
+                chat_id=chat_id,
+                text="错误: 未查询到用户, 请检查 emby id",
+                context=context,
             )
             return
 
@@ -281,9 +311,10 @@ async def bind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     emby_line = info[7]
     if emby_line == line:
         db.close()
-        await context.bot.send_message(
+        await send_message(
             chat_id=chat_id,
             text=f"信息: {emby_username} 已绑定 {emby_line}, 无需重复绑定",
+            context=context,
         )
         return
     # 更新数据库
@@ -291,14 +322,16 @@ async def bind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     res = db.set_emby_line(line, emby_id=emby_id)
     if not res:
         db.close()
-        await context.bot.send_message(
-            chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员"
+        await send_message(
+            chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员", context=context
         )
         return
 
     db.close()
-    await context.bot.send_message(
-        chat_id=chat_id, text=f"信息: {emby_username} 绑定 Emby 线路 {line} 成功"
+    await send_message(
+        chat_id=chat_id,
+        text=f"信息: {emby_username} 绑定 Emby 线路 {line} 成功",
+        context=context,
     )
 
 
@@ -307,15 +340,19 @@ async def unbind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     text = update.message.text
     text = text.split()
     if len(text) not in [1, 2]:
-        await context.bot.send_message(chat_id=chat_id, text="错误：请按照格式填写")
+        await send_message(
+            chat_id=chat_id, text="错误：请按照格式填写", context=context
+        )
         return
     db = DB()
     if len(text) == 1:
         info = db.get_emby_info_by_tg_id(chat_id)
         if not info:
             db.close()
-            await context.bot.send_message(
-                chat_id=chat_id, text="错误: 未绑定 emby 账户，请先绑定"
+            await send_message(
+                chat_id=chat_id,
+                text="错误: 未绑定 emby 账户，请先绑定",
+                context=context,
             )
             return
         emby_id = info[1]
@@ -324,16 +361,20 @@ async def unbind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         info = db.get_emby_info_by_emby_id(emby_id)
         if not info:
             db.close()
-            await context.bot.send_message(
-                chat_id=chat_id, text="错误: 未查询到用户, 请检查 emby id"
+            await send_message(
+                chat_id=chat_id,
+                text="错误: 未查询到用户, 请检查 emby id",
+                context=context,
             )
             return
     emby_username = info[0]
     emby_line = info[7]
     if not emby_line:
         db.close()
-        await context.bot.send_message(
-            chat_id=chat_id, text=f"错误: {emby_username} 未绑定 emby 线路，无需解绑"
+        await send_message(
+            chat_id=chat_id,
+            text=f"错误: {emby_username} 未绑定 emby 线路，无需解绑",
+            context=context,
         )
         return
     # 更新数据库
@@ -341,13 +382,15 @@ async def unbind_emby_line(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     res = db.set_emby_line(line=None, emby_id=emby_id)
     if not res:
         db.close()
-        await context.bot.send_message(
-            chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员"
+        await send_message(
+            chat_id=chat_id, text="错误: 数据库更新失败, 请联系管理员", context=context
         )
         return
     db.close()
-    await context.bot.send_message(
-        chat_id=chat_id, text=f"信息: {emby_username} 解绑 Emby 线路 {emby_line} 成功"
+    await send_message(
+        chat_id=chat_id,
+        text=f"信息: {emby_username} 解绑 Emby 线路 {emby_line} 成功",
+        context=context,
     )
 
 

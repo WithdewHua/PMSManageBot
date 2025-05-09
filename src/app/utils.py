@@ -1,11 +1,25 @@
 #!/usr/bin/env python3
 
+import asyncio
 import logging
 import pickle
 from time import time
 
 import requests
 from app.config import settings
+from telegram.ext import ContextTypes
+
+
+async def send_message(chat_id, text: str, context: ContextTypes.DEFAULT_TYPE, **kargs):
+    """send telegram message"""
+    while True:
+        try:
+            await context.bot.send_message(chat_id=chat_id, text=text, **kargs)
+            break
+        except Exception as e:
+            logging.error(f"Error: {e}, retrying in 1 seconds...")
+            asyncio.sleep(1)
+            continue
 
 
 def get_user_total_duration(home_stats: dict):

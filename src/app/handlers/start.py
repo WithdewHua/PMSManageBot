@@ -1,6 +1,7 @@
 import textwrap
 
 from app.config import settings
+from app.utils import send_message
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
@@ -43,10 +44,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """.format(
         settings.INVITATION_CREDITS, settings.UNLOCK_CREDITS, settings.UNLOCK_CREDITS
     )
-    await context.bot.send_message(
+    await send_message(
         chat_id=update.effective_chat.id,
         text=textwrap.dedent(body_text),
         parse_mode="markdown",
+        context=context,
     )
 
 

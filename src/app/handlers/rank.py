@@ -2,9 +2,7 @@ from app.config import settings
 from app.db import DB
 from app.emby import Emby
 from app.log import logger
-from app.utils import (
-    get_user_name_from_tg_id,
-)
+from app.utils import get_user_name_from_tg_id, send_message
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
@@ -29,7 +27,9 @@ async def credits_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 ⚠️只统计 TG 绑定用户
     """.format("\n".join(rank))
     logger.info(body_text)
-    await context.bot.send_message(chat_id=chat_id, text=body_text, parse_mode="HTML")
+    await send_message(
+        chat_id=chat_id, text=body_text, parse_mode="HTML", context=context
+    )
 
 
 # 捐赠榜
@@ -52,7 +52,9 @@ async def donation_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 衷心感谢各位的支持!
     """.format("\n".join(rank))
     logger.debug(body_text)
-    await context.bot.send_message(chat_id=chat_id, text=body_text, parse_mode="HTML")
+    await send_message(
+        chat_id=chat_id, text=body_text, parse_mode="HTML", context=context
+    )
 
 
 # 观看时长榜
@@ -79,14 +81,16 @@ async def watched_time_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 ------ Emby ------
 {}
     """.format("\n".join(rank), "\n".join(emby_rank))
-    await context.bot.send_message(chat_id=chat_id, text=body_text, parse_mode="HTML")
+    await send_message(
+        chat_id=chat_id, text=body_text, parse_mode="HTML", context=context
+    )
 
 
 # 设备榜
 async def device_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
     if chat_id not in settings.ADMIN_CHAT_ID:
-        await context.bot.send_message(chat_id=chat_id, text="错误：越权操作")
+        await send_message(chat_id=chat_id, text="错误：越权操作", context=context)
         return
     emby = Emby()
     devices_data = sorted(
@@ -104,7 +108,9 @@ async def device_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 ==================
 """.format("\n".join(rank))
     logger.debug(body_text)
-    await context.bot.send_message(chat_id=chat_id, text=body_text, parse_mode="HTML")
+    await send_message(
+        chat_id=chat_id, text=body_text, parse_mode="HTML", context=context
+    )
 
 
 credits_rank_handler = CommandHandler("credits_rank", credits_rank)
