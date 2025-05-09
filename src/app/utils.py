@@ -15,6 +15,8 @@ async def send_message(chat_id, text: str, context: ContextTypes.DEFAULT_TYPE, *
     retry = 10
     while retry > 0:
         try:
+            if "connect_timeout" not in kargs:
+                kargs["connect_timeout"] = 3
             await context.bot.send_message(chat_id=chat_id, text=text, **kargs)
             break
         except Exception as e:
