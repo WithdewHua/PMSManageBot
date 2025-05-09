@@ -12,14 +12,15 @@ from telegram.ext import ContextTypes
 
 async def send_message(chat_id, text: str, context: ContextTypes.DEFAULT_TYPE, **kargs):
     """send telegram message"""
-    while True:
+    retry = 10
+    while retry > 0:
         try:
             await context.bot.send_message(chat_id=chat_id, text=text, **kargs)
             break
         except Exception as e:
             logging.error(f"Error: {e}, retrying in 1 seconds...")
-            asyncio.sleep(1)
-            continue
+            await asyncio.sleep(1)
+            retry -= 1
 
 
 def get_user_total_duration(home_stats: dict):
