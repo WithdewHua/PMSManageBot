@@ -5,6 +5,7 @@ import logging
 import pickle
 from time import time
 
+import aiohttp
 import requests
 from app.config import settings
 from telegram.ext import ContextTypes
@@ -19,6 +20,26 @@ async def send_message(chat_id, text: str, context: ContextTypes.DEFAULT_TYPE, *
                 kargs["connect_timeout"] = 3
             await context.bot.send_message(chat_id=chat_id, text=text, **kargs)
             break
+        except Exception as e:
+            logging.error(f"Error: {e}, retrying in 1 seconds...")
+            await asyncio.sleep(1)
+            retry -= 1
+
+
+async def send_message_by_url(chat_id, text: str, token: str, parse_mode="markdownv2"):
+    """send telegram message by url"""
+    retry = 10
+    while retry > 0:
+        try:
+            url = f"https://api.telegram.org/bot{token}/sendMessage"
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    url,
+                    data={"chat_id": chat_id, "text": text, "parse_mode": parse_mode},
+                    timeout=3,
+                ) as response:
+                    if response.status == 200:
+                        break
         except Exception as e:
             logging.error(f"Error: {e}, retrying in 1 seconds...")
             await asyncio.sleep(1)

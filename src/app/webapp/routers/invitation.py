@@ -6,6 +6,7 @@ from app.db import DB
 from app.emby import Emby
 from app.log import uvicorn_logger as logger
 from app.plex import Plex
+from app.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import (
@@ -194,6 +195,7 @@ async def redeem_plex_code(
 
             if res[0]:
                 return RedeemResponse(success=False, message="邀请码已被使用")
+            code_owner = res[1]
 
             # 实例化 Plex 对象
             _plex = Plex()
@@ -215,6 +217,13 @@ async def redeem_plex_code(
             if not res:
                 return RedeemResponse(
                     success=False, message="更新邀请码状态失败，请联系管理员"
+                )
+
+            for admin in settings.ADMIN_CHAT_ID:
+                await send_message_by_url(
+                    chat_id=admin,
+                    text=f"信息：{get_user_name_from_tg_id(code_owner)} 成功邀请 Plex 用户 {email}",
+                    token=settings.TG_API_TOKEN,
                 )
 
             # 返回成功响应
@@ -260,6 +269,8 @@ async def redeem_emby_code(
             if res[0]:
                 return RedeemResponse(success=False, message="邀请码已被使用")
 
+            code_owner = res[1]
+
             # 检查该用户是否存在
             _emby = Emby()
             if _db.get_emby_info_by_emby_username(
@@ -283,6 +294,13 @@ async def redeem_emby_code(
 
             # 添加 emby 用户信息
             _db.add_emby_user(username, emby_id=msg)
+
+            for admin in settings.ADMIN_CHAT_ID:
+                await send_message_by_url(
+                    chat_id=admin,
+                    text=f"信息：{get_user_name_from_tg_id(code_owner)} 成功邀请 Emby 用户 {username}",
+                    token=settings.TG_API_TOKEN,
+                )
 
             # 返回成功响应
             return RedeemResponse(
