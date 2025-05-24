@@ -56,6 +56,8 @@ class Settings(BaseSettings):
     EMBY_ADMIN_USER: str = ""
     EMBY_USER_TEMPLATE: str = ""
     EMBY_STREAM_BACKEND: list[str] = []
+    EMBY_PREMIUM_STREAM_BACKEND: list[str] = []
+    EMBY_PREMIUM_FREE: bool = False
 
     # redis
     REDIS_HOST: str = "localhost"

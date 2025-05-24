@@ -10,9 +10,9 @@ from .invitation import (
 )
 from .ranking import RankingInfo
 from .user import (
+    BaseResponse,
     BindEmbyRequest,
     BindPlexRequest,
-    BindResponse,
     EmbyLineRequest,
     EmbyLinesResponse,
     TelegramUser,
@@ -28,7 +28,7 @@ __all__ = [
     # 用户相关模型
     "TelegramUser",
     "UserInfo",
-    "BindResponse",
+    "BaseResponse",
     "BindPlexRequest",
     "BindEmbyRequest",
     "EmbyLineRequest",

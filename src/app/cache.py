@@ -47,6 +47,29 @@ class RedisCache:
         values = [val for val in results if val is not None]
         return values
 
+    def get_all_key_values(self) -> dict:
+        """
+        获取所有缓存键值对
+
+        Returns:
+            包含所有缓存键值对的字典
+        """
+        key_values = {}
+        pipeline = self.redis_client.pipeline()
+        for key in self.redis_client.scan_iter(match=f"{self._cache_key_prefix}*"):
+            pipeline.get(key)
+        results = pipeline.execute()
+
+        for key, value in zip(
+            self.redis_client.scan_iter(match=f"{self._cache_key_prefix}*"), results
+        ):
+            if value is not None:
+                key_values[key.removeprefix(self._cache_key_prefix)] = value.decode(
+                    "utf-8"
+                )
+
+        return key_values
+
     def get(self, key: str) -> Optional[str]:
         """
         获取缓存值
@@ -166,4 +189,7 @@ class RedisCache:
 emby_user_defined_line_cache = RedisCache(
     db=2,
     cache_key_prefix="emby_user_defined_line:",
+)
+emby_last_user_defined_line_cache = RedisCache(
+    db=2, cache_key_prefix="emby_last_user_defined_line:"
 )

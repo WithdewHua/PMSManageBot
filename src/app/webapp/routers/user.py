@@ -1,19 +1,22 @@
 from time import time
 
-from app.cache import emby_user_defined_line_cache
+from app.cache import emby_last_user_defined_line_cache, emby_user_defined_line_cache
 from app.config import settings
 from app.db import DB
-from app.emby import Emby
+from app.emby import Emby, emby_is_premium_line
 from app.log import uvicorn_logger as logger
 from app.plex import Plex
 from app.tautulli import Tautulli
-from app.utils import caculate_credits_fund, get_user_total_duration
+from app.utils import (
+    caculate_credits_fund,
+    get_user_total_duration,
+)
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import (
+    BaseResponse,
     BindEmbyRequest,
     BindPlexRequest,
-    BindResponse,
     EmbyLineRequest,
     EmbyLinesResponse,
     TelegramUser,
@@ -38,7 +41,10 @@ async def get_user_info(
     db = DB()
     try:
         tg_id = user_id
-        user_info = UserInfo(tg_id=tg_id)
+        is_admin = False
+        if tg_id in settings.ADMIN_CHAT_ID:
+            is_admin = True
+        user_info = UserInfo(tg_id=tg_id, is_admin=is_admin)
 
         # 获取Plex信息
         try:
@@ -125,7 +131,7 @@ async def get_user_info(
         logger.debug("数据库连接已关闭")
 
 
-@router.post("/bind/plex", response_model=BindResponse)
+@router.post("/bind/plex", response_model=BaseResponse)
 @require_telegram_auth
 async def bind_plex_account(
     request: Request,
@@ -144,7 +150,7 @@ async def bind_plex_account(
         _info = _db.get_plex_info_by_tg_id(tg_id)
         if _info:
             logger.warning(f"用户 {telegram_user.username or tg_id} 已绑定 Plex 账户")
-            return BindResponse(
+            return BaseResponse(
                 success=False, message="您已绑定 Plex 账户，请勿重复操作"
             )
 
@@ -154,7 +160,7 @@ async def bind_plex_account(
         # 用户不存在
         if plex_id == 0:
             logger.warning(f"无法找到 Plex 用户 {email}")
-            return BindResponse(
+            return BaseResponse(
                 success=False, message="该邮箱无 Plex 权限，请检查输入的邮箱"
             )
 
@@ -166,7 +172,7 @@ async def bind_plex_account(
                 logger.warning(
                     f"Plex账户 {email} 已被其他 Telegram 账户 {tg_id_bound} 绑定"
                 )
-                return BindResponse(
+                return BaseResponse(
                     success=False,
                     message="该 Plex 账户已经绑定 Telegram 账户 {tg_id_bound}",
                 )
@@ -175,7 +181,7 @@ async def bind_plex_account(
             rslt = _db.update_user_tg_id(tg_id, plex_id=plex_id)
             if not rslt:
                 logger.error(f"更新用户 {tg_id} 的 Plex 绑定失败")
-                return BindResponse(success=False, message="数据库更新失败，请稍后再试")
+                return BaseResponse(success=False, message="数据库更新失败，请稍后再试")
 
             # 清空 plex 用户表中积分信息
             _db.update_user_credits(0, plex_id=plex_info[0])
@@ -200,7 +206,7 @@ async def bind_plex_account(
                 plex_credits = user_total_duration.get(plex_id, 0)
             except Exception as e:
                 logger.error(f"获取用户观看时长失败: {str(e)}")
-                return BindResponse(
+                return BaseResponse(
                     success=False, message="获取用户观看时长失败，请稍后再试"
                 )
 
@@ -217,7 +223,7 @@ async def bind_plex_account(
 
             if not rslt:
                 logger.error(f"添加用户 {tg_id} 的 Plex 信息失败")
-                return BindResponse(success=False, message="数据库更新失败，请稍后再试")
+                return BaseResponse(success=False, message="数据库更新失败，请稍后再试")
 
         # 获取用户数据表信息并更新积分
         stats_info = _db.get_stats_by_tg_id(tg_id)
@@ -231,17 +237,17 @@ async def bind_plex_account(
         logger.info(
             f"用户 {telegram_user.username or tg_id} 成功绑定 Plex 账户 {email}"
         )
-        return BindResponse(success=True, message=f"绑定 Plex 账户 {email} 成功！")
+        return BaseResponse(success=True, message=f"绑定 Plex 账户 {email} 成功！")
 
     except Exception as e:
         logger.error(f"绑定Plex账户时发生错误: {str(e)}")
-        return BindResponse(success=False, message="绑定失败，发生未知错误")
+        return BaseResponse(success=False, message="绑定失败，发生未知错误")
     finally:
         _db.close()
         logger.debug("数据库连接已关闭")
 
 
-@router.post("/bind/emby", response_model=BindResponse)
+@router.post("/bind/emby", response_model=BaseResponse)
 @require_telegram_auth
 async def bind_emby_account(
     request: Request,
@@ -262,7 +268,7 @@ async def bind_emby_account(
         info = db.get_emby_info_by_tg_id(tg_id)
         if info:
             logger.warning(f"用户 {telegram_user.username or tg_id} 已绑定Emby账户")
-            return BindResponse(
+            return BaseResponse(
                 success=False, message="您已绑定 Emby 账户，请勿重复操作"
             )
 
@@ -271,7 +277,7 @@ async def bind_emby_account(
         uid = emby.get_uid_from_username(emby_username)
         if not uid:
             logger.warning(f"无法找到Emby用户 {emby_username}")
-            return BindResponse(success=False, message=f"用户 {emby_username} 不存在")
+            return BaseResponse(success=False, message=f"用户 {emby_username} 不存在")
 
         # 检查emby用户是否已被绑定
         emby_info = db.get_emby_info_by_emby_username(emby_username)
@@ -279,7 +285,7 @@ async def bind_emby_account(
             # 该emby用户存在于数据库
             if emby_info[2]:  # tg_id字段
                 logger.warning(f"Emby账户 {emby_username} 已被其他Telegram账户绑定")
-                return BindResponse(
+                return BaseResponse(
                     success=False,
                     message=f"该 Emby 账户已经绑定 Telegram 账户 {emby_info[2]}",
                 )
@@ -306,13 +312,13 @@ async def bind_emby_account(
         logger.info(
             f"用户 {telegram_user.username or tg_id} 成功绑定Emby账户 {emby_username}"
         )
-        return BindResponse(
+        return BaseResponse(
             success=True, message=f"绑定 Emby 账户 {emby_username} 成功！"
         )
 
     except Exception as e:
         logger.error(f"绑定Emby账户时发生错误: {str(e)}")
-        return BindResponse(success=False, message="绑定失败，发生未知错误")
+        return BaseResponse(success=False, message="绑定失败，发生未知错误")
     finally:
         db.close()
         logger.debug("数据库连接已关闭")
@@ -332,9 +338,9 @@ async def get_emby_lines(
         logger.warning(
             f"用户 {telegram_user.username or telegram_user.id} 未绑定 Emby 账户"
         )
-        return BindResponse(success=False, message="您未绑定 Emby 账户，无法查看线路")
+        return BaseResponse(success=False, message="您未绑定 Emby 账户，无法查看线路")
     is_premium = emby_info[8] == 1
-    if not is_premium:
+    if not is_premium and not settings.EMBY_PREMIUM_FREE:
         return EmbyLinesResponse(lines=settings.EMBY_STREAM_BACKEND)
     else:
         return EmbyLinesResponse(
@@ -342,7 +348,7 @@ async def get_emby_lines(
         )
 
 
-@router.post("/bind/emby_line", response_model=BindResponse)
+@router.post("/bind/emby_line", response_model=BaseResponse)
 @require_telegram_auth
 async def bind_emby_line(
     request: Request,
@@ -361,41 +367,52 @@ async def bind_emby_line(
         emby_info = db.get_emby_info_by_tg_id(tg_id)
         if not emby_info:
             logger.warning(f"用户 {telegram_user.username or tg_id} 未绑定 Emby 账户")
-            return BindResponse(success=False, message="您尚未绑定Emby账户，请先绑定")
+            return BaseResponse(success=False, message="您尚未绑定Emby账户，请先绑定")
         emby_username, emby_line = emby_info[0], emby_info[7]
         if emby_line == line:
             logger.warning(f"用户 {telegram_user.username or tg_id} 已绑定该线路")
-            return BindResponse(success=False, message="该线路已绑定，请勿重复操作")
+            return BaseResponse(success=False, message="该线路已绑定，请勿重复操作")
 
         # 更新用户线路设置
         is_premium = emby_info[8] == 1
-        if not is_premium:
-            for _line in settings.EMBY_PREMIUM_STREAM_BACKEND:
-                if _line in line:
-                    return BindResponse(
-                        success=False, message="您不是 premium 用户，无法绑定该线路"
-                    )
+        if not is_premium and not settings.EMBY_PREMIUM_FREE:
+            is_premium_line = emby_is_premium_line(line)
+            if is_premium_line:
+                return BaseResponse(
+                    success=False, message="您不是 premium 用户，无法绑定该线路"
+                )
         success = db.set_emby_line(line, tg_id=tg_id)
 
         if not success:
             logger.error(f"设置用户 {tg_id} 的 Emby 线路失败")
-            return BindResponse(success=False, message="设置线路失败")
+            return BaseResponse(success=False, message="设置线路失败")
 
         # 更新 redis 缓存
+        binded_line = emby_user_defined_line_cache.get(str(emby_username).lower())
+        if binded_line and not emby_is_premium_line(binded_line):
+            # 满足如下条件：
+            # 1. 缓存中存在绑定的线路，且该线路不是高级线路；
+            # 将其记录到上一次使用的普通线路缓存中
+            logger.debug(f"记录用户 {emby_username} 上一次使用的普通线路 {binded_line}")
+            emby_last_user_defined_line_cache.put(
+                str(emby_username).lower(), binded_line
+            )
         emby_user_defined_line_cache.put(str(emby_username).lower(), line)
 
-        logger.info(f"用户 {telegram_user.username or tg_id} 成功绑定 Emby 线路 {line}")
-        return BindResponse(success=True, message=f"绑定线路 {line} 成功！")
+        logger.info(
+            f"用户 {telegram_user.username or tg_id} 成功绑定 Emby 线路 {line}，原线路：{binded_line}"
+        )
+        return BaseResponse(success=True, message=f"绑定线路 {line} 成功！")
 
     except Exception as e:
         logger.error(f"绑定Emby线路时发生错误: {str(e)}")
-        return BindResponse(success=False, message=f"绑定失败: {str(e)}")
+        return BaseResponse(success=False, message=f"绑定失败: {str(e)}")
     finally:
         db.close()
         logger.debug("数据库连接已关闭")
 
 
-@router.post("/unbind/emby_line", response_model=BindResponse)
+@router.post("/unbind/emby_line", response_model=BaseResponse)
 @require_telegram_auth
 async def unbind_emby_line(
     request: Request,
@@ -412,29 +429,29 @@ async def unbind_emby_line(
         emby_info = db.get_emby_info_by_tg_id(tg_id)
         if not emby_info:
             logger.warning(f"用户 {telegram_user.username or tg_id} 未绑定Emby账户")
-            return BindResponse(success=False, message="您尚未绑定 Emby 账户，请先绑定")
+            return BaseResponse(success=False, message="您尚未绑定 Emby 账户，请先绑定")
         emby_username, emby_line = emby_info[0], emby_info[7]
         if not emby_line:
             logger.warning(
                 f"用户 {telegram_user.username or tg_id} 未绑定线路，无需解绑"
             )
-            return BindResponse(success=False, message="您未绑定线路，无需解绑")
+            return BaseResponse(success=False, message="您未绑定线路，无需解绑")
 
         success = db.set_emby_line(None, tg_id=tg_id)
         if not success:
             logger.error(f"重置用户 {tg_id} 的 Emby 线路失败")
-            return BindResponse(success=False, message="重置线路失败")
+            return BaseResponse(success=False, message="重置线路失败")
         from app.cache import emby_user_defined_line_cache
 
         # 删除 redis 缓存
         emby_user_defined_line_cache.delete(str(emby_username).lower())
 
         logger.info(f"用户 {telegram_user.username or tg_id} 成功解绑 Emby 线路")
-        return BindResponse(success=True, message="已切换到自动选择线路")
+        return BaseResponse(success=True, message="已切换到自动选择线路")
 
     except Exception as e:
         logger.error(f"解绑Emby线路时发生错误: {str(e)}")
-        return BindResponse(success=False, message=f"解绑失败: {str(e)}")
+        return BaseResponse(success=False, message=f"解绑失败: {str(e)}")
     finally:
         db.close()
         logger.debug("数据库连接已关闭")

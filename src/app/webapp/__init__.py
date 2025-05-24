@@ -5,6 +5,7 @@ from app.config import settings
 from app.log import logger
 from app.webapp.middlewares import TelegramAuthMiddleware
 from app.webapp.routers import rankings_router, user_router
+from app.webapp.routers.admin import router as admin_router
 from app.webapp.routers.invitation import router as invitation_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,6 +41,7 @@ app.add_middleware(TelegramAuthMiddleware)
 app.include_router(user_router)
 app.include_router(rankings_router)
 app.include_router(invitation_router)  # 添加邀请码路由
+app.include_router(admin_router)  # 添加管理员路由
 
 
 def setup_static_files():

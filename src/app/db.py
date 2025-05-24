@@ -377,6 +377,12 @@ class DB:
             "SELECT emby_line FROM emby_user WHERE tg_id=?", (tg_id,)
         ).fetchone()[0]
 
+    def get_emby_user_with_binded_line(self):
+        rslt = self.cur.execute(
+            "SELECT emby_username,tg_id,emby_line,is_premium FROM emby_user WHERE emby_line IS NOT NULL"
+        )
+        return rslt.fetchall()
+
     def close(self):
         self.cur.close()
         self.con.close()

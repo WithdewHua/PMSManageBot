@@ -199,6 +199,67 @@
           </v-card-text>
         </v-card>
 
+        <!-- 管理员模块 -->
+        <v-card v-if="userInfo.is_admin" class="mb-4">
+          <v-card-title class="text-center">
+            <v-icon start color="red-darken-2">mdi-shield-crown</v-icon> 管理员控制面板
+          </v-card-title>
+          <v-card-text>
+            <div v-if="adminLoading" class="text-center my-4">
+              <v-progress-circular indeterminate size="small" color="primary"></v-progress-circular>
+              <span class="ml-2">加载管理员设置中...</span>
+            </div>
+            
+            <div v-else-if="adminError" class="mb-4">
+              <v-alert type="error" density="compact">{{ adminError }}</v-alert>
+            </div>
+            
+            <div v-else>
+              <div class="d-flex justify-space-between mb-3 align-center">
+                <div class="d-flex align-center">
+                  <v-icon size="small" color="orange-darken-2" class="mr-2">mdi-plex</v-icon>
+                  <span>Plex 注册开放：</span>
+                </div>
+                <v-switch
+                  v-model="adminSettings.plex_register"
+                  color="success"
+                  density="compact"
+                  hide-details
+                  @change="updatePlexRegister"
+                ></v-switch>
+              </div>
+              
+              <div class="d-flex justify-space-between mb-3 align-center">
+                <div class="d-flex align-center">
+                  <v-icon size="small" color="green-darken-2" class="mr-2">mdi-server</v-icon>
+                  <span>Emby 注册开放：</span>
+                </div>
+                <v-switch
+                  v-model="adminSettings.emby_register"
+                  color="success"
+                  density="compact"
+                  hide-details
+                  @change="updateEmbyRegister"
+                ></v-switch>
+              </div>
+              
+              <div class="d-flex justify-space-between mb-2 align-center">
+                <div class="d-flex align-center">
+                  <v-icon size="small" color="purple-darken-2" class="mr-2">mdi-crown</v-icon>
+                  <span>Emby 高级线路开放：</span>
+                </div>
+                <v-switch
+                  v-model="adminSettings.emby_premium_free"
+                  color="success"
+                  density="compact"
+                  hide-details
+                  @change="updateEmbyPremiumFree"
+                ></v-switch>
+              </div>
+            </div>
+          </v-card-text>
+        </v-card>
+
         <div v-if="!userInfo.plex_info && !userInfo.emby_info" class="text-center my-8">
           <v-alert type="info">
             <v-icon start>mdi-information</v-icon>
@@ -222,6 +283,7 @@ import { getUserInfo } from '@/api'
 import EmbyLineSelector from '@/components/EmbyLineSelector.vue'
 import NsfwDialog from '@/components/NsfwDialog.vue'
 import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
+import { getAdminSettings, setPlexRegister, setEmbyRegister, setEmbyPremiumFree } from '@/services/adminService.js'
 
 export default {
   name: 'UserInfo',
@@ -237,10 +299,18 @@ export default {
         invitation_codes: [],
         plex_info: null,
         emby_info: null,
-        overseerr_info: null
+        overseerr_info: null,
+        is_admin: false
       },
       loading: true,
-      error: null
+      error: null,
+      adminSettings: {
+        plex_register: false,
+        emby_register: false,
+        emby_premium_free: false
+      },
+      adminLoading: false,
+      adminError: null
     }
   },
   mounted() {
@@ -253,10 +323,76 @@ export default {
         const response = await getUserInfo()
         this.userInfo = response.data
         this.loading = false
+        
+        // 如果用户是管理员，获取管理员设置
+        if (this.userInfo.is_admin) {
+          await this.fetchAdminSettings()
+        }
       } catch (err) {
         this.error = err.response?.data?.detail || '获取用户信息失败'
         this.loading = false
         console.error('获取用户信息失败:', err)
+      }
+    },
+    
+    async fetchAdminSettings() {
+      try {
+        this.adminLoading = true
+        this.adminError = null
+        const response = await getAdminSettings()
+        this.adminSettings = response.data
+        this.adminLoading = false
+      } catch (err) {
+        this.adminError = err.response?.data?.detail || '获取管理员设置失败'
+        this.adminLoading = false
+        console.error('获取管理员设置失败:', err)
+      }
+    },
+    
+    async updatePlexRegister() {
+      try {
+        await setPlexRegister(this.adminSettings.plex_register)
+        this.showMessage('Plex 注册设置已更新')
+      } catch (err) {
+        // 回滚状态
+        this.adminSettings.plex_register = !this.adminSettings.plex_register
+        this.showMessage('更新 Plex 注册设置失败', 'error')
+        console.error('更新 Plex 注册设置失败:', err)
+      }
+    },
+    
+    async updateEmbyRegister() {
+      try {
+        await setEmbyRegister(this.adminSettings.emby_register)
+        this.showMessage('Emby 注册设置已更新')
+      } catch (err) {
+        // 回滚状态
+        this.adminSettings.emby_register = !this.adminSettings.emby_register
+        this.showMessage('更新 Emby 注册设置失败', 'error')
+        console.error('更新 Emby 注册设置失败:', err)
+      }
+    },
+    
+    async updateEmbyPremiumFree() {
+      try {
+        await setEmbyPremiumFree(this.adminSettings.emby_premium_free)
+        this.showMessage('Emby 会员线路免费设置已更新')
+      } catch (err) {
+        // 回滚状态
+        this.adminSettings.emby_premium_free = !this.adminSettings.emby_premium_free
+        this.showMessage('更新 Emby 会员线路免费设置失败', 'error')
+        console.error('更新 Emby 会员线路免费设置失败:', err)
+      }
+    },
+    
+    showMessage(message, type = 'success') {
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.showPopup({
+          title: type === 'error' ? '错误' : '成功',
+          message: message
+        })
+      } else {
+        alert(message)
       }
     },
     copyToClipboard(text) {

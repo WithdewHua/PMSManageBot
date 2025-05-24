@@ -25,10 +25,11 @@ class UserInfo(BaseModel):
     plex_info: Optional[Dict[str, Any]] = None
     emby_info: Optional[Dict[str, Any]] = None
     overseerr_info: Optional[Dict[str, Any]] = None
+    is_admin: bool = False
 
 
-class BindResponse(BaseModel):
-    """绑定响应模型"""
+class BaseResponse(BaseModel):
+    """通用响应模型"""
 
     success: bool
     message: str
