@@ -380,8 +380,8 @@ export default {
       } catch (err) {
         // 回滚状态
         this.adminSettings.emby_premium_free = !this.adminSettings.emby_premium_free
-        this.showMessage('更新 Emby 会员线路免费设置失败', 'error')
-        console.error('更新 Emby 会员线路免费设置失败:', err)
+        this.showMessage('更新 Emby 会员线路免费开放设置失败', 'error')
+        console.error('更新 Emby 会员线路免费开放设置失败:', err)
       }
     },
     

@@ -26,7 +26,9 @@ async def send_message(chat_id, text: str, context: ContextTypes.DEFAULT_TYPE, *
             retry -= 1
 
 
-async def send_message_by_url(chat_id, text: str, token: str, parse_mode="markdownv2"):
+async def send_message_by_url(
+    chat_id, text: str, token: str = settings.TG_API_TOKEN, parse_mode="markdownv2"
+):
     """send telegram message by url"""
     retry = 10
     while retry > 0:
