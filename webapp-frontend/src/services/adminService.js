@@ -7,7 +7,7 @@ import { apiClient } from '../main';
 export async function getAdminSettings() {
   try {
     const response = await apiClient.get('/api/admin/settings');
-    return response.data;
+    return response;
   } catch (error) {
     console.error('获取管理员设置失败:', error);
     throw error;
@@ -24,7 +24,7 @@ export async function setPlexRegister(enabled) {
     const response = await apiClient.post('/api/admin/settings/plex-register', {
       enabled: enabled
     });
-    return response.data;
+    return response;
   } catch (error) {
     console.error('设置 Plex 注册状态失败:', error);
     throw error;
@@ -41,7 +41,7 @@ export async function setEmbyRegister(enabled) {
     const response = await apiClient.post('/api/admin/settings/emby-register', {
       enabled: enabled
     });
-    return response.data;
+    return response;
   } catch (error) {
     console.error('设置 Emby 注册状态失败:', error);
     throw error;
@@ -58,7 +58,7 @@ export async function setEmbyPremiumFree(enabled) {
     const response = await apiClient.post('/api/admin/settings/emby-premium-free', {
       enabled: enabled
     });
-    return response.data;
+    return response;
   } catch (error) {
     console.error('设置 Emby 高级线路免费使用状态失败:', error);
     throw error;
