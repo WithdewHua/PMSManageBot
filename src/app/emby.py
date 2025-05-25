@@ -73,6 +73,7 @@ class Emby:
             }
 
             retry = 3
+            name = None
             while retry > 0:
                 try:
                     response = requests.get(

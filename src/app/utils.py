@@ -211,16 +211,19 @@ def refresh_emby_user_info():
             if emby.cache.exists():
                 with open(emby.cache, "rb") as f:
                     cache = pickle.load(f)
-            for user in emby_users:
-                if user in cache:
-                    user_info = cache.get(user)
-                    # 缓存小于 7 天，跳过不处理
-                    if time() - user_info.get("added_time") < 7 * 24 * 3600:
-                        continue
-                user_info = emby.get_user_info_from_username(user)
+        for user in emby_users:
+            if user in cache:
+                user_info = cache.get(user)
+                # 缓存小于 7 天，跳过不处理
+                if time() - user_info.get("added_time") < 7 * 24 * 3600:
+                    continue
+            logger.info(f"刷新 Emby 用户 {user} 信息")
+            user_info = emby.get_user_info_from_username(user)
+            if user_info:
                 cache.update({user: user_info})
-            with open(emby.cache, "wb") as f:
-                pickle.dump(cache, f)
+            with emby.cache_lock:
+                with open(emby.cache, "wb") as f:
+                    pickle.dump(cache, f)
     except Exception as e:
         logger.error(f"Refresh emby user info failed: {e}")
     finally:
