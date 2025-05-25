@@ -2,13 +2,16 @@
 <template>
   <div class="rankings-container">
     <v-container>
-      <div v-if="loading" class="text-center my-10">
+      <div v-if="isCurrentTabLoading()" class="text-center my-10">
         <v-progress-circular indeterminate color="primary"></v-progress-circular>
         <div class="mt-3">加载中...</div>
       </div>
 
       <div v-else-if="error" class="text-center my-10">
         <v-alert type="error">{{ error }}</v-alert>
+        <v-btn color="primary" @click="loadTabData(activeTab)" class="mt-3">
+          重试
+        </v-btn>
       </div>
 
       <div v-else>
@@ -452,7 +455,7 @@
 </template>
 
 <script>
-import { getRankings } from '@/api'
+import { getCreditsRankings, getDonationRankings, getWatchedTimeRankings } from '@/api'
 import { getWatchLevelIcons } from '@/utils/watchLevel.js'
 
 export default {
@@ -468,25 +471,75 @@ export default {
         watched_time_rank_plex: [],
         watched_time_rank_emby: []
       },
-      loading: true,
+      loading: {
+        credits: false,
+        donation: false,
+        watched: false
+      },
+      loaded: {
+        credits: false,
+        donation: false,
+        watched: false
+      },
       error: null
     }
   },
+  watch: {
+    activeTab(newTab) {
+      this.loadTabData(newTab)
+    }
+  },
   mounted() {
-    this.fetchRankings()
+    // 默认加载积分榜数据
+    this.loadTabData(this.activeTab)
   },
   methods: {
-    async fetchRankings() {
-      try {
-        this.loading = true
-        const response = await getRankings()
-        this.rankings = response.data
-        this.loading = false
-      } catch (err) {
-        this.error = err.response?.data?.detail || '获取排行榜信息失败'
-        this.loading = false
-        console.error('获取排行榜信息失败:', err)
+    async loadTabData(tab) {
+      // 如果已经加载过该tab的数据，直接返回
+      if (this.loaded[tab]) {
+        return
       }
+
+      this.loading[tab] = true
+      this.error = null
+
+      try {
+        let response
+        switch (tab) {
+          case 'credits':
+            response = await getCreditsRankings()
+            this.rankings.credits_rank = response.data.credits_rank
+            break
+          case 'donation':
+            response = await getDonationRankings()
+            this.rankings.donation_rank = response.data.donation_rank
+            break
+          case 'watched':
+            response = await getWatchedTimeRankings()
+            this.rankings.watched_time_rank_plex = response.data.watched_time_rank_plex
+            this.rankings.watched_time_rank_emby = response.data.watched_time_rank_emby
+            break
+        }
+        this.loaded[tab] = true
+      } catch (err) {
+        this.error = err.response?.data?.detail || `获取${this.getTabName(tab)}失败`
+        console.error(`获取${this.getTabName(tab)}失败:`, err)
+      } finally {
+        this.loading[tab] = false
+      }
+    },
+
+    getTabName(tab) {
+      const names = {
+        credits: '积分排行榜',
+        donation: '捐赠排行榜',
+        watched: '观看时长排行榜'
+      }
+      return names[tab] || '排行榜'
+    },
+
+    isCurrentTabLoading() {
+      return this.loading[this.activeTab]
     },
     
     // 使用导入的工具函数，直接传递观看时间参数

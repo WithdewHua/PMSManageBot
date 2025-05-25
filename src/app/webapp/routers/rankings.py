@@ -11,18 +11,55 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 router = APIRouter(prefix="/api", tags=["rankings"])
 
 
-@router.get("/rankings")
+@router.get("/rankings/credits")
 @require_telegram_auth
-async def get_rankings(
+async def get_credits_rankings(
     request: Request, user: TelegramUser = Depends(get_telegram_user)
 ):
-    """获取排行榜数据"""
-    logger.info(f"{user.username or user.first_name or user.id} 开始获取排行榜数据")
+    """获取积分排行榜数据"""
+    logger.info(f"{user.username or user.first_name or user.id} 开始获取积分排行榜数据")
 
-    # 连接数据库
     db = DB()
     try:
-        # 获取捐赠排行
+        credits_rankings = []
+        try:
+            logger.debug("正在查询积分排行")
+            credits_data = db.get_credits_rank()
+            if credits_data:
+                credits_rankings = [
+                    {
+                        "name": get_user_name_from_tg_id(info[0]),
+                        "credits": info[1],
+                        "avatar": get_user_avatar_from_tg_id(info[0]),
+                    }
+                    for info in credits_data
+                    if info[1] > 0
+                ]
+        except Exception as e:
+            logger.error(f"获取积分排行失败: {str(e)}")
+
+        logger.info(
+            f"{user.username or user.first_name or user.id} 获取积分排行榜数据成功"
+        )
+        return {"credits_rank": credits_rankings}
+    except Exception as e:
+        logger.error(f"获取积分排行榜数据时发生未预期的错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取积分排行榜数据失败")
+    finally:
+        db.close()
+        logger.debug("数据库连接已关闭")
+
+
+@router.get("/rankings/donation")
+@require_telegram_auth
+async def get_donation_rankings(
+    request: Request, user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取捐赠排行榜数据"""
+    logger.info(f"{user.username or user.first_name or user.id} 开始获取捐赠排行榜数据")
+
+    db = DB()
+    try:
         donation_rankings = []
         try:
             logger.debug("正在查询捐赠排行")
@@ -40,7 +77,30 @@ async def get_rankings(
         except Exception as e:
             logger.error(f"获取捐赠排行失败: {str(e)}")
 
-        # 获取播放时长排行
+        logger.info(
+            f"{user.username or user.first_name or user.id} 获取捐赠排行榜数据成功"
+        )
+        return {"donation_rank": donation_rankings}
+    except Exception as e:
+        logger.error(f"获取捐赠排行榜数据时发生未预期的错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取捐赠排行榜数据失败")
+    finally:
+        db.close()
+        logger.debug("数据库连接已关闭")
+
+
+@router.get("/rankings/watched-time")
+@require_telegram_auth
+async def get_watched_time_rankings(
+    request: Request, user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取观看时长排行榜数据"""
+    logger.info(
+        f"{user.username or user.first_name or user.id} 开始获取观看时长排行榜数据"
+    )
+
+    db = DB()
+    try:
         watched_time_rank_plex, watched_time_rank_emby = [], []
         plex = Plex()
         emby = Emby()
@@ -71,35 +131,16 @@ async def get_rankings(
         except Exception as e:
             logger.error(f"获取播放时长排行失败: {str(e)}")
 
-        # 获取积分排行
-        credits_rankings = []
-        try:
-            logger.debug("正在查询积分排行")
-            credits_data = db.get_credits_rank()
-            if credits_data:
-                credits_rankings = [
-                    {
-                        "name": get_user_name_from_tg_id(info[0]),
-                        "credits": info[1],
-                        "avatar": get_user_avatar_from_tg_id(info[0]),
-                    }
-                    for info in credits_data
-                    if info[1] > 0
-                ]
-        except Exception as e:
-            logger.error(f"获取积分排行失败: {str(e)}")
-
-        logger.info(f"{user.username or user.first_name or user.id} 获取排行榜数据成功")
-
+        logger.info(
+            f"{user.username or user.first_name or user.id} 获取观看时长排行榜数据成功"
+        )
         return {
-            "donation_rank": donation_rankings,
-            "credits_rank": credits_rankings,
             "watched_time_rank_plex": watched_time_rank_plex,
             "watched_time_rank_emby": watched_time_rank_emby,
         }
     except Exception as e:
-        logger.error(f"获取排行榜数据时发生未预期的错误: {str(e)}")
-        raise HTTPException(status_code=500, detail="获取排行榜数据失败")
+        logger.error(f"获取观看时长排行榜数据时发生未预期的错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取观看时长排行榜数据失败")
     finally:
         db.close()
         logger.debug("数据库连接已关闭")

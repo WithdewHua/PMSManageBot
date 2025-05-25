@@ -28,8 +28,16 @@ export const getUserInfo = () => {
   return apiClient.get('/api/user/info')
 }
 
-export const getRankings = () => {
-  return apiClient.get('/api/rankings')
+export const getCreditsRankings = () => {
+  return apiClient.get('/api/rankings/credits')
+}
+
+export const getDonationRankings = () => {
+  return apiClient.get('/api/rankings/donation')
+}
+
+export const getWatchedTimeRankings = () => {
+  return apiClient.get('/api/rankings/watched-time')
 }
 
 // 导出解析 initData 方法和获取用户方法
