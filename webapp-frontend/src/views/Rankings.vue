@@ -141,28 +141,43 @@
             <v-row v-else>
               <v-col cols="12">
                 <div class="d-flex justify-space-between align-center mb-4">
-                  <h3 class="text-h6 text-primary font-weight-bold">观看时长排行</h3>
+                  <div class="d-flex align-center gap-2">
+                    <h3 class="text-h6 text-primary font-weight-bold">观看时长排行</h3>
+                    <v-btn
+                      icon
+                      size="x-small"
+                      variant="text"
+                      color="primary"
+                      @click="showLevelInfo = true"
+                      class="info-btn"
+                    >
+                      <v-icon size="16">mdi-information</v-icon>
+                      <v-tooltip activator="parent" location="top">
+                        等级说明
+                      </v-tooltip>
+                    </v-btn>
+                  </div>
                   <v-select
-                    v-model="watchedTimeSource"
-                    :items="[
-                      { title: 'Plex', value: 'plex' },
-                      { title: 'Emby', value: 'emby' }
-                    ]"
-                    item-title="title"
-                    item-value="value"
-                    density="compact"
-                    hide-details
-                    variant="outlined"
-                    class="watched-source-select"
-                    style="max-width: 150px;"
-                    color="primary"
-                  >
-                    <template v-slot:prepend-inner>
-                      <v-icon size="16" :color="watchedTimeSource === 'plex' ? 'orange' : 'green'">
-                        {{ watchedTimeSource === 'plex' ? 'mdi-plex' : 'mdi-server' }}
-                      </v-icon>
-                    </template>
-                  </v-select>
+                      v-model="watchedTimeSource"
+                      :items="[
+                        { title: 'Plex', value: 'plex' },
+                        { title: 'Emby', value: 'emby' }
+                      ]"
+                      item-title="title"
+                      item-value="value"
+                      density="compact"
+                      hide-details
+                      variant="outlined"
+                      class="watched-source-select"
+                      style="max-width: 150px;"
+                      color="primary"
+                    >
+                      <template v-slot:prepend-inner>
+                        <v-icon size="16" :color="watchedTimeSource === 'plex' ? 'orange' : 'green'">
+                          {{ watchedTimeSource === 'plex' ? 'mdi-plex' : 'mdi-server' }}
+                        </v-icon>
+                      </template>
+                    </v-select>
                 </div>
                 
                 <!-- Plex 观看时长榜 -->
@@ -197,13 +212,21 @@
                                 <v-icon size="16" color="orange" class="mr-1">mdi-clock</v-icon>
                                 <span class="watched-time-text">{{ item.watched_time.toFixed(2) }} 小时</span>
                                 <div class="level-icons-wrapper ml-2">
-                                  <span 
-                                    v-for="(icon, iconIndex) in getWatchLevelIcons(item.watched_time)" 
+                                  <v-tooltip
+                                    v-for="(icon, iconIndex) in getWatchLevelIcons(item.watched_time)"
                                     :key="`plex-rank-icon-${index}-${iconIndex}`"
-                                    :class="['emoji-icon', icon.class]"
+                                    location="top"
+                                    :text="getIconTooltip(icon.icon)"
                                   >
-                                    {{ icon.icon }}
-                                  </span>
+                                    <template v-slot:activator="{ props }">
+                                      <span 
+                                        v-bind="props"
+                                        :class="['emoji-icon', icon.class]"
+                                      >
+                                        {{ icon.icon }}
+                                      </span>
+                                    </template>
+                                  </v-tooltip>
                                 </div>
                               </div>
                             </v-list-item-subtitle>
@@ -249,13 +272,21 @@
                                 <v-icon size="16" color="green" class="mr-1">mdi-clock</v-icon>
                                 <span class="watched-time-text">{{ item.watched_time.toFixed(2) }} 小时</span>
                                 <div class="level-icons-wrapper ml-2">
-                                  <span 
-                                    v-for="(icon, iconIndex) in getWatchLevelIcons(item.watched_time)" 
+                                  <v-tooltip
+                                    v-for="(icon, iconIndex) in getWatchLevelIcons(item.watched_time)"
                                     :key="`emby-rank-icon-${index}-${iconIndex}`"
-                                    :class="['emoji-icon', icon.class]"
+                                    location="top"
+                                    :text="getIconTooltip(icon.icon)"
                                   >
-                                    {{ icon.icon }}
-                                  </span>
+                                    <template v-slot:activator="{ props }">
+                                      <span 
+                                        v-bind="props"
+                                        :class="['emoji-icon', icon.class]"
+                                      >
+                                        {{ icon.icon }}
+                                      </span>
+                                    </template>
+                                  </v-tooltip>
                                 </div>
                               </div>
                             </v-list-item-subtitle>
@@ -274,6 +305,135 @@
         </v-window>
       </div>
     </v-container>
+
+    <!-- 等级说明对话框 -->
+    <v-dialog v-model="showLevelInfo" max-width="720">
+      <v-card class="level-dialog">
+        <v-card-title class="text-h6 d-flex align-center justify-center pa-6">
+          <v-icon color="primary" class="mr-2" size="28">mdi-star-circle</v-icon>
+          <span class="dialog-title">观看等级说明</span>
+        </v-card-title>
+        
+        <v-card-text class="py-6">
+          <div class="level-explanation">
+            <!-- 级别进度条示意 -->
+            <div class="level-progress-demo mb-6">
+              <div class="d-flex align-center justify-center gap-3">
+                <div class="level-demo-icon crown-icon">👑</div>
+                <v-icon size="12" color="grey-lighten-1">mdi-arrow-left</v-icon>
+                <div class="level-demo-icon sun-icon">☀️</div>
+                <v-icon size="12" color="grey-lighten-1">mdi-arrow-left</v-icon>
+                <div class="level-demo-icon moon-icon">🌙</div>
+                <v-icon size="12" color="grey-lighten-1">mdi-arrow-left</v-icon>
+                <div class="level-demo-icon star-icon">⭐</div>
+              </div>
+              <div class="text-center mt-2">
+                <span class="level-progress-text">等级进阶路径</span>
+              </div>
+            </div>
+
+            <!-- 等级详细说明 -->
+            <v-row>
+              <v-col cols="12" sm="6">
+                <div class="level-item">
+                  <div class="level-header">
+                    <div class="level-emoji-container star-bg">
+                      <span class="level-emoji star-icon">⭐</span>
+                    </div>
+                    <div class="level-info">
+                      <div class="level-title">星星</div>
+                      <div class="level-subtitle">入门等级</div>
+                    </div>
+                  </div>
+                  <div class="level-desc">
+                    <div class="level-requirement">每 100 小时 = 1 颗星星</div>
+                    <div class="level-example">例：300 小时 = 3 颗星星</div>
+                  </div>
+                </div>
+              </v-col>
+              
+              <v-col cols="12" sm="6">
+                <div class="level-item">
+                  <div class="level-header">
+                    <div class="level-emoji-container moon-bg">
+                      <span class="level-emoji moon-icon">🌙</span>
+                    </div>
+                    <div class="level-info">
+                      <div class="level-title">月亮</div>
+                      <div class="level-subtitle">进阶等级</div>
+                    </div>
+                  </div>
+                  <div class="level-desc">
+                    <div class="level-requirement">4 颗星星 = 1 个月亮</div>
+                    <div class="level-example">需要观看 400 小时</div>
+                  </div>
+                </div>
+              </v-col>
+              
+              <v-col cols="12" sm="6">
+                <div class="level-item">
+                  <div class="level-header">
+                    <div class="level-emoji-container sun-bg">
+                      <span class="level-emoji sun-icon">☀️</span>
+                    </div>
+                    <div class="level-info">
+                      <div class="level-title">太阳</div>
+                      <div class="level-subtitle">高级等级</div>
+                    </div>
+                  </div>
+                  <div class="level-desc">
+                    <div class="level-requirement">4 个月亮 = 1 个太阳</div>
+                    <div class="level-example">需要观看 1600 小时</div>
+                  </div>
+                </div>
+              </v-col>
+              
+              <v-col cols="12" sm="6">
+                <div class="level-item">
+                  <div class="level-header">
+                    <div class="level-emoji-container crown-bg">
+                      <span class="level-emoji crown-icon">👑</span>
+                    </div>
+                    <div class="level-info">
+                      <div class="level-title">皇冠</div>
+                      <div class="level-subtitle">至尊等级</div>
+                    </div>
+                  </div>
+                  <div class="level-desc">
+                    <div class="level-requirement">4 个太阳 = 1 个皇冠</div>
+                    <div class="level-example">需要观看 6400 小时</div>
+                  </div>
+                </div>
+              </v-col>
+            </v-row>
+
+            <!-- 等级计算说明 -->
+            <v-divider class="my-4"></v-divider>
+            <div class="calculation-note">
+              <v-icon size="16" color="info" class="mr-2">mdi-information</v-icon>
+              <span class="text-caption text-medium-emphasis">
+                等级图标会根据您的总观看时长自动显示，多个等级可以同时拥有
+              </span>
+            </div>
+          </div>
+        </v-card-text>
+        
+        <v-card-actions class="pa-6">
+          <v-spacer></v-spacer>
+          <v-btn 
+            color="primary" 
+            variant="elevated"
+            size="large"
+            rounded="lg"
+            @click="showLevelInfo = false"
+            class="px-8"
+          >
+            <v-icon class="mr-2">mdi-check</v-icon>
+            知道了
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -287,6 +447,7 @@ export default {
     return {
       activeTab: 'credits',
       watchedTimeSource: 'plex',
+      showLevelInfo: false,
       rankings: {
         credits_rank: [],
         donation_rank: [],
@@ -316,7 +477,24 @@ export default {
     
     // 使用导入的工具函数，直接传递观看时间参数
     getWatchLevelIcons(watchedTime) {
-      return getWatchLevelIcons(watchedTime);
+      const icons = getWatchLevelIcons(watchedTime);
+      // 添加调试输出（仅在开发模式下）
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`观看时长: ${watchedTime}小时, 等级图标:`, icons);
+      }
+      return icons;
+    },
+    
+    // 获取图标的工具提示文本
+    getIconTooltip(iconEmoji) {
+      const tooltips = {
+        '👑': '皇冠 (6400小时+)',
+        '☀️': '太阳 (1600小时+)', 
+        '🌙': '月亮 (400小时+)',
+        '⭐': '星星 (100小时+)',
+        '☆': '新手 (100小时以下)'
+      };
+      return tooltips[iconEmoji] || '等级图标';
     },
     
     // 处理头像图片加载错误
@@ -459,11 +637,13 @@ export default {
 }
 
 .user-score {
-  display: flex;
-  align-items: center;
+  display: flex !important;
+  align-items: center !important;
   font-size: 14px;
   color: rgba(0, 0, 0, 0.6);
   font-weight: 500;
+  width: 100%;
+  min-height: 28px;
 }
 
 .bg-primary-subtle {
@@ -475,15 +655,44 @@ export default {
   min-width: 180px;
 }
 
+/* 控制顶部工具栏间距 */
+.toolbar-controls {
+  gap: 24px !important; /* 增加到24px的间距 */
+}
+
+.toolbar-controls .v-btn {
+  margin-right: 8px; /* 为信息按钮添加额外的右边距 */
+}
+
+/* 信息按钮样式 */
+.info-btn {
+  opacity: 0.7;
+  transition: all 0.2s ease;
+  min-width: 24px !important;
+  width: 24px !important;
+  height: 24px !important;
+}
+
+.info-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
 .watched-time-container {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   flex-wrap: nowrap;
+  gap: 8px;
+  min-height: 24px;
+  width: 100%;
 }
 
 .watched-time-text {
-  margin-right: 10px;
   white-space: nowrap;
+  font-weight: 500;
+  flex-shrink: 0;
+  min-width: fit-content;
 }
 
 .level-icons-wrapper {
@@ -491,13 +700,79 @@ export default {
   align-items: center;
   gap: 4px;
   flex-wrap: nowrap;
+  min-height: 20px;
+  padding: 2px 4px;
+  margin-left: auto;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .emoji-icon {
-  font-size: 15px;
-  line-height: 1;
+  font-size: 16px;
+  line-height: 1.2;
   display: inline-flex;
-  margin: 0 1px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  min-width: 18px;
+  min-height: 18px;
+  text-align: center;
+  transition: all 0.2s ease;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(4px);
+}
+
+.emoji-icon:hover {
+  transform: scale(1.2);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 等级图标的特定样式 */
+.level-icon {
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.crown-icon {
+  filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.6));
+  animation: crown-glow 2s ease-in-out infinite alternate;
+}
+
+.sun-icon {
+  filter: drop-shadow(0 0 2px rgba(255, 165, 0, 0.5));
+  animation: sun-rotate 4s linear infinite;
+}
+
+.moon-icon {
+  filter: drop-shadow(0 0 2px rgba(173, 216, 230, 0.5));
+  animation: moon-phase 3s ease-in-out infinite alternate;
+}
+
+.star-icon {
+  filter: drop-shadow(0 0 1px rgba(255, 255, 0, 0.4));
+  animation: star-twinkle 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes crown-glow {
+  0% { transform: scale(1); filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.6)); }
+  100% { transform: scale(1.1); filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.9)); }
+}
+
+@keyframes sun-rotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes moon-phase {
+  0% { opacity: 0.7; transform: scale(1); }
+  100% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes star-twinkle {
+  0% { opacity: 0.6; transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
 .text-grey {
@@ -514,6 +789,173 @@ export default {
 /* 增加列表项的内边距 */
 .v-list-item {
   padding: 12px 16px !important;
+}
+
+/* 工具提示样式 */
+:deep(.v-tooltip .v-overlay__content) {
+  background: rgba(0, 0, 0, 0.9) !important;
+  color: white !important;
+  border-radius: 6px !important;
+  padding: 6px 10px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 等级说明对话框样式 */
+.level-dialog {
+  border-radius: 16px !important;
+  overflow: hidden;
+}
+
+.dialog-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: rgba(var(--v-theme-primary), 1);
+}
+
+.level-explanation {
+  padding: 0;
+}
+
+/* 等级进度演示 */
+.level-progress-demo {
+  background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.05), rgba(var(--v-theme-secondary), 0.05));
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(var(--v-theme-primary), 0.1);
+}
+
+.level-demo-icon {
+  font-size: 28px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.level-demo-icon:hover {
+  transform: scale(1.1);
+}
+
+.level-progress-text {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.6);
+  font-weight: 500;
+}
+
+/* 等级项目样式 */
+.level-item {
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.level-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  border-color: rgba(var(--v-theme-primary), 0.2);
+}
+
+.level-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.level-emoji-container {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.level-emoji {
+  font-size: 24px;
+  line-height: 1;
+  z-index: 2;
+}
+
+/* 等级背景颜色 */
+.star-bg {
+  background: linear-gradient(135deg, #FFF59D, #FFEE58);
+  box-shadow: 0 2px 8px rgba(255, 238, 88, 0.3);
+}
+
+.moon-bg {
+  background: linear-gradient(135deg, #E1F5FE, #B3E5FC);
+  box-shadow: 0 2px 8px rgba(179, 229, 252, 0.3);
+}
+
+.sun-bg {
+  background: linear-gradient(135deg, #FFF3E0, #FFCC80);
+  box-shadow: 0 2px 8px rgba(255, 204, 128, 0.3);
+}
+
+.crown-bg {
+  background: linear-gradient(135deg, #FFF8E1, #FFD54F);
+  box-shadow: 0 2px 8px rgba(255, 213, 79, 0.4);
+}
+
+.level-info {
+  flex: 1;
+}
+
+.level-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.87);
+  margin-bottom: 2px;
+}
+
+.level-subtitle {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.6);
+  font-weight: 500;
+}
+
+.level-desc {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.level-requirement {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.87);
+  font-weight: 500;
+}
+
+.level-example {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.6);
+  font-style: italic;
+}
+
+.calculation-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(var(--v-theme-info), 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(var(--v-theme-info), 0.1);
 }
 
 /* 响应式设计 */
@@ -538,6 +980,143 @@ export default {
     width: 40px;
     height: 40px;
     font-size: 15px;
+  }
+  
+  .watched-time-container {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  
+  .level-icons-wrapper {
+    gap: 2px;
+    padding: 1px 3px;
+    margin-left: 8px;
+    margin-top: 2px;
+  }
+  
+  .emoji-icon {
+    font-size: 14px;
+    min-width: 16px;
+    min-height: 16px;
+  }
+  
+  .watched-time-text {
+    font-size: 13px;
+  }
+
+  /* 等级对话框移动端适配 */
+  .level-progress-demo {
+    padding: 16px;
+  }
+  
+  .level-demo-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+  }
+  
+  .level-emoji-container {
+    width: 40px;
+    height: 40px;
+    margin-right: 8px;
+  }
+  
+  .level-emoji {
+    font-size: 20px;
+  }
+  
+  .level-item {
+    padding: 12px;
+  }
+  
+  .level-title {
+    font-size: 15px;
+  }
+  
+  .level-subtitle {
+    font-size: 11px;
+  }
+  
+  .level-requirement {
+    font-size: 13px;
+  }
+  
+  .level-example {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .watched-time-container {
+    font-size: 12px;
+    gap: 4px;
+  }
+  
+  .emoji-icon {
+    font-size: 12px;
+    min-width: 14px;
+    min-height: 14px;
+  }
+  
+  .level-icons-wrapper {
+    gap: 1px;
+    padding: 1px 2px;
+  }
+  
+  .watched-time-text {
+    font-size: 12px;
+  }
+
+  /* 小屏幕等级对话框适配 */
+  .level-progress-demo {
+    padding: 12px;
+  }
+  
+  .level-demo-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+  }
+  
+  .level-emoji-container {
+    width: 36px;
+    height: 36px;
+    margin-right: 6px;
+  }
+  
+  .level-emoji {
+    font-size: 18px;
+  }
+  
+  .level-item {
+    padding: 10px;
+  }
+  
+  .level-title {
+    font-size: 14px;
+  }
+  
+  .level-subtitle {
+    font-size: 10px;
+  }
+  
+  .level-requirement {
+    font-size: 12px;
+  }
+  
+  .level-example {
+    font-size: 10px;
+  }
+  
+  .dialog-title {
+    font-size: 18px;
+  }
+  
+  .calculation-note {
+    padding: 8px;
+    font-size: 11px;
   }
 }
 </style>
