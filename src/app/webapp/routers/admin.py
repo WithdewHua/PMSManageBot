@@ -206,8 +206,10 @@ async def get_all_users(
                 user_list.append(
                     {
                         "tg_id": tg_id,
-                        "display_name": tg_info["first_name"] or tg_info["username"],
-                        "photo_url": tg_info["photo_url"],
+                        "display_name": tg_info.get("first_name")
+                        or tg_info.get("username")
+                        or str(tg_id),
+                        "photo_url": tg_info.get("photo_url"),
                         "current_donation": float(donation) if donation else 0.0,
                         "current_credits": float(credits) if credits else 0.0,
                     }

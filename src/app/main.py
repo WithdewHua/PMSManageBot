@@ -95,7 +95,7 @@ def add_init_scheduler_job():
         minute=0,
         next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=30),
     )
-    logger.info("添加定时任务：每 12 小时刷新用户信息")
+    logger.info("添加定时任务：每 12 小时刷新 Telegram 用户信息")
 
 
 if __name__ == "__main__":
