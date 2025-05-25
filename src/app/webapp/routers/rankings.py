@@ -102,7 +102,6 @@ async def get_plex_watched_time_rankings(
     db = DB()
     try:
         watched_time_rank_plex = []
-        plex = Plex()
         try:
             logger.debug("正在查询Plex播放时长排行")
             plex_watch_time_data = db.get_plex_watched_time_rank()
@@ -111,7 +110,7 @@ async def get_plex_watched_time_rankings(
                     {
                         "name": info[2],
                         "watched_time": info[3],
-                        "avatar": plex.get_user_avatar_by_username(info[2]),
+                        "avatar": Plex.get_user_avatar_by_username(info[2]),
                     }
                     for info in plex_watch_time_data
                     if info[3] > 0

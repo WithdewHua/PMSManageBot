@@ -122,6 +122,8 @@ def update_plex_info():
                 "UPDATE user SET plex_username=?,plex_email=? WHERE plex_id=?",
                 (username, email, uid),
             )
+        # 更新所有用户的头像
+        _plex.update_all_user_avatars()
     except Exception as e:
         print(e)
     else:
