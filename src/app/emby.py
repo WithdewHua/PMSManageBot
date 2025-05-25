@@ -5,6 +5,7 @@ import pickle
 from time import time
 from typing import Any, Optional, Union
 
+import filelock
 import requests
 from app.config import settings
 from app.log import logger
@@ -12,7 +13,7 @@ from app.log import logger
 
 class Emby:
     cache = settings.DATA_PATH / "emby_user_info.cache"
-    cache_lock = settings.DATA_PATH / "emby_user_info.cache.lock"
+    cache_lock = filelock.FileLock(str(cache) + ".lock")
 
     def __init__(
         self,
