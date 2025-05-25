@@ -262,7 +262,7 @@ async def submit_donation_record(
 
         if success:
             # 更新积分
-            db.update_user_credits(new_credits, tg_id)
+            db.update_user_credits(new_credits, tg_id=tg_id)
 
             # 获取用户显示名称
             user_name = get_user_name_from_tg_id(tg_id)
