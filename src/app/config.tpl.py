@@ -1,4 +1,6 @@
+import os
 from pathlib import Path
+from typing import Any, Dict
 
 from pydantic_settings import BaseSettings
 
@@ -65,9 +67,11 @@ class Settings(BaseSettings):
     REDIS_PASSWORD: str = ""
 
     def __init__(self, **kwargs):
-        super().__init__(self, **kwargs)
+        super().__init__(**kwargs)
         if not self.DATA_PATH.exists():
             self.DATA_PATH.mkdir(parents=True)
+        # 启动时尝试从配置文件加载设置
+        self.load_config_from_file()
 
     @property
     def DATA_PATH(self):
@@ -75,8 +79,168 @@ class Settings(BaseSettings):
             return Path(__file__).parents[2] / "data"
         return Path(self.DATA_DIR)
 
-    class config:
+    @property
+    def USER_INFO_CACHE_PATH(self):
+        return self.DATA_PATH / "tg_user_info.cache"
+
+    @property
+    def ENV_FILE_PATH(self):
+        """环境变量文件路径"""
+        return self.DATA_PATH / ".env"
+
+    def load_config_from_file(self):
+        """从配置文件加载设置"""
+        # 从 .env 文件加载
+        if self.ENV_FILE_PATH.exists():
+            self._load_from_env_file()
+
+    def _load_from_env_file(self):
+        """从 .env 文件加载环境变量"""
+        try:
+            with open(self.ENV_FILE_PATH, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        key, value = line.split("=", 1)
+                        key = key.strip()
+                        value = value.strip().strip('"').strip("'")
+
+                        # 设置环境变量
+                        os.environ[key] = value
+
+                        # 如果是当前设置中存在的字段，直接更新
+                        if hasattr(self, key):
+                            # 处理不同类型的值
+                            current_value = getattr(self, key)
+                            if isinstance(current_value, bool):
+                                setattr(
+                                    self,
+                                    key,
+                                    value.lower() in ("true", "1", "yes", "on"),
+                                )
+                            elif isinstance(current_value, int):
+                                setattr(self, key, int(value))
+                            elif isinstance(current_value, list):
+                                # 假设列表用逗号分隔
+                                setattr(
+                                    self,
+                                    key,
+                                    [
+                                        item.strip()
+                                        for item in value.split(",")
+                                        if item.strip()
+                                    ],
+                                )
+                            else:
+                                setattr(self, key, value)
+        except Exception as e:
+            print(f"加载 .env 文件失败: {e}")
+
+    def save_config_to_env_file(self, config_data: Dict[str, Any]):
+        """保存配置到 .env 文件"""
+        try:
+            # 读取现有的 .env 文件内容
+            existing_lines = []
+            existing_keys = set()
+
+            if self.ENV_FILE_PATH.exists():
+                with open(self.ENV_FILE_PATH, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line_stripped = line.strip()
+                        if (
+                            line_stripped
+                            and not line_stripped.startswith("#")
+                            and "=" in line_stripped
+                        ):
+                            key = line_stripped.split("=", 1)[0].strip()
+                            existing_keys.add(key)
+                        existing_lines.append(line.rstrip())
+
+            # 更新或添加新的配置项
+            for key, value in config_data.items():
+                env_line = f"{key}={value}"
+
+                if key in existing_keys:
+                    # 更新现有项
+                    for i, line in enumerate(existing_lines):
+                        if line.strip().startswith(f"{key}="):
+                            existing_lines[i] = env_line
+                            break
+                else:
+                    # 添加新项
+                    existing_lines.append(env_line)
+
+            # 保存到文件
+            with open(self.ENV_FILE_PATH, "w", encoding="utf-8") as f:
+                f.write("\n".join(existing_lines))
+                if existing_lines and not existing_lines[-1] == "":
+                    f.write("\n")
+
+            print(f"配置已保存到: {self.ENV_FILE_PATH}")
+        except Exception as e:
+            print(f"保存 .env 配置文件失败: {e}")
+
+    def get_saveable_config(self) -> Dict[str, Any]:
+        """
+        获取可保存的配置项（排除敏感信息）
+        可以根据需要自定义哪些配置项不应该被保存
+        """
+        # 定义不应该保存到文件的敏感配置项
+        sensitive_keys = {
+            "TG_API_TOKEN",
+            "PLEX_API_TOKEN",
+            "OVERSEERR_API_TOKEN",
+            "EMBY_API_TOKEN",
+            "TAUTULLI_APIKEY",
+            "REDIS_PASSWORD",
+            "WEBAPP_SESSION_SECRET_KEY",
+        }
+
+        config = {}
+        for key in dir(self):
+            if (
+                not key.startswith("_")
+                and key.isupper()
+                and key not in sensitive_keys
+                and not callable(getattr(self, key))
+            ):
+                value = getattr(self, key)
+                # 只保存基本类型
+                if isinstance(value, (str, int, bool, list)):
+                    config[key] = value
+
+        return config
+
+    def save_current_config(self, include_sensitive: bool = False):
+        """
+        保存当前配置到 .env 文件
+
+        Args:
+            include_sensitive: 是否包含敏感信息（如 API 密钥等）
+        """
+        if include_sensitive:
+            # 保存所有配置项
+            config = {}
+            for key in dir(self):
+                if (
+                    not key.startswith("_")
+                    and key.isupper()
+                    and not callable(getattr(self, key))
+                ):
+                    value = getattr(self, key)
+                    if isinstance(value, (str, int, bool, list)):
+                        config[key] = value
+        else:
+            # 只保存非敏感配置项
+            config = self.get_saveable_config()
+
+        self.save_config_to_env_file(config)
+
+    class Config:
         case_sensitive = True
+        # 支持从 .env 文件读取环境变量
+        env_file = ".env"
+        env_file_encoding = "utf-8"
 
 
 settings = Settings()

@@ -57,6 +57,7 @@ async def set_plex_register(
     try:
         enabled = data.get("enabled", False)
         settings.PLEX_REGISTER = bool(enabled)
+        settings.save_config_to_env_file({"PLEX_REGISTER": str(enabled).lower()})
 
         logger.info(
             f"管理员 {user.username or user.id} 设置 Plex 注册状态为: {enabled}"
@@ -82,6 +83,7 @@ async def set_emby_register(
     try:
         enabled = data.get("enabled", False)
         settings.EMBY_REGISTER = bool(enabled)
+        settings.save_config_to_env_file({"EMBY_REGISTER": str(enabled).lower()})
 
         logger.info(
             f"管理员 {user.username or user.id} 设置 Emby 注册状态为: {enabled}"
@@ -108,6 +110,7 @@ async def set_emby_premium_free(
         enabled = data.get("enabled", False)
         old_status = settings.EMBY_PREMIUM_FREE
         settings.EMBY_PREMIUM_FREE = bool(enabled)
+        settings.save_config_to_env_file({"EMBY_PREMIUM_FREE": str(enabled).lower()})
 
         # 如果从开启变为关闭，需要处理现有用户的高级线路绑定
         if old_status and not enabled:
