@@ -1,4 +1,5 @@
 # ruff: noqa: F403
+import datetime
 import threading
 from copy import copy
 
@@ -13,6 +14,7 @@ from app.handlers.user import *
 from app.log import logger
 from app.scheduler import Scheduler
 from app.update_db import update_credits, update_emby_credits, update_plex_info
+from app.utils import refresh_user_info
 from telegram.ext import ApplicationBuilder
 
 
@@ -80,6 +82,20 @@ def add_init_scheduler_job():
         minute=0,
     )
     logger.info("添加定时任务：每天中午 12:00 更新 Plex 用户信息")
+
+    # 每 12 小时更新 tg 用户信息
+    scheduler.add_job(
+        func=refresh_user_info,
+        trigger="cron",
+        id="refresh_user_info",
+        replace_existing=True,
+        max_instances=1,
+        day_of_week="*",
+        hour="*/12",
+        minute=0,
+        next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=30),
+    )
+    logger.info("添加定时任务：每 12 小时刷新用户信息")
 
 
 if __name__ == "__main__":

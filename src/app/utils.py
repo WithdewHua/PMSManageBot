@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import asyncio
-import logging
 import pickle
 from time import sleep, time
 
@@ -9,6 +8,8 @@ import aiohttp
 import filelock
 import requests
 from app.config import settings
+from app.db import DB
+from app.log import logger
 from telegram.ext import ContextTypes
 
 
@@ -22,7 +23,7 @@ async def send_message(chat_id, text: str, context: ContextTypes.DEFAULT_TYPE, *
             await context.bot.send_message(chat_id=chat_id, text=text, **kargs)
             break
         except Exception as e:
-            logging.error(f"Error: {e}, retrying in 1 seconds...")
+            logger.error(f"Error: {e}, retrying in 1 seconds...")
             await asyncio.sleep(1)
             retry -= 1
 
@@ -44,7 +45,7 @@ async def send_message_by_url(
                     if response.status == 200:
                         break
         except Exception as e:
-            logging.error(f"Error: {e}, retrying in 1 seconds...")
+            logger.error(f"Error: {e}, retrying in 1 seconds...")
             await asyncio.sleep(1)
             retry -= 1
 
@@ -79,50 +80,14 @@ def get_user_info_from_tg_id(chat_id, token=settings.TG_API_TOKEN):
     """Get telegram user's info
     cache format: {tg_id: {"first_name": first_name, "username": username, "added": timestamp}}
     """
-    cache_file = settings.DATA_PATH / "tg_user_info.cache"
-    cache_file_lock = filelock.FileLock(str(cache_file) + ".lock")
+    cache_file = settings.USER_INFO_CACHE_PATH
     cache = {}
-    with cache_file_lock:
-        if cache_file.exists():
-            with open(cache_file, "rb") as f:
-                cache = pickle.load(f)
-        # get from cache if exists
-        current_time = time()
-        if cache and chat_id in cache:
-            user_info = cache.get(chat_id)
-            # if not expire (7d)
-            if current_time - user_info.get("added") < 7 * 24 * 3600:
-                return user_info
-        retry = 10
-        while retry > 0:
-            try:
-                response = requests.get(
-                    url=f"https://api.telegram.org/bot{token}/getChat?chat_id={chat_id}"
-                )
-            except Exception as e:
-                logging.error(f"Error: {e}, retrying in 1 seconds...")
-                sleep(1)
-                retry -= 1
-                continue
-            else:
-                if not response.ok:
-                    logging.error(f"Error: failed to get info. for {chat_id}")
-                    return {}
-                break
-        result = response.json().get("result", {})
-        user_info = {
-            "first_name": result.get("first_name"),
-            "username": result.get("username"),
-            "added": current_time,
-        }
-        # 获取用户 photo url
-        photo_url = get_user_photo_url(chat_id, token=token)
-        user_info["photo_url"] = photo_url
-        # add cache
-        cache.update({chat_id: photo_url})
-        with open(cache_file, "wb") as f:
-            pickle.dump(cache, f)
-        return user_info
+    if not cache_file.exists():
+        logger.warning(f"Not found {settings.USER_INFO_CACHE_PATH}")
+        return {}
+    with open(cache_file, "rb") as f:
+        cache = pickle.load(f)
+    return cache.get(chat_id, {})
 
 
 def get_user_photo_url(tg_id: int, token: str = settings.TG_API_TOKEN):
@@ -154,7 +119,7 @@ def get_user_photo_url(tg_id: int, token: str = settings.TG_API_TOKEN):
 
             return photo_url
         except Exception:
-            logging.error(f"Error: failed to get photo for {tg_id}, retrying...")
+            logger.error(f"Error: failed to get photo for {tg_id}, retrying...")
             sleep(1)
             retry -= 1
     return None
@@ -163,6 +128,64 @@ def get_user_photo_url(tg_id: int, token: str = settings.TG_API_TOKEN):
 def get_user_name_from_tg_id(chat_id, token=settings.TG_API_TOKEN):
     user_info = get_user_info_from_tg_id(chat_id, token=token)
     return user_info.get("first_name") or user_info.get("username") or chat_id
+
+
+def refresh_user_info(token: str = settings.TG_API_TOKEN):
+    """刷新用户信息"""
+    try:
+        cache_file_lock = filelock.FileLock(
+            str(settings.USER_INFO_CACHE_PATH) + ".lock"
+        )
+        if settings.USER_INFO_CACHE_PATH.exists():
+            with open(settings.USER_INFO_CACHE_PATH, "rb") as f:
+                cache = pickle.load(f)
+        else:
+            cache = {}
+        db = DB()
+
+        # 从 statistics 表获取所有用户
+        stats_users = db.cur.execute("SELECT tg_id FROM statistics").fetchall()
+        stats_users = [user[0] for user in stats_users]
+
+        for tg_id in stats_users:
+            # 缓存保留 7 天
+            if tg_id in cache:
+                if time() - cache.get(tg_id).get("added") <= 7 * 24 * 3600:
+                    continue
+            retry = 10
+            while retry > 0:
+                try:
+                    response = requests.get(
+                        url=f"https://api.telegram.org/bot{token}/getChat?chat_id={tg_id}"
+                    )
+                except Exception as e:
+                    logger.error(f"Error: {e}, retrying in 1 seconds...")
+                    sleep(1)
+                    retry -= 1
+                    continue
+                else:
+                    if not response.ok:
+                        logger.error(f"Error: failed to get info. for {tg_id}")
+                        return {}
+                    break
+            result = response.json().get("result", {})
+            user_info = {
+                "first_name": result.get("first_name"),
+                "username": result.get("username"),
+                "added": time(),
+            }
+            # 获取用户 photo url
+            photo_url = get_user_photo_url(tg_id, token=token)
+            user_info["photo_url"] = photo_url
+            # add cache
+            cache.update({tg_id: user_info})
+            with cache_file_lock:
+                with open(settings.USER_INFO_CACHE_PATH, "wb") as f:
+                    pickle.dump(cache, f)
+    except Exception as e:
+        logger.error(f"Refresh user tg info failed: {e}")
+    finally:
+        db.close()
 
 
 class SingletonMeta(type):
