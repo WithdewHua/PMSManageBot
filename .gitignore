@@ -306,6 +306,7 @@ cython_debug/
 # custom
 config.py
 *.db
+data/
 
 # Node.js / Vue
 webapp-frontend/node_modules/

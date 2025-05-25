@@ -243,7 +243,7 @@
                 ></v-switch>
               </div>
               
-              <div class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex justify-space-between mb-3 align-center">
                 <div class="d-flex align-center">
                   <v-icon size="small" color="purple-darken-2" class="mr-2">mdi-crown</v-icon>
                   <span>Emby 高级线路开放：</span>
@@ -255,6 +255,24 @@
                   hide-details
                   @change="updateEmbyPremiumFree"
                 ></v-switch>
+              </div>
+              
+              <!-- 捐赠管理 -->
+              <v-divider class="my-3"></v-divider>
+              <div class="d-flex justify-space-between align-center">
+                <div class="d-flex align-center">
+                  <v-icon size="small" color="red-darken-2" class="mr-2">mdi-gift</v-icon>
+                  <span>捐赠记录管理：</span>
+                </div>
+                <v-btn
+                  color="red-darken-2"
+                  variant="outlined"
+                  size="small"
+                  @click="openDonationDialog"
+                >
+                  <v-icon start size="small">mdi-plus</v-icon>
+                  添加捐赠
+                </v-btn>
               </div>
             </div>
           </v-card-text>
@@ -275,6 +293,12 @@
       :current-credits="userInfo.credits"
       @operation-completed="handleNsfwOperationCompleted"
     />
+    
+    <!-- 使用捐赠对话框组件 -->
+    <donation-dialog
+      ref="donationDialog"
+      @donation-submitted="handleDonationSubmitted"
+    />
   </div>
 </template>
 
@@ -282,6 +306,7 @@
 import { getUserInfo } from '@/api'
 import EmbyLineSelector from '@/components/EmbyLineSelector.vue'
 import NsfwDialog from '@/components/NsfwDialog.vue'
+import DonationDialog from '@/components/DonationDialog.vue'
 import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
 import { getAdminSettings, setPlexRegister, setEmbyRegister, setEmbyPremiumFree } from '@/services/adminService.js'
 
@@ -289,7 +314,8 @@ export default {
   name: 'UserInfo',
   components: {
     EmbyLineSelector,
-    NsfwDialog
+    NsfwDialog,
+    DonationDialog
   },
   data() {
     return {
@@ -457,6 +483,17 @@ export default {
       } else {
         alert(message);
       }
+    },
+    
+    // 打开捐赠对话框
+    openDonationDialog() {
+      this.$refs.donationDialog.open();
+    },
+    
+    // 处理捐赠提交成功事件
+    handleDonationSubmitted(donationData) {
+      // 可以在这里刷新用户信息或显示成功提示
+      this.showMessage(`成功为用户添加 ${donationData.amount}元 捐赠记录`);
     }
   }
 }

@@ -3,9 +3,10 @@
 import asyncio
 import logging
 import pickle
-from time import time
+from time import sleep, time
 
 import aiohttp
+import filelock
 import requests
 from app.config import settings
 from telegram.ext import ContextTypes
@@ -74,42 +75,94 @@ def caculate_credits_fund(unlock_time, unlock_credits: int):
         return 0
 
 
-def get_user_name_from_tg_id(chat_id, token=settings.TG_API_TOKEN):
+def get_user_info_from_tg_id(chat_id, token=settings.TG_API_TOKEN):
     """Get telegram user's info
     cache format: {tg_id: {"first_name": first_name, "username": username, "added": timestamp}}
     """
     cache_file = settings.DATA_PATH / "tg_user_info.cache"
+    cache_file_lock = filelock.FileLock(str(cache_file) + ".lock")
     cache = {}
-    if cache_file.exists():
-        with open(cache_file, "rb") as f:
-            cache = pickle.load(f)
-    # get from cache if exists
-    current_time = time()
-    if cache and chat_id in cache:
-        user_info = cache.get(chat_id)
-        # if not expire (7d)
-        if current_time - user_info.get("added") < 7 * 24 * 3600:
-            return user_info.get("first_name") or user_info.get("username") or chat_id
-    response = requests.get(
-        url=f"https://api.telegram.org/bot{token}/getChat?chat_id={chat_id}"
-    )
-    if not response.ok:
-        logging.error(f"Error: failed to get info. for {chat_id}")
-        return chat_id
-    result = response.json().get("result", {})
-    # add cache
-    cache.update(
-        {
-            chat_id: {
-                "first_name": result.get("first_name"),
-                "username": result.get("username"),
-                "added": current_time,
-            }
+    with cache_file_lock:
+        if cache_file.exists():
+            with open(cache_file, "rb") as f:
+                cache = pickle.load(f)
+        # get from cache if exists
+        current_time = time()
+        if cache and chat_id in cache:
+            user_info = cache.get(chat_id)
+            # if not expire (7d)
+            if current_time - user_info.get("added") < 7 * 24 * 3600:
+                return user_info
+        retry = 10
+        while retry > 0:
+            try:
+                response = requests.get(
+                    url=f"https://api.telegram.org/bot{token}/getChat?chat_id={chat_id}"
+                )
+            except Exception as e:
+                logging.error(f"Error: {e}, retrying in 1 seconds...")
+                sleep(1)
+                retry -= 1
+                continue
+            else:
+                if not response.ok:
+                    logging.error(f"Error: failed to get info. for {chat_id}")
+                    return {}
+                break
+        result = response.json().get("result", {})
+        user_info = {
+            "first_name": result.get("first_name"),
+            "username": result.get("username"),
+            "added": current_time,
         }
-    )
-    with open(cache_file, "wb") as f:
-        pickle.dump(cache, f)
-    return result.get("first_name") or result.get("username") or chat_id
+        # 获取用户 photo url
+        photo_url = get_user_photo_url(chat_id, token=token)
+        user_info["photo_url"] = photo_url
+        # add cache
+        cache.update({chat_id: photo_url})
+        with open(cache_file, "wb") as f:
+            pickle.dump(cache, f)
+        return user_info
+
+
+def get_user_photo_url(tg_id: int, token: str = settings.TG_API_TOKEN):
+    """获取 Telegram 头像"""
+    retry = 5
+    while retry > 0:
+        try:
+            # 获取用户头像
+            photos_response = requests.get(
+                f"https://api.telegram.org/bot{token}/getUserProfilePhotos?user_id={tg_id}&limit=1"
+            )
+            photo_url = None
+            if photos_response.ok:
+                photos_data = photos_response.json()
+                if photos_data.get("result", {}).get("total_count", 0) > 0:
+                    photo_file_id = photos_data["result"]["photos"][0][0]["file_id"]
+
+                    # 获取文件路径
+                    file_response = requests.get(
+                        f"https://api.telegram.org/bot{token}/getFile?file_id={photo_file_id}"
+                    )
+                    if file_response.ok:
+                        file_data = file_response.json()
+                        if file_data.get("ok"):
+                            file_path = file_data["result"]["file_path"]
+                            photo_url = (
+                                f"https://api.telegram.org/file/bot{token}/{file_path}"
+                            )
+
+            return photo_url
+        except Exception:
+            logging.error(f"Error: failed to get photo for {tg_id}, retrying...")
+            sleep(1)
+            retry -= 1
+    return None
+
+
+def get_user_name_from_tg_id(chat_id, token=settings.TG_API_TOKEN):
+    user_info = get_user_info_from_tg_id(chat_id, token=token)
+    return user_info.get("first_name") or user_info.get("username") or chat_id
 
 
 class SingletonMeta(type):

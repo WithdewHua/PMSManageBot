@@ -2,7 +2,11 @@ from app.cache import emby_last_user_defined_line_cache, emby_user_defined_line_
 from app.config import settings
 from app.db import DB
 from app.log import uvicorn_logger as logger
-from app.utils import send_message_by_url
+from app.utils import (
+    get_user_info_from_tg_id,
+    get_user_name_from_tg_id,
+    send_message_by_url,
+)
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import BaseResponse, TelegramUser
@@ -175,3 +179,110 @@ async def unbind_emby_premium_free():
     finally:
         db.close()
         logger.debug("数据库连接已关闭")
+
+
+@router.get("/users")
+@require_telegram_auth
+async def get_all_users(
+    request: Request, user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取所有用户信息（用于捐赠管理）"""
+    check_admin_permission(user)
+
+    try:
+        db = DB()
+
+        # 从 statistics 表获取所有用户
+        stats_users = db.cur.execute(
+            "SELECT tg_id, donation, credits FROM statistics"
+        ).fetchall()
+
+        user_list = []
+        for tg_id, donation, credits in stats_users:
+            if tg_id:  # 确保tg_id不为空
+                # 获取用户的Telegram信息
+                tg_info = get_user_info_from_tg_id(tg_id)
+
+                user_list.append(
+                    {
+                        "tg_id": tg_id,
+                        "display_name": tg_info["first_name"] or tg_info["username"],
+                        "photo_url": tg_info["photo_url"],
+                        "current_donation": float(donation) if donation else 0.0,
+                        "current_credits": float(credits) if credits else 0.0,
+                    }
+                )
+
+        logger.info(
+            f"管理员 {user.username or user.id} 获取了 {len(user_list)} 个用户信息"
+        )
+        return user_list
+
+    except Exception as e:
+        logger.error(f"获取用户列表失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取用户列表失败")
+    finally:
+        db.close()
+
+
+@router.post("/donation")
+@require_telegram_auth
+async def submit_donation_record(
+    request: Request,
+    data: dict = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """提交捐赠记录"""
+    check_admin_permission(user)
+
+    try:
+        tg_id = data.get("tg_id")
+        amount = data.get("amount", 0)
+        note = data.get("note", "")
+
+        if not tg_id or amount <= 0:
+            return BaseResponse(success=False, message="参数错误")
+
+        db = DB()
+
+        # 获取当前捐赠金额
+        stats_info = db.get_stats_by_tg_id(tg_id)
+        if not stats_info:
+            return BaseResponse(success=False, message="用户不存在")
+
+        current_donation = stats_info[1] if stats_info[1] else 0
+        new_donation = current_donation + float(amount)
+
+        # 更新捐赠金额
+        success = db.update_user_donation(new_donation, tg_id)
+
+        if success:
+            # 获取用户显示名称
+            user_name = get_user_name_from_tg_id(tg_id)
+
+            logger.info(
+                f"管理员 {user.username or user.id} 为用户 {user_name}({tg_id}) 添加捐赠记录: {amount}元"
+                + (f", 备注: {note}" if note else "")
+            )
+
+            # 发送通知给用户
+            try:
+                await send_message_by_url(
+                    chat_id=tg_id,
+                    text=f"感谢您的捐赠！\n\n💰 本次捐赠: {amount}元\n💳 累计捐赠: {new_donation}元"
+                    + (f"\n📝 备注: {note}" if note else ""),
+                )
+            except Exception as e:
+                logger.warning(f"发送捐赠通知失败: {str(e)}")
+
+            return BaseResponse(
+                success=True, message=f"成功为 {user_name} 添加 {amount}元 捐赠记录"
+            )
+        else:
+            return BaseResponse(success=False, message="更新捐赠记录失败")
+
+    except Exception as e:
+        logger.error(f"提交捐赠记录失败: {str(e)}")
+        return BaseResponse(success=False, message="提交失败")
+    finally:
+        db.close()
