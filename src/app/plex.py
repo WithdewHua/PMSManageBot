@@ -19,6 +19,7 @@ class Plex:
         self.plex_server = PlexServer(baseurl=base_url, token=token)
         self.my_plex_account = self.plex_server.myPlexAccount()
         self.plex_server_name = self.plex_server.friendlyName
+        self.users = {}
         self.get_users()
 
     def get_libraries(self) -> list:
@@ -32,6 +33,7 @@ class Plex:
         for user in users:
             self.users_by_id.update({user.id: (user.username, user)})
             self.users_by_email.update({user.email: (user.id, user)})
+            self.users.update({user.username: user})
 
     def get_user_id_by_email(self, email: str) -> int:
         """get user's id by email"""
@@ -46,6 +48,13 @@ class Plex:
         if not _user:
             return ""
         return _user[0]
+
+    def get_user_avatar_by_username(self, username: str) -> str:
+        """get user's avatar by username"""
+        user = self.users.get(username, None)
+        if not user:
+            return ""
+        return user.thumb
 
     def get_user_shared_libs_by_id(self, user_id) -> list:
         """get shared libraries with specified user by id"""

@@ -9,6 +9,7 @@ import filelock
 import requests
 from app.config import settings
 from app.db import DB
+from app.emby import Emby
 from app.log import logger
 from telegram.ext import ContextTypes
 
@@ -138,7 +139,7 @@ def get_user_avatar_from_tg_id(chat_id, token=settings.TG_API_TOKEN):
     return user_info.get("photo_url")
 
 
-def refresh_user_info(token: str = settings.TG_API_TOKEN):
+def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
     """刷新用户信息"""
     try:
         cache_file_lock = filelock.FileLock(
@@ -192,6 +193,36 @@ def refresh_user_info(token: str = settings.TG_API_TOKEN):
                     pickle.dump(cache, f)
     except Exception as e:
         logger.error(f"Refresh user tg info failed: {e}")
+    finally:
+        db.close()
+
+
+def refresh_emby_user_info():
+    """刷新 emby user info"""
+    emby = Emby()
+    cache = {}
+    # 获取所有的 emby 用户名
+    try:
+        db = DB()
+
+        emby_users = db.cur.execute("SELECT emby_username from emby_user").fetchall()
+        emby_users = [user[0] for user in emby_users]
+        with emby.cache_lock:
+            if emby.cache.exists():
+                with open(emby.cache, "rb") as f:
+                    cache = pickle.load(f)
+            for user in emby_users:
+                if user in cache:
+                    user_info = cache.get(user)
+                    # 缓存小于 7 天，跳过不处理
+                    if time() - user_info.get("added_time") < 7 * 24 * 3600:
+                        continue
+                user_info = emby.get_user_info_from_username(user)
+                cache.update({user: user_info})
+            with open(emby.cache, "wb") as f:
+                pickle.dump(cache, f)
+    except Exception as e:
+        logger.error(f"Refresh emby user info failed: {e}")
     finally:
         db.close()
 

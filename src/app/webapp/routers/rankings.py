@@ -1,5 +1,7 @@
 from app.db import DB
+from app.emby import Emby
 from app.log import uvicorn_logger as logger
+from app.plex import Plex
 from app.utils import get_user_avatar_from_tg_id, get_user_name_from_tg_id
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
@@ -40,19 +42,29 @@ async def get_rankings(
 
         # 获取播放时长排行
         watched_time_rank_plex, watched_time_rank_emby = [], []
+        plex = Plex()
+        emby = Emby()
         try:
             logger.debug("正在查询播放时长排行")
             plex_watch_time_data = db.get_plex_watched_time_rank()
             emby_watch_time_data = db.get_emby_watched_time_rank()
             if plex_watch_time_data:
                 watched_time_rank_plex = [
-                    {"name": info[2], "watched_time": info[3]}
+                    {
+                        "name": info[2],
+                        "watched_time": info[3],
+                        "avatar": plex.get_user_avatar_by_username(info[2]),
+                    }
                     for info in plex_watch_time_data
                     if info[3] > 0
                 ]
             if emby_watch_time_data:
                 watched_time_rank_emby = [
-                    {"name": info[1], "watched_time": info[2]}
+                    {
+                        "name": info[1],
+                        "watched_time": info[2],
+                        "avatar": emby.get_user_avatar_by_username(info[1]),
+                    }
                     for info in emby_watch_time_data
                     if info[2] > 0
                 ]

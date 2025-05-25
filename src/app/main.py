@@ -14,7 +14,7 @@ from app.handlers.user import *
 from app.log import logger
 from app.scheduler import Scheduler
 from app.update_db import update_credits, update_emby_credits, update_plex_info
-from app.utils import refresh_user_info
+from app.utils import refresh_emby_user_info, refresh_tg_user_info
 from telegram.ext import ApplicationBuilder
 
 
@@ -85,7 +85,7 @@ def add_init_scheduler_job():
 
     # 每 12 小时更新 tg 用户信息
     scheduler.add_job(
-        func=refresh_user_info,
+        func=refresh_tg_user_info,
         trigger="cron",
         id="refresh_user_info",
         replace_existing=True,
@@ -96,6 +96,20 @@ def add_init_scheduler_job():
         next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=30),
     )
     logger.info("添加定时任务：每 12 小时刷新 Telegram 用户信息")
+
+    # 每天早上 7 点刷新 emby 用户信息
+    scheduler.add_job(
+        func=refresh_emby_user_info,
+        trigger="cron",
+        id="refresh_emby_user_info",
+        replace_existing=True,
+        max_instances=1,
+        day_of_week="*",
+        hour=7,
+        minute=0,
+        next_run_time=datetime.datetime.now() + datetime.timedelta(minutes=5),
+    )
+    logger.info("添加定时任务：每天早上 07:00 更新 Emby 用户信息")
 
 
 if __name__ == "__main__":

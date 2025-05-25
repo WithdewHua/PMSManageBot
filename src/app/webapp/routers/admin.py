@@ -186,7 +186,7 @@ async def unbind_emby_premium_free():
 
 @router.get("/users")
 @require_telegram_auth
-async def get_all_users(
+async def get_all_tg_users(
     request: Request, user: TelegramUser = Depends(get_telegram_user)
 ):
     """获取所有用户信息（用于捐赠管理）"""

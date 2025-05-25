@@ -203,7 +203,14 @@
                       <template v-slot:default>
                         <div class="d-flex align-center">
                           <v-avatar class="user-avatar" size="44" style="margin-right: 16px;">
-                            <v-icon size="24" color="orange">mdi-plex</v-icon>
+                            <v-img 
+                              v-if="item.avatar" 
+                              :src="item.avatar" 
+                              :alt="item.name"
+                              @error="handleImageError"
+                              class="avatar-img"
+                            />
+                            <v-icon v-else size="24" color="orange">mdi-plex</v-icon>
                           </v-avatar>
                           <div class="user-info flex-grow-1">
                             <v-list-item-title class="user-name">{{ item.name }}</v-list-item-title>
@@ -263,7 +270,14 @@
                       <template v-slot:default>
                         <div class="d-flex align-center">
                           <v-avatar class="user-avatar" size="44" style="margin-right: 16px;">
-                            <v-icon size="24" color="green">mdi-server</v-icon>
+                            <v-img 
+                              v-if="item.avatar" 
+                              :src="item.avatar" 
+                              :alt="item.name"
+                              @error="handleImageError"
+                              class="avatar-img"
+                            />
+                            <v-icon v-else size="24" color="green">mdi-server</v-icon>
                           </v-avatar>
                           <div class="user-info flex-grow-1">
                             <v-list-item-title class="user-name">{{ item.name }}</v-list-item-title>

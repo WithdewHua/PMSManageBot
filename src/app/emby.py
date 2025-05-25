@@ -1,6 +1,8 @@
 #! /usr/bin/env python3
 
 import json
+import pickle
+from time import time
 from typing import Any, Optional, Union
 
 import requests
@@ -9,6 +11,9 @@ from app.log import logger
 
 
 class Emby:
+    cache = settings.DATA_PATH / "emby_user_info.cache"
+    cache_lock = settings.DATA_PATH / "emby_user_info.cache.lock"
+
     def __init__(
         self,
         base_url: str = settings.EMBY_BASE_URL,
@@ -46,28 +51,77 @@ class Emby:
             return False, str(e)
 
     def get_uid_from_username(self, username: str) -> Optional[str]:
-        headers = {"accept": "application/json"}
+        return self.get_user_info_from_username(username).get("id")
 
-        params = {
-            "IsHidden": "true",
-            "IsDisabled": "false",
-            "Limit": "1",
-            "NameStartsWithOrGreater": username,
-            "api_key": self.api_token,
-        }
+    def get_user_info_from_username(self, username: str):
+        cache = {}
+        with self.cache_lock:
+            if self.cache.exists():
+                with open(self.cache, "rb") as f:
+                    cache = pickle.load(f)
+            if username in cache:
+                return cache[username]
 
-        response = requests.get(
-            url=self.base_url + "/Users/Query", params=params, headers=headers
-        )
+            headers = {"accept": "application/json"}
 
-        response_json = response.json()
+            params = {
+                "IsHidden": "true",
+                "IsDisabled": "false",
+                "Limit": "1",
+                "NameStartsWithOrGreater": username,
+                "api_key": self.api_token,
+            }
 
-        name = response_json["Items"][0]["Name"]
-        # 判断用户名是否一致
-        if name != username:
-            return None
+            retry = 3
+            while retry > 0:
+                try:
+                    response = requests.get(
+                        url=self.base_url + "/Users/Query",
+                        params=params,
+                        headers=headers,
+                    )
 
-        return response_json["Items"][0]["Id"]
+                    response_json = response.json()
+                    logger.debug(f"{response_json=}")
+
+                    if response.status_code == 200 and response_json.get("Items"):
+                        name = response_json["Items"][0]["Name"]
+                        break
+                except Exception as e:
+                    logger.error(f"Error fetching user ID for {username}: {e}")
+                    retry -= 1
+
+            # 判断用户名是否一致
+            if name != username:
+                return {}
+
+            user_id = response_json["Items"][0]["Id"]
+            primary_image_tag = response_json["Items"][0].get("PrimaryImageTag", "")
+            user_avatar = (
+                self.base_url
+                + "/Users/"
+                + user_id
+                + f"/Images/Primary?tag={primary_image_tag}"
+                if primary_image_tag
+                else ""
+            )
+            user_info = {
+                "id": user_id,
+                "name": name,
+                "avatar": user_avatar,
+                "date_created": response_json["Items"][0]["DateCreated"],
+                "added_time": time(),
+            }
+            cache[username] = user_info
+            with open(self.cache, "wb") as f:
+                pickle.dump(cache, f)
+
+            return user_info
+
+    def get_user_avatar_by_username(self, username: str) -> str:
+        """获取用户头像 URL"""
+        user_info = self.get_user_info_from_username(username)
+        return user_info.get("avatar", "")
 
     def get_user_total_play_time(self) -> dict[str, str]:
         headers = {"accept": "application/json", "Content-Type": "application/json"}
