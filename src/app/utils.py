@@ -179,9 +179,9 @@ def refresh_user_info(token: str = settings.TG_API_TOKEN):
             user_info["photo_url"] = photo_url
             # add cache
             cache.update({tg_id: user_info})
-        with cache_file_lock:
-            with open(settings.USER_INFO_CACHE_PATH, "wb") as f:
-                pickle.dump(cache, f)
+            with cache_file_lock:
+                with open(settings.USER_INFO_CACHE_PATH, "wb") as f:
+                    pickle.dump(cache, f)
     except Exception as e:
         logger.error(f"Refresh user tg info failed: {e}")
     finally:
