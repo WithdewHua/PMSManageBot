@@ -54,7 +54,7 @@ class Emby:
     def get_uid_from_username(self, username: str) -> Optional[str]:
         return self.get_user_info_from_username(username).get("id")
 
-    def get_user_info_from_username(self, username: str):
+    def get_user_info_from_username(self, username: str, from_emby=True):
         cache = {}
         with self.cache_lock:
             if self.cache.exists():
@@ -62,6 +62,10 @@ class Emby:
                     cache = pickle.load(f)
             if username in cache:
                 return cache[username]
+
+            if not from_emby:
+                # 如果不从 Emby 获取，则直接返回空字典
+                return {}
 
             headers = {"accept": "application/json"}
 
@@ -120,9 +124,9 @@ class Emby:
 
             return user_info
 
-    def get_user_avatar_by_username(self, username: str) -> str:
+    def get_user_avatar_by_username(self, username: str, from_emby=True) -> str:
         """获取用户头像 URL"""
-        user_info = self.get_user_info_from_username(username)
+        user_info = self.get_user_info_from_username(username, from_emby)
         return user_info.get("avatar", "")
 
     def get_user_total_play_time(self) -> dict[str, str]:

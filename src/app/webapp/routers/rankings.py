@@ -153,7 +153,9 @@ async def get_emby_watched_time_rankings(
                     {
                         "name": info[1],
                         "watched_time": info[2],
-                        "avatar": emby.get_user_avatar_by_username(info[1]),
+                        "avatar": emby.get_user_avatar_by_username(
+                            info[1], from_emby=False
+                        ),
                     }
                     for info in emby_watch_time_data
                     if info[2] > 0
