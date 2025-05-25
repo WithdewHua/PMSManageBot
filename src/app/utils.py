@@ -132,6 +132,12 @@ def get_user_name_from_tg_id(chat_id, token=settings.TG_API_TOKEN):
     return user_info.get("first_name") or user_info.get("username") or chat_id
 
 
+def get_user_avatar_from_tg_id(chat_id, token=settings.TG_API_TOKEN):
+    """从缓存中获取用户头像URL"""
+    user_info = get_user_info_from_tg_id(chat_id, token=token)
+    return user_info.get("photo_url")
+
+
 def refresh_user_info(token: str = settings.TG_API_TOKEN):
     """刷新用户信息"""
     try:

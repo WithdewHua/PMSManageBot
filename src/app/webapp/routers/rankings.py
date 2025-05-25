@@ -1,6 +1,6 @@
 from app.db import DB
 from app.log import uvicorn_logger as logger
-from app.utils import get_user_name_from_tg_id
+from app.utils import get_user_avatar_from_tg_id, get_user_name_from_tg_id
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import TelegramUser
@@ -27,7 +27,11 @@ async def get_rankings(
             donation_data = db.get_donation_rank()
             if donation_data:
                 donation_rankings = [
-                    {"name": get_user_name_from_tg_id(info[0]), "donation": info[1]}
+                    {
+                        "name": get_user_name_from_tg_id(info[0]),
+                        "donation": info[1],
+                        "avatar": get_user_avatar_from_tg_id(info[0]),
+                    }
                     for info in donation_data
                     if info[1] > 0
                 ]
@@ -62,7 +66,11 @@ async def get_rankings(
             credits_data = db.get_credits_rank()
             if credits_data:
                 credits_rankings = [
-                    {"name": get_user_name_from_tg_id(info[0]), "credits": info[1]}
+                    {
+                        "name": get_user_name_from_tg_id(info[0]),
+                        "credits": info[1],
+                        "avatar": get_user_avatar_from_tg_id(info[0]),
+                    }
                     for info in credits_data
                     if info[1] > 0
                 ]
