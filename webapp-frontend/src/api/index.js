@@ -36,8 +36,12 @@ export const getDonationRankings = () => {
   return apiClient.get('/api/rankings/donation')
 }
 
-export const getWatchedTimeRankings = () => {
-  return apiClient.get('/api/rankings/watched-time')
+export const getPlexWatchedTimeRankings = () => {
+  return apiClient.get('/api/rankings/watched-time/plex')
+}
+
+export const getEmbyWatchedTimeRankings = () => {
+  return apiClient.get('/api/rankings/watched-time/emby')
 }
 
 // 导出解析 initData 方法和获取用户方法

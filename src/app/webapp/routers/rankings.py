@@ -89,25 +89,23 @@ async def get_donation_rankings(
         logger.debug("数据库连接已关闭")
 
 
-@router.get("/rankings/watched-time")
+@router.get("/rankings/watched-time/plex")
 @require_telegram_auth
-async def get_watched_time_rankings(
+async def get_plex_watched_time_rankings(
     request: Request, user: TelegramUser = Depends(get_telegram_user)
 ):
-    """获取观看时长排行榜数据"""
+    """获取Plex观看时长排行榜数据"""
     logger.info(
-        f"{user.username or user.first_name or user.id} 开始获取观看时长排行榜数据"
+        f"{user.username or user.first_name or user.id} 开始获取Plex观看时长排行榜数据"
     )
 
     db = DB()
     try:
-        watched_time_rank_plex, watched_time_rank_emby = [], []
+        watched_time_rank_plex = []
         plex = Plex()
-        emby = Emby()
         try:
-            logger.debug("正在查询播放时长排行")
+            logger.debug("正在查询Plex播放时长排行")
             plex_watch_time_data = db.get_plex_watched_time_rank()
-            emby_watch_time_data = db.get_emby_watched_time_rank()
             if plex_watch_time_data:
                 watched_time_rank_plex = [
                     {
@@ -118,6 +116,38 @@ async def get_watched_time_rankings(
                     for info in plex_watch_time_data
                     if info[3] > 0
                 ]
+        except Exception as e:
+            logger.error(f"获取Plex播放时长排行失败: {str(e)}")
+
+        logger.info(
+            f"{user.username or user.first_name or user.id} 获取Plex观看时长排行榜数据成功"
+        )
+        return {"watched_time_rank_plex": watched_time_rank_plex}
+    except Exception as e:
+        logger.error(f"获取Plex观看时长排行榜数据时发生未预期的错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取Plex观看时长排行榜数据失败")
+    finally:
+        db.close()
+        logger.debug("数据库连接已关闭")
+
+
+@router.get("/rankings/watched-time/emby")
+@require_telegram_auth
+async def get_emby_watched_time_rankings(
+    request: Request, user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取Emby观看时长排行榜数据"""
+    logger.info(
+        f"{user.username or user.first_name or user.id} 开始获取Emby观看时长排行榜数据"
+    )
+
+    db = DB()
+    try:
+        watched_time_rank_emby = []
+        emby = Emby()
+        try:
+            logger.debug("正在查询Emby播放时长排行")
+            emby_watch_time_data = db.get_emby_watched_time_rank()
             if emby_watch_time_data:
                 watched_time_rank_emby = [
                     {
@@ -129,18 +159,15 @@ async def get_watched_time_rankings(
                     if info[2] > 0
                 ]
         except Exception as e:
-            logger.error(f"获取播放时长排行失败: {str(e)}")
+            logger.error(f"获取Emby播放时长排行失败: {str(e)}")
 
         logger.info(
-            f"{user.username or user.first_name or user.id} 获取观看时长排行榜数据成功"
+            f"{user.username or user.first_name or user.id} 获取Emby观看时长排行榜数据成功"
         )
-        return {
-            "watched_time_rank_plex": watched_time_rank_plex,
-            "watched_time_rank_emby": watched_time_rank_emby,
-        }
+        return {"watched_time_rank_emby": watched_time_rank_emby}
     except Exception as e:
-        logger.error(f"获取观看时长排行榜数据时发生未预期的错误: {str(e)}")
-        raise HTTPException(status_code=500, detail="获取观看时长排行榜数据失败")
+        logger.error(f"获取Emby观看时长排行榜数据时发生未预期的错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取Emby观看时长排行榜数据失败")
     finally:
         db.close()
         logger.debug("数据库连接已关闭")

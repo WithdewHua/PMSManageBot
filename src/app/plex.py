@@ -3,6 +3,7 @@
 import logging
 from typing import Union
 
+import filelock
 from app.config import settings
 from plexapi.myplex import Section
 from plexapi.server import PlexServer
@@ -10,6 +11,9 @@ from plexapi.server import PlexServer
 
 class Plex:
     """class Plex"""
+
+    cache = settings.DATA_PATH / "plex_user_info.cache"
+    cache_lock = filelock.FileLock(str(cache) + ".lock")
 
     def __init__(
         self,
@@ -19,24 +23,26 @@ class Plex:
         self.plex_server = PlexServer(baseurl=base_url, token=token)
         self.my_plex_account = self.plex_server.myPlexAccount()
         self.plex_server_name = self.plex_server.friendlyName
-        self.users = {}
-        self.get_users()
+        self.users = []
+        self.users_info = {}
+        self.users_by_id = {}
+        self.users_by_email = {}
 
     def get_libraries(self) -> list:
         return [section.title for section in self.plex_server.library.sections()]
 
     def get_users(self):
-        users = [user for user in self.my_plex_account.users()]
-        users.append(self.my_plex_account)
-        self.users_by_id = {}
-        self.users_by_email = {}
-        for user in users:
+        self.users = [user for user in self.my_plex_account.users()]
+        self.users.append(self.my_plex_account)
+        for user in self.users:
             self.users_by_id.update({user.id: (user.username, user)})
             self.users_by_email.update({user.email: (user.id, user)})
-            self.users.update({user.username: user})
+            self.users_info.update({user.username: user})
 
     def get_user_id_by_email(self, email: str) -> int:
         """get user's id by email"""
+        if not self.users_by_email:
+            self.get_users()
 
         _user = self.users_by_email.get(email, None)
         if not _user:
@@ -44,6 +50,8 @@ class Plex:
         return _user[0]
 
     def get_username_by_user_id(self, user_id):
+        if not self.users_by_id:
+            self.get_users()
         _user = self.users_by_id.get(user_id, None)
         if not _user:
             return ""
@@ -51,7 +59,9 @@ class Plex:
 
     def get_user_avatar_by_username(self, username: str) -> str:
         """get user's avatar by username"""
-        user = self.users.get(username, None)
+        if not self.users_info:
+            self.get_users()
+        user = self.users_info.get(username, None)
         if not user:
             return ""
         return user.thumb
@@ -116,6 +126,9 @@ class Plex:
 
         if isinstance(add_sections, str):
             add_sections = [add_sections]
+
+        if not self.users_by_email:
+            self.get_users()
 
         for email, user_info in self.users_by_email.items():
             if (not email) or email == settings.PLEX_ADMIN_EMAIL:

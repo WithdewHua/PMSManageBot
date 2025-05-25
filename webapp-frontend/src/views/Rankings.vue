@@ -136,11 +136,22 @@
 
           <!-- 观看时长榜 -->
           <v-window-item value="watched">
-            <div v-if="rankings.watched_time_rank_plex.length === 0 && rankings.watched_time_rank_emby.length === 0" class="text-center my-5">
+            <!-- 观看时长数据源加载中 -->
+            <div v-if="loading[watchedTimeSource]" class="text-center my-10">
+              <v-progress-circular indeterminate color="primary"></v-progress-circular>
+              <div class="mt-3">加载{{ watchedTimeSource.toUpperCase() }}数据中...</div>
+            </div>
+            
+            <!-- 没有数据的情况 -->
+            <div v-else-if="(watchedTimeSource === 'plex' && rankings.watched_time_rank_plex.length === 0) || 
+                            (watchedTimeSource === 'emby' && rankings.watched_time_rank_emby.length === 0)" 
+                 class="text-center my-5">
               <v-list-item>
-                <v-list-item-title>暂无数据</v-list-item-title>
+                <v-list-item-title class="text-grey">暂无{{ watchedTimeSource.toUpperCase() }}数据</v-list-item-title>
               </v-list-item>
             </div>
+            
+            <!-- 有数据的情况 -->
             <v-row v-else>
               <v-col cols="12">
                 <div class="d-flex justify-space-between align-center mb-4">
@@ -455,7 +466,7 @@
 </template>
 
 <script>
-import { getCreditsRankings, getDonationRankings, getWatchedTimeRankings } from '@/api'
+import { getCreditsRankings, getDonationRankings, getPlexWatchedTimeRankings, getEmbyWatchedTimeRankings } from '@/api'
 import { getWatchLevelIcons } from '@/utils/watchLevel.js'
 
 export default {
@@ -463,7 +474,7 @@ export default {
   data() {
     return {
       activeTab: 'credits',
-      watchedTimeSource: 'plex',
+      watchedTimeSource: 'emby',
       showLevelInfo: false,
       rankings: {
         credits_rank: [],
@@ -474,12 +485,16 @@ export default {
       loading: {
         credits: false,
         donation: false,
-        watched: false
+        watched: false,
+        plex: false,
+        emby: false
       },
       loaded: {
         credits: false,
         donation: false,
-        watched: false
+        watched: false,
+        plex: false,
+        emby: false
       },
       error: null
     }
@@ -487,6 +502,11 @@ export default {
   watch: {
     activeTab(newTab) {
       this.loadTabData(newTab)
+    },
+    watchedTimeSource(newSource) {
+      if (this.activeTab === 'watched') {
+        this.loadWatchedTimeData(newSource)
+      }
     }
   },
   mounted() {
@@ -515,9 +535,8 @@ export default {
             this.rankings.donation_rank = response.data.donation_rank
             break
           case 'watched':
-            response = await getWatchedTimeRankings()
-            this.rankings.watched_time_rank_plex = response.data.watched_time_rank_plex
-            this.rankings.watched_time_rank_emby = response.data.watched_time_rank_emby
+            // 观看时长tab被激活时，加载当前选中的数据源
+            await this.loadWatchedTimeData(this.watchedTimeSource)
             break
         }
         this.loaded[tab] = true
@@ -526,6 +545,33 @@ export default {
         console.error(`获取${this.getTabName(tab)}失败:`, err)
       } finally {
         this.loading[tab] = false
+      }
+    },
+
+    async loadWatchedTimeData(source) {
+      // 如果已经加载过该数据源的数据，直接返回
+      if (this.loaded[source]) {
+        return
+      }
+
+      this.loading[source] = true
+      this.error = null
+
+      try {
+        let response
+        if (source === 'plex') {
+          response = await getPlexWatchedTimeRankings()
+          this.rankings.watched_time_rank_plex = response.data.watched_time_rank_plex
+        } else if (source === 'emby') {
+          response = await getEmbyWatchedTimeRankings()
+          this.rankings.watched_time_rank_emby = response.data.watched_time_rank_emby
+        }
+        this.loaded[source] = true
+      } catch (err) {
+        this.error = err.response?.data?.detail || `获取${source.toUpperCase()}观看时长排行失败`
+        console.error(`获取${source.toUpperCase()}观看时长排行失败:`, err)
+      } finally {
+        this.loading[source] = false
       }
     },
 
@@ -539,6 +585,9 @@ export default {
     },
 
     isCurrentTabLoading() {
+      if (this.activeTab === 'watched') {
+        return this.loading[this.watchedTimeSource]
+      }
       return this.loading[this.activeTab]
     },
     
