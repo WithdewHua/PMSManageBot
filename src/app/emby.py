@@ -103,7 +103,7 @@ class Emby:
                 self.base_url
                 + "/Users/"
                 + user_id
-                + f"/Images/Primary?tag={primary_image_tag}"
+                + f"/Images/Primary?tag={primary_image_tag}&maxWidth=160&quality=90"
                 if primary_image_tag
                 else ""
             )
