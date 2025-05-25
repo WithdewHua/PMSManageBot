@@ -41,7 +41,7 @@
                     <v-icon v-else>mdi-account-circle</v-icon>
                   </v-avatar>
                 </template>
-                <v-list-item-title>{{ item.raw.display_name }}</v-list-item-title>
+                <v-list-item-title></v-list-item-title>
                 <v-list-item-subtitle>
                   ID: {{ item.raw.tg_id }}
                   <span v-if="item.raw.current_donation > 0">
