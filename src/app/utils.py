@@ -36,10 +36,12 @@ async def send_message_by_url(
     while retry > 0:
         try:
             url = f"https://api.telegram.org/bot{token}/sendMessage"
+            data = {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
+            logger.info(f"Sending message to {chat_id} via {url} with data: {data}")
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     url,
-                    data={"chat_id": chat_id, "text": text, "parse_mode": parse_mode},
+                    data=data,
                     timeout=3,
                 ) as response:
                     if response.status == 200:

@@ -254,11 +254,16 @@ async def submit_donation_record(
 
         current_donation = stats_info[1] if stats_info[1] else 0
         new_donation = current_donation + float(amount)
+        current_credits = stats_info[2] if stats_info[2] else 0
+        new_credits = current_credits + float(amount) * 2  # 捐赠金额的两倍作为积分
 
         # 更新捐赠金额
         success = db.update_user_donation(new_donation, tg_id)
 
         if success:
+            # 更新积分
+            db.update_user_credits(new_credits, tg_id)
+
             # 获取用户显示名称
             user_name = get_user_name_from_tg_id(tg_id)
 
@@ -271,8 +276,14 @@ async def submit_donation_record(
             try:
                 await send_message_by_url(
                     chat_id=tg_id,
-                    text=f"感谢您的捐赠！\n\n💰 本次捐赠: {amount}元\n💳 累计捐赠: {new_donation}元"
-                    + (f"\n📝 备注: {note}" if note else ""),
+                    text=f"""
+感谢您的捐赠！
+
+💰 本次捐赠: {amount}元
+💳 累计捐赠: {new_donation}元
+"""
+                    + (f"""📝 备注: {note}""" if note else ""),
+                    parse_mode="HTML",
                 )
             except Exception as e:
                 logger.warning(f"发送捐赠通知失败: {str(e)}")
