@@ -107,7 +107,7 @@ def add_init_scheduler_job():
         day_of_week="*",
         hour=7,
         minute=0,
-        next_run_time=datetime.datetime.now() + datetime.timedelta(minutes=5),
+        next_run_time=datetime.datetime.now() + datetime.timedelta(minutes=1),
     )
     logger.info("添加定时任务：每天早上 07:00 更新 Emby 用户信息")
 
