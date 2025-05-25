@@ -72,7 +72,7 @@ export async function setEmbyPremiumFree(enabled) {
 export async function getAllUsers() {
   try {
     const response = await apiClient.get('/api/admin/users');
-    return response;
+    return response.data;
   } catch (error) {
     console.error('获取用户列表失败:', error);
     throw error;
@@ -87,7 +87,7 @@ export async function getAllUsers() {
 export async function submitDonationRecord(donationData) {
   try {
     const response = await apiClient.post('/api/admin/donation', donationData);
-    return response;
+    return response.data;
   } catch (error) {
     console.error('提交捐赠记录失败:', error);
     throw error;
