@@ -80,8 +80,16 @@ class Settings(BaseSettings):
         return Path(self.DATA_DIR)
 
     @property
-    def USER_INFO_CACHE_PATH(self):
+    def TG_USER_INFO_CACHE_PATH(self):
         return self.DATA_PATH / "tg_user_info.cache"
+
+    @property
+    def TG_USER_PROFILE_CACHE_PATH(self):
+        if self.WEBAPP_ENABLE and Path(self.WEBAPP_STATIC_DIR).exists():
+            path = Path(self.WEBAPP_STATIC_DIR) / "pics"
+            if not path.exists():
+                path.mkdir(parents=True, exist_ok=True)
+        return path
 
     @property
     def ENV_FILE_PATH(self):

@@ -83,17 +83,17 @@ def get_user_info_from_tg_id(chat_id, token=settings.TG_API_TOKEN):
     """Get telegram user's info
     cache format: {tg_id: {"first_name": first_name, "username": username, "added": timestamp}}
     """
-    cache_file = settings.USER_INFO_CACHE_PATH
+    cache_file = settings.TG_USER_INFO_CACHE_PATH
     cache = {}
     if not cache_file.exists():
-        logger.warning(f"Not found {settings.USER_INFO_CACHE_PATH}")
+        logger.warning(f"Not found {settings.TG_USER_INFO_CACHE_PATH}")
         return {}
     with open(cache_file, "rb") as f:
         cache = pickle.load(f)
     return cache.get(chat_id, {})
 
 
-def get_user_photo_url(tg_id: int, token: str = settings.TG_API_TOKEN):
+def get_tg_user_photo_url(tg_id: int, token: str = settings.TG_API_TOKEN):
     """获取 Telegram 头像"""
     retry = 5
     while retry > 0:
@@ -143,10 +143,10 @@ def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
     """刷新用户信息"""
     try:
         cache_file_lock = filelock.FileLock(
-            str(settings.USER_INFO_CACHE_PATH) + ".lock"
+            str(settings.TG_USER_INFO_CACHE_PATH) + ".lock"
         )
-        if settings.USER_INFO_CACHE_PATH.exists():
-            with open(settings.USER_INFO_CACHE_PATH, "rb") as f:
+        if settings.TG_USER_INFO_CACHE_PATH.exists():
+            with open(settings.TG_USER_INFO_CACHE_PATH, "rb") as f:
                 cache = pickle.load(f)
         else:
             cache = {}
@@ -184,12 +184,25 @@ def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
                 "added": time(),
             }
             # 获取用户 photo url
-            photo_url = get_user_photo_url(tg_id, token=token)
-            user_info["photo_url"] = photo_url
+            photo_url = get_tg_user_photo_url(tg_id, token=token)
+            if photo_url:
+                # 下载头像到本地
+                photo_path = settings.TG_USER_PROFILE_CACHE_PATH / f"{tg_id}.jpg"
+                try:
+                    response = requests.get(photo_url, timeout=10)
+                    response.raise_for_status()
+                    if response.ok:
+                        with open(photo_path, "wb") as f:
+                            f.write(response.content)
+                except Exception as e:
+                    logger.error(f"Error: {e}")
+                user_info["photo_url"] = (
+                    f"{settings.WEBAPP_URL.strip('/')}/pics/{tg_id}.jpg"
+                )
             # add cache
             cache.update({tg_id: user_info})
             with cache_file_lock:
-                with open(settings.USER_INFO_CACHE_PATH, "wb") as f:
+                with open(settings.TG_USER_INFO_CACHE_PATH, "wb") as f:
                     pickle.dump(cache, f)
     except Exception as e:
         logger.error(f"Refresh user tg info failed: {e}")
