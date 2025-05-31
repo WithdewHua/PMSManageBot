@@ -13,7 +13,7 @@
         </v-chip>
       </template>
 
-      <v-card min-width="200">
+      <v-card min-width="320" max-width="400">
         <v-list>
           <v-list-item 
             @click="selectLine('AUTO')" 
@@ -27,15 +27,33 @@
           </v-list-item>
           
           <v-list-item 
-            v-for="line in availableLines" 
-            :key="line" 
-            @click="selectLine(line)" 
-            :active="currentLine === line"
-            :color="currentLine === line ? '#9333ea' : undefined"
+            v-for="lineInfo in availableLines" 
+            :key="lineInfo.name" 
+            @click="selectLine(lineInfo.name)" 
+            :active="currentLine === lineInfo.name"
+            :color="currentLine === lineInfo.name ? '#9333ea' : undefined"
+            class="line-item"
           >
-            <v-list-item-title>
-              {{ line }}
-              <v-icon v-if="currentLine === line" color="success" size="small" end>mdi-check</v-icon>
+            <v-list-item-title class="d-flex align-center justify-space-between">
+              <div class="line-name-container">
+                <span class="line-name">{{ lineInfo.name }}</span>
+                <div v-if="lineInfo.tags && lineInfo.tags.length > 0" class="tags-container mt-1">
+                  <v-chip
+                    v-for="tag in lineInfo.tags.slice(0, 3)"
+                    :key="tag"
+                    size="x-small"
+                    :color="getTagColor(tag)"
+                    variant="outlined"
+                    class="mr-1"
+                  >
+                    {{ tag }}
+                  </v-chip>
+                  <span v-if="lineInfo.tags.length > 3" class="text-caption text-grey">
+                    +{{ lineInfo.tags.length - 3 }}
+                  </span>
+                </div>
+              </div>
+              <v-icon v-if="currentLine === lineInfo.name" color="success" size="small">mdi-check</v-icon>
             </v-list-item-title>
           </v-list-item>
           
@@ -130,6 +148,41 @@ export default {
         this.loadingLines = false;
       }
     },
+
+    getTagColor(tag) {
+      // 根据标签类型返回不同的颜色
+      const tagColors = {
+        // 地区标签
+        '香港': 'red-lighten-3',
+        '新加坡': 'green-lighten-3',
+        '日本': 'pink-lighten-3',
+        '美国': 'blue-lighten-3',
+        '德国': 'orange-lighten-3',
+        '澳洲': 'teal-lighten-3',
+        '英国': 'indigo-lighten-3',
+        '加拿大': 'purple-lighten-3',
+        
+        // 性能标签
+        '高级': 'amber-darken-2',
+        '4K': 'deep-purple-lighten-3',
+        '8K': 'deep-purple-darken-2',
+        '高速': 'light-green-lighten-3',
+        '稳定': 'blue-grey-lighten-3',
+        '直连': 'cyan-lighten-3',
+        'CDN': 'lime-lighten-3',
+        '原生IP': 'brown-lighten-3',
+        
+        // 特殊标签
+        '免费': 'green-darken-2',
+        '免费高级': 'amber-lighten-3',
+        '全球加速': 'deep-orange-lighten-3',
+        '自动选择': 'grey-lighten-3',
+        '智能切换': 'grey-lighten-2',
+        '标准': 'grey-lighten-4'
+      };
+      
+      return tagColors[tag] || 'grey-lighten-3';
+    },
     
     async selectLine(line) {
       if (this.currentLine === line) {
@@ -201,5 +254,35 @@ export default {
 <style scoped>
 .line-selector-chip {
   cursor: pointer;
+}
+
+.line-item {
+  min-height: 56px;
+}
+
+.line-name-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.line-name {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  max-width: 280px;
+}
+
+.tags-container .v-chip {
+  height: 18px !important;
+  font-size: 10px !important;
+  padding: 0 6px !important;
 }
 </style>

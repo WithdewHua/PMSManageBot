@@ -311,6 +311,24 @@
                   添加捐赠
                 </v-btn>
               </div>
+              
+              <!-- 线路标签管理 -->
+              <v-divider class="my-3"></v-divider>
+              <div class="d-flex justify-space-between align-center mb-3">
+                <div class="d-flex align-center">
+                  <v-icon size="small" color="blue-darken-2" class="mr-2">mdi-tag-multiple</v-icon>
+                  <span>线路标签管理：</span>
+                </div>
+                <v-btn
+                  color="blue-darken-2"
+                  variant="outlined"
+                  size="small"
+                  @click="openTagManagementDialog"
+                >
+                  <v-icon start size="small">mdi-cog</v-icon>
+                  管理标签
+                </v-btn>
+              </div>
             </div>
           </v-card-text>
         </v-card>
@@ -336,6 +354,12 @@
       ref="donationDialog"
       @donation-submitted="handleDonationSubmitted"
     />
+    
+    <!-- 使用标签管理对话框组件 -->
+    <tag-management-dialog
+      ref="tagManagementDialog"
+      @tags-updated="handleTagsUpdated"
+    />
   </div>
 </template>
 
@@ -344,6 +368,7 @@ import { getUserInfo } from '@/api'
 import EmbyLineSelector from '@/components/EmbyLineSelector.vue'
 import NsfwDialog from '@/components/NsfwDialog.vue'
 import DonationDialog from '@/components/DonationDialog.vue'
+import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
 import { getAdminSettings, setPlexRegister, setEmbyRegister, setEmbyPremiumFree, setEmbyFreePremiumLines } from '@/services/adminService.js'
 
@@ -352,7 +377,8 @@ export default {
   components: {
     EmbyLineSelector,
     NsfwDialog,
-    DonationDialog
+    DonationDialog,
+    TagManagementDialog
   },
   data() {
     return {
@@ -549,11 +575,16 @@ export default {
       this.$refs.donationDialog.open();
     },
     
-    // 处理捐赠提交成功事件
-    handleDonationSubmitted(donationData) {
-      // 可以在这里刷新用户信息或显示成功提示
-      this.showMessage(`成功为用户添加 ${donationData.amount}元 捐赠记录`);
-    }
+    // 打开标签管理对话框
+    openTagManagementDialog() {
+      this.$refs.tagManagementDialog.open();
+    },
+    
+    // 处理标签更新完成事件
+    handleTagsUpdated() {
+      // 可以在这里刷新数据或显示成功提示
+      this.showMessage('标签设置已更新');
+    },
   }
 }
 </script>

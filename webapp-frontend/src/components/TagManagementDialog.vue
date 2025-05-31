@@ -1,0 +1,342 @@
+<template>
+  <v-dialog v-model="dialog" max-width="800" persistent>
+    <v-card>
+      <v-card-title class="text-center bg-blue-darken-2 text-white">
+        <v-icon start>mdi-tag-multiple</v-icon>
+        线路标签管理
+      </v-card-title>
+      
+      <v-card-text class="pa-4">
+        <div v-if="loading" class="text-center py-8">
+          <v-progress-circular indeterminate color="primary"></v-progress-circular>
+          <div class="mt-3">加载中...</div>
+        </div>
+        
+        <div v-else>
+          <!-- 标签管理说明 -->
+          <v-alert type="info" density="compact" class="mb-4">
+            <v-icon start>mdi-information-outline</v-icon>
+            为每个线路添加标签，用户在选择线路时可以看到相应的标签信息
+          </v-alert>
+          
+          <!-- 线路标签列表 -->
+          <div v-for="(line, index) in linesList" :key="line" class="mb-4">
+            <v-card variant="outlined" class="pa-3">
+              <div class="d-flex justify-space-between align-center mb-3">
+                <div class="d-flex align-center">
+                  <v-icon 
+                    size="small" 
+                    :color="isPremiumLine(line) ? 'amber-darken-2' : 'blue-darken-1'" 
+                    class="mr-2"
+                  >
+                    {{ isPremiumLine(line) ? 'mdi-crown' : 'mdi-server' }}
+                  </v-icon>
+                  <span class="font-weight-medium">{{ line }}</span>
+                  <v-chip 
+                    v-if="isPremiumLine(line)" 
+                    size="x-small" 
+                    color="amber-lighten-3" 
+                    class="ml-2"
+                  >
+                    高级线路
+                  </v-chip>
+                </div>
+                <v-btn
+                  color="red"
+                  variant="text"
+                  size="small"
+                  @click="clearLineTags(line)"
+                  :disabled="!lineTags[line] || lineTags[line].length === 0"
+                >
+                  <v-icon size="small">mdi-delete</v-icon>
+                  清空标签
+                </v-btn>
+              </div>
+              
+              <!-- 当前标签显示 -->
+              <div class="mb-3">
+                <div class="text-caption text-grey mb-2">当前标签：</div>
+                <div v-if="lineTags[line] && lineTags[line].length > 0" class="d-flex flex-wrap gap-1">
+                  <v-chip
+                    v-for="tag in lineTags[line]"
+                    :key="tag"
+                    size="small"
+                    color="blue-lighten-3"
+                    closable
+                    @click:close="removeTag(line, tag)"
+                  >
+                    {{ tag }}
+                  </v-chip>
+                </div>
+                <div v-else class="text-grey text-caption">暂无标签</div>
+              </div>
+              
+              <!-- 添加标签 -->
+              <div class="d-flex gap-2">
+                <v-text-field
+                  v-model="newTags[line]"
+                  label="添加新标签"
+                  placeholder="输入标签名称，按回车或点击添加"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  @keyup.enter="addTag(line)"
+                  class="flex-grow-1"
+                ></v-text-field>
+                <v-btn
+                  color="primary"
+                  size="small"
+                  @click="addTag(line)"
+                  :disabled="!newTags[line] || !newTags[line].trim()"
+                >
+                  <v-icon size="small">mdi-plus</v-icon>
+                  添加
+                </v-btn>
+              </div>
+              
+              <!-- 常用标签快捷添加 -->
+              <div class="mt-3">
+                <div class="text-caption text-grey mb-2">常用标签：</div>
+                <div class="d-flex flex-wrap gap-1">
+                  <v-chip
+                    v-for="commonTag in commonTags"
+                    :key="commonTag"
+                    size="small"
+                    color="grey-lighten-2"
+                    @click="addCommonTag(line, commonTag)"
+                    :disabled="lineTags[line] && lineTags[line].includes(commonTag)"
+                    class="cursor-pointer"
+                  >
+                    {{ commonTag }}
+                  </v-chip>
+                </div>
+              </div>
+            </v-card>
+          </div>
+        </div>
+      </v-card-text>
+      
+      <v-card-actions class="pa-4">
+        <v-spacer></v-spacer>
+        <v-btn color="grey" variant="text" @click="close">
+          取消
+        </v-btn>
+        <v-btn color="primary" @click="saveAllTags" :loading="saving">
+          保存所有更改
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+</template>
+
+<script>
+import { getAllLineTags, setLineTags, deleteLineTags } from '@/services/adminTagService.js'
+
+export default {
+  name: 'TagManagementDialog',
+  data() {
+    return {
+      dialog: false,
+      loading: false,
+      saving: false,
+      lineTags: {}, // 存储每个线路的标签
+      newTags: {}, // 存储每个线路正在输入的新标签
+      linesList: [], // 所有线路列表
+      originalTags: {}, // 保存原始标签数据，用于检查是否有更改
+      // 常用标签
+      commonTags: [
+        '香港', '台湾', '日本', '新加坡', '美国', '韩国',
+        '高画质', '4K', '蓝光原盘', '快速', '稳定',
+        '高级', '免费高级', '全球加速', '标准'
+      ]
+    }
+  },
+  computed: {
+    premiumLines() {
+      // 这里需要从父组件或API获取高级线路列表
+      return this.$parent?.adminSettings?.emby_premium_lines || []
+    }
+  },
+  methods: {
+    async open() {
+      this.dialog = true
+      await this.loadLineTags()
+    },
+    
+    close() {
+      this.dialog = false
+      this.reset()
+    },
+    
+    reset() {
+      this.lineTags = {}
+      this.newTags = {}
+      this.linesList = []
+      this.originalTags = {}
+      this.loading = false
+      this.saving = false
+    },
+    
+    async loadLineTags() {
+      try {
+        this.loading = true
+        const response = await getAllLineTags()
+        
+        this.lineTags = { ...response.lines }
+        this.originalTags = JSON.parse(JSON.stringify(response.lines)) // 深拷贝
+        this.linesList = Object.keys(response.lines).sort()
+        
+        // 初始化newTags对象
+        this.linesList.forEach(line => {
+          this.$set(this.newTags, line, '')
+        })
+        
+      } catch (error) {
+        console.error('加载线路标签失败:', error)
+        this.showMessage('加载线路标签失败', 'error')
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    isPremiumLine(line) {
+      return this.premiumLines.includes(line)
+    },
+    
+    addTag(line) {
+      const newTag = this.newTags[line]?.trim()
+      if (!newTag) return
+      
+      if (!this.lineTags[line]) {
+        this.$set(this.lineTags, line, [])
+      }
+      
+      if (!this.lineTags[line].includes(newTag)) {
+        this.lineTags[line].push(newTag)
+        this.newTags[line] = ''
+      } else {
+        this.showMessage('该标签已存在', 'warning')
+      }
+    },
+    
+    addCommonTag(line, tag) {
+      if (!this.lineTags[line]) {
+        this.$set(this.lineTags, line, [])
+      }
+      
+      if (!this.lineTags[line].includes(tag)) {
+        this.lineTags[line].push(tag)
+      }
+    },
+    
+    removeTag(line, tag) {
+      if (this.lineTags[line]) {
+        const index = this.lineTags[line].indexOf(tag)
+        if (index > -1) {
+          this.lineTags[line].splice(index, 1)
+        }
+      }
+    },
+    
+    async clearLineTags(line) {
+      try {
+        const confirmed = await this.confirmAction(
+          `确认清空线路 ${line} 的所有标签？`,
+          '清空标签'
+        )
+        
+        if (confirmed) {
+          await deleteLineTags(line)
+          this.$set(this.lineTags, line, [])
+          this.showMessage(`线路 ${line} 的标签已清空`)
+        }
+      } catch (error) {
+        console.error('清空标签失败:', error)
+        this.showMessage('清空标签失败', 'error')
+      }
+    },
+    
+    async saveAllTags() {
+      try {
+        this.saving = true
+        
+        // 只保存有更改的线路
+        const promises = []
+        for (const line of this.linesList) {
+          const currentTags = this.lineTags[line] || []
+          const originalTags = this.originalTags[line] || []
+          
+          // 检查是否有更改
+          if (JSON.stringify(currentTags.sort()) !== JSON.stringify(originalTags.sort())) {
+            promises.push(setLineTags(line, currentTags))
+          }
+        }
+        
+        if (promises.length === 0) {
+          this.showMessage('没有需要保存的更改')
+          this.close()
+          return
+        }
+        
+        await Promise.all(promises)
+        this.showMessage(`成功保存 ${promises.length} 个线路的标签设置`)
+        this.close()
+        
+        // 通知父组件刷新
+        this.$emit('tags-updated')
+        
+      } catch (error) {
+        console.error('保存标签失败:', error)
+        this.showMessage('保存标签失败', 'error')
+      } finally {
+        this.saving = false
+      }
+    },
+    
+    async confirmAction(message, title = '确认操作') {
+      return new Promise((resolve) => {
+        if (window.Telegram?.WebApp) {
+          window.Telegram.WebApp.showPopup({
+            title: title,
+            message: message,
+            buttons: [
+              { id: 'cancel', type: 'cancel' },
+              { id: 'confirm', type: 'destructive', text: '确认' }
+            ]
+          }, (buttonId) => {
+            resolve(buttonId === 'confirm')
+          })
+        } else {
+          resolve(confirm(message))
+        }
+      })
+    },
+    
+    showMessage(message, type = 'success') {
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.showPopup({
+          title: type === 'error' ? '错误' : type === 'warning' ? '警告' : '成功',
+          message: message
+        })
+      } else {
+        alert(message)
+      }
+    }
+  }
+}
+</script>
+
+<style scoped>
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.gap-1 > * {
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+
+.gap-2 > * {
+  margin-right: 8px;
+}
+</style>

@@ -10,11 +10,15 @@ from .invitation import (
 )
 from .ranking import RankingInfo
 from .user import (
+    AllLineTagsResponse,
     BaseResponse,
     BindEmbyRequest,
     BindPlexRequest,
+    EmbyLineInfo,
     EmbyLineRequest,
     EmbyLinesResponse,
+    LineTagRequest,
+    LineTagResponse,
     TelegramUser,
     UserInfo,
 )
@@ -31,8 +35,12 @@ __all__ = [
     "BaseResponse",
     "BindPlexRequest",
     "BindEmbyRequest",
+    "EmbyLineInfo",
     "EmbyLineRequest",
     "EmbyLinesResponse",
+    "LineTagRequest",
+    "LineTagResponse",
+    "AllLineTagsResponse",
     # 排行榜相关模型
     "RankingInfo",
 ]

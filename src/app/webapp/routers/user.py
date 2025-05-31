@@ -1,6 +1,10 @@
 from time import time
 
-from app.cache import emby_last_user_defined_line_cache, emby_user_defined_line_cache
+from app.cache import (
+    emby_last_user_defined_line_cache,
+    emby_user_defined_line_cache,
+    get_line_tags,
+)
 from app.config import settings
 from app.db import DB
 from app.emby import Emby, emby_is_premium_line
@@ -17,6 +21,7 @@ from app.webapp.schemas import (
     BaseResponse,
     BindEmbyRequest,
     BindPlexRequest,
+    EmbyLineInfo,
     EmbyLineRequest,
     EmbyLinesResponse,
     TelegramUser,
@@ -343,10 +348,20 @@ async def get_emby_lines(
 
     # 基础线路
     available_lines = settings.EMBY_STREAM_BACKEND.copy()
+    line_infos = []
+
+    # 添加基础线路信息
+    for line in available_lines:
+        line_infos.append(
+            EmbyLineInfo(name=line, tags=get_line_tags(line), is_premium=False)
+        )
 
     # 如果是premium用户，直接添加所有高级线路
     if is_premium:
-        available_lines.extend(settings.EMBY_PREMIUM_STREAM_BACKEND)
+        for line in settings.EMBY_PREMIUM_STREAM_BACKEND:
+            line_infos.append(
+                EmbyLineInfo(name=line, tags=get_line_tags(line), is_premium=True)
+            )
     # 如果不是premium用户，检查免费高级线路
     elif settings.EMBY_PREMIUM_FREE:
         # 从Redis缓存获取免费高级线路列表
@@ -354,9 +369,15 @@ async def get_emby_lines(
 
         free_premium_lines = emby_free_premium_lines_cache.get("free_lines")
         free_premium_lines = free_premium_lines.split(",") if free_premium_lines else []
-        available_lines.extend(free_premium_lines)
 
-    return EmbyLinesResponse(lines=available_lines)
+        for line in free_premium_lines:
+            line_infos.append(
+                EmbyLineInfo(
+                    name=line, tags=get_line_tags(line) + ["PREMIUM"], is_premium=True
+                )
+            )
+
+    return EmbyLinesResponse(lines=line_infos)
 
 
 @router.post("/bind/emby_line", response_model=BaseResponse)

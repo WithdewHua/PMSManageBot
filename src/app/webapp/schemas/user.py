@@ -53,7 +53,35 @@ class EmbyLineRequest(BaseModel):
     line: str = Field(..., min_length=1)
 
 
+class EmbyLineInfo(BaseModel):
+    """Emby线路信息模型"""
+
+    name: str
+    tags: List[str] = []
+    is_premium: bool = False
+
+
 class EmbyLinesResponse(BaseModel):
     """Emby线路列表响应模型"""
 
-    lines: List[str]
+    lines: List[EmbyLineInfo]
+
+
+class LineTagRequest(BaseModel):
+    """线路标签请求模型"""
+
+    line_name: str = Field(..., min_length=1)
+    tags: List[str] = Field(..., min_items=0)
+
+
+class LineTagResponse(BaseModel):
+    """线路标签响应模型"""
+
+    line_name: str
+    tags: List[str]
+
+
+class AllLineTagsResponse(BaseModel):
+    """所有线路标签响应模型"""
+
+    lines: Dict[str, List[str]]

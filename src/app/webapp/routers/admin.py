@@ -1,4 +1,8 @@
-from app.cache import emby_last_user_defined_line_cache, emby_user_defined_line_cache
+from app.cache import (
+    emby_last_user_defined_line_cache,
+    emby_user_defined_line_cache,
+    get_line_tags,
+)
 from app.config import settings
 from app.db import DB
 from app.log import uvicorn_logger as logger
@@ -9,7 +13,13 @@ from app.utils import (
 )
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
-from app.webapp.schemas import BaseResponse, TelegramUser
+from app.webapp.schemas import (
+    AllLineTagsResponse,
+    BaseResponse,
+    LineTagRequest,
+    LineTagResponse,
+    TelegramUser,
+)
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -414,3 +424,115 @@ async def submit_donation_record(
         return BaseResponse(success=False, message="提交失败")
     finally:
         db.close()
+
+
+# ==================== 线路标签管理 API ==================== #
+
+
+@router.post("/line_tags", response_model=BaseResponse)
+@require_telegram_auth
+async def set_line_tags(
+    request: Request,
+    data: LineTagRequest = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """设置线路标签（管理员功能）"""
+    check_admin_permission(user)
+
+    try:
+        from app.cache import emby_line_tags_cache
+
+        # 将标签列表转换为逗号分隔的字符串存储到Redis
+        tags_str = ",".join(data.tags) if data.tags else ""
+
+        if tags_str:
+            emby_line_tags_cache.put(data.line_name, tags_str)
+            logger.info(
+                f"管理员 {user.username or user.id} 设置线路 {data.line_name} 的标签: {data.tags}"
+            )
+        else:
+            # 如果标签为空，删除该键
+            emby_line_tags_cache.delete(data.line_name)
+            logger.info(
+                f"管理员 {user.username or user.id} 清空线路 {data.line_name} 的标签"
+            )
+
+        return BaseResponse(
+            success=True, message=f"线路 {data.line_name} 的标签设置成功"
+        )
+    except Exception as e:
+        logger.error(f"设置线路标签失败: {str(e)}")
+        return BaseResponse(success=False, message="设置标签失败")
+
+
+@router.get("/line_tags/{line_name}", response_model=LineTagResponse)
+@require_telegram_auth
+async def get_line_tags_admin(
+    line_name: str,
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取指定线路的标签（管理员功能）"""
+    check_admin_permission(user)
+
+    try:
+        tags = get_line_tags(line_name)
+        return LineTagResponse(line_name=line_name, tags=tags)
+    except Exception as e:
+        logger.error(f"获取线路标签失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取标签失败")
+
+
+@router.get("/all_line_tags", response_model=AllLineTagsResponse)
+@require_telegram_auth
+async def get_all_line_tags(
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取所有线路的标签信息（管理员功能）"""
+    check_admin_permission(user)
+
+    try:
+        # 获取所有线路名称
+        all_lines = set()
+        all_lines.update(settings.EMBY_STREAM_BACKEND)
+        all_lines.update(settings.EMBY_PREMIUM_STREAM_BACKEND)
+
+        # 获取每个线路的标签
+        lines_tags = {}
+        for line in all_lines:
+            tags = get_line_tags(line)
+            lines_tags[line] = tags
+
+        return AllLineTagsResponse(lines=lines_tags)
+    except Exception as e:
+        logger.error(f"获取所有线路标签失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取所有标签失败")
+
+
+@router.delete("/line_tags/{line_name}", response_model=BaseResponse)
+@require_telegram_auth
+async def delete_line_tags(
+    line_name: str,
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """删除指定线路的所有标签（管理员功能）"""
+    check_admin_permission(user)
+
+    try:
+        from app.cache import emby_line_tags_cache
+
+        # 检查标签是否存在
+        existing_tags = get_line_tags(line_name)
+        if existing_tags:
+            emby_line_tags_cache.delete(line_name)
+            logger.info(
+                f"管理员 {user.username or user.id} 删除线路 {line_name} 的所有标签"
+            )
+            return BaseResponse(success=True, message=f"线路 {line_name} 的标签已清空")
+        else:
+            return BaseResponse(success=True, message=f"线路 {line_name} 没有设置标签")
+    except Exception as e:
+        logger.error(f"删除线路标签失败: {str(e)}")
+        return BaseResponse(success=False, message="删除标签失败")

@@ -31,7 +31,7 @@ export async function unbindEmbyLine() {
 
 /**
  * 获取所有可用的Emby线路列表
- * @returns {Promise<Array>} 线路列表
+ * @returns {Promise<Array>} 线路信息列表，包含名称、标签和是否为高级线路
  */
 export async function getAvailableEmbyLines() {
   try {

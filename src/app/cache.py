@@ -200,3 +200,29 @@ emby_free_premium_lines_cache = RedisCache(
     cache_key_prefix="emby_free_premium_lines:",
     ttl_seconds=None,  # 持久化存储
 )
+
+# Emby Line Tags Cache
+emby_line_tags_cache = RedisCache(
+    db=2,
+    cache_key_prefix="emby_line_tags:",
+    ttl_seconds=None,  # 持久化存储标签数据
+)
+
+
+def get_line_tags(line_name: str) -> list[str]:
+    """从Redis获取线路的标签信息"""
+    try:
+        from app.cache import emby_line_tags_cache
+
+        # 从Redis获取线路标签
+        tags_str = emby_line_tags_cache.get(line_name)
+        if tags_str:
+            # Redis中存储的是逗号分隔的字符串
+            tags = tags_str.split(",")
+            return [tag.strip() for tag in tags if tag.strip()]
+        else:
+            # 如果Redis中没有该线路的标签，返回空列表
+            return []
+    except Exception as e:
+        logger.error(f"获取线路 {line_name} 的标签失败: {str(e)}")
+        return []
