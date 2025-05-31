@@ -45,8 +45,8 @@ async def send_message_by_url(
                     data=data,
                     timeout=3,
                 ) as response:
-                    if response.status == 200:
-                        break
+                    response.raise_for_status()
+                    break
         except Exception as e:
             logger.error(f"Error: {e}, retrying in 1 seconds...")
             await asyncio.sleep(1)

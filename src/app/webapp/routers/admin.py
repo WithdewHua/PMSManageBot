@@ -228,13 +228,13 @@ async def unbind_emby_premium_free():
                 emby_last_user_defined_line_cache.delete(str(emby_username).lower())
                 await send_message_by_url(
                     chat_id=tg_id,
-                    text=f"通知：高级线路开放通道关闭，您绑定的线路已切换为 `{last_line}`",
+                    text=f"通知：高级线路开放通道关闭，您绑定的线路已切换为 {last_line}",
                 )
             else:
                 emby_user_defined_line_cache.delete(str(emby_username).lower())
                 await send_message_by_url(
                     chat_id=tg_id,
-                    text="通知：高级线路开放通道已关闭，您绑定的线路已切换为 `AUTO`",
+                    text="通知：高级线路开放通道已关闭，您绑定的线路已切换为 AUTO",
                 )
 
         return True, None
@@ -282,13 +282,13 @@ async def handle_free_premium_lines_change(removed_lines: list | set):
                 emby_last_user_defined_line_cache.delete(str(emby_username).lower())
                 await send_message_by_url(
                     chat_id=tg_id,
-                    text=f"通知：线路 {emby_line} 已不再免费开放，您的线路已切换为 `{last_line}`",
+                    text=f"通知：线路 {emby_line} 已不再免费开放，您的线路已切换为 {last_line}",
                 )
             else:
                 emby_user_defined_line_cache.delete(str(emby_username).lower())
                 await send_message_by_url(
                     chat_id=tg_id,
-                    text=f"通知：线路 {emby_line} 已不再免费开放，您的线路已切换为 `AUTO`",
+                    text=f"通知：线路 {emby_line} 已不再免费开放，您的线路已切换为 AUTO",
                 )
 
         return True, None
