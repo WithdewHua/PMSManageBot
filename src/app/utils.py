@@ -30,14 +30,15 @@ async def send_message(chat_id, text: str, context: ContextTypes.DEFAULT_TYPE, *
 
 
 async def send_message_by_url(
-    chat_id, text: str, token: str = settings.TG_API_TOKEN, parse_mode="markdownv2"
+    chat_id, text: str, token: str = settings.TG_API_TOKEN, **kwargs
 ):
     """send telegram message by url"""
     retry = 10
     while retry > 0:
         try:
             url = f"https://api.telegram.org/bot{token}/sendMessage"
-            data = {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
+            data = {"chat_id": chat_id, "text": text}
+            data.update(kwargs)
             logger.info(f"Sending message to {chat_id} via {url} with data: {data}")
             async with aiohttp.ClientSession() as session:
                 async with session.post(
