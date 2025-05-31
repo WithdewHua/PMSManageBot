@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" max-width="800" scrollable>
+  <v-dialog v-model="dialog" max-width="800" scrollable class="line-management-dialog">
     <v-card>
       <v-card-title class="text-center">
         <v-icon start color="blue-darken-2">mdi-server-network</v-icon>
@@ -19,8 +19,8 @@
         <div v-else>
           <!-- 普通线路管理 -->
           <div class="mb-6">
-            <div class="d-flex justify-space-between align-center mb-3">
-              <div class="d-flex align-center">
+            <div class="section-header mb-3">
+              <div class="header-info">
                 <v-icon size="small" color="blue-darken-1" class="mr-2">mdi-server</v-icon>
                 <span class="font-weight-medium">普通线路</span>
                 <v-chip size="x-small" color="blue-lighten-3" class="ml-2">
@@ -31,28 +31,28 @@
                 color="blue-darken-1"
                 variant="outlined"
                 size="small"
+                class="add-btn"
                 @click="openAddLineDialog('normal')"
               >
                 <v-icon start size="small">mdi-plus</v-icon>
-                添加普通线路
+                <span class="btn-text">添加普通线路</span>
               </v-btn>
             </div>
             
-            <v-card variant="outlined" class="pa-3">
+            <v-card variant="outlined" class="pa-3 line-container">
               <div v-if="normalLines.length === 0" class="text-center text-grey py-4">
                 暂无普通线路
               </div>
-              <div v-else>
+              <div v-else class="line-chips-container">
                 <v-chip
                   v-for="line in normalLines"
                   :key="line"
                   size="small"
-                  color="blue-lighten-3"
-                  class="mr-2 mb-2"
+                  class="line-chip normal-line mr-2 mb-2"
                   closable
                   @click:close="confirmDeleteLine('normal', line)"
                 >
-                  {{ line }}
+                  <span class="line-text" :title="line">{{ line }}</span>
                 </v-chip>
               </div>
             </v-card>
@@ -60,8 +60,8 @@
           
           <!-- 高级线路管理 -->
           <div class="mb-4">
-            <div class="d-flex justify-space-between align-center mb-3">
-              <div class="d-flex align-center">
+            <div class="section-header mb-3">
+              <div class="header-info">
                 <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-crown</v-icon>
                 <span class="font-weight-medium">高级线路</span>
                 <v-chip size="x-small" color="amber-lighten-3" class="ml-2">
@@ -72,28 +72,28 @@
                 color="amber-darken-2"
                 variant="outlined"
                 size="small"
+                class="add-btn"
                 @click="openAddLineDialog('premium')"
               >
                 <v-icon start size="small">mdi-plus</v-icon>
-                添加高级线路
+                <span class="btn-text">添加高级线路</span>
               </v-btn>
             </div>
             
-            <v-card variant="outlined" class="pa-3">
+            <v-card variant="outlined" class="pa-3 line-container">
               <div v-if="premiumLines.length === 0" class="text-center text-grey py-4">
                 暂无高级线路
               </div>
-              <div v-else>
+              <div v-else class="line-chips-container">
                 <v-chip
                   v-for="line in premiumLines"
                   :key="line"
                   size="small"
-                  color="amber-lighten-3"
-                  class="mr-2 mb-2"
+                  class="line-chip premium-line mr-2 mb-2"
                   closable
                   @click:close="confirmDeleteLine('premium', line)"
                 >
-                  {{ line }}
+                  <span class="line-text" :title="line">{{ line }}</span>
                 </v-chip>
               </div>
             </v-card>
@@ -229,9 +229,9 @@ export default {
       
       try {
         const response = await getEmbyLinesConfig();
-        if (response.success) {
-          this.normalLines = response.data.normal_lines || [];
-          this.premiumLines = response.data.premium_lines || [];
+        if (response) {
+          this.normalLines = response.normal_lines || [];
+          this.premiumLines = response.premium_lines || [];
         } else {
           this.error = response.message || '获取线路配置失败';
         }
@@ -361,12 +361,178 @@ export default {
 </script>
 
 <style scoped>
-.v-chip {
-  cursor: pointer;
-  transition: transform 0.2s;
+/* 线路管理对话框响应式设计 */
+.line-management-dialog {
+  width: 100%;
+  max-width: 800px;
 }
 
-.v-chip:hover {
+/* 章节头部样式 */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.header-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.add-btn {
+  flex-shrink: 0;
+}
+
+/* 线路容器 */
+.line-container {
+  border-radius: 8px;
+  background-color: #fafafa;
+}
+
+.line-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+/* 线路芯片样式 */
+.line-chip {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  max-width: 100%;
+  min-width: 120px;
+  height: auto !important;
+  padding: 4px 8px !important;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-weight: 500 !important;
+}
+
+.line-chip:hover {
   transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* 普通线路样式 */
+.normal-line {
+  background-color: #1565c0 !important;
+  color: white !important;
+  border: 1px solid #0d47a1 !important;
+}
+
+.normal-line:hover {
+  background-color: #0d47a1 !important;
+}
+
+.normal-line .v-chip__close {
+  color: white !important;
+  opacity: 0.8;
+}
+
+.normal-line .v-chip__close:hover {
+  opacity: 1 !important;
+}
+
+/* 高级线路样式 */
+.premium-line {
+  background-color: #ff8f00 !important;
+  color: white !important;
+  border: 1px solid #e65100 !important;
+}
+
+.premium-line:hover {
+  background-color: #e65100 !important;
+}
+
+.premium-line .v-chip__close {
+  color: white !important;
+  opacity: 0.8;
+}
+
+.premium-line .v-chip__close:hover {
+  opacity: 1 !important;
+}
+
+/* 线路文本样式 */
+.line-text {
+  display: block;
+  width: 100%;
+  word-break: break-all;
+  overflow-wrap: break-word;
+  line-height: 1.3;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: left;
+  max-width: 300px;
+}
+
+/* 响应式设计 */
+@media (max-width: 600px) {
+  .line-management-dialog {
+    margin: 16px;
+    max-width: calc(100vw - 32px);
+  }
+  
+  .section-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .header-info {
+    justify-content: center;
+  }
+  
+  .add-btn {
+    width: 100%;
+  }
+  
+  .line-chip {
+    min-width: 100px;
+    max-width: calc(50% - 4px);
+    font-size: 0.75rem;
+  }
+  
+  .line-text {
+    font-size: 0.75rem;
+    max-width: 200px;
+  }
+}
+
+@media (max-width: 400px) {
+  .btn-text {
+    display: none;
+  }
+  
+  .line-chip {
+    min-width: 80px;
+    max-width: 100%;
+    margin-bottom: 6px;
+  }
+  
+  .line-text {
+    font-size: 0.7rem;
+    max-width: 150px;
+  }
+  
+  .line-chips-container {
+    gap: 6px;
+  }
+  
+  .add-btn {
+    min-width: 48px;
+    padding: 0 12px;
+  }
+}
+
+/* 深色主题适配 */
+@media (prefers-color-scheme: dark) {
+  .line-container {
+    background-color: #303030;
+  }
 }
 </style>

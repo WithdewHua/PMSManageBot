@@ -83,7 +83,7 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每天中午 12:00 更新 Plex 用户信息")
 
-    # 每 12 小时更新 tg 用户信息
+    # 每天中午 12:10 更新 tg 用户信息
     scheduler.add_job(
         func=refresh_tg_user_info,
         trigger="cron",
@@ -91,11 +91,11 @@ def add_init_scheduler_job():
         replace_existing=True,
         max_instances=1,
         day_of_week="*",
-        hour="*/12",
-        minute=0,
+        hour=12,
+        minute=10,
         next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=30),
     )
-    logger.info("添加定时任务：每 12 小时刷新 Telegram 用户信息")
+    logger.info("添加定时任务：每天中午 12:10 更新 Telegram 用户信息")
 
     # 每天早上 7 点刷新 emby 用户信息
     scheduler.add_job(

@@ -175,10 +175,13 @@
                 <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-connection</v-icon>
                 <span>绑定线路：</span>
               </div>
-              <emby-line-selector 
-                :current-value="userInfo.emby_info.line" 
-                @line-changed="updateEmbyLine"
-              ></emby-line-selector>
+              <div class="line-selector-wrapper">
+                <emby-line-selector 
+                  ref="embyLineSelector"
+                  :current-value="userInfo.emby_info.line" 
+                  @line-changed="updateEmbyLine"
+                ></emby-line-selector>
+              </div>
             </div>
           </v-card-text>
         </v-card>
@@ -466,7 +469,9 @@ export default {
         donation: 0,
         invitation_codes: [],
         plex_info: null,
-        emby_info: null,
+        emby_info: {
+          line: null
+        },
         overseerr_info: null,
         is_admin: false
       },
@@ -718,6 +723,13 @@ export default {
       // 可以在这里刷新数据或显示成功提示
       this.showMessage('标签设置已更新');
     },
+    
+    // 处理捐赠提交完成事件
+    handleDonationSubmitted() {
+      // 刷新用户信息以获取最新的捐赠数据
+      this.fetchUserInfo();
+      this.showMessage('捐赠记录已添加');
+    }
   }
 }
 </script>
@@ -790,5 +802,32 @@ export default {
 
 .star-icon {
   margin-right: 1px;
+}
+
+/* 线路选择器容器样式 */
+.line-selector-wrapper {
+  min-width: 0;
+  flex: 1;
+  max-width: 300px; /* 增加最大宽度以支持更好的滚动效果 */
+  margin-left: 8px;
+}
+
+/* 在小屏幕上调整线路选择器 */
+@media (max-width: 600px) {
+  .line-selector-wrapper {
+    max-width: 250px; /* 在小屏幕上也提供更多空间 */
+  }
+}
+
+@media (max-width: 480px) {
+  .line-selector-wrapper {
+    max-width: 200px; /* 在更小的屏幕上限制宽度 */
+  }
+}
+
+@media (max-width: 400px) {
+  .line-selector-wrapper {
+    max-width: 150px;
+  }
 }
 </style>
