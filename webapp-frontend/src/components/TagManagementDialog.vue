@@ -20,7 +20,7 @@
           </v-alert>
           
           <!-- 线路标签列表 -->
-          <div v-for="(line, index) in linesList" :key="line" class="mb-4">
+          <div v-for="line in linesList" :key="line" class="mb-4">
             <v-card variant="outlined" class="pa-3">
               <div class="d-flex justify-space-between align-center mb-3">
                 <div class="d-flex align-center">
