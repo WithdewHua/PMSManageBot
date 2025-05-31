@@ -1,5 +1,6 @@
 from app.cache import (
     emby_last_user_defined_line_cache,
+    emby_line_tags_cache,
     emby_user_defined_line_cache,
     get_line_tags,
 )
@@ -440,10 +441,8 @@ async def set_line_tags(
     check_admin_permission(user)
 
     try:
-        from app.cache import emby_line_tags_cache
-
         # 将标签列表转换为逗号分隔的字符串存储到Redis
-        tags_str = ",".join(data.tags) if data.tags else ""
+        tags_str = ",".join(set(data.tags)) if set(data.tags) else ""
 
         if tags_str:
             emby_line_tags_cache.put(data.line_name, tags_str)
@@ -521,8 +520,6 @@ async def delete_line_tags(
     check_admin_permission(user)
 
     try:
-        from app.cache import emby_line_tags_cache
-
         # 检查标签是否存在
         existing_tags = get_line_tags(line_name)
         if existing_tags:

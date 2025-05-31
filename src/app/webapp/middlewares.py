@@ -53,11 +53,27 @@ def require_telegram_auth(func):
     """要求 Telegram 认证的装饰器，可用于保护 API 端点"""
 
     @wraps(func)
-    async def wrapper(request: Request, *args, **kwargs):
+    async def wrapper(*args, **kwargs):
+        # 从参数中提取request对象
+        request = None
+        for arg in args:
+            if isinstance(arg, Request):
+                request = arg
+                break
+
+        if request is None:
+            # 如果在args中没找到，尝试从kwargs中查找
+            request = kwargs.get("request")
+
+        if request is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="无法获取请求对象"
+            )
+
         if not hasattr(request.state, "telegram_data"):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="需要 Telegram 认证"
             )
-        return await func(request, *args, **kwargs)
+        return await func(*args, **kwargs)
 
     return wrapper

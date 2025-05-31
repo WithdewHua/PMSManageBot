@@ -43,8 +43,8 @@
                     :key="tag"
                     size="x-small"
                     :color="getTagColor(tag)"
-                    variant="outlined"
-                    class="mr-1 mb-1"
+                    variant="flat"
+                    class="mr-1 mb-1 tag-chip"
                   >
                     {{ tag }}
                   </v-chip>
@@ -147,26 +147,33 @@ export default {
     },
 
     getTagColor(tag) {
-      // 明亮的颜色数组，确保文字清晰可见
-      const brightColors = [
-        'red-lighten-3',
-        'pink-lighten-3', 
-        'purple-lighten-3',
-        'deep-purple-lighten-3',
-        'indigo-lighten-3',
-        'blue-lighten-3',
-        'light-blue-lighten-3',
-        'cyan-lighten-3',
-        'teal-lighten-3',
-        'green-lighten-3',
-        'light-green-lighten-3',
-        'lime-lighten-3',
-        'yellow-lighten-3',
-        'amber-lighten-3',
-        'orange-lighten-3',
-        'deep-orange-lighten-3',
-        'brown-lighten-3',
-        'blue-grey-lighten-3'
+      // 使用更深色的背景色，确保在白色背景下有良好对比度
+      const contrastColors = [
+        'red-darken-1',
+        'pink-darken-1', 
+        'purple-darken-1',
+        'deep-purple-darken-1',
+        'indigo-darken-1',
+        'blue-darken-1',
+        'light-blue-darken-1',
+        'cyan-darken-1',
+        'teal-darken-1',
+        'green-darken-1',
+        'light-green-darken-1',
+        'lime-darken-1',
+        'amber-darken-1',
+        'orange-darken-1',
+        'deep-orange-darken-1',
+        'brown-darken-1',
+        'blue-grey-darken-1',
+        'red-darken-2',
+        'pink-darken-2',
+        'purple-darken-2',
+        'deep-purple-darken-2',
+        'indigo-darken-2',
+        'blue-darken-2',
+        'teal-darken-2',
+        'green-darken-2'
       ];
       
       // 使用标签内容作为种子生成稳定的随机索引
@@ -177,8 +184,8 @@ export default {
         hash = hash & hash; // 转换为32位整数
       }
       
-      const colorIndex = Math.abs(hash) % brightColors.length;
-      return brightColors[colorIndex];
+      const colorIndex = Math.abs(hash) % contrastColors.length;
+      return contrastColors[colorIndex];
     },
     
     async selectLine(line) {
@@ -282,5 +289,10 @@ export default {
   height: 18px !important;
   font-size: 10px !important;
   padding: 0 6px !important;
+}
+
+.tag-chip {
+  color: white !important;
+  font-weight: 500 !important;
 }
 </style>

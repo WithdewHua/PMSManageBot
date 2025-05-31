@@ -61,9 +61,11 @@
                     v-for="tag in lineTags[line]"
                     :key="tag"
                     size="small"
-                    color="blue-lighten-3"
+                    color="blue-darken-1"
+                    variant="flat"
                     closable
                     @click:close="removeTag(line, tag)"
+                    class="tag-chip-current"
                   >
                     {{ tag }}
                   </v-chip>
@@ -102,10 +104,11 @@
                     v-for="commonTag in commonTags"
                     :key="commonTag"
                     size="small"
-                    color="grey-lighten-2"
+                    color="green-darken-1"
+                    variant="flat"
                     @click="addCommonTag(line, commonTag)"
                     :disabled="lineTags[line] && lineTags[line].includes(commonTag)"
-                    class="cursor-pointer"
+                    class="cursor-pointer tag-chip-common"
                   >
                     {{ commonTag }}
                   </v-chip>
@@ -145,9 +148,7 @@ export default {
       originalTags: {}, // 保存原始标签数据，用于检查是否有更改
       // 常用标签
       commonTags: [
-        '香港', '台湾', '日本', '新加坡', '美国', '韩国',
-        '高画质', '4K', '蓝光原盘', '快速', '稳定',
-        '高级', '免费高级', '全球加速', '标准'
+        '香港', '台湾', '日本', '新加坡', '美国', '韩国', "PREMIUM", "4837", "CMI", "GIA", "移动", "联通", "电信"
       ]
     }
   },
@@ -206,7 +207,7 @@ export default {
         
         // 初始化newTags对象
         this.linesList.forEach(line => {
-          this.$set(this.newTags, line, '')
+          this.newTags[line] = ''
         })
         
         console.log('标签加载成功')
@@ -233,7 +234,7 @@ export default {
       if (!newTag) return
       
       if (!this.lineTags[line]) {
-        this.$set(this.lineTags, line, [])
+        this.lineTags[line] = []
       }
       
       if (!this.lineTags[line].includes(newTag)) {
@@ -246,7 +247,7 @@ export default {
     
     addCommonTag(line, tag) {
       if (!this.lineTags[line]) {
-        this.$set(this.lineTags, line, [])
+        this.lineTags[line] = []
       }
       
       if (!this.lineTags[line].includes(tag)) {
@@ -272,7 +273,7 @@ export default {
         
         if (confirmed) {
           await deleteLineTags(line)
-          this.$set(this.lineTags, line, [])
+          this.lineTags[line] = []
           this.showMessage(`线路 ${line} 的标签已清空`)
         }
       } catch (error) {
@@ -363,5 +364,20 @@ export default {
 
 .gap-2 > * {
   margin-right: 8px;
+}
+
+.tag-chip-current {
+  color: white !important;
+  font-weight: 500 !important;
+}
+
+.tag-chip-common {
+  color: white !important;
+  font-weight: 500 !important;
+}
+
+.tag-chip-common:disabled {
+  opacity: 0.6 !important;
+  background-color: grey !important;
 }
 </style>
