@@ -317,7 +317,7 @@
               <div class="d-flex justify-space-between align-center mb-3">
                 <div class="d-flex align-center">
                   <v-icon size="small" color="blue-darken-2" class="mr-2">mdi-tag-multiple</v-icon>
-                  <span>线路标签管理：</span>
+                  <span>Emby 线路标签管理：</span>
                 </div>
                 <v-btn
                   color="blue-darken-2"
@@ -327,6 +327,24 @@
                 >
                   <v-icon start size="small">mdi-cog</v-icon>
                   管理标签
+                </v-btn>
+              </div>
+              
+              <!-- 线路管理 -->
+              <v-divider class="my-3"></v-divider>
+              <div class="d-flex justify-space-between align-center mb-3">
+                <div class="d-flex align-center">
+                  <v-icon size="small" color="green-darken-2" class="mr-2">mdi-server-network</v-icon>
+                  <span>Emby 线路管理：</span>
+                </div>
+                <v-btn
+                  color="green-darken-2"
+                  variant="outlined"
+                  size="small"
+                  @click="openLineManagementDialog"
+                >
+                  <v-icon start size="small">mdi-plus-circle</v-icon>
+                  管理线路
                 </v-btn>
               </div>
               
@@ -413,6 +431,12 @@
       ref="tagManagementDialog"
       @tags-updated="handleTagsUpdated"
     />
+    
+    <!-- 使用线路管理对话框组件 -->
+    <line-management-dialog
+      ref="lineManagementDialog"
+      @lines-updated="handleLinesUpdated"
+    />
   </div>
 </template>
 
@@ -422,6 +446,7 @@ import EmbyLineSelector from '@/components/EmbyLineSelector.vue'
 import NsfwDialog from '@/components/NsfwDialog.vue'
 import DonationDialog from '@/components/DonationDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
+import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
 import { getAdminSettings, setPlexRegister, setEmbyRegister, setEmbyPremiumFree, setEmbyFreePremiumLines, setInvitationCredits, setUnlockCredits } from '@/services/adminService.js'
 
@@ -431,7 +456,8 @@ export default {
     EmbyLineSelector,
     NsfwDialog,
     DonationDialog,
-    TagManagementDialog
+    TagManagementDialog,
+    LineManagementDialog
   },
   data() {
     return {
@@ -671,6 +697,20 @@ export default {
     // 打开标签管理对话框
     openTagManagementDialog() {
       this.$refs.tagManagementDialog.open();
+    },
+    
+    // 打开线路管理对话框
+    openLineManagementDialog() {
+      this.$refs.lineManagementDialog.open();
+    },
+    
+    // 处理线路更新完成事件
+    handleLinesUpdated() {
+      // 线路更新后刷新管理员设置以获取最新的线路列表
+      if (this.userInfo.is_admin) {
+        this.fetchAdminSettings();
+      }
+      this.showMessage('线路配置已更新');
     },
     
     // 处理标签更新完成事件

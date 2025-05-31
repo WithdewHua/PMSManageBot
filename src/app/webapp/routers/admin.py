@@ -53,6 +53,7 @@ async def get_admin_settings(
             "plex_register": settings.PLEX_REGISTER,
             "emby_register": settings.EMBY_REGISTER,
             "emby_premium_free": settings.EMBY_PREMIUM_FREE,
+            "emby_lines": settings.EMBY_STREAM_BACKEND,
             "emby_premium_lines": settings.EMBY_PREMIUM_STREAM_BACKEND,
             "emby_free_premium_lines": free_premium_lines,
             "invitation_credits": settings.INVITATION_CREDITS,
@@ -301,6 +302,34 @@ async def handle_free_premium_lines_change(removed_lines: list | set):
     except Exception as e:
         logger.error(f"处理免费高级线路变更时发生错误: {str(e)}")
         return False, f"处理免费高级线路变更时发生错误: {str(e)}"
+    finally:
+        db.close()
+        logger.debug("数据库连接已关闭")
+
+
+async def unbind_specified_emby_line_for_all_users(emby_line: str):
+    """解绑所有用户的指定 Emby 线路"""
+    db = DB()
+    try:
+        # 获取所有绑定了 Emby 线路的用户
+        users = db.get_emby_user_with_binded_line()
+        for user in users:
+            emby_username, tg_id, user_emby_line, _ = user
+            if emby_line in user_emby_line:
+                # 如果用户绑定的线路是指定的线路，解绑
+                db.set_emby_line(line=None, tg_id=tg_id)
+                emby_user_defined_line_cache.delete(str(emby_username).lower())
+                emby_last_user_defined_line_cache.delete(str(emby_username).lower())
+                await send_message_by_url(
+                    chat_id=tg_id,
+                    text=f"通知：您绑定的 Emby 线路 `{emby_line}` 已被管理员下线，已切换为 `AUTO`",
+                    parse_mode="markdownv2",
+                )
+
+        return True, None
+    except Exception as e:
+        logger.error(f"解绑所有用户的 {emby_line} 线路时发生错误: {str(e)}")
+        return False, f"解绑所有用户的 {emby_line} 线路时发生错误: {str(e)}"
     finally:
         db.close()
         logger.debug("数据库连接已关闭")
@@ -593,3 +622,172 @@ async def set_unlock_credits(
     except Exception as e:
         logger.error(f"设置解锁积分失败: {str(e)}")
         return BaseResponse(success=False, message="设置失败")
+
+
+@router.get("/emby-lines")
+@require_telegram_auth
+async def get_emby_lines(
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取所有Emby线路配置"""
+    check_admin_permission(user)
+
+    try:
+        lines_data = {
+            "normal_lines": settings.EMBY_STREAM_BACKEND,
+            "premium_lines": settings.EMBY_PREMIUM_STREAM_BACKEND,
+        }
+
+        logger.info(f"管理员 {user.username or user.id} 获取Emby线路配置")
+        return BaseResponse(success=True, data=lines_data)
+    except Exception as e:
+        logger.error(f"获取Emby线路配置失败: {str(e)}")
+        return BaseResponse(success=False, message="获取线路配置失败")
+
+
+@router.post("/emby-lines/normal")
+@require_telegram_auth
+async def add_normal_line(
+    request: Request,
+    data: dict = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """添加普通线路"""
+    check_admin_permission(user)
+
+    try:
+        line_name = data.get("line_name", "").strip()
+        if not line_name:
+            return BaseResponse(success=False, message="线路名称不能为空")
+
+        if line_name in settings.EMBY_STREAM_BACKEND:
+            return BaseResponse(success=False, message="该普通线路已存在")
+
+        if line_name in settings.EMBY_PREMIUM_STREAM_BACKEND:
+            return BaseResponse(success=False, message="该线路已存在于高级线路中")
+
+        # 添加到普通线路列表
+        new_lines = settings.EMBY_STREAM_BACKEND + [line_name]
+        settings.EMBY_STREAM_BACKEND = new_lines
+        settings.save_config_to_env_file({"EMBY_STREAM_BACKEND": ",".join(new_lines)})
+
+        logger.info(f"管理员 {user.username or user.id} 添加普通线路: {line_name}")
+        return BaseResponse(success=True, message=f"普通线路 '{line_name}' 添加成功")
+    except Exception as e:
+        logger.error(f"添加普通线路失败: {str(e)}")
+        return BaseResponse(success=False, message="添加普通线路失败")
+
+
+@router.post("/emby-lines/premium")
+@require_telegram_auth
+async def add_premium_line(
+    request: Request,
+    data: dict = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """添加高级线路"""
+    check_admin_permission(user)
+
+    try:
+        line_name = data.get("line_name", "").strip()
+        if not line_name:
+            return BaseResponse(success=False, message="线路名称不能为空")
+
+        if line_name in settings.EMBY_PREMIUM_STREAM_BACKEND:
+            return BaseResponse(success=False, message="该高级线路已存在")
+
+        if line_name in settings.EMBY_STREAM_BACKEND:
+            return BaseResponse(success=False, message="该线路已存在于普通线路中")
+
+        # 添加到高级线路列表
+        new_lines = settings.EMBY_PREMIUM_STREAM_BACKEND + [line_name]
+        settings.EMBY_PREMIUM_STREAM_BACKEND = new_lines
+        settings.save_config_to_env_file(
+            {"EMBY_PREMIUM_STREAM_BACKEND": ",".join(new_lines)}
+        )
+
+        logger.info(f"管理员 {user.username or user.id} 添加高级线路: {line_name}")
+        return BaseResponse(success=True, message=f"高级线路 '{line_name}' 添加成功")
+    except Exception as e:
+        logger.error(f"添加高级线路失败: {str(e)}")
+        return BaseResponse(success=False, message="添加高级线路失败")
+
+
+@router.delete("/emby-lines/normal/{line_name}")
+@require_telegram_auth
+async def delete_normal_line(
+    line_name: str,
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """删除普通线路"""
+    check_admin_permission(user)
+
+    try:
+        if line_name not in settings.EMBY_STREAM_BACKEND:
+            return BaseResponse(success=False, message="该普通线路不存在")
+
+        # 从普通线路列表中移除
+        new_lines = [line for line in settings.EMBY_STREAM_BACKEND if line != line_name]
+        settings.EMBY_STREAM_BACKEND = new_lines
+        settings.save_config_to_env_file({"EMBY_STREAM_BACKEND": ",".join(new_lines)})
+
+        # 删除该线路的标签（如果有）
+        emby_line_tags_cache.delete(line_name)
+        # 解绑所有绑定了该线路的用户
+        await unbind_specified_emby_line_for_all_users(line_name)
+
+        logger.info(f"管理员 {user.username or user.id} 删除普通线路: {line_name}")
+        return BaseResponse(success=True, message=f"普通线路 '{line_name}' 删除成功")
+    except Exception as e:
+        logger.error(f"删除普通线路失败: {str(e)}")
+        return BaseResponse(success=False, message="删除普通线路失败")
+
+
+@router.delete("/emby-lines/premium/{line_name}")
+@require_telegram_auth
+async def delete_premium_line(
+    line_name: str,
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """删除高级线路"""
+    check_admin_permission(user)
+
+    try:
+        if line_name not in settings.EMBY_PREMIUM_STREAM_BACKEND:
+            return BaseResponse(success=False, message="该高级线路不存在")
+
+        # 从高级线路列表中移除
+        new_lines = [
+            line for line in settings.EMBY_PREMIUM_STREAM_BACKEND if line != line_name
+        ]
+        settings.EMBY_PREMIUM_STREAM_BACKEND = new_lines
+        settings.save_config_to_env_file(
+            {"EMBY_PREMIUM_STREAM_BACKEND": ",".join(new_lines)}
+        )
+
+        # 从免费高级线路列表中移除（如果存在）
+        from app.cache import emby_free_premium_lines_cache
+
+        free_premium_lines = emby_free_premium_lines_cache.get("free_lines")
+        if free_premium_lines:
+            free_lines_list = free_premium_lines.split(",")
+            if line_name in free_lines_list:
+                free_lines_list.remove(line_name)
+                emby_free_premium_lines_cache.put(
+                    "free_lines", ",".join(free_lines_list)
+                )
+
+        # 删除该线路的标签（如果有）
+        emby_line_tags_cache.delete(line_name)
+
+        # 处理绑定了该线路的用户
+        await unbind_specified_emby_line_for_all_users(line_name)
+
+        logger.info(f"管理员 {user.username or user.id} 删除高级线路: {line_name}")
+        return BaseResponse(success=True, message=f"高级线路 '{line_name}' 删除成功")
+    except Exception as e:
+        logger.error(f"删除高级线路失败: {str(e)}")
+        return BaseResponse(success=False, message="删除高级线路失败")
