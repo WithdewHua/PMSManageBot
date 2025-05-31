@@ -193,3 +193,10 @@ emby_user_defined_line_cache = RedisCache(
 emby_last_user_defined_line_cache = RedisCache(
     db=2, cache_key_prefix="emby_last_user_defined_line:"
 )
+
+# Emby Free Premium Lines Cache
+emby_free_premium_lines_cache = RedisCache(
+    db=2,
+    cache_key_prefix="emby_free_premium_lines:",
+    ttl_seconds=None,  # 持久化存储
+)

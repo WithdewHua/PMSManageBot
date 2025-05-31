@@ -31,10 +31,18 @@ async def get_admin_settings(
     check_admin_permission(user)
 
     try:
+        # 从Redis缓存获取免费高级线路列表
+        from app.cache import emby_free_premium_lines_cache
+
+        free_premium_lines = emby_free_premium_lines_cache.get("free_lines")
+        free_premium_lines = free_premium_lines.split(",") if free_premium_lines else []
+
         settings_data = {
             "plex_register": settings.PLEX_REGISTER,
             "emby_register": settings.EMBY_REGISTER,
             "emby_premium_free": settings.EMBY_PREMIUM_FREE,
+            "emby_premium_lines": settings.EMBY_PREMIUM_STREAM_BACKEND,
+            "emby_free_premium_lines": free_premium_lines,
         }
 
         logger.info(f"管理员 {user.username or user.id} 获取系统设置")
@@ -131,6 +139,47 @@ async def set_emby_premium_free(
         return BaseResponse(success=False, message="设置失败")
 
 
+@router.post("/settings/emby-free-premium-lines")
+@require_telegram_auth
+async def set_emby_free_premium_lines(
+    request: Request,
+    data: dict = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """设置免费的Emby高级线路列表"""
+    check_admin_permission(user)
+
+    try:
+        free_lines = data.get("free_lines", [])
+
+        # 验证线路是否都在高级线路列表中
+        for line in free_lines:
+            if line not in settings.EMBY_PREMIUM_STREAM_BACKEND:
+                return BaseResponse(
+                    success=False, message=f"线路 {line} 不在高级线路列表中"
+                )
+
+        # 保存到Redis缓存
+        from app.cache import emby_free_premium_lines_cache
+
+        emby_free_premium_lines_cache.put("free_lines", ",".join(free_lines))
+
+        # 处理现有用户的线路绑定 - 如果某些原本免费的线路被移除，需要处理
+        flag, msg = await handle_free_premium_lines_change(free_lines)
+        if not flag:
+            return BaseResponse(success=False, message=msg)
+
+        logger.info(
+            f"管理员 {user.username or user.id} 设置免费高级线路为: {free_lines}"
+        )
+        return BaseResponse(
+            success=True, message=f"免费高级线路设置已更新，共 {len(free_lines)} 条线路"
+        )
+    except Exception as e:
+        logger.error(f"设置免费高级线路失败: {str(e)}")
+        return BaseResponse(success=False, message="设置失败")
+
+
 async def unbind_emby_premium_free():
     """解绑所有 Emby Premium Free（恢复普通用户）"""
 
@@ -179,6 +228,69 @@ async def unbind_emby_premium_free():
     except Exception as e:
         logger.error(f"解绑所有普通用户的 premium 线路时发生错误: {str(e)}")
         return False, f"解绑所有普通用户的 premium 线路时发生错误: {str(e)}"
+    finally:
+        db.close()
+        logger.debug("数据库连接已关闭")
+
+
+async def handle_free_premium_lines_change(new_free_lines: list):
+    """处理免费高级线路变更，检查并处理不再免费的线路"""
+    db = DB()
+    try:
+        # 获取当前免费线路
+        from app.cache import emby_free_premium_lines_cache
+
+        old_free_lines = emby_free_premium_lines_cache.get("free_lines")
+        old_free_lines = old_free_lines.split(",") if old_free_lines else []
+
+        # 找出不再免费的线路
+        removed_lines = set(old_free_lines) - set(new_free_lines)
+
+        if not removed_lines:
+            return True, None
+
+        # 获取所有绑定了被移除线路的普通用户
+        users = db.get_emby_user_with_binded_line()
+        for user in users:
+            emby_username, tg_id, emby_line, is_premium = user
+            if is_premium:
+                continue
+
+            # 检查用户绑定的线路是否在被移除的免费线路中
+            line_removed = False
+            for removed_line in removed_lines:
+                if removed_line in emby_line:
+                    line_removed = True
+                    break
+
+            if not line_removed:
+                continue
+
+            # 获取上一次绑定的非 premium 线路
+            last_line = emby_last_user_defined_line_cache.get(
+                str(emby_username).lower()
+            )
+            # 更新用户的 Emby 线路，last_line 为空则自动选择
+            db.set_emby_line(last_line, tg_id=tg_id)
+            # 更新缓存
+            if last_line:
+                emby_user_defined_line_cache.put(str(emby_username).lower(), last_line)
+                emby_last_user_defined_line_cache.delete(str(emby_username).lower())
+                await send_message_by_url(
+                    chat_id=tg_id,
+                    text=f"通知：线路 {emby_line} 已不再免费开放，您的线路已切换为 `{last_line}`",
+                )
+            else:
+                emby_user_defined_line_cache.delete(str(emby_username).lower())
+                await send_message_by_url(
+                    chat_id=tg_id,
+                    text=f"通知：线路 {emby_line} 已不再免费开放，您的线路已切换为 `AUTO`",
+                )
+
+        return True, None
+    except Exception as e:
+        logger.error(f"处理免费高级线路变更时发生错误: {str(e)}")
+        return False, f"处理免费高级线路变更时发生错误: {str(e)}"
     finally:
         db.close()
         logger.debug("数据库连接已关闭")

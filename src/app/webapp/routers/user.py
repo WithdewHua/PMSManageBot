@@ -340,12 +340,23 @@ async def get_emby_lines(
         )
         return BaseResponse(success=False, message="您未绑定 Emby 账户，无法查看线路")
     is_premium = emby_info[8] == 1
-    if not is_premium and not settings.EMBY_PREMIUM_FREE:
-        return EmbyLinesResponse(lines=settings.EMBY_STREAM_BACKEND)
-    else:
-        return EmbyLinesResponse(
-            lines=settings.EMBY_STREAM_BACKEND + settings.EMBY_PREMIUM_STREAM_BACKEND
-        )
+
+    # 基础线路
+    available_lines = settings.EMBY_STREAM_BACKEND.copy()
+
+    # 如果是premium用户，直接添加所有高级线路
+    if is_premium:
+        available_lines.extend(settings.EMBY_PREMIUM_STREAM_BACKEND)
+    # 如果不是premium用户，检查免费高级线路
+    elif settings.EMBY_PREMIUM_FREE:
+        # 从Redis缓存获取免费高级线路列表
+        from app.cache import emby_free_premium_lines_cache
+
+        free_premium_lines = emby_free_premium_lines_cache.get("free_lines")
+        free_premium_lines = free_premium_lines.split(",") if free_premium_lines else []
+        available_lines.extend(free_premium_lines)
+
+    return EmbyLinesResponse(lines=available_lines)
 
 
 @router.post("/bind/emby_line", response_model=BaseResponse)
@@ -375,12 +386,27 @@ async def bind_emby_line(
 
         # 更新用户线路设置
         is_premium = emby_info[8] == 1
-        if not is_premium and not settings.EMBY_PREMIUM_FREE:
+
+        # 如果不是premium用户，需要检查线路权限
+        if not is_premium:
             is_premium_line = emby_is_premium_line(line)
             if is_premium_line:
-                return BaseResponse(
-                    success=False, message="您不是 premium 用户，无法绑定该线路"
-                )
+                # 检查该高级线路是否在免费列表中
+                if settings.EMBY_PREMIUM_FREE:
+                    from app.cache import emby_free_premium_lines_cache
+
+                    free_premium_lines = emby_free_premium_lines_cache.get("free_lines")
+                    free_premium_lines = (
+                        free_premium_lines.split(",") if free_premium_lines else []
+                    )
+                    if line not in free_premium_lines:
+                        return BaseResponse(
+                            success=False, message="该高级线路暂未开放免费使用"
+                        )
+                else:
+                    return BaseResponse(
+                        success=False, message="您不是 premium 用户，无法绑定该线路"
+                    )
         success = db.set_emby_line(line, tg_id=tg_id)
 
         if not success:

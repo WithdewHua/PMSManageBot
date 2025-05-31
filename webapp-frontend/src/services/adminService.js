@@ -66,6 +66,23 @@ export async function setEmbyPremiumFree(enabled) {
 }
 
 /**
+ * 设置免费的 Emby 高级线路列表
+ * @param {Array} freeLines - 免费高级线路列表
+ * @returns {Promise} 设置结果
+ */
+export async function setEmbyFreePremiumLines(freeLines) {
+  try {
+    const response = await apiClient.post('/api/admin/settings/emby-free-premium-lines', {
+      free_lines: freeLines
+    });
+    return response;
+  } catch (error) {
+    console.error('设置免费高级线路列表失败:', error);
+    throw error;
+  }
+}
+
+/**
  * 获取所有用户信息（用于捐赠管理）
  * @returns {Promise} 用户列表
  */

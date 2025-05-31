@@ -257,6 +257,43 @@
                 ></v-switch>
               </div>
               
+              <!-- 免费高级线路选择 -->
+              <div v-if="adminSettings.emby_premium_free" class="mb-3">
+                <div class="d-flex align-center mb-2">
+                  <v-icon size="small" color="purple-darken-2" class="mr-2">mdi-server-network</v-icon>
+                  <span>免费高级线路选择：</span>
+                </div>
+                <v-select
+                  v-model="adminSettings.emby_free_premium_lines"
+                  :items="adminSettings.emby_premium_lines"
+                  multiple
+                  chips
+                  closable-chips
+                  label="选择免费开放的高级线路"
+                  density="compact"
+                  variant="outlined"
+                  @update:model-value="updateEmbyFreePremiumLines"
+                >
+                  <template v-slot:selection="{ item, index }">
+                    <v-chip
+                      v-if="index < 2"
+                      size="small"
+                      color="purple-lighten-3"
+                      closable
+                      @click:close="removeFreeLine(item.value)"
+                    >
+                      {{ item.title }}
+                    </v-chip>
+                    <span
+                      v-if="index === 2"
+                      class="text-grey text-caption align-self-center"
+                    >
+                      (+{{ adminSettings.emby_free_premium_lines.length - 2 }} others)
+                    </span>
+                  </template>
+                </v-select>
+              </div>
+              
               <!-- 捐赠管理 -->
               <v-divider class="my-3"></v-divider>
               <div class="d-flex justify-space-between align-center">
@@ -308,7 +345,7 @@ import EmbyLineSelector from '@/components/EmbyLineSelector.vue'
 import NsfwDialog from '@/components/NsfwDialog.vue'
 import DonationDialog from '@/components/DonationDialog.vue'
 import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
-import { getAdminSettings, setPlexRegister, setEmbyRegister, setEmbyPremiumFree } from '@/services/adminService.js'
+import { getAdminSettings, setPlexRegister, setEmbyRegister, setEmbyPremiumFree, setEmbyFreePremiumLines } from '@/services/adminService.js'
 
 export default {
   name: 'UserInfo',
@@ -333,7 +370,9 @@ export default {
       adminSettings: {
         plex_register: false,
         emby_register: false,
-        emby_premium_free: false
+        emby_premium_free: false,
+        emby_premium_lines: [],
+        emby_free_premium_lines: []
       },
       adminLoading: false,
       adminError: null
@@ -408,6 +447,26 @@ export default {
         this.adminSettings.emby_premium_free = !this.adminSettings.emby_premium_free
         this.showMessage('更新 Emby 会员线路免费开放设置失败', 'error')
         console.error('更新 Emby 会员线路免费开放设置失败:', err)
+      }
+    },
+    
+    async updateEmbyFreePremiumLines() {
+      try {
+        await setEmbyFreePremiumLines(this.adminSettings.emby_free_premium_lines)
+        this.showMessage(`免费高级线路设置已更新，共 ${this.adminSettings.emby_free_premium_lines.length} 条线路`)
+      } catch (err) {
+        this.showMessage('更新免费高级线路设置失败', 'error')
+        console.error('更新免费高级线路设置失败:', err)
+        // 重新获取设置以恢复状态
+        await this.fetchAdminSettings()
+      }
+    },
+    
+    removeFreeLine(line) {
+      const index = this.adminSettings.emby_free_premium_lines.indexOf(line)
+      if (index > -1) {
+        this.adminSettings.emby_free_premium_lines.splice(index, 1)
+        this.updateEmbyFreePremiumLines()
       }
     },
     
