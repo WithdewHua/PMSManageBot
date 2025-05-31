@@ -640,7 +640,7 @@ async def get_emby_lines(
         }
 
         logger.info(f"管理员 {user.username or user.id} 获取Emby线路配置")
-        return BaseResponse(success=True, data=lines_data)
+        return lines_data
     except Exception as e:
         logger.error(f"获取Emby线路配置失败: {str(e)}")
         return BaseResponse(success=False, message="获取线路配置失败")
