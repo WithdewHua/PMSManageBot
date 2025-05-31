@@ -258,6 +258,10 @@ export default {
 <style scoped>
 .line-selector-chip {
   cursor: pointer;
+  max-width: 200px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .line-item {
@@ -269,11 +273,15 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  min-width: 0;
 }
 
 .line-name {
   font-weight: 500;
   font-size: 14px;
+  word-break: break-all;
+  overflow-wrap: break-word;
+  line-height: 1.3;
 }
 
 .tags-container {
@@ -294,5 +302,43 @@ export default {
 .tag-chip {
   color: white !important;
   font-weight: 500 !important;
+}
+
+/* 小屏幕优化 */
+@media (max-width: 600px) {
+  .line-selector-chip {
+    max-width: 150px;
+    font-size: 12px;
+  }
+  
+  .tags-container {
+    max-width: 250px;
+  }
+  
+  :deep(.v-card) {
+    max-width: 90vw !important;
+    min-width: 280px !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .line-selector-chip {
+    max-width: 120px;
+    font-size: 11px;
+  }
+  
+  .line-name {
+    font-size: 13px;
+  }
+  
+  .tags-container {
+    max-width: 200px;
+  }
+  
+  .tags-container .v-chip {
+    height: 16px !important;
+    font-size: 9px !important;
+    padding: 0 4px !important;
+  }
 }
 </style>

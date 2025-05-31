@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" max-width="800" persistent>
+  <v-dialog v-model="dialog" max-width="800" persistent class="responsive-dialog">
     <v-card>
       <v-card-title class="text-center bg-blue-darken-2 text-white">
         <v-icon start>mdi-tag-multiple</v-icon>
@@ -22,8 +22,9 @@
           <!-- 线路标签列表 -->
           <div v-for="line in linesList" :key="line" class="mb-4">
             <v-card variant="outlined" class="pa-3">
-              <div class="d-flex justify-space-between align-center mb-3">
-                <div class="d-flex align-center">
+              <!-- 线路标题部分 - 支持响应式布局 -->
+              <div class="line-header mb-3">
+                <div class="line-info">
                   <v-icon 
                     size="small" 
                     :color="isPremiumLine(line) ? 'amber-darken-2' : 'blue-darken-1'" 
@@ -31,12 +32,12 @@
                   >
                     {{ isPremiumLine(line) ? 'mdi-crown' : 'mdi-server' }}
                   </v-icon>
-                  <span class="font-weight-medium">{{ line }}</span>
+                  <span class="font-weight-medium line-name">{{ line }}</span>
                   <v-chip 
                     v-if="isPremiumLine(line)" 
                     size="x-small" 
                     color="amber-lighten-3" 
-                    class="ml-2"
+                    class="ml-2 premium-chip"
                   >
                     高级线路
                   </v-chip>
@@ -47,9 +48,10 @@
                   size="small"
                   @click="clearLineTags(line)"
                   :disabled="!lineTags[line] || lineTags[line].length === 0"
+                  class="clear-btn"
                 >
                   <v-icon size="small">mdi-delete</v-icon>
-                  清空标签
+                  <span class="clear-btn-text">清空标签</span>
                 </v-btn>
               </div>
               
@@ -379,5 +381,103 @@ export default {
 .tag-chip-common:disabled {
   opacity: 0.6 !important;
   background-color: grey !important;
+}
+
+/* 响应式线路标题布局 */
+.line-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.line-info {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0; /* 允许文本缩收 */
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.line-name {
+  word-break: break-all;
+  overflow-wrap: break-word;
+  min-width: 0;
+  flex: 1;
+  line-height: 1.2;
+}
+
+.premium-chip {
+  flex-shrink: 0;
+}
+
+.clear-btn {
+  flex-shrink: 0;
+  min-width: auto;
+}
+
+/* 响应式对话框 */
+.responsive-dialog {
+  width: 95vw;
+  max-width: 800px;
+}
+
+/* 标签输入区域优化 */
+.d-flex.gap-2 {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+/* 小屏幕适配 */
+@media (max-width: 600px) {
+  .line-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .line-info {
+    justify-content: flex-start;
+  }
+  
+  .clear-btn {
+    align-self: flex-end;
+  }
+  
+  .clear-btn-text {
+    display: none;
+  }
+}
+
+/* 超小屏幕适配 */
+@media (max-width: 400px) {
+  .line-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .premium-chip {
+    margin-left: 0 !important;
+  }
+  
+  /* 对话框宽度优化 */
+  :deep(.v-dialog) {
+    margin: 12px;
+  }
+  
+  /* 标签输入区域优化 */
+  .gap-2 {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .gap-2 > * {
+    margin-right: 0;
+    width: 100%;
+  }
 }
 </style>
