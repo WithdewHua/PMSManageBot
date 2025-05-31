@@ -1,4 +1,5 @@
 from app.cache import (
+    emby_free_premium_lines_cache,
     emby_last_user_defined_line_cache,
     emby_line_tags_cache,
     emby_user_defined_line_cache,
@@ -170,13 +171,14 @@ async def set_emby_free_premium_lines(
                     success=False, message=f"线路 {line} 不在高级线路列表中"
                 )
 
-        # 保存到Redis缓存
-        from app.cache import emby_free_premium_lines_cache
-
+        # 保存到 Redis 缓存
+        old_free_lines = emby_free_premium_lines_cache.get("free_lines")
+        old_free_lines = old_free_lines.split(",") if old_free_lines else []
         emby_free_premium_lines_cache.put("free_lines", ",".join(free_lines))
 
+        removed_lines = set(old_free_lines) - set(free_lines)
         # 处理现有用户的线路绑定 - 如果某些原本免费的线路被移除，需要处理
-        flag, msg = await handle_free_premium_lines_change(free_lines)
+        flag, msg = await handle_free_premium_lines_change(removed_lines)
         if not flag:
             return BaseResponse(success=False, message=msg)
 
@@ -244,19 +246,10 @@ async def unbind_emby_premium_free():
         logger.debug("数据库连接已关闭")
 
 
-async def handle_free_premium_lines_change(new_free_lines: list):
+async def handle_free_premium_lines_change(removed_lines: list | set):
     """处理免费高级线路变更，检查并处理不再免费的线路"""
     db = DB()
     try:
-        # 获取当前免费线路
-        from app.cache import emby_free_premium_lines_cache
-
-        old_free_lines = emby_free_premium_lines_cache.get("free_lines")
-        old_free_lines = old_free_lines.split(",") if old_free_lines else []
-
-        # 找出不再免费的线路
-        removed_lines = set(old_free_lines) - set(new_free_lines)
-
         if not removed_lines:
             return True, None
 
@@ -315,9 +308,8 @@ async def get_all_tg_users(
     """获取所有用户信息（用于捐赠管理）"""
     check_admin_permission(user)
 
+    db = DB()
     try:
-        db = DB()
-
         # 从 statistics 表获取所有用户
         stats_users = db.cur.execute(
             "SELECT tg_id, donation, credits FROM statistics"
