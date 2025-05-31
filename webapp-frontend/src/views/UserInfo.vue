@@ -329,6 +329,59 @@
                   管理标签
                 </v-btn>
               </div>
+              
+              <!-- 积分设置 -->
+              <v-divider class="my-3"></v-divider>
+              <div class="mb-3">
+                <div class="d-flex align-center mb-3">
+                  <v-icon size="small" color="yellow-darken-2" class="mr-2">mdi-star</v-icon>
+                  <span class="font-weight-medium">积分设置：</span>
+                </div>
+                
+                <!-- 邀请码积分设置 -->
+                <div class="d-flex justify-space-between align-center mb-2">
+                  <div class="d-flex align-center">
+                    <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-ticket-confirmation</v-icon>
+                    <span>生成邀请码所需积分：</span>
+                  </div>
+                  <div class="d-flex align-center">
+                    <v-text-field
+                      v-model.number="adminSettings.invitation_credits"
+                      type="number"
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      style="width: 100px"
+                      min="0"
+                      max="10000"
+                      @blur="updateInvitationCredits"
+                      @keyup.enter="updateInvitationCredits"
+                    ></v-text-field>
+                  </div>
+                </div>
+                
+                <!-- 解锁NSFW积分设置 -->
+                <div class="d-flex justify-space-between align-center">
+                  <div class="d-flex align-center">
+                    <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-lock-open</v-icon>
+                    <span>解锁 NSFW 所需积分：</span>
+                  </div>
+                  <div class="d-flex align-center">
+                    <v-text-field
+                      v-model.number="adminSettings.unlock_credits"
+                      type="number"
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      style="width: 100px"
+                      min="0"
+                      max="10000"
+                      @blur="updateUnlockCredits"
+                      @keyup.enter="updateUnlockCredits"
+                    ></v-text-field>
+                  </div>
+                </div>
+              </div>
             </div>
           </v-card-text>
         </v-card>
@@ -370,7 +423,7 @@ import NsfwDialog from '@/components/NsfwDialog.vue'
 import DonationDialog from '@/components/DonationDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
-import { getAdminSettings, setPlexRegister, setEmbyRegister, setEmbyPremiumFree, setEmbyFreePremiumLines } from '@/services/adminService.js'
+import { getAdminSettings, setPlexRegister, setEmbyRegister, setEmbyPremiumFree, setEmbyFreePremiumLines, setInvitationCredits, setUnlockCredits } from '@/services/adminService.js'
 
 export default {
   name: 'UserInfo',
@@ -398,7 +451,9 @@ export default {
         emby_register: false,
         emby_premium_free: false,
         emby_premium_lines: [],
-        emby_free_premium_lines: []
+        emby_free_premium_lines: [],
+        invitation_credits: 288,
+        unlock_credits: 100
       },
       adminLoading: false,
       adminError: null
@@ -483,6 +538,44 @@ export default {
       } catch (err) {
         this.showMessage('更新免费高级线路设置失败', 'error')
         console.error('更新免费高级线路设置失败:', err)
+        // 重新获取设置以恢复状态
+        await this.fetchAdminSettings()
+      }
+    },
+    
+    async updateInvitationCredits() {
+      try {
+        const credits = parseInt(this.adminSettings.invitation_credits)
+        if (isNaN(credits) || credits < 0) {
+          this.showMessage('积分值必须是正整数', 'error')
+          // 重新获取设置以恢复状态
+          await this.fetchAdminSettings()
+          return
+        }
+        await setInvitationCredits(credits)
+        this.showMessage(`邀请码生成所需积分已设置为 ${credits}`)
+      } catch (err) {
+        this.showMessage('更新邀请码积分设置失败', 'error')
+        console.error('更新邀请码积分设置失败:', err)
+        // 重新获取设置以恢复状态
+        await this.fetchAdminSettings()
+      }
+    },
+    
+    async updateUnlockCredits() {
+      try {
+        const credits = parseInt(this.adminSettings.unlock_credits)
+        if (isNaN(credits) || credits < 0) {
+          this.showMessage('积分值必须是正整数', 'error')
+          // 重新获取设置以恢复状态
+          await this.fetchAdminSettings()
+          return
+        }
+        await setUnlockCredits(credits)
+        this.showMessage(`解锁 NSFW 所需积分已设置为 ${credits}`)
+      } catch (err) {
+        this.showMessage('更新解锁积分设置失败', 'error')
+        console.error('更新解锁积分设置失败:', err)
         // 重新获取设置以恢复状态
         await this.fetchAdminSettings()
       }

@@ -110,3 +110,37 @@ export async function submitDonationRecord(donationData) {
     throw error;
   }
 }
+
+/**
+ * 设置邀请码生成所需积分
+ * @param {number} credits - 积分数量
+ * @returns {Promise} 设置结果
+ */
+export async function setInvitationCredits(credits) {
+  try {
+    const response = await apiClient.post('/api/admin/settings/invitation-credits', {
+      credits: credits
+    });
+    return response;
+  } catch (error) {
+    console.error('设置邀请码积分失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 设置解锁NSFW所需积分
+ * @param {number} credits - 积分数量
+ * @returns {Promise} 设置结果
+ */
+export async function setUnlockCredits(credits) {
+  try {
+    const response = await apiClient.post('/api/admin/settings/unlock-credits', {
+      credits: credits
+    });
+    return response;
+  } catch (error) {
+    console.error('设置解锁积分失败:', error);
+    throw error;
+  }
+}

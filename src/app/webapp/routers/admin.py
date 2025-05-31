@@ -55,6 +55,8 @@ async def get_admin_settings(
             "emby_premium_free": settings.EMBY_PREMIUM_FREE,
             "emby_premium_lines": settings.EMBY_PREMIUM_STREAM_BACKEND,
             "emby_free_premium_lines": free_premium_lines,
+            "invitation_credits": settings.INVITATION_CREDITS,
+            "unlock_credits": settings.UNLOCK_CREDITS,
         }
 
         logger.info(f"管理员 {user.username or user.id} 获取系统设置")
@@ -529,3 +531,65 @@ async def delete_line_tags(
     except Exception as e:
         logger.error(f"删除线路标签失败: {str(e)}")
         return BaseResponse(success=False, message="删除标签失败")
+
+
+@router.post("/settings/invitation-credits")
+@require_telegram_auth
+async def set_invitation_credits(
+    request: Request,
+    data: dict = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """设置邀请码生成所需积分"""
+    check_admin_permission(user)
+
+    try:
+        credits = data.get("credits", 288)
+
+        # 验证积分值的合理性
+        if not isinstance(credits, int) or credits < 0:
+            return BaseResponse(success=False, message="积分值必须是非负整数")
+
+        settings.INVITATION_CREDITS = credits
+        settings.save_config_to_env_file({"INVITATION_CREDITS": str(credits)})
+
+        logger.info(
+            f"管理员 {user.username or user.id} 设置邀请码生成所需积分为: {credits}"
+        )
+        return BaseResponse(
+            success=True, message=f"邀请码生成所需积分已设置为 {credits}"
+        )
+    except Exception as e:
+        logger.error(f"设置邀请码积分失败: {str(e)}")
+        return BaseResponse(success=False, message="设置失败")
+
+
+@router.post("/settings/unlock-credits")
+@require_telegram_auth
+async def set_unlock_credits(
+    request: Request,
+    data: dict = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """设置解锁NSFW所需积分"""
+    check_admin_permission(user)
+
+    try:
+        credits = data.get("credits", 100)
+
+        # 验证积分值的合理性
+        if not isinstance(credits, int) or credits < 0:
+            return BaseResponse(success=False, message="积分值必须是非负整数")
+
+        settings.UNLOCK_CREDITS = credits
+        settings.save_config_to_env_file({"UNLOCK_CREDITS": str(credits)})
+
+        logger.info(
+            f"管理员 {user.username or user.id} 设置解锁 NSFW 所需积分为: {credits}"
+        )
+        return BaseResponse(
+            success=True, message=f"解锁 NSFW 所需积分已设置为 {credits}"
+        )
+    except Exception as e:
+        logger.error(f"设置解锁积分失败: {str(e)}")
+        return BaseResponse(success=False, message="设置失败")
