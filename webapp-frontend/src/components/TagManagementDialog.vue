@@ -180,20 +180,45 @@ export default {
     async loadLineTags() {
       try {
         this.loading = true
+        console.log('开始加载线路标签...')
         const response = await getAllLineTags()
+        console.log('API响应:', response)
         
-        this.lineTags = { ...response.lines }
-        this.originalTags = JSON.parse(JSON.stringify(response.lines)) // 深拷贝
-        this.linesList = Object.keys(response.lines).sort()
+        // 检查响应格式
+        if (!response || typeof response !== 'object') {
+          throw new Error(`无效的响应格式: ${JSON.stringify(response)}`)
+        }
+        
+        // 兼容不同的响应格式
+        let linesData = response.lines || response
+        console.log('线路数据:', linesData)
+        
+        if (!linesData || typeof linesData !== 'object') {
+          throw new Error(`无效的线路数据格式: ${JSON.stringify(linesData)}`)
+        }
+        
+        this.lineTags = { ...linesData }
+        this.originalTags = JSON.parse(JSON.stringify(linesData)) // 深拷贝
+        this.linesList = Object.keys(linesData).sort()
+        
+        console.log('解析的线路列表:', this.linesList)
+        console.log('解析的标签数据:', this.lineTags)
         
         // 初始化newTags对象
         this.linesList.forEach(line => {
           this.$set(this.newTags, line, '')
         })
         
+        console.log('标签加载成功')
+        
       } catch (error) {
         console.error('加载线路标签失败:', error)
-        this.showMessage('加载线路标签失败', 'error')
+        console.error('错误详情:', {
+          message: error.message,
+          response: error.response,
+          stack: error.stack
+        })
+        this.showMessage(`加载线路标签失败: ${error.message}`, 'error')
       } finally {
         this.loading = false
       }

@@ -39,18 +39,15 @@
                 <span class="line-name">{{ lineInfo.name }}</span>
                 <div v-if="lineInfo.tags && lineInfo.tags.length > 0" class="tags-container mt-1">
                   <v-chip
-                    v-for="tag in lineInfo.tags.slice(0, 3)"
+                    v-for="tag in lineInfo.tags"
                     :key="tag"
                     size="x-small"
                     :color="getTagColor(tag)"
                     variant="outlined"
-                    class="mr-1"
+                    class="mr-1 mb-1"
                   >
                     {{ tag }}
                   </v-chip>
-                  <span v-if="lineInfo.tags.length > 3" class="text-caption text-grey">
-                    +{{ lineInfo.tags.length - 3 }}
-                  </span>
                 </div>
               </div>
               <v-icon v-if="currentLine === lineInfo.name" color="success" size="small">mdi-check</v-icon>
@@ -150,38 +147,38 @@ export default {
     },
 
     getTagColor(tag) {
-      // 根据标签类型返回不同的颜色
-      const tagColors = {
-        // 地区标签
-        '香港': 'red-lighten-3',
-        '新加坡': 'green-lighten-3',
-        '日本': 'pink-lighten-3',
-        '美国': 'blue-lighten-3',
-        '德国': 'orange-lighten-3',
-        '澳洲': 'teal-lighten-3',
-        '英国': 'indigo-lighten-3',
-        '加拿大': 'purple-lighten-3',
-        
-        // 性能标签
-        '高级': 'amber-darken-2',
-        '4K': 'deep-purple-lighten-3',
-        '8K': 'deep-purple-darken-2',
-        '高速': 'light-green-lighten-3',
-        '稳定': 'blue-grey-lighten-3',
-        '直连': 'cyan-lighten-3',
-        'CDN': 'lime-lighten-3',
-        '原生IP': 'brown-lighten-3',
-        
-        // 特殊标签
-        '免费': 'green-darken-2',
-        '免费高级': 'amber-lighten-3',
-        '全球加速': 'deep-orange-lighten-3',
-        '自动选择': 'grey-lighten-3',
-        '智能切换': 'grey-lighten-2',
-        '标准': 'grey-lighten-4'
-      };
+      // 明亮的颜色数组，确保文字清晰可见
+      const brightColors = [
+        'red-lighten-3',
+        'pink-lighten-3', 
+        'purple-lighten-3',
+        'deep-purple-lighten-3',
+        'indigo-lighten-3',
+        'blue-lighten-3',
+        'light-blue-lighten-3',
+        'cyan-lighten-3',
+        'teal-lighten-3',
+        'green-lighten-3',
+        'light-green-lighten-3',
+        'lime-lighten-3',
+        'yellow-lighten-3',
+        'amber-lighten-3',
+        'orange-lighten-3',
+        'deep-orange-lighten-3',
+        'brown-lighten-3',
+        'blue-grey-lighten-3'
+      ];
       
-      return tagColors[tag] || 'grey-lighten-3';
+      // 使用标签内容作为种子生成稳定的随机索引
+      let hash = 0;
+      for (let i = 0; i < tag.length; i++) {
+        const char = tag.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // 转换为32位整数
+      }
+      
+      const colorIndex = Math.abs(hash) % brightColors.length;
+      return brightColors[colorIndex];
     },
     
     async selectLine(line) {
@@ -277,7 +274,8 @@ export default {
   flex-wrap: wrap;
   align-items: center;
   gap: 2px;
-  max-width: 280px;
+  max-width: 320px;
+  line-height: 1.2;
 }
 
 .tags-container .v-chip {

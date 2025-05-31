@@ -44,11 +44,46 @@ export async function getLineTags(lineName) {
  */
 export async function getAllLineTags() {
   try {
+    console.log('发送请求到 /api/admin/all_line_tags')
     const response = await apiClient.get('/api/admin/all_line_tags');
+    console.log('收到响应:', {
+      status: response.status,
+      headers: response.headers,
+      data: response.data
+    })
+    
+    // 检查响应状态
+    if (response.status !== 200) {
+      throw new Error(`HTTP错误: ${response.status}`)
+    }
+    
     return response.data;
   } catch (error) {
     console.error('获取所有线路标签失败:', error);
-    throw error;
+    
+    // 增强错误信息
+    if (error.response) {
+      console.error('错误响应:', {
+        status: error.response.status,
+        data: error.response.data,
+        headers: error.response.headers
+      })
+      
+      if (error.response.status === 401) {
+        throw new Error('未授权访问，请检查登录状态')
+      } else if (error.response.status === 403) {
+        throw new Error('权限不足，需要管理员权限')
+      } else if (error.response.status >= 500) {
+        throw new Error(`服务器错误: ${error.response.data?.detail || error.response.statusText}`)
+      } else {
+        throw new Error(`请求失败: ${error.response.data?.detail || error.response.statusText}`)
+      }
+    } else if (error.request) {
+      console.error('网络错误:', error.request)
+      throw new Error('网络连接失败，请检查网络状态')
+    } else {
+      throw new Error(`请求配置错误: ${error.message}`)
+    }
   }
 }
 
