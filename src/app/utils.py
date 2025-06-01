@@ -254,3 +254,20 @@ class SingletonMeta(type):
             instance = super().__call__(*args, **kwargs)
             cls._instances[cls] = instance
         return cls._instances[cls]
+
+
+def is_binded_premium_line(line: str) -> bool:
+    """检查绑定线路是否为高级线路
+
+    通用函数，适用于 Plex 和 Emby
+
+    Args:
+        line: 线路名称
+
+    Returns:
+        bool: 是否为高级线路
+    """
+    for premium_line in settings.PREMIUM_STREAM_BACKEND:
+        if premium_line in line:
+            return True
+    return False

@@ -330,13 +330,3 @@ class Emby:
             if user_name.lower() in ["ggbond", "huahua"]:
                 continue
             self.add_user_library(user_id, library)
-
-
-def emby_is_premium_line(line: str):
-    """检查是否为高级线路"""
-    is_premium_line = False
-    for _line in settings.EMBY_PREMIUM_STREAM_BACKEND:
-        if _line in line:
-            is_premium_line = True
-            break
-    return is_premium_line

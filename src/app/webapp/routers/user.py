@@ -4,16 +4,19 @@ from app.cache import (
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
     get_line_tags,
+    plex_last_user_defined_line_cache,
+    plex_user_defined_line_cache,
 )
 from app.config import settings
 from app.db import DB
-from app.emby import Emby, emby_is_premium_line
+from app.emby import Emby
 from app.log import uvicorn_logger as logger
 from app.plex import Plex
 from app.tautulli import Tautulli
 from app.utils import (
     caculate_credits_fund,
     get_user_total_duration,
+    is_binded_premium_line,
 )
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
@@ -24,6 +27,9 @@ from app.webapp.schemas import (
     EmbyLineInfo,
     EmbyLineRequest,
     EmbyLinesResponse,
+    PlexLineInfo,
+    PlexLineRequest,
+    PlexLinesResponse,
     TelegramUser,
     UserInfo,
 )
@@ -347,7 +353,7 @@ async def get_emby_lines(
     is_premium = emby_info[8] == 1
 
     # 基础线路
-    available_lines = settings.EMBY_STREAM_BACKEND.copy()
+    available_lines = settings.STREAM_BACKEND.copy()
     line_infos = []
 
     # 添加基础线路信息
@@ -358,16 +364,16 @@ async def get_emby_lines(
 
     # 如果是premium用户，直接添加所有高级线路
     if is_premium:
-        for line in settings.EMBY_PREMIUM_STREAM_BACKEND:
+        for line in settings.PREMIUM_STREAM_BACKEND:
             line_infos.append(
                 EmbyLineInfo(name=line, tags=get_line_tags(line), is_premium=True)
             )
     # 如果不是premium用户，检查免费高级线路
-    elif settings.EMBY_PREMIUM_FREE:
+    elif settings.PREMIUM_FREE:
         # 从Redis缓存获取免费高级线路列表
-        from app.cache import emby_free_premium_lines_cache
+        from app.cache import free_premium_lines_cache
 
-        free_premium_lines = emby_free_premium_lines_cache.get("free_lines")
+        free_premium_lines = free_premium_lines_cache.get("free_lines")
         free_premium_lines = free_premium_lines.split(",") if free_premium_lines else []
 
         for line in free_premium_lines:
@@ -410,13 +416,13 @@ async def bind_emby_line(
 
         # 如果不是premium用户，需要检查线路权限
         if not is_premium:
-            is_premium_line = emby_is_premium_line(line)
-            if is_premium_line:
+            is_premium_line_flag = is_binded_premium_line(line)
+            if is_premium_line_flag:
                 # 检查该高级线路是否在免费列表中
-                if settings.EMBY_PREMIUM_FREE:
-                    from app.cache import emby_free_premium_lines_cache
+                if settings.PREMIUM_FREE:
+                    from app.cache import free_premium_lines_cache
 
-                    free_premium_lines = emby_free_premium_lines_cache.get("free_lines")
+                    free_premium_lines = free_premium_lines_cache.get("free_lines")
                     free_premium_lines = (
                         free_premium_lines.split(",") if free_premium_lines else []
                     )
@@ -436,7 +442,7 @@ async def bind_emby_line(
 
         # 更新 redis 缓存
         binded_line = emby_user_defined_line_cache.get(str(emby_username).lower())
-        if binded_line and not emby_is_premium_line(binded_line):
+        if binded_line and not is_binded_premium_line(binded_line):
             # 满足如下条件：
             # 1. 缓存中存在绑定的线路，且该线路不是高级线路；
             # 将其记录到上一次使用的普通线路缓存中
@@ -741,3 +747,258 @@ async def nsfw_operation(
         raise HTTPException(status_code=500, detail="操作失败，请稍后再试")
     finally:
         _db.close()
+
+
+@router.get("/plex_lines", response_model=PlexLinesResponse)
+@require_telegram_auth
+async def get_plex_lines(
+    request: Request,
+    telegram_user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取可用的Plex线路列表"""
+    db = DB()
+    try:
+        # 获取 plex 用户信息，确认是否绑定
+        plex_info = db.get_plex_info_by_tg_id(telegram_user.id)
+        if not plex_info:
+            logger.warning(
+                f"用户 {telegram_user.username or telegram_user.id} 未绑定 Plex 账户"
+            )
+            return BaseResponse(
+                success=False, message="您未绑定 Plex 账户，无法查看线路"
+            )
+
+        # 检查用户是否为高级用户
+        is_premium_user = plex_info[9] == 1  # 假设 is_premium 字段在索引 9
+
+        # 获取基础线路和高级线路
+        available_lines = settings.STREAM_BACKEND.copy()
+        premium_lines = settings.PREMIUM_STREAM_BACKEND.copy()
+        line_infos = []
+
+        # 添加基础线路信息
+        for line in available_lines:
+            line_infos.append(
+                PlexLineInfo(name=line, tags=get_line_tags(line), is_premium=False)
+            )
+
+        # 根据用户权限添加高级线路信息
+        if is_premium_user:
+            # 高级用户可以看到所有高级线路
+            for line in premium_lines:
+                line_infos.append(
+                    PlexLineInfo(name=line, tags=get_line_tags(line), is_premium=True)
+                )
+        elif settings.PREMIUM_FREE:
+            # 普通用户在免费开放期间可以看到免费的高级线路
+            from app.cache import free_premium_lines_cache
+
+            free_premium_lines = free_premium_lines_cache.get("free_lines")
+            free_premium_lines = (
+                free_premium_lines.split(",") if free_premium_lines else []
+            )
+
+            for line in premium_lines:
+                if line in free_premium_lines:
+                    line_infos.append(
+                        PlexLineInfo(
+                            name=line, tags=get_line_tags(line), is_premium=True
+                        )
+                    )
+
+        return PlexLinesResponse(lines=line_infos)
+    finally:
+        db.close()
+
+
+@router.post("/bind/plex_line", response_model=BaseResponse)
+@require_telegram_auth
+async def bind_plex_line(
+    request: Request,
+    data: PlexLineRequest = Body(...),
+    telegram_user: TelegramUser = Depends(get_telegram_user),
+):
+    """绑定Plex线路"""
+    tg_id = telegram_user.id
+    line = data.line
+
+    logger.info(f"用户 {telegram_user.username or tg_id} 尝试绑定 Plex 线路 {line}")
+
+    db = DB()
+    try:
+        # 检查用户是否绑定了Plex账户
+        plex_info = db.get_plex_info_by_tg_id(tg_id)
+        if not plex_info:
+            logger.warning(f"用户 {telegram_user.username or tg_id} 未绑定 Plex 账户")
+            return BaseResponse(success=False, message="您尚未绑定Plex账户，请先绑定")
+
+        plex_username, plex_line = plex_info[4], plex_info[8]
+        if plex_line == line:
+            logger.warning(f"用户 {telegram_user.username or tg_id} 已绑定该线路")
+            return BaseResponse(success=False, message="该线路已绑定，请勿重复操作")
+
+        # 检查线路是否存在于可用线路中
+        if (
+            line not in settings.STREAM_BACKEND
+            and line not in settings.PREMIUM_STREAM_BACKEND
+        ):
+            return BaseResponse(success=False, message="该线路不存在或不可用")
+
+        # 更新用户线路设置
+        is_premium = plex_info[9] == 1
+
+        # 如果不是premium用户，需要检查线路权限
+        if not is_premium:
+            is_premium_line_flag = is_binded_premium_line(line)
+            if is_premium_line_flag:
+                # 检查该高级线路是否在免费列表中
+                if settings.PREMIUM_FREE:
+                    from app.cache import free_premium_lines_cache
+
+                    free_premium_lines = free_premium_lines_cache.get("free_lines")
+                    free_premium_lines = (
+                        free_premium_lines.split(",") if free_premium_lines else []
+                    )
+                    if line not in free_premium_lines:
+                        return BaseResponse(
+                            success=False, message="该高级线路暂未开放免费使用"
+                        )
+                else:
+                    return BaseResponse(
+                        success=False, message="您不是 premium 用户，无法绑定该线路"
+                    )
+
+        success = db.set_plex_line(line, tg_id=tg_id)
+        if not success:
+            logger.error(f"设置用户 {tg_id} 的 Plex 线路失败")
+            return BaseResponse(success=False, message="设置线路失败")
+
+        # 更新 redis 缓存
+        binded_line = plex_user_defined_line_cache.get(str(plex_username).lower())
+        if binded_line and not is_binded_premium_line(binded_line):
+            # 满足如下条件：
+            # 1. 缓存中存在绑定的线路，且该线路不是高级线路；
+            # 将其记录到上一次使用的普通线路缓存中
+            logger.debug(f"记录用户 {plex_username} 上一次使用的普通线路 {binded_line}")
+            plex_last_user_defined_line_cache.put(
+                str(plex_username).lower(), binded_line
+            )
+        plex_user_defined_line_cache.put(str(plex_username).lower(), line)
+
+        logger.info(
+            f"用户 {telegram_user.username or tg_id} 成功绑定 Plex 线路 {line}，原线路：{binded_line}"
+        )
+        return BaseResponse(success=True, message=f"绑定线路 {line} 成功！")
+
+    except Exception as e:
+        logger.error(f"绑定Plex线路时发生错误: {str(e)}")
+        return BaseResponse(success=False, message=f"绑定失败: {str(e)}")
+    finally:
+        db.close()
+        logger.debug("数据库连接已关闭")
+
+
+@router.post("/unbind/plex_line", response_model=BaseResponse)
+@require_telegram_auth
+async def unbind_plex_line(
+    request: Request,
+    telegram_user: TelegramUser = Depends(get_telegram_user),
+):
+    """解绑Plex线路（恢复自动选择）"""
+    tg_id = telegram_user.id
+
+    logger.info(f"用户 {telegram_user.username or tg_id} 尝试解绑 Plex 线路")
+
+    db = DB()
+    try:
+        # 检查用户是否绑定了Plex账户
+        plex_info = db.get_plex_info_by_tg_id(tg_id)
+        if not plex_info:
+            logger.warning(f"用户 {telegram_user.username or tg_id} 未绑定Plex账户")
+            return BaseResponse(success=False, message="您尚未绑定 Plex 账户，请先绑定")
+
+        plex_username, plex_line = plex_info[1], plex_info[7]
+        if not plex_line:
+            logger.warning(
+                f"用户 {telegram_user.username or tg_id} 未绑定线路，无需解绑"
+            )
+            return BaseResponse(success=False, message="您未绑定线路，无需解绑")
+
+        success = db.set_plex_line(None, tg_id=tg_id)
+        if not success:
+            logger.error(f"重置用户 {tg_id} 的 Plex 线路失败")
+            return BaseResponse(success=False, message="重置线路失败")
+
+        # 删除 redis 缓存
+        plex_user_defined_line_cache.delete(str(plex_username).lower())
+
+        logger.info(f"用户 {telegram_user.username or tg_id} 成功解绑 Plex 线路")
+        return BaseResponse(success=True, message="已切换到自动选择线路")
+
+    except Exception as e:
+        logger.error(f"解绑Plex线路时发生错误: {str(e)}")
+        return BaseResponse(success=False, message=f"解绑失败: {str(e)}")
+    finally:
+        db.close()
+        logger.debug("数据库连接已关闭")
+
+
+# ==================== 通用线路管理API ====================
+
+
+@router.get("/lines/{service}", response_model=dict)
+@require_telegram_auth
+async def get_lines_generic(
+    service: str,
+    request: Request,
+    telegram_user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取可用的线路列表（通用，同时支持Plex和Emby）"""
+    if service not in ["emby", "plex"]:
+        raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
+
+    if service == "emby":
+        return await get_emby_lines(request, telegram_user)
+    else:
+        return await get_plex_lines(request, telegram_user)
+
+
+@router.post("/lines/{service}/bind", response_model=BaseResponse)
+@require_telegram_auth
+async def bind_line_generic(
+    service: str,
+    request: Request,
+    data: dict = Body(...),
+    telegram_user: TelegramUser = Depends(get_telegram_user),
+):
+    """绑定线路（通用，同时支持Plex和Emby）"""
+    if service not in ["emby", "plex"]:
+        raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
+
+    line = data.get("line")
+    if not line:
+        raise HTTPException(status_code=400, detail="线路名称不能为空")
+
+    if service == "emby":
+        emby_data = EmbyLineRequest(line=line)
+        return await bind_emby_line(request, emby_data, telegram_user)
+    else:
+        plex_data = PlexLineRequest(line=line)
+        return await bind_plex_line(request, plex_data, telegram_user)
+
+
+@router.post("/lines/{service}/unbind", response_model=BaseResponse)
+@require_telegram_auth
+async def unbind_line_generic(
+    service: str,
+    request: Request,
+    telegram_user: TelegramUser = Depends(get_telegram_user),
+):
+    """解绑线路（通用，同时支持Plex和Emby）"""
+    if service not in ["emby", "plex"]:
+        raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
+
+    if service == "emby":
+        return await unbind_emby_line(request, telegram_user)
+    else:
+        return await unbind_plex_line(request, telegram_user)

@@ -28,6 +28,8 @@ class DB:
                     all_lib,
                     unlock_time,
                     watched_time,
+                    plex_line,
+                    is_premium,
                 );
 
                 CREATE TABLE invitation(
@@ -62,10 +64,12 @@ class DB:
         all_lib=0,
         unlock_time=None,
         watched_time=0,
+        plex_line: Optional[str] = None,
+        is_premium: Optional[int] = 0,
     ):
         try:
             self.cur.execute(
-                "INSERT INTO user VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO user VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     plex_id,
                     tg_id,
@@ -75,6 +79,8 @@ class DB:
                     all_lib,
                     unlock_time,
                     watched_time,
+                    plex_line,
+                    is_premium,
                 ),
             )
         except Exception as e:
@@ -380,6 +386,27 @@ class DB:
     def get_emby_user_with_binded_line(self):
         rslt = self.cur.execute(
             "SELECT emby_username,tg_id,emby_line,is_premium FROM emby_user WHERE emby_line IS NOT NULL"
+        )
+        return rslt.fetchall()
+
+    def set_plex_line(self, line, tg_id):
+        try:
+            self.cur.execute("UPDATE user SET plex_line=? WHERE tg_id=?", (line, tg_id))
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            return False
+        else:
+            self.con.commit()
+        return True
+
+    def get_plex_line(self, tg_id):
+        return self.cur.execute(
+            "SELECT plex_line FROM user WHERE tg_id=?", (tg_id,)
+        ).fetchone()[0]
+
+    def get_plex_user_with_binded_line(self):
+        rslt = self.cur.execute(
+            "SELECT plex_username,tg_id,plex_line,is_premium FROM user WHERE plex_line IS NOT NULL"
         )
         return rslt.fetchall()
 

@@ -57,9 +57,11 @@ class Settings(BaseSettings):
     EMBY_API_TOKEN: str = ""
     EMBY_ADMIN_USER: str = ""
     EMBY_USER_TEMPLATE: str = ""
-    EMBY_STREAM_BACKEND: list[str] = []
-    EMBY_PREMIUM_STREAM_BACKEND: list[str] = []
-    EMBY_PREMIUM_FREE: bool = False
+
+    # 后端线路
+    STREAM_BACKEND: list[str] = []
+    PREMIUM_STREAM_BACKEND: list[str] = []
+    PREMIUM_FREE: bool = False
 
     # redis
     REDIS_HOST: str = "localhost"

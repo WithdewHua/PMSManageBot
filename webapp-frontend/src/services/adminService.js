@@ -49,7 +49,41 @@ export async function setEmbyRegister(enabled) {
 }
 
 /**
- * 设置 Emby 高级线路免费使用状态
+ * 设置高级线路免费使用状态（通用，同时支持Plex和Emby）
+ * @param {boolean} enabled - 是否开启高级线路免费使用
+ * @returns {Promise} 设置结果
+ */
+export async function setPremiumFree(enabled) {
+  try {
+    const response = await apiClient.post('/api/admin/settings/premium-free', {
+      enabled: enabled
+    });
+    return response;
+  } catch (error) {
+    console.error('设置高级线路免费使用状态失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 设置免费的高级线路列表（通用，同时支持Plex和Emby）
+ * @param {Array} freeLines - 免费高级线路列表
+ * @returns {Promise} 设置结果
+ */
+export async function setFreePremiumLines(freeLines) {
+  try {
+    const response = await apiClient.post('/api/admin/settings/free-premium-lines', {
+      free_lines: freeLines
+    });
+    return response;
+  } catch (error) {
+    console.error('设置免费高级线路列表失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 设置 Emby 高级线路免费使用状态（兼容性接口，推荐使用 setPremiumFree）
  * @param {boolean} enabled - 是否开启高级线路免费使用
  * @returns {Promise} 设置结果
  */
@@ -66,7 +100,7 @@ export async function setEmbyPremiumFree(enabled) {
 }
 
 /**
- * 设置免费的 Emby 高级线路列表
+ * 设置免费的 Emby 高级线路列表（兼容性接口，推荐使用 setFreePremiumLines）
  * @param {Array} freeLines - 免费高级线路列表
  * @returns {Promise} 设置结果
  */

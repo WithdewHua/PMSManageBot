@@ -107,6 +107,19 @@
                 <v-icon end size="x-small" class="ml-1">mdi-pencil</v-icon>
               </v-chip>
             </div>
+            <div class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-connection</v-icon>
+                <span>绑定线路：</span>
+              </div>
+              <div class="line-selector-wrapper">
+                <plex-line-selector 
+                  ref="plexLineSelector"
+                  :current-value="userInfo.plex_info.line" 
+                  @line-changed="updatePlexLine"
+                ></plex-line-selector>
+              </div>
+            </div>
           </v-card-text>
         </v-card>
 
@@ -249,33 +262,33 @@
               <div class="d-flex justify-space-between mb-3 align-center">
                 <div class="d-flex align-center">
                   <v-icon size="small" color="purple-darken-2" class="mr-2">mdi-crown</v-icon>
-                  <span>Emby 高级线路开放：</span>
+                  <span>高级线路开放：</span>
                 </div>
                 <v-switch
-                  v-model="adminSettings.emby_premium_free"
+                  v-model="adminSettings.premium_free"
                   color="success"
                   density="compact"
                   hide-details
-                  @change="updateEmbyPremiumFree"
+                  @change="updatePremiumFree"
                 ></v-switch>
               </div>
               
               <!-- 免费高级线路选择 -->
-              <div v-if="adminSettings.emby_premium_free" class="mb-3">
+              <div v-if="adminSettings.premium_free" class="mb-3">
                 <div class="d-flex align-center mb-2">
                   <v-icon size="small" color="purple-darken-2" class="mr-2">mdi-server-network</v-icon>
                   <span>免费高级线路选择：</span>
                 </div>
                 <v-select
-                  v-model="adminSettings.emby_free_premium_lines"
-                  :items="adminSettings.emby_premium_lines"
+                  v-model="adminSettings.free_premium_lines"
+                  :items="adminSettings.premium_lines"
                   multiple
                   chips
                   closable-chips
                   label="选择免费开放的高级线路"
                   density="compact"
                   variant="outlined"
-                  @update:model-value="updateEmbyFreePremiumLines"
+                  @update:model-value="updateFreePremiumLines"
                 >
                   <template v-slot:selection="{ item, index }">
                     <v-chip
@@ -291,7 +304,7 @@
                       v-if="index === 2"
                       class="text-grey text-caption align-self-center"
                     >
-                      (+{{ adminSettings.emby_free_premium_lines.length - 2 }} others)
+                      (+{{ adminSettings.free_premium_lines.length - 2 }} others)
                     </span>
                   </template>
                 </v-select>
@@ -320,7 +333,7 @@
               <div class="d-flex justify-space-between align-center mb-3">
                 <div class="d-flex align-center">
                   <v-icon size="small" color="blue-darken-2" class="mr-2">mdi-tag-multiple</v-icon>
-                  <span>Emby 线路标签管理：</span>
+                  <span>线路标签管理：</span>
                 </div>
                 <v-btn
                   color="blue-darken-2"
@@ -338,7 +351,7 @@
               <div class="d-flex justify-space-between align-center mb-3">
                 <div class="d-flex align-center">
                   <v-icon size="small" color="green-darken-2" class="mr-2">mdi-server-network</v-icon>
-                  <span>Emby 线路管理：</span>
+                  <span>线路管理：</span>
                 </div>
                 <v-btn
                   color="green-darken-2"
@@ -446,17 +459,19 @@
 <script>
 import { getUserInfo } from '@/api'
 import EmbyLineSelector from '@/components/EmbyLineSelector.vue'
+import PlexLineSelector from '@/components/PlexLineSelector.vue'
 import NsfwDialog from '@/components/NsfwDialog.vue'
 import DonationDialog from '@/components/DonationDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
-import { getAdminSettings, setPlexRegister, setEmbyRegister, setEmbyPremiumFree, setEmbyFreePremiumLines, setInvitationCredits, setUnlockCredits } from '@/services/adminService.js'
+import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, seFreePremiumLines, setInvitationCredits, setUnlockCredits } from '@/services/adminService.js'
 
 export default {
   name: 'UserInfo',
   components: {
     EmbyLineSelector,
+    PlexLineSelector,
     NsfwDialog,
     DonationDialog,
     TagManagementDialog,
@@ -468,7 +483,9 @@ export default {
         credits: 0,
         donation: 0,
         invitation_codes: [],
-        plex_info: null,
+        plex_info: {
+          line: null
+        },
         emby_info: {
           line: null
         },
@@ -480,9 +497,9 @@ export default {
       adminSettings: {
         plex_register: false,
         emby_register: false,
-        emby_premium_free: false,
-        emby_premium_lines: [],
-        emby_free_premium_lines: [],
+        premium_free: false,
+        premium_lines: [],
+        free_premium_lines: [],
         invitation_credits: 288,
         unlock_credits: 100
       },
@@ -550,22 +567,22 @@ export default {
       }
     },
     
-    async updateEmbyPremiumFree() {
+    async updatePremiumFree() {
       try {
-        await setEmbyPremiumFree(this.adminSettings.emby_premium_free)
-        this.showMessage('Emby 会员线路免费设置已更新')
+        await setPremiumFree(this.adminSettings.premium_free)
+        this.showMessage('高级线路免费使用设置已更新')
       } catch (err) {
         // 回滚状态
-        this.adminSettings.emby_premium_free = !this.adminSettings.emby_premium_free
-        this.showMessage('更新 Emby 会员线路免费开放设置失败', 'error')
-        console.error('更新 Emby 会员线路免费开放设置失败:', err)
+        this.adminSettings.emby_premium_free = !this.adminSettings.premium_free
+        this.showMessage('更新高级线路免费开放设置失败', 'error')
+        console.error('更新高级线路免费开放设置失败:', err)
       }
     },
     
-    async updateEmbyFreePremiumLines() {
+    async updateFreePremiumLines() {
       try {
-        await setEmbyFreePremiumLines(this.adminSettings.emby_free_premium_lines)
-        this.showMessage(`免费高级线路设置已更新，共 ${this.adminSettings.emby_free_premium_lines.length} 条线路`)
+        await seFreePremiumLines(this.adminSettings.free_premium_lines)
+        this.showMessage(`免费高级线路设置已更新，共 ${this.adminSettings.free_premium_lines.length} 条线路`)
       } catch (err) {
         this.showMessage('更新免费高级线路设置失败', 'error')
         console.error('更新免费高级线路设置失败:', err)
@@ -616,7 +633,7 @@ export default {
       const index = this.adminSettings.emby_free_premium_lines.indexOf(line)
       if (index > -1) {
         this.adminSettings.emby_free_premium_lines.splice(index, 1)
-        this.updateEmbyFreePremiumLines()
+        this.updateFreePremiumLines()
       }
     },
     
@@ -647,6 +664,12 @@ export default {
     updateEmbyLine(line) {
       if (this.userInfo && this.userInfo.emby_info) {
         this.userInfo.emby_info.line = line;
+      }
+    },
+    
+    updatePlexLine(line) {
+      if (this.userInfo && this.userInfo.plex_info) {
+        this.userInfo.plex_info.line = line;
       }
     },
     

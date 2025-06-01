@@ -53,8 +53,22 @@ class EmbyLineRequest(BaseModel):
     line: str = Field(..., min_length=1)
 
 
+class PlexLineRequest(BaseModel):
+    """Plex线路请求模型"""
+
+    line: str = Field(..., min_length=1)
+
+
 class EmbyLineInfo(BaseModel):
     """Emby线路信息模型"""
+
+    name: str
+    tags: List[str] = []
+    is_premium: bool = False
+
+
+class PlexLineInfo(BaseModel):
+    """Plex线路信息模型"""
 
     name: str
     tags: List[str] = []
@@ -65,6 +79,12 @@ class EmbyLinesResponse(BaseModel):
     """Emby线路列表响应模型"""
 
     lines: List[EmbyLineInfo]
+
+
+class PlexLinesResponse(BaseModel):
+    """Plex线路列表响应模型"""
+
+    lines: List[PlexLineInfo]
 
 
 class LineTagRequest(BaseModel):
