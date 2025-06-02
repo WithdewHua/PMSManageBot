@@ -55,16 +55,12 @@ async def get_admin_settings(
         settings_data = {
             "plex_register": settings.PLEX_REGISTER,
             "emby_register": settings.EMBY_REGISTER,
-            "emby_premium_free": settings.PREMIUM_FREE,
+            "premium_free": settings.PREMIUM_FREE,
             "lines": settings.STREAM_BACKEND,
             "premium_lines": settings.PREMIUM_STREAM_BACKEND,
             "free_premium_lines": free_premium_lines,
             "invitation_credits": settings.INVITATION_CREDITS,
             "unlock_credits": settings.UNLOCK_CREDITS,
-            # 为了兼容性保留旧字段名
-            "emby_lines": settings.STREAM_BACKEND,
-            "emby_premium_lines": settings.PREMIUM_STREAM_BACKEND,
-            "emby_free_premium_lines": free_premium_lines,
         }
 
         logger.info(f"管理员 {user.username or user.id} 获取系统设置")
@@ -146,6 +142,7 @@ async def set_premium_free(
         # 如果从开启变为关闭，需要处理现有用户的高级线路绑定
         if old_status and not enabled:
             # 调用解绑所有普通用户的premium线路的函数
+            logger.info("添加解绑所有普通用户的高级线路任务")
             background_tasks.add_task(unbind_emby_premium_free)
             background_tasks.add_task(unbind_plex_premium_free)
 
@@ -200,6 +197,7 @@ async def set_free_premium_lines(
 
         removed_lines = set(old_free_lines) - set(free_lines)
         # 处理现有用户的线路绑定 - 如果某些原本免费的线路被移除，需要处理
+        logger.info("增加免费高级线路变更处理任务")
         background_tasks.add_task(handle_free_premium_lines_change, removed_lines)
 
         logger.info(

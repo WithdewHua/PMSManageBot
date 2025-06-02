@@ -67,6 +67,8 @@ async def get_user_info(
                     "email": plex_info[3],
                     "watched_time": plex_info[7],
                     "all_lib": plex_info[5] == 1,
+                    "line": plex_info[8],
+                    "is_premium": plex_info[9] == 1,
                 }
                 logger.debug(f"用户 {tg_id} 的Plex信息获取成功")
             else:
@@ -838,11 +840,11 @@ async def bind_plex_line(
             return BaseResponse(success=False, message="该线路已绑定，请勿重复操作")
 
         # 检查线路是否存在于可用线路中
-        if (
-            line not in settings.STREAM_BACKEND
-            and line not in settings.PREMIUM_STREAM_BACKEND
-        ):
-            return BaseResponse(success=False, message="该线路不存在或不可用")
+        # if (
+        #     line not in settings.STREAM_BACKEND
+        #     and line not in settings.PREMIUM_STREAM_BACKEND
+        # ):
+        #     return BaseResponse(success=False, message="该线路不存在或不可用")
 
         # 更新用户线路设置
         is_premium = plex_info[9] == 1

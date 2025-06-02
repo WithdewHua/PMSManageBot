@@ -62,7 +62,18 @@
                 <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-account</v-icon>
                 <span>用户名：</span>
               </div>
-              <div>{{ userInfo.plex_info.username }}</div>
+              <div class="d-flex align-center justify-end">
+                {{ userInfo.plex_info.username }}
+                <v-icon 
+                  v-if="userInfo.plex_info.is_premium" 
+                  size="small" 
+                  color="amber-darken-2" 
+                  class="ml-1" 
+                  title="会员用户"
+                >
+                  mdi-crown
+                </v-icon>
+              </div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
@@ -76,7 +87,7 @@
                 <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-clock-time-four-outline</v-icon>
                 <span>观看等级：</span>
               </div>
-              <div class="d-flex align-center" :title="`观看时长: ${userInfo.plex_info.watched_time.toFixed(2)}小时`">
+              <div class="d-flex align-center justify-end" :title="`观看时长: ${userInfo.plex_info.watched_time.toFixed(2)}小时`">
                 <template v-if="watchLevelIcons(userInfo.plex_info.watched_time).length > 0">
                   <div class="level-icons-container" @click="showWatchTimeDialog(userInfo.plex_info.watched_time)">
                     <span 
@@ -134,7 +145,7 @@
                 <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-account</v-icon>
                 <span>用户名：</span>
               </div>
-              <div class="d-flex align-center">
+              <div class="d-flex align-center justify-end">
                 {{ userInfo.emby_info.username }}
                 <v-icon 
                   v-if="userInfo.emby_info.is_premium" 
@@ -152,7 +163,7 @@
                 <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-clock-time-four-outline</v-icon>
                 <span>观看等级：</span>
               </div>
-              <div class="d-flex align-center" :title="`观看时长: ${userInfo.emby_info.watched_time.toFixed(2)}小时`">
+              <div class="d-flex align-center justify-end" :title="`观看时长: ${userInfo.emby_info.watched_time.toFixed(2)}小时`">
                 <template v-if="watchLevelIcons(userInfo.emby_info.watched_time).length > 0">
                   <div class="level-icons-container" @click="showWatchTimeDialog(userInfo.emby_info.watched_time)">
                     <span 
@@ -465,7 +476,7 @@ import DonationDialog from '@/components/DonationDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
-import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, seFreePremiumLines, setInvitationCredits, setUnlockCredits } from '@/services/adminService.js'
+import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits } from '@/services/adminService.js'
 
 export default {
   name: 'UserInfo',
@@ -497,6 +508,7 @@ export default {
       adminSettings: {
         plex_register: false,
         emby_register: false,
+        lines: [],
         premium_free: false,
         premium_lines: [],
         free_premium_lines: [],
@@ -573,7 +585,7 @@ export default {
         this.showMessage('高级线路免费使用设置已更新')
       } catch (err) {
         // 回滚状态
-        this.adminSettings.emby_premium_free = !this.adminSettings.premium_free
+        this.adminSettings.premium_free = !this.adminSettings.premium_free
         this.showMessage('更新高级线路免费开放设置失败', 'error')
         console.error('更新高级线路免费开放设置失败:', err)
       }
@@ -581,7 +593,7 @@ export default {
     
     async updateFreePremiumLines() {
       try {
-        await seFreePremiumLines(this.adminSettings.free_premium_lines)
+        await setFreePremiumLines(this.adminSettings.free_premium_lines)
         this.showMessage(`免费高级线路设置已更新，共 ${this.adminSettings.free_premium_lines.length} 条线路`)
       } catch (err) {
         this.showMessage('更新免费高级线路设置失败', 'error')
@@ -630,9 +642,9 @@ export default {
     },
     
     removeFreeLine(line) {
-      const index = this.adminSettings.emby_free_premium_lines.indexOf(line)
+      const index = this.adminSettings.free_premium_lines.indexOf(line)
       if (index > -1) {
-        this.adminSettings.emby_free_premium_lines.splice(index, 1)
+        this.adminSettings.free_premium_lines.splice(index, 1)
         this.updateFreePremiumLines()
       }
     },
@@ -767,6 +779,20 @@ export default {
   align-items: center;
 }
 
+/* 增强线路选择行的布局 */
+.d-flex.justify-space-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+/* 确保左侧标签部分不会过度拉伸 */
+.d-flex.justify-space-between > .d-flex.align-center {
+  flex: 1 1 auto;
+  min-width: 0; /* 允许文本截断 */
+}
+
 .cursor-pointer {
   cursor: pointer;
 }
@@ -829,28 +855,45 @@ export default {
 
 /* 线路选择器容器样式 */
 .line-selector-wrapper {
-  min-width: 0;
-  flex: 1;
-  max-width: 300px; /* 增加最大宽度以支持更好的滚动效果 */
-  margin-left: 8px;
+  min-width: 150px;
+  max-width: 250px;
+  flex: 0 0 auto; /* 防止收缩 */
+  margin-left: auto; /* 确保选择器靠右对齐 */
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+/* 为线路选择器行增加更好的flex布局 */
+.d-flex.justify-space-between .line-selector-wrapper {
+  flex-shrink: 0; /* 防止选择器被压缩 */
 }
 
 /* 在小屏幕上调整线路选择器 */
 @media (max-width: 600px) {
   .line-selector-wrapper {
-    max-width: 250px; /* 在小屏幕上也提供更多空间 */
+    max-width: 180px;
+    min-width: 120px;
   }
 }
 
 @media (max-width: 480px) {
   .line-selector-wrapper {
-    max-width: 200px; /* 在更小的屏幕上限制宽度 */
+    max-width: 140px;
+    min-width: 100px;
+  }
+  
+  /* 在小屏幕上允许标签文本换行 */
+  .d-flex.justify-space-between {
+    flex-wrap: wrap;
+    gap: 8px;
   }
 }
 
 @media (max-width: 400px) {
   .line-selector-wrapper {
-    max-width: 150px;
+    max-width: 120px;
+    min-width: 90px;
   }
 }
 </style>

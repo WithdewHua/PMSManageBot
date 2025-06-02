@@ -181,12 +181,12 @@
 
 <script>
 import { 
-  getEmbyLinesConfig, 
+  getLinesConfig, 
   addNormalLine, 
   addPremiumLine, 
   deleteNormalLine, 
   deletePremiumLine 
-} from '@/services/adminLineService';
+} from '@/services/lineService';
 
 export default {
   name: 'LineManagementDialog',
@@ -228,7 +228,7 @@ export default {
       this.error = null;
       
       try {
-        const response = await getEmbyLinesConfig();
+        const response = await getLinesConfig();
         if (response) {
           this.normalLines = response.normal_lines || [];
           this.premiumLines = response.premium_lines || [];

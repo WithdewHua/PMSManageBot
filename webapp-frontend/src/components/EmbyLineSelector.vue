@@ -1,6 +1,6 @@
 <template>
   <div>
-    <v-menu v-model="menu" :close-on-content-click="false" @update:model-value="onMenuToggle">
+    <v-menu v-model="menu" :close-on-content-click="false" @update:model-value="onMenuToggle" origin="top end">
       <template v-slot:activator="{ props }">
         <v-chip
           :color="currentLine ? 'primary' : 'default'"
@@ -154,47 +154,80 @@ export default {
     }
   },
   mounted() {
-    // 组件挂载后检查是否需要滚动
-    this.$nextTick(() => {
-      // 多次尝试，确保在各种情况下都能正确检测
-      setTimeout(() => this.checkAndStartScrolling(), 100);
-      setTimeout(() => this.checkAndStartScrolling(), 500);
-      setTimeout(() => this.checkAndStartScrolling(), 1000);
-    });
-  },
-  
-  updated() {
-    // 组件更新后也检查滚动
     this.$nextTick(() => {
       this.checkAndStartScrolling();
     });
   },
-  
   beforeUnmount() {
-    // 组件销毁前清除动画
     this.stopScrolling();
   },
-  
   methods: {
-    onMenuToggle(isOpen) {
-      if (isOpen) {
-        this.fetchAvailableLines();
+    async onMenuToggle(isOpen) {
+      if (isOpen && !this.loadingLines) {
+        await this.loadAvailableLines();
       }
     },
     
-    async fetchAvailableLines() {
+    async loadAvailableLines() {
       this.loadingLines = true;
       try {
-        const lines = await getAvailableEmbyLines();
-        this.availableLines = lines;
+        this.availableLines = await getAvailableEmbyLines();
       } catch (error) {
-        console.error('获取线路列表失败:', error);
-        this.showErrorMessage('获取可用线路列表失败');
+        console.error('获取 Emby 线路列表失败:', error);
+        this.showMessage('获取线路列表失败', 'error');
       } finally {
         this.loadingLines = false;
       }
     },
-
+    
+    async selectLine(line) {
+      if (line === this.currentLine) {
+        this.menu = false;
+        return;
+      }
+      
+      this.menu = false;
+      this.loading = true;
+      
+      try {
+        let result;
+        if (line === 'AUTO') {
+          result = await unbindEmbyLine();
+        } else {
+          result = await bindEmbyLine(line);
+        }
+        
+        if (result.success) {
+          this.currentLine = line;
+          this.$emit('line-changed', line);
+          this.showMessage(result.message, 'success');
+        } else {
+          this.showMessage(result.message || '操作失败', 'error');
+        }
+      } catch (error) {
+        console.error('线路操作失败:', error);
+        this.showMessage('操作失败，请稍后再试', 'error');
+      } finally {
+        this.loading = false;
+        this.customLine = '';
+      }
+    },
+    
+    async selectCustomLine() {
+      if (!this.customLine.trim()) {
+        this.showMessage('请输入线路名称', 'warning');
+        return;
+      }
+      
+      await this.selectLine(this.customLine.trim());
+    },
+    
+    showMessage(message, type = 'success') {
+      this.snackbarMessage = message;
+      this.snackbarColor = type;
+      this.showSnackbar = true;
+    },
+    
     getTagColor(tag) {
       // 使用更深色的背景色，确保在白色背景下有良好对比度
       const contrastColors = [
@@ -237,261 +270,64 @@ export default {
       return contrastColors[colorIndex];
     },
     
-    async selectLine(line) {
-      if (this.currentLine === line) {
-        this.menu = false;
-        return;
-      }
-      
-      this.menu = false;
-      this.loading = true;
-      
-      try {
-        let response;
-        
-        if (line === 'AUTO') {
-          // 解绑线路
-          response = await unbindEmbyLine();
-          if (response.success) {
-            this.currentLine = 'AUTO';
-            this.showSuccessMessage(response.message || '已切换到自动选择线路');
-          } else {
-            this.showErrorMessage(response.message || '切换线路失败');
-            return;
-          }
-        } else {
-          // 绑定线路
-          response = await bindEmbyLine(line);
-          if (response.success) {
-            this.currentLine = line;
-            this.showSuccessMessage(response.message || `已切换到${line}线路`);
-          } else {
-            this.showErrorMessage(response.message || '切换线路失败');
-            return;
-          }
-        }
-        
-        // 通知父组件更新
-        this.$emit('update:modelValue', this.currentLine === 'AUTO' ? null : this.currentLine);
-        this.$emit('line-changed', this.currentLine === 'AUTO' ? null : this.currentLine);
-        
-        // 线路更改后重新检查滚动
-        this.$nextTick(() => {
-          this.checkAndStartScrolling();
-        });
-      } catch (error) {
-        console.error('更新线路失败:', error);
-        this.showErrorMessage(error.response?.data?.message || '更新线路失败，请稍后再试');
-      } finally {
-        this.loading = false;
-      }
-    },
-    
-    selectCustomLine() {
-      if (this.customLine && this.customLine.trim()) {
-        this.selectLine(this.customLine.trim());
-        this.customLine = '';
-      }
-    },
-    
-    showSuccessMessage(message) {
-      this.snackbarMessage = message;
-      this.snackbarColor = 'success';
-      this.showSnackbar = true;
-    },
-    
-    showErrorMessage(message) {
-      this.snackbarMessage = message;
-      this.snackbarColor = 'error';
-      this.showSnackbar = true;
-    },
-    
-    // 检查是否需要滚动并开始滚动动画
     checkAndStartScrolling() {
-      // 先停止之前的滚动
-      this.stopScrolling();
+      if (!this.$refs.textContainer || !this.$refs.lineText) {
+        return;
+      }
       
-      // 使用 nextTick 确保 DOM 已经更新
-      this.$nextTick(() => {
-        const container = this.$refs.textContainer;
-        const text = this.$refs.lineText;
-        
-        if (!container || !text) {
-          return;
-        }
-        
-        // 重置滚动位置
-        container.scrollLeft = 0;
-        
-        // 使用 ResizeObserver 监听元素大小变化（如果支持）
-        if (window.ResizeObserver) {
-          const observer = new ResizeObserver(() => {
-            this.performScrollCheck();
-          });
-          observer.observe(container);
-          observer.observe(text);
-          
-          // 初始检查
-          setTimeout(() => {
-            this.performScrollCheck();
-            observer.disconnect(); // 检查完后断开观察
-          }, 100);
-        } else {
-          // 降级方案：多次检查
-          setTimeout(() => this.performScrollCheck(), 50);
-          setTimeout(() => this.performScrollCheck(), 200);
-          setTimeout(() => this.performScrollCheck(), 500);
-        }
-      });
-    },
-    
-    // 执行实际的滚动检查
-    performScrollCheck() {
       const container = this.$refs.textContainer;
       const text = this.$refs.lineText;
       
-      if (!container || !text) {
-        return;
-      }
-      
-      // 强制重新计算布局
-      container.offsetHeight;
-      text.offsetHeight;
-      
-      const containerWidth = container.clientWidth;
-      const textWidth = text.scrollWidth;
-      
-      // 如果容器还没有渲染完成，稍后再试
-      if (containerWidth === 0) {
-        setTimeout(() => this.performScrollCheck(), 100);
-        return;
-      }
-      
-      // 检查文本是否需要滚动（增加一些容差）
-      const tolerance = 5; // 5px的容差
-      if (textWidth > (containerWidth + tolerance)) {
-        // 延迟开始滚动，让用户有时间阅读
-        setTimeout(() => this.startScrolling(), 1000); // 增加延迟到1秒
+      // 检查文本是否超出容器宽度
+      if (text.scrollWidth > container.clientWidth) {
+        this.startScrolling();
+      } else {
+        this.stopScrolling();
       }
     },
     
-    // 开始滚动动画
     startScrolling() {
-      const container = this.$refs.textContainer;
+      this.stopScrolling(); // 先停止之前的动画
+      
       const text = this.$refs.lineText;
+      if (!text) return;
       
-      if (!container || !text) {
-        return;
-      }
-      
-      // 强制重新计算布局
-      container.offsetHeight;
-      text.offsetHeight;
-      
-      const containerWidth = container.clientWidth;
-      const textScrollWidth = text.scrollWidth;
-      
-      // 计算实际需要的箭头空间
-      const chipElement = container.closest('.v-chip');
-      const chipPadding = chipElement ? parseInt(window.getComputedStyle(chipElement).paddingRight, 10) || 16 : 16;
-      const arrowWidth = 24; // mdi 图标的宽度
-      const extraBuffer = 20; // 额外安全边距
-      
-      // 动态计算缓冲区大小，确保箭头完全可见
-      const buffer = chipPadding + arrowWidth + extraBuffer;
-      const maxScroll = Math.max(0, textScrollWidth - containerWidth + buffer);
-      
-      // 添加调试信息（开发时可用）
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Scroll debug:', {
-          containerWidth,
-          textScrollWidth,
-          chipPadding,
-          arrowWidth,
-          extraBuffer,
-          buffer,
-          maxScroll,
-          displayLine: this.displayLine
-        });
-      }
-      
-      if (maxScroll <= 0) {
-        return;
-      }
-      
-      const scrollSpeed = 40; // 稍微降低滚动速度，更容易阅读
-      const pauseDuration = 2000; // 增加停留时间
-      
+      const maxScroll = text.scrollWidth - text.parentElement.clientWidth;
       let currentScroll = 0;
-      let direction = 1; // 1 向右滚动，-1 向左滚动
-      let lastTime = performance.now();
-      let isPaused = false;
+      let direction = 1; // 1 表示向右滚动，-1 表示向左滚动
       
-      const animate = (currentTime) => {
-        if (this.scrollAnimation === null) return;
+      const scroll = () => {
+        currentScroll += direction * 0.5; // 滚动速度
         
-        if (isPaused) {
-          this.scrollAnimation = requestAnimationFrame(animate);
-          return;
-        }
-        
-        const deltaTime = (currentTime - lastTime) / 1000;
-        lastTime = currentTime;
-        
-        currentScroll += direction * scrollSpeed * deltaTime;
-        
-        // 边界检查和方向切换
-        if (direction === 1 && currentScroll >= maxScroll) {
-          currentScroll = maxScroll;
-          container.scrollLeft = currentScroll;
-          
-          // 验证滚动是否足够：检查文本右边缘是否在容器可视区域内
-          const textRightEdge = text.offsetLeft + text.offsetWidth;
-          const containerRightEdge = container.scrollLeft + container.clientWidth;
-          
-          // 如果文本还没有完全显示，增加一些额外的滚动
-          if (textRightEdge > containerRightEdge) {
-            const additionalScroll = textRightEdge - containerRightEdge + 10; // 额外10px边距
-            container.scrollLeft = Math.min(container.scrollLeft + additionalScroll, text.scrollWidth - container.clientWidth);
-          }
-          
+        if (currentScroll >= maxScroll) {
           direction = -1;
-          isPaused = true;
-          
-          setTimeout(() => {
-            if (this.scrollAnimation !== null) {
-              isPaused = false;
-              lastTime = performance.now();
-            }
-          }, pauseDuration);
-        } else if (direction === -1 && currentScroll <= 0) {
-          currentScroll = 0;
-          container.scrollLeft = 0;
+          currentScroll = maxScroll;
+        } else if (currentScroll <= 0) {
           direction = 1;
-          isPaused = true;
-          
-          setTimeout(() => {
-            if (this.scrollAnimation !== null) {
-              isPaused = false;
-              lastTime = performance.now();
-            }
-          }, pauseDuration);
-        } else {
-          container.scrollLeft = currentScroll;
+          currentScroll = 0;
         }
         
-        this.scrollAnimation = requestAnimationFrame(animate);
+        text.style.transform = `translateX(-${currentScroll}px)`;
+        this.scrollAnimation = requestAnimationFrame(scroll);
       };
       
-      // 立即开始滚动动画
-      this.scrollAnimation = requestAnimationFrame(animate);
+      // 延迟开始滚动
+      setTimeout(() => {
+        if (!this.menu) { // 只有在菜单关闭时才开始滚动
+          this.scrollAnimation = requestAnimationFrame(scroll);
+        }
+      }, 1000);
     },
     
-    // 停止滚动动画
     stopScrolling() {
-      if (this.scrollAnimation !== null) {
+      if (this.scrollAnimation) {
         cancelAnimationFrame(this.scrollAnimation);
         this.scrollAnimation = null;
+      }
+      
+      // 重置文本位置
+      if (this.$refs.lineText) {
+        this.$refs.lineText.style.transform = 'translateX(0)';
       }
     }
   }
@@ -500,37 +336,24 @@ export default {
 
 <style scoped>
 .line-selector-chip {
-  cursor: pointer;
-  max-width: 100%;
   min-width: 80px;
+  max-width: 200px;
+  font-size: 0.875rem;
+  height: 32px;
 }
 
 .line-text-container {
-  flex: 1;
   overflow: hidden;
   white-space: nowrap;
+  flex: 1;
   position: relative;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
-  min-width: 0; /* 确保可以收缩 */
-  height: 20px; /* 固定高度避免布局抖动 */
-  display: flex;
-  align-items: center;
-  max-width: calc(100% - 32px); /* 为箭头预留精确空间：16px图标 + 16px边距 */
-}
-
-.line-text-container::-webkit-scrollbar {
-  display: none; /* Chrome, Safari and Opera */
+  max-width: 150px;
 }
 
 .line-text {
-  font-size: 14px;
-  line-height: 1.2;
-  white-space: nowrap;
-  word-break: keep-all;
-  user-select: none; /* 防止选择文本影响滚动 */
-  flex-shrink: 0; /* 防止文本被压缩 */
   display: inline-block;
+  transition: transform 0.3s ease;
+  white-space: nowrap;
 }
 
 .line-selector-list {
@@ -603,76 +426,21 @@ export default {
   font-weight: 500 !important;
 }
 
-/* 小屏幕优化 */
-@media (max-width: 600px) {
-  .line-selector-chip {
-    max-width: 100%;
-    min-width: 70px;
-  }
-  
-  .line-text {
-    font-size: 12px;
-  }
-  
-  .line-selector-list {
-    max-height: 65vh;
-  }
-  
-  .tags-container {
-    max-width: 250px;
-  }
-  
-  :deep(.v-card) {
-    max-width: 90vw !important;
-    min-width: 280px !important;
-  }
+/* 自定义滚动条样式 */
+.line-selector-list::-webkit-scrollbar {
+  width: 4px;
 }
 
-@media (max-width: 400px) {
-  .line-selector-chip {
-    max-width: 100%;
-    min-width: 60px;
-  }
-  
-  .line-text {
-    font-size: 11px;
-  }
-  
-  .line-selector-list {
-    max-height: 70vh;
-  }
-  
-  .line-name {
-    font-size: 13px;
-  }
-  
-  .tags-container {
-    max-width: 200px;
-  }
-  
-  .tags-container .v-chip {
-    height: 16px !important;
-    font-size: 9px !important;
-    padding: 0 4px !important;
-  }
+.line-selector-list::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-/* 针对手机纵向屏幕的特殊优化 */
-@media screen and (max-width: 480px) and (orientation: portrait) {
-  .line-selector-list {
-    max-height: min(75vh, 500px);
-  }
-  
-  :deep(.v-card) {
-    max-width: 95vw !important;
-    min-width: 250px !important;
-  }
+.line-selector-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
 }
 
-/* 针对手机横向屏幕的优化 */
-@media screen and (max-height: 600px) and (orientation: landscape) {
-  .line-selector-list {
-    max-height: 50vh;
-  }
+.line-selector-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
 }
 </style>

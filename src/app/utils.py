@@ -146,11 +146,7 @@ def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
         cache_file_lock = filelock.FileLock(
             str(settings.TG_USER_INFO_CACHE_PATH) + ".lock"
         )
-        if settings.TG_USER_INFO_CACHE_PATH.exists():
-            with open(settings.TG_USER_INFO_CACHE_PATH, "rb") as f:
-                cache = pickle.load(f)
-        else:
-            cache = {}
+        cache = {}
         db = DB()
 
         # 从 statistics 表获取所有用户
@@ -158,6 +154,9 @@ def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
         stats_users = [user[0] for user in stats_users]
 
         for tg_id in stats_users:
+            if settings.TG_USER_INFO_CACHE_PATH.exists():
+                with open(settings.TG_USER_INFO_CACHE_PATH, "rb") as f:
+                    cache = pickle.load(f)
             # 缓存保留 7 天
             if tg_id in cache:
                 if time() - cache.get(tg_id).get("added") <= 7 * 24 * 3600:
@@ -214,30 +213,14 @@ def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
 def refresh_emby_user_info():
     """刷新 emby user info"""
     emby = Emby()
-    cache = {}
     # 获取所有的 emby 用户名
     try:
         db = DB()
 
         emby_users = db.cur.execute("SELECT emby_username from emby_user").fetchall()
         emby_users = [user[0] for user in emby_users]
-        with emby.cache_lock:
-            if emby.cache.exists():
-                with open(emby.cache, "rb") as f:
-                    cache = pickle.load(f)
         for user in emby_users:
-            if user in cache:
-                user_info = cache.get(user)
-                # 缓存小于 7 天，跳过不处理
-                if time() - user_info.get("added_time") < 7 * 24 * 3600:
-                    continue
-            logger.info(f"刷新 Emby 用户 {user} 信息")
-            user_info = emby.get_user_info_from_username(user)
-            if user_info:
-                cache.update({user: user_info})
-            with emby.cache_lock:
-                with open(emby.cache, "wb") as f:
-                    pickle.dump(cache, f)
+            emby.get_user_info_from_username(user)
     except Exception as e:
         logger.error(f"Refresh emby user info failed: {e}")
     finally:

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <v-menu v-model="menu" :close-on-content-click="false" @update:model-value="onMenuToggle">
+    <v-menu v-model="menu" :close-on-content-click="false" @update:model-value="onMenuToggle" origin="top end">
       <template v-slot:activator="{ props }">
         <v-chip
           :color="currentLine ? 'primary' : 'default'"
@@ -173,7 +173,7 @@ export default {
       try {
         this.availableLines = await getAvailablePlexLines();
       } catch (error) {
-        console.error('获取Plex线路列表失败:', error);
+        console.error('获取 Plex 线路列表失败:', error);
         this.showMessage('获取线路列表失败', 'error');
       } finally {
         this.loadingLines = false;
@@ -229,15 +229,45 @@ export default {
     },
     
     getTagColor(tag) {
-      const colorMap = {
-        'PREMIUM': 'orange',
-        'FREE': 'green',
-        'FAST': 'blue',
-        'SLOW': 'red',
-        'STABLE': 'purple',
-        'BETA': 'amber'
-      };
-      return colorMap[tag] || 'grey';
+      // 使用更深色的背景色，确保在白色背景下有良好对比度
+      const contrastColors = [
+        'red-darken-1',
+        'pink-darken-1', 
+        'purple-darken-1',
+        'deep-purple-darken-1',
+        'indigo-darken-1',
+        'blue-darken-1',
+        'light-blue-darken-1',
+        'cyan-darken-1',
+        'teal-darken-1',
+        'green-darken-1',
+        'light-green-darken-1',
+        'lime-darken-1',
+        'amber-darken-1',
+        'orange-darken-1',
+        'deep-orange-darken-1',
+        'brown-darken-1',
+        'blue-grey-darken-1',
+        'red-darken-2',
+        'pink-darken-2',
+        'purple-darken-2',
+        'deep-purple-darken-2',
+        'indigo-darken-2',
+        'blue-darken-2',
+        'teal-darken-2',
+        'green-darken-2'
+      ];
+      
+      // 使用标签内容作为种子生成稳定的随机索引
+      let hash = 0;
+      for (let i = 0; i < tag.length; i++) {
+        const char = tag.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // 转换为32位整数
+      }
+      
+      const colorIndex = Math.abs(hash) % contrastColors.length;
+      return contrastColors[colorIndex];
     },
     
     checkAndStartScrolling() {
@@ -327,8 +357,33 @@ export default {
 }
 
 .line-selector-list {
-  max-height: 400px;
+  max-height: 60vh;
   overflow-y: auto;
+}
+
+/* 自定义滚动条样式 */
+.line-selector-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.line-selector-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.line-selector-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.line-selector-list::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 对于Firefox浏览器 */
+.line-selector-list {
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
 }
 
 .line-item {
@@ -337,25 +392,38 @@ export default {
 
 .line-name-container {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   min-width: 0;
 }
 
 .line-name {
   font-weight: 500;
+  font-size: 14px;
   word-break: break-all;
+  overflow-wrap: break-word;
+  line-height: 1.3;
 }
 
 .tags-container {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 2px;
+  max-width: 320px;
+  line-height: 1.2;
+}
+
+.tags-container .v-chip {
+  height: 18px !important;
+  font-size: 10px !important;
+  padding: 0 6px !important;
 }
 
 .tag-chip {
-  font-size: 0.75rem !important;
-  height: 20px !important;
-  min-width: auto !important;
-  padding: 0 6px !important;
+  color: white !important;
+  font-weight: 500 !important;
 }
 
 /* 自定义滚动条样式 */

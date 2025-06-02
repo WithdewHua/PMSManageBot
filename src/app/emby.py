@@ -56,16 +56,21 @@ class Emby:
 
     def get_user_info_from_username(self, username: str, from_emby=True):
         cache = {}
+        user_info = {}
         with self.cache_lock:
             if self.cache.exists():
                 with open(self.cache, "rb") as f:
                     cache = pickle.load(f)
             if username in cache:
-                return cache[username]
+                user_info = cache[username]
+                # 如果缓存中的用户信息未过期，则直接返回
+                if time() - user_info.get("added_time", 0) < 7 * 24 * 3600:
+                    logger.debug(f"Cache hit for {username}: {user_info}")
+                    return user_info
 
             if not from_emby:
-                # 如果不从 Emby 获取，则直接返回空字典
-                return {}
+                # 如果不从 Emby 获取，则直接返回过期信息或者空字典
+                return user_info
 
             headers = {"accept": "application/json"}
 
@@ -121,6 +126,7 @@ class Emby:
             cache[username] = user_info
             with open(self.cache, "wb") as f:
                 pickle.dump(cache, f)
+            logger.info(f"Updated user info for {username}: {user_info}")
 
             return user_info
 
