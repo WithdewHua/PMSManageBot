@@ -352,7 +352,9 @@ async def get_emby_lines(
         logger.warning(
             f"用户 {telegram_user.username or telegram_user.id} 未绑定 Emby 账户"
         )
-        return BaseResponse(success=False, message="您未绑定 Emby 账户，无法查看线路")
+        return EmbyLinesResponse(
+            success=False, message="您未绑定 Emby 账户，无法查看线路", lines=[]
+        )
     is_premium = emby_info[8] == 1
 
     # 基础线路
@@ -386,7 +388,9 @@ async def get_emby_lines(
                 )
             )
 
-    return EmbyLinesResponse(lines=line_infos)
+    return EmbyLinesResponse(
+        lines=line_infos, success=True, message="获取 Emby 线路列表成功"
+    )
 
 
 @router.post("/bind/emby_line", response_model=BaseResponse)
@@ -767,8 +771,8 @@ async def get_plex_lines(
             logger.warning(
                 f"用户 {telegram_user.username or telegram_user.id} 未绑定 Plex 账户"
             )
-            return BaseResponse(
-                success=False, message="您未绑定 Plex 账户，无法查看线路"
+            return PlexLinesResponse(
+                success=False, message="您未绑定 Plex 账户，无法查看线路", lines=[]
             )
 
         # 检查用户是否为高级用户
@@ -809,7 +813,9 @@ async def get_plex_lines(
                         )
                     )
 
-        return PlexLinesResponse(lines=line_infos)
+        return PlexLinesResponse(
+            lines=line_infos, success=True, message="获取 Plex 线路列表成功"
+        )
     finally:
         db.close()
 
@@ -1182,13 +1188,12 @@ async def _auth_bind_plex_line(
 async def get_emby_lines_by_user(
     request: Request,
     data: dict = Body(...),
-    telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
     """基于用户名获取可用的Emby线路列表（无需认证，仅查询数据库中的用户信息）"""
     username = data.get("username")
 
     if not username:
-        return BaseResponse(success=False, message="用户名不能为空")
+        return EmbyLinesResponse(success=False, message="用户名不能为空", lines=[])
 
     db = DB()
     try:
@@ -1196,7 +1201,9 @@ async def get_emby_lines_by_user(
         emby_info = db.get_emby_info_by_emby_username(username)
         if not emby_info:
             logger.warning(f"Emby用户 {username} 未在数据库中找到记录")
-            return BaseResponse(success=False, message="该用户未在系统中注册")
+            return EmbyLinesResponse(
+                success=False, message="该用户未在系统中注册", lines=[]
+            )
 
         is_premium = emby_info[8] == 1
 
@@ -1235,11 +1242,15 @@ async def get_emby_lines_by_user(
                     )
 
         logger.info(f"为Emby用户 {username} 返回 {len(line_infos)} 条线路信息")
-        return EmbyLinesResponse(success=True, lines=line_infos)
+        return EmbyLinesResponse(
+            success=True, lines=line_infos, message="获取线路列表成功"
+        )
 
     except Exception as e:
         logger.error(f"获取Emby用户 {username} 的线路列表时发生错误: {str(e)}")
-        return BaseResponse(success=False, message=f"获取线路列表失败: {str(e)}")
+        return EmbyLinesResponse(
+            success=False, message=f"获取线路列表失败: {str(e)}", lines=[]
+        )
     finally:
         db.close()
 
@@ -1249,13 +1260,12 @@ async def get_emby_lines_by_user(
 async def get_plex_lines_by_user(
     request: Request,
     data: dict = Body(...),
-    telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
     """基于邮箱获取可用的Plex线路列表（无需认证，仅查询数据库中的用户信息）"""
     email = data.get("email")
 
     if not email:
-        return BaseResponse(success=False, message="邮箱不能为空")
+        return PlexLinesResponse(success=False, message="邮箱不能为空", lines=[])
 
     db = DB()
     try:
@@ -1263,10 +1273,12 @@ async def get_plex_lines_by_user(
         plex_info = db.get_plex_info_by_plex_email(email)
         if not plex_info:
             logger.warning(f"Plex用户 {email} 未在数据库中找到记录")
-            return BaseResponse(success=False, message="该用户未在系统中注册")
+            return PlexLinesResponse(
+                success=False, message="该用户未在系统中注册", lines=[]
+            )
 
         # 检查用户是否为高级用户
-        is_premium_user = plex_info[9] == 1  # 假设 is_premium 字段在索引 9
+        is_premium_user = plex_info[9] == 1
 
         # 获取基础线路和高级线路
         available_lines = settings.STREAM_BACKEND.copy()
@@ -1304,10 +1316,14 @@ async def get_plex_lines_by_user(
                     )
 
         logger.info(f"为Plex用户 {email} 返回 {len(line_infos)} 条线路信息")
-        return PlexLinesResponse(success=True, lines=line_infos)
+        return PlexLinesResponse(
+            success=True, lines=line_infos, message="获取线路列表成功"
+        )
 
     except Exception as e:
         logger.error(f"获取Plex用户 {email} 的线路列表时发生错误: {str(e)}")
-        return BaseResponse(success=False, message=f"获取线路列表失败: {str(e)}")
+        return PlexLinesResponse(
+            success=False, message=f"获取线路列表失败: {str(e)}", lines=[]
+        )
     finally:
         db.close()

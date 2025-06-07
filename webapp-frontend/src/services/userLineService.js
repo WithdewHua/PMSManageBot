@@ -110,14 +110,11 @@ export async function authBindLine(service, credentials) {
  * @param {string} service - 服务类型 ('emby' 或 'plex')
  * @param {string} username - 用户名（Emby用）
  * @param {string} email - 邮箱（Plex用）
- * @param {string} password - 密码
  * @returns {Promise<Array>} 线路信息列表，包含名称、标签和是否为高级线路
  */
-export async function getAvailableLinesByUser(service, username, email, password) {
+export async function getAvailableLinesByUser(service, username, email) {
   try {
-    const payload = {
-      password: password
-    };
+    const payload = {};
     
     if (service === 'emby') {
       payload.username = username;
@@ -136,21 +133,19 @@ export async function getAvailableLinesByUser(service, username, email, password
 /**
  * 基于用户名获取可用的Emby线路列表
  * @param {string} username - Emby用户名
- * @param {string} password - 密码
  * @returns {Promise<Array>} 线路信息列表，包含名称、标签和是否为高级线路
  */
-export async function getAvailableEmbyLinesByUser(username, password) {
-  return getAvailableLinesByUser('emby', username, null, password);
+export async function getAvailableEmbyLinesByUser(username) {
+  return getAvailableLinesByUser('emby', username, null);
 }
 
 /**
  * 基于邮箱获取可用的Plex线路列表
  * @param {string} email - Plex邮箱
- * @param {string} password - 密码
  * @returns {Promise<Array>} 线路信息列表，包含名称、标签和是否为高级线路
  */
-export async function getAvailablePlexLinesByUser(email, password) {
-  return getAvailableLinesByUser('plex', null, email, password);
+export async function getAvailablePlexLinesByUser(email) {
+  return getAvailableLinesByUser('plex', null, email);
 }
 
 // 为了向后兼容，保留原有的特定服务函数

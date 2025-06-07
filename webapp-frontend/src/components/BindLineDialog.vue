@@ -123,7 +123,7 @@
                 <v-list-item v-if="availableLines.length === 0 && !loadingLines && !hasValidCredentials" class="text-center">
                   <v-list-item-title class="text-grey">
                     <v-icon class="mr-2" size="small">mdi-information</v-icon>
-                    请先输入{{ serviceType === 'emby' ? '用户名' : '邮箱' }}和密码
+                    请先输入{{ serviceType === 'emby' ? '用户名' : '邮箱' }}
                   </v-list-item-title>
                 </v-list-item>
                 
@@ -233,9 +233,9 @@ export default {
     // 检查是否有有效的凭据
     hasValidCredentials() {
       if (this.serviceType === 'emby') {
-        return this.username && this.username.trim() && this.password && this.password.trim();
+        return this.username && this.username.trim();
       } else {
-        return this.email && this.email.trim() && this.password && this.password.trim();
+        return this.email && this.email.trim();
       }
     }
   },
@@ -247,21 +247,26 @@ export default {
       this.selectedLine = '';
       this.customLine = '';
     },
-    username() {
-      // 用户名变化时清空线路列表
-      this.availableLines = [];
-      this.selectedLine = '';
-      this.errorMessage = '';
+    username: {
+      handler() {
+        // 用户名变化时清空线路列表和错误信息
+        this.availableLines = [];
+        this.selectedLine = '';
+        this.errorMessage = '';
+      },
+      immediate: false
     },
-    email() {
-      // 邮箱变化时清空线路列表
-      this.availableLines = [];
-      this.selectedLine = '';
-      this.errorMessage = '';
+    email: {
+      handler() {
+        // 邮箱变化时清空线路列表和错误信息
+        this.availableLines = [];
+        this.selectedLine = '';
+        this.errorMessage = '';
+      },
+      immediate: false
     },
     password() {
-      // 密码变化时清空线路列表
-      this.availableLines = [];
+      // 密码变化时清空选中的线路
       this.selectedLine = '';
       this.errorMessage = '';
     }
@@ -303,14 +308,12 @@ export default {
       
       // 检查必要的凭据是否已输入
       if (this.serviceType === 'emby') {
-        if (!this.username || !this.password) {
-          this.errorMessage = '请先输入用户名和密码';
+        if (!this.username || !this.username.trim()) {
           this.availableLines = [];
           return;
         }
       } else {
-        if (!this.email || !this.password) {
-          this.errorMessage = '请先输入邮箱和密码';
+        if (!this.email || !this.email.trim()) {
           this.availableLines = [];
           return;
         }
@@ -321,9 +324,9 @@ export default {
       try {
         let lines = [];
         if (this.serviceType === 'emby') {
-          lines = await getAvailableEmbyLinesByUser(this.username, this.password);
+          lines = await getAvailableEmbyLinesByUser(this.username);
         } else {
-          lines = await getAvailablePlexLinesByUser(this.email, this.password);
+          lines = await getAvailablePlexLinesByUser(this.email);
         }
         
         // 保留完整的线路信息（包括标签）
@@ -333,7 +336,7 @@ export default {
         if (error.response?.data?.message) {
           this.errorMessage = error.response.data.message;
         } else {
-          this.errorMessage = '获取线路列表失败，请检查用户名密码是否正确';
+          this.errorMessage = `获取线路列表失败，请检查${this.serviceType === 'emby' ? '用户名' : '邮箱'}是否正确`;
         }
         this.availableLines = [];
       } finally {
@@ -343,7 +346,7 @@ export default {
     
     // 处理线路菜单切换
     async onLineMenuToggle(isOpen) {
-      if (isOpen && !this.loadingLines) {
+      if (isOpen && !this.loadingLines && this.hasValidCredentials && this.availableLines.length === 0) {
         await this.loadAvailableLines();
       }
     },

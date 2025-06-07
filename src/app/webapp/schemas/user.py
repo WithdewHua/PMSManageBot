@@ -75,13 +75,13 @@ class PlexLineInfo(BaseModel):
     is_premium: bool = False
 
 
-class EmbyLinesResponse(BaseModel):
+class EmbyLinesResponse(BaseResponse):
     """Emby线路列表响应模型"""
 
     lines: List[EmbyLineInfo]
 
 
-class PlexLinesResponse(BaseModel):
+class PlexLinesResponse(BaseResponse):
     """Plex线路列表响应模型"""
 
     lines: List[PlexLineInfo]
