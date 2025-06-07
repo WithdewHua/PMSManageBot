@@ -198,7 +198,7 @@
                     >
                       <template v-slot:prepend-inner>
                         <v-icon size="16" :color="watchedTimeSource === 'plex' ? 'orange' : 'green'">
-                          {{ watchedTimeSource === 'plex' ? 'mdi-plex' : 'mdi-server' }}
+                          {{ watchedTimeSource === 'plex' ? 'mdi-plex' : 'mdi-emby' }}
                         </v-icon>
                       </template>
                     </v-select>
@@ -301,7 +301,7 @@
                               @error="handleImageError"
                               class="avatar-img"
                             />
-                            <v-icon v-else size="24" color="green">mdi-server</v-icon>
+                            <v-icon v-else size="24" color="green">mdi-emby</v-icon>
                           </v-avatar>
                           <div class="user-info flex-grow-1">
                             <v-list-item-title class="user-name">{{ item.name }}</v-list-item-title>

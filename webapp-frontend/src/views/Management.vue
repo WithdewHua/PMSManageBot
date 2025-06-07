@@ -83,7 +83,7 @@
                   
                   <div class="d-flex justify-space-between mb-3 align-center">
                     <div class="d-flex align-center">
-                      <v-icon size="small" color="green-darken-2" class="mr-2">mdi-server</v-icon>
+                      <v-icon size="small" color="green-darken-2" class="mr-2">mdi-emby</v-icon>
                       <span>Emby 注册开放：</span>
                     </div>
                     <v-switch

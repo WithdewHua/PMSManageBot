@@ -164,7 +164,7 @@
         <!-- Emby 账户信息 -->
         <v-card v-if="userInfo.emby_info" class="user-info-card mb-4">
           <v-card-title class="card-title-section">
-            <v-icon start color="green-darken-2">mdi-server</v-icon> Emby 账户
+            <v-icon start color="green-darken-2">mdi-emby</v-icon> Emby 账户
           </v-card-title>
           <v-card-text>
             <div class="d-flex justify-space-between mb-2 align-center">
