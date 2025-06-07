@@ -1,34 +1,54 @@
 <template>
   <div class="user-info-container">
-    <v-container>
-      <div v-if="loading" class="text-center my-10">
-        <v-progress-circular indeterminate color="primary"></v-progress-circular>
-        <div class="mt-3">加载中...</div>
+    <div class="content-wrapper">
+      <div class="user-info-header">
+        <h1 class="page-title">FunMedia 用户中心</h1>
+        <p class="page-subtitle">账户信息与服务管理</p>
+      </div>
+      
+      <v-container class="transparent-container">
+      <div v-if="loading" class="loading-container">
+        <div class="loading-content">
+          <v-progress-circular 
+            indeterminate 
+            color="primary" 
+            size="50"
+            width="4"
+          ></v-progress-circular>
+          <div class="loading-text">加载中...</div>
+        </div>
       </div>
 
-      <div v-else-if="error" class="text-center my-10">
-        <v-alert type="error">{{ error }}</v-alert>
+      <div v-else-if="error" class="error-container">
+        <v-alert 
+          type="error" 
+          class="error-alert"
+          rounded="lg"
+          elevation="4"
+        >
+          {{ error }}
+        </v-alert>
       </div>
 
       <div v-else>
-        <v-card class="mb-4">
-          <v-card-title class="text-center">
-            <v-icon start>mdi-account-circle</v-icon> 个人信息
+        <v-card class="user-info-card mb-4">
+          <v-card-title class="card-title-section">
+            <v-icon start color="primary">mdi-account-circle</v-icon> 个人信息
           </v-card-title>
           <v-card-text>
-            <div class="d-flex justify-space-between mb-2 align-center">
+            <div class="d-flex justify-space-between mb-3 align-center">
               <div class="d-flex align-center">
                 <v-icon size="small" color="primary" class="mr-2">mdi-star-circle</v-icon>
                 <span>可用积分：</span>
               </div>
-              <div class="font-weight-bold">{{ userInfo.credits.toFixed(2) }}</div>
+              <div class="value-display credits-value">{{ userInfo.credits.toFixed(2) }}</div>
             </div>
-            <div class="d-flex justify-space-between mb-2 align-center">
+            <div class="d-flex justify-space-between mb-3 align-center">
               <div class="d-flex align-center">
                 <v-icon size="small" color="success" class="mr-2">mdi-currency-usd</v-icon>
                 <span>捐赠金额：</span>
               </div>
-              <div class="font-weight-bold">{{ userInfo.donation.toFixed(2) }}</div>
+              <div class="value-display donation-value">{{ userInfo.donation.toFixed(2) }}</div>
             </div>
             <v-divider class="my-3"></v-divider>
 
@@ -37,8 +57,15 @@
                 <v-icon size="small" color="info" class="mr-2">mdi-ticket-account</v-icon>
                 <span>可用邀请码：</span>
               </div>
-              <div v-for="(code, index) in userInfo.invitation_codes" :key="index" class="mb-1">
-                <v-chip size="small" color="primary" @click="copyToClipboard(code)">
+              <div v-for="(code, index) in userInfo.invitation_codes" :key="index" class="mb-2">
+                <v-chip 
+                  size="small" 
+                  color="primary" 
+                  @click="copyToClipboard(code)"
+                  class="invitation-chip"
+                  elevation="2"
+                  rounded="lg"
+                >
                   {{ code }}
                   <v-icon end icon="mdi-content-copy" size="small"></v-icon>
                 </v-chip>
@@ -52,9 +79,9 @@
         </v-card>
 
         <!-- Plex 账户信息 -->
-        <v-card v-if="userInfo.plex_info" class="mb-4">
-          <v-card-title class="text-center">
-            <v-icon start>mdi-plex</v-icon> Plex 账户
+        <v-card v-if="userInfo.plex_info" class="user-info-card mb-4">
+          <v-card-title class="card-title-section">
+            <v-icon start color="orange-darken-2">mdi-plex</v-icon> Plex 账户
           </v-card-title>
           <v-card-text>
             <div class="d-flex justify-space-between mb-2 align-center">
@@ -135,9 +162,9 @@
         </v-card>
 
         <!-- Emby 账户信息 -->
-        <v-card v-if="userInfo.emby_info" class="mb-4">
-          <v-card-title class="text-center">
-            <v-icon start>mdi-server</v-icon> Emby 账户
+        <v-card v-if="userInfo.emby_info" class="user-info-card mb-4">
+          <v-card-title class="card-title-section">
+            <v-icon start color="green-darken-2">mdi-server</v-icon> Emby 账户
           </v-card-title>
           <v-card-text>
             <div class="d-flex justify-space-between mb-2 align-center">
@@ -211,9 +238,9 @@
         </v-card>
 
         <!-- Overseerr 账户信息 -->
-        <v-card v-if="userInfo.overseerr_info" class="mb-4">
-          <v-card-title class="text-center">
-            <v-icon start>mdi-movie-search</v-icon> Overseerr 账户
+        <v-card v-if="userInfo.overseerr_info" class="user-info-card mb-4">
+          <v-card-title class="card-title-section">
+            <v-icon start color="blue-darken-2">mdi-movie-search</v-icon> Overseerr 账户
           </v-card-title>
           <v-card-text>
             <div class="d-flex justify-space-between mb-2 align-center">
@@ -226,219 +253,20 @@
           </v-card-text>
         </v-card>
 
-        <!-- 管理员模块 -->
-        <v-card v-if="userInfo.is_admin" class="mb-4">
-          <v-card-title class="text-center">
-            <v-icon start color="red-darken-2">mdi-shield-crown</v-icon> 管理员控制面板
-          </v-card-title>
-          <v-card-text>
-            <div v-if="adminLoading" class="text-center my-4">
-              <v-progress-circular indeterminate size="small" color="primary"></v-progress-circular>
-              <span class="ml-2">加载管理员设置中...</span>
-            </div>
-            
-            <div v-else-if="adminError" class="mb-4">
-              <v-alert type="error" density="compact">{{ adminError }}</v-alert>
-            </div>
-            
-            <div v-else>
-              <div class="d-flex justify-space-between mb-3 align-center">
-                <div class="d-flex align-center">
-                  <v-icon size="small" color="orange-darken-2" class="mr-2">mdi-plex</v-icon>
-                  <span>Plex 注册开放：</span>
-                </div>
-                <v-switch
-                  v-model="adminSettings.plex_register"
-                  color="success"
-                  density="compact"
-                  hide-details
-                  @change="updatePlexRegister"
-                ></v-switch>
-              </div>
-              
-              <div class="d-flex justify-space-between mb-3 align-center">
-                <div class="d-flex align-center">
-                  <v-icon size="small" color="green-darken-2" class="mr-2">mdi-server</v-icon>
-                  <span>Emby 注册开放：</span>
-                </div>
-                <v-switch
-                  v-model="adminSettings.emby_register"
-                  color="success"
-                  density="compact"
-                  hide-details
-                  @change="updateEmbyRegister"
-                ></v-switch>
-              </div>
-              
-              <div class="d-flex justify-space-between mb-3 align-center">
-                <div class="d-flex align-center">
-                  <v-icon size="small" color="purple-darken-2" class="mr-2">mdi-crown</v-icon>
-                  <span>高级线路开放：</span>
-                </div>
-                <v-switch
-                  v-model="adminSettings.premium_free"
-                  color="success"
-                  density="compact"
-                  hide-details
-                  @change="updatePremiumFree"
-                ></v-switch>
-              </div>
-              
-              <!-- 免费高级线路选择 -->
-              <div v-if="adminSettings.premium_free" class="mb-3">
-                <div class="d-flex align-center mb-2">
-                  <v-icon size="small" color="purple-darken-2" class="mr-2">mdi-server-network</v-icon>
-                  <span>免费高级线路选择：</span>
-                </div>
-                <v-select
-                  v-model="adminSettings.free_premium_lines"
-                  :items="adminSettings.premium_lines"
-                  multiple
-                  chips
-                  closable-chips
-                  label="选择免费开放的高级线路"
-                  density="compact"
-                  variant="outlined"
-                  @update:model-value="updateFreePremiumLines"
-                >
-                  <template v-slot:selection="{ item, index }">
-                    <v-chip
-                      v-if="index < 2"
-                      size="small"
-                      color="purple-lighten-3"
-                      closable
-                      @click:close="removeFreeLine(item.value)"
-                    >
-                      {{ item.title }}
-                    </v-chip>
-                    <span
-                      v-if="index === 2"
-                      class="text-grey text-caption align-self-center"
-                    >
-                      (+{{ adminSettings.free_premium_lines.length - 2 }} others)
-                    </span>
-                  </template>
-                </v-select>
-              </div>
-              
-              <!-- 捐赠管理 -->
-              <v-divider class="my-3"></v-divider>
-              <div class="d-flex justify-space-between align-center">
-                <div class="d-flex align-center">
-                  <v-icon size="small" color="red-darken-2" class="mr-2">mdi-gift</v-icon>
-                  <span>捐赠记录管理：</span>
-                </div>
-                <v-btn
-                  color="red-darken-2"
-                  variant="outlined"
-                  size="small"
-                  @click="openDonationDialog"
-                >
-                  <v-icon start size="small">mdi-plus</v-icon>
-                  添加捐赠
-                </v-btn>
-              </div>
-              
-              <!-- 线路标签管理 -->
-              <v-divider class="my-3"></v-divider>
-              <div class="d-flex justify-space-between align-center mb-3">
-                <div class="d-flex align-center">
-                  <v-icon size="small" color="blue-darken-2" class="mr-2">mdi-tag-multiple</v-icon>
-                  <span>线路标签管理：</span>
-                </div>
-                <v-btn
-                  color="blue-darken-2"
-                  variant="outlined"
-                  size="small"
-                  @click="openTagManagementDialog"
-                >
-                  <v-icon start size="small">mdi-cog</v-icon>
-                  管理标签
-                </v-btn>
-              </div>
-              
-              <!-- 线路管理 -->
-              <v-divider class="my-3"></v-divider>
-              <div class="d-flex justify-space-between align-center mb-3">
-                <div class="d-flex align-center">
-                  <v-icon size="small" color="green-darken-2" class="mr-2">mdi-server-network</v-icon>
-                  <span>线路管理：</span>
-                </div>
-                <v-btn
-                  color="green-darken-2"
-                  variant="outlined"
-                  size="small"
-                  @click="openLineManagementDialog"
-                >
-                  <v-icon start size="small">mdi-plus-circle</v-icon>
-                  管理线路
-                </v-btn>
-              </div>
-              
-              <!-- 积分设置 -->
-              <v-divider class="my-3"></v-divider>
-              <div class="mb-3">
-                <div class="d-flex align-center mb-3">
-                  <v-icon size="small" color="yellow-darken-2" class="mr-2">mdi-star</v-icon>
-                  <span class="font-weight-medium">积分设置：</span>
-                </div>
-                
-                <!-- 邀请码积分设置 -->
-                <div class="d-flex justify-space-between align-center mb-2">
-                  <div class="d-flex align-center">
-                    <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-ticket-confirmation</v-icon>
-                    <span>生成邀请码所需积分：</span>
-                  </div>
-                  <div class="d-flex align-center">
-                    <v-text-field
-                      v-model.number="adminSettings.invitation_credits"
-                      type="number"
-                      density="compact"
-                      variant="outlined"
-                      hide-details
-                      style="width: 100px"
-                      min="0"
-                      max="10000"
-                      @blur="updateInvitationCredits"
-                      @keyup.enter="updateInvitationCredits"
-                    ></v-text-field>
-                  </div>
-                </div>
-                
-                <!-- 解锁NSFW积分设置 -->
-                <div class="d-flex justify-space-between align-center">
-                  <div class="d-flex align-center">
-                    <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-lock-open</v-icon>
-                    <span>解锁 NSFW 所需积分：</span>
-                  </div>
-                  <div class="d-flex align-center">
-                    <v-text-field
-                      v-model.number="adminSettings.unlock_credits"
-                      type="number"
-                      density="compact"
-                      variant="outlined"
-                      hide-details
-                      style="width: 100px"
-                      min="0"
-                      max="10000"
-                      @blur="updateUnlockCredits"
-                      @keyup.enter="updateUnlockCredits"
-                    ></v-text-field>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </v-card-text>
-        </v-card>
-
-        <div v-if="!userInfo.plex_info && !userInfo.emby_info" class="text-center my-8">
-          <v-alert type="info">
+        <div v-if="!userInfo.plex_info && !userInfo.emby_info" class="no-accounts-message">
+          <v-alert 
+            type="info" 
+            class="info-alert"
+            rounded="lg"
+            elevation="4"
+          >
             <v-icon start>mdi-information</v-icon>
             您尚未绑定任何媒体服务账户，请使用 /bind_plex 或 /bind_emby 命令进行绑定
           </v-alert>
         </div>
       </div>
-    </v-container>
+      </v-container>
+    </div>
     
     <!-- 使用NSFW对话框组件 -->
     <nsfw-dialog 
@@ -476,7 +304,6 @@ import DonationDialog from '@/components/DonationDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
-import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits } from '@/services/adminService.js'
 
 export default {
   name: 'UserInfo',
@@ -504,19 +331,7 @@ export default {
         is_admin: false
       },
       loading: true,
-      error: null,
-      adminSettings: {
-        plex_register: false,
-        emby_register: false,
-        lines: [],
-        premium_free: false,
-        premium_lines: [],
-        free_premium_lines: [],
-        invitation_credits: 288,
-        unlock_credits: 100
-      },
-      adminLoading: false,
-      adminError: null
+      error: null
     }
   },
   mounted() {
@@ -529,123 +344,10 @@ export default {
         const response = await getUserInfo()
         this.userInfo = response.data
         this.loading = false
-        
-        // 如果用户是管理员，获取管理员设置
-        if (this.userInfo.is_admin) {
-          await this.fetchAdminSettings()
-        }
       } catch (err) {
         this.error = err.response?.data?.detail || '获取用户信息失败'
         this.loading = false
         console.error('获取用户信息失败:', err)
-      }
-    },
-    
-    async fetchAdminSettings() {
-      try {
-        this.adminLoading = true
-        this.adminError = null
-        const response = await getAdminSettings()
-        this.adminSettings = response.data
-        this.adminLoading = false
-      } catch (err) {
-        this.adminError = err.response?.data?.detail || '获取管理员设置失败'
-        this.adminLoading = false
-        console.error('获取管理员设置失败:', err)
-      }
-    },
-    
-    async updatePlexRegister() {
-      try {
-        await setPlexRegister(this.adminSettings.plex_register)
-        this.showMessage('Plex 注册设置已更新')
-      } catch (err) {
-        // 回滚状态
-        this.adminSettings.plex_register = !this.adminSettings.plex_register
-        this.showMessage('更新 Plex 注册设置失败', 'error')
-        console.error('更新 Plex 注册设置失败:', err)
-      }
-    },
-    
-    async updateEmbyRegister() {
-      try {
-        await setEmbyRegister(this.adminSettings.emby_register)
-        this.showMessage('Emby 注册设置已更新')
-      } catch (err) {
-        // 回滚状态
-        this.adminSettings.emby_register = !this.adminSettings.emby_register
-        this.showMessage('更新 Emby 注册设置失败', 'error')
-        console.error('更新 Emby 注册设置失败:', err)
-      }
-    },
-    
-    async updatePremiumFree() {
-      try {
-        await setPremiumFree(this.adminSettings.premium_free)
-        this.showMessage('高级线路免费使用设置已更新')
-      } catch (err) {
-        // 回滚状态
-        this.adminSettings.premium_free = !this.adminSettings.premium_free
-        this.showMessage('更新高级线路免费开放设置失败', 'error')
-        console.error('更新高级线路免费开放设置失败:', err)
-      }
-    },
-    
-    async updateFreePremiumLines() {
-      try {
-        await setFreePremiumLines(this.adminSettings.free_premium_lines)
-        this.showMessage(`免费高级线路设置已更新，共 ${this.adminSettings.free_premium_lines.length} 条线路`)
-      } catch (err) {
-        this.showMessage('更新免费高级线路设置失败', 'error')
-        console.error('更新免费高级线路设置失败:', err)
-        // 重新获取设置以恢复状态
-        await this.fetchAdminSettings()
-      }
-    },
-    
-    async updateInvitationCredits() {
-      try {
-        const credits = parseInt(this.adminSettings.invitation_credits)
-        if (isNaN(credits) || credits < 0) {
-          this.showMessage('积分值必须是正整数', 'error')
-          // 重新获取设置以恢复状态
-          await this.fetchAdminSettings()
-          return
-        }
-        await setInvitationCredits(credits)
-        this.showMessage(`邀请码生成所需积分已设置为 ${credits}`)
-      } catch (err) {
-        this.showMessage('更新邀请码积分设置失败', 'error')
-        console.error('更新邀请码积分设置失败:', err)
-        // 重新获取设置以恢复状态
-        await this.fetchAdminSettings()
-      }
-    },
-    
-    async updateUnlockCredits() {
-      try {
-        const credits = parseInt(this.adminSettings.unlock_credits)
-        if (isNaN(credits) || credits < 0) {
-          this.showMessage('积分值必须是正整数', 'error')
-          // 重新获取设置以恢复状态
-          await this.fetchAdminSettings()
-          return
-        }
-        await setUnlockCredits(credits)
-        this.showMessage(`解锁 NSFW 所需积分已设置为 ${credits}`)
-      } catch (err) {
-        this.showMessage('更新解锁积分设置失败', 'error')
-        console.error('更新解锁积分设置失败:', err)
-        // 重新获取设置以恢复状态
-        await this.fetchAdminSettings()
-      }
-    },
-    
-    removeFreeLine(line) {
-      const index = this.adminSettings.free_premium_lines.indexOf(line)
-      if (index > -1) {
-        this.adminSettings.free_premium_lines.splice(index, 1)
-        this.updateFreePremiumLines()
       }
     },
     
@@ -746,10 +448,7 @@ export default {
     
     // 处理线路更新完成事件
     handleLinesUpdated() {
-      // 线路更新后刷新管理员设置以获取最新的线路列表
-      if (this.userInfo.is_admin) {
-        this.fetchAdminSettings();
-      }
+      // 线路配置已在管理页面更新
       this.showMessage('线路配置已更新');
     },
     
@@ -771,7 +470,159 @@ export default {
 
 <style scoped>
 .user-info-container {
-  padding-bottom: 56px; /* 为底部导航栏留出空间 */
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  padding-bottom: 80px; /* 为底部导航栏留出空间 */
+}
+
+.content-wrapper {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.user-info-header {
+  text-align: center;
+  margin-bottom: 40px;
+  padding: 30px 20px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.page-subtitle {
+  font-size: 16px;
+  color: #666;
+  margin: 0;
+}
+
+.transparent-container {
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.user-info-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: none;
+}
+
+.user-info-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+}
+
+.card-title-section {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 16px 16px 0 0;
+  padding: 20px 24px 16px;
+}
+
+/* 确保卡片内容左对齐 */
+.user-info-card .v-card-text {
+  text-align: left;
+  padding: 24px;
+}
+
+/* 无账户消息样式 */
+.no-accounts-message {
+  text-align: center;
+  margin: 40px 0;
+}
+
+.info-alert {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border: none !important;
+}
+
+/* 邀请码芯片样式 */
+.invitation-chip {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.invitation-chip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(116, 185, 255, 0.3) !important;
+}
+
+/* 数值显示样式 */
+.value-display {
+  font-weight: 700;
+  font-size: 16px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  text-align: center;
+  min-width: 60px;
+  background: linear-gradient(135deg, rgba(116, 185, 255, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  border: 1px solid rgba(116, 185, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.credits-value {
+  color: #1976d2;
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.1) 0%, rgba(25, 118, 210, 0.05) 100%);
+  border-color: rgba(25, 118, 210, 0.2);
+}
+
+.donation-value {
+  color: #388e3c;
+  background: linear-gradient(135deg, rgba(56, 142, 60, 0.1) 0%, rgba(56, 142, 60, 0.05) 100%);
+  border-color: rgba(56, 142, 60, 0.2);
+}
+
+/* 加载状态样式 */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  margin: 40px 0;
+}
+
+.loading-content {
+  text-align: center;
+  padding: 30px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.loading-text {
+  margin-top: 16px;
+  font-size: 16px;
+  color: #666;
+  font-weight: 500;
+}
+
+/* 错误状态样式 */
+.error-container {
+  text-align: center;
+  margin: 40px 0;
+}
+
+.error-alert {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border: none !important;
 }
 
 /* 确保所有d-flex内的项目垂直居中 */
@@ -810,13 +661,13 @@ export default {
 /* 可点击chip样式 */
 .clickable-chip {
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: all 0.3s ease;
   border: 1px solid transparent;
 }
 
 .clickable-chip:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
   border-color: currentColor;
 }
 
@@ -895,5 +746,196 @@ export default {
     max-width: 120px;
     min-width: 90px;
   }
+}
+
+/* 深色模式样式 */
+:deep(.v-theme--dark) .user-info-header,
+:deep(.v-theme--dark) .user-info-card {
+  background: rgba(30, 30, 30, 0.95) !important;
+}
+
+:deep(.v-theme--dark) .card-title-section {
+  background: rgba(40, 40, 40, 0.8) !important;
+  color: #ffffff !important;
+}
+
+:deep(.v-theme--dark) .page-title {
+  color: #ffffff !important;
+}
+
+:deep(.v-theme--dark) .page-subtitle {
+  color: #e0e0e0 !important;
+}
+
+/* 深色模式下的文本内容 */
+:deep(.v-theme--dark) .user-info-card .v-card-text {
+  color: #ffffff !important;
+}
+
+:deep(.v-theme--dark) .user-info-card .v-card-text span {
+  color: #ffffff !important;
+}
+
+:deep(.v-theme--dark) .user-info-card .v-card-text div {
+  color: #ffffff !important;
+}
+
+/* 深色模式下的标签文字 */
+:deep(.v-theme--dark) .user-info-card .v-card-text > div > div > span,
+:deep(.v-theme--dark) .user-info-card .v-card-text .d-flex span {
+  color: #ffffff !important;
+}
+
+/* 深色模式下所有文本元素 */
+:deep(.v-theme--dark) .user-info-card span,
+:deep(.v-theme--dark) .user-info-card div:not(.value-display):not(.v-chip):not(.level-icons-container) {
+  color: #ffffff !important;
+}
+
+/* 深色模式下卡片标题 */
+:deep(.v-theme--dark) .v-card-title {
+  color: #ffffff !important;
+}
+
+/* 深色模式下图标颜色调整 */
+:deep(.v-theme--dark) .v-icon {
+  color: #ffffff !important;
+}
+
+/* 深色模式下特定图标颜色保持 */
+:deep(.v-theme--dark) .v-icon[color="primary"] {
+  color: #90caf9 !important;
+}
+
+:deep(.v-theme--dark) .v-icon[color="success"] {
+  color: #a5d6a7 !important;
+}
+
+:deep(.v-theme--dark) .v-icon[color="orange-darken-2"] {
+  color: #ffb74d !important;
+}
+
+:deep(.v-theme--dark) .v-icon[color="green-darken-2"] {
+  color: #81c784 !important;
+}
+
+:deep(.v-theme--dark) .v-icon[color="blue-darken-2"] {
+  color: #64b5f6 !important;
+}
+
+:deep(.v-theme--dark) .v-icon[color="amber-darken-2"] {
+  color: #ffb74d !important;
+}
+
+:deep(.v-theme--dark) .v-icon[color="grey-darken-1"] {
+  color: #bdbdbd !important;
+}
+
+:deep(.v-theme--dark) .v-icon[color="info"] {
+  color: #81d4fa !important;
+}
+
+:deep(.v-theme--dark) .v-icon[color="grey"] {
+  color: #9e9e9e !important;
+}
+
+/* 深色模式下的数值显示 */
+:deep(.v-theme--dark) .value-display {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, rgba(116, 185, 255, 0.3) 0%, rgba(118, 75, 162, 0.3) 100%) !important;
+  border-color: rgba(116, 185, 255, 0.5) !important;
+}
+
+:deep(.v-theme--dark) .credits-value {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, rgba(144, 202, 249, 0.3) 0%, rgba(144, 202, 249, 0.2) 100%) !important;
+  border-color: rgba(144, 202, 249, 0.5) !important;
+}
+
+:deep(.v-theme--dark) .donation-value {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, rgba(165, 214, 167, 0.3) 0%, rgba(165, 214, 167, 0.2) 100%) !important;
+  border-color: rgba(165, 214, 167, 0.5) !important;
+}
+
+/* 深色模式下的芯片样式 */
+:deep(.v-theme--dark) .v-chip {
+  color: #ffffff !important;
+}
+
+:deep(.v-theme--dark) .invitation-chip {
+  color: #ffffff !important;
+  background: rgba(116, 185, 255, 0.4) !important;
+}
+
+/* 深色模式下的clickable chip */
+:deep(.v-theme--dark) .clickable-chip {
+  color: #ffffff !important;
+}
+
+/* 深色模式下的chip文本 */
+:deep(.v-theme--dark) .v-chip .v-chip__content {
+  color: #ffffff !important;
+}
+
+/* 深色模式下通用文本颜色规则 - 确保所有文本都是白色 */
+:deep(.v-theme--dark) .user-info-container,
+:deep(.v-theme--dark) .user-info-container * {
+  color: #ffffff !important;
+}
+
+/* 深色模式下特殊元素重置 */
+:deep(.v-theme--dark) .value-display,
+:deep(.v-theme--dark) .credits-value,
+:deep(.v-theme--dark) .donation-value {
+  color: #ffffff !important;
+}
+
+/* 深色模式下灰色文本保持灰色但更亮一些 */
+:deep(.v-theme--dark) .text-grey,
+:deep(.v-theme--dark) .text-subtitle-2 {
+  color: #bdbdbd !important;
+}
+
+/* 深色模式下图标保持原色 */
+:deep(.v-theme--dark) .v-icon {
+  color: inherit !important;
+}
+
+/* 深色模式下有颜色的图标保持颜色 */
+:deep(.v-theme--dark) .v-icon[color="primary"] {
+  color: #90caf9 !important;
+}
+
+:deep(.v-theme--dark) .v-icon[color="success"] {
+  color: #a5d6a7 !important;
+}
+
+:deep(.v-theme--dark) .v-icon[color="orange-darken-2"] {
+  color: #ffb74d !important;
+}
+
+:deep(.v-theme--dark) .v-icon[color="green-darken-2"] {
+  color: #81c784 !important;
+}
+
+:deep(.v-theme--dark) .v-icon[color="blue-darken-2"] {
+  color: #64b5f6 !important;
+}
+
+:deep(.v-theme--dark) .v-icon[color="amber-darken-2"] {
+  color: #ffb74d !important;
+}
+
+:deep(.v-theme--dark) .v-icon[color="grey-darken-1"] {
+  color: #bdbdbd !important;
+}
+
+:deep(.v-theme--dark) .v-icon[color="info"] {
+  color: #81d4fa !important;
+}
+
+:deep(.v-theme--dark) .v-icon[color="grey"] {
+  color: #9e9e9e !important;
 }
 </style>

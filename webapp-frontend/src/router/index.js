@@ -1,6 +1,8 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import UserInfo from '../views/UserInfo.vue'
+import Activities from '../views/Activities.vue'
 import Rankings from '../views/Rankings.vue'
+import Management from '../views/Management.vue'
 
 const routes = [
   {
@@ -13,9 +15,19 @@ const routes = [
     component: UserInfo
   },
   {
+    path: '/activities',
+    name: 'activities',
+    component: Activities
+  },
+  {
     path: '/rankings',
     name: 'rankings',
     component: Rankings
+  },
+  {
+    path: '/management',
+    name: 'management',
+    component: Management
   }
 ]
 

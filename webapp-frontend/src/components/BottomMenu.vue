@@ -1,10 +1,16 @@
 <template>
   <div>
     <div class="custom-bottom-nav">
-      <!-- 左侧按钮 -->
+      <!-- 左侧第一个按钮 -->
       <div class="nav-item" :class="{ active: activeTab === 'user-info' }" @click="navigateTo('user-info')">
         <v-icon class="nav-icon">mdi-account</v-icon>
         <div class="nav-label">个人信息</div>
+      </div>
+      
+      <!-- 左侧第二个按钮 -->
+      <div class="nav-item" :class="{ active: activeTab === 'activities' }" @click="navigateTo('activities')">
+        <v-icon class="nav-icon">mdi-calendar-clock</v-icon>
+        <div class="nav-label">活动</div>
       </div>
       
       <!-- 中间按钮 -->
@@ -14,7 +20,13 @@
         </button>
       </div>
       
-      <!-- 右侧按钮 -->
+      <!-- 右侧第一个按钮 -->
+      <div class="nav-item" :class="{ active: activeTab === 'management' }" @click="navigateTo('management')">
+        <v-icon class="nav-icon">mdi-cog</v-icon>
+        <div class="nav-label">管理</div>
+      </div>
+      
+      <!-- 右侧第二个按钮 -->
       <div class="nav-item" :class="{ active: activeTab === 'rankings' }" @click="navigateTo('rankings')">
         <v-icon class="nav-icon">mdi-trophy</v-icon>
         <div class="nav-label">排行榜</div>
@@ -188,11 +200,11 @@ export default {
   right: 0;
   height: 60px; /* 进一步降低底栏高度 */
   display: flex;
-  justify-content: space-between;
+  justify-content: space-around; /* 改为平均分布 */
   align-items: center;
   background-color: white;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
-  padding: 0 40px; /* 左右两边留出空间 */
+  padding: 0 20px; /* 减少左右边距以容纳更多按钮 */
   z-index: 100;
 }
 
@@ -207,10 +219,12 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px 20px;
+  padding: 8px 12px; /* 减少水平内边距 */
   cursor: pointer;
   transition: all 0.2s;
   margin-top: 2px; /* 减小顶部外边距 */
+  min-width: 0; /* 允许收缩 */
+  flex: 0 1 auto; /* 不增长，允许收缩，基于内容 */
 }
 
 .nav-icon {
@@ -222,8 +236,12 @@ export default {
 
 .nav-label {
   color: #757575;
-  font-size: 12px;
+  font-size: 11px; /* 稍微减小字体大小 */
   transition: color 0.2s;
+  text-align: center;
+  white-space: nowrap; /* 防止文字换行 */
+  overflow: hidden;
+  text-overflow: ellipsis; /* 超出部分显示省略号 */
 }
 
 /* 活跃状态 */
