@@ -26,21 +26,25 @@
 
       <!-- 管理员控制面板 -->
       <div v-else>
-        <v-tabs
-          v-model="currentTab"
-          color="primary"
-          density="compact"
-          class="mb-4"
-        >
-          <v-tab value="settings">
-            <v-icon start size="small">mdi-cog</v-icon>
-            设置项
-          </v-tab>
-          <v-tab value="overview">
-            <v-icon start size="small">mdi-view-dashboard</v-icon>
-            概览
-          </v-tab>
-        </v-tabs>
+        <div class="management-tabs-container">
+          <v-tabs
+            v-model="currentTab"
+            grow
+            fixed-tabs
+            color="primary"
+            bg-color="transparent"
+            class="management-tabs"
+          >
+            <v-tab value="settings" class="tab-item">
+              <v-icon start size="18">mdi-cog</v-icon>
+              <span class="tab-text">设置项</span>
+            </v-tab>
+            <v-tab value="overview" class="tab-item">
+              <v-icon start size="18">mdi-view-dashboard</v-icon>
+              <span class="tab-text">概览</span>
+            </v-tab>
+          </v-tabs>
+        </div>
 
         <v-window v-model="currentTab">
           <!-- 设置项 Tab -->
@@ -667,21 +671,136 @@ export default {
 }
 
 /* Tab 样式优化 */
-:deep(.v-tabs) {
+/* 标签页容器样式 */
+.management-tabs-container {
   background: rgba(255, 255, 255, 0.95);
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(10px);
+  margin-bottom: 24px;
+  padding: 12px 20px;
+  overflow: visible; /* 确保内容不被裁剪 */
 }
 
+/* 标签页样式 */
+.management-tabs {
+  background: transparent !important;
+  border-radius: 16px;
+  margin-bottom: 0;
+  padding: 0;
+  overflow: visible !important; /* 确保tab内容不被裁剪 */
+  min-width: 100%; /* 确保有足够宽度 */
+}
+
+.tab-item {
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  margin: 0 4px;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 48px;
+  text-align: center !important;
+  flex-direction: row !important; /* 改为水平排列 */
+  gap: 6px !important; /* 添加图标和文字之间的间距 */
+  padding: 8px 12px !important; /* 增加内边距确保文字有足够空间 */
+  white-space: nowrap !important; /* 防止文字换行 */
+  min-width: fit-content !important; /* 确保有足够宽度显示完整文字 */
+}
+
+.tab-item .v-icon {
+  margin-bottom: 0 !important; /* 移除底部边距 */
+  margin-right: 4px !important; /* 添加右边距 */
+  flex-shrink: 0 !important; /* 防止图标被压缩 */
+}
+
+.tab-text {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: visible;
+}
+
+/* 覆盖Vuetify默认的tab样式 */
 :deep(.v-tab) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  flex-direction: row !important; /* 改为水平排列 */
+  min-height: 48px !important;
+  gap: 6px !important;
+  padding: 8px 12px !important;
+  white-space: nowrap !important;
+  min-width: fit-content !important;
   border-radius: 8px;
   margin: 4px;
   transition: all 0.3s ease;
 }
 
+:deep(.v-tab .v-btn__content) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-direction: row !important; /* 改为水平排列 */
+  width: 100% !important;
+  text-align: center !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+}
+
+:deep(.v-tab .v-icon) {
+  margin-right: 4px !important; /* 右边距用于分隔图标和文字 */
+  margin-bottom: 0 !important; /* 移除底部边距 */
+  flex-shrink: 0 !important; /* 防止图标被压缩 */
+}
+
 :deep(.v-tab--selected) {
-  background: rgba(116, 185, 255, 0.15);
+  background: none !important;
+  box-shadow: none !important;
+}
+
+/* 响应式设计 */
+@media (max-width: 600px) {
+  .tab-item {
+    padding: 6px 8px !important;
+    margin: 0 2px;
+    font-size: 13px;
+  }
+  
+  .tab-text {
+    font-size: 13px;
+  }
+  
+  .tab-item .v-icon {
+    margin-right: 3px !important;
+  }
+  
+  :deep(.v-tab) {
+    padding: 6px 8px !important;
+    gap: 4px !important;
+  }
+  
+  :deep(.v-tab .v-btn__content) {
+    gap: 4px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .tab-item {
+    padding: 4px 6px !important;
+    margin: 0 1px;
+    font-size: 12px;
+  }
+  
+  .tab-text {
+    font-size: 12px;
+  }
+  
+  .tab-item .v-icon {
+    margin-right: 2px !important;
+  }
 }
 
 /* 响应式设计 */
