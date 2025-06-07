@@ -344,7 +344,11 @@ class Emby:
         验证Emby用户的用户名和密码
         返回 (是否验证成功, 用户ID) 的元组
         """
-        headers = {"accept": "application/json", "Content-Type": "application/json"}
+        headers = {
+            "accept": "application/json",
+            "Content-Type": "application/json",
+            "X-Emby-Authorization": 'MediaBrowser Token="", UserId="", Client="PMSManageBot", Device="Linux", DeviceId="4729AEE7-110E-4B0F-9DC3-E7E461C6E5DA", Version="1.0.0.0"',
+        }
 
         data = {"Username": username, "Pw": password}
 
@@ -366,7 +370,7 @@ class Emby:
                     return False, None
             else:
                 logger.warning(
-                    f"Emby用户 {username} 认证失败：{response.status_code} - {response.text}"
+                    f"Emby用户 {username} 认证失败：{response.status_code} - {response.content.decode('utf-8')}"
                 )
                 return False, None
 

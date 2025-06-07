@@ -66,27 +66,74 @@
           ></v-text-field>
 
           <!-- 线路选择下拉框 -->
-          <v-select
-            v-model="selectedLine"
-            label="选择线路"
-            :items="availableLines"
-            :loading="loadingLines"
-            :rules="lineRules"
-            required
-            outlined
-            dense
-            hide-details="auto"
-            class="mb-3"
-            @focus="loadAvailableLines"
+          <v-menu
+            v-model="lineMenu"
+            :close-on-content-click="false"
+            offset-y
+            max-height="400"
+            @update:model-value="onLineMenuToggle"
           >
-            <template v-slot:no-data>
-              <v-list-item>
-                <v-list-item-title>
-                  {{ loadingLines ? '加载中...' : '暂无可用线路' }}
-                </v-list-item-title>
-              </v-list-item>
+            <template v-slot:activator="{ props }">
+              <v-text-field
+                v-bind="props"
+                v-model="selectedLine"
+                label="选择线路"
+                :rules="lineRules"
+                required
+                outlined
+                dense
+                hide-details="auto"
+                class="mb-3"
+                readonly
+                :loading="loadingLines"
+                append-icon="mdi-chevron-down"
+                placeholder="请选择线路"
+              ></v-text-field>
             </template>
-          </v-select>
+            
+            <v-card min-width="300">
+              <v-list class="line-selector-list" max-height="350">
+                <v-list-item 
+                  v-for="lineInfo in availableLines" 
+                  :key="lineInfo.name" 
+                  @click="selectLine(lineInfo.name)" 
+                  :active="selectedLine === lineInfo.name"
+                  :color="selectedLine === lineInfo.name ? '#9333ea' : undefined"
+                  class="line-item"
+                >
+                  <v-list-item-title class="d-flex align-center justify-space-between">
+                    <div class="line-name-container">
+                      <span class="line-name">{{ lineInfo.name }}</span>
+                      <div v-if="lineInfo.tags && lineInfo.tags.length > 0" class="tags-container mt-1">
+                        <v-chip
+                          v-for="tag in lineInfo.tags"
+                          :key="tag"
+                          size="x-small"
+                          :color="getTagColor(tag)"
+                          variant="flat"
+                          class="mr-1 mb-1 tag-chip"
+                        >
+                          {{ tag }}
+                        </v-chip>
+                      </div>
+                    </div>
+                    <v-icon v-if="selectedLine === lineInfo.name" color="success" size="small">mdi-check</v-icon>
+                  </v-list-item-title>
+                </v-list-item>
+                
+                <v-list-item v-if="availableLines.length === 0 && !loadingLines" class="text-center">
+                  <v-list-item-title class="text-grey">暂无可用线路</v-list-item-title>
+                </v-list-item>
+                
+                <v-list-item v-if="loadingLines" class="text-center">
+                  <v-list-item-title class="text-grey">
+                    <v-progress-circular indeterminate size="20" class="mr-2"></v-progress-circular>
+                    加载中...
+                  </v-list-item-title>
+                </v-list-item>
+              </v-list>
+            </v-card>
+          </v-menu>
 
           <div v-if="errorMessage" class="error-message mt-3">
             {{ errorMessage }}
@@ -121,7 +168,7 @@
 </template>
 
 <script>
-import { authBindLine, bindLine as bindLineService } from '../services/userLineService';
+import { authBindLine } from '../services/userLineService';
 import { getAvailableEmbyLines } from '../services/embyService';
 import { getAvailablePlexLines } from '../services/plexService';
 
@@ -133,6 +180,7 @@ export default {
       valid: false,
       loading: false,
       loadingLines: false,
+      lineMenu: false,
       serviceType: 'plex', // 默认选择Plex
       email: '',
       username: '',
@@ -209,11 +257,8 @@ export default {
           lines = await getAvailablePlexLines();
         }
         
-        // 转换为下拉框所需的格式
-        this.availableLines = lines.map(line => ({
-          title: line.name,
-          value: line.name
-        }));
+        // 保留完整的线路信息（包括标签）
+        this.availableLines = lines;
       } catch (error) {
         console.error('获取线路列表失败:', error);
         this.errorMessage = '获取线路列表失败，请稍后再试';
@@ -221,6 +266,62 @@ export default {
       } finally {
         this.loadingLines = false;
       }
+    },
+    
+    // 处理线路菜单切换
+    async onLineMenuToggle(isOpen) {
+      if (isOpen && !this.loadingLines) {
+        await this.loadAvailableLines();
+      }
+    },
+    
+    // 选择线路
+    selectLine(lineName) {
+      this.selectedLine = lineName;
+      this.lineMenu = false;
+    },
+    
+    // 获取标签颜色
+    getTagColor(tag) {
+      // 使用更深色的背景色，确保在白色背景下有良好对比度
+      const contrastColors = [
+        'red-darken-1',
+        'pink-darken-1', 
+        'purple-darken-1',
+        'deep-purple-darken-1',
+        'indigo-darken-1',
+        'blue-darken-1',
+        'light-blue-darken-1',
+        'cyan-darken-1',
+        'teal-darken-1',
+        'green-darken-1',
+        'light-green-darken-1',
+        'lime-darken-1',
+        'amber-darken-1',
+        'orange-darken-1',
+        'deep-orange-darken-1',
+        'brown-darken-1',
+        'blue-grey-darken-1',
+        'red-darken-2',
+        'pink-darken-2',
+        'purple-darken-2',
+        'deep-purple-darken-2',
+        'indigo-darken-2',
+        'blue-darken-2',
+        'teal-darken-2',
+        'green-darken-2'
+      ];
+      
+      // 使用标签内容作为种子生成稳定的随机索引
+      let hash = 0;
+      for (let i = 0; i < tag.length; i++) {
+        const char = tag.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // 转换为32位整数
+      }
+      
+      const colorIndex = Math.abs(hash) % contrastColors.length;
+      return contrastColors[colorIndex];
     },
     
     // 绑定线路
@@ -253,15 +354,11 @@ export default {
         if (result.success) {
           this.successMessage = result.message || '认证并绑定线路成功';
           
-          // 延迟关闭对话框
-          setTimeout(() => {
-            this.closeDialog();
-            // 通知父组件刷新数据
-            this.$emit('line-bound', {
-              service: this.serviceType,
-              line: this.selectedLine
-            });
-          }, 1500);
+          // 立即通知父组件刷新数据
+          this.$emit('line-bound', {
+            service: this.serviceType,
+            line: this.selectedLine
+          });
         } else {
           this.errorMessage = result.message || '认证绑定失败，请检查用户名密码是否正确';
         }
@@ -303,6 +400,70 @@ export default {
 .service-toggle .v-btn--active {
   background-color: #9c27b0 !important;
   color: white !important;
+}
+
+/* 线路选择器列表样式 */
+.line-selector-list {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.line-selector-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.line-selector-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.line-selector-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.line-selector-list::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.line-item {
+  min-height: 56px;
+}
+
+.line-name-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.line-name {
+  font-weight: 500;
+  font-size: 14px;
+  word-break: break-all;
+  overflow-wrap: break-word;
+  line-height: 1.3;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  max-width: 320px;
+  line-height: 1.2;
+}
+
+.tags-container .v-chip {
+  height: 18px !important;
+  font-size: 10px !important;
+  padding: 0 6px !important;
+}
+
+.tag-chip {
+  color: white !important;
+  font-weight: 500 !important;
 }
 
 /* 错误和成功消息样式 */
