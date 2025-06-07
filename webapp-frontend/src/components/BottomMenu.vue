@@ -198,13 +198,12 @@ export default {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 60px; /* 进一步降低底栏高度 */
+  height: 60px;
   display: flex;
-  justify-content: space-around; /* 改为平均分布 */
   align-items: center;
   background-color: white;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
-  padding: 0 20px; /* 减少左右边距以容纳更多按钮 */
+  padding: 0 20px;
   z-index: 100;
 }
 
@@ -213,29 +212,60 @@ export default {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px 12px; /* 减少水平内边距 */
+  padding: 8px 4px;
   cursor: pointer;
   transition: all 0.2s;
-  margin-top: 2px; /* 减小顶部外边距 */
-  min-width: 0; /* 允许收缩 */
-  flex: 0 1 auto; /* 不增长，允许收缩，基于内容 */
+  margin-top: 2px;
+  min-width: 0;
+  width: 60px;
+  position: relative;
+}
+
+/* 左侧第一个按钮 */
+.nav-item:nth-child(1) {
+  position: absolute;
+  left: 15%;
+  transform: translateX(-50%);
+}
+
+/* 左侧第二个按钮 */
+.nav-item:nth-child(2) {
+  position: absolute;
+  left: 35%;
+  transform: translateX(-50%);
+}
+
+/* 右侧第一个按钮 */
+.nav-item:nth-child(4) {
+  position: absolute;
+  right: 35%;
+  transform: translateX(50%);
+}
+
+/* 右侧第二个按钮 */
+.nav-item:nth-child(5) {
+  position: absolute;
+  right: 15%;
+  transform: translateX(50%);
 }
 
 .nav-icon {
   color: #757575;
-  font-size: 24px;
-  margin-bottom: 4px;
+  font-size: 22px;
+  margin-bottom: 2px;
   transition: color 0.2s;
 }
 
 .nav-label {
   color: #757575;
-  font-size: 11px; /* 稍微减小字体大小 */
+  font-size: 9px;
   transition: color 0.2s;
   text-align: center;
-  white-space: nowrap; /* 防止文字换行 */
+  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis; /* 超出部分显示省略号 */
+  text-overflow: ellipsis;
+  max-width: 50px;
+  line-height: 1.2;
 }
 
 /* 活跃状态 */
