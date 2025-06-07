@@ -17,14 +17,7 @@
         <v-alert type="error">{{ error }}</v-alert>
       </div>
 
-      <!-- 权限不足 -->
-      <div v-else-if="!isAdmin" class="text-center my-10">
-        <v-alert type="warning">
-          权限不足，需要管理员权限才能访问此页面
-        </v-alert>
-      </div>
-
-      <!-- 管理员控制面板 -->
+      <!-- 主要内容区域 -->
       <div v-else>
         <div class="management-tabs-container">
           <v-tabs
@@ -47,8 +40,17 @@
         </div>
 
         <v-window v-model="currentTab">
-          <!-- 设置项 Tab -->
+          <!-- 设置项 Tab - 需要管理员权限 -->
           <v-window-item value="settings">
+            <!-- 权限检查 -->
+            <div v-if="!isAdmin" class="text-center my-10">
+              <v-alert type="warning">
+                权限不足，需要管理员权限才能访问设置项
+              </v-alert>
+            </div>
+            
+            <!-- 管理员设置内容 -->
+            <div v-else>
             <!-- 服务注册控制 -->
             <v-card class="admin-card-enhanced mb-4">
               <v-card-title class="text-center">
@@ -273,6 +275,7 @@
                 </div>
               </v-card-text>
             </v-card>
+            </div>
           </v-window-item>
 
           <!-- 概览 Tab -->
@@ -338,31 +341,42 @@ export default {
         premium_lines: [],
         free_premium_lines: [],
         invitation_credits: 288,
-        unlock_credits: 100
+        unlock_credits: 100,
+        loaded: false // 添加标记，避免重复加载
       },
       adminLoading: false,
       adminError: null
     }
   },
   mounted() {
-    this.checkAdminStatus()
+    this.checkUserStatus()
+  },
+  watch: {
+    // 监听tab切换
+    currentTab(newTab) {
+      // 如果切换到设置项tab且是管理员，则获取管理员设置
+      if (newTab === 'settings' && this.isAdmin && !this.adminSettings.loaded) {
+        this.fetchAdminSettings()
+      }
+    }
   },
   methods: {
-    async checkAdminStatus() {
+    async checkUserStatus() {
       try {
         this.loading = true
-        // 通过获取用户信息来检查管理员权限
+        // 获取用户信息来检查管理员权限
         const response = await getUserInfo()
         this.isAdmin = response.data.is_admin
         
-        if (this.isAdmin) {
+        // 如果是管理员且当前在设置项tab，则获取管理员设置
+        if (this.isAdmin && this.currentTab === 'settings') {
           await this.fetchAdminSettings()
         }
         this.loading = false
       } catch (err) {
-        this.error = err.response?.data?.detail || '检查权限失败'
+        this.error = err.response?.data?.detail || '检查用户状态失败'
         this.loading = false
-        console.error('检查管理员权限失败:', err)
+        console.error('检查用户状态失败:', err)
       }
     },
     
@@ -371,7 +385,7 @@ export default {
         this.adminLoading = true
         this.adminError = null
         const response = await getAdminSettings()
-        this.adminSettings = response.data
+        this.adminSettings = { ...response.data, loaded: true }
         this.adminLoading = false
       } catch (err) {
         this.adminError = err.response?.data?.detail || '获取管理员设置失败'
