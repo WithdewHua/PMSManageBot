@@ -70,24 +70,6 @@ export default {
   margin: 0;
 }
 
-/* 深色模式样式 */
-:deep(.v-theme--dark) .empty-state {
-  background: rgba(30, 30, 30, 0.95) !important;
-}
-
-:deep(.v-theme--dark) .empty-title {
-  color: #ffffff !important;
-}
-
-:deep(.v-theme--dark) .empty-description {
-  color: #e0e0e0 !important;
-}
-
-/* 深色模式下的图标 */
-:deep(.v-theme--dark) .empty-icon {
-  color: #bdbdbd !important;
-}
-
 /* 响应式设计 */
 @media (max-width: 480px) {
   .activities-container {

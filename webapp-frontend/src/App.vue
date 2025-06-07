@@ -69,16 +69,6 @@ html {
   overflow-y: auto;
 }
 
-.theme--dark {
-  background-color: #212121;
-  color: #ffffff;
-}
-
-.theme--light {
-  background-color: #ffffff;
-  color: #212121;
-}
-
 /* 自定义滑动条样式 */
 ::-webkit-scrollbar {
   width: 5px; /* 设置滑动条宽度 */
@@ -96,11 +86,6 @@ html {
 /* 修复滑动条可能引起的边缘问题 */
 ::-webkit-scrollbar-corner {
   background: transparent;
-}
-
-/* 深色模式下滑动条颜色 */
-.theme--dark ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
 }
 
 /* 确保没有右侧边距 */

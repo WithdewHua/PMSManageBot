@@ -255,17 +255,9 @@ export default {
   color: rgba(0, 0, 0, 0.6);
 }
 
-:deep(.theme--dark) .service-label {
-  color: rgba(255, 255, 255, 0.7);
-}
-
 :deep(.service-toggle) {
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 4px;
-}
-
-:deep(.theme--dark) .service-toggle {
-  border-color: rgba(255, 255, 255, 0.12);
 }
 
 /* 修改确认按钮颜色 */

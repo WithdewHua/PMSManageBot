@@ -1,14 +1,22 @@
 <!-- eslint-disable vue/multi-word-component-names -->
 <template>
   <div class="rankings-container">
-    <v-container>
-      <div v-if="isCurrentTabLoading()" class="text-center my-10">
-        <v-progress-circular indeterminate color="primary"></v-progress-circular>
-        <div class="mt-3">加载中...</div>
+    <div class="content-wrapper">
+      <div class="rankings-header">
+        <h1 class="page-title">排行榜</h1>
+        <p class="page-subtitle">积分、捐赠与观看时长排行</p>
+      </div>
+      
+      <v-container class="transparent-container">
+      <div v-if="isCurrentTabLoading()" class="loading-container">
+        <div class="loading-content">
+          <v-progress-circular indeterminate color="primary" size="50" width="4"></v-progress-circular>
+          <div class="loading-text">加载中...</div>
+        </div>
       </div>
 
-      <div v-else-if="error" class="text-center my-10">
-        <v-alert type="error">{{ error }}</v-alert>
+      <div v-else-if="error" class="error-container">
+        <v-alert type="error" class="error-alert" rounded="lg" elevation="4">{{ error }}</v-alert>
         <v-btn color="primary" @click="loadTabData(activeTab)" class="mt-3">
           重试
         </v-btn>
@@ -21,7 +29,7 @@
           fixed-tabs 
           color="primary"
           bg-color="transparent"
-          class="mb-4"
+          class="mb-4 rankings-tabs"
         >
           <v-tab value="credits" class="tab-item">
             <v-icon start size="20">mdi-star</v-icon>
@@ -195,8 +203,8 @@
                 </div>
                 
                 <!-- Plex 观看时长榜 -->
-                <v-card v-if="watchedTimeSource === 'plex'" elevation="0" class="transparent">
-                  <v-list lines="two" class="px-2">
+                <div v-if="watchedTimeSource === 'plex'" class="transparent-list">
+                  <v-list lines="two" class="px-2 transparent-list-content">
                     <v-list-item
                       v-for="(item, index) in rankings.watched_time_rank_plex"
                       :key="`plex-watched-${index}`"
@@ -259,11 +267,11 @@
                       <v-list-item-title class="text-grey">暂无数据</v-list-item-title>
                     </v-list-item>
                   </v-list>
-                </v-card>
+                </div>
                 
                 <!-- Emby 观看时长榜 -->
-                <v-card v-if="watchedTimeSource === 'emby'" elevation="0" class="transparent">
-                  <v-list lines="two" class="px-2">
+                <div v-if="watchedTimeSource === 'emby'" class="transparent-list">
+                  <v-list lines="two" class="px-2 transparent-list-content">
                     <v-list-item
                       v-for="(item, index) in rankings.watched_time_rank_emby"
                       :key="`emby-watched-${index}`"
@@ -326,13 +334,13 @@
                       <v-list-item-title class="text-grey">暂无数据</v-list-item-title>
                     </v-list-item>
                   </v-list>
-                </v-card>
+                </div>
               </v-col>
             </v-row>
           </v-window-item>
         </v-window>
-      </div>
-    </v-container>
+      </div>      </v-container>
+    </div>
 
     <!-- 等级说明对话框 -->
     <v-dialog v-model="showLevelInfo" max-width="720">
@@ -624,28 +632,115 @@ export default {
 
 <style scoped>
 .rankings-container {
-  padding-bottom: 56px; /* 为底部导航栏留出空间 */
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  padding-bottom: 80px; /* 为底部导航栏留出空间 */
+}
+
+.content-wrapper {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.rankings-header {
+  text-align: center;
+  margin-bottom: 40px;
+  padding: 30px 20px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.page-subtitle {
+  font-size: 16px;
+  color: #666;
+  margin: 0;
+}
+
+.transparent-container {
+  background: transparent !important;
+}
+
+/* 标签页样式 */
+.rankings-tabs {
+  background: rgba(255, 255, 255, 1) !important;
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  margin-bottom: 24px;
+  padding: 8px;
+}
+
+/* 加载状态样式 */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  margin: 40px 0;
+}
+
+.loading-content {
+  text-align: center;
+  padding: 30px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.loading-text {
+  margin-top: 16px;
+  font-size: 16px;
+  color: #666;
+  font-weight: 500;
+}
+
+/* 错误状态样式 */
+.error-container {
+  text-align: center;
+  margin: 40px 0;
+}
+
+.error-alert {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border: none !important;
 }
 
 .tab-item {
   font-weight: 600;
   transition: all 0.3s ease;
+  border-radius: 12px;
+  margin: 0 4px;
 }
 
 .tab-item:hover {
   background-color: rgba(var(--v-theme-primary), 0.1);
+  transform: translateY(-2px);
 }
 
 .ranking-item {
   transition: all 0.3s ease;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(15px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
 }
 
 .ranking-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  transform: translateY(-4px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2) !important;
+  background: rgba(255, 255, 255, 0.98);
 }
 
 .rank-container {
@@ -771,7 +866,141 @@ export default {
   min-width: 180px;
 }
 
-/* 控制顶部工具栏间距 */
+/* 等级说明对话框样式 */
+.level-dialog {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(15px);
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.level-dialog .v-card-title {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.dialog-title {
+  font-weight: 700;
+  color: #333;
+}
+
+/* 等级项目样式 */
+.level-item {
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.level-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.level-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.level-emoji-container {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 16px;
+  transition: all 0.3s ease;
+}
+
+.star-bg {
+  background: linear-gradient(135deg, #FFE082 0%, #FFD54F 100%);
+  box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+}
+
+.moon-bg {
+  background: linear-gradient(135deg, #E1F5FE 0%, #B3E5FC 100%);
+  box-shadow: 0 4px 15px rgba(3, 169, 244, 0.3);
+}
+
+.sun-bg {
+  background: linear-gradient(135deg, #FFF3E0 0%, #FFCC80 100%);
+  box-shadow: 0 4px 15px rgba(255, 204, 128, 0.3);
+}
+
+.crown-bg {
+  background: linear-gradient(135deg, #FFF8E1 0%, #FFD54F 100%);
+  box-shadow: 0 4px 15px rgba(255, 213, 79, 0.4);
+}
+
+.level-emoji {
+  font-size: 24px;
+}
+
+.level-info {
+  flex: 1;
+}
+
+.level-title {
+  font-weight: 600;
+  font-size: 18px;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.level-desc {
+  color: #666;
+}
+
+.level-requirement {
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.level-example {
+  font-size: 14px;
+  color: #888;
+}
+
+/* 等级进度演示样式 */
+.level-progress-demo {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid rgba(102, 126, 234, 0.2);
+}
+
+.level-demo-icon {
+  font-size: 28px;
+  animation: float 2s ease-in-out infinite alternate;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  100% { transform: translateY(-6px); }
+}
+
+.level-progress-text {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+/* 计算说明样式 */
+.calculation-note {
+  display: flex;
+  align-items: center;
+  background: rgba(33, 150, 243, 0.1);
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(33, 150, 243, 0.2);
+}
+
 .toolbar-controls {
   gap: 24px !important; /* 增加到24px的间距 */
 }
@@ -908,6 +1137,14 @@ export default {
 }
 
 /* 工具提示样式 */
+.v-tooltip .v-overlay__content {
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
 :deep(.v-tooltip .v-overlay__content) {
   background: rgba(0, 0, 0, 0.9) !important;
   color: white !important;
@@ -1234,5 +1471,243 @@ export default {
     padding: 8px;
     font-size: 11px;
   }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .rankings-container {
+    padding: 15px;
+  }
+  
+  .rankings-header {
+    padding: 20px 16px;
+    margin-bottom: 30px;
+  }
+  
+  .page-title {
+    font-size: 24px;
+  }
+  
+  .page-subtitle {
+    font-size: 14px;
+  }
+  
+  .rankings-tabs {
+    padding: 6px;
+  }
+  
+  .ranking-item {
+    margin-bottom: 12px;
+  }
+  
+  .rank-number {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+  
+  .rank-1, .rank-2, .rank-3 {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+  
+  .user-avatar {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  
+  .user-name {
+    font-size: 15px;
+  }
+  
+  .user-score {
+    font-size: 13px;
+  }
+  
+  .watched-source-select {
+    max-width: 140px;
+    min-width: 120px;
+  }
+}
+
+@media (max-width: 480px) {
+  .rankings-container {
+    padding: 12px;
+  }
+  
+  .page-title {
+    font-size: 22px;
+  }
+  
+  .page-subtitle {
+    font-size: 13px;
+  }
+  
+  .rank-number {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+  
+  .rank-1, .rank-2, .rank-3 {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+  }
+  
+  .user-avatar {
+    width: 36px !important;
+    height: 36px !important;
+    margin-right: 12px !important;
+  }
+  
+  .user-name {
+    font-size: 14px;
+  }
+  
+  .user-score {
+    font-size: 12px;
+  }
+  
+  .watched-time-container {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  
+  .level-icons-wrapper {
+    margin-left: 0;
+    margin-top: 4px;
+  }
+  
+  .emoji-icon {
+    font-size: 14px;
+    min-width: 16px;
+    min-height: 16px;
+  }
+  
+  .watched-source-select {
+    max-width: 120px;
+    min-width: 100px;
+  }
+}
+
+@media (max-width: 400px) {
+  .rankings-header {
+    padding: 16px 12px;
+  }
+  
+  .page-title {
+    font-size: 20px;
+  }
+  
+  .tab-item {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+  
+  .ranking-item {
+    padding: 12px;
+  }
+  
+  .d-flex.justify-space-between.align-center.mb-4 {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  .d-flex.align-center.gap-2 {
+    justify-content: center;
+  }
+  
+  .watched-source-select {
+    align-self: center;
+    max-width: 160px;
+  }
+}
+
+/* 提升视觉效果的额外样式 */
+.ranking-item.bg-primary-subtle {
+  background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.15), rgba(var(--v-theme-primary), 0.08)) !important;
+  border-color: rgba(var(--v-theme-primary), 0.3) !important;
+  box-shadow: 0 8px 25px rgba(var(--v-theme-primary), 0.2) !important;
+}
+
+.ranking-item.bg-primary-subtle:hover {
+  background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.2), rgba(var(--v-theme-primary), 0.1)) !important;
+  transform: translateY(-6px);
+  box-shadow: 0 15px 35px rgba(var(--v-theme-primary), 0.3) !important;
+}
+
+/* 优化观看时长选择器样式 */
+.watched-source-select :deep(.v-field) {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.watched-source-select :deep(.v-field):hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* 信息按钮增强样式 */
+.info-btn {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.info-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1) translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* 等级图标容器增强 */
+.level-icons-wrapper {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.level-icons-wrapper:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 透明榜单容器样式 */
+.transparent-list {
+  background: transparent !important;
+}
+
+.transparent-list-content {
+  background: transparent !important;
+}
+
+/* 确保v-list组件背景透明 */
+.transparent-list-content :deep(.v-list) {
+  background: transparent !important;
+}
+
+/* 覆盖Vuetify默认的列表背景色 */
+:deep(.v-list) {
+  background: transparent !important;
+}
+
+/* 确保窗口项目背景透明 */
+:deep(.v-window-item) {
+  background: transparent !important;
+}
+
+/* 确保标签窗口背景透明 */
+:deep(.v-window) {
+  background: transparent !important;
 }
 </style>

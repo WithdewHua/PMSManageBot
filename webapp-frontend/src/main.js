@@ -81,7 +81,7 @@ const vuetify = createVuetify({
     },
   },
   theme: {
-    defaultTheme: window.Telegram?.WebApp?.colorScheme || 'light'
+    defaultTheme: 'light'
   }
 })
 
@@ -90,9 +90,6 @@ if (window.Telegram && window.Telegram.WebApp) {
   const tgApp = window.Telegram.WebApp
   tgApp.ready()
   tgApp.expand()
-  
-  // 设置主题
-  document.documentElement.className = tgApp.colorScheme
   
   // 设置后退按钮事件处理
   tgApp.BackButton.onClick(() => {

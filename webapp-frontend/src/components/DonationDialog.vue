@@ -252,8 +252,4 @@ export default {
   color: rgba(0, 0, 0, 0.6);
   font-size: 12px;
 }
-
-:deep(.theme--dark) .v-list-item-subtitle {
-  color: rgba(255, 255, 255, 0.7);
-}
 </style>

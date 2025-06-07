@@ -208,12 +208,6 @@ export default {
   z-index: 100;
 }
 
-/* 深色模式下的底栏颜色 */
-:deep(.theme--dark) .custom-bottom-nav {
-  background-color: #1e1e1e;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
-}
-
 /* 导航项目样式 */
 .nav-item {
   display: flex;
@@ -368,12 +362,6 @@ export default {
   text-align: left; /* 左对齐 */
   flex: 1;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); /* 添加文字阴影增强可读性 */
-}
-
-/* 深色模式菜单项适配 - 不需要特别处理，因为背景已经透明 */
-:deep(.theme--dark) .menu-item {
-  background-color: transparent;
-  box-shadow: none;
 }
 
 /* 动画效果 */
