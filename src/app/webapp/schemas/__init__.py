@@ -12,6 +12,7 @@ from .invitation import (
 from .ranking import RankingInfo
 from .user import (
     AllLineTagsResponse,
+    AuthBindLineRequest,
     BaseResponse,
     BindEmbyRequest,
     BindPlexRequest,

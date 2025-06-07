@@ -49,6 +49,13 @@
               </div>
               <span>绑定媒体账户</span>
             </div>
+            
+            <div class="menu-item" @click="openBindLineDialog()">
+              <div class="menu-icon-wrapper">
+                <v-icon color="white" size="18">mdi-road</v-icon>
+              </div>
+              <span>绑定线路</span>
+            </div>
           </div>
         </div>
       </transition>
@@ -62,6 +69,9 @@
     
     <!-- 绑定账户对话框组件 -->
     <bind-account-dialog ref="bindAccountDialog" />
+    
+    <!-- 绑定线路对话框组件 -->
+    <bind-line-dialog ref="bindLineDialog" @line-bound="handleLineBound" />
   </div>
 </template>
 
@@ -72,13 +82,16 @@ import InviteCodeDialog from './InviteCodeDialog.vue';
 import RedeemCodeDialog from './RedeemCodeDialog.vue';
 // 导入绑定账户对话框组件
 import BindAccountDialog from './BindAccountDialog.vue';
+// 导入绑定线路对话框组件
+import BindLineDialog from './BindLineDialog.vue';
 
 export default {
   name: 'BottomMenu',
   components: {
     InviteCodeDialog,
     RedeemCodeDialog,
-    BindAccountDialog
+    BindAccountDialog,
+    BindLineDialog
   },
   props: {
     // 当前激活的标签，从父组件传入
@@ -149,6 +162,18 @@ export default {
     openBindAccountDialog(type = null) {
       this.showActionMenu = false;
       this.$refs.bindAccountDialog.open(type);
+    },
+    
+    // 打开绑定线路对话框
+    openBindLineDialog(type = null) {
+      this.showActionMenu = false;
+      this.$refs.bindLineDialog.open(type);
+    },
+    
+    // 处理线路绑定完成事件
+    handleLineBound(data) {
+      // 通知父组件线路绑定成功
+      this.$emit('line-bound', data);
     }
   }
 }

@@ -105,3 +105,11 @@ class AllLineTagsResponse(BaseModel):
     """所有线路标签响应模型"""
 
     lines: Dict[str, List[str]]
+
+
+class AuthBindLineRequest(BaseModel):
+    """认证并绑定线路的请求模型"""
+
+    username: str = Field(..., min_length=2, description="用户名或邮箱")
+    password: str = Field(..., min_length=1, description="密码")
+    line: str = Field(..., min_length=1, description="要绑定的线路名称")

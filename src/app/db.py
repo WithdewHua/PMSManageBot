@@ -389,9 +389,16 @@ class DB:
         )
         return rslt.fetchall()
 
-    def set_plex_line(self, line, tg_id):
+    def set_plex_line(self, line, tg_id=None, plex_id=None):
         try:
-            self.cur.execute("UPDATE user SET plex_line=? WHERE tg_id=?", (line, tg_id))
+            if tg_id:
+                self.cur.execute(
+                    "UPDATE user SET plex_line=? WHERE tg_id=?", (line, tg_id)
+                )
+            elif plex_id:
+                self.cur.execute(
+                    "UPDATE user SET plex_line=? WHERE plex_id=?", (line, plex_id)
+                )
         except Exception as e:
             logging.error(f"Error: {e}")
             return False

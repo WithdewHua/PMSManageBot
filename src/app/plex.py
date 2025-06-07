@@ -1,11 +1,12 @@
-#!/user/bin/env python3
+#!/usr/bin/env python3
 
 import logging
 import pickle
-from typing import Union
+from typing import Optional, Union
 
 import filelock
 from app.config import settings
+from app.log import logger
 from plexapi.myplex import Section
 from plexapi.server import PlexServer
 
@@ -169,3 +170,51 @@ class Plex:
                         f"Failed to update libraries({', '.join(new_libs)}) for {user_info[1].username}"
                     )
                     continue
+
+    def authenticate_user(
+        self, username: str, password: str
+    ) -> tuple[bool, Optional[int]]:
+        """
+        验证Plex用户的用户名和密码
+        返回 (是否验证成功, 用户ID) 的元组
+        """
+        try:
+            # 导入MyPlexAccount用于认证
+            from plexapi.myplex import MyPlexAccount
+
+            # 尝试用提供的用户名和密码创建MyPlexAccount
+            try:
+                # 先尝试用用户名作为邮箱
+                if "@" in username:
+                    MyPlexAccount(username=username, password=password)
+                    user_email = username
+                else:
+                    # 如果不是邮箱格式，尝试根据用户名找到对应的邮箱
+                    user_email = None
+                    for user in self.get_users():
+                        if hasattr(user, "username") and user.username == username:
+                            user_email = user.email
+                            break
+
+                    if not user_email:
+                        logger.warning(f"无法找到Plex用户名 {username} 对应的邮箱")
+                        return False, None
+
+                    MyPlexAccount(username=user_email, password=password)
+
+                # 验证用户是否在当前Plex服务器的用户列表中
+                user_id = self.get_user_id_by_email(user_email)
+                if user_id == 0:
+                    logger.warning(f"Plex用户 {username} 不在当前服务器的用户列表中")
+                    return False, None
+
+                logger.info(f"Plex用户 {username} 认证成功")
+                return True, user_id
+
+            except Exception as auth_error:
+                logger.warning(f"Plex用户 {username} 认证失败: {str(auth_error)}")
+                return False, None
+
+        except Exception as e:
+            logger.error(f"Plex用户 {username} 认证时发生错误: {str(e)}")
+            return False, None

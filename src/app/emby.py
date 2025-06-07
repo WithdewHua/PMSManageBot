@@ -336,3 +336,40 @@ class Emby:
             if user_name.lower() in ["ggbond", "huahua"]:
                 continue
             self.add_user_library(user_id, library)
+
+    def authenticate_user(
+        self, username: str, password: str
+    ) -> tuple[bool, Optional[str]]:
+        """
+        验证Emby用户的用户名和密码
+        返回 (是否验证成功, 用户ID) 的元组
+        """
+        headers = {"accept": "application/json", "Content-Type": "application/json"}
+
+        data = {"Username": username, "Pw": password}
+
+        try:
+            response = requests.post(
+                url=self.base_url + "/Users/AuthenticateByName",
+                headers=headers,
+                json=data,
+            )
+
+            if response.status_code == 200:
+                response_data = response.json()
+                user_id = response_data.get("User", {}).get("Id")
+                if user_id:
+                    logger.info(f"Emby用户 {username} 认证成功")
+                    return True, user_id
+                else:
+                    logger.warning(f"Emby用户 {username} 认证失败：无法获取用户ID")
+                    return False, None
+            else:
+                logger.warning(
+                    f"Emby用户 {username} 认证失败：{response.status_code} - {response.text}"
+                )
+                return False, None
+
+        except Exception as e:
+            logger.error(f"Emby用户 {username} 认证时发生错误: {str(e)}")
+            return False, None

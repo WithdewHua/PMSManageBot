@@ -77,6 +77,34 @@ export async function unbindLine(service = 'emby') {
   }
 }
 
+/**
+ * 认证并绑定线路（新的组合API）
+ * @param {string} service - 服务类型 ('emby' 或 'plex')
+ * @param {Object} credentials - 认证信息
+ * @param {string} credentials.username - 用户名（Emby用）
+ * @param {string} credentials.email - 邮箱（Plex用）
+ * @param {string} credentials.password - 密码
+ * @param {string} credentials.line - 要绑定的线路名称
+ * @returns {Promise} 认证绑定结果
+ */
+export async function authBindLine(service, credentials) {
+  try {
+    const response = await apiClient.post(`/api/user/auth-bind/${service}`, credentials);
+    return {
+      success: true,
+      message: response.data.message || '认证并绑定线路成功',
+      data: response.data
+    };
+  } catch (error) {
+    console.error(`认证绑定${service}线路失败:`, error);
+    return {
+      success: false,
+      message: error.response?.data?.detail || error.response?.data?.message || '认证绑定失败，请检查用户名密码',
+      error: error
+    };
+  }
+}
+
 // 为了向后兼容，保留原有的特定服务函数
 
 /**

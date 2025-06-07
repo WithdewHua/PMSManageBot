@@ -21,6 +21,7 @@ from app.utils import (
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import (
+    AuthBindLineRequest,
     BaseResponse,
     BindEmbyRequest,
     BindPlexRequest,
@@ -1004,3 +1005,173 @@ async def unbind_line_generic(
         return await unbind_emby_line(request, telegram_user)
     else:
         return await unbind_plex_line(request, telegram_user)
+
+
+@router.post("/auth-bind/{service}", response_model=BaseResponse)
+@require_telegram_auth
+async def auth_bind_line(
+    service: str,
+    request: Request,
+    data: AuthBindLineRequest = Body(...),
+    telegram_user: TelegramUser = Depends(get_telegram_user),
+):
+    """认证并绑定线路（通用，同时支持Plex和Emby）"""
+    if service not in ["emby", "plex"]:
+        raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
+
+    tg_id = telegram_user.id
+    username = data.username
+    password = data.password
+    line = data.line
+
+    logger.info(
+        f"用户 {telegram_user.username or tg_id} 尝试认证并绑定 {service} 线路 {line}"
+    )
+
+    db = DB()
+    try:
+        if service == "emby":
+            return await _auth_bind_emby_line(
+                db, tg_id, telegram_user, username, password, line
+            )
+        else:
+            return await _auth_bind_plex_line(
+                db, tg_id, telegram_user, username, password, line
+            )
+    except Exception as e:
+        logger.error(f"认证绑定{service}线路时发生错误: {str(e)}")
+        return BaseResponse(success=False, message=f"认证绑定失败: {str(e)}")
+    finally:
+        db.close()
+        logger.debug("数据库连接已关闭")
+
+
+async def _auth_bind_emby_line(
+    db: DB,
+    tg_id: int,
+    telegram_user: TelegramUser,
+    username: str,
+    password: str,
+    line: str,
+) -> BaseResponse:
+    """认证并绑定Emby线路的内部方法"""
+    from app.cache import (
+        emby_last_user_defined_line_cache,
+        emby_user_defined_line_cache,
+    )
+
+    # 验证 Emby 用户名和密码
+    emby = Emby()
+    auth_success, emby_id = emby.authenticate_user(username, password)
+    if not auth_success:
+        logger.warning(f"Emby用户 {username} 认证失败")
+        return BaseResponse(success=False, message="用户名或密码错误")
+
+    # 检查线路权限 - 获取用户信息以确定是否为premium用户
+    existing_emby_info = db.get_emby_info_by_emby_username(username)
+    is_premium = existing_emby_info[8] == 1 if existing_emby_info else False
+
+    if not is_premium:
+        is_premium_line_flag = is_binded_premium_line(line)
+        if is_premium_line_flag:
+            if settings.PREMIUM_FREE:
+                from app.cache import free_premium_lines_cache
+
+                free_premium_lines = free_premium_lines_cache.get("free_lines")
+                free_premium_lines = (
+                    free_premium_lines.split(",") if free_premium_lines else []
+                )
+                if line not in free_premium_lines:
+                    return BaseResponse(
+                        success=False, message="该高级线路暂未开放免费使用"
+                    )
+            else:
+                return BaseResponse(
+                    success=False, message="您不是 premium 用户，无法绑定该线路"
+                )
+
+    # 设置线路到数据库（如果用户存在于数据库中）
+    if existing_emby_info:
+        success = db.set_emby_line(line, emby_id=emby_id)
+        if not success:
+            logger.error(f"设置 Emby 用户 {username} 的线路失败")
+            return BaseResponse(success=False, message="设置线路失败")
+
+    # 更新 redis 缓存 - 记录线路绑定
+    binded_line = emby_user_defined_line_cache.get(str(username).lower())
+    if binded_line and not is_binded_premium_line(binded_line):
+        logger.debug(f"记录用户 {username} 上一次使用的普通线路 {binded_line}")
+        emby_last_user_defined_line_cache.put(str(username).lower(), binded_line)
+    emby_user_defined_line_cache.put(str(username).lower(), line)
+
+    logger.info(
+        f"用户 {telegram_user.username or tg_id} 为 {username} 成功认证并绑定Emby线路 {line}"
+    )
+    return BaseResponse(success=True, message=f"认证并绑定 Emby 线路 {line} 成功！")
+
+
+async def _auth_bind_plex_line(
+    db: DB,
+    tg_id: int,
+    telegram_user: TelegramUser,
+    username: str,
+    password: str,
+    line: str,
+) -> BaseResponse:
+    """认证并绑定Plex线路的内部方法"""
+    from app.cache import (
+        plex_last_user_defined_line_cache,
+        plex_user_defined_line_cache,
+    )
+
+    # 验证Plex用户名和密码
+    plex = Plex()
+    auth_success, plex_id = plex.authenticate_user(username, password)
+    if not auth_success:
+        logger.warning(f"Plex用户 {username} 认证失败")
+        return BaseResponse(success=False, message="用户名或密码错误")
+
+    # 检查线路权限 - 获取用户信息以确定是否为premium用户
+    existing_plex_info = db.get_plex_info_by_plex_id(plex_id)
+    is_premium = existing_plex_info[9] == 1 if existing_plex_info else False
+
+    if not is_premium:
+        is_premium_line_flag = is_binded_premium_line(line)
+        if is_premium_line_flag:
+            if settings.PREMIUM_FREE:
+                from app.cache import free_premium_lines_cache
+
+                free_premium_lines = free_premium_lines_cache.get("free_lines")
+                free_premium_lines = (
+                    free_premium_lines.split(",") if free_premium_lines else []
+                )
+                if line not in free_premium_lines:
+                    return BaseResponse(
+                        success=False, message="该高级线路暂未开放免费使用"
+                    )
+            else:
+                return BaseResponse(
+                    success=False, message="您不是 premium 用户，无法绑定该线路"
+                )
+
+    # 如果用户已存在，更新数据库中的线路设置
+    if existing_plex_info:
+        success = db.set_plex_line(line, plex_id=plex_id)
+        if not success:
+            logger.error(
+                f"{telegram_user.username or tg_id} 为 {username} 设置 Plex 线路失败"
+            )
+            return BaseResponse(success=False, message="设置线路失败")
+
+    # 更新 redis 缓存 - 记录线路绑定
+    plex_username = plex.get_username_by_user_id(plex_id)
+    binded_line = plex_user_defined_line_cache.get(str(plex_username).lower())
+    if binded_line and not is_binded_premium_line(binded_line):
+        logger.debug(f"记录用户 {plex_username} 上一次使用的普通线路 {binded_line}")
+        plex_last_user_defined_line_cache.put(str(plex_username).lower(), binded_line)
+    plex_user_defined_line_cache.put(str(plex_username).lower(), line)
+
+    logger.info(
+        f"用户 {telegram_user.username or tg_id} 为 {plex_username} 成功认证并绑定 Plex 线路 {line}"
+    )
+    return BaseResponse(success=True, message=f"认证并绑定 Plex 线路 {line} 成功！")
