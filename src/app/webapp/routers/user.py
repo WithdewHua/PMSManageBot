@@ -1175,3 +1175,139 @@ async def _auth_bind_plex_line(
         f"用户 {telegram_user.username or tg_id} 为 {plex_username} 成功认证并绑定 Plex 线路 {line}"
     )
     return BaseResponse(success=True, message=f"认证并绑定 Plex 线路 {line} 成功！")
+
+
+@router.post("/lines/emby/available", response_model=EmbyLinesResponse)
+@require_telegram_auth
+async def get_emby_lines_by_user(
+    request: Request,
+    data: dict = Body(...),
+    telegram_user: TelegramUser = Depends(get_telegram_user),
+):
+    """基于用户名获取可用的Emby线路列表（无需认证，仅查询数据库中的用户信息）"""
+    username = data.get("username")
+
+    if not username:
+        return BaseResponse(success=False, message="用户名不能为空")
+
+    db = DB()
+    try:
+        # 直接从数据库查询用户信息，无需进行Emby服务器认证
+        emby_info = db.get_emby_info_by_emby_username(username)
+        if not emby_info:
+            logger.warning(f"Emby用户 {username} 未在数据库中找到记录")
+            return BaseResponse(success=False, message="该用户未在系统中注册")
+
+        is_premium = emby_info[8] == 1
+
+        # 基础线路
+        available_lines = settings.STREAM_BACKEND.copy()
+        line_infos = []
+
+        # 添加基础线路信息
+        for line in available_lines:
+            line_infos.append(
+                EmbyLineInfo(name=line, tags=get_line_tags(line), is_premium=False)
+            )
+
+        # 如果是premium用户，直接添加所有高级线路
+        if is_premium:
+            for line in settings.PREMIUM_STREAM_BACKEND:
+                line_infos.append(
+                    EmbyLineInfo(name=line, tags=get_line_tags(line), is_premium=True)
+                )
+        # 如果不是premium用户，检查免费高级线路
+        elif settings.PREMIUM_FREE:
+            # 从Redis缓存获取免费高级线路列表
+            from app.cache import free_premium_lines_cache
+
+            free_premium_lines = free_premium_lines_cache.get("free_lines")
+            free_premium_lines = (
+                free_premium_lines.split(",") if free_premium_lines else []
+            )
+
+            for line in free_premium_lines:
+                if line in settings.PREMIUM_STREAM_BACKEND:
+                    line_infos.append(
+                        EmbyLineInfo(
+                            name=line, tags=get_line_tags(line), is_premium=True
+                        )
+                    )
+
+        logger.info(f"为Emby用户 {username} 返回 {len(line_infos)} 条线路信息")
+        return EmbyLinesResponse(success=True, lines=line_infos)
+
+    except Exception as e:
+        logger.error(f"获取Emby用户 {username} 的线路列表时发生错误: {str(e)}")
+        return BaseResponse(success=False, message=f"获取线路列表失败: {str(e)}")
+    finally:
+        db.close()
+
+
+@router.post("/lines/plex/available", response_model=PlexLinesResponse)
+@require_telegram_auth
+async def get_plex_lines_by_user(
+    request: Request,
+    data: dict = Body(...),
+    telegram_user: TelegramUser = Depends(get_telegram_user),
+):
+    """基于邮箱获取可用的Plex线路列表（无需认证，仅查询数据库中的用户信息）"""
+    email = data.get("email")
+
+    if not email:
+        return BaseResponse(success=False, message="邮箱不能为空")
+
+    db = DB()
+    try:
+        # 直接从数据库查询用户信息，无需进行Plex服务器认证
+        plex_info = db.get_plex_info_by_plex_email(email)
+        if not plex_info:
+            logger.warning(f"Plex用户 {email} 未在数据库中找到记录")
+            return BaseResponse(success=False, message="该用户未在系统中注册")
+
+        # 检查用户是否为高级用户
+        is_premium_user = plex_info[9] == 1  # 假设 is_premium 字段在索引 9
+
+        # 获取基础线路和高级线路
+        available_lines = settings.STREAM_BACKEND.copy()
+        premium_lines = settings.PREMIUM_STREAM_BACKEND.copy()
+        line_infos = []
+
+        # 添加基础线路信息
+        for line in available_lines:
+            line_infos.append(
+                PlexLineInfo(name=line, tags=get_line_tags(line), is_premium=False)
+            )
+
+        # 根据用户权限添加高级线路信息
+        if is_premium_user:
+            # 高级用户可以看到所有高级线路
+            for line in premium_lines:
+                line_infos.append(
+                    PlexLineInfo(name=line, tags=get_line_tags(line), is_premium=True)
+                )
+        elif settings.PREMIUM_FREE:
+            # 普通用户在免费开放期间可以看到免费的高级线路
+            from app.cache import free_premium_lines_cache
+
+            free_premium_lines = free_premium_lines_cache.get("free_lines")
+            free_premium_lines = (
+                free_premium_lines.split(",") if free_premium_lines else []
+            )
+
+            for line in free_premium_lines:
+                if line in premium_lines:
+                    line_infos.append(
+                        PlexLineInfo(
+                            name=line, tags=get_line_tags(line), is_premium=True
+                        )
+                    )
+
+        logger.info(f"为Plex用户 {email} 返回 {len(line_infos)} 条线路信息")
+        return PlexLinesResponse(success=True, lines=line_infos)
+
+    except Exception as e:
+        logger.error(f"获取Plex用户 {email} 的线路列表时发生错误: {str(e)}")
+        return BaseResponse(success=False, message=f"获取线路列表失败: {str(e)}")
+    finally:
+        db.close()

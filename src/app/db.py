@@ -290,6 +290,20 @@ class DB:
         info = rslt.fetchone()
         return info
 
+    def get_plex_info_by_plex_username(self, plex_username: str):
+        rslt = self.cur.execute(
+            "SELECT * FROM user WHERE plex_username = ?", (plex_username,)
+        )
+        info = rslt.fetchone()
+        return info
+
+    def get_plex_info_by_plex_email(self, plex_email: str):
+        rslt = self.cur.execute(
+            "SELECT * FROM user WHERE plex_email = ?", (plex_email,)
+        )
+        info = rslt.fetchone()
+        return info
+
     def get_emby_info_by_emby_username(self, username: str):
         return self.cur.execute(
             "SELECT * FROM emby_user WHERE emby_username = ?", (username,)

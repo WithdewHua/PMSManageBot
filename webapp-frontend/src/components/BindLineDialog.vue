@@ -86,7 +86,6 @@
                 class="mb-3"
                 readonly
                 :loading="loadingLines"
-                append-icon="mdi-chevron-down"
                 placeholder="请选择线路"
               ></v-text-field>
             </template>
@@ -121,7 +120,14 @@
                   </v-list-item-title>
                 </v-list-item>
                 
-                <v-list-item v-if="availableLines.length === 0 && !loadingLines" class="text-center">
+                <v-list-item v-if="availableLines.length === 0 && !loadingLines && !hasValidCredentials" class="text-center">
+                  <v-list-item-title class="text-grey">
+                    <v-icon class="mr-2" size="small">mdi-information</v-icon>
+                    请先输入{{ serviceType === 'emby' ? '用户名' : '邮箱' }}和密码
+                  </v-list-item-title>
+                </v-list-item>
+                
+                <v-list-item v-if="availableLines.length === 0 && !loadingLines && hasValidCredentials" class="text-center">
                   <v-list-item-title class="text-grey">暂无可用线路</v-list-item-title>
                 </v-list-item>
                 
@@ -130,6 +136,24 @@
                     <v-progress-circular indeterminate size="20" class="mr-2"></v-progress-circular>
                     加载中...
                   </v-list-item-title>
+                </v-list-item>
+                
+                <v-divider v-if="!loadingLines"></v-divider>
+                
+                <v-list-item v-if="!loadingLines">
+                  <v-text-field
+                    v-model="customLine"
+                    label="自定义线路"
+                    variant="underlined"
+                    density="compact"
+                    hide-details
+                    class="mx-2"
+                    @keyup.enter="selectCustomLine"
+                  >
+                    <template v-slot:append>
+                      <v-icon @click="selectCustomLine" color="primary" size="small">mdi-check</v-icon>
+                    </template>
+                  </v-text-field>
                 </v-list-item>
               </v-list>
             </v-card>
@@ -168,9 +192,7 @@
 </template>
 
 <script>
-import { authBindLine } from '../services/userLineService';
-import { getAvailableEmbyLines } from '../services/embyService';
-import { getAvailablePlexLines } from '../services/plexService';
+import { authBindLine, getAvailableEmbyLinesByUser, getAvailablePlexLinesByUser } from '../services/userLineService';
 
 export default {
   name: 'BindLineDialog',
@@ -186,6 +208,7 @@ export default {
       username: '',
       password: '',
       selectedLine: '',
+      customLine: '',
       availableLines: [],
       errorMessage: '',
       successMessage: '',
@@ -206,12 +229,41 @@ export default {
       ]
     }
   },
+  computed: {
+    // 检查是否有有效的凭据
+    hasValidCredentials() {
+      if (this.serviceType === 'emby') {
+        return this.username && this.username.trim() && this.password && this.password.trim();
+      } else {
+        return this.email && this.email.trim() && this.password && this.password.trim();
+      }
+    }
+  },
   watch: {
     serviceType() {
       // 服务类型改变时重置表单和线路列表
       this.resetForm();
       this.availableLines = [];
       this.selectedLine = '';
+      this.customLine = '';
+    },
+    username() {
+      // 用户名变化时清空线路列表
+      this.availableLines = [];
+      this.selectedLine = '';
+      this.errorMessage = '';
+    },
+    email() {
+      // 邮箱变化时清空线路列表
+      this.availableLines = [];
+      this.selectedLine = '';
+      this.errorMessage = '';
+    },
+    password() {
+      // 密码变化时清空线路列表
+      this.availableLines = [];
+      this.selectedLine = '';
+      this.errorMessage = '';
     }
   },
   methods: {
@@ -222,7 +274,7 @@ export default {
       }
       this.showDialog = true;
       this.resetForm();
-      this.loadAvailableLines();
+      // 不再自动加载线路，等用户输入凭据后手动获取
     },
     
     // 关闭对话框
@@ -237,6 +289,7 @@ export default {
       this.username = '';
       this.password = '';
       this.selectedLine = '';
+      this.customLine = '';
       this.errorMessage = '';
       this.successMessage = '';
       if (this.$refs.form) {
@@ -248,20 +301,40 @@ export default {
     async loadAvailableLines() {
       if (this.loadingLines) return;
       
+      // 检查必要的凭据是否已输入
+      if (this.serviceType === 'emby') {
+        if (!this.username || !this.password) {
+          this.errorMessage = '请先输入用户名和密码';
+          this.availableLines = [];
+          return;
+        }
+      } else {
+        if (!this.email || !this.password) {
+          this.errorMessage = '请先输入邮箱和密码';
+          this.availableLines = [];
+          return;
+        }
+      }
+      
       this.loadingLines = true;
+      this.errorMessage = '';
       try {
         let lines = [];
         if (this.serviceType === 'emby') {
-          lines = await getAvailableEmbyLines();
+          lines = await getAvailableEmbyLinesByUser(this.username, this.password);
         } else {
-          lines = await getAvailablePlexLines();
+          lines = await getAvailablePlexLinesByUser(this.email, this.password);
         }
         
         // 保留完整的线路信息（包括标签）
         this.availableLines = lines;
       } catch (error) {
         console.error('获取线路列表失败:', error);
-        this.errorMessage = '获取线路列表失败，请稍后再试';
+        if (error.response?.data?.message) {
+          this.errorMessage = error.response.data.message;
+        } else {
+          this.errorMessage = '获取线路列表失败，请检查用户名密码是否正确';
+        }
         this.availableLines = [];
       } finally {
         this.loadingLines = false;
@@ -279,6 +352,15 @@ export default {
     selectLine(lineName) {
       this.selectedLine = lineName;
       this.lineMenu = false;
+    },
+    
+    // 选择自定义线路
+    selectCustomLine() {
+      if (this.customLine && this.customLine.trim()) {
+        this.selectedLine = this.customLine.trim();
+        this.customLine = '';
+        this.lineMenu = false;
+      }
     },
     
     // 获取标签颜色
