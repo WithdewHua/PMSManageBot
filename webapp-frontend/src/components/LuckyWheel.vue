@@ -160,7 +160,7 @@ export default {
       default: false
     }
   },
-  emits: ['spin-complete'],
+  emits: ['spin-complete', 'result-closed'],
   data() {
     return {
       rotation: 0,
@@ -333,6 +333,8 @@ export default {
     
     closeResult() {
       this.showResult = false
+      // 发出结果弹窗关闭事件
+      this.$emit('result-closed', this.winResult)
     },
     
     openConfig() {

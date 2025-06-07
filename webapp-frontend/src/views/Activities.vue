@@ -1,8 +1,24 @@
 <template>
   <div class="activities-container">
     <div class="content-wrapper">
+      <!-- 加载状态 -->
+      <div v-if="loading" class="loading-container">
+        <div class="loading-content">
+          <v-progress-circular indeterminate color="primary" size="50" width="4"></v-progress-circular>
+          <div class="loading-text">加载中...</div>
+        </div>
+      </div>
+
+      <!-- 错误状态 -->
+      <div v-else-if="error" class="error-container">
+        <v-alert type="error" class="error-alert" rounded="lg" elevation="4">{{ error }}</v-alert>
+        <v-btn color="primary" @click="fetchUserInfoAndCheckStatus" class="mt-3">
+          重试
+        </v-btn>
+      </div>
+
       <!-- 活动列表 -->
-      <div class="activities-list">
+      <div v-else class="activities-list">
         <!-- 幸运大转盘活动 -->
         <v-card class="activity-card mb-4" elevation="8">
           <div class="activity-header">
@@ -11,35 +27,38 @@
             </v-icon>
             <div class="activity-info">
               <h3 class="activity-title">幸运大转盘</h3>
-              <p class="activity-subtitle">每日免费转一次，赢取VIP奖励</p>
+              <p class="activity-subtitle">
+                需要积分大于 30，赢取丰厚奖励
+                <span v-if="userCredits < 30" class="text-error">
+                  （当前积分：{{ userCredits.toFixed(2) }}）
+                </span>
+              </p>
             </div>
             <v-chip 
               class="activity-status" 
-              :color="dailySpinUsed ? 'grey' : 'success'"
+              :color="statusColor"
               variant="elevated"
             >
-              {{ dailySpinUsed ? '已参与' : '可参与' }}
+              {{ participationStatus }}
             </v-chip>
           </div>
           
           <v-divider></v-divider>
           
           <div class="activity-content">
-            <LuckyWheel @spin-complete="onSpinComplete" :disabled="dailySpinUsed" />
+            <LuckyWheel 
+              @spin-complete="onSpinComplete" 
+              @result-closed="onResultClosed"
+              :disabled="!canParticipate" 
+            />
           </div>
           
           <v-card-actions class="justify-center">
-            <v-btn 
-              color="primary" 
-              variant="elevated"
-              :disabled="dailySpinUsed"
-              @click="resetDaily"
-              v-if="dailySpinUsed"
-            >
-              明日再来
-            </v-btn>
-            <div v-else class="text-caption text-grey">
-              今日还有 {{ remainingSpins }} 次机会
+            <div v-if="userCredits < 30" class="text-caption text-error">
+              积分不足，需要 30 积分才能参与
+            </div>
+            <div v-else class="text-caption text-success">
+              积分充足，可以随时参与
             </div>
           </v-card-actions>
         </v-card>
@@ -63,6 +82,7 @@
 
 <script>
 import LuckyWheel from '@/components/LuckyWheel.vue'
+import { getUserInfo } from '@/api'
 
 export default {
   name: 'Activities',
@@ -71,26 +91,52 @@ export default {
   },
   data() {
     return {
-      dailySpinUsed: false, // 今日是否已使用转盘
-      remainingSpins: 1 // 剩余转盘次数
+      userCredits: 0, // 用户积分
+      loading: true, // 加载状态
+      error: null // 错误信息
     }
   },
   mounted() {
-    // 检查今日转盘使用情况
-    this.checkDailySpinStatus()
+    // 获取用户信息
+    this.fetchUserInfoAndCheckStatus()
+  },
+  computed: {
+    // 检查是否可以参与转盘
+    canParticipate() {
+      return this.userCredits >= 30
+    },
+    
+    // 获取参与状态文本
+    participationStatus() {
+      if (this.userCredits < 30) {
+        return '积分不足'
+      }
+      return '可参与'
+    },
+    
+    // 获取状态颜色
+    statusColor() {
+      if (this.userCredits < 30) {
+        return 'error'
+      }
+      return 'success'
+    }
   },
   methods: {
-    checkDailySpinStatus() {
-      // 从localStorage检查今日是否已使用
-      const today = new Date().toDateString()
-      const lastSpinDate = localStorage.getItem('lastSpinDate')
-      
-      if (lastSpinDate === today) {
-        this.dailySpinUsed = true
-        this.remainingSpins = 0
-      } else {
-        this.dailySpinUsed = false
-        this.remainingSpins = 1
+    async fetchUserInfoAndCheckStatus() {
+      try {
+        this.loading = true
+        this.error = null
+        
+        // 获取用户信息
+        const response = await getUserInfo()
+        this.userCredits = response.data.credits
+        
+        this.loading = false
+      } catch (err) {
+        this.error = err.response?.data?.detail || '获取用户信息失败'
+        this.loading = false
+        console.error('获取用户信息失败:', err)
       }
     },
     
@@ -98,27 +144,22 @@ export default {
       // 转盘完成回调
       console.log('转盘结果：', result)
       
-      // 标记今日已使用
-      const today = new Date().toDateString()
-      localStorage.setItem('lastSpinDate', today)
-      
-      this.dailySpinUsed = true
-      this.remainingSpins = 0
-      
-      // 这里可以向后端发送转盘结果
-      // this.sendSpinResult(result)
+      // 这里可以向后端发送转盘结果并扣除积分
+      this.sendSpinResult(result)
     },
     
-    resetDaily() {
-      // 仅用于测试，实际应用中不需要此功能
-      localStorage.removeItem('lastSpinDate')
-      this.checkDailySpinStatus()
+    onResultClosed(result) {
+      // 结果弹窗关闭后更新用户信息
+      console.log('结果弹窗已关闭，转盘结果：', result, '更新用户信息')
+      this.fetchUserInfoAndCheckStatus()
     },
     
     sendSpinResult(result) {
       // 向后端发送转盘结果的方法
-      // TODO: 实现后端API调用
+      // TODO: 实现后端API调用，扣除积分并记录奖励
       console.log('发送转盘结果到后端：', result)
+      
+      // 不在这里立即更新积分信息，等待用户关闭结果弹窗后再更新
     }
   }
 }
