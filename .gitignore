@@ -318,3 +318,4 @@ webapp-frontend/yarn-debug.log*
 webapp-frontend/yarn-error.log*
 webapp-frontend/package-lock.json
 webapp-frontend/yarn.lock
+rsync.sh
