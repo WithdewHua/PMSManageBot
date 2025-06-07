@@ -528,8 +528,10 @@ export default {
   font-size: 18px;
   font-weight: 600;
   color: #333;
-  background: rgba(255, 255, 255, 0.8);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  backdrop-filter: blur(10px);
   border-radius: 16px 16px 0 0;
+  border-bottom: 1px solid rgba(102, 126, 234, 0.2);
   padding: 20px 24px 16px;
 }
 
