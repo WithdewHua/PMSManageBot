@@ -7,7 +7,6 @@
         <p class="page-subtitle">积分、捐赠与观看时长排行</p>
       </div>
       
-      <v-container class="transparent-container">
       <div v-if="isCurrentTabLoading()" class="loading-container">
         <div class="loading-content">
           <v-progress-circular indeterminate color="primary" size="50" width="4"></v-progress-circular>
@@ -23,29 +22,32 @@
       </div>
 
       <div v-else>
-        <v-tabs 
-          v-model="activeTab" 
-          grow 
-          fixed-tabs 
-          color="primary"
-          bg-color="transparent"
-          class="mb-4 rankings-tabs"
-        >
-          <v-tab value="credits" class="tab-item">
-            <v-icon start size="20">mdi-star</v-icon>
-            积分榜
-          </v-tab>
-          <v-tab value="donation" class="tab-item">
-            <v-icon start size="20">mdi-heart</v-icon>
-            捐赠榜
-          </v-tab>
-          <v-tab value="watched" class="tab-item">
-            <v-icon start size="20">mdi-clock</v-icon>
-            观看时长榜
-          </v-tab>
-        </v-tabs>
+        <div class="rankings-tabs-container">
+          <v-tabs 
+            v-model="activeTab" 
+            grow 
+            fixed-tabs 
+            color="primary"
+            bg-color="transparent"
+            class="rankings-tabs"
+          >
+            <v-tab value="credits" class="tab-item">
+              <v-icon start size="18">mdi-star</v-icon>
+              <span class="tab-text">积分榜</span>
+            </v-tab>
+            <v-tab value="donation" class="tab-item">
+              <v-icon start size="18">mdi-heart</v-icon>
+              <span class="tab-text">捐赠榜</span>
+            </v-tab>
+            <v-tab value="watched" class="tab-item">
+              <v-icon start size="18">mdi-clock</v-icon>
+              <span class="tab-text">观看时长榜</span>
+            </v-tab>
+          </v-tabs>
+        </div>
 
-        <v-window v-model="activeTab">
+        <div class="rankings-content-container">
+          <v-window v-model="activeTab">
           <!-- 积分榜 -->
           <v-window-item value="credits">
             <v-list lines="two" class="px-2">
@@ -339,7 +341,8 @@
             </v-row>
           </v-window-item>
         </v-window>
-      </div>      </v-container>
+        </div>
+      </div>
     </div>
 
     <!-- 等级说明对话框 -->
@@ -670,14 +673,34 @@ export default {
   background: transparent !important;
 }
 
-/* 标签页样式 */
-.rankings-tabs {
-  background: rgba(255, 255, 255, 1) !important;
-  border-radius: 16px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+/* 标签页容器样式 */
+.rankings-tabs-container {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(10px);
   margin-bottom: 24px;
-  padding: 8px;
+  padding: 12px 20px;
+  overflow: visible; /* 确保内容不被裁剪 */
+}
+
+/* 内容容器样式 */
+.rankings-content-container {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  padding: 20px;
+}
+
+/* 标签页样式 */
+.rankings-tabs {
+  background: transparent !important;
+  border-radius: 16px;
+  margin-bottom: 0;
+  padding: 0;
+  overflow: visible !important; /* 确保tab内容不被裁剪 */
+  min-width: 100%; /* 确保有足够宽度 */
 }
 
 /* 加载状态样式 */
@@ -722,11 +745,60 @@ export default {
   transition: all 0.3s ease;
   border-radius: 12px;
   margin: 0 4px;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 48px;
+  text-align: center !important;
+  flex-direction: row !important; /* 改为水平排列 */
+  gap: 6px !important; /* 添加图标和文字之间的间距 */
+  padding: 8px 12px !important; /* 增加内边距确保文字有足够空间 */
+  white-space: nowrap !important; /* 防止文字换行 */
+  min-width: fit-content !important; /* 确保有足够宽度显示完整文字 */
 }
 
-.tab-item:hover {
-  background-color: rgba(var(--v-theme-primary), 0.1);
-  transform: translateY(-2px);
+.tab-item .v-icon {
+  margin-bottom: 0 !important; /* 移除底部边距 */
+  margin-right: 4px !important; /* 添加右边距 */
+  flex-shrink: 0 !important; /* 防止图标被压缩 */
+}
+
+.tab-text {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: visible;
+}
+
+/* 覆盖Vuetify默认的tab样式 */
+:deep(.v-tab) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  flex-direction: row !important; /* 改为水平排列 */
+  min-height: 48px !important;
+  gap: 6px !important;
+  padding: 8px 12px !important;
+  white-space: nowrap !important;
+  min-width: fit-content !important;
+}
+
+:deep(.v-tab .v-btn__content) {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-direction: row !important; /* 改为水平排列 */
+  width: 100% !important;
+  text-align: center !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+}
+
+:deep(.v-tab .v-icon) {
+  margin-right: 4px !important; /* 右边距用于分隔图标和文字 */
+  margin-bottom: 0 !important; /* 移除底部边距 */
+  flex-shrink: 0 !important; /* 防止图标被压缩 */
 }
 
 .ranking-item {
@@ -1473,156 +1545,45 @@ export default {
   }
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .rankings-container {
-    padding: 15px;
-  }
-  
-  .rankings-header {
-    padding: 20px 16px;
-    margin-bottom: 30px;
-  }
-  
-  .page-title {
-    font-size: 24px;
-  }
-  
-  .page-subtitle {
-    font-size: 14px;
-  }
-  
-  .rankings-tabs {
-    padding: 6px;
-  }
-  
-  .ranking-item {
-    margin-bottom: 12px;
-  }
-  
-  .rank-number {
-    width: 36px;
-    height: 36px;
-    font-size: 14px;
-  }
-  
-  .rank-1, .rank-2, .rank-3 {
-    width: 40px;
-    height: 40px;
-    font-size: 16px;
-  }
-  
-  .user-avatar {
-    width: 40px !important;
-    height: 40px !important;
-  }
-  
-  .user-name {
-    font-size: 15px;
-  }
-  
-  .user-score {
+/* 响应式样式 */
+@media (max-width: 600px) {
+  .tab-item {
+    padding: 6px 8px !important;
+    margin: 0 2px;
     font-size: 13px;
   }
   
-  .watched-source-select {
-    max-width: 140px;
-    min-width: 120px;
+  .tab-text {
+    font-size: 13px;
+  }
+  
+  .tab-item .v-icon {
+    margin-right: 3px !important;
+  }
+  
+  :deep(.v-tab) {
+    padding: 6px 8px !important;
+    gap: 4px !important;
+  }
+  
+  :deep(.v-tab .v-btn__content) {
+    gap: 4px !important;
   }
 }
 
 @media (max-width: 480px) {
-  .rankings-container {
-    padding: 12px;
-  }
-  
-  .page-title {
-    font-size: 22px;
-  }
-  
-  .page-subtitle {
-    font-size: 13px;
-  }
-  
-  .rank-number {
-    width: 32px;
-    height: 32px;
-    font-size: 13px;
-  }
-  
-  .rank-1, .rank-2, .rank-3 {
-    width: 36px;
-    height: 36px;
-    font-size: 15px;
-  }
-  
-  .user-avatar {
-    width: 36px !important;
-    height: 36px !important;
-    margin-right: 12px !important;
-  }
-  
-  .user-name {
-    font-size: 14px;
-  }
-  
-  .user-score {
+  .tab-item {
+    padding: 4px 6px !important;
+    margin: 0 1px;
     font-size: 12px;
   }
   
-  .watched-time-container {
-    flex-wrap: wrap;
-    gap: 4px;
+  .tab-text {
+    font-size: 12px;
   }
   
-  .level-icons-wrapper {
-    margin-left: 0;
-    margin-top: 4px;
-  }
-  
-  .emoji-icon {
-    font-size: 14px;
-    min-width: 16px;
-    min-height: 16px;
-  }
-  
-  .watched-source-select {
-    max-width: 120px;
-    min-width: 100px;
-  }
-}
-
-@media (max-width: 400px) {
-  .rankings-header {
-    padding: 16px 12px;
-  }
-  
-  .page-title {
-    font-size: 20px;
-  }
-  
-  .tab-item {
-    font-size: 13px;
-    padding: 8px 12px;
-  }
-  
-  .ranking-item {
-    padding: 12px;
-  }
-  
-  .d-flex.justify-space-between.align-center.mb-4 {
-    flex-direction: column;
-    gap: 12px;
-    align-items: stretch;
-  }
-  
-  .d-flex.align-center.gap-2 {
-    justify-content: center;
-  }
-  
-  .watched-source-select {
-    align-self: center;
-    max-width: 160px;
+  .tab-item .v-icon {
+    margin-right: 2px !important;
   }
 }
 
