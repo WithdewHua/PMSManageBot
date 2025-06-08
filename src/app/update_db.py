@@ -21,7 +21,8 @@ def update_credits():
         users = res.fetchall()
         for user in users:
             plex_id = user[0]
-            credits_inc = duration.get(plex_id, 0)
+            # 最大记 8h
+            credits_inc = min(int(duration.get(plex_id, 0)), 8)
             res = _db.cur.execute(
                 "SELECT credits,watched_time,tg_id FROM user WHERE plex_id=?",
                 (plex_id,),
