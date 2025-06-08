@@ -10,6 +10,8 @@ from app.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import (
+    CheckPrivilegedCodeRequest,
+    CheckPrivilegedCodeResponse,
     GenerateInviteCodeResponse,
     InvitePointsResponse,
     RedeemInviteCodeRequest,
@@ -176,9 +178,10 @@ async def redeem_plex_code(
     try:
         code = data.code
         email = data.email
+        is_privileged = code in settings.PRIVILEGED_CODES
 
         # 检查是否允许注册
-        if not settings.PLEX_REGISTER:
+        if not settings.PLEX_REGISTER and not is_privileged:
             return RedeemResponse(success=False, message="Plex 当前不接受新用户注册")
 
         # 验证邮箱格式
@@ -226,6 +229,13 @@ async def redeem_plex_code(
                     token=settings.TG_API_TOKEN,
                 )
 
+            if is_privileged:
+                # 如果是特权邀请码，更新特权邀请码列表
+                settings.PRIVILEGED_CODES.remove(code)
+                settings.save_config_to_env_file(
+                    {"PRIVILEGED_CODES": settings.PRIVILEGED_CODES}
+                )
+
             # 返回成功响应
             return RedeemResponse(
                 success=True, message="邀请码兑换成功！请登录 Plex 确认邀请"
@@ -249,9 +259,10 @@ async def redeem_emby_code(
     try:
         code = data.code
         username = data.username
+        is_privileged = code in settings.PRIVILEGED_CODES
 
-        # 检查是否允许注册
-        if not settings.EMBY_REGISTER:
+        # 检查是否允许注册（特权码跳过检查）
+        if not settings.EMBY_REGISTER and not is_privileged:
             return RedeemResponse(success=False, message="Emby 当前不接受新用户注册")
 
         # 验证用户名
@@ -302,6 +313,13 @@ async def redeem_emby_code(
                     token=settings.TG_API_TOKEN,
                 )
 
+            if is_privileged:
+                # 如果是特权邀请码，使用后从列表中移除
+                settings.PRIVILEGED_CODES.remove(code)
+                settings.save_config_to_env_file(
+                    {"PRIVILEGED_CODES": settings.PRIVILEGED_CODES}
+                )
+
             # 返回成功响应
             return RedeemResponse(
                 success=True,
@@ -313,3 +331,25 @@ async def redeem_emby_code(
     except Exception as e:
         logger.error(f"兑换 Emby 邀请码失败: {str(e)}")
         return RedeemResponse(success=False, message="兑换过程出错，请稍后再试")
+
+
+@router.post("/check-privileged", response_model=CheckPrivilegedCodeResponse)
+async def check_privileged_invite_code(
+    request: Request,
+    data: CheckPrivilegedCodeRequest = Body(...),
+):
+    """
+    检查邀请码是否为特权邀请码
+    """
+    try:
+        code = data.code
+
+        # 检查邀请码是否在特权列表中
+        is_privileged = code in settings.PRIVILEGED_CODES
+
+        return CheckPrivilegedCodeResponse(privileged=is_privileged)
+
+    except Exception as e:
+        logger.error(f"检查特权邀请码失败: {str(e)}")
+        # 出错时默认返回非特权状态，避免意外授权
+        return CheckPrivilegedCodeResponse(privileged=False)

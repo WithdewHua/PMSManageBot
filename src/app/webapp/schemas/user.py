@@ -110,6 +110,10 @@ class AllLineTagsResponse(BaseModel):
 class AuthBindLineRequest(BaseModel):
     """认证并绑定线路的请求模型"""
 
-    username: str = Field(..., min_length=2, description="用户名或邮箱")
-    password: str = Field(..., min_length=1, description="密码")
+    username: str = Field(..., min_length=1, description="用户名或邮箱")
+    password: Optional[str] = Field(None, description="密码")
     line: str = Field(..., min_length=1, description="要绑定的线路名称")
+    token: Optional[str] = Field(None, description="用户认证令牌")
+    auth_method: Optional[str] = Field(
+        None, description="认证方法，支持 'password' 或 'token'"
+    )

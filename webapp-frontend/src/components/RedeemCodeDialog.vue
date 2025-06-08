@@ -37,6 +37,12 @@
             class="mb-3"
           ></v-text-field>
           
+          <!-- 特权邀请码提示 -->
+          <div v-if="isPrivilegedCode" class="privilege-message mb-3">
+            <v-icon color="gold" small>mdi-crown</v-icon>
+            <span class="ml-2">特权邀请码，可无视注册限制</span>
+          </div>
+          
           <!-- 根据所选服务显示对应输入框 -->
           <v-text-field
             v-if="serviceType === 'plex'"
@@ -95,7 +101,7 @@
 </template>
 
 <script>
-import { redeemMediaServiceInviteCode, getMediaServiceRegisterStatus } from '../services/mediaServiceApi';
+import { redeemMediaServiceInviteCode, getMediaServiceRegisterStatus, checkPrivilegedInviteCode } from '../services/mediaServiceApi';
 
 export default {
   name: 'RedeemCodeDialog',
@@ -114,6 +120,7 @@ export default {
         plex: true,
         emby: true
       },
+      isPrivilegedCode: false, // 是否为特权邀请码
       inviteCodeRules: [
         v => !!v || '请输入邀请码',
         v => v.length >= 6 || '邀请码长度不正确'
@@ -146,6 +153,7 @@ export default {
       this.username = '';
       this.errorMessage = '';
       this.successMessage = '';
+      this.isPrivilegedCode = false;
       if (this.$refs.form) {
         this.$refs.form.resetValidation();
       }
@@ -156,14 +164,45 @@ export default {
         const status = await getMediaServiceRegisterStatus();
         this.registerStatus = status;
         
-        // 如果当前选择的服务不可注册，提示用户
-        if (this.serviceType === 'plex' && !this.registerStatus.plex) {
-          this.errorMessage = 'Plex 当前不接受新用户注册';
-        } else if (this.serviceType === 'emby' && !this.registerStatus.emby) {
-          this.errorMessage = 'Emby 当前不接受新用户注册';
-        }
+        // 检查当前服务的注册状态
+        await this.updateServiceAvailability();
       } catch (error) {
         console.error('获取注册状态失败:', error);
+      }
+    },
+    
+    // 检查邀请码是否为特权码
+    async checkInviteCodePrivilege() {
+      if (!this.inviteCode) {
+        this.isPrivilegedCode = false;
+        return;
+      }
+      
+      try {
+        const result = await checkPrivilegedInviteCode(this.inviteCode);
+        this.isPrivilegedCode = result.privileged;
+        // 当邀请码状态改变时，更新服务可用性
+        await this.updateServiceAvailability();
+      } catch (error) {
+        console.error('检查特权邀请码失败:', error);
+        this.isPrivilegedCode = false;
+      }
+    },
+    
+    // 更新服务可用性提示
+    async updateServiceAvailability() {
+      this.errorMessage = '';
+      
+      // 如果是特权邀请码，允许注册任何服务
+      if (this.isPrivilegedCode) {
+        return;
+      }
+      
+      // 非特权码时检查注册状态
+      if (this.serviceType === 'plex' && !this.registerStatus.plex) {
+        this.errorMessage = 'Plex 当前不接受新用户注册';
+      } else if (this.serviceType === 'emby' && !this.registerStatus.emby) {
+        this.errorMessage = 'Emby 当前不接受新用户注册';
       }
     },
     async redeemCode() {
@@ -172,13 +211,15 @@ export default {
         return;
       }
 
-      // 检查服务注册状态
-      if (this.serviceType === 'plex' && !this.registerStatus.plex) {
-        this.errorMessage = 'Plex 当前不接受新用户注册';
-        return;
-      } else if (this.serviceType === 'emby' && !this.registerStatus.emby) {
-        this.errorMessage = 'Emby 当前不接受新用户注册';
-        return;
+      // 检查服务注册状态（特权码跳过检查）
+      if (!this.isPrivilegedCode) {
+        if (this.serviceType === 'plex' && !this.registerStatus.plex) {
+          this.errorMessage = 'Plex 当前不接受新用户注册';
+          return;
+        } else if (this.serviceType === 'emby' && !this.registerStatus.emby) {
+          this.errorMessage = 'Emby 当前不接受新用户注册';
+          return;
+        }
       }
 
       // 确保根据服务类型，对应字段有值
@@ -222,17 +263,27 @@ export default {
     }
   },
   watch: {
-    // 当服务类型变化时，清除对应的错误信息
+    // 当服务类型变化时，更新服务可用性
     serviceType() {
       this.errorMessage = '';
       this.successMessage = '';
-
-      // 检查新选择的服务是否可注册
-      if (this.serviceType === 'plex' && !this.registerStatus.plex) {
-        this.errorMessage = 'Plex 当前不接受新用户注册';
-      } else if (this.serviceType === 'emby' && !this.registerStatus.emby) {
-        this.errorMessage = 'Emby 当前不接受新用户注册';
-      }
+      this.updateServiceAvailability();
+    },
+    
+    // 当邀请码变化时，检查是否为特权码
+    inviteCode() {
+      // 防抖处理，避免频繁请求
+      clearTimeout(this.checkCodeTimer);
+      this.checkCodeTimer = setTimeout(() => {
+        this.checkInviteCodePrivilege();
+      }, 500);
+    }
+  },
+  
+  beforeUnmount() {
+    // 清理定时器
+    if (this.checkCodeTimer) {
+      clearTimeout(this.checkCodeTimer);
     }
   }
 }
@@ -273,5 +324,13 @@ export default {
 .success-message {
   color: #4caf50;
   font-size: 14px;
+}
+
+.privilege-message {
+  color: #ff9800;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
 }
 </style>

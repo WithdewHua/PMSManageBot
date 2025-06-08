@@ -8,6 +8,8 @@ from .invitation import (
     InvitePointsResponse,
     RedeemInviteCodeRequest,
     RedeemResponse,
+    CheckPrivilegedCodeRequest,
+    CheckPrivilegedCodeResponse,
 )
 from .ranking import RankingInfo
 from .user import (

@@ -5,6 +5,7 @@ import pickle
 from typing import Optional, Union
 
 import filelock
+import requests
 from app.config import settings
 from app.log import logger
 from plexapi.myplex import Section
@@ -171,11 +172,11 @@ class Plex:
                     )
                     continue
 
-    def authenticate_user(
+    def _authenticate_user_by_username(
         self, username: str, password: str
     ) -> tuple[bool, Optional[int]]:
         """
-        验证Plex用户的用户名和密码
+        验证 Plex 用户名和密码
         返回 (是否验证成功, 用户ID) 的元组
         """
         try:
@@ -217,4 +218,51 @@ class Plex:
 
         except Exception as e:
             logger.error(f"Plex用户 {username} 认证时发生错误: {str(e)}")
+            return False, None
+
+    def _authenticate_user_by_token(self, token: str) -> tuple[bool, Optional[int]]:
+        """
+        使用 API Token 验证 Plex 用户
+        返回 (是否验证成功, 用户ID) 的元组
+        """
+        headers = {
+            "X-Plex-Token": token,
+            "Accept": "application/json",
+        }
+        try:
+            response = requests.get(
+                f"{settings.PLEX_BASE_URL.strip('/')}/Authenticate/ValidateToken?X-Plex-Token={token}",
+                headers=headers,
+            )
+            response.raise_for_status()  # 确保请求成功
+            if response.status_code == 200:
+                data = response.json()
+                username = data.get("username")
+                userinfo = self.users_info.get(username)
+                if userinfo:
+                    user_id = userinfo.id
+                    logger.info(f"Plex 用户 {username} 通过 Token 认证成功")
+                    return True, user_id
+                else:
+                    logger.warning(f"Plex 用户 {username} 不在当前服务器的用户列表中")
+                    return False, None
+        except Exception as e:
+            logger.error(f"使用 Token 验证 Plex 用户时发生错误: {str(e)}")
+            return False, None
+
+    def authenticate_user(
+        self, username: str = None, password: str = None, token: str = None
+    ) -> tuple[bool, Optional[int]]:
+        """
+        验证 Plex 用户
+        如果提供了用户名和密码，则使用它们进行验证
+        如果提供了 Token，则使用 Token 进行验证
+        返回 (是否验证成功, 用户ID) 的元组
+        """
+        if token:
+            return self._authenticate_user_by_token(token)
+        elif username and password:
+            return self._authenticate_user_by_username(username, password)
+        else:
+            logger.error("必须提供用户名和密码或 API Token 进行验证")
             return False, None

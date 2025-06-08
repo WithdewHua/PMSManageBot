@@ -86,6 +86,41 @@ export function getMediaServiceRegisterStatus() {
 }
 
 /**
+ * 检查邀请码是否为特权邀请码
+ * @param {string} code - 邀请码
+ * @returns {Promise} 包含特权状态的Promise对象
+ */
+export function checkPrivilegedInviteCode(code) {
+  return new Promise((resolve) => {
+    if (!code) {
+      return resolve({ privileged: false });
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+      apiClient.post('/api/invite/check-privileged', { code })
+        .then(response => {
+          resolve({
+            privileged: response.data.privileged
+          });
+        })
+        .catch(error => {
+          console.error('检查特权邀请码失败:', error);
+          // 出错时默认为非特权码
+          resolve({ privileged: false });
+        });
+    } else {
+      // 开发环境模拟 - 模拟一些特权码
+      setTimeout(() => {
+        const privilegedCodes = ['ADMIN123', 'VIP999', 'SUPER888'];
+        resolve({
+          privileged: privilegedCodes.includes(code.toUpperCase())
+        });
+      }, 200);
+    }
+  });
+}
+
+/**
  * 绑定媒体服务账户
  * @param {string} serviceType - 服务类型 ('plex' 或 'emby')
  * @param {Object} data - 请求数据对象

@@ -25,6 +25,27 @@
             </v-btn-toggle>
           </div>
 
+          <!-- Plex 认证方式选择 -->
+          <div v-if="serviceType === 'plex'" class="auth-method-selection mb-4">
+            <span class="auth-label mr-4">认证方式:</span>
+            <v-btn-toggle
+              v-model="plexAuthMethod"
+              mandatory
+              rounded
+              dense
+              class="auth-toggle"
+            >
+              <v-btn value="password" small>
+                <v-icon left>mdi-key</v-icon>
+                密码
+              </v-btn>
+              <v-btn value="token" small>
+                <v-icon left>mdi-shield-key</v-icon>
+                Token
+              </v-btn>
+            </v-btn-toggle>
+          </div>
+
           <!-- Plex 邮箱输入框 -->
           <v-text-field
             v-if="serviceType === 'plex'"
@@ -52,8 +73,74 @@
             class="mb-3"
           ></v-text-field>
 
+          <!-- Plex Token 输入框 -->
+          <v-text-field
+            v-if="serviceType === 'plex' && plexAuthMethod === 'token'"
+            v-model="plexToken"
+            label="Plex Token"
+            :rules="tokenRules"
+            type="password"
+            required
+            outlined
+            dense
+            hide-details="auto"
+            class="mb-3"
+          >
+            <template v-slot:append>
+              <v-tooltip 
+                v-model="showTokenHelp"
+                bottom 
+                max-width="400" 
+                class="token-help-tooltip"
+                :open-on-hover="false"
+                :open-on-focus="false"
+              >
+                <template v-slot:activator="{ props }">
+                  <v-icon 
+                    v-bind="props" 
+                    small 
+                    color="info" 
+                    class="help-icon"
+                    @click="toggleTokenHelp"
+                  >
+                    mdi-help-circle
+                  </v-icon>
+                </template>
+                <div class="token-help-content">
+                  <div class="help-title">
+                    <v-icon small color="white" class="mr-2">mdi-key-variant</v-icon>
+                    获取 Plex Token
+                  </div>
+                  <div class="help-steps">
+                    <div class="step">
+                      <span class="step-number">1</span>
+                      打开 Plex Web 应用
+                    </div>
+                    <div class="step">
+                      <span class="step-number">2</span>
+                      按 F12 打开开发者工具
+                    </div>
+                    <div class="step">
+                      <span class="step-number">3</span>
+                      切换到 Network 标签页
+                    </div>
+                    <div class="step">
+                      <span class="step-number">4</span>
+                      过滤 "FunMedia" 请求
+                    </div>
+                    <div class="step">
+                      <span class="step-number">5</span>
+                      从请求 Header 或 URL 参数中复制 <code>X-Plex-Token</code>
+                    </div>
+                  </div>
+                </div>
+              </v-tooltip>
+            </template>
+          </v-text-field>
+
           <!-- 密码输入框 -->
           <v-text-field
+            v-if="serviceType === 'emby' || (serviceType === 'plex' && plexAuthMethod === 'password')"
             v-model="password"
             label="密码"
             :rules="passwordRules"
@@ -199,6 +286,7 @@ export default {
   data() {
     return {
       showDialog: false,
+      showTokenHelp: false, // 控制 token 帮助提示的显示
       valid: false,
       loading: false,
       loadingLines: false,
@@ -207,11 +295,13 @@ export default {
       email: '',
       username: '',
       password: '',
+      plexToken: '', // 新增 Plex Token 字段
       selectedLine: '',
       customLine: '',
       availableLines: [],
       errorMessage: '',
       successMessage: '',
+      plexAuthMethod: 'password', // 默认Plex认证方式为密码
       emailRules: [
         v => !!v || '请输入 Plex 邮箱',
         v => /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v) || '请输入有效的邮箱地址'
@@ -223,6 +313,10 @@ export default {
       passwordRules: [
         v => !!v || '请输入密码',
         v => v && v.length >= 1 || '密码不能为空'
+      ],
+      tokenRules: [
+        v => !!v || '请输入 Plex Token',
+        v => v && v.length >= 1 || 'Token 不能为空'
       ],
       lineRules: [
         v => !!v || '请选择线路'
@@ -247,6 +341,14 @@ export default {
       this.selectedLine = '';
       this.customLine = '';
     },
+    plexAuthMethod() {
+      // Plex认证方式改变时清空相关字段和线路列表
+      this.password = '';
+      this.plexToken = '';
+      this.availableLines = [];
+      this.selectedLine = '';
+      this.errorMessage = '';
+    },
     username: {
       handler() {
         // 用户名变化时清空线路列表和错误信息
@@ -269,9 +371,26 @@ export default {
       // 密码变化时清空选中的线路
       this.selectedLine = '';
       this.errorMessage = '';
+    },
+    plexToken() {
+      // Token变化时清空选中的线路
+      this.selectedLine = '';
+      this.errorMessage = '';
+    },
+    
+    // 监听对话框显示状态，关闭时重置帮助提示
+    showDialog(newVal) {
+      if (!newVal) {
+        this.showTokenHelp = false;
+      }
     }
   },
   methods: {
+    // 切换 Token 帮助提示显示状态
+    toggleTokenHelp() {
+      this.showTokenHelp = !this.showTokenHelp;
+    },
+    
     // 打开对话框
     open(type = null) {
       if (type) {
@@ -293,10 +412,13 @@ export default {
       this.email = '';
       this.username = '';
       this.password = '';
+      this.plexToken = '';
       this.selectedLine = '';
       this.customLine = '';
       this.errorMessage = '';
       this.successMessage = '';
+      this.showTokenHelp = false; // 重置帮助提示状态
+      this.plexAuthMethod = 'password'; // 重置Plex认证方式为密码
       if (this.$refs.form) {
         this.$refs.form.resetValidation();
       }
@@ -423,14 +545,23 @@ export default {
       try {
         // 构建认证请求参数
         const credentials = {
-          line: this.selectedLine,
-          password: this.password
+          line: this.selectedLine
         };
         
         if (this.serviceType === 'plex') {
           credentials.username = this.email; // Plex使用邮箱作为用户名
+          
+          // 根据认证方式添加不同的认证信息
+          if (this.plexAuthMethod === 'token') {
+            credentials.token = this.plexToken;
+            credentials.auth_method = 'token';
+          } else {
+            credentials.password = this.password;
+            credentials.auth_method = 'password';
+          }
         } else {
           credentials.username = this.username; // Emby使用用户名
+          credentials.password = this.password;
         }
         
         // 调用新的认证绑定API
@@ -484,6 +615,34 @@ export default {
 
 .service-toggle .v-btn--active {
   background-color: #9c27b0 !important;
+  color: white !important;
+}
+
+/* 认证方式选择样式 */
+.auth-method-selection {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.auth-label {
+  font-weight: 500;
+  color: #424242;
+  white-space: nowrap;
+}
+
+.auth-toggle {
+  border-radius: 20px !important;
+}
+
+.auth-toggle .v-btn {
+  min-width: 80px !important;
+  color: #4caf50 !important;
+  border: 1px solid #4caf50 !important;
+}
+
+.auth-toggle .v-btn--active {
+  background-color: #4caf50 !important;
   color: white !important;
 }
 
@@ -564,20 +723,134 @@ export default {
   margin-top: 8px;
 }
 
+/* Token 帮助提示样式 */
+.help-icon {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 4px; /* 增加点击区域 */
+  border-radius: 50%;
+  position: relative;
+}
+
+.help-icon:hover {
+  color: #1976d2 !important;
+  background-color: rgba(25, 118, 210, 0.08);
+  transform: scale(1.1);
+}
+
+/* 移动设备触摸优化 */
+.help-icon:active {
+  transform: scale(0.95);
+  background-color: rgba(25, 118, 210, 0.12);
+}
+
+.token-help-content {
+  max-width: 360px;
+  padding: 12px;
+  background: rgba(55, 71, 79, 0.95);
+  border-radius: 8px;
+  color: white;
+  font-size: 13px;
+  line-height: 1.4;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.help-title {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 12px;
+  color: #e3f2fd;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 8px;
+}
+
+.help-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: #2196f3;
+  color: white;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.step code {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  color: #81d4fa;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 /* 小屏幕适配 */
 @media (max-width: 480px) {
-  .service-selection {
+  .service-selection,
+  .auth-method-selection {
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
   }
   
-  .service-label {
+  .service-label,
+  .auth-label {
     margin-bottom: 8px;
   }
   
-  .service-toggle {
+  .service-toggle,
+  .auth-toggle {
     width: 100%;
+  }
+  
+  /* 移动设备上的帮助提示优化 */
+  .token-help-content {
+    max-width: 280px;
+    font-size: 12px;
+    padding: 10px;
+  }
+  
+  .help-title {
+    font-size: 13px;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+  }
+  
+  .step {
+    gap: 6px;
+    padding: 3px 0;
+  }
+  
+  .step-number {
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+  }
+  
+  .help-icon {
+    padding: 6px; /* 移动设备上增加更大的点击区域 */
   }
 }
 </style>

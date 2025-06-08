@@ -1,4 +1,5 @@
 from time import time
+from typing import Optional
 
 from app.cache import (
     emby_last_user_defined_line_cache,
@@ -1028,6 +1029,7 @@ async def auth_bind_line(
     tg_id = telegram_user.id
     username = data.username
     password = data.password
+    token = data.token
     line = data.line
 
     logger.info(
@@ -1042,7 +1044,7 @@ async def auth_bind_line(
             )
         else:
             return await _auth_bind_plex_line(
-                db, tg_id, telegram_user, username, password, line
+                db, tg_id, telegram_user, username, line, token=token, password=password
             )
     except Exception as e:
         logger.error(f"认证绑定{service}线路时发生错误: {str(e)}")
@@ -1121,8 +1123,9 @@ async def _auth_bind_plex_line(
     tg_id: int,
     telegram_user: TelegramUser,
     username: str,
-    password: str,
     line: str,
+    password: Optional[str] = None,
+    token: Optional[str] = None,
 ) -> BaseResponse:
     """认证并绑定Plex线路的内部方法"""
     from app.cache import (
@@ -1132,9 +1135,11 @@ async def _auth_bind_plex_line(
 
     # 验证Plex用户名和密码
     plex = Plex()
-    auth_success, plex_id = plex.authenticate_user(username, password)
+    auth_success, plex_id = plex.authenticate_user(
+        username=username, password=password, token=token
+    )
     if not auth_success:
-        logger.warning(f"Plex用户 {username} 认证失败")
+        logger.warning(f"Plex 用户 {username} 认证失败")
         return BaseResponse(success=False, message="用户名或密码错误")
 
     # 检查线路权限 - 获取用户信息以确定是否为premium用户

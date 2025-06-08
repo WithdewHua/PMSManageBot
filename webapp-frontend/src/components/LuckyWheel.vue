@@ -170,15 +170,16 @@ export default {
       winResult: null,
       isAdmin: false, // 添加管理员状态
       wheelItems: [
-        { name: '谢谢参与', probability: 40 },
-        { name: '积分 +10', probability: 24 },
-        { name: '积分 -10', probability: 24 },
-        { name: '积分 +30', probability: 5 },
-        { name: '积分 -30', probability: 5 },
-        { name: '邀请码 1 枚', probability: 0.1 },
-        { name: '积分 +100', probability: 1 },
-        { name: '积分翻倍', probability: 0.01 },
-        { name: '积分减半', probability: 0.01 },
+        { name: '谢谢参与', probability: 15 },
+        { name: '积分 +10', probability: 25 },
+        { name: '积分 -10', probability: 30 },
+        { name: '积分 +30', probability: 15 },
+        { name: '积分 -30', probability: 10 },
+        { name: '邀请码 1 枚', probability: 0.5 },
+        { name: '积分 +100', probability: 1.5 },
+        { name: '积分 -100', probability: 1.5 },
+        { name: '积分翻倍', probability: 0.8 },
+        { name: '积分减半', probability: 0.7 },
       ],
       tempWheelItems: []
     }
@@ -317,7 +318,9 @@ export default {
     },
     
     selectWinner() {
-      const random = Math.random() * 100
+      // 计算概率总和，提高算法的健壮性
+      const totalProbability = this.wheelItems.reduce((sum, item) => sum + item.probability, 0)
+      const random = Math.random() * totalProbability
       let accumulatedProbability = 0
       
       for (const item of this.wheelItems) {
@@ -327,9 +330,8 @@ export default {
         }
       }
       
-      // 默认返回第一个
       return this.wheelItems[0]
-    },
+    },   
     
     closeResult() {
       this.showResult = false

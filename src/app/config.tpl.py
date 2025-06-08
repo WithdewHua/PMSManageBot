@@ -68,6 +68,9 @@ class Settings(BaseSettings):
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: str = ""
 
+    # redeem code
+    PRIVILEGED_CODES: list[str] = []
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if not self.DATA_PATH.exists():

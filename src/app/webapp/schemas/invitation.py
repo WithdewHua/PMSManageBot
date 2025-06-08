@@ -33,3 +33,15 @@ class RedeemResponse(BaseModel):
 
     success: bool
     message: str
+
+
+class CheckPrivilegedCodeRequest(BaseModel):
+    """检查特权邀请码请求模型"""
+
+    code: str
+
+
+class CheckPrivilegedCodeResponse(BaseModel):
+    """检查特权邀请码响应模型"""
+
+    privileged: bool
