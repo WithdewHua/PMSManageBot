@@ -221,6 +221,20 @@
                 <v-icon end size="x-small" class="ml-1">mdi-pencil</v-icon>
               </v-chip>
             </div>
+            <div class="d-flex justify-space-between mb-2 align-center entrance-url-row">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-web</v-icon>
+                <span>入口线路：</span>
+              </div>
+              <div 
+                class="entrance-url-chip"
+                @click="copyToClipboard('auto.emby.funmedia.10101.io')"
+                title="点击复制线路地址"
+              >
+                auto.emby.funmedia.10101.io
+                <v-icon size="x-small" class="ml-1">mdi-content-copy</v-icon>
+              </div>
+            </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
                 <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-connection</v-icon>
@@ -366,10 +380,10 @@ export default {
         if (window.Telegram?.WebApp) {
           window.Telegram.WebApp.showPopup({
             title: '复制成功',
-            message: '邀请码已复制到剪贴板'
+            message: '已复制到剪贴板'
           })
         } else {
-          alert('邀请码已复制到剪贴板')
+          alert('已复制到剪贴板')
         }
       }).catch(err => {
         console.error('复制失败:', err)
@@ -673,6 +687,48 @@ export default {
   border-color: currentColor;
 }
 
+/* 入口线路地址样式 */
+.entrance-url-chip {
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%);
+  border: 1px solid rgba(76, 175, 80, 0.2);
+  color: #388e3c;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: fit-content;
+  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: none;
+}
+
+/* 入口线路行样式 - 确保不换行 */
+.entrance-url-row {
+  flex-wrap: nowrap !important;
+}
+
+.entrance-url-row .d-flex.align-center {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.entrance-url-chip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3);
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.1) 100%);
+  border-color: rgba(76, 175, 80, 0.4);
+}
+
+.entrance-url-chip:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
+}
+
 .emoji-icon {
   font-size: 14px;
   margin-left: 4px;
@@ -741,12 +797,29 @@ export default {
     flex-wrap: wrap;
     gap: 8px;
   }
+  
+  /* 入口线路行在小屏幕上的特殊处理 */
+  .entrance-url-row {
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
+  }
+  
+  .entrance-url-chip {
+    font-size: 12px;
+    padding: 4px 8px;
+  }
 }
 
 @media (max-width: 400px) {
   .line-selector-wrapper {
     max-width: 120px;
     min-width: 90px;
+  }
+  
+  /* 入口线路在超小屏幕上的进一步优化 */
+  .entrance-url-chip {
+    font-size: 11px;
+    padding: 3px 6px;
   }
 }
 </style>
