@@ -90,6 +90,12 @@ async def get_user_info(
                     "line": emby_info[7],
                     "is_premium": emby_info[8] == 1,
                 }
+                created_at = (
+                    Emby().get_user_info_from_username(emby_info[0]).get("date_created")
+                )
+                if created_at:
+                    created_at = created_at.split("T")[0]  # 只保留日期部分
+                user_info.emby_info["created_at"] = created_at
                 logger.debug(f"用户 {tg_id} 的Emby信息获取成功")
             else:
                 logger.debug(f"用户 {tg_id} 没有关联的Emby账户")

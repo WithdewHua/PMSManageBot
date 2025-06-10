@@ -86,7 +86,7 @@
           <v-card-text>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
-                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-account</v-icon>
+                <v-icon size="small" color="blue-darken-1" class="mr-2">mdi-account</v-icon>
                 <span>用户名：</span>
               </div>
               <div class="d-flex align-center justify-end">
@@ -104,14 +104,14 @@
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
-                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-email</v-icon>
+                <v-icon size="small" color="red-darken-1" class="mr-2">mdi-email</v-icon>
                 <span>邮箱：</span>
               </div>
               <div>{{ userInfo.plex_info.email }}</div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
-                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-clock-time-four-outline</v-icon>
+                <v-icon size="small" color="purple-darken-1" class="mr-2">mdi-clock-time-four-outline</v-icon>
                 <span>观看等级：</span>
               </div>
               <div class="d-flex align-center justify-end" :title="`观看时长: ${userInfo.plex_info.watched_time.toFixed(2)}小时`">
@@ -131,7 +131,7 @@
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
-                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-folder-multiple</v-icon>
+                <v-icon size="small" color="indigo-darken-1" class="mr-2">mdi-folder-multiple</v-icon>
                 <span>资料库权限：</span>
               </div>
               <v-chip 
@@ -147,7 +147,7 @@
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
-                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-connection</v-icon>
+                <v-icon size="small" color="teal-darken-1" class="mr-2">mdi-connection</v-icon>
                 <span>绑定线路：</span>
               </div>
               <div class="line-selector-wrapper">
@@ -169,7 +169,7 @@
           <v-card-text>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
-                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-account</v-icon>
+                <v-icon size="small" color="blue-darken-1" class="mr-2">mdi-account</v-icon>
                 <span>用户名：</span>
               </div>
               <div class="d-flex align-center justify-end">
@@ -185,9 +185,16 @@
                 </v-icon>
               </div>
             </div>
+            <div v-if="userInfo.emby_info.created_at" class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="pink-darken-1" class="mr-2">mdi-cake-variant</v-icon>
+                <span>破壳日：</span>
+              </div>
+              <div>{{ userInfo.emby_info.created_at }}</div>
+            </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
-                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-clock-time-four-outline</v-icon>
+                <v-icon size="small" color="purple-darken-1" class="mr-2">mdi-clock-time-four-outline</v-icon>
                 <span>观看等级：</span>
               </div>
               <div class="d-flex align-center justify-end" :title="`观看时长: ${userInfo.emby_info.watched_time.toFixed(2)}小时`">
@@ -207,7 +214,7 @@
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
-                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-folder-multiple</v-icon>
+                <v-icon size="small" color="indigo-darken-1" class="mr-2">mdi-folder-multiple</v-icon>
                 <span>资料库权限：</span>
               </div>
               <v-chip 
@@ -223,7 +230,7 @@
             </div>
             <div class="d-flex justify-space-between mb-2 align-center entrance-url-row">
               <div class="d-flex align-center">
-                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-web</v-icon>
+                <v-icon size="small" color="deep-orange-darken-1" class="mr-2">mdi-web</v-icon>
                 <span>入口线路：</span>
               </div>
               <div 
@@ -237,7 +244,7 @@
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
-                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-connection</v-icon>
+                <v-icon size="small" color="teal-darken-1" class="mr-2">mdi-connection</v-icon>
                 <span>绑定线路：</span>
               </div>
               <div class="line-selector-wrapper">
@@ -259,7 +266,7 @@
           <v-card-text>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
-                <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-email</v-icon>
+                <v-icon size="small" color="red-darken-1" class="mr-2">mdi-email</v-icon>
                 <span>邮箱：</span>
               </div>
               <div>{{ userInfo.overseerr_info.email }}</div>
