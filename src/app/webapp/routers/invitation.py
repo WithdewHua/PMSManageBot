@@ -233,7 +233,7 @@ async def redeem_plex_code(
                 # 如果是特权邀请码，更新特权邀请码列表
                 settings.PRIVILEGED_CODES.remove(code)
                 settings.save_config_to_env_file(
-                    {"PRIVILEGED_CODES": settings.PRIVILEGED_CODES}
+                    {"PRIVILEGED_CODES": ",".join(settings.PRIVILEGED_CODES)}
                 )
 
             # 返回成功响应
@@ -317,7 +317,7 @@ async def redeem_emby_code(
                 # 如果是特权邀请码，使用后从列表中移除
                 settings.PRIVILEGED_CODES.remove(code)
                 settings.save_config_to_env_file(
-                    {"PRIVILEGED_CODES": settings.PRIVILEGED_CODES}
+                    {"PRIVILEGED_CODES": ",".join(settings.PRIVILEGED_CODES)}
                 )
 
             # 返回成功响应
