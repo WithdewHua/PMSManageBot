@@ -30,7 +30,11 @@
           >
             <v-tab value="settings" class="tab-item">
               <v-icon start size="18">mdi-cog</v-icon>
-              <span class="tab-text">设置项</span>
+              <span class="tab-text">系统设置项</span>
+            </v-tab>
+            <v-tab value="wheel" class="tab-item">
+              <v-icon start size="18">mdi-ferris-wheel</v-icon>
+              <span class="tab-text">活动管理</span>
             </v-tab>
             <v-tab value="overview" class="tab-item">
               <v-icon start size="18">mdi-view-dashboard</v-icon>
@@ -278,6 +282,130 @@
             </div>
           </v-window-item>
 
+          <!-- 活动管理 Tab - 需要管理员权限 -->
+          <v-window-item value="wheel">
+            <!-- 权限检查 -->
+            <div v-if="!isAdmin" class="text-center my-10">
+              <v-alert type="warning">
+                权限不足，需要管理员权限才能访问活动管理
+              </v-alert>
+            </div>
+            
+            <!-- 活动管理内容 -->
+            <div v-else class="activities-grid">
+              <!-- 幸运大转盘活动卡片 -->
+              <v-card class="activity-card-enhanced">
+                <v-card-title class="d-flex align-center">
+                  <v-icon class="mr-2" color="purple-darken-2">mdi-ferris-wheel</v-icon>
+                  <span>幸运大转盘</span>
+                  <v-spacer></v-spacer>
+                  <v-chip color="success" size="small" variant="flat">
+                    <v-icon start size="12">mdi-check-circle</v-icon>
+                    运行中
+                  </v-chip>
+                </v-card-title>
+                
+                <v-card-text>
+                  <p class="text-body-2 text-medium-emphasis mb-4">
+                    管理转盘奖品配置、概率设置和随机性参数，查看抽奖统计数据
+                  </p>
+                  
+                  <div class="activity-stats mb-4">
+                    <v-row dense>
+                      <v-col cols="6">
+                        <div class="stat-item">
+                          <div class="stat-value">{{ wheelStats.totalSpins || 0 }}</div>
+                          <div class="stat-label">总抽奖次数</div>
+                        </div>
+                      </v-col>
+                      <v-col cols="6">
+                        <div class="stat-item">
+                          <div class="stat-value">{{ wheelStats.activeUsers || 0 }}</div>
+                          <div class="stat-label">参与用户</div>
+                        </div>
+                      </v-col>
+                    </v-row>
+                    <v-row dense class="mt-2">
+                      <v-col cols="6">
+                        <div class="stat-item">
+                          <div class="stat-value text-success">{{ wheelStats.todaySpins || 0 }}</div>
+                          <div class="stat-label">今日抽奖</div>
+                        </div>
+                      </v-col>
+                      <v-col cols="6">
+                        <div class="stat-item">
+                          <div class="stat-value text-info">{{ wheelStats.lastWeekSpins || 0 }}</div>
+                          <div class="stat-label">本周抽奖</div>
+                        </div>
+                      </v-col>
+                    </v-row>
+                    
+                    <v-row dense>
+                      <v-col cols="6">
+                        <div class="stat-item">
+                          <div class="stat-value text-warning">{{ wheelStats.totalCreditsChange?.toFixed(2) || '0.00' }}</div>
+                          <div class="stat-label">转盘总积分变化</div>
+                        </div>
+                      </v-col>
+                      <v-col cols="6">
+                        <div class="stat-item">
+                          <div class="stat-value text-secondary">{{ wheelStats.totalInviteCodes || 0 }}</div>
+                          <div class="stat-label">转盘总邀请码发放</div>
+                        </div>
+                      </v-col>
+                    </v-row>
+                  </div>
+                </v-card-text>
+                
+                <v-card-actions class="pa-4 pt-0">
+                  <v-btn
+                    color="purple-darken-2"
+                    variant="elevated"
+                    block
+                    @click="openWheelManagement"
+                  >
+                    <v-icon start>mdi-cog</v-icon>
+                    进入转盘管理
+                  </v-btn>
+                </v-card-actions>
+              </v-card>
+
+              <!-- 其他活动卡片占位 -->
+              <v-card class="activity-card-enhanced activity-placeholder">
+                <v-card-title class="d-flex align-center">
+                  <v-icon class="mr-2" color="grey-lighten-1">mdi-plus-circle-outline</v-icon>
+                  <span>新活动</span>
+                  <v-spacer></v-spacer>
+                  <v-chip color="grey-lighten-1" size="small" variant="flat">
+                    即将推出
+                  </v-chip>
+                </v-card-title>
+                
+                <v-card-text>
+                  <p class="text-body-2 text-medium-emphasis mb-4">
+                    更多精彩活动正在开发中，敬请期待
+                  </p>
+                  
+                  <div class="text-center">
+                    <v-icon size="48" color="grey-lighten-2">mdi-gift-outline</v-icon>
+                  </div>
+                </v-card-text>
+                
+                <v-card-actions class="pa-4 pt-0">
+                  <v-btn
+                    color="grey-lighten-1"
+                    variant="outlined"
+                    block
+                    disabled
+                  >
+                    <v-icon start>mdi-clock-outline</v-icon>
+                    敬请期待
+                  </v-btn>
+                </v-card-actions>
+              </v-card>
+            </div>
+          </v-window-item>
+
           <!-- 概览 Tab -->
           <v-window-item value="overview">
             <v-card class="admin-card-enhanced">
@@ -310,6 +438,34 @@
       ref="lineManagementDialog"
       @lines-updated="handleLinesUpdated"
     />
+
+    <!-- 转盘管理弹窗 -->
+    <v-dialog 
+      v-model="showWheelManagement" 
+      fullscreen
+      transition="dialog-bottom-transition"
+      :persistent="true"
+    >
+      <v-card>
+        <v-toolbar color="purple-darken-2" dark>
+          <v-btn icon dark @click="closeWheelManagement">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+          <v-toolbar-title>
+            <v-icon class="mr-2">mdi-ferris-wheel</v-icon>
+            幸运大转盘管理
+          </v-toolbar-title>
+          <v-spacer></v-spacer>
+          <v-btn icon dark @click="refreshWheelStats">
+            <v-icon>mdi-refresh</v-icon>
+          </v-btn>
+        </v-toolbar>
+        
+        <div style="height: calc(100vh - 64px); overflow-y: auto;">
+          <WheelAdminPanel @show-message="showMessage" />
+        </div>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -318,14 +474,17 @@ import { getUserInfo } from '@/api'
 import DonationDialog from '@/components/DonationDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
+import WheelAdminPanel from '@/components/WheelAdminPanel.vue'
 import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits } from '@/services/adminService.js'
+import { getWheelStats } from '@/services/wheelService.js'
 
 export default {
   name: 'Management',
   components: {
     DonationDialog,
     TagManagementDialog,
-    LineManagementDialog
+    LineManagementDialog,
+    WheelAdminPanel
   },
   data() {
     return {
@@ -345,7 +504,16 @@ export default {
         loaded: false // 添加标记，避免重复加载
       },
       adminLoading: false,
-      adminError: null
+      adminError: null,
+      wheelStats: {
+        totalSpins: 0,
+        activeUsers: 0,
+        todaySpins: 0,
+        lastWeekSpins: 0,
+        totalCreditsChange: 0.0,
+        totalInviteCodes: 0
+      },
+      showWheelManagement: false
     }
   },
   mounted() {
@@ -357,6 +525,10 @@ export default {
       // 如果切换到设置项tab且是管理员，则获取管理员设置
       if (newTab === 'settings' && this.isAdmin && !this.adminSettings.loaded) {
         this.fetchAdminSettings()
+      }
+      // 如果切换到活动管理tab且是管理员，则加载转盘统计数据
+      if (newTab === 'wheel' && this.isAdmin) {
+        this.loadWheelStats()
       }
     }
   },
@@ -371,6 +543,10 @@ export default {
         // 如果是管理员且当前在设置项tab，则获取管理员设置
         if (this.isAdmin && this.currentTab === 'settings') {
           await this.fetchAdminSettings()
+        }
+        // 如果是管理员且当前在活动管理tab，则加载转盘统计数据
+        if (this.isAdmin && this.currentTab === 'wheel') {
+          await this.loadWheelStats()
         }
         this.loading = false
       } catch (err) {
@@ -532,6 +708,39 @@ export default {
     // 处理捐赠提交完成事件
     handleDonationSubmitted() {
       this.showMessage('捐赠记录已添加');
+    },
+
+    // 打开转盘管理
+    openWheelManagement() {
+      this.showWheelManagement = true;
+    },
+
+    // 关闭转盘管理
+    closeWheelManagement() {
+      this.showWheelManagement = false;
+      // 关闭时刷新统计数据
+      this.loadWheelStats();
+    },
+
+    // 刷新转盘统计数据
+    async refreshWheelStats() {
+      await this.loadWheelStats();
+      this.showMessage('统计数据已刷新');
+    },
+
+    // 加载转盘统计数据
+    async loadWheelStats() {
+      try {
+        const response = await getWheelStats()
+        this.wheelStats = response.data
+      } catch (error) {
+        console.error('加载转盘统计失败:', error);
+        // 使用默认数据
+        this.wheelStats = {
+          totalSpins: 0,
+          activeUsers: 0
+        };
+      }
     }
   }
 }
@@ -863,6 +1072,175 @@ export default {
   .d-flex.justify-space-between {
     flex-wrap: wrap;
     gap: 8px;
+  }
+  
+  /* 活动卡片小屏幕优化 */
+  .activity-card-enhanced .v-card-title {
+    padding: 12px 16px;
+    font-size: 16px;
+  }
+  
+  .stat-value {
+    font-size: 18px;
+  }
+  
+  .stat-label {
+    font-size: 10px;
+  }
+  
+  .activity-stats {
+    padding: 12px;
+  }
+}
+
+/* 活动网格布局 */
+.activities-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  margin-bottom: 40px;
+}
+
+/* 活动卡片样式 */
+.activity-card-enhanced {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+  overflow: hidden;
+  position: relative;
+}
+
+.activity-card-enhanced:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.activity-card-enhanced::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.activity-card-enhanced:hover::before {
+  opacity: 1;
+}
+
+.activity-card-enhanced .v-card-title {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+  font-weight: 600;
+  color: #333;
+  padding: 20px 24px;
+}
+
+/* 活动统计样式 */
+.activity-stats {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #333;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 占位卡片样式 */
+.activity-placeholder {
+  opacity: 0.7;
+}
+
+.activity-placeholder .v-card-title {
+  background: linear-gradient(135deg, rgba(158, 158, 158, 0.1) 0%, rgba(189, 189, 189, 0.1) 100%);
+  border-bottom: 1px solid rgba(158, 158, 158, 0.1);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .activities-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 30px;
+  }
+  
+  .activity-card-enhanced .v-card-title {
+    padding: 16px 20px;
+  }
+  
+  .stat-value {
+    font-size: 20px;
+  }
+  
+  .stat-label {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-title {
+    font-size: 22px;
+  }
+  
+  .page-subtitle {
+    font-size: 14px;
+  }
+  
+  .card-title {
+    font-size: 16px;
+  }
+  
+  .card-description {
+    font-size: 13px;
+  }
+  
+  /* 小屏幕上确保控制面板布局正确 */
+  .d-flex.justify-space-between {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  /* 活动卡片小屏幕优化 */
+  .activity-card-enhanced .v-card-title {
+    padding: 12px 16px;
+    font-size: 16px;
+  }
+  
+  .stat-value {
+    font-size: 18px;
+  }
+  
+  .stat-label {
+    font-size: 10px;
+  }
+  
+  .activity-stats {
+    padding: 12px;
   }
 }
 </style>

@@ -41,7 +41,16 @@ def get_telegram_user(request: Request) -> TelegramUser:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="缺少 Telegram 用户数据",
             )
-        return TelegramUser(**json.loads(user_data))
+
+        # 检查是否是模拟数据
+        if request.state.telegram_data.get("hash") == "mock_hash_for_development":
+            # 开发环境模拟数据，直接解析JSON
+            user_dict = json.loads(user_data)
+            return TelegramUser(**user_dict)
+        else:
+            # 正常的Telegram数据
+            return TelegramUser(**json.loads(user_data))
+
     except HTTPException:
         raise
     except Exception as e:

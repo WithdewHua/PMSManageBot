@@ -60,6 +60,22 @@
           <h2 class="mb-4">恭喜您！</h2>
           <p class="text-h5 mb-2">获得了</p>
           <p class="text-h4 text-primary font-weight-bold">{{ winResult?.name }}</p>
+          
+          <!-- 显示积分变化 -->
+          <div v-if="winResult?.credits_change !== undefined" class="mt-4">
+            <v-divider class="my-3"></v-divider>
+            <div class="credits-info">
+              <p class="text-body-1 mb-1">
+                积分变化：
+                <span :class="winResult.credits_change >= 0 ? 'text-success' : 'text-error'" class="font-weight-bold">
+                  {{ winResult.credits_change >= 0 ? '+' : '' }}{{ winResult.credits_change }}
+                </span>
+              </p>
+              <p class="text-body-2 text-medium-emphasis">
+                当前积分：{{ winResult.current_credits?.toFixed(2) }}
+              </p>
+            </div>
+          </div>
         </v-card-text>
         <v-card-actions class="justify-center">
           <v-btn color="primary" @click="closeResult">确定</v-btn>
@@ -67,90 +83,12 @@
       </v-card>
     </v-dialog>
 
-    <!-- 配置弹窗 -->
-    <v-dialog v-model="showConfig" max-width="500">
-      <v-card>
-        <v-card-title>配置转盘</v-card-title>
-        <v-card-text>
-          <v-row v-for="(item, index) in tempWheelItems" :key="index" class="mb-2">
-            <v-col cols="6">
-              <v-text-field 
-                v-model="item.name" 
-                label="奖品名称"
-                density="compact"
-                variant="outlined"
-              ></v-text-field>
-            </v-col>
-            <v-col cols="4">
-              <v-text-field 
-                v-model.number="item.probability" 
-                label="概率%"
-                type="number"
-                min="0"
-                max="100"
-                density="compact"
-                variant="outlined"
-              ></v-text-field>
-            </v-col>
-            <v-col cols="2" class="d-flex align-center">
-              <v-btn 
-                icon="mdi-delete" 
-                size="small" 
-                color="error" 
-                variant="text"
-                @click="removeItem(index)"
-                :disabled="tempWheelItems.length <= 2"
-              ></v-btn>
-            </v-col>
-          </v-row>
-          
-          <div class="text-center mb-3">
-            <v-btn 
-              @click="addItem" 
-              color="primary" 
-              variant="outlined"
-              :disabled="tempWheelItems.length >= 8"
-            >
-              <v-icon>mdi-plus</v-icon>
-              添加奖品
-            </v-btn>
-          </div>
-          
-          <v-alert 
-            v-if="totalProbability !== 100" 
-            type="warning" 
-            density="compact"
-          >
-            当前总概率：{{ totalProbability }}%，请调整使总概率为100%
-          </v-alert>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn @click="cancelConfig">取消</v-btn>
-          <v-btn 
-            color="primary" 
-            @click="saveConfig"
-            :disabled="totalProbability !== 100"
-          >
-            保存
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
 
-    <!-- 配置按钮 - 只有管理员能看到 -->
-    <v-btn 
-      v-if="isAdmin"
-      class="config-btn"
-      icon="mdi-cog"
-      color="primary"
-      @click="openConfig"
-    ></v-btn>
   </div>
 </template>
 
 <script>
-import { getUserInfo } from '@/api'
+import { getLuckyWheelConfig, spinLuckyWheel } from '@/services/wheelService'
 
 export default {
   name: 'LuckyWheel',
@@ -166,42 +104,41 @@ export default {
       rotation: 0,
       isSpinning: false,
       showResult: false,
-      showConfig: false,
       winResult: null,
-      isAdmin: false, // 添加管理员状态
-      wheelItems: [
-        { name: '谢谢参与', probability: 15 },
-        { name: '积分 +10', probability: 25 },
-        { name: '积分 -10', probability: 30 },
-        { name: '积分 +30', probability: 15 },
-        { name: '积分 -30', probability: 10 },
-        { name: '邀请码 1 枚', probability: 0.5 },
-        { name: '积分 +100', probability: 1.5 },
-        { name: '积分 -100', probability: 1.5 },
-        { name: '积分翻倍', probability: 0.8 },
-        { name: '积分减半', probability: 0.7 },
-      ],
-      tempWheelItems: []
+      wheelItems: [],
+      loading: true,
+      error: null
     }
   },
   mounted() {
-    // 检查管理员权限
-    this.checkAdminPermission()
+    // 加载转盘配置
+    this.loadWheelConfig()
   },
   computed: {
-    totalProbability() {
-      return this.tempWheelItems.reduce((sum, item) => sum + (item.probability || 0), 0)
-    }
+    // 这里可以根据需要添加其他计算属性
   },
   methods: {
-    // 检查管理员权限
-    async checkAdminPermission() {
+    // 加载转盘配置
+    async loadWheelConfig() {
       try {
-        const response = await getUserInfo()
-        this.isAdmin = response.data.is_admin
+        this.loading = true
+        this.error = null
+        const response = await getLuckyWheelConfig()
+        this.wheelItems = response.data.items
+        this.loading = false
+        
+        // 配置加载完成后进行测试
+        if (this.wheelItems.length > 0) {
+          this.$nextTick(() => {
+            this.testSectorCalculations()
+          })
+        }
       } catch (error) {
-        console.error('检查管理员权限失败:', error)
-        this.isAdmin = false
+        console.error('加载转盘配置失败:', error)
+        this.error = '加载转盘配置失败'
+        this.loading = false
+        // 如果加载失败，使用默认配置
+        this.wheelItems = []
       }
     },
     
@@ -210,7 +147,7 @@ export default {
       const startAngle = index * angle
       const endAngle = (index + 1) * angle
       
-      // 转换为弧度
+      // 转换为弧度，从12点钟方向开始（-90度）
       const startRad = (startAngle - 90) * Math.PI / 180
       const endRad = (endAngle - 90) * Math.PI / 180
       
@@ -242,16 +179,18 @@ export default {
     
     getSectorTextX(index) {
       const angle = 360 / this.wheelItems.length
-      const midAngle = index * angle + angle / 2  // 修正中点角度计算
-      const textRadius = 60  // 调整文字距离中心的位置
+      const midAngle = index * angle + angle / 2  // 扇形中心角度
+      const textRadius = 60  // 文字距离中心的位置
+      // 从12点钟方向开始计算（-90度偏移）
       const rad = (midAngle - 90) * Math.PI / 180
       return 100 + textRadius * Math.cos(rad)
     },
     
     getSectorTextY(index) {
       const angle = 360 / this.wheelItems.length
-      const midAngle = index * angle + angle / 2  // 修正中点角度计算
-      const textRadius = 60  // 调整文字距离中心的位置
+      const midAngle = index * angle + angle / 2  // 扇形中心角度
+      const textRadius = 60  // 文字距离中心的位置
+      // 从12点钟方向开始计算（-90度偏移）
       const rad = (midAngle - 90) * Math.PI / 180
       return 100 + textRadius * Math.sin(rad)
     },
@@ -286,52 +225,129 @@ export default {
       
       this.isSpinning = true
       
-      // 根据概率选择结果
-      const winner = this.selectWinner()
-      const winnerIndex = this.wheelItems.findIndex(item => item === winner)
-      
-      // 计算目标角度 - 让箭头指向扇形中央
-      const sectorAngle = 360 / this.wheelItems.length
-      // 扇形的中心角度（从12点钟方向开始计算）
-      const sectorCenterAngle = winnerIndex * sectorAngle + sectorAngle / 2
-      // 转盘需要旋转的角度，让指定扇形的中心对准箭头（12点钟方向）
-      const targetAngle = 360 - sectorCenterAngle
-      
-      // 增加随机旋转圈数
-      const extraRotations = Math.floor(Math.random() * 5 + 5) * 360
-      const finalAngle = this.rotation + extraRotations + targetAngle
-      
-      this.rotation = finalAngle
-      
-      // 动画结束后显示结果
-      setTimeout(() => {
-        this.isSpinning = false
-        this.winResult = winner
-        this.showResult = true
-        
-        // 向父组件发送转盘完成事件
-        this.$emit('spin-complete', winner)
-        
-        // 这里可以向后端发送请求
-        console.log('中奖结果：', winner)
-      }, 3000)
+      // 调用后端API进行转盘
+      this.callSpinAPI()
     },
     
-    selectWinner() {
-      // 计算概率总和，提高算法的健壮性
-      const totalProbability = this.wheelItems.reduce((sum, item) => sum + item.probability, 0)
-      const random = Math.random() * totalProbability
-      let accumulatedProbability = 0
-      
-      for (const item of this.wheelItems) {
-        accumulatedProbability += item.probability
-        if (random <= accumulatedProbability) {
-          return item
+    async callSpinAPI() {
+      try {
+        const response = await spinLuckyWheel()
+        const result = response.data
+        
+        // 使用后端返回的结果
+        const winner = result.item
+        const winnerIndex = this.wheelItems.findIndex(item => item.name === winner.name)
+        
+        if (winnerIndex === -1) {
+          console.error('未找到中奖项目:', winner.name)
+          this.isSpinning = false
+          return
         }
+        
+        // 计算目标角度
+        const sectorAngle = 360 / this.wheelItems.length
+        
+        // 计算中奖扇形的中心角度（从12点钟方向顺时针开始）
+        const sectorCenterAngle = winnerIndex * sectorAngle + sectorAngle / 2
+        
+        // 计算需要旋转的角度，让中奖扇形的中心对准指针
+        // 指针固定在12点钟方向（0度位置）
+        // 要让扇形中心移动到指针位置，转盘需要逆时针旋转扇形当前的角度
+        // 但是CSS transform: rotate() 是顺时针的，所以我们需要用负值，或者用360度减去角度
+        let targetAngle = 360 - sectorCenterAngle
+        
+        // 标准化角度 - 确保角度在0-360范围内
+        targetAngle = targetAngle % 360
+        if (targetAngle < 0) targetAngle += 360
+        
+        // 增加随机旋转圈数（至少5圈，最多10圈）
+        const extraRotations = Math.floor(Math.random() * 5 + 5) * 360
+        
+        // 重要：计算最终角度时，需要确保我们到达正确的目标位置
+        // 不是简单地在当前角度基础上加目标角度，而是要到达一个绝对的目标位置
+        const currentNormalized = this.rotation % 360
+        let rotationNeeded = targetAngle - currentNormalized
+        
+        // 如果需要的旋转角度是负数，加上360度让它变成正向旋转
+        if (rotationNeeded < 0) {
+          rotationNeeded += 360
+        }
+        
+        const finalAngle = this.rotation + extraRotations + rotationNeeded
+        
+        console.log('转盘计算信息：', {
+          winnerIndex,
+          winnerName: winner.name,
+          sectorAngle,
+          sectorCenterAngle,
+          targetAngle,
+          currentRotation: this.rotation,
+          currentNormalized: this.rotation % 360,
+          rotationNeeded,
+          extraRotations,
+          finalAngle,
+          finalAngleNormalized: finalAngle % 360
+        })
+        
+        this.rotation = finalAngle
+        
+        // 动画结束后显示结果
+        setTimeout(() => {
+          this.isSpinning = false
+          
+          // 验证指针是否指向正确位置
+          const pointing = this.getCurrentPointingSector()
+          const isAccurate = this.validatePointerAccuracy(winnerIndex)
+          
+          console.log('=== 转盘停止验证 ===')
+          console.log('期望中奖项目:', winner.name, '(索引:', winnerIndex, ')')
+          console.log('指针实际指向:', pointing)
+          console.log('最终角度验证:', {
+            finalRotation: this.rotation,
+            normalizedAngle: this.rotation % 360,
+            expectedSectorCenter: winnerIndex * sectorAngle + sectorAngle / 2
+          })
+          
+          if (isAccurate) {
+            console.log('✅ 指针位置精确正确！')
+          } else {
+            console.warn('❌ 指针位置不够精确！')
+            if (pointing && pointing.item) {
+              console.warn('期望:', winner.name, '实际指向:', pointing.item.name)
+              console.warn('期望索引:', winnerIndex, '实际索引:', pointing.sectorIndex)
+              console.warn('调试信息:', {
+                expectedCenterAngle: sectorCenterAngle,
+                expectedFinalAngle: targetAngle,
+                actualRotation: this.rotation % 360,
+                actualPointerAngle: pointing.pointerAngle,
+                sectorAngle: pointing.sectorAngle
+              })
+            }
+          }
+          
+          this.winResult = {
+            ...winner,
+            credits_change: result.credits_change,
+            current_credits: result.current_credits
+          }
+          this.showResult = true
+          
+          // 向父组件发送转盘完成事件
+          this.$emit('spin-complete', this.winResult)
+          
+          console.log('转盘结果：', this.winResult)
+        }, 3000)
+        
+      } catch (error) {
+        console.error('转盘失败:', error)
+        this.isSpinning = false
+        
+        // 显示错误信息
+        const errorMessage = error.response?.data?.detail || '转盘失败，请稍后重试'
+        // 这里可以显示一个错误提示
+        alert(errorMessage)
       }
-      
-      return this.wheelItems[0]
-    },   
+    },
     
     closeResult() {
       this.showResult = false
@@ -339,28 +355,121 @@ export default {
       this.$emit('result-closed', this.winResult)
     },
     
-    openConfig() {
-      this.tempWheelItems = JSON.parse(JSON.stringify(this.wheelItems))
-      this.showConfig = true
+    // 供外部调用，重新加载转盘配置
+    reloadConfig() {
+      this.loadWheelConfig()
     },
     
-    cancelConfig() {
-      this.showConfig = false
-    },
-    
-    saveConfig() {
-      if (this.totalProbability === 100) {
-        this.wheelItems = JSON.parse(JSON.stringify(this.tempWheelItems))
-        this.showConfig = false
+    // 调试方法：获取当前指针指向的扇形
+    getCurrentPointingSector() {
+      if (this.wheelItems.length === 0) return null
+      
+      // 获取当前转盘的角度（去除多圈旋转）
+      let currentAngle = this.rotation % 360
+      if (currentAngle < 0) currentAngle += 360
+      
+      // 指针在12点钟方向（0度），计算指针相对于转盘上扇形的角度
+      // 由于转盘顺时针旋转，指针相对于转盘的角度应该是逆向的
+      let pointerAngle = (360 - currentAngle) % 360
+      
+      const sectorAngle = 360 / this.wheelItems.length
+      
+      // 计算指针指向哪个扇形
+      // 扇形从12点钟方向开始，按索引顺时针排列
+      let sectorIndex = Math.floor(pointerAngle / sectorAngle)
+      
+      // 处理边界情况
+      if (sectorIndex >= this.wheelItems.length) {
+        sectorIndex = 0
+      }
+      
+      // 确保索引在有效范围内
+      sectorIndex = Math.max(0, Math.min(sectorIndex, this.wheelItems.length - 1))
+      
+      return {
+        sectorIndex,
+        item: this.wheelItems[sectorIndex],
+        currentAngle,
+        pointerAngle,
+        sectorAngle,
+        calculatedSectorStart: sectorIndex * sectorAngle,
+        calculatedSectorEnd: (sectorIndex + 1) * sectorAngle
       }
     },
     
-    addItem() {
-      this.tempWheelItems.push({ name: '新奖品', probability: 0 })
+    // 测试方法：验证所有扇形的角度计算
+    testSectorCalculations() {
+      if (this.wheelItems.length === 0) return
+      
+      console.log('=== 扇形角度计算测试 ===')
+      const sectorAngle = 360 / this.wheelItems.length
+      
+      this.wheelItems.forEach((item, index) => {
+        const startAngle = index * sectorAngle
+        const endAngle = (index + 1) * sectorAngle
+        const centerAngle = startAngle + sectorAngle / 2
+        
+        console.log(`扇形 ${index} (${item.name}):`, {
+          startAngle: startAngle.toFixed(1),
+          centerAngle: centerAngle.toFixed(1),
+          endAngle: endAngle.toFixed(1)
+        })
+      })
+      
+      // 测试每个扇形中心对准指针时的旋转角度
+      console.log('=== 旋转角度计算测试 ===')
+      this.wheelItems.forEach((item, index) => {
+        const sectorCenterAngle = index * sectorAngle + sectorAngle / 2
+        const targetAngle = (360 - sectorCenterAngle) % 360
+        console.log(`让扇形 ${index} (${item.name}) 对准指针需要旋转: ${targetAngle.toFixed(1)}度`)
+      })
+      
+      // 简单测试角度计算
+      console.log('=== 角度计算验证 ===')
+      console.log('当前转盘角度:', this.rotation % 360)
+      const testIndex = 3 // 测试索引3
+      const testSectorCenter = testIndex * sectorAngle + sectorAngle / 2
+      const testTargetAngle = 360 - testSectorCenter
+      console.log(`测试索引${testIndex}:`, {
+        sectorCenter: testSectorCenter,
+        targetAngle: testTargetAngle,
+        normalizedTarget: testTargetAngle % 360
+      })
     },
     
-    removeItem(index) {
-      this.tempWheelItems.splice(index, 1)
+    // 添加精确的角度验证方法
+    validatePointerAccuracy(expectedIndex) {
+      const pointing = this.getCurrentPointingSector()
+      if (!pointing) return false
+      
+      const sectorAngle = 360 / this.wheelItems.length
+      const expectedCenterAngle = expectedIndex * sectorAngle + sectorAngle / 2
+      const expectedFinalAngle = 360 - expectedCenterAngle
+      const actualAngle = this.rotation % 360
+      
+      // 计算角度差异（考虑360度边界）
+      let angleDiff = Math.abs(actualAngle - expectedFinalAngle)
+      if (angleDiff > 180) {
+        angleDiff = 360 - angleDiff
+      }
+      
+      // 允许的误差范围（扇形角度的20%，稍微放宽一些）
+      const tolerance = sectorAngle * 0.2
+      
+      console.log('精确验证:', {
+        expectedIndex,
+        actualIndex: pointing.sectorIndex,
+        expectedCenterAngle: expectedCenterAngle.toFixed(2),
+        expectedFinalAngle: expectedFinalAngle.toFixed(2),
+        actualAngle: actualAngle.toFixed(2),
+        angleDiff: angleDiff.toFixed(2),
+        tolerance: tolerance.toFixed(2),
+        isAccurate: angleDiff <= tolerance,
+        indexMatch: pointing.sectorIndex === expectedIndex
+      })
+      
+      // 使用扇形索引匹配作为主要判断标准
+      return pointing.sectorIndex === expectedIndex
     }
   }
 }
@@ -400,7 +509,7 @@ export default {
 
 .pointer {
   position: absolute;
-  top: 5px;
+  top: 0px;  /* 精确对齐到转盘边缘 */
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
@@ -418,7 +527,7 @@ export default {
 
 .arrow-body {
   width: 6px;
-  height: 20px;
+  height: 18px;
   background: linear-gradient(180deg, #FFD700 0%, #FFA500 100%);
   border-radius: 3px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -429,7 +538,7 @@ export default {
   height: 0;
   border-left: 12px solid transparent;
   border-right: 12px solid transparent;
-  border-top: 16px solid #FF6B35;
+  border-top: 22px solid #FF6B35;
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.2));
   margin-top: -2px;
 }
@@ -462,12 +571,6 @@ export default {
 .result-card {
   text-align: center;
   padding: 20px;
-}
-
-.config-btn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
 }
 
 /* 响应式设计 */

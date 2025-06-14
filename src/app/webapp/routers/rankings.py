@@ -1,3 +1,4 @@
+from app.config import settings
 from app.db import DB
 from app.emby import Emby
 from app.log import uvicorn_logger as logger
@@ -33,7 +34,7 @@ async def get_credits_rankings(
                         "avatar": get_user_avatar_from_tg_id(info[0]),
                     }
                     for info in credits_data
-                    if info[1] > 0
+                    if info[1] > 0 and info[0] not in settings.ADMIN_CHAT_ID
                 ]
         except Exception as e:
             logger.error(f"获取积分排行失败: {str(e)}")

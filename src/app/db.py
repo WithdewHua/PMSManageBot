@@ -47,6 +47,15 @@ class DB:
                 CREATE TABLE overseerr(
                     user_id, user_email, tg_id
                 );
+
+                CREATE TABLE wheel_stats(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tg_id INTEGER,
+                    item_name TEXT,
+                    credits_change REAL,
+                    timestamp INTEGER,
+                    date TEXT
+                );
                 """
             )
         except sqlite3.OperationalError:
@@ -184,7 +193,9 @@ class DB:
             "SELECT * from statistics WHERE tg_id=?", (tg_id,)
         ).fetchone()
 
-    def update_user_credits(self, credits: int, plex_id=None, emby_id=None, tg_id=None):
+    def update_user_credits(
+        self, credits: float, plex_id=None, emby_id=None, tg_id=None
+    ):
         """Update user's credits"""
         try:
             if tg_id:
@@ -208,6 +219,20 @@ class DB:
         else:
             self.con.commit()
         return True
+
+    def get_user_credits(self, tg_id):
+        """Get user's credits by tg_id"""
+        try:
+            rslt = self.cur.execute(
+                "SELECT credits FROM statistics WHERE tg_id=?", (tg_id,)
+            )
+            res = rslt.fetchone()
+            if res:
+                return True, res[0]
+            return False, f"未找到用户: {tg_id}"
+        except Exception as e:
+            logging.error(f"Error: {e}")
+            return False, "获取积分失败"
 
     def update_user_donation(self, donation: int, tg_id):
         """Update user's donation"""
@@ -430,6 +455,89 @@ class DB:
             "SELECT plex_username,tg_id,plex_line,is_premium FROM user WHERE plex_line IS NOT NULL"
         )
         return rslt.fetchall()
+
+    def add_wheel_spin_record(self, tg_id: int, item_name: str, credits_change: float):
+        """记录转盘旋转记录"""
+        try:
+            import time
+            from datetime import datetime
+
+            timestamp = int(time.time())
+            date = datetime.now().strftime("%Y-%m-%d")
+
+            self.cur.execute(
+                "INSERT INTO wheel_stats (tg_id, item_name, credits_change, timestamp, date) VALUES (?, ?, ?, ?, ?)",
+                (tg_id, item_name, credits_change, timestamp, date),
+            )
+            self.con.commit()
+            return True
+        except Exception as e:
+            logging.error(f"Error adding wheel spin record: {e}")
+            return False
+
+    def get_wheel_stats(self):
+        """获取转盘统计数据"""
+        try:
+            from datetime import datetime, timedelta
+
+            # 获取总抽奖次数
+            total_spins = self.cur.execute(
+                "SELECT COUNT(*) FROM wheel_stats"
+            ).fetchone()[0]
+
+            # 获取参与用户数（去重）
+            active_users = self.cur.execute(
+                "SELECT COUNT(DISTINCT tg_id) FROM wheel_stats"
+            ).fetchone()[0]
+
+            # 获取今日抽奖次数
+            today = datetime.now().strftime("%Y-%m-%d")
+            today_spins = self.cur.execute(
+                "SELECT COUNT(*) FROM wheel_stats WHERE date = ?", (today,)
+            ).fetchone()[0]
+
+            # 获取本周抽奖次数
+            week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+            week_spins = self.cur.execute(
+                "SELECT COUNT(*) FROM wheel_stats WHERE date >= ?", (week_ago,)
+            ).fetchone()[0]
+
+            # 获取转盘总积分变化（通过转盘获得或失去的积分总和）
+            total_credits_change_result = self.cur.execute(
+                "SELECT SUM(credits_change) FROM wheel_stats"
+            ).fetchone()
+            total_credits_change = (
+                float(total_credits_change_result[0])
+                if total_credits_change_result[0]
+                else 0.0
+            )
+
+            # 获取幸运大转盘中总邀请码发放数
+            total_invite_codes_result = self.cur.execute(
+                'SELECT COUNT(*) FROM wheel_stats where item_name="邀请码 1 枚"'
+            ).fetchone()
+            total_invite_codes = (
+                int(total_invite_codes_result[0]) if total_invite_codes_result[0] else 0
+            )
+
+            return {
+                "totalSpins": total_spins,
+                "activeUsers": active_users,
+                "todaySpins": today_spins,
+                "lastWeekSpins": week_spins,
+                "totalCreditsChange": total_credits_change,
+                "totalInviteCodes": total_invite_codes,
+            }
+        except Exception as e:
+            logging.error(f"Error getting wheel stats: {e}")
+            return {
+                "totalSpins": 0,
+                "activeUsers": 0,
+                "todaySpins": 0,
+                "lastWeekSpins": 0,
+                "totalCreditsChange": 0.0,
+                "totalInviteCodes": 0,
+            }
 
     def close(self):
         self.cur.close()

@@ -295,6 +295,7 @@ def add_redeem_code(tg_id=None, num=1):
             for _ in range(num):
                 code = uuid3(NAMESPACE_URL, str(uid + time())).hex
                 db.add_invitation_code(code, owner=uid)
+                logger.info(f"添加邀请码 {code} 给用户 {uid}")
     except Exception as e:
         print(e)
     else:

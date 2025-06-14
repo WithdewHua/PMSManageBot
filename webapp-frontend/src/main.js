@@ -32,9 +32,35 @@ const apiClient = axios.create(apiConfig)
 apiClient.interceptors.request.use(
   config => {
     // 在发送请求之前做些什么
-    config.headers['X-Telegram-Init-Data'] = window.Telegram?.WebApp?.initData;
-    // 增加 user id
-    config.headers['X-Telegram-User-ID'] = window.Telegram?.WebApp?.initDataUnsafe.user.id;
+    let initData = window.Telegram?.WebApp?.initData;
+    let userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    
+    // 开发环境模拟数据
+    if (process.env.NODE_ENV === 'development' && !initData) {
+      // 创建模拟的 Telegram 认证数据
+      const mockUser = {
+        id: 123456789,
+        first_name: 'Test',
+        last_name: 'User',
+        username: 'testuser',
+        language_code: 'zh'
+      };
+      
+      // 创建模拟的 initData
+      const mockInitData = new URLSearchParams({
+        user: JSON.stringify(mockUser),
+        auth_date: Math.floor(Date.now() / 1000).toString(),
+        hash: 'mock_hash_for_development'
+      }).toString();
+      
+      initData = mockInitData;
+      userId = mockUser.id;
+      
+      console.log('使用开发环境模拟认证数据');
+    }
+    
+    config.headers['X-Telegram-Init-Data'] = initData;
+    config.headers['X-Telegram-User-ID'] = userId;
     return config;
   },
   error => {

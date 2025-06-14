@@ -234,3 +234,11 @@ def get_line_tags(line_name: str) -> list[str]:
     except Exception as e:
         logger.error(f"获取线路 {line_name} 的标签失败: {str(e)}")
         return []
+
+
+# 幸运大转盘缓存
+lucky_wheel_config_cache = RedisCache(
+    db=0,
+    cache_key_prefix="luckywheel:",
+    ttl_seconds=None,  # 持久化存储配置数据
+)
