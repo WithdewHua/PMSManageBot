@@ -117,7 +117,10 @@ def save_wheel_config(config: LuckyWheelConfig):
 
 
 def calculate_credits_change(
-    item_name: str, current_credits: float, tg_id: int = None
+    item_name: str,
+    current_credits: float,
+    tg_id: int = None,
+    gen_privileged_code: bool = False,
 ) -> float:
     """
     根据奖品名称计算积分变化
@@ -126,6 +129,7 @@ def calculate_credits_change(
         item_name: 奖品名称
         current_credits: 当前积分
         tg_id: Telegram用户ID，用于生成邀请码
+        gen_privileged_code: 是否生成特权邀请码
 
     Returns:
         积分变化值（正数表示增加，负数表示减少）
@@ -137,7 +141,7 @@ def calculate_credits_change(
         "谢谢参与": 0,
         "翻倍": lambda: round(current_credits, 2),
         "减半": lambda: round(-(current_credits / 2), 2),
-        "邀请码": lambda: _handle_invite_code(tg_id),
+        "邀请码": lambda: _handle_invite_code(tg_id, gen_privileged_code),
     }
 
     # 检查特殊奖品
@@ -158,11 +162,11 @@ def calculate_credits_change(
     return 0
 
 
-def _handle_invite_code(tg_id: int = None) -> float:
+def _handle_invite_code(tg_id: int = None, gen_privileged_code: bool = False) -> float:
     """处理邀请码奖品"""
     if tg_id:
         try:
-            add_redeem_code(tg_id)
+            add_redeem_code(tg_id, num=1, is_privileged=gen_privileged_code)
             logger.info(f"为用户 {tg_id} 生成了邀请码")
         except Exception as e:
             logger.error(f"为用户 {tg_id} 生成邀请码失败: {e}")
@@ -214,6 +218,7 @@ async def update_config(
             or current_config.cost_credits,
             min_credits_required=config_update_request.min_credits_required
             or current_config.min_credits_required,
+            gen_privileged_code=config_update_request.gen_privileged_code,
         )
 
         # 保存配置
@@ -266,9 +271,20 @@ async def spin_wheel(
         # 选择中奖奖品 - 使用增强版随机选择器
         winner = random_select_winner(config.items, user_id=user_id)
 
+        # 如果中奖奖品是邀请码，判断是否需要生成特权邀请码
+        gen_privileged_code = False
+        if "邀请码" in winner.name and config.gen_privileged_code:
+            gen_privileged_code = True
+            # 生成后立马关闭生成特权邀请码
+            config.gen_privileged_code = False
+            save_wheel_config(config)
+
         # 计算积分变化
         credits_change = calculate_credits_change(
-            winner.name, new_credits, tg_id=user_id
+            winner.name,
+            new_credits,
+            tg_id=user_id,
+            gen_privileged_code=gen_privileged_code,
         )
 
         # 更新用户积分

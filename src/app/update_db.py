@@ -282,7 +282,17 @@ def add_all_plex_user():
         _db.close()
 
 
-def add_redeem_code(tg_id=None, num=1):
+def add_redeem_code(tg_id=None, num=1, is_privileged=False):
+    """
+    生成邀请码
+
+    Args:
+        tg_id: 用户ID，None表示为所有用户生成
+        num: 生成数量
+        is_privileged: 是否生成特权邀请码
+    """
+    from app.config import settings
+
     db = DB()
     if tg_id is None:
         tg_id = [
@@ -295,7 +305,18 @@ def add_redeem_code(tg_id=None, num=1):
             for _ in range(num):
                 code = uuid3(NAMESPACE_URL, str(uid + time())).hex
                 db.add_invitation_code(code, owner=uid)
-                logger.info(f"添加邀请码 {code} 给用户 {uid}")
+
+                # 如果是特权邀请码，添加到特权码列表
+                if is_privileged:
+                    if code not in settings.PRIVILEGED_CODES:
+                        settings.PRIVILEGED_CODES.append(code)
+                        # 保存到配置文件
+                        settings.save_config_to_env_file(
+                            {"PRIVILEGED_CODES": ",".join(settings.PRIVILEGED_CODES)}
+                        )
+                        logger.info(f"添加特权邀请码 {code} 给用户 {uid}")
+                else:
+                    logger.info(f"添加邀请码 {code} 给用户 {uid}")
     except Exception as e:
         print(e)
     else:

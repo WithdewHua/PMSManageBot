@@ -788,6 +788,173 @@
             </v-card-text>
           </v-card>
 
+          <!-- 积分配置 -->
+          <div class="mb-6">
+            <h4 class="text-h6 font-weight-bold mb-4 d-flex align-center">
+              <v-icon class="mr-2" color="warning">mdi-coin</v-icon>
+              积分配置
+            </h4>
+            
+            <v-row>
+              <v-col cols="12" sm="6">
+                <v-card variant="outlined" rounded="lg" class="credits-config-card" elevation="2">
+                  <v-card-text class="pa-4">
+                    <div class="d-flex align-center mb-3">
+                      <v-avatar size="32" color="warning" variant="flat" class="mr-3">
+                        <v-icon size="18" color="white">mdi-ticket</v-icon>
+                      </v-avatar>
+                      <div>
+                        <div class="text-subtitle-1 font-weight-bold">参与费用</div>
+                        <div class="text-body-2 text-medium-emphasis">每次转盘消耗的积分</div>
+                      </div>
+                    </div>
+                    
+                    <v-text-field
+                      v-model.number="tempWheelConfig.cost_credits"
+                      label="消耗积分"
+                      type="number"
+                      min="1"
+                      max="1000"
+                      step="1"
+                      density="compact"
+                      variant="outlined"
+                      rounded="lg"
+                      :rules="[
+                        v => !!v || '消耗积分不能为空',
+                        v => v >= 1 || '消耗积分不能少于1',
+                        v => v <= 1000 || '消耗积分不能超过1000'
+                      ]"
+                    >
+                      <template v-slot:prepend-inner>
+                        <v-icon size="small" color="warning">mdi-minus-circle</v-icon>
+                      </template>
+                      <template v-slot:append-inner>
+                        <v-tooltip location="top">
+                          <template v-slot:activator="{ props }">
+                            <v-icon v-bind="props" color="grey" size="small">mdi-help-circle-outline</v-icon>
+                          </template>
+                          <span>用户每次参与转盘需要消耗的积分数量</span>
+                        </v-tooltip>
+                      </template>
+                    </v-text-field>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+              
+              <v-col cols="12" sm="6">
+                <v-card variant="outlined" rounded="lg" class="credits-config-card" elevation="2">
+                  <v-card-text class="pa-4">
+                    <div class="d-flex align-center mb-3">
+                      <v-avatar size="32" color="info" variant="flat" class="mr-3">
+                        <v-icon size="18" color="white">mdi-shield-check</v-icon>
+                      </v-avatar>
+                      <div>
+                        <div class="text-subtitle-1 font-weight-bold">最低门槛</div>
+                        <div class="text-body-2 text-medium-emphasis">参与转盘的最低积分要求</div>
+                      </div>
+                    </div>
+                    
+                    <v-text-field
+                      v-model.number="tempWheelConfig.min_credits_required"
+                      label="最低积分"
+                      type="number"
+                      min="1"
+                      max="10000"
+                      step="1"
+                      density="compact"
+                      variant="outlined"
+                      rounded="lg"
+                      :rules="[
+                        v => !!v || '最低积分不能为空',
+                        v => v >= 1 || '最低积分不能少于1',
+                        v => v <= 10000 || '最低积分不能超过10000',
+                        v => v >= tempWheelConfig.cost_credits || '最低积分不能少于消耗积分'
+                      ]"
+                    >
+                      <template v-slot:prepend-inner>
+                        <v-icon size="small" color="info">mdi-security</v-icon>
+                      </template>
+                      <template v-slot:append-inner>
+                        <v-tooltip location="top">
+                          <template v-slot:activator="{ props }">
+                            <v-icon v-bind="props" color="grey" size="small">mdi-help-circle-outline</v-icon>
+                          </template>
+                          <span>用户积分低于此值时无法参与转盘</span>
+                        </v-tooltip>
+                      </template>
+                    </v-text-field>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
+            
+            <!-- 特权邀请码配置 -->
+            <div class="mt-4">
+              <v-card variant="outlined" rounded="lg" class="credits-config-card" elevation="2">
+                <v-card-text class="pa-4">
+                  <div class="d-flex align-center mb-3">
+                    <v-avatar size="32" color="purple" variant="flat" class="mr-3">
+                      <v-icon size="18" color="white">mdi-ticket-confirmation</v-icon>
+                    </v-avatar>
+                    <div>
+                      <div class="text-subtitle-1 font-weight-bold">特权邀请码</div>
+                      <div class="text-body-2 text-medium-emphasis">是否在奖品中生成特权邀请码</div>
+                    </div>
+                  </div>
+                  
+                  <v-switch
+                    v-model="tempWheelConfig.gen_privileged_code"
+                    label="启用特权邀请码奖品"
+                    color="purple"
+                    hide-details
+                    class="mb-0"
+                  >
+                    <template v-slot:append>
+                      <v-tooltip location="top">
+                        <template v-slot:activator="{ props }">
+                          <v-icon v-bind="props" color="grey" size="small">mdi-help-circle-outline</v-icon>
+                        </template>
+                        <span>开启后，"邀请码"类奖品将生成具有特殊权限的邀请码</span>
+                      </v-tooltip>
+                    </template>
+                  </v-switch>
+                </v-card-text>
+              </v-card>
+            </div>
+            
+            <!-- 积分配置预览 -->
+            <v-alert
+              type="info"
+              variant="tonal"
+              rounded="lg"
+              class="mt-4"
+            >
+              <template v-slot:prepend>
+                <v-icon size="large">mdi-information-outline</v-icon>
+              </template>
+              <div class="text-subtitle-2 mb-2 font-weight-bold">配置说明</div>
+              <ul class="text-body-2">
+                <li>
+                  用户每次转盘将消耗 <strong>{{ tempWheelConfig.cost_credits }}</strong> 积分
+                </li>
+                <li>
+                  用户积分需要至少 <strong>{{ tempWheelConfig.min_credits_required }}</strong> 才能参与转盘
+                </li>
+                <li>
+                  转盘后用户最终积分 = 当前积分 - {{ tempWheelConfig.cost_credits }} + 奖品积分
+                </li>
+                <li v-if="tempWheelConfig.gen_privileged_code">
+                  <v-icon size="small" color="purple" class="mr-1">mdi-ticket-confirmation</v-icon>
+                  邀请码奖品将生成 <strong class="text-purple">特权邀请码</strong>，具有特殊权限
+                </li>
+                <li v-else>
+                  <v-icon size="small" color="grey" class="mr-1">mdi-ticket-outline</v-icon>
+                  邀请码奖品将生成 <strong>普通邀请码</strong>
+                </li>
+              </ul>
+            </v-alert>
+          </div>
+
           <!-- 奖品配置列表 -->
           <div class="mb-4">
             <h4 class="text-h6 font-weight-bold mb-4 d-flex align-center">
@@ -1052,6 +1219,16 @@ export default {
       showWheelConfigDialog: false,
       wheelItems: [],
       tempWheelItems: [],
+      wheelConfig: {
+        cost_credits: 10,
+        min_credits_required: 30,
+        gen_privileged_code: false
+      },
+      tempWheelConfig: {
+        cost_credits: 10,
+        min_credits_required: 30,
+        gen_privileged_code: false
+      },
       randomnessConfig: {
         use_weighted_protection: true,
         protection_threshold: 2.0,
@@ -1129,7 +1306,16 @@ export default {
       // 检查是否至少有2个奖品
       const countValid = this.tempWheelItems.length >= 2
       
-      return allItemsValid && totalValid && countValid
+      // 检查积分配置是否有效
+      const creditsValid = this.tempWheelConfig.cost_credits >= 1 && 
+                          this.tempWheelConfig.cost_credits <= 1000 &&
+                          this.tempWheelConfig.min_credits_required >= 1 && 
+                          this.tempWheelConfig.min_credits_required <= 10000 &&
+                          this.tempWheelConfig.min_credits_required >= this.tempWheelConfig.cost_credits &&
+                          !isNaN(this.tempWheelConfig.cost_credits) &&
+                          !isNaN(this.tempWheelConfig.min_credits_required)
+      
+      return allItemsValid && totalValid && countValid && creditsValid
     },
     testAnalysis() {
       if (!this.currentTestResult || !this.currentTestResult.stats) {
@@ -1213,14 +1399,25 @@ export default {
       try {
         const response = await getLuckyWheelConfig()
         this.wheelItems = response.data.items || []
+        this.wheelConfig = {
+          cost_credits: response.data.cost_credits || 10,
+          min_credits_required: response.data.min_credits_required || 30,
+          gen_privileged_code: response.data.gen_privileged_code || false
+        }
       } catch (error) {
         console.error('加载转盘配置失败:', error)
         this.wheelItems = []
+        this.wheelConfig = {
+          cost_credits: 10,
+          min_credits_required: 30,
+          gen_privileged_code: false
+        }
       }
     },
 
     openWheelConfig() {
       this.tempWheelItems = JSON.parse(JSON.stringify(this.wheelItems))
+      this.tempWheelConfig = JSON.parse(JSON.stringify(this.wheelConfig))
       this.showWheelConfigDialog = true
     },
 
@@ -1387,13 +1584,17 @@ export default {
         })
         
         const configData = {
-          items: this.tempWheelItems
+          items: this.tempWheelItems,
+          cost_credits: this.tempWheelConfig.cost_credits,
+          min_credits_required: this.tempWheelConfig.min_credits_required,
+          gen_privileged_code: this.tempWheelConfig.gen_privileged_code
         }
         
         await updateLuckyWheelConfig(configData)
         
         // 更新本地配置
         this.wheelItems = JSON.parse(JSON.stringify(this.tempWheelItems))
+        this.wheelConfig = JSON.parse(JSON.stringify(this.tempWheelConfig))
         this.showWheelConfigDialog = false
         
         // 通知 LuckyWheel 组件重新加载配置
@@ -2123,5 +2324,38 @@ export default {
   .test-analysis-alert .v-alert__content {
     padding: 12px;
   }
+}
+
+/* 积分配置卡片样式 */
+.credits-config-card {
+  border: 2px solid rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.9) 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.credits-config-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, 
+    rgb(var(--v-theme-warning)) 0%, 
+    rgb(var(--v-theme-info)) 100%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.credits-config-card:hover {
+  border-color: rgba(255, 152, 0, 0.3);
+  box-shadow: 0 4px 16px rgba(255, 152, 0, 0.1);
+}
+
+.credits-config-card:hover::before {
+  opacity: 1;
 }
 </style>

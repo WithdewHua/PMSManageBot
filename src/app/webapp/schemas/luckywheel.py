@@ -16,6 +16,7 @@ class LuckyWheelConfig(BaseModel):
     items: List[LuckyWheelItem] = Field(..., description="转盘奖品列表")
     cost_credits: int = Field(default=10, ge=1, description="参与转盘需要的积分")
     min_credits_required: int = Field(default=30, ge=1, description="最低积分要求")
+    gen_privileged_code: bool = Field(default=False, description="是否生成特权邀请码")
 
 
 class LuckyWheelSpinRequest(BaseModel):
@@ -38,3 +39,4 @@ class LuckyWheelConfigUpdateRequest(BaseModel):
     items: List[LuckyWheelItem] = Field(..., description="转盘奖品列表")
     cost_credits: Optional[int] = Field(None, ge=1, description="参与转盘需要的积分")
     min_credits_required: Optional[int] = Field(None, ge=1, description="最低积分要求")
+    gen_privileged_code: bool = Field(default=False, description="是否生成特权邀请码")
