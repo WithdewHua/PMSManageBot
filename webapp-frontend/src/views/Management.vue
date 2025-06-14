@@ -28,6 +28,10 @@
             bg-color="transparent"
             class="management-tabs"
           >
+            <v-tab value="overview" class="tab-item">
+              <v-icon start size="18">mdi-view-dashboard</v-icon>
+              <span class="tab-text">概览</span>
+            </v-tab>
             <v-tab value="settings" class="tab-item">
               <v-icon start size="18">mdi-cog</v-icon>
               <span class="tab-text">系统设置项</span>
@@ -35,10 +39,6 @@
             <v-tab value="wheel" class="tab-item">
               <v-icon start size="18">mdi-ferris-wheel</v-icon>
               <span class="tab-text">活动管理</span>
-            </v-tab>
-            <v-tab value="overview" class="tab-item">
-              <v-icon start size="18">mdi-view-dashboard</v-icon>
-              <span class="tab-text">概览</span>
             </v-tab>
           </v-tabs>
         </div>
@@ -408,16 +408,69 @@
 
           <!-- 概览 Tab -->
           <v-window-item value="overview">
-            <v-card class="admin-card-enhanced">
-              <v-card-title class="text-center">
-                <v-icon start color="info">mdi-information</v-icon> 系统概览
-              </v-card-title>
-              <v-card-text class="text-center">
-                <v-icon size="64" color="grey-lighten-1">mdi-chart-line</v-icon>
-                <p class="mt-4 text-h6">系统概览功能</p>
-                <p class="text-subtitle-1 text-grey">即将推出，敬请期待</p>
-              </v-card-text>
-            </v-card>
+            <!-- 加载状态 -->
+            <div v-if="systemStatsLoading" class="text-center my-10">
+              <v-progress-circular indeterminate color="primary"></v-progress-circular>
+              <div class="mt-3">加载系统统计中...</div>
+            </div>
+            
+            <!-- 错误状态 -->
+            <div v-else-if="systemStatsError" class="text-center my-10">
+              <v-alert type="error">{{ systemStatsError }}</v-alert>
+              <v-btn 
+                color="primary" 
+                variant="outlined" 
+                class="mt-3"
+                @click="fetchSystemStats"
+              >
+                重试
+              </v-btn>
+            </div>
+            
+            <!-- 系统统计内容 -->
+            <div v-else>
+              <v-card class="admin-card-enhanced mb-4">
+                <v-card-title class="text-center">
+                  <v-icon start color="info">mdi-account-group</v-icon> 用户统计
+                </v-card-title>
+                <v-card-text>
+                  <v-row>
+                    <v-col cols="12" sm="4">
+                      <div class="stat-item">
+                        <div class="stat-value text-orange-darken-2">{{ systemStats.plex_users }}</div>
+                        <div class="stat-label">Plex 用户</div>
+                      </div>
+                    </v-col>
+                    <v-col cols="12" sm="4">
+                      <div class="stat-item">
+                        <div class="stat-value text-green-darken-2">{{ systemStats.emby_users }}</div>
+                        <div class="stat-label">Emby 用户</div>
+                      </div>
+                    </v-col>
+                    <v-col cols="12" sm="4">
+                      <div class="stat-item">
+                        <div class="stat-value text-primary">{{ systemStats.total_users }}</div>
+                        <div class="stat-label">总用户数</div>
+                      </div>
+                    </v-col>
+                  </v-row>
+                </v-card-text>
+              </v-card>
+              
+              <!-- 系统信息卡片 -->
+              <v-card class="admin-card-enhanced">
+                <v-card-title class="text-center">
+                  <v-icon start color="blue">mdi-information</v-icon> 系统信息
+                </v-card-title>
+                <v-card-text class="text-center">
+                  <p class="text-body-1 mb-3">系统运行状态良好</p>
+                  <v-chip color="success" variant="flat">
+                    <v-icon start>mdi-check-circle</v-icon>
+                    正常运行
+                  </v-chip>
+                </v-card-text>
+              </v-card>
+            </div>
           </v-window-item>
         </v-window>
       </div>
@@ -470,7 +523,7 @@
 </template>
 
 <script>
-import { getUserInfo } from '@/api'
+import { getUserInfo, getSystemStats } from '@/api'
 import DonationDialog from '@/components/DonationDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
@@ -491,7 +544,7 @@ export default {
       loading: true,
       error: null,
       isAdmin: false,
-      currentTab: 'settings', // 默认显示设置项tab
+      currentTab: 'overview', // 默认显示概览tab
       adminSettings: {
         plex_register: false,
         emby_register: false,
@@ -513,7 +566,14 @@ export default {
         totalCreditsChange: 0.0,
         totalInviteCodes: 0
       },
-      showWheelManagement: false
+      showWheelManagement: false,
+      systemStats: {
+        plex_users: 0,
+        emby_users: 0,
+        total_users: 0
+      },
+      systemStatsLoading: false,
+      systemStatsError: null
     }
   },
   mounted() {
@@ -522,6 +582,10 @@ export default {
   watch: {
     // 监听tab切换
     currentTab(newTab) {
+      // 如果切换到概览tab，则获取系统统计数据
+      if (newTab === 'overview') {
+        this.fetchSystemStats()
+      }
       // 如果切换到设置项tab且是管理员，则获取管理员设置
       if (newTab === 'settings' && this.isAdmin && !this.adminSettings.loaded) {
         this.fetchAdminSettings()
@@ -540,6 +604,10 @@ export default {
         const response = await getUserInfo()
         this.isAdmin = response.data.is_admin
         
+        // 如果当前在概览tab，则获取系统统计数据
+        if (this.currentTab === 'overview') {
+          await this.fetchSystemStats()
+        }
         // 如果是管理员且当前在设置项tab，则获取管理员设置
         if (this.isAdmin && this.currentTab === 'settings') {
           await this.fetchAdminSettings()
@@ -567,6 +635,20 @@ export default {
         this.adminError = err.response?.data?.detail || '获取管理员设置失败'
         this.adminLoading = false
         console.error('获取管理员设置失败:', err)
+      }
+    },
+    
+    async fetchSystemStats() {
+      try {
+        this.systemStatsLoading = true
+        this.systemStatsError = null
+        const response = await getSystemStats()
+        this.systemStats = response.data
+        this.systemStatsLoading = false
+      } catch (err) {
+        this.systemStatsError = err.response?.data?.detail || '获取系统统计失败'
+        this.systemStatsLoading = false
+        console.error('获取系统统计失败:', err)
       }
     },
     

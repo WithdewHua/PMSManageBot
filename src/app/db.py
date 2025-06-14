@@ -305,6 +305,10 @@ class DB:
         rslt = self.cur.execute("SELECT count(*) FROM user")
         return rslt.fetchone()[0]
 
+    def get_emby_users_num(self):
+        rslt = self.cur.execute("SELECT count(*) FROM emby_user")
+        return rslt.fetchone()[0]
+
     def get_plex_info_by_tg_id(self, tg_id):
         rslt = self.cur.execute("SELECT * FROM user WHERE tg_id = ?", (tg_id,))
         info = rslt.fetchone()

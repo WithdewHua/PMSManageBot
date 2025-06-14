@@ -44,5 +44,9 @@ export const getEmbyWatchedTimeRankings = () => {
   return apiClient.get('/api/rankings/watched-time/emby')
 }
 
+export const getSystemStats = () => {
+  return apiClient.get('/api/system/stats')
+}
+
 // 导出解析 initData 方法和获取用户方法
 export { parseInitData, getTelegramUser }

@@ -1,3 +1,4 @@
+import asyncio
 from time import time
 from uuid import NAMESPACE_URL, uuid3
 
@@ -58,9 +59,10 @@ def update_plex_credits():
                     "UPDATE statistics SET credits=? WHERE tg_id=?", (credits, tg_id)
                 )
                 # 绑定了 tg，发送积分更新通知
-                send_message_by_url(
-                    chat_id=tg_id,
-                    text=f"""
+                asyncio.run(
+                    send_message_by_url(
+                        chat_id=tg_id,
+                        text=f"""
 Plex 积分更新通知
 ====================
 
@@ -74,6 +76,7 @@ Plex 积分更新通知
 
 ====================
 """,
+                    )
                 )
 
     except Exception as e:
@@ -127,9 +130,10 @@ def update_emby_credits():
                     (playduration, user[0]),
                 )
                 # 发送积分更新通知
-                send_message_by_url(
-                    chat_id=user[1],
-                    text=f"""
+                asyncio.run(
+                    send_message_by_url(
+                        chat_id=user[1],
+                        text=f"""
 Emby 积分更新通知
 ====================
 
@@ -143,6 +147,7 @@ Emby 积分更新通知
 
 ====================
 """,
+                    )
                 )
 
     except Exception as e:
