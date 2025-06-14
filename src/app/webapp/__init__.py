@@ -8,13 +8,18 @@ from app.webapp.routers import rankings_router, system_router, user_router
 from app.webapp.routers.activities.luckywheel import router as luckywheel_router
 from app.webapp.routers.admin import router as admin_router
 from app.webapp.routers.invitation import router as invitation_router
+from app.webapp.startup.lifespan import lifespan
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 # 创建 FastAPI 应用
-app = FastAPI(title="PMSManageBot API", description="API for PMSManageBot WebApp")
+app = FastAPI(
+    title="PMSManageBot API",
+    description="API for PMSManageBot WebApp",
+    lifespan=lifespan,
+)
 
 # 配置 SessionMiddleware
 app.add_middleware(

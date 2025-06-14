@@ -41,7 +41,20 @@
                 <v-icon size="small" color="primary" class="mr-2">mdi-star-circle</v-icon>
                 <span>可用积分：</span>
               </div>
-              <div class="value-display credits-value">{{ userInfo.credits.toFixed(2) }}</div>
+              <div class="d-flex">
+                <v-btn
+                  icon
+                  size="x-small"
+                  color="amber-darken-2"
+                  variant="outlined"
+                  @click="openCreditsTransferDialog"
+                  title="积分转移"
+                  class="mr-2"
+                >
+                  <v-icon size="small">mdi-bank-transfer</v-icon>
+                </v-btn>
+                <div class="value-display credits-value">{{ userInfo.credits.toFixed(2) }}</div>
+              </div>
             </div>
             <div class="d-flex justify-space-between mb-3 align-center">
               <div class="d-flex align-center">
@@ -327,6 +340,13 @@
       @donation-submitted="handleDonationSubmitted"
     />
     
+    <!-- 使用积分转移对话框组件 -->
+    <credits-transfer-dialog
+      ref="creditsTransferDialog"
+      :current-credits="userInfo.credits"
+      @transfer-completed="handleCreditsTransferCompleted"
+    />
+    
     <!-- 使用标签管理对话框组件 -->
     <tag-management-dialog
       ref="tagManagementDialog"
@@ -347,6 +367,7 @@ import EmbyLineSelector from '@/components/EmbyLineSelector.vue'
 import PlexLineSelector from '@/components/PlexLineSelector.vue'
 import NsfwDialog from '@/components/NsfwDialog.vue'
 import DonationDialog from '@/components/DonationDialog.vue'
+import CreditsTransferDialog from '@/components/CreditsTransferDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
@@ -360,6 +381,7 @@ export default {
     PlexLineSelector,
     NsfwDialog,
     DonationDialog,
+    CreditsTransferDialog,
     TagManagementDialog,
     LineManagementDialog
   },
@@ -630,6 +652,18 @@ export default {
       // 刷新用户信息以获取最新的捐赠数据
       this.fetchUserInfo();
       this.showMessage('捐赠记录已添加');
+    },
+
+    // 打开积分转移对话框
+    openCreditsTransferDialog() {
+      this.$refs.creditsTransferDialog.open();
+    },
+
+    // 处理积分转移完成事件
+    handleCreditsTransferCompleted(result) {
+      // 更新用户积分
+      this.userInfo.credits = result.current_credits;
+      this.showMessage(`成功转移 ${result.transferred_amount} 积分，手续费 ${result.fee_amount.toFixed(2)} 积分`);
     }
   }
 }

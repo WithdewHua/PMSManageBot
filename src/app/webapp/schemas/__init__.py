@@ -20,6 +20,8 @@ from .user import (
     BaseResponse,
     BindEmbyRequest,
     BindPlexRequest,
+    CreditsTransferRequest,
+    CreditsTransferResponse,
     EmbyLineInfo,
     PlexLineInfo,
     PlexLineRequest,

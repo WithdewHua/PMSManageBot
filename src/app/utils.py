@@ -3,6 +3,7 @@
 import asyncio
 import pickle
 from time import sleep, time
+from typing import Optional
 
 import aiohttp
 import filelock
@@ -12,6 +13,65 @@ from app.db import DB
 from app.emby import Emby
 from app.log import logger
 from telegram.ext import ContextTypes
+
+
+# Global session manager to avoid SSL connection issues
+class HTTPSessionManager:
+    """Manages global HTTP session to avoid connection pool issues"""
+
+    def __init__(self):
+        self._session: Optional[aiohttp.ClientSession] = None
+        self._connector: Optional[aiohttp.TCPConnector] = None
+
+    async def get_session(self) -> aiohttp.ClientSession:
+        """Get or create HTTP session"""
+        if self._session is None or self._session.closed:
+            await self._create_session()
+        return self._session
+
+    async def _create_session(self):
+        """Create new HTTP session with optimized settings"""
+        # Close existing resources if any
+        await self.close()
+
+        self._connector = aiohttp.TCPConnector(
+            limit=100,
+            limit_per_host=30,
+            enable_cleanup_closed=True,
+            force_close=True,
+            keepalive_timeout=30,
+            ssl=None,
+        )
+
+        timeout = aiohttp.ClientTimeout(total=10, connect=5, sock_read=5)
+
+        self._session = aiohttp.ClientSession(
+            connector=self._connector,
+            timeout=timeout,
+            connector_owner=True,
+            trust_env=True,
+        )
+
+    async def close(self):
+        """Close session and connector safely"""
+        if self._session and not self._session.closed:
+            try:
+                await self._session.close()
+            except Exception as e:
+                logger.debug(f"Error closing session: {e}")
+
+        if self._connector:
+            try:
+                await self._connector.close()
+            except Exception as e:
+                logger.debug(f"Error closing connector: {e}")
+
+        self._session = None
+        self._connector = None
+
+
+# Global session manager instance
+_session_manager = HTTPSessionManager()
 
 
 async def send_message(chat_id, text: str, context: ContextTypes.DEFAULT_TYPE, **kargs):
@@ -30,28 +90,92 @@ async def send_message(chat_id, text: str, context: ContextTypes.DEFAULT_TYPE, *
 
 
 async def send_message_by_url(
-    chat_id, text: str, token: str = settings.TG_API_TOKEN, **kwargs
-):
-    """send telegram message by url"""
-    retry = 10
-    while retry > 0:
+    chat_id,
+    text: str,
+    token: str = settings.TG_API_TOKEN,
+    max_retries: int = 10,
+    **kwargs,
+) -> bool:
+    """Send telegram message by url with improved error handling and retry logic
+
+    Args:
+        chat_id: Telegram chat ID
+        text: Message text to send
+        token: Telegram bot token
+        max_retries: Maximum number of retry attempts
+        **kwargs: Additional parameters for sendMessage API
+
+    Returns:
+        bool: True if message sent successfully, False otherwise
+
+    Raises:
+        ValueError: If required parameters are invalid
+    """
+    # Parameter validation
+    if not chat_id:
+        raise ValueError("chat_id cannot be empty")
+    if not text or not text.strip():
+        raise ValueError("text cannot be empty")
+    if not token:
+        raise ValueError("token cannot be empty")
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    data = {"chat_id": chat_id, "text": text.strip()}
+    data.update(kwargs)
+
+    # Use global session manager to avoid connection pool issues
+    session = await _session_manager.get_session()
+
+    for attempt in range(max_retries):
         try:
-            url = f"https://api.telegram.org/bot{token}/sendMessage"
-            data = {"chat_id": chat_id, "text": text}
-            data.update(kwargs)
-            logger.info(f"Sending message to {chat_id} via {url} with data: {data}")
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    url,
-                    data=data,
-                    timeout=aiohttp.ClientTimeout(total=3),
-                ) as response:
-                    response.raise_for_status()
-            break
+            logger.debug(
+                f"Attempt {attempt + 1}/{max_retries}: Sending message to {chat_id}"
+            )
+
+            async with session.post(url, data=data) as response:
+                response.raise_for_status()
+                result = await response.json()
+
+                if result.get("ok"):
+                    logger.info(f"Message sent successfully to {chat_id}")
+                    return True
+                else:
+                    logger.warning(f"Telegram API returned error: {result}")
+                    return False
+
+        except (
+            aiohttp.ClientError,
+            aiohttp.ServerTimeoutError,
+            asyncio.TimeoutError,
+        ) as e:
+            # Network-related errors, worth retrying
+            logger.warning(
+                f"Network error on attempt {attempt + 1}: {type(e).__name__}: {e}"
+            )
+            if attempt == max_retries - 1:
+                logger.error(
+                    f"Failed to send message to {chat_id} after {max_retries} attempts: {e}"
+                )
+                return False
+
         except Exception as e:
-            logger.error(f"Error: {e}, retrying in 1 seconds...")
-            await asyncio.sleep(1)
-            retry -= 1
+            # Other errors, may not be worth retrying
+            logger.error(
+                f"Unexpected error on attempt {attempt + 1}: {type(e).__name__}: {e}"
+            )
+            if attempt == max_retries - 1:
+                logger.error(
+                    f"Failed to send message to {chat_id} after {max_retries} attempts: {e}"
+                )
+                return False
+
+        # Exponential backoff for retries
+        if attempt < max_retries - 1:
+            wait_time = min(2**attempt, 10)  # Cap at 10 seconds
+            logger.debug(f"Waiting {wait_time} seconds before retry...")
+            await asyncio.sleep(wait_time)
+
+    return False
 
 
 def get_user_total_duration(home_stats: dict):
@@ -254,3 +378,8 @@ def is_binded_premium_line(line: str) -> bool:
         if premium_line in line:
             return True
     return False
+
+
+async def cleanup_http_resources():
+    """Clean up HTTP resources on application shutdown"""
+    await _session_manager.close()
