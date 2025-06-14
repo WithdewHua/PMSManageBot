@@ -45,3 +45,18 @@ class CheckPrivilegedCodeResponse(BaseModel):
     """检查特权邀请码响应模型"""
 
     privileged: bool
+
+
+class RedeemForCreditsRequest(BaseModel):
+    """邀请码兑换积分请求模型"""
+
+    code: str
+
+
+class RedeemForCreditsResponse(BaseModel):
+    """邀请码兑换积分响应模型"""
+
+    success: bool
+    message: str
+    credits_earned: Optional[float] = None
+    current_credits: Optional[float] = None

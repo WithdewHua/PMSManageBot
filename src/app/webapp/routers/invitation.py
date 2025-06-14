@@ -14,6 +14,8 @@ from app.webapp.schemas import (
     CheckPrivilegedCodeResponse,
     GenerateInviteCodeResponse,
     InvitePointsResponse,
+    RedeemForCreditsRequest,
+    RedeemForCreditsResponse,
     RedeemInviteCodeRequest,
     RedeemResponse,
     TelegramUser,
@@ -353,3 +355,80 @@ async def check_privileged_invite_code(
         logger.error(f"检查特权邀请码失败: {str(e)}")
         # 出错时默认返回非特权状态，避免意外授权
         return CheckPrivilegedCodeResponse(privileged=False)
+
+
+@router.post("/redeem-for-credits", response_model=RedeemForCreditsResponse)
+@require_telegram_auth
+async def redeem_invite_code_for_credits(
+    request: Request,
+    data: RedeemForCreditsRequest = Body(...),
+    telegram_user: TelegramUser = Depends(get_telegram_user),
+):
+    """
+    将邀请码兑换为积分
+    """
+    try:
+        user_id = telegram_user.id
+        code = data.code
+
+        _db = DB()
+
+        try:
+            # 检查邀请码是否存在且未被使用
+            res = _db.verify_invitation_code_is_used(code)
+            if not res:
+                return RedeemForCreditsResponse(success=False, message="邀请码不存在")
+
+            if res[0]:  # is_used = True
+                return RedeemForCreditsResponse(success=False, message="邀请码已被使用")
+            code_owner = res[1]
+            # 获取用户当前积分
+            stats_info = _db.get_stats_by_tg_id(user_id)
+            if not stats_info:
+                return RedeemForCreditsResponse(
+                    success=False, message="用户未绑定 Plex/Emby 账户"
+                )
+
+            current_credits = stats_info[2]
+
+            # 计算可获得的积分 (通常是生成邀请码所需积分的一半或某个比例)
+            credits_earned = settings.INVITATION_CREDITS * 0.8  # 80%的回收率
+
+            # 更新积分
+            new_credits = current_credits + credits_earned
+            res = _db.update_user_credits(new_credits, tg_id=user_id)
+            if not res:
+                return RedeemForCreditsResponse(
+                    success=False, message="更新积分失败，请稍后再试"
+                )
+
+            # 标记邀请码为已使用
+            res = _db.update_invitation_status(
+                code=code, used_by=f"credits_by_{user_id}"
+            )
+            if not res:
+                # 如果标记失败，需要回滚积分
+                _db.update_user_credits(current_credits, tg_id=user_id)
+                return RedeemForCreditsResponse(
+                    success=False, message="更新邀请码状态失败，请联系管理员"
+                )
+
+            logger.info(
+                f"用户 {user_id} 成功将邀请码 {code} ({code_owner}) 兑换为 {credits_earned} 积分"
+            )
+
+            return RedeemForCreditsResponse(
+                success=True,
+                message=f"成功兑换 {credits_earned} 积分！",
+                credits_earned=credits_earned,
+                current_credits=new_credits,
+            )
+
+        finally:
+            _db.close()
+
+    except Exception as e:
+        logger.error(f"邀请码兑换积分失败: {str(e)}")
+        return RedeemForCreditsResponse(
+            success=False, message="兑换过程出错，请稍后再试"
+        )

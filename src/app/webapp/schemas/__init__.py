@@ -10,6 +10,8 @@ from .invitation import (
     RedeemResponse,
     CheckPrivilegedCodeRequest,
     CheckPrivilegedCodeResponse,
+    RedeemForCreditsRequest,
+    RedeemForCreditsResponse,
 )
 from .ranking import RankingInfo
 from .user import (

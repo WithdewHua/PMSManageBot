@@ -58,17 +58,42 @@
                 <span>可用邀请码：</span>
               </div>
               <div v-for="(code, index) in userInfo.invitation_codes" :key="index" class="mb-2">
-                <v-chip 
-                  size="small" 
-                  color="primary" 
-                  @click="copyToClipboard(code)"
-                  class="invitation-chip"
-                  elevation="2"
-                  rounded="lg"
-                >
-                  {{ code }}
-                  <v-icon end icon="mdi-content-copy" size="small"></v-icon>
-                </v-chip>
+                <div class="invitation-code-row-horizontal">
+                  <div class="invitation-code-container-horizontal">
+                    <div class="invitation-code-with-tag">
+                      <v-chip 
+                        size="small" 
+                        :color="privilegedCodes[index] ? 'amber-darken-2' : 'primary'"
+                        @click="copyToClipboard(code)"
+                        class="invitation-chip-horizontal"
+                        elevation="2"
+                        rounded="lg"
+                        :title="code"
+                      >
+                        <span class="code-text">{{ code.length > 16 ? code.substring(0, 10) + '...' + code.substring(code.length - 4) : code }}</span>
+                        <v-icon end icon="mdi-content-copy" size="small"></v-icon>
+                      </v-chip>
+                      <!-- 特权码提示文字 - 放在邀请码右侧 -->
+                      <div v-if="privilegedCodes[index]" class="privilege-tag-horizontal">
+                        <v-icon size="x-small" color="amber-darken-2">mdi-crown</v-icon>
+                        <span class="privilege-text">特权</span>
+                      </div>
+                    </div>
+                  </div>
+                  <v-btn
+                    size="x-small"
+                    color="success"
+                    variant="outlined"
+                    @click="redeemCodeForCredits(code, index)"
+                    :loading="redeemingCodes[index]"
+                    :disabled="redeemingCodes[index]"
+                    class="redeem-button-horizontal"
+                    title="兑换为积分"
+                  >
+                    <v-icon size="small" start>mdi-star</v-icon>
+                    兑换积分
+                  </v-btn>
+                </div>
               </div>
             </div>
             <div v-else class="text-center text-subtitle-2 my-2">
@@ -325,6 +350,8 @@ import DonationDialog from '@/components/DonationDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
+import { redeemInviteCodeForCredits } from '@/services/inviteCodeService.js'
+import { checkPrivilegedInviteCode } from '@/services/mediaServiceApi.js'
 
 export default {
   name: 'UserInfo',
@@ -352,7 +379,9 @@ export default {
         is_admin: false
       },
       loading: true,
-      error: null
+      error: null,
+      redeemingCodes: {}, // 用于跟踪每个邀请码的兑换状态
+      privilegedCodes: {} // 用于跟踪特权邀请码状态
     }
   },
   mounted() {
@@ -364,11 +393,34 @@ export default {
         this.loading = true
         const response = await getUserInfo()
         this.userInfo = response.data
+        
+        // 检查每个邀请码的特权状态
+        if (this.userInfo.invitation_codes && this.userInfo.invitation_codes.length > 0) {
+          await this.checkPrivilegedCodes()
+        }
+        
         this.loading = false
       } catch (err) {
         this.error = err.response?.data?.detail || '获取用户信息失败'
         this.loading = false
         console.error('获取用户信息失败:', err)
+      }
+    },
+
+    // 检查特权邀请码
+    async checkPrivilegedCodes() {
+      // 重置特权码状态映射
+      this.privilegedCodes = {};
+      
+      for (let i = 0; i < this.userInfo.invitation_codes.length; i++) {
+        const code = this.userInfo.invitation_codes[i]
+        try {
+          const result = await checkPrivilegedInviteCode(code)
+          this.privilegedCodes[i] = result.privileged
+        } catch (error) {
+          console.error(`检查邀请码 ${code} 特权状态失败:`, error)
+          this.privilegedCodes[i] = false
+        }
       }
     },
     
@@ -396,6 +448,100 @@ export default {
         console.error('复制失败:', err)
       })
     },
+
+    // 兑换邀请码为积分
+    async redeemCodeForCredits(code, index) {
+      // 显示确认提示框
+      const confirmed = await this.showConfirmDialog(
+        '确认兑换',
+        `确定要兑换邀请码 "${code}" 为积分吗？\n\n兑换后将获得该邀请码价值 80% 的积分，且邀请码将被消耗。`
+      );
+
+      if (!confirmed) {
+        return; // 用户取消了操作
+      }
+
+      try {
+        // 设置加载状态
+        this.redeemingCodes[index] = true;
+        
+        const response = await redeemInviteCodeForCredits(code);
+        
+        if (response.success) {
+          // 更新用户积分
+          this.userInfo.credits = response.current_credits;
+          
+          // 从邀请码列表中移除已兑换的邀请码
+          this.userInfo.invitation_codes.splice(index, 1);
+          
+          // 更新特权码状态映射 - 移除对应索引，并重新映射后续索引
+          const newPrivilegedCodes = {};
+          Object.keys(this.privilegedCodes).forEach(key => {
+            const keyIndex = parseInt(key);
+            if (keyIndex < index) {
+              // 保持原索引
+              newPrivilegedCodes[keyIndex] = this.privilegedCodes[keyIndex];
+            } else if (keyIndex > index) {
+              // 索引向前移动
+              newPrivilegedCodes[keyIndex - 1] = this.privilegedCodes[keyIndex];
+            }
+            // 跳过被删除的索引
+          });
+          this.privilegedCodes = newPrivilegedCodes;
+          
+          // 同样更新兑换状态映射
+          const newRedeemingCodes = {};
+          Object.keys(this.redeemingCodes).forEach(key => {
+            const keyIndex = parseInt(key);
+            if (keyIndex < index) {
+              newRedeemingCodes[keyIndex] = this.redeemingCodes[keyIndex];
+            } else if (keyIndex > index) {
+              newRedeemingCodes[keyIndex - 1] = this.redeemingCodes[keyIndex];
+            }
+          });
+          this.redeemingCodes = newRedeemingCodes;
+          
+          // 显示成功消息
+          const message = `成功兑换！获得 ${response.credits_earned.toFixed(2)} 积分`;
+          this.showMessage(message, 'success');
+          
+          if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.showPopup({
+              title: '兑换成功',
+              message: message
+            });
+          }
+        } else {
+          // 显示错误消息
+          this.showMessage(response.message, 'error');
+        }
+      } catch (error) {
+        console.error('兑换邀请码失败:', error);
+        this.showMessage('兑换失败，请稍后重试', 'error');
+      } finally {
+        // 清除加载状态
+        if (this.redeemingCodes[index] !== undefined) {
+          this.redeemingCodes[index] = false;
+        }
+      }
+    },
+
+    // 显示确认对话框
+    showConfirmDialog(title, message) {
+      return new Promise((resolve) => {
+        if (window.Telegram?.WebApp) {
+          // 在 Telegram 环境中使用原生确认对话框
+          window.Telegram.WebApp.showConfirm(message, (confirmed) => {
+            resolve(confirmed);
+          });
+        } else {
+          // 在开发环境中使用浏览器的 confirm
+          const confirmed = confirm(`${title}\n\n${message}`);
+          resolve(confirmed);
+        }
+      });
+    },
+
     updateEmbyLine(line) {
       if (this.userInfo && this.userInfo.emby_info) {
         this.userInfo.emby_info.line = line;
@@ -581,9 +727,249 @@ export default {
   font-weight: 500;
 }
 
-.invitation-chip:hover {
+/* 新增：水平布局的邀请码芯片样式 */
+.invitation-chip-horizontal {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.invitation-chip:hover,
+.invitation-chip-horizontal:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(116, 185, 255, 0.3) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* 邀请码文本样式 */
+.code-text {
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+  letter-spacing: 0.5px;
+}
+
+/* 邀请码容器样式 */
+.invitation-code-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+/* 新增：水平布局的邀请码容器样式 */
+.invitation-code-container-horizontal {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  flex: 1;
+  min-width: 0; /* 允许收缩 */
+}
+
+/* 新增：邀请码和特权标签的水平容器 */
+.invitation-code-with-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+/* 特权码标签样式 */
+.privilege-tag {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 193, 7, 0.05) 100%);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 8px;
+  font-size: 10px;
+  color: #FF8F00;
+  font-weight: 500;
+}
+
+/* 新增：水平布局的特权码标签样式 */
+.privilege-tag-horizontal {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.15) 0%, rgba(255, 193, 7, 0.08) 100%);
+  border: 1px solid rgba(255, 193, 7, 0.4);
+  border-radius: 10px;
+  font-size: 9px;
+  color: #FF8F00;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.privilege-text {
+  font-size: 10px;
+  line-height: 1;
+}
+
+/* 邀请码行样式 */
+.invitation-code-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* 新增：水平布局的邀请码行样式 */
+.invitation-code-row-horizontal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.invitation-code-row:last-child {
+  border-bottom: none;
+}
+
+.invitation-code-row-horizontal:last-child {
+  border-bottom: none;
+}
+
+/* 兑换按钮样式 */
+.redeem-button {
+  flex-shrink: 0;
+  font-size: 12px;
+  height: 28px;
+  border-radius: 14px;
+  transition: all 0.3s ease;
+}
+
+/* 新增：水平布局的兑换按钮样式 */
+.redeem-button-horizontal {
+  flex-shrink: 0;
+  font-size: 11px;
+  height: 32px;
+  border-radius: 16px;
+  transition: all 0.3s ease;
+  min-width: 90px;
+}
+
+.redeem-button:hover,
+.redeem-button-horizontal:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.redeem-button:disabled,
+.redeem-button-horizontal:disabled {
+  opacity: 0.6;
+}
+
+/* 响应式调整 */
+@media (max-width: 600px) {
+  .invitation-code-row {
+    gap: 8px;
+  }
+  
+  .invitation-code-row-horizontal {
+    gap: 8px;
+  }
+  
+  .redeem-button {
+    font-size: 11px;
+    height: 26px;
+    min-width: 70px;
+  }
+  
+  .redeem-button-horizontal {
+    font-size: 10px;
+    height: 30px;
+    min-width: 80px;
+  }
+  
+  .invitation-chip {
+    font-size: 12px;
+  }
+  
+  .invitation-chip-horizontal {
+    font-size: 11px;
+  }
+  
+  .code-text {
+    max-width: 100px;
+    font-size: 11px;
+  }
+  
+  .privilege-tag {
+    font-size: 9px;
+    padding: 1px 4px;
+  }
+  
+  .privilege-tag-horizontal {
+    font-size: 8px;
+    padding: 1px 4px;
+    border-radius: 8px;
+  }
+  
+  .privilege-text {
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 480px) {
+  .invitation-code-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .invitation-code-row-horizontal {
+    gap: 6px;
+  }
+  
+  .invitation-code-container {
+    align-items: center;
+    text-align: center;
+  }
+  
+  .invitation-code-container-horizontal {
+    align-items: flex-start;
+  }
+  
+  .invitation-code-with-tag {
+    gap: 6px;
+  }
+  
+  .redeem-button {
+    width: 100%;
+    justify-self: center;
+  }
+  
+  .redeem-button-horizontal {
+    min-width: 75px;
+    font-size: 9px;
+    height: 28px;
+  }
+  
+  .code-text {
+    max-width: 80px;
+    font-size: 10px;
+  }
+  
+  .privilege-tag {
+    align-self: center;
+  }
+  
+  .privilege-tag-horizontal {
+    font-size: 8px;
+  }
 }
 
 /* 数值显示样式 */
