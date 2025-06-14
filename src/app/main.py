@@ -13,7 +13,7 @@ from app.handlers.status import *
 from app.handlers.user import *
 from app.log import logger
 from app.scheduler import Scheduler
-from app.update_db import update_credits, update_emby_credits, update_plex_info
+from app.update_db import update_credits, update_plex_info
 from app.utils import refresh_emby_user_info, refresh_tg_user_info
 from telegram.ext import ApplicationBuilder
 
@@ -47,7 +47,7 @@ def start_bot(application):
 def add_init_scheduler_job():
     """添加调度任务"""
     scheduler = Scheduler()
-    # 每天凌晨 12:00 更新 plex 积分
+    # 每天凌晨 12:00 更新 Plex/Emby 积分
     scheduler.add_job(
         func=update_credits,
         trigger="cron",
@@ -58,18 +58,7 @@ def add_init_scheduler_job():
         hour=0,
         minute=0,
     )
-    logger.info("添加定时任务：每天凌晨 12:00 更新 Plex 积分")
-    scheduler.add_job(
-        func=update_emby_credits,
-        trigger="cron",
-        id="update_emby_credits",
-        replace_existing=True,
-        max_instances=1,
-        day_of_week="*",
-        hour=0,
-        minute=0,
-    )
-    logger.info("添加定时任务：每天凌晨 12:00 更新 Emby 积分")
+    logger.info("添加定时任务：每天凌晨 12:00 更新积分 (Plex 和 Emby)")
     # 每天中午 12:00 更新 plex 用户信息
     scheduler.add_job(
         func=update_plex_info,

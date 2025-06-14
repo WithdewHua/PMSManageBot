@@ -44,10 +44,10 @@ async def send_message_by_url(
                 async with session.post(
                     url,
                     data=data,
-                    timeout=3,
+                    timeout=aiohttp.ClientTimeout(total=3),
                 ) as response:
                     response.raise_for_status()
-                    break
+            break
         except Exception as e:
             logger.error(f"Error: {e}, retrying in 1 seconds...")
             await asyncio.sleep(1)

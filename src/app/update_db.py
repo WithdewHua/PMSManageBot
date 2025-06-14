@@ -3,13 +3,15 @@ from uuid import NAMESPACE_URL, uuid3
 
 from app.db import DB
 from app.emby import Emby
+from app.log import logger
 from app.plex import Plex
 from app.tautulli import Tautulli
-from app.utils import get_user_total_duration
+from app.utils import get_user_total_duration, send_message_by_url
 
 
-def update_credits():
+def update_plex_credits():
     """更新积分及观看时长"""
+    logger.info("开始更新 Plex 用户积分及观看时长")
     # 获取一天内的观看时长
     duration = get_user_total_duration(
         Tautulli().get_home_stats(1, "duration", len(Plex().users_by_id), "top_users")
@@ -21,8 +23,11 @@ def update_credits():
         users = res.fetchall()
         for user in users:
             plex_id = user[0]
+            play_duration = int(duration.get(plex_id, 0))
+            if play_duration == 0:
+                continue
             # 最大记 8h
-            credits_inc = min(int(duration.get(plex_id, 0)), 8)
+            credits_inc = min(play_duration, 8)
             res = _db.cur.execute(
                 "SELECT credits,watched_time,tg_id FROM user WHERE plex_id=?",
                 (plex_id,),
@@ -34,7 +39,7 @@ def update_credits():
             if not tg_id:
                 credits_init = res[0]
                 credits = credits_init + credits_inc
-                watched_time = watched_time_init + credits_inc
+                watched_time = watched_time_init + play_duration
                 _db.cur.execute(
                     "UPDATE user SET credits=?,watched_time=? WHERE plex_id=?",
                     (credits, watched_time, plex_id),
@@ -44,7 +49,7 @@ def update_credits():
                     "SELECT credits FROM statistics WHERE tg_id=?", (tg_id,)
                 ).fetchone()[0]
                 credits = credits_init + credits_inc
-                watched_time = watched_time_init + credits_inc
+                watched_time = watched_time_init + play_duration
                 _db.cur.execute(
                     "UPDATE user SET watched_time=? WHERE plex_id=?",
                     (watched_time, plex_id),
@@ -52,17 +57,37 @@ def update_credits():
                 _db.cur.execute(
                     "UPDATE statistics SET credits=? WHERE tg_id=?", (credits, tg_id)
                 )
+                # 绑定了 tg，发送积分更新通知
+                send_message_by_url(
+                    chat_id=tg_id,
+                    text=f"""
+Plex 积分更新通知
+====================
+
+新增观看时长: {play_duration} 小时
+新增积分：{credits_inc}
+
+--------------------
+
+当前总积分：{credits}
+当前总观看时长：{watched_time} 小时
+
+====================
+""",
+                )
 
     except Exception as e:
         print(e)
     else:
         _db.con.commit()
+        logger.info("Plex 用户积分及观看时长更新完成")
     finally:
         _db.close()
 
 
 def update_emby_credits():
     """更新 emby 积分及观看时长"""
+    logger.info("开始更新 Emby 用户积分及观看时长")
     # 获取所有用户的观看时长
     emby = Emby()
     duration = emby.get_user_total_play_time()
@@ -101,13 +126,37 @@ def update_emby_credits():
                     "UPDATE emby_user SET emby_watched_time=? WHERE emby_id=?",
                     (playduration, user[0]),
                 )
+                # 发送积分更新通知
+                send_message_by_url(
+                    chat_id=user[1],
+                    text=f"""
+Emby 积分更新通知
+====================
+
+新增观看时长: {playduration - user[2]} 小时
+新增积分：{credits_inc}
+
+--------------------
+
+当前总积分：{_credits}
+当前总观看时长：{playduration} 小时
+
+====================
+""",
+                )
 
     except Exception as e:
         print(e)
     else:
         _db.con.commit()
+        logger.info("Emby 用户积分及观看时长更新完成")
     finally:
         _db.close()
+
+
+def update_credits():
+    update_plex_credits()
+    update_emby_credits()
 
 
 def update_plex_info():
@@ -255,7 +304,7 @@ def add_redeem_code(tg_id=None, num=1):
 
 
 if __name__ == "__main__":
-    update_credits()
+    update_plex_credits()
     update_plex_info()
     # add_all_plex_user()
     update_emby_credits()
