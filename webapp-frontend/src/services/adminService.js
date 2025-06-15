@@ -117,20 +117,6 @@ export async function setEmbyFreePremiumLines(freeLines) {
 }
 
 /**
- * 获取所有用户信息（用于捐赠管理）
- * @returns {Promise} 用户列表
- */
-export async function getAllUsers() {
-  try {
-    const response = await apiClient.get('/api/admin/users');
-    return response.data;
-  } catch (error) {
-    console.error('获取用户列表失败:', error);
-    throw error;
-  }
-}
-
-/**
  * 提交捐赠记录
  * @param {Object} donationData - 捐赠数据
  * @returns {Promise} 提交结果

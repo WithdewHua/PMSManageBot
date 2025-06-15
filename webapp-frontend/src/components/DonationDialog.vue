@@ -25,8 +25,8 @@
             item-title="display_name"
             item-value="tg_id"
             :rules="userRules"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             class="mb-3"
           >
             <template v-slot:item="{ props, item }">
@@ -41,7 +41,6 @@
                     <v-icon v-else>mdi-account-circle</v-icon>
                   </v-avatar>
                 </template>
-                <v-list-item-title></v-list-item-title>
                 <v-list-item-subtitle>
                   ID: {{ item.raw.tg_id }}
                   <span v-if="item.raw.current_donation > 0">
@@ -60,8 +59,8 @@
             min="0"
             step="0.01"
             :rules="amountRules"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             prefix="¥"
             class="mb-3"
           ></v-text-field>
@@ -71,8 +70,8 @@
             v-model="note"
             label="备注信息 (可选)"
             rows="2"
-            outlined
-            dense
+            variant="outlined"
+            density="compact"
             counter="200"
             maxlength="200"
             class="mb-3"
@@ -91,7 +90,7 @@
       <v-card-actions>
         <v-spacer></v-spacer>
         <v-btn 
-          text 
+          variant="text" 
           color="grey" 
           @click="closeDialog"
           :disabled="processing"
@@ -112,7 +111,8 @@
 </template>
 
 <script>
-import { getAllUsers, submitDonationRecord } from '@/services/adminService'
+import { getAllUsers } from '@/services/creditsService'
+import { submitDonationRecord } from '@/services/adminService'
 
 export default {
   name: 'DonationDialog',

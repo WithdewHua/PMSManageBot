@@ -11,7 +11,6 @@ from app.config import settings
 from app.db import DB
 from app.log import uvicorn_logger as logger
 from app.utils import (
-    get_user_info_from_tg_id,
     get_user_name_from_tg_id,
     is_binded_premium_line,
     send_message_by_url,
@@ -463,51 +462,6 @@ async def unbind_specified_line_for_all_users(line: str):
     finally:
         db.close()
         logger.debug("数据库连接已关闭")
-
-
-@router.get("/users")
-@require_telegram_auth
-async def get_all_tg_users(
-    request: Request, user: TelegramUser = Depends(get_telegram_user)
-):
-    """获取所有用户信息（用于捐赠管理）"""
-    check_admin_permission(user)
-
-    db = DB()
-    try:
-        # 从 statistics 表获取所有用户
-        stats_users = db.cur.execute(
-            "SELECT tg_id, donation, credits FROM statistics"
-        ).fetchall()
-
-        user_list = []
-        for tg_id, donation, credits in stats_users:
-            if tg_id:  # 确保tg_id不为空
-                # 获取用户的Telegram信息
-                tg_info = get_user_info_from_tg_id(tg_id)
-
-                user_list.append(
-                    {
-                        "tg_id": tg_id,
-                        "display_name": tg_info.get("first_name")
-                        or tg_info.get("username")
-                        or str(tg_id),
-                        "photo_url": tg_info.get("photo_url"),
-                        "current_donation": float(donation) if donation else 0.0,
-                        "current_credits": float(credits) if credits else 0.0,
-                    }
-                )
-
-        logger.info(
-            f"管理员 {user.username or user.id} 获取了 {len(user_list)} 个用户信息"
-        )
-        return user_list
-
-    except Exception as e:
-        logger.error(f"获取用户列表失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="获取用户列表失败")
-    finally:
-        db.close()
 
 
 @router.post("/donation")

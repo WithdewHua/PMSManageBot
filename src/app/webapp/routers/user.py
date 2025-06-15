@@ -16,6 +16,7 @@ from app.plex import Plex
 from app.tautulli import Tautulli
 from app.utils import (
     caculate_credits_fund,
+    get_user_info_from_tg_id,
     get_user_total_duration,
     is_binded_premium_line,
     send_message_by_url,
@@ -1353,7 +1354,7 @@ async def transfer_credits(
     """
     积分转移功能
 
-    转移积分给其他用户，收取1%的手续费
+    转移积分给其他用户，收取手续费
     """
     try:
         sender_id = user.id
@@ -1388,8 +1389,8 @@ async def transfer_credits(
 
             sender_credits = sender_stats[2]
 
-            # 计算手续费 (1%)
-            fee_amount = amount * 0.01
+            # 计算手续费 (5%)
+            fee_amount = amount * 0.05
             total_deduction = amount + fee_amount
 
             # 检查余额是否足够
@@ -1473,3 +1474,47 @@ async def transfer_credits(
         return CreditsTransferResponse(
             success=False, message="转移过程出错，请稍后再试"
         )
+
+
+@router.get("/users")
+@require_telegram_auth
+async def get_all_users(
+    request: Request, user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取所有用户信息（用于用户选择）"""
+
+    db = DB()
+    try:
+        # 从 statistics 表获取所有用户
+        stats_users = db.cur.execute(
+            "SELECT tg_id, donation, credits FROM statistics"
+        ).fetchall()
+
+        user_list = []
+        for tg_id, donation, credits in stats_users:
+            if tg_id:  # 确保tg_id不为空
+                # 获取用户的Telegram信息
+                tg_info = get_user_info_from_tg_id(tg_id)
+
+                user_list.append(
+                    {
+                        "tg_id": tg_id,
+                        "display_name": tg_info.get("first_name")
+                        or tg_info.get("username")
+                        or str(tg_id),
+                        "photo_url": tg_info.get("photo_url"),
+                        "current_donation": float(donation) if donation else 0.0,
+                        "current_credits": float(credits) if credits else 0.0,
+                    }
+                )
+
+        logger.info(
+            f"用户 {user.username or user.id} 获取了 {len(user_list)} 个用户信息"
+        )
+        return user_list
+
+    except Exception as e:
+        logger.error(f"获取用户列表失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取用户列表失败")
+    finally:
+        db.close()

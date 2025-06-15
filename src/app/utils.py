@@ -38,8 +38,7 @@ class HTTPSessionManager:
             limit=100,
             limit_per_host=30,
             enable_cleanup_closed=True,
-            force_close=True,
-            keepalive_timeout=30,
+            keepalive_timeout=30,  # 使用 keepalive 而不是 force_close
             ssl=None,
         )
 

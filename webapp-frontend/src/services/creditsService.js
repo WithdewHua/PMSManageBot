@@ -17,3 +17,17 @@ export async function transferCredits(transferData) {
     throw error;
   }
 }
+
+/**
+ * 获取所有用户信息（用于积分转移和捐赠）
+ * @returns {Promise} 用户列表
+ */
+export async function getAllUsers() {
+  try {
+    const response = await apiClient.get('/api/user/users');
+    return response.data;
+  } catch (error) {
+    console.error('获取用户列表失败:', error);
+    throw error;
+  }
+}

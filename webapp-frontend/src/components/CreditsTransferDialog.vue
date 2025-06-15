@@ -20,7 +20,7 @@
             class="mb-4"
             rounded="lg"
           >
-            每笔转移将收取 1% 手续费，转移对象不可以是自己
+            每笔转移将收取 5% 手续费，转移对象不可以是自己
           </v-alert>
 
           <!-- 当前积分显示 -->
@@ -65,7 +65,6 @@
                     <v-icon v-else>mdi-account-circle</v-icon>
                   </v-avatar>
                 </template>
-                <v-list-item-title>{{ item.raw.display_name }}</v-list-item-title>
                 <v-list-item-subtitle>
                   ID: {{ item.raw.tg_id }}
                   <span v-if="item.raw.current_credits > 0">
@@ -104,7 +103,7 @@
                 <span class="font-weight-medium">{{ parseFloat(transferAmount).toFixed(2) }}</span>
               </div>
               <div class="d-flex justify-space-between align-center mb-2">
-                <span class="text-body-2">手续费 (1%)：</span>
+                <span class="text-body-2">手续费 (5%)：</span>
                 <span class="font-weight-medium text-warning">{{ feeAmount.toFixed(2) }}</span>
               </div>
               <v-divider class="my-2"></v-divider>
@@ -161,7 +160,7 @@
 </template>
 
 <script>
-import { getAllUsers } from '@/services/adminService'
+import { getAllUsers } from '@/services/creditsService'
 import { transferCredits } from '@/services/creditsService'
 
 export default {
@@ -231,7 +230,7 @@ export default {
 
     calculateFee() {
       const amount = parseFloat(this.transferAmount) || 0
-      this.feeAmount = amount * 0.01
+      this.feeAmount = amount * 0.05
       this.totalDeduction = amount + this.feeAmount
     },
     
