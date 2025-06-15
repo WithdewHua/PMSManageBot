@@ -13,7 +13,7 @@ from app.handlers.status import *
 from app.handlers.user import *
 from app.log import logger
 from app.scheduler import Scheduler
-from app.update_db import update_credits, update_plex_info
+from app.update_db import finish_expired_auctions_job, update_credits, update_plex_info
 from app.utils import refresh_emby_user_info, refresh_tg_user_info
 from telegram.ext import ApplicationBuilder
 
@@ -99,6 +99,17 @@ def add_init_scheduler_job():
         next_run_time=datetime.datetime.now() + datetime.timedelta(minutes=1),
     )
     logger.info("添加定时任务：每天早上 07:00 更新 Emby 用户信息")
+
+    # 每小时检查并结束过期的竞拍活动
+    scheduler.add_job(
+        func=finish_expired_auctions_job,
+        trigger="cron",
+        id="finish_expired_auctions",
+        replace_existing=True,
+        max_instances=1,
+        minute=0,  # 每小时的第0分钟执行
+    )
+    logger.info("添加定时任务：每小时自动结束过期竞拍活动")
 
 
 if __name__ == "__main__":

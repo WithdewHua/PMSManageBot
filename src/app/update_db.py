@@ -7,7 +7,11 @@ from app.emby import Emby
 from app.log import logger
 from app.plex import Plex
 from app.tautulli import Tautulli
-from app.utils import get_user_total_duration, send_message_by_url
+from app.utils import (
+    get_user_name_from_tg_id,
+    get_user_total_duration,
+    send_message_by_url,
+)
 
 
 def update_plex_credits():
@@ -319,15 +323,35 @@ def add_redeem_code(tg_id=None, num=1, is_privileged=False):
                         settings.save_config_to_env_file(
                             {"PRIVILEGED_CODES": ",".join(settings.PRIVILEGED_CODES)}
                         )
-                        logger.info(f"添加特权邀请码 {code} 给用户 {uid}")
+                        logger.info(
+                            f"添加特权邀请码 {code} 给用户 {get_user_name_from_tg_id(uid)}"
+                        )
                 else:
-                    logger.info(f"添加邀请码 {code} 给用户 {uid}")
+                    logger.info(
+                        f"添加邀请码 {code} 给用户 {get_user_name_from_tg_id(uid)}"
+                    )
     except Exception as e:
         print(e)
     else:
         db.con.commit()
     finally:
         db.close()
+
+
+def finish_expired_auctions_job():
+    """定时任务：结束过期的竞拍活动"""
+    try:
+        db = DB()
+        finished_auctions = db.finish_expired_auctions()
+        if finished_auctions:
+            logger.info(f"自动结束了 {len(finished_auctions)} 个过期竞拍活动")
+            for auction in finished_auctions:
+                logger.info(
+                    f"竞拍 {auction['id']} ({auction['title']}) 已结束，获胜者: {get_user_name_from_tg_id(auction['winner_id']) if auction['winner_id'] else '无'}"
+                )
+        db.close()
+    except Exception as e:
+        logger.error(f"自动结束过期竞拍失败: {e}")
 
 
 if __name__ == "__main__":

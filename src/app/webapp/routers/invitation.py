@@ -414,7 +414,7 @@ async def redeem_invite_code_for_credits(
                 )
 
             logger.info(
-                f"用户 {user_id} 成功将邀请码 {code} ({code_owner}) 兑换为 {credits_earned} 积分"
+                f"用户 {get_user_name_from_tg_id(user_id)} 成功将邀请码 {code} ({get_user_name_from_tg_id(code_owner)}) 兑换为 {credits_earned} 积分"
             )
 
             return RedeemForCreditsResponse(

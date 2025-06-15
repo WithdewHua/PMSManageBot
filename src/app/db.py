@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
-import logging
 import sqlite3
-from typing import Optional
+import traceback
+from typing import List, Optional
 
 from app.config import settings
+from app.log import logger
 
 
 class DB:
@@ -56,10 +57,33 @@ class DB:
                     timestamp INTEGER,
                     date TEXT
                 );
+
+                CREATE TABLE auctions(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    starting_price REAL NOT NULL,
+                    current_price REAL NOT NULL,
+                    end_time INTEGER NOT NULL,
+                    created_by INTEGER NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    is_active INTEGER DEFAULT 1,
+                    winner_id INTEGER DEFAULT NULL,
+                    bid_count INTEGER DEFAULT 0
+                );
+
+                CREATE TABLE auction_bids(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    auction_id INTEGER NOT NULL,
+                    bidder_id INTEGER NOT NULL,
+                    bid_amount REAL NOT NULL,
+                    bid_time INTEGER NOT NULL,
+                    FOREIGN KEY (auction_id) REFERENCES auctions (id)
+                );
                 """
             )
         except sqlite3.OperationalError:
-            logging.warning("Table user is created already, skip...")
+            logger.warning("Table user is created already, skip...")
         else:
             self.con.commit()
 
@@ -93,7 +117,7 @@ class DB:
                 ),
             )
         except Exception as e:
-            logging.error(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return False
         else:
             self.con.commit()
@@ -127,7 +151,7 @@ class DB:
                 ),
             )
         except Exception as e:
-            logging.error(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return False
         else:
             self.con.commit()
@@ -140,7 +164,7 @@ class DB:
                 (user_id, user_email, tg_id),
             )
         except Exception as e:
-            logging.error(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return False
         else:
             self.con.commit()
@@ -152,7 +176,7 @@ class DB:
                 "INSERT INTO statistics VALUES (?, ?, ?)", (tg_id, donation, credits)
             )
         except Exception as e:
-            logging.error(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return False
         else:
             self.con.commit()
@@ -169,7 +193,7 @@ class DB:
                     "UPDATE emby_user SET tg_id=? WHERE emby_id=?", (tg_id, emby_id)
                 )
         except Exception as e:
-            logging.error(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return False
         else:
             self.con.commit()
@@ -182,7 +206,7 @@ class DB:
                 (code, owner, is_used, used_by),
             )
         except Exception as e:
-            logging.error(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return False
         else:
             self.con.commit()
@@ -212,9 +236,9 @@ class DB:
                     (credits, emby_id),
                 )
             else:
-                logging.error("Error: there is no enough params")
+                logger.error("Error: there is no enough params")
         except Exception as e:
-            logging.error(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return False
         else:
             self.con.commit()
@@ -231,7 +255,7 @@ class DB:
                 return True, res[0]
             return False, f"未找到用户: {tg_id}"
         except Exception as e:
-            logging.error(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return False, "获取积分失败"
 
     def update_user_donation(self, donation: int, tg_id):
@@ -241,7 +265,7 @@ class DB:
                 "UPDATE statistics SET donation=? WHERE tg_id=?", (donation, tg_id)
             )
         except Exception as e:
-            logging.error(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return False
         else:
             self.con.commit()
@@ -254,7 +278,7 @@ class DB:
                 (1, used_by, code),
             )
         except Exception as e:
-            logging.error(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return False
         else:
             self.con.commit()
@@ -293,9 +317,9 @@ class DB:
                         (all_lib, unlock_time, tg_id),
                     )
             else:
-                logging.error("Error: please specify correct media server")
+                logger.error("Error: please specify correct media server")
         except Exception as e:
-            logging.error(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return False
         else:
             self.con.commit()
@@ -415,7 +439,7 @@ class DB:
                     "UPDATE emby_user SET emby_line=? WHERE emby_id=?", (line, emby_id)
                 )
         except Exception as e:
-            logging.error(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return False
         else:
             self.con.commit()
@@ -443,7 +467,7 @@ class DB:
                     "UPDATE user SET plex_line=? WHERE plex_id=?", (line, plex_id)
                 )
         except Exception as e:
-            logging.error(f"Error: {e}")
+            logger.error(f"Error: {e}")
             return False
         else:
             self.con.commit()
@@ -476,7 +500,7 @@ class DB:
             self.con.commit()
             return True
         except Exception as e:
-            logging.error(f"Error adding wheel spin record: {e}")
+            logger.error(f"Error adding wheel spin record: {e}")
             return False
 
     def get_wheel_stats(self):
@@ -533,7 +557,7 @@ class DB:
                 "totalInviteCodes": total_invite_codes,
             }
         except Exception as e:
-            logging.error(f"Error getting wheel stats: {e}")
+            logger.error(f"Error getting wheel stats: {e}")
             return {
                 "totalSpins": 0,
                 "activeUsers": 0,
@@ -542,6 +566,593 @@ class DB:
                 "totalCreditsChange": 0.0,
                 "totalInviteCodes": 0,
             }
+
+    def create_auction(
+        self,
+        title: str,
+        description: str,
+        starting_price: float,
+        end_time: int,
+        created_by: int,
+    ) -> Optional[int]:
+        """创建竞拍"""
+        try:
+            import time
+
+            created_at = int(time.time())
+
+            self.cur.execute(
+                """INSERT INTO auctions 
+                   (title, description, starting_price, current_price, end_time, created_by, created_at) 
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    title,
+                    description,
+                    starting_price,
+                    starting_price,
+                    end_time,
+                    created_by,
+                    created_at,
+                ),
+            )
+            self.con.commit()
+            return self.cur.lastrowid
+        except Exception as e:
+            logger.error(f"Error creating auction: {e}")
+            return None
+
+    def get_auction_by_id(self, auction_id: int) -> Optional[dict]:
+        """根据ID获取竞拍信息"""
+        try:
+            result = self.cur.execute(
+                "SELECT * FROM auctions WHERE id = ?", (auction_id,)
+            ).fetchone()
+
+            if result:
+                return {
+                    "id": result[0],
+                    "title": result[1] or f"竞拍活动 #{result[0]}",
+                    "description": result[2] or "无描述",
+                    "starting_price": result[3] or 0,
+                    "current_price": result[4] or result[3] or 0,
+                    "end_time": result[5],
+                    "created_by": result[6],
+                    "created_at": result[7],
+                    "is_active": result[8],
+                    "winner_id": result[9],
+                    "bid_count": result[10],
+                }
+            return None
+        except Exception as e:
+            logger.error(f"Error getting auction by id: {e}")
+            return None
+
+    def get_active_auctions(self, limit: int = 50) -> List[dict]:
+        """获取活跃竞拍列表"""
+        try:
+            import time
+
+            current_time = int(time.time())
+
+            results = self.cur.execute(
+                """SELECT * FROM auctions 
+                   WHERE is_active = 1 AND end_time > ? 
+                   ORDER BY created_at DESC LIMIT ?""",
+                (current_time, limit),
+            ).fetchall()
+
+            auctions = []
+            for result in results:
+                auctions.append(
+                    {
+                        "id": result[0],
+                        "title": result[1] or f"竞拍活动 #{result[0]}",
+                        "description": result[2] or "无描述",
+                        "starting_price": result[3] or 0,
+                        "current_price": result[4] or result[3] or 0,
+                        "end_time": result[5],
+                        "created_by": result[6],
+                        "created_at": result[7],
+                        "is_active": result[8],
+                        "winner_id": result[9],
+                        "bid_count": result[10],
+                    }
+                )
+            return auctions
+        except Exception as e:
+            logger.error(f"Error getting active auctions: {e}")
+            return []
+
+    def place_bid(self, auction_id: int, bidder_id: int, bid_amount: float) -> bool:
+        """出价"""
+        try:
+            import time
+
+            bid_time = int(time.time())
+
+            # 检查竞拍是否存在且活跃
+            auction = self.get_auction_by_id(auction_id)
+            if (
+                not auction
+                or not auction["is_active"]
+                or auction["end_time"] <= bid_time
+            ):
+                return False
+
+            # 检查出价是否高于当前价格
+            if bid_amount <= auction["current_price"]:
+                return False
+
+            # 插入出价记录
+            self.cur.execute(
+                "INSERT INTO auction_bids (auction_id, bidder_id, bid_amount, bid_time) VALUES (?, ?, ?, ?)",
+                (auction_id, bidder_id, bid_amount, bid_time),
+            )
+
+            # 更新竞拍当前价格和出价次数
+            self.cur.execute(
+                "UPDATE auctions SET current_price = ?, bid_count = bid_count + 1 WHERE id = ?",
+                (bid_amount, auction_id),
+            )
+
+            self.con.commit()
+            return True
+        except Exception as e:
+            logger.error(f"Error placing bid: {e}")
+            return False
+
+    def get_auction_bids(self, auction_id: int, limit: int = 50) -> List[dict]:
+        """获取竞拍出价记录"""
+        try:
+            results = self.cur.execute(
+                """SELECT ab.* 
+                FROM auction_bids ab 
+                WHERE ab.auction_id = ? 
+                ORDER BY ab.bid_time DESC 
+                LIMIT ?""",
+                (auction_id, limit),
+            ).fetchall()
+
+            bids = []
+            for result in results:
+                bids.append(
+                    {
+                        "id": result[0],
+                        "auction_id": result[1],
+                        "bidder_id": result[2],
+                        "bid_amount": result[3],
+                        "bid_time": result[4],
+                        "bidder_name": f"用户{result[2]}",
+                    }
+                )
+            return bids
+        except Exception as e:
+            logger.error(f"Error getting auction bids: {e}")
+            return []
+
+    def get_user_highest_bid(self, auction_id: int, user_id: int) -> Optional[float]:
+        """获取用户在特定竞拍中的最高出价"""
+        try:
+            result = self.cur.execute(
+                "SELECT MAX(bid_amount) FROM auction_bids WHERE auction_id = ? AND bidder_id = ?",
+                (auction_id, user_id),
+            ).fetchone()
+
+            return result[0] if result and result[0] else None
+        except Exception as e:
+            logger.error(f"Error getting user highest bid: {e}")
+            return None
+
+    def finish_expired_auctions(self) -> List[dict]:
+        """结束过期的竞拍"""
+        try:
+            import time
+
+            current_time = int(time.time())
+
+            # 查找过期的活跃竞拍
+            expired_auctions = self.cur.execute(
+                "SELECT * FROM auctions WHERE is_active = 1 AND end_time <= ?",
+                (current_time,),
+            ).fetchall()
+
+            finished_auctions = []
+            for auction in expired_auctions:
+                auction_id = auction[0]
+
+                # 获取最高出价者
+                highest_bid = self.cur.execute(
+                    """SELECT bidder_id, MAX(bid_amount) FROM auction_bids 
+                       WHERE auction_id = ? GROUP BY auction_id""",
+                    (auction_id,),
+                ).fetchone()
+
+                winner_id = highest_bid[0] if highest_bid else None
+                final_price = auction[4]  # current_price from auctions table
+                credits_reduced = False
+                # 如果有获胜者，扣除其积分
+                if winner_id and highest_bid:
+                    final_price = highest_bid[1]  # 使用最高出价作为最终价格
+
+                    # 扣除获胜者的积分
+                    success, current_credits = self.get_user_credits(winner_id)
+                    if success and current_credits >= final_price:
+                        self.cur.execute(
+                            "UPDATE statistics SET credits = credits - ? WHERE tg_id = ?",
+                            (final_price, winner_id),
+                        )
+                        credits_reduced = True
+                        logger.info(
+                            f"Auction {auction_id} finished: deducted {final_price} credits from winner {winner_id}"
+                        )
+                    else:
+                        logger.warning(
+                            f"Winner {winner_id} has insufficient credits ({current_credits}) for auction {auction_id} (price: {final_price})"
+                        )
+
+                # 更新竞拍状态
+                self.cur.execute(
+                    "UPDATE auctions SET is_active = 0, winner_id = ?, current_price = ? WHERE id = ?",
+                    (winner_id, final_price, auction_id),
+                )
+
+                finished_auctions.append(
+                    {
+                        "id": auction_id,
+                        "title": auction[1] or f"竞拍活动 #{auction_id}",
+                        "winner_id": winner_id,
+                        "final_price": final_price,
+                        "credits_reduced": credits_reduced,
+                    }
+                )
+
+            self.con.commit()
+            return finished_auctions
+        except Exception as e:
+            logger.error(f"Error finishing expired auctions: {e}")
+            logger.error(traceback.format_exc())
+            return []
+
+    def get_auction_stats(self) -> dict:
+        """获取竞拍统计数据"""
+        try:
+            # 总竞拍数
+            total_auctions = self.cur.execute(
+                "SELECT COUNT(*) FROM auctions"
+            ).fetchone()[0]
+
+            # 活跃竞拍数
+            import time
+
+            current_time = int(time.time())
+            active_auctions = self.cur.execute(
+                "SELECT COUNT(*) FROM auctions WHERE is_active = 1 AND end_time > ?",
+                (current_time,),
+            ).fetchone()[0]
+
+            # 总出价数
+            total_bids = self.cur.execute(
+                "SELECT COUNT(*) FROM auction_bids"
+            ).fetchone()[0]
+
+            # 总成交价值
+            total_value_result = self.cur.execute(
+                "SELECT SUM(current_price) FROM auctions WHERE winner_id IS NOT NULL"
+            ).fetchone()
+            total_value = float(total_value_result[0]) if total_value_result[0] else 0.0
+
+            return {
+                "total_auctions": total_auctions,
+                "active_auctions": active_auctions,
+                "total_bids": total_bids,
+                "total_value": total_value,
+            }
+        except Exception as e:
+            logger.error(f"Error getting auction stats: {e}")
+            return {
+                "total_auctions": 0,
+                "active_auctions": 0,
+                "total_bids": 0,
+                "total_value": 0.0,
+            }
+
+    def get_all_auctions(
+        self, status: str = None, limit: int = 50, offset: int = 0
+    ) -> List[dict]:
+        """获取所有竞拍活动（管理员用）"""
+        try:
+            if status:
+                if status == "active":
+                    import time
+
+                    current_time = int(time.time())
+                    self.cur.execute(
+                        """SELECT * FROM auctions 
+                        WHERE is_active = 1 AND end_time > ? 
+                        ORDER BY created_at DESC 
+                        LIMIT ? OFFSET ?""",
+                        (current_time, limit, offset),
+                    )
+                elif status == "ended":
+                    import time
+
+                    current_time = int(time.time())
+                    self.cur.execute(
+                        """SELECT * FROM auctions 
+                        WHERE is_active = 0 OR end_time <= ? 
+                        ORDER BY created_at DESC 
+                        LIMIT ? OFFSET ?""",
+                        (current_time, limit, offset),
+                    )
+                else:
+                    self.cur.execute(
+                        "SELECT * FROM auctions ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                        (limit, offset),
+                    )
+            else:
+                self.cur.execute(
+                    "SELECT * FROM auctions ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                    (limit, offset),
+                )
+
+            auctions = []
+            for auction in self.cur.fetchall():
+                # 获取出价数量
+                bid_count = self.cur.execute(
+                    "SELECT COUNT(*) FROM auction_bids WHERE auction_id = ?",
+                    (auction[0],),
+                ).fetchone()[0]
+
+                auctions.append(
+                    {
+                        "id": auction[0],
+                        "title": auction[1] or f"竞拍活动 #{auction[0]}",
+                        "description": auction[2] or "无描述",
+                        "starting_price": auction[3] or 0,
+                        "current_price": auction[4] or auction[3] or 0,
+                        "end_time": auction[5],
+                        "created_by": auction[6],
+                        "created_at": auction[7],
+                        "is_active": bool(auction[8]),
+                        "winner_id": auction[9],
+                        "bid_count": bid_count,
+                        "status": self._get_auction_status(auction),
+                    }
+                )
+
+            return auctions
+        except Exception as e:
+            logger.error(f"Error getting all auctions: {e}")
+            return []
+
+    def _get_auction_status(self, auction) -> str:
+        """获取竞拍状态"""
+        import time
+
+        current_time = int(time.time())
+
+        if not auction[8]:  # is_active
+            return "ended"
+        elif auction[5] <= current_time:  # end_time
+            return "ended"
+        else:
+            return "active"
+
+    def update_auction(self, auction_id: int, update_data: dict) -> bool:
+        """更新竞拍活动"""
+        try:
+            # 构建更新语句
+            set_clauses = []
+            values = []
+
+            if "title" in update_data:
+                set_clauses.append("title = ?")
+                values.append(update_data["title"])
+
+            if "description" in update_data:
+                set_clauses.append("description = ?")
+                values.append(update_data["description"])
+
+            if "starting_price" in update_data:
+                set_clauses.append("starting_price = ?")
+                values.append(update_data["starting_price"])
+
+            if "end_time" in update_data:
+                set_clauses.append("end_time = ?")
+                values.append(update_data["end_time"])
+
+            if not set_clauses:
+                return False
+
+            values.append(auction_id)
+
+            self.cur.execute(
+                f"UPDATE auctions SET {', '.join(set_clauses)} WHERE id = ?",
+                tuple(values),
+            )
+
+            self.con.commit()
+            return self.cur.rowcount > 0
+        except Exception as e:
+            logger.error(f"Error updating auction: {e}")
+            return False
+
+    def delete_auction(self, auction_id: int) -> bool:
+        """删除竞拍活动"""
+        try:
+            # 先删除相关的出价记录
+            self.cur.execute(
+                "DELETE FROM auction_bids WHERE auction_id = ?", (auction_id,)
+            )
+
+            # 再删除竞拍活动
+            self.cur.execute("DELETE FROM auctions WHERE id = ?", (auction_id,))
+
+            self.con.commit()
+            return self.cur.rowcount > 0
+        except Exception as e:
+            logger.error(f"Error deleting auction: {e}")
+            return False
+
+    def finish_auction_by_id(self, auction_id: int) -> tuple:
+        """手动结束指定竞拍活动"""
+        try:
+            # 获取竞拍信息
+            auction = self.get_auction_by_id(auction_id)
+            if not auction:
+                return False, f"竞拍 id {auction_id} 不存在"
+
+            # 获取最高出价
+            highest_bid = self.cur.execute(
+                """SELECT bidder_id, bid_amount FROM auction_bids 
+                WHERE auction_id = ? ORDER BY bid_amount DESC LIMIT 1""",
+                (auction_id,),
+            ).fetchone()
+
+            winner_id = None
+            final_price = auction["starting_price"]
+            credits_reduced = False
+
+            if highest_bid:
+                winner_id = highest_bid[0]
+                final_price = highest_bid[1]
+
+                # 扣除获胜者的积分
+                success, current_credits = self.get_user_credits(winner_id)
+                if success and current_credits >= final_price:
+                    self.cur.execute(
+                        "UPDATE statistics SET credits = credits - ? WHERE tg_id = ?",
+                        (final_price, winner_id),
+                    )
+                    credits_reduced = True
+
+            # 更新竞拍状态
+            self.cur.execute(
+                """UPDATE auctions 
+                SET is_active = 0, winner_id = ?, current_price = ? 
+                WHERE id = ?""",
+                (winner_id, final_price, auction_id),
+            )
+
+            self.con.commit()
+            return True, {
+                "id": auction_id,
+                "title": auction["title"],
+                "winner_id": winner_id,
+                "final_price": final_price,
+                "credits_reduced": credits_reduced,
+            }
+
+        except Exception as e:
+            logger.error(f"Error finishing auction {auction_id}: {e}")
+            logger.error(traceback.format_exc())
+            return False, str(e)
+
+    def get_user_auction_history(self, user_id: int, limit: int = 20) -> List[dict]:
+        """获取用户参与的竞拍历史"""
+        try:
+            self.cur.execute(
+                """SELECT DISTINCT a.*, ab.bid_amount as user_highest_bid
+                FROM auctions a
+                JOIN auction_bids ab ON a.id = ab.auction_id
+                WHERE ab.bidder_id = ?
+                ORDER BY a.created_at DESC
+                LIMIT ?""",
+                (user_id, limit),
+            )
+
+            auctions = []
+            for auction in self.cur.fetchall():
+                # 获取用户最高出价
+                highest_bid = self.cur.execute(
+                    """SELECT MAX(bid_amount) FROM auction_bids 
+                    WHERE auction_id = ? AND bidder_id = ?""",
+                    (auction[0], user_id),
+                ).fetchone()[0]
+
+                auctions.append(
+                    {
+                        "id": auction[0],
+                        "title": auction[1] or f"竞拍活动 #{auction[0]}",
+                        "description": auction[2] or "无描述",
+                        "starting_price": auction[3] or 0,
+                        "current_price": auction[4] or auction[3] or 0,
+                        "end_time": auction[5],
+                        "created_by": auction[6],
+                        "created_at": auction[7],
+                        "is_active": bool(auction[8]),
+                        "winner_id": auction[9],
+                        "user_highest_bid": highest_bid,
+                        "is_winner": auction[9] == user_id,
+                    }
+                )
+
+            return auctions
+        except Exception as e:
+            logger.error(f"Error getting user auction history: {e}")
+            return []
+
+    def get_detailed_auction_stats(
+        self, start_date: int = None, end_date: int = None
+    ) -> dict:
+        """获取详细的竞拍统计数据"""
+        try:
+            import time
+
+            # 设置默认时间范围（如果未提供）
+            if not start_date:
+                start_date = 0
+            if not end_date:
+                end_date = int(time.time())
+
+            # 基本统计
+            stats = self.get_auction_stats()
+
+            # 时间段内的统计
+            period_auctions = self.cur.execute(
+                "SELECT COUNT(*) FROM auctions WHERE created_at BETWEEN ? AND ?",
+                (start_date, end_date),
+            ).fetchone()[0]
+
+            period_bids = self.cur.execute(
+                """SELECT COUNT(*) FROM auction_bids ab
+                JOIN auctions a ON ab.auction_id = a.id
+                WHERE a.created_at BETWEEN ? AND ?""",
+                (start_date, end_date),
+            ).fetchone()[0]
+
+            # 平均出价数
+            avg_bids_result = self.cur.execute(
+                """SELECT AVG(bid_count) FROM (
+                    SELECT COUNT(*) as bid_count FROM auction_bids 
+                    GROUP BY auction_id
+                )"""
+            ).fetchone()
+            avg_bids = float(avg_bids_result[0]) if avg_bids_result[0] else 0.0
+
+            # 最高成交价
+            highest_price_result = self.cur.execute(
+                "SELECT MAX(current_price) FROM auctions WHERE winner_id IS NOT NULL"
+            ).fetchone()
+            highest_price = (
+                float(highest_price_result[0]) if highest_price_result[0] else 0.0
+            )
+
+            stats.update(
+                {
+                    "period_auctions": period_auctions,
+                    "period_bids": period_bids,
+                    "avg_bids_per_auction": avg_bids,
+                    "highest_transaction": highest_price,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                }
+            )
+
+            return stats
+        except Exception as e:
+            logger.error(f"Error getting detailed auction stats: {e}")
+            return self.get_auction_stats()
 
     def close(self):
         self.cur.close()

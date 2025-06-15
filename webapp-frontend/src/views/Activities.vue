@@ -52,13 +52,23 @@
                 </v-chip>
                 
                 <v-chip
-                  v-if="activity.costCredits"
+                  v-if="activity.costCredits && activity.id !== 'auction'"
                   size="small"
                   variant="outlined"
                   color="info"
                 >
                   <v-icon size="small" class="mr-1">mdi-minus</v-icon>
                   参与消耗积分：{{ activity.costCredits }}
+                </v-chip>
+                
+                <v-chip
+                  v-if="activity.id === 'auction'"
+                  size="small"
+                  variant="outlined"
+                  color="success"
+                >
+                  <v-icon size="small" class="mr-1">mdi-gift-outline</v-icon>
+                  免费参与
                 </v-chip>
               </div>
             </div>
@@ -154,7 +164,7 @@
                 </v-alert>
                 
                 <v-alert
-                  v-if="selectedActivity.costCredits"
+                  v-if="selectedActivity.costCredits && selectedActivity.id !== 'auction'"
                   type="info"
                   variant="tonal"
                   density="compact"
@@ -162,6 +172,17 @@
                 >
                   <v-icon size="small" class="mr-1">mdi-minus</v-icon>
                   每次参与消耗：{{ selectedActivity.costCredits }} 积分
+                </v-alert>
+                
+                <v-alert
+                  v-if="selectedActivity.id === 'auction'"
+                  type="success"
+                  variant="tonal"
+                  density="compact"
+                  class="mb-3"
+                >
+                  <v-icon size="small" class="mr-1">mdi-information</v-icon>
+                  免费参与，只需要有足够积分进行出价
                 </v-alert>
                 
                 <v-alert
@@ -186,6 +207,174 @@
           </v-card-text>
         </v-card>
       </v-dialog>
+
+      <!-- 竞拍活动弹窗 -->
+      <v-dialog v-model="showAuctionDialog" max-width="800" persistent>
+        <v-card class="activity-dialog">
+          <v-card-title class="d-flex align-center justify-space-between">
+            <div class="d-flex align-center">
+              <v-icon class="mr-2" color="blue">mdi-gavel</v-icon>
+              竞拍活动
+            </div>
+            <v-btn icon @click="closeAuctionDialog">
+              <v-icon>mdi-close</v-icon>
+            </v-btn>
+          </v-card-title>
+          
+          <v-divider></v-divider>
+          
+          <v-card-text class="pa-6">
+            <div v-if="auctionLoading" class="text-center py-8">
+              <v-progress-circular indeterminate color="primary" size="50"></v-progress-circular>
+              <div class="mt-3">加载竞拍活动中...</div>
+            </div>
+            
+            <div v-else-if="auctionError" class="text-center py-8">
+              <v-alert type="error" variant="tonal">{{ auctionError }}</v-alert>
+              <v-btn color="primary" class="mt-3" @click="loadActiveAuctions">重试</v-btn>
+            </div>
+            
+            <div v-else-if="activeAuctions.length === 0" class="text-center py-8">
+              <v-icon size="64" color="grey-lighten-2">mdi-gavel</v-icon>
+              <div class="text-h6 mt-3 text-medium-emphasis">暂无进行中的竞拍活动</div>
+              <div class="text-body-2 text-medium-emphasis">请稍后再来查看</div>
+            </div>
+            
+            <div v-else>
+              <v-row>
+                <v-col v-for="auction in activeAuctions" :key="auction.id" cols="12" md="6">
+                  <v-card variant="outlined" rounded="lg" class="auction-card">
+                    <v-card-title class="d-flex align-center">
+                      <v-icon class="mr-2" color="blue">mdi-trophy</v-icon>
+                      {{ auction.title }}
+                    </v-card-title>
+                    
+                    <v-card-text>
+                      <p class="text-body-2 mb-3">{{ auction.description }}</p>
+                      
+                      <div class="auction-info mb-3">
+                        <v-row dense>
+                          <v-col cols="6">
+                            <div class="info-item">
+                              <div class="text-caption text-medium-emphasis">起拍价</div>
+                              <div class="text-h6 text-primary">{{ auction.starting_price }}</div>
+                            </div>
+                          </v-col>
+                          <v-col cols="6">
+                            <div class="info-item">
+                              <div class="text-caption text-medium-emphasis">当前最高价</div>
+                              <div class="text-h6 text-warning">{{ auction.current_price || auction.starting_price }}</div>
+                            </div>
+                          </v-col>
+                        </v-row>
+                      </div>
+                      
+                      <div class="mb-3">
+                        <div class="text-caption text-medium-emphasis">结束时间</div>
+                        <div class="text-body-2">{{ formatDateTime(auction.end_time) }}</div>
+                      </div>
+                      
+                      <div v-if="auction.recent_bids && auction.recent_bids.length > 0" class="mb-3">
+                        <div class="text-caption text-medium-emphasis mb-2">最近出价</div>
+                        <div class="recent-bids">
+                          <div v-for="bid in auction.recent_bids.slice(0, 3)" :key="bid.id" class="bid-item">
+                            <span class="text-body-2">{{ bid.user_name }}</span>
+                            <span class="text-warning font-weight-bold">{{ bid.bid_amount }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </v-card-text>
+                    
+                    <v-card-actions class="pa-4 pt-0">
+                      <v-btn 
+                        color="blue" 
+                        variant="elevated" 
+                        block
+                        :disabled="!canParticipateAuction(auction)"
+                        @click="openBidDialog(auction)"
+                      >
+                        <v-icon start>mdi-gavel</v-icon>
+                        {{ canParticipateAuction(auction) ? '参与竞拍' : '积分不足' }}
+                      </v-btn>
+                    </v-card-actions>
+                  </v-card>
+                </v-col>
+              </v-row>
+            </div>
+          </v-card-text>
+          
+          <v-card-actions class="justify-center pb-4">
+            <div class="text-caption text-info">
+              当前积分：{{ userCredits.toFixed(2) }}
+            </div>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <!-- 出价弹窗 -->
+      <v-dialog v-model="showBidDialog" max-width="400">
+        <v-card v-if="selectedAuction">
+          <v-card-title>
+            <v-icon class="mr-2" color="blue">mdi-gavel</v-icon>
+            参与竞拍
+          </v-card-title>
+          
+          <v-card-text>
+            <div class="mb-4">
+              <div class="text-h6">{{ selectedAuction.title }}</div>
+              <div class="text-body-2 text-medium-emphasis">{{ selectedAuction.description }}</div>
+            </div>
+            
+            <div class="mb-4">
+              <div class="text-caption text-medium-emphasis">当前最高价</div>
+              <div class="text-h6 text-warning">{{ selectedAuction.current_price || selectedAuction.starting_price }}</div>
+            </div>
+            
+            <v-text-field
+              v-model="bidAmount"
+              label="出价金额"
+              type="number"
+              :min="getMinBidAmount(selectedAuction)"
+              variant="outlined"
+              :rules="bidRules"
+              prefix="💰"
+            ></v-text-field>
+            
+            <div class="text-caption text-medium-emphasis">
+              最低出价：{{ getMinBidAmount(selectedAuction) }}
+            </div>
+          </v-card-text>
+          
+          <v-card-actions>
+            <v-spacer></v-spacer>
+            <v-btn variant="text" @click="closeBidDialog">取消</v-btn>
+            <v-btn 
+              color="blue" 
+              variant="elevated"
+              :loading="bidSubmitting"
+              :disabled="!isValidBid()"
+              @click="submitBid"
+            >
+              确认出价
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <!-- 消息提示 Snackbar -->
+      <v-snackbar 
+        v-model="showSnackbar" 
+        :color="snackbarColor" 
+        :timeout="4000"
+        location="top"
+      >
+        {{ snackbarMessage }}
+        <template v-slot:actions>
+          <v-btn variant="text" @click="showSnackbar = false">
+            关闭
+          </v-btn>
+        </template>
+      </v-snackbar>
     </div>
   </div>
 </template>
@@ -194,6 +383,7 @@
 import LuckyWheel from '@/components/LuckyWheel.vue'
 import { getUserInfo } from '@/api'
 import { getLuckyWheelUserStatus } from '@/services/wheelService'
+import { getActiveAuctions, placeBid, getAuctionDetails } from '@/services/auctionService'
 
 export default {
   name: 'Activities',
@@ -207,7 +397,20 @@ export default {
       error: null, // 错误信息
       showLuckyWheelDialog: false, // 幸运大转盘弹窗
       showActivityDialog: false, // 通用活动弹窗
+      showAuctionDialog: false, // 竞拍活动弹窗
+      showBidDialog: false, // 出价弹窗
       selectedActivity: null, // 选中的活动
+      selectedAuction: null, // 选中的竞拍
+      bidAmount: '', // 出价金额
+      bidSubmitting: false, // 出价提交中
+      // 竞拍相关数据
+      activeAuctions: [], // 活跃的竞拍活动
+      auctionLoading: false, // 竞拍加载状态
+      auctionError: null, // 竞拍错误信息
+      // 消息提示相关
+      showSnackbar: false,
+      snackbarMessage: '',
+      snackbarColor: 'success',
       // 活动配置 - 将从后端获取
       activitiesConfig: {
         luckyWheel: {
@@ -226,6 +429,16 @@ export default {
           // 这些值将从后端获取
           requireCredits: 30,
           costCredits: 10
+        },
+        {
+          id: 'auction',
+          title: '竞拍活动',
+          description: '🎯 参与竞拍，赢取稀有奖品',
+          icon: 'mdi-gavel',
+          iconColor: 'blue',
+          enabled: true,
+          requireCredits: 10,
+          costCredits: 0
         },
         {
           id: 'black-jack',
@@ -250,6 +463,16 @@ export default {
       return (activity) => {
         return this.userCredits >= activity.requireCredits
       }
+    },
+    
+    // 出价验证规则
+    bidRules() {
+      return [
+        v => !!v || '请输入出价金额',
+        v => !isNaN(v) && Number(v) > 0 || '出价必须是正数',
+        v => this.selectedAuction && Number(v) >= this.getMinBidAmount(this.selectedAuction) || `出价不能低于 ${this.getMinBidAmount(this.selectedAuction)}`,
+        v => Number(v) <= this.userCredits || '出价不能超过当前积分'
+      ]
     }
   },
   methods: {
@@ -353,6 +576,9 @@ export default {
       
       if (activity.id === 'lucky-wheel') {
         this.showLuckyWheelDialog = true
+      } else if (activity.id === 'auction') {
+        this.showAuctionDialog = true
+        this.loadActiveAuctions()
       } else {
         this.selectedActivity = activity
         this.showActivityDialog = true
@@ -368,6 +594,158 @@ export default {
     closeActivityDialog() {
       this.showActivityDialog = false
       this.selectedActivity = null
+    },
+
+    // 竞拍相关方法
+    async loadActiveAuctions() {
+      try {
+        this.auctionLoading = true
+        this.auctionError = null
+        const response = await getActiveAuctions()
+        
+        // 处理竞拍数据，添加最近出价信息
+        const auctions = response.data.auctions || []
+        
+        // 为每个竞拍获取最近的出价记录
+        for (let auction of auctions) {
+          try {
+            const detailResponse = await getAuctionDetails(auction.id)
+            if (detailResponse.data.recent_bids) {
+              auction.recent_bids = detailResponse.data.recent_bids
+            }
+          } catch (err) {
+            console.warn(`获取竞拍 ${auction.id} 的出价记录失败:`, err)
+            auction.recent_bids = []
+          }
+        }
+        
+        this.activeAuctions = auctions
+        console.log('加载活跃竞拍活动:', this.activeAuctions)
+      } catch (err) {
+        this.auctionError = err.response?.data?.detail || '加载竞拍活动失败'
+        console.error('加载竞拍活动失败:', err)
+      } finally {
+        this.auctionLoading = false
+      }
+    },
+
+    closeAuctionDialog() {
+      this.showAuctionDialog = false
+      this.activeAuctions = []
+      this.auctionError = null
+    },
+
+    canParticipateAuction(auction) {
+      // 检查用户是否有足够的积分参与竞拍（只需要满足最低出价金额）
+      const minBid = this.getMinBidAmount(auction)
+      return this.userCredits >= minBid
+    },
+
+    getMinBidAmount(auction) {
+      // 获取最小出价金额（当前价格 + 1 或起拍价）
+      const currentPrice = auction.current_price || auction.starting_price
+      return currentPrice + 1
+    },
+
+    openBidDialog(auction) {
+      this.selectedAuction = auction
+      this.bidAmount = this.getMinBidAmount(auction).toString()
+      this.showBidDialog = true
+    },
+
+    closeBidDialog() {
+      this.showBidDialog = false
+      this.selectedAuction = null
+      this.bidAmount = ''
+      this.bidSubmitting = false
+    },
+
+    isValidBid() {
+      if (!this.bidAmount || !this.selectedAuction) return false
+      const amount = Number(this.bidAmount)
+      return amount >= this.getMinBidAmount(this.selectedAuction) && amount <= this.userCredits
+    },
+
+    async submitBid() {
+      if (!this.isValidBid()) {
+        this.showMessage('出价信息无效，请检查出价金额', 'warning')
+        return
+      }
+
+      try {
+        this.bidSubmitting = true
+        const response = await placeBid(this.selectedAuction.id, Number(this.bidAmount))
+        
+        // 出价成功，更新本地数据
+        this.userCredits = response.data.user_credits || this.userCredits
+        
+        // 关闭出价弹窗
+        this.closeBidDialog()
+        
+        // 重新加载竞拍活动以显示最新状态
+        await this.loadActiveAuctions()
+        
+        // 显示成功消息
+        this.showMessage('出价成功！', 'success')
+        
+      } catch (err) {
+        // 提取错误消息
+        let errorMsg = '出价失败'
+        
+        if (err.response) {
+          // 服务器返回了错误响应
+          const errorData = err.response.data
+          if (typeof errorData === 'string') {
+            errorMsg = errorData
+          } else if (errorData?.detail) {
+            errorMsg = errorData.detail
+          } else if (errorData?.message) {
+            errorMsg = errorData.message
+          } else if (errorData?.error) {
+            errorMsg = errorData.error
+          } else {
+            errorMsg = `请求失败 (状态码: ${err.response.status})`
+          }
+        } else if (err.request) {
+          // 请求已发出但没有收到响应
+          errorMsg = '网络连接失败，请检查网络后重试'
+        } else if (err.message) {
+          // 其他错误
+          errorMsg = err.message
+        }
+        
+        this.showMessage(errorMsg, 'error')
+        console.error('出价失败详细信息:', {
+          error: err,
+          response: err.response?.data,
+          status: err.response?.status
+        })
+      } finally {
+        this.bidSubmitting = false
+      }
+    },
+
+    // 显示消息提示
+    showMessage(message, type = 'success') {
+      this.snackbarMessage = message
+      this.snackbarColor = type
+      this.showSnackbar = true
+    },
+
+    formatDateTime(dateString) {
+      if (!dateString) return '未知'
+      try {
+        const date = new Date(dateString)
+        return date.toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      } catch (err) {
+        return '时间格式错误'
+      }
     },
 
     // 获取活动状态颜色
