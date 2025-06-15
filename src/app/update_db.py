@@ -1,4 +1,3 @@
-import asyncio
 from time import time
 from uuid import NAMESPACE_URL, uuid3
 
@@ -10,7 +9,6 @@ from app.tautulli import Tautulli
 from app.utils import (
     get_user_name_from_tg_id,
     get_user_total_duration,
-    send_message_by_url,
 )
 
 
@@ -62,26 +60,6 @@ def update_plex_credits():
                 _db.cur.execute(
                     "UPDATE statistics SET credits=? WHERE tg_id=?", (credits, tg_id)
                 )
-                # 绑定了 tg，发送积分更新通知
-                asyncio.run(
-                    send_message_by_url(
-                        chat_id=tg_id,
-                        text=f"""
-Plex 积分更新通知
-====================
-
-新增观看时长: {play_duration} 小时
-新增积分：{credits_inc}
-
---------------------
-
-当前总积分：{credits}
-当前总观看时长：{watched_time} 小时
-
-====================
-""",
-                    )
-                )
 
     except Exception as e:
         print(e)
@@ -132,26 +110,6 @@ def update_emby_credits():
                 _db.cur.execute(
                     "UPDATE emby_user SET emby_watched_time=? WHERE emby_id=?",
                     (playduration, user[0]),
-                )
-                # 发送积分更新通知
-                asyncio.run(
-                    send_message_by_url(
-                        chat_id=user[1],
-                        text=f"""
-Emby 积分更新通知
-====================
-
-新增观看时长: {playduration - user[2]} 小时
-新增积分：{credits_inc}
-
---------------------
-
-当前总积分：{_credits}
-当前总观看时长：{playduration} 小时
-
-====================
-""",
-                    )
                 )
 
     except Exception as e:

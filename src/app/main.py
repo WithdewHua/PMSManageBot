@@ -47,8 +47,8 @@ def start_bot(application):
 def add_init_scheduler_job():
     """添加调度任务"""
     scheduler = Scheduler()
-    # 每天凌晨 12:00 更新 Plex/Emby 积分
-    scheduler.add_job(
+    # 每天凌晨 12:00 更新 Plex/Emby 积分 (同步任务)
+    scheduler.add_sync_job(
         func=update_credits,
         trigger="cron",
         id="update_credits",
@@ -59,8 +59,8 @@ def add_init_scheduler_job():
         minute=0,
     )
     logger.info("添加定时任务：每天凌晨 12:00 更新积分 (Plex 和 Emby)")
-    # 每天中午 12:00 更新 plex 用户信息
-    scheduler.add_job(
+    # 每天中午 12:00 更新 plex 用户信息 (同步任务)
+    scheduler.add_sync_job(
         func=update_plex_info,
         trigger="cron",
         id="update_plex_info",
@@ -72,8 +72,8 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每天中午 12:00 更新 Plex 用户信息")
 
-    # 每天中午 12:10 更新 tg 用户信息
-    scheduler.add_job(
+    # 每天中午 12:10 更新 tg 用户信息 (异步任务)
+    scheduler.add_async_job(
         func=refresh_tg_user_info,
         trigger="cron",
         id="refresh_user_info",
@@ -86,8 +86,8 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每天中午 12:10 更新 Telegram 用户信息")
 
-    # 每天早上 7 点刷新 emby 用户信息
-    scheduler.add_job(
+    # 每天早上 7 点刷新 emby 用户信息 (同步任务)
+    scheduler.add_sync_job(
         func=refresh_emby_user_info,
         trigger="cron",
         id="refresh_emby_user_info",
@@ -100,8 +100,8 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每天早上 07:00 更新 Emby 用户信息")
 
-    # 每小时检查并结束过期的竞拍活动
-    scheduler.add_job(
+    # 每小时检查并结束过期的竞拍活动 (同步任务)
+    scheduler.add_sync_job(
         func=finish_expired_auctions_job,
         trigger="cron",
         id="finish_expired_auctions",
