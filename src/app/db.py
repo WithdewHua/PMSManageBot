@@ -1154,6 +1154,129 @@ class DB:
             logger.error(f"Error getting detailed auction stats: {e}")
             return self.get_auction_stats()
 
+    def get_user_wheel_stats(self, tg_id: int):
+        """获取用户个人转盘统计数据"""
+        try:
+            from datetime import datetime, timedelta
+
+            today = datetime.now().strftime("%Y-%m-%d")
+            week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+            # 获取用户今日游戏次数
+            today_spins = self.cur.execute(
+                "SELECT COUNT(*) FROM wheel_stats WHERE tg_id = ? AND date = ?",
+                (tg_id, today),
+            ).fetchone()[0]
+
+            # 获取用户总游戏次数
+            total_spins = self.cur.execute(
+                "SELECT COUNT(*) FROM wheel_stats WHERE tg_id = ?", (tg_id,)
+            ).fetchone()[0]
+
+            # 获取用户本周游戏次数
+            week_spins = self.cur.execute(
+                "SELECT COUNT(*) FROM wheel_stats WHERE tg_id = ? AND date >= ?",
+                (tg_id, week_ago),
+            ).fetchone()[0]
+
+            # 获取用户总积分变化
+            total_credits_change_result = self.cur.execute(
+                "SELECT SUM(credits_change) FROM wheel_stats WHERE tg_id = ?", (tg_id,)
+            ).fetchone()
+            total_credits_change = (
+                float(total_credits_change_result[0])
+                if total_credits_change_result[0]
+                else 0.0
+            )
+
+            # 获取用户今日积分变化
+            today_credits_change_result = self.cur.execute(
+                "SELECT SUM(credits_change) FROM wheel_stats WHERE tg_id = ? AND date = ?",
+                (tg_id, today),
+            ).fetchone()
+            today_credits_change = (
+                float(today_credits_change_result[0])
+                if today_credits_change_result[0]
+                else 0.0
+            )
+
+            # 获取用户本周积分变化
+            week_credits_change_result = self.cur.execute(
+                "SELECT SUM(credits_change) FROM wheel_stats WHERE tg_id = ? AND date >= ?",
+                (tg_id, week_ago),
+            ).fetchone()
+            week_credits_change = (
+                float(week_credits_change_result[0])
+                if week_credits_change_result[0]
+                else 0.0
+            )
+
+            # 获取用户通过转盘获得的邀请码数量
+            invite_codes_earned = self.cur.execute(
+                'SELECT COUNT(*) FROM wheel_stats WHERE tg_id = ? AND item_name = "邀请码 1 枚"',
+                (tg_id,),
+            ).fetchone()[0]
+
+            # 获取用户今日获得的邀请码数量
+            today_invite_codes = self.cur.execute(
+                'SELECT COUNT(*) FROM wheel_stats WHERE tg_id = ? AND item_name = "邀请码 1 枚" AND date = ?',
+                (tg_id, today),
+            ).fetchone()[0]
+
+            # 获取用户本周获得的邀请码数量
+            week_invite_codes = self.cur.execute(
+                'SELECT COUNT(*) FROM wheel_stats WHERE tg_id = ? AND item_name = "邀请码 1 枚" AND date >= ?',
+                (tg_id, week_ago),
+            ).fetchone()[0]
+
+            # 获取用户最近5次游戏记录
+            recent_games = self.cur.execute(
+                """SELECT item_name, credits_change, date, timestamp 
+                   FROM wheel_stats 
+                   WHERE tg_id = ? 
+                   ORDER BY timestamp DESC 
+                   LIMIT 5""",
+                (tg_id,),
+            ).fetchall()
+
+            recent_games_list = []
+            for game in recent_games:
+                recent_games_list.append(
+                    {
+                        "item_name": game[0],
+                        "credits_change": game[1],
+                        "date": game[2],
+                        "timestamp": game[3],
+                    }
+                )
+
+            return {
+                "today_spins": today_spins,
+                "total_spins": total_spins,
+                "week_spins": week_spins,
+                "total_credits_change": total_credits_change,
+                "today_credits_change": today_credits_change,
+                "week_credits_change": week_credits_change,
+                "total_invite_codes": invite_codes_earned,
+                "today_invite_codes": today_invite_codes,
+                "week_invite_codes": week_invite_codes,
+                "recent_games": recent_games_list,
+            }
+        except Exception as e:
+            logger.error(f"Error getting user wheel stats: {e}")
+            return {
+                "today_spins": 0,
+                "total_spins": 0,
+                "week_spins": 0,
+                "total_credits_change": 0.0,
+                "today_credits_change": 0.0,
+                "week_credits_change": 0.0,
+                "total_invite_codes": 0,
+                "today_invite_codes": 0,
+                "week_invite_codes": 0,
+                "recent_games": [],
+            }
+
     def close(self):
         self.cur.close()
         self.con.close()

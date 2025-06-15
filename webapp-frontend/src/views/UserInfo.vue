@@ -312,6 +312,153 @@
           </v-card-text>
         </v-card>
 
+        <!-- 个人活动数据卡片 -->
+        <v-card class="user-info-card mb-4">
+          <v-card-title class="card-title-section">
+            <v-icon start color="deep-purple-darken-2">mdi-chart-line</v-icon> 个人活动数据
+          </v-card-title>
+          <v-card-text>
+            <!-- 幸运大转盘数据 -->
+            <div class="activity-section">
+              <div class="section-header">
+                <v-icon size="small" color="purple-darken-1" class="mr-2">mdi-wheel-barrow</v-icon>
+                <span class="section-title">幸运大转盘</span>
+              </div>
+              
+              <div v-if="activityLoading" class="activity-loading">
+                <v-progress-circular 
+                  indeterminate 
+                  color="primary" 
+                  size="30"
+                  width="3"
+                ></v-progress-circular>
+                <span class="ml-2">加载中...</span>
+              </div>
+              
+              <div v-else class="activity-stats-grid">
+                <!-- 今日数据 -->
+                <div class="stats-card today-stats">
+                  <div class="stats-card-header">
+                    <v-icon size="small" color="orange-darken-2">mdi-weather-sunny</v-icon>
+                    <span>今日数据</span>
+                  </div>
+                  <div class="stats-items">
+                    <div class="stat-item">
+                      <span class="stat-label">游戏次数</span>
+                      <span class="stat-value today-value">{{ activityStats.today_spins }}</span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">积分变化</span>
+                      <span 
+                        class="stat-value today-value"
+                        :class="activityStats.today_credits_change >= 0 ? 'positive' : 'negative'"
+                      >
+                        {{ activityStats.today_credits_change >= 0 ? '+' : '' }}{{ activityStats.today_credits_change.toFixed(1) }}
+                      </span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">邀请码获得</span>
+                      <span class="stat-value today-value">{{ activityStats.today_invite_codes }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 本周数据 -->
+                <div class="stats-card week-stats">
+                  <div class="stats-card-header">
+                    <v-icon size="small" color="blue-darken-2">mdi-calendar-week</v-icon>
+                    <span>本周数据</span>
+                  </div>
+                  <div class="stats-items">
+                    <div class="stat-item">
+                      <span class="stat-label">游戏次数</span>
+                      <span class="stat-value week-value">{{ activityStats.week_spins }}</span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">积分变化</span>
+                      <span 
+                        class="stat-value week-value"
+                        :class="activityStats.week_credits_change >= 0 ? 'positive' : 'negative'"
+                      >
+                        {{ activityStats.week_credits_change >= 0 ? '+' : '' }}{{ activityStats.week_credits_change.toFixed(1) }}
+                      </span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">邀请码获得</span>
+                      <span class="stat-value week-value">{{ activityStats.week_invite_codes }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 总计数据 -->
+                <div class="stats-card total-stats">
+                  <div class="stats-card-header">
+                    <v-icon size="small" color="green-darken-2">mdi-chart-box</v-icon>
+                    <span>历史总计</span>
+                  </div>
+                  <div class="stats-items">
+                    <div class="stat-item">
+                      <span class="stat-label">游戏次数</span>
+                      <span class="stat-value total-value">{{ activityStats.total_spins }}</span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">积分变化</span>
+                      <span 
+                        class="stat-value total-value"
+                        :class="activityStats.total_credits_change >= 0 ? 'positive' : 'negative'"
+                      >
+                        {{ activityStats.total_credits_change >= 0 ? '+' : '' }}{{ activityStats.total_credits_change.toFixed(1) }}
+                      </span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">邀请码获得</span>
+                      <span class="stat-value total-value">{{ activityStats.total_invite_codes }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 最近游戏记录 -->
+              <div v-if="!activityLoading && activityStats.recent_games && activityStats.recent_games.length > 0" class="recent-games-section">
+                <v-divider class="my-3"></v-divider>
+                <div class="section-header">
+                  <v-icon size="small" color="indigo-darken-1" class="mr-2">mdi-history</v-icon>
+                  <span class="section-title">最近游戏记录</span>
+                </div>
+                <div class="recent-games-list">
+                  <div 
+                    v-for="(game, index) in activityStats.recent_games" 
+                    :key="index" 
+                    class="recent-game-item"
+                  >
+                    <div class="game-result">
+                      <v-chip 
+                        size="small" 
+                        :color="getGameResultColor(game.item_name)"
+                        class="game-chip"
+                        :title="game.item_name"
+                      >
+                        {{ game.item_name }}
+                      </v-chip>
+                    </div>
+                    <div class="game-change">
+                      <span 
+                        class="change-value"
+                        :class="game.credits_change >= 0 ? 'positive' : 'negative'"
+                      >
+                        {{ game.credits_change >= 0 ? '+' : '' }}{{ game.credits_change }}
+                      </span>
+                    </div>
+                    <div class="game-date">
+                      {{ formatGameDate(game.date) }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </v-card-text>
+        </v-card>
+
         <div v-if="!userInfo.plex_info && !userInfo.emby_info" class="no-accounts-message">
           <v-alert 
             type="info" 
@@ -373,6 +520,7 @@ import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
 import { redeemInviteCodeForCredits } from '@/services/inviteCodeService.js'
 import { checkPrivilegedInviteCode } from '@/services/mediaServiceApi.js'
+import { getUserActivityStats } from '@/services/wheelService.js'
 
 export default {
   name: 'UserInfo',
@@ -403,11 +551,25 @@ export default {
       loading: true,
       error: null,
       redeemingCodes: {}, // 用于跟踪每个邀请码的兑换状态
-      privilegedCodes: {} // 用于跟踪特权邀请码状态
+      privilegedCodes: {}, // 用于跟踪特权邀请码状态
+      activityStats: {
+        today_spins: 0,
+        total_spins: 0,
+        week_spins: 0,
+        total_credits_change: 0.0,
+        today_credits_change: 0.0,
+        week_credits_change: 0.0,
+        total_invite_codes: 0,
+        today_invite_codes: 0,
+        week_invite_codes: 0,
+        recent_games: []
+      },
+      activityLoading: false
     }
   },
   mounted() {
     this.fetchUserInfo()
+    this.fetchActivityStats()
   },
   methods: {
     async fetchUserInfo() {
@@ -426,6 +588,22 @@ export default {
         this.error = err.response?.data?.detail || '获取用户信息失败'
         this.loading = false
         console.error('获取用户信息失败:', err)
+      }
+    },
+
+    // 获取活动数据
+    async fetchActivityStats() {
+      try {
+        this.activityLoading = true
+        const response = await getUserActivityStats()
+        if (response.data && response.data.success) {
+          this.activityStats = response.data.data
+        }
+      } catch (err) {
+        console.error('获取活动统计数据失败:', err)
+        // 不显示错误，使用默认值
+      } finally {
+        this.activityLoading = false
       }
     },
 
@@ -664,7 +842,46 @@ export default {
       // 更新用户积分
       this.userInfo.credits = result.current_credits;
       this.showMessage(`成功转移 ${result.transferred_amount} 积分，手续费 ${result.fee_amount.toFixed(2)} 积分`);
-    }
+    },
+
+    // 根据游戏结果获取颜色
+    getGameResultColor(itemName) {
+      if (itemName.includes('邀请码')) {
+        return 'amber-darken-2'
+      } else if (itemName.includes('+')) {
+        return 'success'
+      } else if (itemName.includes('-')) {
+        return 'error'
+      } else if (itemName.includes('翻倍')) {
+        return 'purple'
+      } else if (itemName.includes('减半')) {
+        return 'orange-darken-2'
+      } else {
+        return 'grey'
+      }
+    },
+
+    // 格式化游戏日期
+    formatGameDate(dateString) {
+      try {
+        const today = new Date().toDateString()
+        const gameDate = new Date(dateString).toDateString()
+        
+        if (today === gameDate) {
+          return '今天'
+        }
+        
+        const yesterday = new Date()
+        yesterday.setDate(yesterday.getDate() - 1)
+        if (yesterday.toDateString() === gameDate) {
+          return '昨天'
+        }
+        
+        return dateString
+      } catch (error) {
+        return dateString
+      }
+    },
   }
 }
 </script>
@@ -708,6 +925,49 @@ export default {
 .transparent-container {
   background: transparent !important;
   padding: 0 !important;
+}
+
+/* 加载状态样式 */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  padding: 40px;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 30px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.loading-text {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+/* 错误状态样式 */
+.error-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  padding: 20px;
+}
+
+.error-alert {
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px);
+  border: none !important;
+  max-width: 500px;
 }
 
 .user-info-card {
@@ -754,11 +1014,81 @@ export default {
   border: none !important;
 }
 
+/* 通用芯片样式 */
+.v-chip {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  backdrop-filter: blur(5px);
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.v-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.v-chip.v-chip--size-small {
+  height: 28px !important;
+  font-size: 12px !important;
+  padding: 0 12px !important;
+}
+
+/* Vuetify 主题颜色覆盖 */
+.v-chip.v-chip--variant-flat.text-success {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.08) 100%) !important;
+  color: #2E7D32 !important;
+  border: 1px solid rgba(76, 175, 80, 0.3) !important;
+}
+
+.v-chip.v-chip--variant-flat.text-warning {
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 152, 0, 0.08) 100%) !important;
+  color: #E65100 !important;
+  border: 1px solid rgba(255, 152, 0, 0.3) !important;
+}
+
+.v-chip.v-chip--variant-flat.text-primary {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%) !important;
+  color: #3F51B5 !important;
+  border: 1px solid rgba(102, 126, 234, 0.3) !important;
+}
+
+.v-chip.v-chip--variant-flat.text-amber-darken-2 {
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.15) 0%, rgba(255, 193, 7, 0.08) 100%) !important;
+  color: #F57C00 !important;
+  border: 1px solid rgba(255, 193, 7, 0.3) !important;
+}
+
+/* 特权邀请码芯片样式 - 移除蓝色边框 */
+.invitation-chip-horizontal.text-amber-darken-2 {
+  border: 1px solid rgba(255, 193, 7, 0.3) !important;
+  box-shadow: none !important;
+}
+
+.invitation-chip-horizontal.text-amber-darken-2:hover {
+  border: 1px solid rgba(255, 193, 7, 0.5) !important;
+  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.2) !important;
+}
+
+/* 可点击的芯片样式 */
+.clickable-chip {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.clickable-chip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
 /* 邀请码芯片样式 */
 .invitation-chip {
   cursor: pointer;
   transition: all 0.3s ease;
   font-weight: 500;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%) !important;
+  border: 1px solid rgba(102, 126, 234, 0.3) !important;
+  backdrop-filter: blur(8px);
 }
 
 /* 新增：水平布局的邀请码芯片样式 */
@@ -770,8 +1100,15 @@ export default {
   min-width: 0;
 }
 
+/* 普通邀请码的样式 */
+.invitation-chip-horizontal:not(.text-amber-darken-2) {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%) !important;
+  border: 1px solid rgba(102, 126, 234, 0.3) !important;
+  backdrop-filter: blur(8px);
+}
+
 .invitation-chip:hover,
-.invitation-chip-horizontal:hover {
+.invitation-chip-horizontal:not(.text-amber-darken-2):hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
 }
@@ -785,6 +1122,90 @@ export default {
   white-space: nowrap;
   max-width: 160px;
   letter-spacing: 0.5px;
+}
+
+/* 值显示样式 */
+.value-display {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  min-width: 60px;
+  text-align: center;
+  backdrop-filter: blur(5px);
+}
+
+.credits-value {
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.1) 0%, rgba(255, 193, 7, 0.05) 100%);
+  color: #F57C00;
+  border: 1px solid rgba(255, 193, 7, 0.2);
+}
+
+.donation-value {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%);
+  color: #388E3C;
+  border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+/* 观看等级图标样式 */
+.level-icons-container {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+.level-icons-container:hover {
+  background: rgba(102, 126, 234, 0.1);
+  transform: scale(1.05);
+}
+
+.emoji-icon {
+  font-size: 16px;
+  transition: transform 0.2s ease;
+}
+
+.emoji-icon:hover {
+  transform: scale(1.1);
+}
+
+/* 入口线路样式 */
+.entrance-url-row {
+  position: relative;
+}
+
+.entrance-url-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, rgba(255, 87, 34, 0.1) 0%, rgba(255, 87, 34, 0.05) 100%);
+  border: 1px solid rgba(255, 87, 34, 0.2);
+  border-radius: 20px;
+  color: #D84315;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+  font-family: 'Monaco', 'Courier New', monospace;
+  letter-spacing: 0.3px;
+}
+
+.entrance-url-chip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(255, 87, 34, 0.2);
+  background: linear-gradient(135deg, rgba(255, 87, 34, 0.15) 0%, rgba(255, 87, 34, 0.08) 100%);
+  border-color: rgba(255, 87, 34, 0.3);
+}
+
+/* 线路选择器包装样式 */
+.line-selector-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 /* 邀请码容器样式 */
@@ -825,6 +1246,9 @@ export default {
   font-size: 10px;
   color: #FF8F00;
   font-weight: 500;
+  box-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
 }
 
 /* 新增：水平布局的特权码标签样式 */
@@ -841,11 +1265,30 @@ export default {
   font-weight: 600;
   white-space: nowrap;
   flex-shrink: 0;
+  box-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* 确保特权标签不继承任何阴影效果 */
+.privilege-tag-horizontal *,
+.privilege-tag * {
+  box-shadow: none !important;
+  filter: none !important;
+}
+
+/* 特权标签内的图标样式 */
+.privilege-tag-horizontal .v-icon,
+.privilege-tag .v-icon {
+  box-shadow: none !important;
+  filter: none !important;
+  text-shadow: none !important;
 }
 
 .privilege-text {
   font-size: 10px;
   line-height: 1;
+  text-shadow: none !important;
 }
 
 /* 邀请码行样式 */
@@ -906,347 +1349,340 @@ export default {
   opacity: 0.6;
 }
 
-/* 响应式调整 */
-@media (max-width: 600px) {
-  .invitation-code-row {
-    gap: 8px;
-  }
-  
-  .invitation-code-row-horizontal {
-    gap: 8px;
-  }
-  
-  .redeem-button {
-    font-size: 11px;
-    height: 26px;
-    min-width: 70px;
-  }
-  
-  .redeem-button-horizontal {
-    font-size: 10px;
-    height: 30px;
-    min-width: 80px;
-  }
-  
-  .invitation-chip {
-    font-size: 12px;
-  }
-  
-  .invitation-chip-horizontal {
-    font-size: 11px;
-  }
-  
-  .code-text {
-    max-width: 100px;
-    font-size: 11px;
-  }
-  
-  .privilege-tag {
-    font-size: 9px;
-    padding: 1px 4px;
-  }
-  
-  .privilege-tag-horizontal {
-    font-size: 8px;
-    padding: 1px 4px;
-    border-radius: 8px;
-  }
-  
-  .privilege-text {
-    font-size: 9px;
-  }
+/* 个人活动数据卡片样式 */
+.activity-section {
+  margin-bottom: 20px;
 }
 
-@media (max-width: 480px) {
-  .invitation-code-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-  
-  .invitation-code-row-horizontal {
-    gap: 6px;
-  }
-  
-  .invitation-code-container {
-    align-items: center;
-    text-align: center;
-  }
-  
-  .invitation-code-container-horizontal {
-    align-items: flex-start;
-  }
-  
-  .invitation-code-with-tag {
-    gap: 6px;
-  }
-  
-  .redeem-button {
-    width: 100%;
-    justify-self: center;
-  }
-  
-  .redeem-button-horizontal {
-    min-width: 75px;
-    font-size: 9px;
-    height: 28px;
-  }
-  
-  .code-text {
-    max-width: 80px;
-    font-size: 10px;
-  }
-  
-  .privilege-tag {
-    align-self: center;
-  }
-  
-  .privilege-tag-horizontal {
-    font-size: 8px;
-  }
-}
-
-/* 数值显示样式 */
-.value-display {
-  font-weight: 700;
-  font-size: 16px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  text-align: center;
-  min-width: 60px;
-  background: linear-gradient(135deg, rgba(116, 185, 255, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-  border: 1px solid rgba(116, 185, 255, 0.2);
-  transition: all 0.3s ease;
-}
-
-.credits-value {
-  color: #1976d2;
-  background: linear-gradient(135deg, rgba(25, 118, 210, 0.1) 0%, rgba(25, 118, 210, 0.05) 100%);
-  border-color: rgba(25, 118, 210, 0.2);
-}
-
-.donation-value {
-  color: #388e3c;
-  background: linear-gradient(135deg, rgba(56, 142, 60, 0.1) 0%, rgba(56, 142, 60, 0.05) 100%);
-  border-color: rgba(56, 142, 60, 0.2);
-}
-
-/* 加载状态样式 */
-.loading-container {
+.section-header {
   display: flex;
-  justify-content: center;
   align-items: center;
-  min-height: 200px;
-  margin: 40px 0;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid rgba(102, 126, 234, 0.1);
 }
 
-.loading-content {
-  text-align: center;
-  padding: 30px;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-}
-
-.loading-text {
-  margin-top: 16px;
+.section-title {
+  font-weight: 600;
   font-size: 16px;
+  color: #333;
+}
+
+.activity-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  font-size: 14px;
+  color: #666;
+}
+
+.activity-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stats-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.9) 100%);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.stats-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.stats-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #555;
+}
+
+.stats-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.stat-label {
+  font-size: 13px;
   color: #666;
   font-weight: 500;
 }
 
-/* 错误状态样式 */
-.error-container {
+.stat-value {
+  font-weight: 700;
+  font-size: 15px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  min-width: 50px;
   text-align: center;
-  margin: 40px 0;
 }
 
-.error-alert {
-  background: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(10px);
-  border: none !important;
+.today-value {
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.1) 0%, rgba(255, 152, 0, 0.05) 100%);
+  color: #F57C00;
+  border: 1px solid rgba(255, 152, 0, 0.2);
 }
 
-/* 确保所有d-flex内的项目垂直居中 */
-.d-flex {
-  align-items: center;
+.week-value {
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(33, 150, 243, 0.05) 100%);
+  color: #1976D2;
+  border: 1px solid rgba(33, 150, 243, 0.2);
 }
 
-/* 增强线路选择行的布局 */
-.d-flex.justify-space-between {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-/* 确保左侧标签部分不会过度拉伸 */
-.d-flex.justify-space-between > .d-flex.align-center {
-  flex: 1 1 auto;
-  min-width: 0; /* 允许文本截断 */
-}
-
-.cursor-pointer {
-  cursor: pointer;
-}
-
-/* 添加图标右侧边距 */
-.mr-2 {
-  margin-right: 8px;
-}
-
-/* 左侧边距 */
-.ml-1 {
-  margin-left: 4px;
-}
-
-/* 可点击chip样式 */
-.clickable-chip {
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: 1px solid transparent;
-}
-
-.clickable-chip:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
-  border-color: currentColor;
-}
-
-/* 入口线路地址样式 */
-.entrance-url-chip {
-  cursor: pointer;
-  padding: 6px 12px;
-  border-radius: 8px;
+.total-value {
   background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%);
+  color: #388E3C;
   border: 1px solid rgba(76, 175, 80, 0.2);
-  color: #388e3c;
-  font-weight: 500;
-  font-size: 14px;
-  transition: all 0.3s ease;
+}
+
+.stat-value.positive {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.08) 100%) !important;
+  color: #2E7D32 !important;
+  border-color: rgba(76, 175, 80, 0.3) !important;
+}
+
+.stat-value.negative {
+  background: linear-gradient(135deg, rgba(244, 67, 54, 0.15) 0%, rgba(244, 67, 54, 0.08) 100%) !important;
+  color: #C62828 !important;
+  border-color: rgba(244, 67, 54, 0.3) !important;
+}
+
+/* 最近游戏记录样式 */
+.recent-games-section {
+  margin-top: 16px;
+}
+
+.recent-games-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recent-game-item {
   display: flex;
   align-items: center;
-  justify-content: center;
-  min-width: fit-content;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, rgba(245, 245, 245, 0.6) 0%, rgba(250, 250, 250, 0.8) 100%);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+}
+
+.recent-game-item:hover {
+  background: linear-gradient(135deg, rgba(240, 240, 240, 0.8) 0%, rgba(248, 248, 248, 0.9) 100%);
+  transform: translateX(2px);
+}
+
+.game-result {
+  flex: 2;
+}
+
+.game-chip {
+  font-size: 12px !important;
+  height: 24px !important;
+  max-width: 200px;
   white-space: nowrap;
-  flex-shrink: 0;
-  max-width: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* 入口线路行样式 - 确保不换行 */
-.entrance-url-row {
-  flex-wrap: nowrap !important;
+.game-change {
+  flex: 1;
+  text-align: center;
 }
 
-.entrance-url-row .d-flex.align-center {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.entrance-url-chip:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3);
-  background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.1) 100%);
-  border-color: rgba(76, 175, 80, 0.4);
-}
-
-.entrance-url-chip:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
-}
-
-.emoji-icon {
+.change-value {
+  font-weight: 600;
   font-size: 14px;
-  margin-left: 4px;
-  line-height: 1;
-}
-
-.level-icons-container {
-  display: flex;
-  align-items: center;
-  gap: 1px;
-  cursor: pointer;
-  padding: 3px 6px;
+  padding: 2px 6px;
   border-radius: 4px;
-  transition: background-color 0.2s;
 }
 
-.level-icons-container:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+.change-value.positive {
+  color: #2E7D32;
+  background: rgba(76, 175, 80, 0.1);
 }
 
-.level-icons-container:active {
-  background-color: rgba(0, 0, 0, 0.1);
+.change-value.negative {
+  color: #C62828;
+  background: rgba(244, 67, 54, 0.1);
 }
 
-/* 等级图标样式 */
-.crown-icon {
-  margin-right: 2px;
+.game-date {
+  flex: 1;
+  text-align: right;
+  font-size: 12px;
+  color: #888;
+  font-weight: 500;
 }
 
-.star-icon {
-  margin-right: 1px;
-}
-
-/* 线路选择器容器样式 */
-.line-selector-wrapper {
-  min-width: 150px;
-  max-width: 250px;
-  flex: 0 0 auto; /* 防止收缩 */
-  margin-left: auto; /* 确保选择器靠右对齐 */
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-/* 为线路选择器行增加更好的flex布局 */
-.d-flex.justify-space-between .line-selector-wrapper {
-  flex-shrink: 0; /* 防止选择器被压缩 */
-}
-
-/* 在小屏幕上调整线路选择器 */
-@media (max-width: 600px) {
-  .line-selector-wrapper {
-    max-width: 180px;
-    min-width: 120px;
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .activity-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .stats-card {
+    padding: 12px;
+  }
+  
+  .stats-card-header {
+    font-size: 13px;
+  }
+  
+  .stat-value {
+    font-size: 14px;
+    min-width: 45px;
+  }
+  
+  .recent-game-item {
+    padding: 8px 10px;
+  }
+  
+  .game-chip {
+    font-size: 11px !important;
+    height: 22px !important;
+    max-width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .change-value {
+    font-size: 13px;
+  }
+  
+  .game-date {
+    font-size: 11px;
   }
 }
 
 @media (max-width: 480px) {
-  .line-selector-wrapper {
-    max-width: 140px;
-    min-width: 100px;
+  .activity-stats-grid {
+    gap: 10px;
   }
   
-  /* 在小屏幕上允许标签文本换行 */
-  .d-flex.justify-space-between {
-    flex-wrap: wrap;
+  .stats-card {
+    padding: 10px;
+  }
+  
+  .stat-item {
     gap: 8px;
   }
   
-  /* 入口线路行在小屏幕上的特殊处理 */
-  .entrance-url-row {
-    flex-wrap: nowrap !important;
-    gap: 4px !important;
+  .stat-label {
+    font-size: 12px;
   }
   
-  .entrance-url-chip {
+  .stat-value {
+    font-size: 13px;
+    min-width: 40px;
+    padding: 1px 6px;
+  }
+  
+  .recent-game-item {
+    padding: 8px 6px;
+    gap: 4px;
+  }
+  
+  .game-result {
+    flex: 1.5;
+    min-width: 0;
+  }
+  
+  .game-chip {
+    font-size: 10px !important;
+    height: 20px !important;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .game-change {
+    flex: 1;
+    text-align: center;
+    min-width: 0;
+  }
+  
+  .change-value {
     font-size: 12px;
-    padding: 4px 8px;
+    padding: 1px 4px;
+  }
+  
+  .game-date {
+    flex: 1;
+    text-align: right;
+    font-size: 10px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
-@media (max-width: 400px) {
-  .line-selector-wrapper {
-    max-width: 120px;
-    min-width: 90px;
+/* 超小屏幕优化 */
+@media (max-width: 360px) {
+  .recent-game-item {
+    padding: 6px 4px;
+    gap: 2px;
   }
   
-  /* 入口线路在超小屏幕上的进一步优化 */
-  .entrance-url-chip {
-    font-size: 11px;
-    padding: 3px 6px;
+  .game-result {
+    flex: 1.2;
   }
+  
+  .game-chip {
+    font-size: 9px !important;
+    height: 18px !important;
+    max-width: 100px;
+    padding: 0 4px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .change-value {
+    font-size: 11px;
+    padding: 1px 3px;
+  }
+  
+  .game-date {
+    font-size: 9px;
+  }
+}
+
+/* 特殊的卡片颜色变化 */
+.today-stats {
+  border-left: 4px solid #FF9800;
+}
+
+.week-stats {
+  border-left: 4px solid #2196F3;
+}
+
+.total-stats {
+  border-left: 4px solid #4CAF50;
 }
 </style>

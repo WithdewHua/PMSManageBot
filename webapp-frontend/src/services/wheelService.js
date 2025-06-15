@@ -75,3 +75,8 @@ export const getWheelConfigStats = async () => {
     }
   }
 }
+
+// 获取用户个人活动统计数据
+export const getUserActivityStats = () => {
+  return apiClient.get('/api/luckywheel/user-activity-stats')
+}

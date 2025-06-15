@@ -659,3 +659,28 @@ async def get_wheel_statistics(
     finally:
         if "db" in locals():
             db.close()
+
+
+@router.get("/user-activity-stats")
+@require_telegram_auth
+async def get_user_activity_stats(
+    request: Request, current_user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取用户个人活动统计数据"""
+    try:
+        db = DB()
+        user_id = current_user.id
+
+        # 获取用户转盘统计数据
+        stats = db.get_user_wheel_stats(user_id)
+
+        return {"success": True, "data": stats}
+
+    except Exception as e:
+        logger.error(f"获取用户活动统计失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取用户活动统计失败",
+        )
+    finally:
+        db.close()

@@ -17,6 +17,7 @@ from app.tautulli import Tautulli
 from app.utils import (
     caculate_credits_fund,
     get_user_info_from_tg_id,
+    get_user_name_from_tg_id,
     get_user_total_duration,
     is_binded_premium_line,
     send_message_by_url,
@@ -65,7 +66,7 @@ async def get_user_info(
 
         # 获取Plex信息
         try:
-            logger.debug(f"正在查询用户 {tg_id} 的Plex信息")
+            logger.debug(f"正在查询用户 {get_user_name_from_tg_id(tg_id)} 的Plex信息")
             plex_info = db.get_plex_info_by_tg_id(tg_id)
             if plex_info:
                 user_info.plex_info = {
@@ -76,15 +77,21 @@ async def get_user_info(
                     "line": plex_info[8],
                     "is_premium": plex_info[9] == 1,
                 }
-                logger.debug(f"用户 {tg_id} 的Plex信息获取成功")
+                logger.debug(
+                    f"用户 {get_user_name_from_tg_id(tg_id)} 的Plex信息获取成功"
+                )
             else:
-                logger.debug(f"用户 {tg_id} 没有关联的Plex账户")
+                logger.debug(
+                    f"用户 {get_user_name_from_tg_id(tg_id)} 没有关联的Plex账户"
+                )
         except Exception as e:
-            logger.error(f"获取用户 {tg_id} 的Plex信息失败: {str(e)}")
+            logger.error(
+                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的Plex信息失败: {str(e)}"
+            )
 
         # 获取Emby信息
         try:
-            logger.debug(f"正在查询用户 {tg_id} 的Emby信息")
+            logger.debug(f"正在查询用户 {get_user_name_from_tg_id(tg_id)} 的Emby信息")
             emby_info = db.get_emby_info_by_tg_id(tg_id)
             if emby_info:
                 user_info.emby_info = {
@@ -100,51 +107,73 @@ async def get_user_info(
                 if created_at:
                     created_at = created_at.split("T")[0]  # 只保留日期部分
                 user_info.emby_info["created_at"] = created_at
-                logger.debug(f"用户 {tg_id} 的Emby信息获取成功")
+                logger.debug(
+                    f"用户 {get_user_name_from_tg_id(tg_id)} 的Emby信息获取成功"
+                )
             else:
-                logger.debug(f"用户 {tg_id} 没有关联的Emby账户")
+                logger.debug(
+                    f"用户 {get_user_name_from_tg_id(tg_id)} 没有关联的Emby账户"
+                )
         except Exception as e:
-            logger.error(f"获取用户 {tg_id} 的Emby信息失败: {str(e)}")
+            logger.error(
+                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的Emby信息失败: {str(e)}"
+            )
 
         # 获取统计信息
         try:
-            logger.debug(f"正在查询用户 {tg_id} 的统计信息")
+            logger.debug(f"正在查询用户 {get_user_name_from_tg_id(tg_id)} 的统计信息")
             stats_info = db.get_stats_by_tg_id(tg_id)
             if stats_info:
                 user_info.credits = stats_info[2]
                 user_info.donation = stats_info[1]
-                logger.debug(f"用户 {tg_id} 的统计信息获取成功")
+                logger.debug(
+                    f"用户 {get_user_name_from_tg_id(tg_id)} 的统计信息获取成功"
+                )
             else:
-                logger.debug(f"用户 {tg_id} 没有统计信息")
+                logger.debug(f"用户 {get_user_name_from_tg_id(tg_id)} 没有统计信息")
         except Exception as e:
-            logger.error(f"获取用户 {tg_id} 的统计信息失败: {str(e)}")
+            logger.error(
+                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的统计信息失败: {str(e)}"
+            )
 
         # 获取Overseerr信息
         try:
-            logger.debug(f"正在查询用户 {tg_id} 的Overseerr信息")
+            logger.debug(
+                f"正在查询用户 {get_user_name_from_tg_id(tg_id)} 的Overseerr信息"
+            )
             overseerr_info = db.get_overseerr_info_by_tg_id(tg_id)
             if overseerr_info:
                 user_info.overseerr_info = {
                     "user_id": overseerr_info[0],
                     "email": overseerr_info[1],
                 }
-                logger.debug(f"用户 {tg_id} 的Overseerr信息获取成功")
+                logger.debug(
+                    f"用户 {get_user_name_from_tg_id(tg_id)} 的Overseerr信息获取成功"
+                )
             else:
-                logger.debug(f"用户 {tg_id} 没有关联的Overseerr账户")
+                logger.debug(
+                    f"用户 {get_user_name_from_tg_id(tg_id)} 没有关联的Overseerr账户"
+                )
         except Exception as e:
-            logger.error(f"获取用户 {tg_id} 的Overseerr信息失败: {str(e)}")
+            logger.error(
+                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的Overseerr信息失败: {str(e)}"
+            )
 
         # 获取邀请码
         try:
-            logger.debug(f"正在查询用户 {tg_id} 的邀请码")
+            logger.debug(f"正在查询用户 {get_user_name_from_tg_id(tg_id)} 的邀请码")
             codes = db.get_invitation_code_by_owner(tg_id)
             if codes:
                 user_info.invitation_codes = codes
-                logger.debug(f"用户 {tg_id} 的邀请码获取成功，共 {len(codes)} 个")
+                logger.debug(
+                    f"用户 {get_user_name_from_tg_id(tg_id)} 的邀请码获取成功，共 {len(codes)} 个"
+                )
             else:
-                logger.debug(f"用户 {tg_id} 没有邀请码")
+                logger.debug(f"用户 {get_user_name_from_tg_id(tg_id)} 没有邀请码")
         except Exception as e:
-            logger.error(f"获取用户 {tg_id} 的邀请码失败: {str(e)}")
+            logger.error(
+                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的邀请码失败: {str(e)}"
+            )
 
         logger.info(f"用户 {user_name or user_id} 的信息获取完成")
         return user_info
@@ -167,14 +196,14 @@ async def bind_plex_account(
     tg_id = telegram_user.id
     email = data.email
 
-    logger.info(f"用户 {telegram_user.username or tg_id} 尝试绑定 Plex 账户 {email}")
+    logger.info(f"用户 {get_user_name_from_tg_id(tg_id)} 尝试绑定 Plex 账户 {email}")
 
     _db = DB()
     try:
         # 检查用户是否已绑定Plex
         _info = _db.get_plex_info_by_tg_id(tg_id)
         if _info:
-            logger.warning(f"用户 {telegram_user.username or tg_id} 已绑定 Plex 账户")
+            logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 已绑定 Plex 账户")
             return BaseResponse(
                 success=False, message="您已绑定 Plex 账户，请勿重复操作"
             )
@@ -195,17 +224,19 @@ async def bind_plex_account(
             tg_id_bound = plex_info[1]
             if tg_id_bound:
                 logger.warning(
-                    f"Plex账户 {email} 已被其他 Telegram 账户 {tg_id_bound} 绑定"
+                    f"Plex 账户 {email} 已被其他 Telegram 账户 {tg_id_bound} 绑定"
                 )
                 return BaseResponse(
                     success=False,
-                    message="该 Plex 账户已经绑定 Telegram 账户 {tg_id_bound}",
+                    message=f"该 Plex 账户已经绑定 Telegram 账户 {tg_id_bound}",
                 )
 
             # 更新已存在用户的tg_id
             rslt = _db.update_user_tg_id(tg_id, plex_id=plex_id)
             if not rslt:
-                logger.error(f"更新用户 {tg_id} 的 Plex 绑定失败")
+                logger.error(
+                    f"更新用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 绑定失败"
+                )
                 return BaseResponse(success=False, message="数据库更新失败，请稍后再试")
 
             # 清空 plex 用户表中积分信息
@@ -247,7 +278,9 @@ async def bind_plex_account(
             )
 
             if not rslt:
-                logger.error(f"添加用户 {tg_id} 的 Plex 信息失败")
+                logger.error(
+                    f"添加用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 信息失败"
+                )
                 return BaseResponse(success=False, message="数据库更新失败，请稍后再试")
 
         # 获取用户数据表信息并更新积分
@@ -260,7 +293,7 @@ async def bind_plex_account(
 
         _db.con.commit()
         logger.info(
-            f"用户 {telegram_user.username or tg_id} 成功绑定 Plex 账户 {email}"
+            f"用户 {get_user_name_from_tg_id(tg_id)} 成功绑定 Plex 账户 {email}"
         )
         return BaseResponse(success=True, message=f"绑定 Plex 账户 {email} 成功！")
 
@@ -284,7 +317,7 @@ async def bind_emby_account(
     emby_username = data.username
 
     logger.info(
-        f"用户 {telegram_user.username or tg_id} 尝试绑定 Emby 账户 {emby_username}"
+        f"用户 {get_user_name_from_tg_id(tg_id)} 尝试绑定 Emby 账户 {emby_username}"
     )
 
     db = DB()
@@ -292,7 +325,7 @@ async def bind_emby_account(
         # 检查用户是否已绑定Emby
         info = db.get_emby_info_by_tg_id(tg_id)
         if info:
-            logger.warning(f"用户 {telegram_user.username or tg_id} 已绑定Emby账户")
+            logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 已绑定Emby账户")
             return BaseResponse(
                 success=False, message="您已绑定 Emby 账户，请勿重复操作"
             )
@@ -301,7 +334,7 @@ async def bind_emby_account(
         # 检查emby用户是否存在
         uid = emby.get_uid_from_username(emby_username)
         if not uid:
-            logger.warning(f"无法找到Emby用户 {emby_username}")
+            logger.warning(f"无法找到 Emby 用户 {emby_username}")
             return BaseResponse(success=False, message=f"用户 {emby_username} 不存在")
 
         # 检查emby用户是否已被绑定
@@ -335,7 +368,7 @@ async def bind_emby_account(
 
         db.con.commit()
         logger.info(
-            f"用户 {telegram_user.username or tg_id} 成功绑定Emby账户 {emby_username}"
+            f"用户 {get_user_name_from_tg_id(tg_id)} 成功绑定Emby账户 {emby_username}"
         )
         return BaseResponse(
             success=True, message=f"绑定 Emby 账户 {emby_username} 成功！"
@@ -415,18 +448,18 @@ async def bind_emby_line(
     tg_id = telegram_user.id
     line = data.line
 
-    logger.info(f"用户 {telegram_user.username or tg_id} 尝试绑定 Emby 线路 {line}")
+    logger.info(f"用户 {get_user_name_from_tg_id(tg_id)} 尝试绑定 Emby 线路 {line}")
 
     db = DB()
     try:
         # 检查用户是否绑定了Emby账户
         emby_info = db.get_emby_info_by_tg_id(tg_id)
         if not emby_info:
-            logger.warning(f"用户 {telegram_user.username or tg_id} 未绑定 Emby 账户")
+            logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定 Emby 账户")
             return BaseResponse(success=False, message="您尚未绑定Emby账户，请先绑定")
         emby_username, emby_line = emby_info[0], emby_info[7]
         if emby_line == line:
-            logger.warning(f"用户 {telegram_user.username or tg_id} 已绑定该线路")
+            logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 已绑定该线路")
             return BaseResponse(success=False, message="该线路已绑定，请勿重复操作")
 
         # 更新用户线路设置
@@ -455,7 +488,7 @@ async def bind_emby_line(
         success = db.set_emby_line(line, tg_id=tg_id)
 
         if not success:
-            logger.error(f"设置用户 {tg_id} 的 Emby 线路失败")
+            logger.error(f"设置用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 线路失败")
             return BaseResponse(success=False, message="设置线路失败")
 
         # 更新 redis 缓存
@@ -471,7 +504,7 @@ async def bind_emby_line(
         emby_user_defined_line_cache.put(str(emby_username).lower(), line)
 
         logger.info(
-            f"用户 {telegram_user.username or tg_id} 成功绑定 Emby 线路 {line}，原线路：{binded_line}"
+            f"用户 {get_user_name_from_tg_id(tg_id)} 成功绑定 Emby 线路 {line}，原线路：{binded_line}"
         )
         return BaseResponse(success=True, message=f"绑定线路 {line} 成功！")
 
@@ -492,36 +525,36 @@ async def unbind_emby_line(
     """解绑Emby线路（恢复自动选择）"""
     tg_id = telegram_user.id
 
-    logger.info(f"用户 {telegram_user.username or tg_id} 尝试解绑 Emby 线路")
+    logger.info(f"用户 {get_user_name_from_tg_id(tg_id)} 尝试解绑 Emby 线路")
 
     db = DB()
     try:
         # 检查用户是否绑定了Emby账户
         emby_info = db.get_emby_info_by_tg_id(tg_id)
         if not emby_info:
-            logger.warning(f"用户 {telegram_user.username or tg_id} 未绑定Emby账户")
+            logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定Emby账户")
             return BaseResponse(success=False, message="您尚未绑定 Emby 账户，请先绑定")
         emby_username, emby_line = emby_info[0], emby_info[7]
         if not emby_line:
             logger.warning(
-                f"用户 {telegram_user.username or tg_id} 未绑定线路，无需解绑"
+                f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定线路，无需解绑"
             )
             return BaseResponse(success=False, message="您未绑定线路，无需解绑")
 
         success = db.set_emby_line(None, tg_id=tg_id)
         if not success:
-            logger.error(f"重置用户 {tg_id} 的 Emby 线路失败")
+            logger.error(f"重置用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 线路失败")
             return BaseResponse(success=False, message="重置线路失败")
         from app.cache import emby_user_defined_line_cache
 
         # 删除 redis 缓存
         emby_user_defined_line_cache.delete(str(emby_username).lower())
 
-        logger.info(f"用户 {telegram_user.username or tg_id} 成功解绑 Emby 线路")
+        logger.info(f"用户 {get_user_name_from_tg_id(tg_id)} 成功解绑 Emby 线路")
         return BaseResponse(success=True, message="已切换到自动选择线路")
 
     except Exception as e:
-        logger.error(f"解绑Emby线路时发生错误: {str(e)}")
+        logger.error(f"解绑 Emby 线路时发生错误: {str(e)}")
         return BaseResponse(success=False, message=f"解绑失败: {str(e)}")
     finally:
         db.close()
@@ -842,19 +875,19 @@ async def bind_plex_line(
     tg_id = telegram_user.id
     line = data.line
 
-    logger.info(f"用户 {telegram_user.username or tg_id} 尝试绑定 Plex 线路 {line}")
+    logger.info(f"用户 {get_user_name_from_tg_id(tg_id)} 尝试绑定 Plex 线路 {line}")
 
     db = DB()
     try:
         # 检查用户是否绑定了Plex账户
         plex_info = db.get_plex_info_by_tg_id(tg_id)
         if not plex_info:
-            logger.warning(f"用户 {telegram_user.username or tg_id} 未绑定 Plex 账户")
+            logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定 Plex 账户")
             return BaseResponse(success=False, message="您尚未绑定Plex账户，请先绑定")
 
         plex_username, plex_line = plex_info[4], plex_info[8]
         if plex_line == line:
-            logger.warning(f"用户 {telegram_user.username or tg_id} 已绑定该线路")
+            logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 已绑定该线路")
             return BaseResponse(success=False, message="该线路已绑定，请勿重复操作")
 
         # 检查线路是否存在于可用线路中
@@ -890,7 +923,7 @@ async def bind_plex_line(
 
         success = db.set_plex_line(line, tg_id=tg_id)
         if not success:
-            logger.error(f"设置用户 {tg_id} 的 Plex 线路失败")
+            logger.error(f"设置用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 线路失败")
             return BaseResponse(success=False, message="设置线路失败")
 
         # 更新 redis 缓存
@@ -906,12 +939,12 @@ async def bind_plex_line(
         plex_user_defined_line_cache.put(str(plex_username).lower(), line)
 
         logger.info(
-            f"用户 {telegram_user.username or tg_id} 成功绑定 Plex 线路 {line}，原线路：{binded_line}"
+            f"用户 {get_user_name_from_tg_id(tg_id)} 成功绑定 Plex 线路 {line}，原线路：{binded_line}"
         )
         return BaseResponse(success=True, message=f"绑定线路 {line} 成功！")
 
     except Exception as e:
-        logger.error(f"绑定Plex线路时发生错误: {str(e)}")
+        logger.error(f"绑定 Plex 线路时发生错误: {str(e)}")
         return BaseResponse(success=False, message=f"绑定失败: {str(e)}")
     finally:
         db.close()
@@ -927,20 +960,20 @@ async def unbind_plex_line(
     """解绑Plex线路（恢复自动选择）"""
     tg_id = telegram_user.id
 
-    logger.info(f"用户 {telegram_user.username or tg_id} 尝试解绑 Plex 线路")
+    logger.info(f"用户 {get_user_name_from_tg_id(tg_id)} 尝试解绑 Plex 线路")
 
     db = DB()
     try:
         # 检查用户是否绑定了Plex账户
         plex_info = db.get_plex_info_by_tg_id(tg_id)
         if not plex_info:
-            logger.warning(f"用户 {telegram_user.username or tg_id} 未绑定Plex账户")
+            logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定Plex账户")
             return BaseResponse(success=False, message="您尚未绑定 Plex 账户，请先绑定")
 
         plex_username, plex_line = plex_info[1], plex_info[7]
         if not plex_line:
             logger.warning(
-                f"用户 {telegram_user.username or tg_id} 未绑定线路，无需解绑"
+                f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定线路，无需解绑"
             )
             return BaseResponse(success=False, message="您未绑定线路，无需解绑")
 
@@ -952,11 +985,11 @@ async def unbind_plex_line(
         # 删除 redis 缓存
         plex_user_defined_line_cache.delete(str(plex_username).lower())
 
-        logger.info(f"用户 {telegram_user.username or tg_id} 成功解绑 Plex 线路")
+        logger.info(f"用户 {get_user_name_from_tg_id(tg_id)} 成功解绑 Plex 线路")
         return BaseResponse(success=True, message="已切换到自动选择线路")
 
     except Exception as e:
-        logger.error(f"解绑Plex线路时发生错误: {str(e)}")
+        logger.error(f"解绑 Plex 线路时发生错误: {str(e)}")
         return BaseResponse(success=False, message=f"解绑失败: {str(e)}")
     finally:
         db.close()
@@ -1043,7 +1076,7 @@ async def auth_bind_line(
     line = data.line
 
     logger.info(
-        f"用户 {telegram_user.username or tg_id} 尝试认证并绑定 {service} 线路 {line}"
+        f"用户 {get_user_name_from_tg_id(tg_id)} 尝试认证并绑定 {service} 线路 {line}"
     )
 
     db = DB()
@@ -1123,7 +1156,7 @@ async def _auth_bind_emby_line(
     emby_user_defined_line_cache.put(str(username).lower(), line)
 
     logger.info(
-        f"用户 {telegram_user.username or tg_id} 为 {username} 成功认证并绑定Emby线路 {line}"
+        f"用户 {get_user_name_from_tg_id(tg_id)} 为 {username} 成功认证并绑定Emby线路 {line}"
     )
     return BaseResponse(success=True, message=f"认证并绑定 Emby 线路 {line} 成功！")
 
@@ -1180,7 +1213,7 @@ async def _auth_bind_plex_line(
         success = db.set_plex_line(line, plex_id=plex_id)
         if not success:
             logger.error(
-                f"{telegram_user.username or tg_id} 为 {username} 设置 Plex 线路失败"
+                f"{get_user_name_from_tg_id(tg_id)} 为 {username} 设置 Plex 线路失败"
             )
             return BaseResponse(success=False, message="设置线路失败")
 
@@ -1193,7 +1226,7 @@ async def _auth_bind_plex_line(
     plex_user_defined_line_cache.put(str(plex_username).lower(), line)
 
     logger.info(
-        f"用户 {telegram_user.username or tg_id} 为 {plex_username} 成功认证并绑定 Plex 线路 {line}"
+        f"用户 {get_user_name_from_tg_id(tg_id)} 为 {plex_username} 成功认证并绑定 Plex 线路 {line}"
     )
     return BaseResponse(success=True, message=f"认证并绑定 Plex 线路 {line} 成功！")
 
@@ -1256,13 +1289,13 @@ async def get_emby_lines_by_user(
                         )
                     )
 
-        logger.info(f"为Emby用户 {username} 返回 {len(line_infos)} 条线路信息")
+        logger.info(f"为 Emby 用户 {username} 返回 {len(line_infos)} 条线路信息")
         return EmbyLinesResponse(
             success=True, lines=line_infos, message="获取线路列表成功"
         )
 
     except Exception as e:
-        logger.error(f"获取Emby用户 {username} 的线路列表时发生错误: {str(e)}")
+        logger.error(f"获取 Emby 用户 {username} 的线路列表时发生错误: {str(e)}")
         return EmbyLinesResponse(
             success=False, message=f"获取线路列表失败: {str(e)}", lines=[]
         )
@@ -1287,7 +1320,7 @@ async def get_plex_lines_by_user(
         # 直接从数据库查询用户信息，无需进行Plex服务器认证
         plex_info = db.get_plex_info_by_plex_email(email)
         if not plex_info:
-            logger.warning(f"Plex用户 {email} 未在数据库中找到记录")
+            logger.warning(f"Plex 用户 {email} 未在数据库中找到记录")
             return PlexLinesResponse(
                 success=False, message="该用户未在系统中注册", lines=[]
             )
@@ -1330,13 +1363,13 @@ async def get_plex_lines_by_user(
                         )
                     )
 
-        logger.info(f"为Plex用户 {email} 返回 {len(line_infos)} 条线路信息")
+        logger.info(f"为 Plex 用户 {email} 返回 {len(line_infos)} 条线路信息")
         return PlexLinesResponse(
             success=True, lines=line_infos, message="获取线路列表成功"
         )
 
     except Exception as e:
-        logger.error(f"获取Plex用户 {email} 的线路列表时发生错误: {str(e)}")
+        logger.error(f"获取 Plex 用户 {email} 的线路列表时发生错误: {str(e)}")
         return PlexLinesResponse(
             success=False, message=f"获取线路列表失败: {str(e)}", lines=[]
         )
@@ -1509,7 +1542,7 @@ async def get_all_users(
                 )
 
         logger.info(
-            f"用户 {user.username or user.id} 获取了 {len(user_list)} 个用户信息"
+            f"用户 {get_user_name_from_tg_id(user.id)} 获取了 {len(user_list)} 个用户信息"
         )
         return user_list
 
