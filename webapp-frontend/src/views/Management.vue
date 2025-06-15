@@ -187,6 +187,24 @@
                     </v-btn>
                   </div>
                   
+                  <!-- 邀请码管理 -->
+                  <v-divider class="my-3"></v-divider>
+                  <div class="d-flex justify-space-between align-center mb-3">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="blue-darken-2" class="mr-2">mdi-ticket-confirmation</v-icon>
+                      <span>邀请码管理：</span>
+                    </div>
+                    <v-btn
+                      color="blue-darken-2"
+                      variant="outlined"
+                      size="small"
+                      @click="openInviteCodeDialog"
+                    >
+                      <v-icon start size="small">mdi-plus</v-icon>
+                      生成邀请码
+                    </v-btn>
+                  </div>
+                  
                   <!-- 线路标签管理 -->
                   <v-divider class="my-3"></v-divider>
                   <div class="d-flex justify-space-between align-center mb-3">
@@ -543,6 +561,11 @@
     <donation-dialog
       ref="donationDialog"
       @donation-submitted="handleDonationSubmitted"
+    />
+    
+    <admin-invite-code-dialog
+      ref="inviteCodeDialog"
+      @invite-codes-generated="handleInviteCodesGenerated"
     />
     
     <tag-management-dialog
@@ -1126,6 +1149,7 @@
 <script>
 import { getUserInfo, getSystemStats } from '@/api'
 import DonationDialog from '@/components/DonationDialog.vue'
+import AdminInviteCodeDialog from '@/components/AdminInviteCodeDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import WheelAdminPanel from '@/components/WheelAdminPanel.vue'
@@ -1137,6 +1161,7 @@ export default {
   name: 'Management',
   components: {
     DonationDialog,
+    AdminInviteCodeDialog,
     TagManagementDialog,
     LineManagementDialog,
     WheelAdminPanel
@@ -1409,6 +1434,17 @@ export default {
     // 打开捐赠对话框
     openDonationDialog() {
       this.$refs.donationDialog.open();
+    },
+    
+    // 打开邀请码管理对话框
+    openInviteCodeDialog() {
+      this.$refs.inviteCodeDialog.open();
+    },
+    
+    // 处理邀请码生成完成事件
+    handleInviteCodesGenerated(data) {
+      console.log('邀请码生成完成:', data);
+      // 可以在这里添加额外的处理逻辑，比如刷新统计数据等
     },
     
     // 打开标签管理对话框

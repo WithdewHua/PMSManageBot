@@ -164,3 +164,22 @@ export async function setUnlockCredits(credits) {
     throw error;
   }
 }
+
+/**
+ * 管理员生成邀请码
+ * @param {Object} requestData - 生成邀请码的数据
+ * @param {number} requestData.tg_id - 目标用户ID
+ * @param {number} requestData.count - 生成数量
+ * @param {boolean} requestData.is_premium - 是否是特权邀请码
+ * @param {string} requestData.note - 备注信息
+ * @returns {Promise} 生成结果
+ */
+export async function generateAdminInviteCodes(requestData) {
+  try {
+    const response = await apiClient.post('/api/admin/invite-codes/generate', requestData);
+    return response.data;
+  } catch (error) {
+    console.error('生成邀请码失败:', error);
+    throw error;
+  }
+}

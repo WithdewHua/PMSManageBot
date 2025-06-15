@@ -932,3 +932,76 @@ async def delete_premium_line(
 ):
     """删除高级线路（兼容性接口，推荐使用 /lines/premium/{line_name}）"""
     return await delete_premium_line_generic(line_name, request, user)
+
+
+@router.post("/invite-codes/generate")
+@require_telegram_auth
+async def generate_admin_invite_codes(
+    request: Request,
+    data: dict = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """管理员生成邀请码"""
+    check_admin_permission(user)
+
+    try:
+        db = DB()
+
+        tg_id = data.get("tg_id")
+        count = data.get("count", 1)
+        is_premium = data.get("is_premium", False)
+        note = data.get("note", "")
+
+        if not tg_id or count <= 0 or count > 100:
+            return BaseResponse(success=False, message="参数错误")
+
+        # 导入生成邀请码的函数
+        from app.update_db import add_redeem_code
+
+        # 检查目标用户是否存在
+        stats_info = db.get_stats_by_tg_id(tg_id)
+        if not stats_info:
+            return BaseResponse(success=False, message="目标用户不存在")
+
+        # 使用 add_redeem_code 生成邀请码
+        try:
+            add_redeem_code(tg_id=tg_id, num=count, is_privileged=is_premium)
+            success_count = count
+        except Exception as e:
+            logger.error(f"生成邀请码失败: {str(e)}")
+            return BaseResponse(success=False, message=f"生成邀请码失败: {str(e)}")
+
+        # 获取用户显示名称
+        user_name = get_user_name_from_tg_id(tg_id)
+
+        logger.info(
+            f"管理员 {user.username or user.id} 为用户 {user_name}({tg_id}) 生成了 {success_count} 个{'特权' if is_premium else '普通'}邀请码"
+            + (f", 备注: {note}" if note else "")
+        )
+
+        # 发送通知给用户
+        try:
+            await send_message_by_url(
+                chat_id=tg_id,
+                text=f"""
+🎫 管理员为您生成了{'特权' if is_premium else '普通'}邀请码！
+
+📊 生成数量: {success_count} 个
+
+您可以在面板中查看完整的邀请码列表。
+"""
+                + (f"""📝 备注: {note}""" if note else ""),
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.warning(f"发送邀请码通知失败: {str(e)}")
+
+        message = f"成功为 {user_name} 生成 {success_count} 个{'特权' if is_premium else '普通'}邀请码"
+
+        return BaseResponse(success=True, message=message)
+
+    except Exception as e:
+        logger.error(f"管理员生成邀请码失败: {str(e)}")
+        return BaseResponse(success=False, message=f"生成邀请码失败: {str(e)}")
+    finally:
+        db.close()
