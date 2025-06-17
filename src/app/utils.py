@@ -2,6 +2,7 @@
 
 import asyncio
 import pickle
+import threading
 from time import time
 from typing import Optional
 
@@ -41,10 +42,13 @@ class HTTPSessionManager:
             ssl=None,
         )
 
+        timeout = aiohttp.ClientTimeout(total=10, connect=5)
+
         self._session = aiohttp.ClientSession(
             connector=self._connector,
             connector_owner=True,
             trust_env=True,
+            timeout=timeout,
         )
 
     async def close(self):
@@ -65,8 +69,14 @@ class HTTPSessionManager:
         self._connector = None
 
 
-# Global session manager instance
-_session_manager = HTTPSessionManager()
+# thread local session
+_thread_local_session_manager = threading.local()
+
+
+async def get_thread_safe_session() -> aiohttp.ClientSession:
+    if not hasattr(_thread_local_session_manager, "session_manager"):
+        _thread_local_session_manager.session_manager = HTTPSessionManager()
+    return await _thread_local_session_manager.session_manager.get_session()
 
 
 async def send_message(chat_id, text: str, context: ContextTypes.DEFAULT_TYPE, **kargs):
@@ -119,7 +129,7 @@ async def send_message_by_url(
     data.update(kwargs)
 
     # Use global session manager to avoid connection pool issues
-    session = await _session_manager.get_session()
+    session = await get_thread_safe_session()
 
     for attempt in range(max_retries):
         try:
@@ -215,7 +225,7 @@ def get_user_info_from_tg_id(chat_id, token=settings.TG_API_TOKEN):
 
 async def get_tg_user_photo_url(tg_id: int, token: str = settings.TG_API_TOKEN):
     """获取 Telegram 头像"""
-    session = await _session_manager.get_session()
+    session = await get_thread_safe_session()
     retry = 5
     while retry > 0:
         try:
@@ -266,7 +276,7 @@ async def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
         )
         cache = {}
         db = DB()
-        session = await _session_manager.get_session()
+        session = await get_thread_safe_session()
 
         # 从 statistics 表获取所有用户
         stats_users = db.cur.execute("SELECT tg_id FROM statistics").fetchall()
@@ -383,4 +393,5 @@ def is_binded_premium_line(line: str) -> bool:
 
 async def cleanup_http_resources():
     """Clean up HTTP resources on application shutdown"""
-    await _session_manager.close()
+    if hasattr(_thread_local_session_manager, "session_manager"):
+        await _thread_local_session_manager.session_manager.close()
