@@ -41,11 +41,8 @@ class HTTPSessionManager:
             ssl=None,
         )
 
-        timeout = aiohttp.ClientTimeout(total=10, connect=5, sock_read=5)
-
         self._session = aiohttp.ClientSession(
             connector=self._connector,
-            timeout=timeout,
             connector_owner=True,
             trust_env=True,
         )
@@ -130,7 +127,9 @@ async def send_message_by_url(
                 f"Attempt {attempt + 1}/{max_retries}: Sending message to {chat_id}"
             )
 
-            async with session.post(url, data=data) as response:
+            async with session.post(
+                url, data=data, timeout=aiohttp.ClientTimeout(total=3)
+            ) as response:
                 response.raise_for_status()
                 result = await response.json()
 
@@ -224,7 +223,10 @@ async def get_tg_user_photo_url(tg_id: int, token: str = settings.TG_API_TOKEN):
         try:
             # 获取用户头像
             async with session.get(
-                f"https://api.telegram.org/bot{token}/getUserProfilePhotos?user_id={tg_id}&limit=1"
+                f"https://api.telegram.org/bot{token}/getUserProfilePhotos?user_id={tg_id}&limit=1",
+                timeout=aiohttp.ClientTimeout(
+                    total=10, connect=5, sock_connect=5, sock_read=5
+                ),
             ) as photos_response:
                 photo_url = None
                 if photos_response.status == 200:
@@ -234,7 +236,10 @@ async def get_tg_user_photo_url(tg_id: int, token: str = settings.TG_API_TOKEN):
 
                         # 获取文件路径
                         async with session.get(
-                            f"https://api.telegram.org/bot{token}/getFile?file_id={photo_file_id}"
+                            f"https://api.telegram.org/bot{token}/getFile?file_id={photo_file_id}",
+                            timeout=aiohttp.ClientTimeout(
+                                total=10, connect=5, sock_connect=5, sock_read=5
+                            ),
                         ) as file_response:
                             if file_response.status == 200:
                                 file_data = await file_response.json()
@@ -287,7 +292,10 @@ async def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
             while retry > 0:
                 try:
                     async with session.get(
-                        url=f"https://api.telegram.org/bot{token}/getChat?chat_id={tg_id}"
+                        url=f"https://api.telegram.org/bot{token}/getChat?chat_id={tg_id}",
+                        timeout=aiohttp.ClientTimeout(
+                            total=10, connect=5, sock_connect=5, sock_read=5
+                        ),
                     ) as response:
                         if response.status != 200:
                             logger.error(f"Error: failed to get info. for {tg_id}")
@@ -316,7 +324,10 @@ async def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
                 photo_path = settings.TG_USER_PROFILE_CACHE_PATH / f"{tg_id}.jpg"
                 try:
                     async with session.get(
-                        photo_url, timeout=aiohttp.ClientTimeout(total=10)
+                        photo_url,
+                        timeout=aiohttp.ClientTimeout(
+                            total=10, connect=5, sock_connect=5, sock_read=5
+                        ),
                     ) as response:
                         if response.status == 200:
                             content = await response.read()
