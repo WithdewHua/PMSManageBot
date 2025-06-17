@@ -1,6 +1,7 @@
 from time import time
 from uuid import NAMESPACE_URL, uuid3
 
+from app.config import settings
 from app.db import DB
 from app.emby import Emby
 from app.log import logger
@@ -9,6 +10,7 @@ from app.tautulli import Tautulli
 from app.utils import (
     get_user_name_from_tg_id,
     get_user_total_duration,
+    send_message_by_url,
 )
 
 
@@ -296,20 +298,29 @@ def add_redeem_code(tg_id=None, num=1, is_privileged=False):
         db.close()
 
 
-def finish_expired_auctions_job():
+async def finish_expired_auctions_job():
     """定时任务：结束过期的竞拍活动"""
     try:
         db = DB()
         finished_auctions = db.finish_expired_auctions()
-        if finished_auctions:
-            logger.info(f"自动结束了 {len(finished_auctions)} 个过期竞拍活动")
-            for auction in finished_auctions:
-                logger.info(
-                    f"竞拍 {auction['id']} ({auction['title']}) 已结束，获胜者: {get_user_name_from_tg_id(auction['winner_id']) if auction['winner_id'] else '无'}"
-                )
-        db.close()
+        # 通知用户
+        for autction in finished_auctions:
+            await send_message_by_url(
+                autction.get("winner_id"),
+                f"恭喜你，竞拍 {autction['title']} 获胜！最终出价为 {autction['final_price']} 积分",
+            )
+            if not autction.get("credits_reduced", False):
+                # 如果未扣除积分，通知管理员
+                for chat_id in settings.ADMIN_CHAT_ID:
+                    await send_message_by_url(
+                        chat_id=chat_id,
+                        text=f"用户 {autction.get('winner_id')} 在竞拍 {autction['title']} 中获胜，但未扣除积分。",
+                    )
+        return finished_auctions
     except Exception as e:
         logger.error(f"自动结束过期竞拍失败: {e}")
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":

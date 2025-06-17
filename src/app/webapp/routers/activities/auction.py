@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from app.config import settings
 from app.db import DB
 from app.log import uvicorn_logger as logger
+from app.update_db import finish_expired_auctions_job
 from app.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
@@ -324,25 +325,11 @@ async def finish_expired_auctions(
         # 检查管理员权限
         check_admin_permission(current_user)
 
-        db = DB()
-        finished_auctions = db.finish_expired_auctions()
+        finished_auctions = await finish_expired_auctions_job()
 
         logger.info(
             f"管理员 {get_user_name_from_tg_id(current_user.id)} 结束了 {len(finished_auctions)} 个过期竞拍"
         )
-        # 通知用户
-        for autction in finished_auctions:
-            await send_message_by_url(
-                autction.get("winner_id"),
-                f"恭喜你，竞拍 {autction['title']} 获胜！最终出价为 {autction['final_price']} 积分",
-            )
-            if not autction.get("credits_reduced", False):
-                # 如果未扣除积分，通知管理员
-                for chat_id in settings.ADMIN_CHAT_ID:
-                    await send_message_by_url(
-                        chat_id=chat_id,
-                        text=f"用户 {autction.get('winner_id')} 在竞拍 {autction['title']} 中获胜，但未扣除积分。",
-                    )
 
         return {
             "success": True,
@@ -357,9 +344,6 @@ async def finish_expired_auctions(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="结束过期竞拍失败"
         )
-    finally:
-        if "db" in locals():
-            db.close()
 
 
 # 管理员专用路由

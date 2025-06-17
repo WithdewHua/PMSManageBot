@@ -101,7 +101,7 @@ def add_init_scheduler_job():
     logger.info("添加定时任务：每天早上 07:00 更新 Emby 用户信息")
 
     # 每小时检查并结束过期的竞拍活动 (同步任务)
-    scheduler.add_sync_job(
+    scheduler.add_async_job(
         func=finish_expired_auctions_job,
         trigger="cron",
         id="finish_expired_auctions",
