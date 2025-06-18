@@ -289,6 +289,9 @@ async def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
             # 缓存保留 7 天
             if tg_id in cache:
                 if time() - cache.get(tg_id).get("added") <= 7 * 24 * 3600:
+                    logger.info(
+                        f"{cache.get(tg_id).get('username')}({tg_id}) info is not expired, skip"
+                    )
                     continue
             retry = 10
             while retry > 0:
@@ -336,6 +339,7 @@ async def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
                 )
             # add cache
             cache.update({tg_id: user_info})
+            logger.info(f"Updated tg user info: {user_info.get('username')}({tg_id})")
             with cache_file_lock:
                 with open(settings.TG_USER_INFO_CACHE_PATH, "wb") as f:
                     pickle.dump(cache, f)
