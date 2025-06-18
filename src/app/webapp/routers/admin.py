@@ -254,16 +254,13 @@ async def unbind_emby_premium_free():
             if last_line:
                 emby_user_defined_line_cache.put(str(emby_username).lower(), last_line)
                 emby_last_user_defined_line_cache.delete(str(emby_username).lower())
-                await send_message_by_url(
-                    chat_id=tg_id,
-                    text=f"通知：高级线路开放通道关闭，您绑定的线路已切换为 `{last_line}`",
-                    parse_mode="markdownv2",
-                )
             else:
                 emby_user_defined_line_cache.delete(str(emby_username).lower())
+            # 发送通知给用户
+            if tg_id:
                 await send_message_by_url(
                     chat_id=tg_id,
-                    text="通知：高级线路开放通道已关闭，您绑定的线路已切换为 `AUTO`",
+                    text=f"通知：高级线路开放通道已关闭，您绑定的线路已切换为 `{last_line or 'AUTO'}`",
                     parse_mode="markdownv2",
                 )
 
@@ -305,16 +302,13 @@ async def unbind_plex_premium_free():
             if last_line:
                 plex_user_defined_line_cache.put(str(plex_username).lower(), last_line)
                 plex_last_user_defined_line_cache.delete(str(plex_username).lower())
-                await send_message_by_url(
-                    chat_id=tg_id,
-                    text=f"通知：高级线路开放通道关闭，您绑定的线路已切换为 `{last_line}`",
-                    parse_mode="markdownv2",
-                )
             else:
                 plex_user_defined_line_cache.delete(str(plex_username).lower())
+            # 发送通知给用户
+            if tg_id:
                 await send_message_by_url(
                     chat_id=tg_id,
-                    text="通知：高级线路开放通道已关闭，您绑定的线路已切换为 `AUTO`",
+                    text=f"通知：高级线路开放通道已关闭，您绑定的线路已切换为 `{last_line or 'AUTO'}`",
                     parse_mode="markdownv2",
                 )
 
@@ -361,16 +355,13 @@ async def handle_free_premium_lines_change(removed_lines: list | set):
             if last_line:
                 emby_user_defined_line_cache.put(str(emby_username).lower(), last_line)
                 emby_last_user_defined_line_cache.delete(str(emby_username).lower())
-                await send_message_by_url(
-                    chat_id=tg_id,
-                    text=f"通知：线路 `{emby_line}` 已不再免费开放，您的 Emby 绑定线路已切换为 `{last_line}`",
-                    parse_mode="markdownv2",
-                )
             else:
                 emby_user_defined_line_cache.delete(str(emby_username).lower())
+            # 发送通知给用户
+            if tg_id:
                 await send_message_by_url(
                     chat_id=tg_id,
-                    text=f"通知：线路 `{emby_line}` 已不再免费开放，您的 Emby 绑定线路已切换为 `AUTO`",
+                    text=f"通知：线路 `{emby_line}` 已不再免费开放，您的 Emby 绑定线路已切换为 `{last_line or 'AUTO'}`",
                     parse_mode="markdownv2",
                 )
 
@@ -398,16 +389,13 @@ async def handle_free_premium_lines_change(removed_lines: list | set):
             if last_line:
                 plex_user_defined_line_cache.put(str(plex_username).lower(), last_line)
                 plex_last_user_defined_line_cache.delete(str(plex_username).lower())
-                await send_message_by_url(
-                    chat_id=tg_id,
-                    text=f"通知： 线路 `{plex_line}` 已不再开放，您绑定的 Plex 线路已切换为 `{last_line}`",
-                    parse_mode="markdownv2",
-                )
             else:
                 plex_user_defined_line_cache.delete(str(plex_username).lower())
+            # 发送通知给用户
+            if tg_id:
                 await send_message_by_url(
                     chat_id=tg_id,
-                    text=f"通知：线路 `{plex_line}` 已不再开放，您绑定的 Plex 线路已切换为 `AUTO`",
+                    text=f"通知：线路 `{plex_line}` 已不再开放，您绑定的 Plex 线路已切换为 `{last_line or 'AUTO'}`",
                     parse_mode="markdownv2",
                 )
 
@@ -433,11 +421,13 @@ async def unbind_specified_line_for_all_users(line: str):
                 db.set_emby_line(line=None, tg_id=tg_id)
                 emby_user_defined_line_cache.delete(str(emby_username).lower())
                 emby_last_user_defined_line_cache.delete(str(emby_username).lower())
-                await send_message_by_url(
-                    chat_id=tg_id,
-                    text=f"通知：您绑定的 Emby 线路 `{line}` 已被管理员下线，已切换为 `AUTO`",
-                    parse_mode="markdownv2",
-                )
+                # 发送通知给用户
+                if tg_id:
+                    await send_message_by_url(
+                        chat_id=tg_id,
+                        text=f"通知：您绑定的 Emby 线路 `{line}` 已被管理员下线，已切换为 `AUTO`",
+                        parse_mode="markdownv2",
+                    )
 
         # 处理Plex用户解绑逻辑
         plex_users = db.get_plex_user_with_binded_line()
@@ -448,11 +438,13 @@ async def unbind_specified_line_for_all_users(line: str):
                 db.set_plex_line(line=None, tg_id=tg_id)
                 plex_user_defined_line_cache.delete(str(plex_username).lower())
                 plex_last_user_defined_line_cache.delete(str(plex_username).lower())
-                await send_message_by_url(
-                    chat_id=tg_id,
-                    text=f"通知：您绑定的 Plex 线路 `{line}` 已被管理员下线，已切换为 `AUTO`",
-                    parse_mode="markdownv2",
-                )
+                # 发送通知给用户
+                if tg_id:
+                    await send_message_by_url(
+                        chat_id=tg_id,
+                        text=f"通知：您绑定的 Plex 线路 `{line}` 已被管理员下线，已切换为 `AUTO`",
+                        parse_mode="markdownv2",
+                    )
 
         return True, None
 
