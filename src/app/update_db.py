@@ -28,7 +28,7 @@ def update_plex_credits():
         users = res.fetchall()
         for user in users:
             plex_id = user[0]
-            play_duration = int(duration.get(plex_id, 0))
+            play_duration = min(int(duration.get(plex_id, 0)), 24)
             if play_duration == 0:
                 continue
             # 最大记 8h
