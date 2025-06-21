@@ -527,7 +527,7 @@
             elevation="4"
           >
             <v-icon start>mdi-information</v-icon>
-            您尚未绑定任何媒体服务账户，请使用 /bind_plex 或 /bind_emby 命令进行绑定
+            您尚未绑定任何媒体服务账户，请先进行绑定
           </v-alert>
         </div>
       </div>
@@ -890,6 +890,28 @@ export default {
     // 打开捐赠对话框
     openDonationDialog() {
       this.$refs.donationDialog.open();
+    },
+    
+    // 打开积分转移对话框
+    openCreditsTransferDialog() {
+      this.$refs.creditsTransferDialog.open();
+    },
+    
+    // 处理积分转移完成事件
+    handleCreditsTransferCompleted(result) {
+      const { amount, target_user, current_credits } = result;
+      
+      // 更新用户积分
+      this.userInfo.credits = current_credits;
+      
+      // 显示成功消息
+      this.showMessage(`成功转移 ${amount} 积分给用户 ${target_user}`, 'success');
+    },
+    
+    // 处理捐赠提交事件
+    handleDonationSubmitted() {
+      // 重新获取用户信息以更新捐赠金额
+      this.fetchUserInfo();
     },
     
     // 打开标签管理对话框
