@@ -2,8 +2,6 @@
 Premium 会员过期检查任务
 """
 
-from datetime import datetime
-
 from app.db import DB
 from app.log import logger
 from app.utils import get_user_name_from_tg_id, send_message_by_url
@@ -67,64 +65,5 @@ async def check_premium_expiring_soon(days: int = 3):
 
     except Exception as e:
         logger.error(f"检查即将过期的 Premium 用户时出错: {str(e)}")
-    finally:
-        db.close()
-
-
-def get_premium_statistics():
-    """获取 Premium 用户统计信息"""
-    db = DB()
-    try:
-        # 统计当前活跃的 Premium 用户
-        current_time = datetime.now().isoformat()
-
-        plex_premium_count = db.cur.execute(
-            "SELECT COUNT(*) FROM user WHERE is_premium=1 AND (premium_expiry_time IS NULL OR premium_expiry_time > ?)",
-            (current_time,),
-        ).fetchone()[0]
-
-        emby_premium_count = db.cur.execute(
-            "SELECT COUNT(*) FROM emby_user WHERE is_premium=1 AND (premium_expiry_time IS NULL OR premium_expiry_time > ?)",
-            (current_time,),
-        ).fetchone()[0]
-
-        # 统计今天过期的用户
-        today_start = (
-            datetime.now()
-            .replace(hour=0, minute=0, second=0, microsecond=0)
-            .isoformat()
-        )
-        today_end = (
-            datetime.now()
-            .replace(hour=23, minute=59, second=59, microsecond=999999)
-            .isoformat()
-        )
-
-        plex_expired_today = db.cur.execute(
-            "SELECT COUNT(*) FROM user WHERE premium_expiry_time >= ? AND premium_expiry_time <= ?",
-            (today_start, today_end),
-        ).fetchone()[0]
-
-        emby_expired_today = db.cur.execute(
-            "SELECT COUNT(*) FROM emby_user WHERE premium_expiry_time >= ? AND premium_expiry_time <= ?",
-            (today_start, today_end),
-        ).fetchone()[0]
-
-        stats = {
-            "active_plex_premium": plex_premium_count,
-            "active_emby_premium": emby_premium_count,
-            "total_active_premium": plex_premium_count + emby_premium_count,
-            "expired_today": plex_expired_today + emby_expired_today,
-        }
-
-        logger.info(
-            f"Premium 统计 - 活跃 Plex: {plex_premium_count}, 活跃 Emby: {emby_premium_count}, 今日过期: {stats['expired_today']}"
-        )
-
-        return stats
-
-    except Exception as e:
-        logger.error(f"获取 Premium 统计信息时出错: {str(e)}")
-        return None
     finally:
         db.close()

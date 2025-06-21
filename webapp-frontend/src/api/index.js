@@ -48,5 +48,9 @@ export const getSystemStats = () => {
   return apiClient.get('/api/system/stats')
 }
 
+export const getPremiumStatistics = () => {
+  return apiClient.get('/api/premium/statistics')
+}
+
 // 导出解析 initData 方法和获取用户方法
 export { parseInitData, getTelegramUser }

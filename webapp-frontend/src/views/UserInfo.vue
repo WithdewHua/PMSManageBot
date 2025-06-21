@@ -45,13 +45,27 @@
                 <v-btn
                   icon
                   size="x-small"
-                  color="amber-darken-2"
+                  :color="creditsTransferEnabled ? 'amber-darken-2' : 'grey'"
                   variant="outlined"
-                  @click="openCreditsTransferDialog"
-                  title="积分转移"
-                  class="mr-2"
+                  @click="handleCreditsTransferClick"
+                  :title="creditsTransferEnabled ? '积分转移' : '积分转移功能暂时关闭'"
+                  class="mr-2 credits-transfer-btn"
+                  :class="{ 'disabled-style': !creditsTransferEnabled }"
                 >
-                  <v-icon size="small">mdi-bank-transfer</v-icon>
+                  <v-icon 
+                    size="small" 
+                    :class="{ 'text-grey-darken-2': !creditsTransferEnabled }"
+                  >
+                    {{ creditsTransferEnabled ? 'mdi-bank-transfer' : 'mdi-bank-transfer-out' }}
+                  </v-icon>
+                  <v-icon 
+                    v-if="!creditsTransferEnabled" 
+                    size="x-small" 
+                    class="disable-icon"
+                    color="error"
+                  >
+                    mdi-cancel
+                  </v-icon>
                 </v-btn>
                 <div class="value-display credits-value">{{ userInfo.credits.toFixed(2) }}</div>
               </div>
@@ -640,6 +654,7 @@ export default {
       systemStatus: {
         premium_unlock_enabled: true
       },
+      creditsTransferEnabled: true, // 积分转移功能开关状态
       currentPremiumExpiry: null,
       currentIsPremium: false
     }
@@ -647,7 +662,7 @@ export default {
   mounted() {
     this.fetchUserInfo()
     this.fetchActivityStats()
-    this.fetchSystemStatus()
+    this.fetchSystemStatus() // 这里会同时获取系统状态和积分转移开关状态
   },
   methods: {
     async fetchUserInfo() {
@@ -690,9 +705,13 @@ export default {
       try {
         const response = await getSystemStatus()
         this.systemStatus = response
+        // 同时获取积分转移开关状态
+        this.creditsTransferEnabled = response.credits_transfer_enabled !== undefined ? 
+          response.credits_transfer_enabled : true
       } catch (err) {
         console.error('获取系统状态失败:', err)
         // 使用默认值，不影响用户体验
+        this.creditsTransferEnabled = true
       }
     },
 
@@ -890,6 +909,18 @@ export default {
     // 打开捐赠对话框
     openDonationDialog() {
       this.$refs.donationDialog.open();
+    },
+    
+    // 处理积分转移按钮点击事件
+    handleCreditsTransferClick() {
+      if (!this.creditsTransferEnabled) {
+        // 功能关闭时显示提示
+        this.showMessage('积分转移功能暂时关闭', 'error')
+        return
+      }
+      
+      // 功能开启时正常打开对话框
+      this.openCreditsTransferDialog()
     },
     
     // 打开积分转移对话框
@@ -1487,6 +1518,31 @@ export default {
 .redeem-button:disabled,
 .redeem-button-horizontal:disabled {
   opacity: 0.6;
+}
+
+/* 积分转移按钮样式 */
+.credits-transfer-btn {
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.credits-transfer-btn.disabled-style {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.credits-transfer-btn.disabled-style:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.credits-transfer-btn .disable-icon {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: white;
+  border-radius: 50%;
+  font-size: 10px !important;
 }
 
 /* 个人活动数据卡片样式 */

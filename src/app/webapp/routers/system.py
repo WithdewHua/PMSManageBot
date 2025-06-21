@@ -62,6 +62,7 @@ async def get_system_status():
             "emby_register": settings.EMBY_REGISTER,
             "premium_unlock_enabled": settings.PREMIUM_UNLOCK_ENABLED,
             "premium_daily_credits": settings.PREMIUM_DAILY_CREDITS,
+            "credits_transfer_enabled": settings.CREDITS_TRANSFER_ENABLED,
         }
 
         logger.info("获取系统状态信息")

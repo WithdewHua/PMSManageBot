@@ -1399,3 +1399,70 @@ class DB:
             )
 
         return expiring_users
+
+    def get_premium_statistics(self):
+        """获取 Premium 用户统计信息"""
+        try:
+            from datetime import datetime
+
+            current_time = datetime.now().isoformat()
+
+            # 总 Premium 用户数（包含 Plex 和 Emby，去重）
+            total_premium_users_query = """
+            SELECT COUNT(DISTINCT tg_id) FROM (
+                SELECT tg_id FROM user WHERE is_premium=1 AND tg_id IS NOT NULL
+                UNION
+                SELECT tg_id FROM emby_user WHERE is_premium=1 AND tg_id IS NOT NULL
+            )
+            """
+            total_premium_users = self.cur.execute(
+                total_premium_users_query
+            ).fetchone()[0]
+
+            # 活跃 Premium 用户数（未过期的）
+            active_premium_users_query = """
+            SELECT COUNT(DISTINCT tg_id) FROM (
+                SELECT tg_id FROM user 
+                WHERE is_premium=1 AND tg_id IS NOT NULL 
+                AND (premium_expiry_time IS NULL OR premium_expiry_time > ?)
+                UNION
+                SELECT tg_id FROM emby_user 
+                WHERE is_premium=1 AND tg_id IS NOT NULL 
+                AND (premium_expiry_time IS NULL OR premium_expiry_time > ?)
+            )
+            """
+            active_premium_users = self.cur.execute(
+                active_premium_users_query, (current_time, current_time)
+            ).fetchone()[0]
+
+            # Premium Plex 用户数（未过期的）
+            premium_plex_users = self.cur.execute(
+                """SELECT COUNT(*) FROM user 
+                WHERE is_premium=1 
+                AND (premium_expiry_time IS NULL OR premium_expiry_time > ?)""",
+                (current_time,),
+            ).fetchone()[0]
+
+            # Premium Emby 用户数（未过期的）
+            premium_emby_users = self.cur.execute(
+                """SELECT COUNT(*) FROM emby_user 
+                WHERE is_premium=1 
+                AND (premium_expiry_time IS NULL OR premium_expiry_time > ?)""",
+                (current_time,),
+            ).fetchone()[0]
+
+            return {
+                "total_premium_users": total_premium_users,
+                "active_premium_users": active_premium_users,
+                "premium_plex_users": premium_plex_users,
+                "premium_emby_users": premium_emby_users,
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting premium statistics: {e}")
+            return {
+                "total_premium_users": 0,
+                "active_premium_users": 0,
+                "premium_plex_users": 0,
+                "premium_emby_users": 0,
+            }

@@ -32,7 +32,10 @@ class Settings(BaseSettings):
     UNLOCK_CREDITS: int = 100
     INVITATION_CREDITS: int = 288
     PREMIUM_DAILY_CREDITS: int = 15
-    PREMIUM_UNLOCK_ENABLED: bool = True
+
+    # 功能开放设置
+    PREMIUM_UNLOCK_ENABLED: bool = False  # 是否开放 premium 解锁功能
+    CREDITS_TRANSFER_ENABLED: bool = True  # 积分转移功能开关
 
     # TG
     TG_API_TOKEN: str = ""

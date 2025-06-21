@@ -217,3 +217,20 @@ export async function setPremiumUnlockEnabled(enabled) {
     throw error;
   }
 }
+
+/**
+ * 设置积分转移功能开关
+ * @param {boolean} enabled - 是否开启积分转移功能
+ * @returns {Promise} 设置结果
+ */
+export async function setCreditsTransferEnabled(enabled) {
+  try {
+    const response = await apiClient.post('/api/admin/settings/credits-transfer-enabled', {
+      enabled: enabled
+    });
+    return response;
+  } catch (error) {
+    console.error('设置积分转移功能状态失败:', error);
+    throw error;
+  }
+}

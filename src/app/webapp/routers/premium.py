@@ -16,6 +16,15 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 
+class PremiumStatisticsResponse(BaseModel):
+    """Premium统计信息响应模型"""
+
+    total_premium_users: int
+    active_premium_users: int
+    premium_plex_users: int
+    premium_emby_users: int
+
+
 class PremiumPriceInfoResponse(BaseModel):
     """Premium价格信息响应模型"""
 
@@ -183,3 +192,28 @@ async def unlock_premium(
         raise HTTPException(status_code=500, detail="解锁失败，请稍后再试")
     finally:
         db.close()
+
+
+@router.get("/statistics", response_model=PremiumStatisticsResponse)
+@require_telegram_auth
+async def get_premium_statistics(
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取Premium用户统计信息"""
+    try:
+        db = DB()
+        try:
+            stats = db.get_premium_statistics()
+            logger.info(
+                f"用户 {get_user_name_from_tg_id(user.id)} 获取 Premium 统计信息"
+            )
+            return PremiumStatisticsResponse(**stats)
+        finally:
+            db.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取 Premium 统计信息失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取统计信息失败")

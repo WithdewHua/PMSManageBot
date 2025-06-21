@@ -66,6 +66,7 @@ async def get_admin_settings(
             "invitation_credits": settings.INVITATION_CREDITS,
             "unlock_credits": settings.UNLOCK_CREDITS,
             "premium_daily_credits": settings.PREMIUM_DAILY_CREDITS,
+            "credits_transfer_enabled": settings.CREDITS_TRANSFER_ENABLED,  # 添加积分转移开关
         }
 
         logger.info(f"管理员 {user.username or user.id} 获取系统设置")
@@ -758,6 +759,34 @@ async def set_premium_unlock_enabled(
         )
     except Exception as e:
         logger.error(f"设置 Premium 解锁开放状态失败: {str(e)}")
+        return BaseResponse(success=False, message="设置失败")
+
+
+@router.post("/settings/credits-transfer-enabled")
+@require_telegram_auth
+async def set_credits_transfer_enabled(
+    request: Request,
+    data: dict = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """设置积分转移功能开关"""
+    check_admin_permission(user)
+
+    try:
+        enabled = data.get("enabled", False)
+        settings.CREDITS_TRANSFER_ENABLED = bool(enabled)
+        settings.save_config_to_env_file(
+            {"CREDITS_TRANSFER_ENABLED": str(enabled).lower()}
+        )
+
+        logger.info(
+            f"管理员 {user.username or user.id} 设置积分转移功能状态为: {enabled}"
+        )
+        return BaseResponse(
+            success=True, message=f"积分转移功能已{'开启' if enabled else '关闭'}"
+        )
+    except Exception as e:
+        logger.error(f"设置积分转移功能状态失败: {str(e)}")
         return BaseResponse(success=False, message="设置失败")
 
 

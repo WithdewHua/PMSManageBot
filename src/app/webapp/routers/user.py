@@ -1392,6 +1392,10 @@ async def transfer_credits(
     转移积分给其他用户，收取手续费
     """
     try:
+        # 检查积分转移功能是否开启
+        if not settings.CREDITS_TRANSFER_ENABLED:
+            return CreditsTransferResponse(success=False, message="积分转移功能已关闭")
+
         sender_id = user.id
         target_tg_id = data.target_tg_id
         amount = data.amount

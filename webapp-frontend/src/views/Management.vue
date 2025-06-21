@@ -310,7 +310,7 @@
                   </div>
                   
                   <!-- 解锁Premium每日积分设置 -->
-                  <div class="d-flex justify-space-between align-center">
+                  <div class="d-flex justify-space-between align-center mb-3">
                     <div class="d-flex align-center">
                       <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-crown</v-icon>
                       <span>解锁 Premium 每日积分：</span>
@@ -329,6 +329,21 @@
                         @keyup.enter="updatePremiumDailyCredits"
                       ></v-text-field>
                     </div>
+                  </div>
+                  
+                  <!-- 积分转移功能开关 -->
+                  <div class="d-flex justify-space-between align-center">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="blue-darken-1" class="mr-2">mdi-bank-transfer</v-icon>
+                      <span>积分转移功能：</span>
+                    </div>
+                    <v-switch
+                      v-model="adminSettings.credits_transfer_enabled"
+                      color="success"
+                      density="compact"
+                      hide-details
+                      @change="updateCreditsTransferEnabled"
+                    ></v-switch>
                   </div>
                 </div>
               </v-card-text>
@@ -526,7 +541,7 @@
           <!-- 概览 Tab -->
           <v-window-item value="overview">
             <!-- 加载状态 -->
-            <div v-if="systemStatsLoading" class="text-center my-10">
+            <div v-if="systemStatsLoading || premiumStatsLoading" class="text-center my-10">
               <v-progress-circular indeterminate color="primary"></v-progress-circular>
               <div class="mt-3">加载系统统计中...</div>
             </div>
@@ -538,7 +553,7 @@
                 color="primary" 
                 variant="outlined" 
                 class="mt-3"
-                @click="fetchSystemStats"
+                @click="refreshOverviewStats"
               >
                 重试
               </v-btn>
@@ -571,6 +586,64 @@
                       </div>
                     </v-col>
                   </v-row>
+                </v-card-text>
+              </v-card>
+              
+              <!-- Premium 用户统计卡片 -->
+              <v-card class="admin-card-enhanced mb-4">
+                <v-card-title class="text-center">
+                  <v-icon start color="purple">mdi-crown</v-icon> Premium 用户统计
+                </v-card-title>
+                <v-card-text>
+                  <!-- 加载状态 -->
+                  <div v-if="premiumStatsLoading" class="text-center py-4">
+                    <v-progress-circular indeterminate size="small" color="purple"></v-progress-circular>
+                    <div class="mt-2">加载Premium统计中...</div>
+                  </div>
+                  
+                  <!-- 错误状态 -->
+                  <div v-else-if="premiumStatsError" class="text-center py-4">
+                    <v-alert type="error" density="compact">{{ premiumStatsError }}</v-alert>
+                    <v-btn 
+                      color="purple" 
+                      variant="outlined" 
+                      size="small"
+                      class="mt-2"
+                      @click="fetchPremiumStats"
+                    >
+                      重试
+                    </v-btn>
+                  </div>
+                  
+                  <!-- Premium统计数据 -->
+                  <div v-else>
+                    <v-row>
+                      <v-col cols="12" sm="6" md="3">
+                        <div class="stat-item">
+                          <div class="stat-value text-purple-darken-2">{{ premiumStats.total_premium_users }}</div>
+                          <div class="stat-label">总 Premium 用户</div>
+                        </div>
+                      </v-col>
+                      <v-col cols="12" sm="6" md="3">
+                        <div class="stat-item">
+                          <div class="stat-value text-purple">{{ premiumStats.active_premium_users }}</div>
+                          <div class="stat-label">活跃 Premium 用户</div>
+                        </div>
+                      </v-col>
+                      <v-col cols="12" sm="6" md="3">
+                        <div class="stat-item">
+                          <div class="stat-value text-orange-darken-2">{{ premiumStats.premium_plex_users }}</div>
+                          <div class="stat-label">Plex Premium 用户</div>
+                        </div>
+                      </v-col>
+                      <v-col cols="12" sm="6" md="3">
+                        <div class="stat-item">
+                          <div class="stat-value text-green-darken-2">{{ premiumStats.premium_emby_users }}</div>
+                          <div class="stat-label">Emby Premium 用户</div>
+                        </div>
+                      </v-col>
+                    </v-row>
+                  </div>
                 </v-card-text>
               </v-card>
               
@@ -1183,13 +1256,13 @@
 </template>
 
 <script>
-import { getUserInfo, getSystemStats } from '@/api'
+import { getUserInfo, getSystemStats, getPremiumStatistics } from '@/api'
 import DonationDialog from '@/components/DonationDialog.vue'
 import AdminInviteCodeDialog from '@/components/AdminInviteCodeDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import WheelAdminPanel from '@/components/WheelAdminPanel.vue'
-import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits, setPremiumDailyCredits, setPremiumUnlockEnabled } from '@/services/adminService.js'
+import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits, setPremiumDailyCredits, setPremiumUnlockEnabled, setCreditsTransferEnabled } from '@/services/adminService.js'
 import { getWheelStats } from '@/services/wheelService.js'
 import { getAuctionStats, getAllAuctions, finishExpiredAuctions, finishAuction, deleteAuction, createAuction, getAuctionBids, updateAuction } from '@/services/auctionService.js'
 
@@ -1216,6 +1289,7 @@ export default {
         premium_lines: [],
         free_premium_lines: [],
         premium_unlock_enabled: false,
+        credits_transfer_enabled: true,
         invitation_credits: 288,
         unlock_credits: 100,
         premium_daily_credits: 15,
@@ -1281,7 +1355,15 @@ export default {
         total_users: 0
       },
       systemStatsLoading: false,
-      systemStatsError: null
+      systemStatsError: null,
+      premiumStats: {
+        total_premium_users: 0,
+        active_premium_users: 0,
+        premium_plex_users: 0,
+        premium_emby_users: 0,
+      },
+      premiumStatsLoading: false,
+      premiumStatsError: null
     }
   },
   mounted() {
@@ -1294,6 +1376,7 @@ export default {
       // 如果切换到概览tab，则获取系统统计数据
       if (newTab === 'overview') {
         this.fetchSystemStats()
+        this.fetchPremiumStats()
       }
       // 如果切换到设置项tab且是管理员，则获取管理员设置
       if (newTab === 'settings' && this.isAdmin && !this.adminSettings.loaded) {
@@ -1318,6 +1401,7 @@ export default {
         // 如果当前在概览tab，则获取系统统计数据
         if (this.currentTab === 'overview') {
           await this.fetchSystemStats()
+          await this.fetchPremiumStats()
         }
         // 如果是管理员且当前在设置项tab，则获取管理员设置
         if (this.isAdmin && this.currentTab === 'settings') {
@@ -1362,6 +1446,25 @@ export default {
         this.systemStatsLoading = false
         console.error('获取系统统计失败:', err)
       }
+    },
+    
+    async fetchPremiumStats() {
+      try {
+        this.premiumStatsLoading = true
+        this.premiumStatsError = null
+        const response = await getPremiumStatistics()
+        this.premiumStats = response.data
+        this.premiumStatsLoading = false
+      } catch (err) {
+        this.premiumStatsError = err.response?.data?.detail || '获取Premium统计失败'
+        this.premiumStatsLoading = false
+        console.error('获取Premium统计失败:', err)
+      }
+    },
+    
+    async refreshOverviewStats() {
+      await this.fetchSystemStats()
+      await this.fetchPremiumStats()
     },
     
     async updatePlexRegister() {
@@ -1409,6 +1512,18 @@ export default {
         this.adminSettings.premium_unlock_enabled = !this.adminSettings.premium_unlock_enabled
         this.showMessage('更新 Premium 解锁开放设置失败', 'error')
         console.error('更新 Premium 解锁开放设置失败:', err)
+      }
+    },
+    
+    async updateCreditsTransferEnabled() {
+      try {
+        await setCreditsTransferEnabled(this.adminSettings.credits_transfer_enabled)
+        this.showMessage('积分转移功能设置已更新')
+      } catch (err) {
+        // 回滚状态
+        this.adminSettings.credits_transfer_enabled = !this.adminSettings.credits_transfer_enabled
+        this.showMessage('更新积分转移功能设置失败', 'error')
+        console.error('更新积分转移功能设置失败:', err)
       }
     },
     
