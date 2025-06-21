@@ -59,11 +59,13 @@ async def get_admin_settings(
             "plex_register": settings.PLEX_REGISTER,
             "emby_register": settings.EMBY_REGISTER,
             "premium_free": settings.PREMIUM_FREE,
+            "premium_unlock_enabled": settings.PREMIUM_UNLOCK_ENABLED,
             "lines": settings.STREAM_BACKEND,
             "premium_lines": settings.PREMIUM_STREAM_BACKEND,
             "free_premium_lines": free_premium_lines,
             "invitation_credits": settings.INVITATION_CREDITS,
             "unlock_credits": settings.UNLOCK_CREDITS,
+            "premium_daily_credits": settings.PREMIUM_DAILY_CREDITS,
         }
 
         logger.info(f"管理员 {user.username or user.id} 获取系统设置")
@@ -697,6 +699,65 @@ async def set_unlock_credits(
         )
     except Exception as e:
         logger.error(f"设置解锁积分失败: {str(e)}")
+        return BaseResponse(success=False, message="设置失败")
+
+
+@router.post("/settings/premium-daily-credits")
+@require_telegram_auth
+async def set_premium_daily_credits(
+    request: Request,
+    data: dict = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """设置解锁 Premium 每日所需积分"""
+    check_admin_permission(user)
+
+    try:
+        credits = data.get("credits", 15)
+
+        # 验证积分值的合理性
+        if not isinstance(credits, int) or credits < 0:
+            return BaseResponse(success=False, message="积分值必须是非负整数")
+
+        settings.PREMIUM_DAILY_CREDITS = credits
+        settings.save_config_to_env_file({"PREMIUM_DAILY_CREDITS": str(credits)})
+
+        logger.info(
+            f"管理员 {user.username or user.id} 设置解锁 Premium 每日所需积分为: {credits}"
+        )
+        return BaseResponse(
+            success=True, message=f"解锁 Premium 每日所需积分已设置为 {credits}"
+        )
+    except Exception as e:
+        logger.error(f"设置 Premium 每日积分失败: {str(e)}")
+        return BaseResponse(success=False, message="设置失败")
+
+
+@router.post("/settings/premium-unlock-enabled")
+@require_telegram_auth
+async def set_premium_unlock_enabled(
+    request: Request,
+    data: dict = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """设置 Premium 解锁开放状态"""
+    check_admin_permission(user)
+
+    try:
+        enabled = data.get("enabled", False)
+        settings.PREMIUM_UNLOCK_ENABLED = bool(enabled)
+        settings.save_config_to_env_file(
+            {"PREMIUM_UNLOCK_ENABLED": str(enabled).lower()}
+        )
+
+        logger.info(
+            f"管理员 {user.username or user.id} 设置 Premium 解锁开放状态为: {enabled}"
+        )
+        return BaseResponse(
+            success=True, message=f"Premium 解锁已{'开放' if enabled else '关闭'}"
+        )
+    except Exception as e:
+        logger.error(f"设置 Premium 解锁开放状态失败: {str(e)}")
         return BaseResponse(success=False, message="设置失败")
 
 

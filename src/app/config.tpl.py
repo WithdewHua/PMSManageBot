@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     # credits
     UNLOCK_CREDITS: int = 100
     INVITATION_CREDITS: int = 288
+    PREMIUM_DAILY_CREDITS: int = 15
+    PREMIUM_UNLOCK_ENABLED: bool = True
 
     # TG
     TG_API_TOKEN: str = ""

@@ -31,6 +31,7 @@ class DB:
                     watched_time,
                     plex_line,
                     is_premium,
+                    premium_expiry_time
                 );
 
                 CREATE TABLE invitation(
@@ -42,7 +43,7 @@ class DB:
                 );
 
                 CREATE TABLE emby_user(
-                    emby_username, emby_id, tg_id, emby_is_unlock, emby_unlock_time, emby_watched_time, emby_credits, emby_line, is_premium
+                    emby_username, emby_id, tg_id, emby_is_unlock, emby_unlock_time, emby_watched_time, emby_credits, emby_line, is_premium, premium_expiry_time
                 );
 
                 CREATE TABLE overseerr(
@@ -99,10 +100,11 @@ class DB:
         watched_time=0,
         plex_line: Optional[str] = None,
         is_premium: Optional[int] = 0,
+        premium_expiry_time: Optional[str] = None,
     ):
         try:
             self.cur.execute(
-                "INSERT INTO user VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO user VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     plex_id,
                     tg_id,
@@ -114,6 +116,7 @@ class DB:
                     watched_time,
                     plex_line,
                     is_premium,
+                    premium_expiry_time,
                 ),
             )
         except Exception as e:
@@ -134,10 +137,11 @@ class DB:
         emby_credits: float = 0,
         emby_line: Optional[str] = None,
         is_premium: Optional[int] = 0,
+        premium_expiry_time: Optional[str] = None,
     ) -> bool:
         try:
             self.cur.execute(
-                "INSERT INTO emby_user VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO emby_user VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     emby_username,
                     emby_id,
@@ -148,6 +152,7 @@ class DB:
                     emby_credits,
                     emby_line,
                     is_premium,
+                    premium_expiry_time,
                 ),
             )
         except Exception as e:
@@ -398,14 +403,14 @@ class DB:
 
     def get_plex_watched_time_rank(self):
         rslt = self.cur.execute(
-            "SELECT plex_id,tg_id,plex_username,watched_time FROM user ORDER BY watched_time DESC"
+            "SELECT plex_id,tg_id,plex_username,watched_time,is_premium FROM user ORDER BY watched_time DESC"
         )
         res = rslt.fetchall()
         return res
 
     def get_emby_watched_time_rank(self):
         return self.cur.execute(
-            "SELECT emby_id,emby_username,emby_watched_time FROM emby_user ORDER BY emby_watched_time DESC"
+            "SELECT emby_id,emby_username,emby_watched_time,is_premium,tg_id FROM emby_user ORDER BY emby_watched_time DESC"
         ).fetchall()
 
     def verify_invitation_code_is_used(self, code):
@@ -1280,3 +1285,117 @@ class DB:
     def close(self):
         self.cur.close()
         self.con.close()
+
+    def get_expired_premium_users(self):
+        """获取所有 Premium 已过期的用户"""
+        from datetime import datetime
+
+        expired_users = []
+        current_time = datetime.now().isoformat()
+
+        # 检查 Plex 用户
+        plex_users = self.cur.execute(
+            "SELECT tg_id, plex_username, premium_expiry_time FROM user WHERE is_premium=1 AND premium_expiry_time IS NOT NULL AND premium_expiry_time < ?",
+            (current_time,),
+        ).fetchall()
+
+        for user in plex_users:
+            expired_users.append(
+                {
+                    "tg_id": user[0],
+                    "username": user[1],
+                    "service": "plex",
+                    "expiry_time": user[2],
+                }
+            )
+
+        # 检查 Emby 用户
+        emby_users = self.cur.execute(
+            "SELECT tg_id, emby_username, premium_expiry_time FROM emby_user WHERE is_premium=1 AND premium_expiry_time IS NOT NULL AND premium_expiry_time < ?",
+            (current_time,),
+        ).fetchall()
+
+        for user in emby_users:
+            expired_users.append(
+                {
+                    "tg_id": user[0],
+                    "username": user[1],
+                    "service": "emby",
+                    "expiry_time": user[2],
+                }
+            )
+
+        return expired_users
+
+    def update_expired_premium_status(self):
+        """批量更新已过期的 Premium 用户状态"""
+        from datetime import datetime
+
+        current_time = datetime.now().isoformat()
+
+        # 更新 Plex 用户 - 清空过期时间
+        plex_result = self.cur.execute(
+            "UPDATE user SET is_premium=0, premium_expiry_time=NULL WHERE is_premium=1 AND premium_expiry_time IS NOT NULL AND premium_expiry_time < ?",
+            (current_time,),
+        )
+
+        # 更新 Emby 用户 - 清空过期时间
+        emby_result = self.cur.execute(
+            "UPDATE emby_user SET is_premium=0, premium_expiry_time=NULL WHERE is_premium=1 AND premium_expiry_time IS NOT NULL AND premium_expiry_time < ?",
+            (current_time,),
+        )
+
+        self.con.commit()
+
+        total_updated = plex_result.rowcount + emby_result.rowcount
+        return total_updated
+
+    def get_premium_users_expiring_soon(self, days: int = 3):
+        """获取即将过期的 Premium 用户（默认3天内）"""
+        from datetime import datetime, timedelta
+
+        current_time = datetime.now()
+        warning_time = (current_time + timedelta(days=days)).isoformat()
+        current_time_str = current_time.isoformat()
+
+        expiring_users = []
+
+        # 检查 Plex 用户
+        plex_users = self.cur.execute(
+            "SELECT tg_id, plex_username, premium_expiry_time FROM user WHERE is_premium=1 AND premium_expiry_time IS NOT NULL AND premium_expiry_time > ? AND premium_expiry_time <= ?",
+            (current_time_str, warning_time),
+        ).fetchall()
+
+        for user in plex_users:
+            expiry_dt = datetime.fromisoformat(user[2])
+            days_remaining = (expiry_dt - current_time).days
+            expiring_users.append(
+                {
+                    "tg_id": user[0],
+                    "username": user[1],
+                    "service": "plex",
+                    "expiry_time": user[2],
+                    "days_remaining": days_remaining,
+                }
+            )
+
+        # 检查 Emby 用户
+        emby_users = self.cur.execute(
+            "SELECT tg_id, emby_username, premium_expiry_time FROM emby_user WHERE is_premium=1 AND premium_expiry_time IS NOT NULL AND premium_expiry_time > ? AND premium_expiry_time <= ?",
+            (current_time_str, warning_time),
+        ).fetchall()
+
+        for user in emby_users:
+            expiry_dt = datetime.fromisoformat(user[2])
+            days_remaining = (expiry_dt - current_time).days
+            expiring_users.append(
+                {
+                    "tg_id": user[0],
+                    "username": user[1],
+                    "service": "emby",
+                    "expiry_time": user[2],
+                    "days_remaining": days_remaining,
+                }
+            )
+
+        return expiring_users

@@ -237,7 +237,20 @@
                             <v-icon v-else size="24" color="orange">mdi-plex</v-icon>
                           </v-avatar>
                           <div class="user-info flex-grow-1">
-                            <v-list-item-title class="user-name">{{ item.name }}</v-list-item-title>
+                            <v-list-item-title class="user-name">
+                              {{ item.name }}
+                              <v-chip
+                                v-if="item.is_premium"
+                                size="x-small"
+                                color="amber"
+                                variant="elevated"
+                                class="ml-2 premium-badge"
+                              >
+                                <v-icon size="12" class="premium-icon">mdi-crown</v-icon>
+                                <span class="premium-text d-none d-md-inline">PREMIUM</span>
+                                <span class="premium-text-short d-none d-sm-inline d-md-none">VIP</span>
+                              </v-chip>
+                            </v-list-item-title>
                             <v-list-item-subtitle class="user-score">
                               <div class="d-flex align-center watched-time-container">
                                 <v-icon size="16" color="orange" class="mr-1">mdi-clock</v-icon>
@@ -304,7 +317,20 @@
                             <v-icon v-else size="24" color="green">mdi-emby</v-icon>
                           </v-avatar>
                           <div class="user-info flex-grow-1">
-                            <v-list-item-title class="user-name">{{ item.name }}</v-list-item-title>
+                            <v-list-item-title class="user-name">
+                              {{ item.name }}
+                              <v-chip
+                                v-if="item.is_premium"
+                                size="x-small"
+                                color="amber"
+                                variant="elevated"
+                                class="ml-2 premium-badge"
+                              >
+                                <v-icon size="12" class="premium-icon">mdi-crown</v-icon>
+                                <span class="premium-text d-none d-md-inline">PREMIUM</span>
+                                <span class="premium-text-short d-none d-sm-inline d-md-none">VIP</span>
+                              </v-chip>
+                            </v-list-item-title>
                             <v-list-item-subtitle class="user-score">
                               <div class="d-flex align-center watched-time-container">
                                 <v-icon size="16" color="green" class="mr-1">mdi-clock</v-icon>
@@ -1670,5 +1696,117 @@ export default {
 /* 确保标签窗口背景透明 */
 :deep(.v-window) {
   background: transparent !important;
+}
+
+/* Premium 标识样式 */
+.premium-badge {
+  animation: premium-glow 2s ease-in-out infinite alternate;
+  background: linear-gradient(135deg, #FFD700, #FFA500) !important;
+  border: 1px solid #FFD700;
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  min-height: 20px !important;
+  height: auto !important;
+}
+
+.premium-badge:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(255, 215, 0, 0.5);
+}
+
+.premium-badge .v-chip__content {
+  padding: 2px 4px !important;
+  font-size: 10px;
+  font-weight: 700;
+  color: #000 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  line-height: 1 !important;
+}
+
+.premium-icon {
+  margin: 0 !important;
+  color: #000 !important;
+  flex-shrink: 0 !important;
+}
+
+.premium-text {
+  font-size: 9px;
+  font-weight: 700;
+  color: #000;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.3);
+}
+
+.premium-text-short {
+  font-size: 9px;
+  font-weight: 700;
+  color: #000;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.3);
+}
+
+@keyframes premium-glow {
+  0% { 
+    box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+  }
+  100% { 
+    box-shadow: 0 2px 12px rgba(255, 215, 0, 0.6);
+  }
+}
+
+/* 响应式设计 - Premium 标识 */
+@media (max-width: 768px) {
+  .premium-badge {
+    margin-left: 6px !important;
+    min-height: 18px !important;
+  }
+  
+  .premium-badge .v-chip__content {
+    padding: 1px 3px !important;
+    font-size: 9px;
+    gap: 1px !important;
+  }
+  
+  .premium-icon {
+    font-size: 10px !important;
+  }
+  
+  .premium-text {
+    font-size: 8px;
+  }
+  
+  .premium-text-short {
+    font-size: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .premium-badge {
+    margin-left: 2px !important;
+    padding: 0 !important;
+    min-height: 16px !important;
+  }
+  
+  .premium-badge .v-chip__content {
+    padding: 1px 2px !important;
+    font-size: 8px;
+    min-width: auto !important;
+    gap: 0px !important;
+  }
+  
+  .premium-icon {
+    font-size: 10px !important;
+    margin: 0 !important;
+  }
+  
+  .premium-text {
+    font-size: 7px;
+  }
+  
+  .premium-text-short {
+    font-size: 7px;
+  }
 }
 </style>

@@ -1,3 +1,4 @@
+from app.config import settings
 from app.db import DB
 from app.log import uvicorn_logger as logger
 from app.webapp.auth import get_telegram_user
@@ -50,3 +51,21 @@ async def get_system_stats(
     finally:
         db.close()
         logger.debug("数据库连接已关闭")
+
+
+@router.get("/status")
+async def get_system_status():
+    """获取系统状态信息（公开接口，不需要登录）"""
+    try:
+        status_data = {
+            "plex_register": settings.PLEX_REGISTER,
+            "emby_register": settings.EMBY_REGISTER,
+            "premium_unlock_enabled": settings.PREMIUM_UNLOCK_ENABLED,
+            "premium_daily_credits": settings.PREMIUM_DAILY_CREDITS,
+        }
+
+        logger.info("获取系统状态信息")
+        return status_data
+    except Exception as e:
+        logger.error(f"获取系统状态信息失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取系统状态信息失败")

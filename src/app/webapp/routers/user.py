@@ -76,6 +76,7 @@ async def get_user_info(
                     "all_lib": plex_info[5] == 1,
                     "line": plex_info[8],
                     "is_premium": plex_info[9] == 1,
+                    "premium_expiry": plex_info[10],
                 }
                 logger.debug(
                     f"用户 {get_user_name_from_tg_id(tg_id)} 的Plex信息获取成功"
@@ -86,12 +87,12 @@ async def get_user_info(
                 )
         except Exception as e:
             logger.error(
-                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的Plex信息失败: {str(e)}"
+                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 信息失败: {str(e)}"
             )
 
         # 获取Emby信息
         try:
-            logger.debug(f"正在查询用户 {get_user_name_from_tg_id(tg_id)} 的Emby信息")
+            logger.debug(f"正在查询用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 信息")
             emby_info = db.get_emby_info_by_tg_id(tg_id)
             if emby_info:
                 user_info.emby_info = {
@@ -100,6 +101,7 @@ async def get_user_info(
                     "all_lib": emby_info[3] == 1,
                     "line": emby_info[7],
                     "is_premium": emby_info[8] == 1,
+                    "premium_expiry": emby_info[9],
                 }
                 created_at = (
                     Emby().get_user_info_from_username(emby_info[0]).get("date_created")

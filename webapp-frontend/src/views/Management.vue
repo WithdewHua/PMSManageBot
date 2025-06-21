@@ -123,6 +123,20 @@
                     ></v-switch>
                   </div>
                   
+                  <div class="d-flex justify-space-between mb-3 align-center">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="purple-darken-2" class="mr-2">mdi-lock-open</v-icon>
+                      <span>Premium 解锁开放：</span>
+                    </div>
+                    <v-switch
+                      v-model="adminSettings.premium_unlock_enabled"
+                      color="success"
+                      density="compact"
+                      hide-details
+                      @change="updatePremiumUnlockEnabled"
+                    ></v-switch>
+                  </div>
+                  
                   <!-- 免费高级线路选择 -->
                   <div v-if="adminSettings.premium_free" class="mb-3">
                     <div class="d-flex align-center mb-2">
@@ -274,7 +288,7 @@
                   </div>
                   
                   <!-- 解锁NSFW积分设置 -->
-                  <div class="d-flex justify-space-between align-center">
+                  <div class="d-flex justify-space-between align-center mb-3">
                     <div class="d-flex align-center">
                       <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-lock-open</v-icon>
                       <span>解锁 NSFW 所需积分：</span>
@@ -291,6 +305,28 @@
                         max="10000"
                         @blur="updateUnlockCredits"
                         @keyup.enter="updateUnlockCredits"
+                      ></v-text-field>
+                    </div>
+                  </div>
+                  
+                  <!-- 解锁Premium每日积分设置 -->
+                  <div class="d-flex justify-space-between align-center">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-crown</v-icon>
+                      <span>解锁 Premium 每日积分：</span>
+                    </div>
+                    <div class="d-flex align-center">
+                      <v-text-field
+                        v-model.number="adminSettings.premium_daily_credits"
+                        type="number"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        style="width: 100px"
+                        min="0"
+                        max="10000"
+                        @blur="updatePremiumDailyCredits"
+                        @keyup.enter="updatePremiumDailyCredits"
                       ></v-text-field>
                     </div>
                   </div>
@@ -1153,7 +1189,7 @@ import AdminInviteCodeDialog from '@/components/AdminInviteCodeDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import WheelAdminPanel from '@/components/WheelAdminPanel.vue'
-import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits } from '@/services/adminService.js'
+import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits, setPremiumDailyCredits, setPremiumUnlockEnabled } from '@/services/adminService.js'
 import { getWheelStats } from '@/services/wheelService.js'
 import { getAuctionStats, getAllAuctions, finishExpiredAuctions, finishAuction, deleteAuction, createAuction, getAuctionBids, updateAuction } from '@/services/auctionService.js'
 
@@ -1179,8 +1215,10 @@ export default {
         premium_free: false,
         premium_lines: [],
         free_premium_lines: [],
+        premium_unlock_enabled: false,
         invitation_credits: 288,
         unlock_credits: 100,
+        premium_daily_credits: 15,
         loaded: false // 添加标记，避免重复加载
       },
       adminLoading: false,
@@ -1362,6 +1400,18 @@ export default {
       }
     },
     
+    async updatePremiumUnlockEnabled() {
+      try {
+        await setPremiumUnlockEnabled(this.adminSettings.premium_unlock_enabled)
+        this.showMessage('Premium 解锁开放设置已更新')
+      } catch (err) {
+        // 回滚状态
+        this.adminSettings.premium_unlock_enabled = !this.adminSettings.premium_unlock_enabled
+        this.showMessage('更新 Premium 解锁开放设置失败', 'error')
+        console.error('更新 Premium 解锁开放设置失败:', err)
+      }
+    },
+    
     async updateFreePremiumLines() {
       try {
         await setFreePremiumLines(this.adminSettings.free_premium_lines)
@@ -1407,6 +1457,25 @@ export default {
       } catch (err) {
         this.showMessage('更新解锁积分设置失败', 'error')
         console.error('更新解锁积分设置失败:', err)
+        // 重新获取设置以恢复状态
+        await this.fetchAdminSettings()
+      }
+    },
+    
+    async updatePremiumDailyCredits() {
+      try {
+        const credits = parseInt(this.adminSettings.premium_daily_credits)
+        if (isNaN(credits) || credits < 0) {
+          this.showMessage('积分值必须是正整数', 'error')
+          // 重新获取设置以恢复状态
+          await this.fetchAdminSettings()
+          return
+        }
+        await setPremiumDailyCredits(credits)
+        this.showMessage(`解锁 Premium 每日所需积分已设置为 ${credits}`)
+      } catch (err) {
+        this.showMessage('更新 Premium 每日积分设置失败', 'error')
+        console.error('更新 Premium 每日积分设置失败:', err)
         // 重新获取设置以恢复状态
         await this.fetchAdminSettings()
       }
@@ -2249,114 +2318,6 @@ export default {
 .activity-placeholder .v-card-title {
   background: linear-gradient(135deg, rgba(158, 158, 158, 0.1) 0%, rgba(189, 189, 189, 0.1) 100%);
   border-bottom: 1px solid rgba(158, 158, 158, 0.1);
-}
-
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .activities-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
-    margin-bottom: 30px;
-  }
-  
-  .activity-card-enhanced .v-card-title {
-    padding: 16px 20px;
-  }
-  
-  .stat-value {
-    font-size: 20px;
-  }
-  
-  .stat-label {
-    font-size: 11px;
-  }
-}
-
-@media (max-width: 480px) {
-  .page-title {
-    font-size: 22px;
-  }
-  
-  .page-subtitle {
-    font-size: 14px;
-  }
-  
-  .card-title {
-    font-size: 16px;
-  }
-  
-  .card-description {
-    font-size: 13px;
-  }
-  
-  /* 小屏幕上确保控制面板布局正确 */
-  .d-flex.justify-space-between {
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  
-  /* 活动卡片小屏幕优化 */
-  .activity-card-enhanced .v-card-title {
-    padding: 12px 16px;
-    font-size: 16px;
-  }
-  
-  .stat-value {
-    font-size: 18px;
-  }
-  
-  .stat-label {
-    font-size: 10px;
-  }
-  
-  .activity-stats {
-    padding: 12px;
-  }
-}
-
-/* 竞拍管理样式 */
-.auction-management {
-  max-width: 100%;
-}
-
-.stat-card {
-  text-align: center;
-  padding: 16px;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.stat-number {
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1;
-  margin-bottom: 4px;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.6);
-  font-weight: 500;
-}
-
-.auction-table {
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.auction-table :deep(.v-data-table__wrapper) {
-  border-radius: 12px;
-}
-
-.auction-table :deep(th) {
-  background: rgba(102, 126, 234, 0.1) !important;
-  font-weight: 600 !important;
-}
-
-.auction-table :deep(tr:hover) {
-  background: rgba(102, 126, 234, 0.05) !important;
 }
 
 /* 小屏幕适配 */

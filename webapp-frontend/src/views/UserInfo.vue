@@ -196,6 +196,36 @@
                 ></plex-line-selector>
               </div>
             </div>
+            <div class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-crown</v-icon>
+                <span>Premium 会员：</span>
+              </div>
+              <v-btn
+                size="small"
+                :color="userInfo.plex_info.is_premium ? 'success' : 'blue-grey-lighten-1'"
+                :variant="userInfo.plex_info.is_premium ? 'flat' : 'tonal'"
+                @click="openPremiumUnlockDialog('plex')"
+                :title="!systemStatus.premium_unlock_enabled ? 'Premium 解锁功能暂未开放' : (userInfo.plex_info.is_premium ? '续费 Premium' : '解锁 Premium')"
+                :disabled="!systemStatus.premium_unlock_enabled"
+                elevation="2"
+                rounded="xl"
+                class="premium-button"
+                :class="{ 'premium-active': userInfo.plex_info.is_premium }"
+              >
+                <v-icon start size="small">{{ userInfo.plex_info.is_premium ? 'mdi-crown' : 'mdi-crown-outline' }}</v-icon>
+                {{ userInfo.plex_info.is_premium ? '已激活 - 续费' : '未激活 - 解锁' }}
+              </v-btn>
+            </div>
+            <div v-if="userInfo.plex_info.is_premium" class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="deep-orange-darken-1" class="mr-2">mdi-clock-outline</v-icon>
+                <span>Premium 到期时间：</span>
+              </div>
+              <div class="text-caption" :class="isPremiumExpiringSoon(userInfo.plex_info.premium_expiry) ? 'text-warning' : ''">
+                {{ formatPremiumExpiry(userInfo.plex_info.premium_expiry) }}
+              </div>
+            </div>
           </v-card-text>
         </v-card>
 
@@ -291,6 +321,36 @@
                   :current-value="userInfo.emby_info.line" 
                   @line-changed="updateEmbyLine"
                 ></emby-line-selector>
+              </div>
+            </div>
+            <div class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-crown</v-icon>
+                <span>Premium 会员：</span>
+              </div>
+              <v-btn
+                size="small"
+                :color="userInfo.emby_info.is_premium ? 'success' : 'blue-grey-lighten-1'"
+                :variant="userInfo.emby_info.is_premium ? 'flat' : 'tonal'"
+                @click="openPremiumUnlockDialog('emby')"
+                :title="!systemStatus.premium_unlock_enabled ? 'Premium 解锁功能暂未开放' : (userInfo.emby_info.is_premium ? '续费 Premium' : '解锁 Premium')"
+                :disabled="!systemStatus.premium_unlock_enabled"
+                elevation="2"
+                rounded="xl"
+                class="premium-button"
+                :class="{ 'premium-active': userInfo.emby_info.is_premium }"
+              >
+                <v-icon start size="small">{{ userInfo.emby_info.is_premium ? 'mdi-crown' : 'mdi-crown-outline' }}</v-icon>
+                {{ userInfo.emby_info.is_premium ? '已激活 - 续费' : '未激活 - 解锁' }}
+              </v-btn>
+            </div>
+            <div v-if="userInfo.emby_info.is_premium" class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="deep-orange-darken-1" class="mr-2">mdi-clock-outline</v-icon>
+                <span>Premium 到期时间：</span>
+              </div>
+              <div class="text-caption" :class="isPremiumExpiringSoon(userInfo.emby_info.premium_expiry) ? 'text-warning' : ''">
+                {{ formatPremiumExpiry(userInfo.emby_info.premium_expiry) }}
               </div>
             </div>
           </v-card-text>
@@ -494,6 +554,15 @@
       @transfer-completed="handleCreditsTransferCompleted"
     />
     
+    <!-- 使用Premium解锁对话框组件 -->
+    <premium-unlock-dialog
+      ref="premiumUnlockDialog"
+      :current-credits="userInfo.credits"
+      :current-premium-expiry="currentPremiumExpiry"
+      :is-premium="currentIsPremium"
+      @unlock-completed="handlePremiumUnlockCompleted"
+    />
+
     <!-- 使用标签管理对话框组件 -->
     <tag-management-dialog
       ref="tagManagementDialog"
@@ -510,11 +579,13 @@
 
 <script>
 import { getUserInfo } from '@/api'
+import { getSystemStatus } from '@/services/systemService'
 import EmbyLineSelector from '@/components/EmbyLineSelector.vue'
 import PlexLineSelector from '@/components/PlexLineSelector.vue'
 import NsfwDialog from '@/components/NsfwDialog.vue'
 import DonationDialog from '@/components/DonationDialog.vue'
 import CreditsTransferDialog from '@/components/CreditsTransferDialog.vue'
+import PremiumUnlockDialog from '@/components/PremiumUnlockDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
@@ -530,6 +601,7 @@ export default {
     NsfwDialog,
     DonationDialog,
     CreditsTransferDialog,
+    PremiumUnlockDialog,
     TagManagementDialog,
     LineManagementDialog
   },
@@ -564,12 +636,18 @@ export default {
         week_invite_codes: 0,
         recent_games: []
       },
-      activityLoading: false
+      activityLoading: false,
+      systemStatus: {
+        premium_unlock_enabled: true
+      },
+      currentPremiumExpiry: null,
+      currentIsPremium: false
     }
   },
   mounted() {
     this.fetchUserInfo()
     this.fetchActivityStats()
+    this.fetchSystemStatus()
   },
   methods: {
     async fetchUserInfo() {
@@ -604,6 +682,17 @@ export default {
         // 不显示错误，使用默认值
       } finally {
         this.activityLoading = false
+      }
+    },
+
+    // 获取系统状态
+    async fetchSystemStatus() {
+      try {
+        const response = await getSystemStatus()
+        this.systemStatus = response
+      } catch (err) {
+        console.error('获取系统状态失败:', err)
+        // 使用默认值，不影响用户体验
       }
     },
 
@@ -813,35 +902,64 @@ export default {
       this.$refs.lineManagementDialog.open();
     },
     
-    // 处理线路更新完成事件
-    handleLinesUpdated() {
-      // 线路配置已在管理页面更新
-      this.showMessage('线路配置已更新');
-    },
-    
-    // 处理标签更新完成事件
-    handleTagsUpdated() {
-      // 可以在这里刷新数据或显示成功提示
-      this.showMessage('标签设置已更新');
-    },
-    
-    // 处理捐赠提交完成事件
-    handleDonationSubmitted() {
-      // 刷新用户信息以获取最新的捐赠数据
-      this.fetchUserInfo();
-      this.showMessage('捐赠记录已添加');
+    // 打开Premium解锁对话框
+    openPremiumUnlockDialog(serviceType) {
+      const serviceInfo = serviceType === 'plex' ? 
+        this.userInfo.plex_info : 
+        this.userInfo.emby_info;
+      
+      this.currentPremiumExpiry = serviceInfo?.premium_expiry || null;
+      this.currentIsPremium = serviceInfo?.is_premium || false;
+      
+      this.$refs.premiumUnlockDialog.open(serviceType);
     },
 
-    // 打开积分转移对话框
-    openCreditsTransferDialog() {
-      this.$refs.creditsTransferDialog.open();
-    },
-
-    // 处理积分转移完成事件
-    handleCreditsTransferCompleted(result) {
+    // 处理Premium解锁完成事件
+    handlePremiumUnlockCompleted(result) {
+      const { service, days, cost, current_credits, premium_expiry } = result;
+      
       // 更新用户积分
-      this.userInfo.credits = result.current_credits;
-      this.showMessage(`成功转移 ${result.transferred_amount} 积分，手续费 ${result.fee_amount.toFixed(2)} 积分`);
+      this.userInfo.credits = current_credits;
+      
+      // 更新Premium状态和到期时间
+      if (service === 'plex' && this.userInfo.plex_info) {
+        this.userInfo.plex_info.is_premium = true;
+        this.userInfo.plex_info.premium_expiry = premium_expiry;
+      } else if (service === 'emby' && this.userInfo.emby_info) {
+        this.userInfo.emby_info.is_premium = true;
+        this.userInfo.emby_info.premium_expiry = premium_expiry;
+      }
+
+      this.showMessage(`成功解锁 ${days} 天 Premium 会员，消耗 ${cost} 积分`);
+    },
+
+    // 格式化Premium到期时间
+    formatPremiumExpiry(expiryTime) {
+      if (!expiryTime) return '永久';
+      try {
+        return new Date(expiryTime).toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      } catch (error) {
+        return expiryTime;
+      }
+    },
+
+    // 检查Premium是否即将到期
+    isPremiumExpiringSoon(expiryTime) {
+      if (!expiryTime) return false;
+      try {
+        const expiry = new Date(expiryTime);
+        const now = new Date();
+        const diffDays = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+        return diffDays <= 3 && diffDays > 0;
+      } catch (error) {
+        return false;
+      }
     },
 
     // 根据游戏结果获取颜色
@@ -1684,5 +1802,51 @@ export default {
 
 .total-stats {
   border-left: 4px solid #4CAF50;
+}
+
+/* Premium 按钮美化 */
+.premium-button {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.5px;
+  font-weight: 500;
+  text-transform: none;
+  min-width: 120px;
+}
+
+.premium-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.premium-button.premium-active {
+  background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.premium-button.premium-active:hover {
+  background: linear-gradient(135deg, #43A047 0%, #5CB85C 100%);
+  box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4);
+}
+
+.premium-button:not(.premium-active) {
+  background: linear-gradient(135deg, #ECEFF1 0%, #CFD8DC 100%);
+  color: #263238 !important;
+  border: 1px solid rgba(69, 90, 100, 0.3);
+  font-weight: 600;
+}
+
+.premium-button:not(.premium-active):hover {
+  background: linear-gradient(135deg, #E0E7EA 0%, #B0BEC5 100%);
+  color: #1A1A1A !important;
+  border-color: rgba(69, 90, 100, 0.4);
+}
+
+.premium-button .v-icon {
+  transition: transform 0.2s ease;
+}
+
+.premium-button:hover .v-icon {
+  transform: scale(1.1);
 }
 </style>

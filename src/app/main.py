@@ -5,13 +5,15 @@ from copy import copy
 
 from app.config import settings
 from app.handlers.db import *
-from app.handlers.emby import *
-from app.handlers.plex import *
+
+# from app.handlers.emby import *
+# from app.handlers.plex import *
 from app.handlers.rank import *
 from app.handlers.start import *
 from app.handlers.status import *
 from app.handlers.user import *
 from app.log import logger
+from app.premium import check_premium_expiring_soon, check_premium_expiry
 from app.scheduler import Scheduler
 from app.update_db import finish_expired_auctions_job, update_credits, update_plex_info
 from app.utils import refresh_emby_user_info, refresh_tg_user_info
@@ -110,6 +112,30 @@ def add_init_scheduler_job():
         minute=0,  # 每小时的第0分钟执行
     )
     logger.info("添加定时任务：每小时自动结束过期竞拍活动")
+
+    # 每 5 分钟检查 Premium 会员过期状态 (异步任务)
+    scheduler.add_async_job(
+        func=check_premium_expiry,
+        trigger="cron",
+        id="check_premium_expiry",
+        replace_existing=True,
+        max_instances=1,
+        minute="*/5",  # 每 5 分钟执行一次
+    )
+    logger.info("添加定时任务：每 5 分钟检查 Premium 会员过期状态")
+
+    # 每天早上 9:00 检查即将过期的 Premium 用户 (异步任务)
+    scheduler.add_async_job(
+        func=check_premium_expiring_soon,
+        trigger="cron",
+        id="check_premium_expiring_soon",
+        replace_existing=True,
+        max_instances=1,
+        day_of_week="*",
+        hour=9,
+        minute=0,
+    )
+    logger.info("添加定时任务：每天早上 09:00 检查即将过期的 Premium 用户")
 
 
 if __name__ == "__main__":

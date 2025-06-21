@@ -183,3 +183,37 @@ export async function generateAdminInviteCodes(requestData) {
     throw error;
   }
 }
+
+/**
+ * 设置解锁Premium每日所需积分
+ * @param {number} credits - 积分数量
+ * @returns {Promise} 设置结果
+ */
+export async function setPremiumDailyCredits(credits) {
+  try {
+    const response = await apiClient.post('/api/admin/settings/premium-daily-credits', {
+      credits: credits
+    });
+    return response;
+  } catch (error) {
+    console.error('设置Premium每日积分失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 设置 Premium 解锁开放状态
+ * @param {boolean} enabled - 是否开放 Premium 解锁
+ * @returns {Promise} 设置结果
+ */
+export async function setPremiumUnlockEnabled(enabled) {
+  try {
+    const response = await apiClient.post('/api/admin/settings/premium-unlock-enabled', {
+      enabled: enabled
+    });
+    return response;
+  } catch (error) {
+    console.error('设置 Premium 解锁开放状态失败:', error);
+    throw error;
+  }
+}

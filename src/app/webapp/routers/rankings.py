@@ -112,6 +112,10 @@ async def get_plex_watched_time_rankings(
                         "name": info[2],
                         "watched_time": info[3],
                         "avatar": Plex.get_user_avatar_by_username(info[2]),
+                        "is_premium": bool(info[4])
+                        if len(info) > 4 and info[4] is not None
+                        else False,
+                        "is_self": info[1] == user.id,  # tg_id 比较
                     }
                     for info in plex_watch_time_data
                     if info[3] > 0
@@ -156,6 +160,12 @@ async def get_emby_watched_time_rankings(
                         "avatar": emby.get_user_avatar_by_username(
                             info[1], from_emby=False
                         ),
+                        "is_premium": bool(info[3])
+                        if len(info) > 3 and info[3] is not None
+                        else False,
+                        "is_self": info[4] == user.id
+                        if len(info) > 4
+                        else False,  # tg_id 比较
                     }
                     for info in emby_watch_time_data
                     if info[2] > 0
