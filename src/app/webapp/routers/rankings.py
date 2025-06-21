@@ -32,6 +32,7 @@ async def get_credits_rankings(
                         "name": get_user_name_from_tg_id(info[0]),
                         "credits": info[1],
                         "avatar": get_user_avatar_from_tg_id(info[0]),
+                        "is_self": info[0] == user.id,  # tg_id 比较
                     }
                     for info in credits_data
                     if info[1] > 0 and info[0] not in settings.ADMIN_CHAT_ID
@@ -71,6 +72,7 @@ async def get_donation_rankings(
                         "name": get_user_name_from_tg_id(info[0]),
                         "donation": info[1],
                         "avatar": get_user_avatar_from_tg_id(info[0]),
+                        "is_self": info[0] == user.id,  # tg_id 比较
                     }
                     for info in donation_data
                     if info[1] > 0
