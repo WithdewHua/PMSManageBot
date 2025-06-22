@@ -64,7 +64,7 @@
               <v-icon size="20" class="mr-2">mdi-crown-circle</v-icon>
               <div>
                 <div class="text-body-2 font-weight-bold mb-1">永久会员</div>
-                <div class="text-caption">您已是永久Premium会员，无需续费</div>
+                <div class="text-caption">您已是永久 Premium 会员，无需续费</div>
               </div>
             </div>
           </v-alert>
@@ -306,7 +306,10 @@ export default {
         { days: 5, label: '5天' },
         { days: 10, label: '10天' },
         { days: 15, label: '15天' },
-        { days: 30, label: '30天' }
+        { days: 30, label: '30天' },
+        { days: 90, label: '90天'},
+        { days: 180, label: '180天'},
+        { days: 360, label: '360天'}
       ]
     }
   },
