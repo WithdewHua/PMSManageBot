@@ -12,6 +12,7 @@
               stroke="white"
               stroke-width="2"
             />
+            <!-- 从圆心向外发散的文字 -->
             <text 
               :x="getSectorTextX(index)"
               :y="getSectorTextY(index)"
@@ -20,9 +21,10 @@
               font-weight="bold"
               text-anchor="middle"
               dominant-baseline="central"
+              :transform="getSectorTextTransform(index)"
               style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);"
             >
-              {{ getDisplayText(item.name) }}
+              {{ item.name }}
             </text>
           </g>
         </svg>
@@ -177,6 +179,7 @@ export default {
       return colors[index % colors.length]
     },
     
+    // 计算文字的X坐标位置
     getSectorTextX(index) {
       const angle = 360 / this.wheelItems.length
       const midAngle = index * angle + angle / 2  // 扇形中心角度
@@ -186,6 +189,7 @@ export default {
       return 100 + textRadius * Math.cos(rad)
     },
     
+    // 计算文字的Y坐标位置
     getSectorTextY(index) {
       const angle = 360 / this.wheelItems.length
       const midAngle = index * angle + angle / 2  // 扇形中心角度
@@ -195,29 +199,48 @@ export default {
       return 100 + textRadius * Math.sin(rad)
     },
     
-    getDisplayText(name) {
-      // 处理过长的文字，超过6个字符时显示省略号
-      if (name.length > 6) {
-        return name.substring(0, 5) + '...'
+    // 计算文字的旋转变换，让文字沿着从圆心向外的方向
+    getSectorTextTransform(index) {
+      const angle = 360 / this.wheelItems.length
+      const midAngle = index * angle + angle / 2  // 扇形中心角度
+      const textX = this.getSectorTextX(index)
+      const textY = this.getSectorTextY(index)
+      
+      // 计算文字的旋转角度
+      // 当扇形在右半边时，文字正常显示
+      // 当扇形在左半边时，文字需要旋转180度避免倒置
+      let rotationAngle = midAngle - 90  // 基础旋转角度
+      
+      // 如果角度在左半边（90度到270度之间），需要额外旋转180度
+      if (midAngle > 90 && midAngle < 270) {
+        rotationAngle += 180
       }
-      return name
+      
+      return `rotate(${rotationAngle} ${textX} ${textY})`
     },
     
     getTextSize() {
       // 根据奖品数量动态调整字体大小
       const itemCount = this.wheelItems.length
-      if (itemCount <= 4) return 12
-      if (itemCount <= 6) return 10
-      if (itemCount <= 8) return 9
-      return 8
-    },
-    
-    getSectorTextTransform(index) {
-      const x = this.getSectorTextX(index)
-      const y = this.getSectorTextY(index)
       
-      // 简化旋转逻辑：保持文字水平，不做复杂旋转
-      return `rotate(0 ${x} ${y})`
+      // 基础字体大小
+      let baseSize = 12
+      
+      // 根据扇形数量调整大小
+      if (itemCount <= 4) baseSize = 16
+      else if (itemCount <= 6) baseSize = 14
+      else if (itemCount <= 8) baseSize = 12
+      else if (itemCount <= 10) baseSize = 10
+      else baseSize = 9
+      
+      // 如果有文字，根据最长文字长度进一步调整
+      if (this.wheelItems.length > 0) {
+        const maxTextLength = Math.max(...this.wheelItems.map(item => item.name.length))
+        if (maxTextLength > 8) baseSize = Math.max(baseSize - 2, 7)
+        else if (maxTextLength > 6) baseSize = Math.max(baseSize - 1, 8)
+      }
+      
+      return baseSize
     },
     
     spin() {
@@ -507,6 +530,15 @@ export default {
   border-radius: 50%;
 }
 
+/* 文字样式优化 */
+.wheel-svg text {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+  user-select: none;
+  pointer-events: none;
+}
+
 .pointer {
   position: absolute;
   top: 0px;  /* 精确对齐到转盘边缘 */
@@ -593,13 +625,9 @@ export default {
     min-height: unset !important;
   }
   
-  /* 移动端SVG文字大小调整 */
+  /* 移动端文字大小调整 */
   .wheel-svg text {
-    font-size: 6px;
-  }
-  
-  .wheel-svg text tspan:last-child {
-    font-size: 5px;
+    font-size: 6px !important;
   }
 }
 </style>
