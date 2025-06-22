@@ -1,6 +1,8 @@
 """
-Premium 会员过期检查任务
+Premium 会员相关功能，包括检查过期状态和即将过期的用户。
 """
+
+from datetime import datetime, timedelta
 
 from app.db import DB
 from app.log import logger
@@ -67,3 +69,67 @@ async def check_premium_expiring_soon(days: int = 3):
         logger.error(f"检查即将过期的 Premium 用户时出错: {str(e)}")
     finally:
         db.close()
+
+
+def update_premium_status(db: DB, tg_id: int, service: str, days: int = 30) -> datetime:
+    """
+    更新用户的 Premium 状态，延长 Premium 会员时间
+    :param db: 数据库连接对象
+    :param tg_id: 用户的 Telegram ID
+    :param service: 服务类型（"plex" 或 "emby"）
+    :param days: 延长的天数，默认为30天
+    :return: 新的 Premium 到期时间
+    """
+    new_expiry = None
+    # 检查用户是否绑定了对应服务
+    if service == "plex":
+        user_info = db.get_plex_info_by_tg_id(tg_id)
+        if not user_info:
+            raise NameError("请先绑定 Plex 账户")
+
+        # 计算新的到期时间
+        current_expiry = user_info[10]  # premium_expiry_time字段
+        # 永久会员直接跳过
+        if bool(user_info[9]) and not current_expiry:
+            return None
+        if current_expiry and datetime.fromisoformat(current_expiry) > datetime.now():
+            # 如果当前还有Premium，从到期时间开始延长
+            new_expiry = datetime.fromisoformat(current_expiry) + timedelta(days=days)
+        else:
+            # 从现在开始计算
+            new_expiry = datetime.now() + timedelta(days=days)
+
+        # 更新数据库 - 设置is_premium=1和到期时间
+        db.cur.execute(
+            "UPDATE user SET is_premium=1, premium_expiry_time=? WHERE tg_id=?",
+            (new_expiry.isoformat(), tg_id),
+        )
+
+    elif service == "emby":
+        user_info = db.get_emby_info_by_tg_id(tg_id)
+        if not user_info:
+            raise NameError("请先绑定 Emby 账户")
+
+        # 计算新的到期时间
+        current_expiry = user_info[9]  # premium_expiry_time字段
+        # 永久会员直接跳过
+        if bool(user_info[8]) and not current_expiry:
+            return None
+        if (
+            current_expiry
+            and datetime.fromisoformat(str(current_expiry)) > datetime.now()
+        ):
+            # 如果当前还有Premium，从到期时间开始延长
+            new_expiry = datetime.fromisoformat(str(current_expiry)) + timedelta(
+                days=days
+            )
+        else:
+            # 从现在开始计算
+            new_expiry = datetime.now() + timedelta(days=days)
+
+        # 更新数据库 - 设置is_premium=1和到期时间
+        db.cur.execute(
+            "UPDATE emby_user SET is_premium=1, premium_expiry_time=? WHERE tg_id=?",
+            (new_expiry.isoformat(), tg_id),
+        )
+    return new_expiry

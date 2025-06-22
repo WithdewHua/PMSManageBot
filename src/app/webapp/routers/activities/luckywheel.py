@@ -6,6 +6,7 @@ import time
 from app.cache import lucky_wheel_config_cache
 from app.db import DB
 from app.log import logger
+from app.premium import update_premium_status
 from app.update_db import add_redeem_code
 from app.utils import get_user_name_from_tg_id
 from app.webapp.auth import get_telegram_user
@@ -27,15 +28,15 @@ router = APIRouter(prefix="/luckywheel", tags=["幸运大转盘"])
 DEFAULT_WHEEL_CONFIG = LuckyWheelConfig(
     items=[
         LuckyWheelItem(name="谢谢参与", probability=15.0),
-        LuckyWheelItem(name="积分 +10", probability=30.0),
-        LuckyWheelItem(name="积分 -10", probability=25.0),
+        LuckyWheelItem(name="积分 +10", probability=25.0),
+        LuckyWheelItem(name="积分 -10", probability=20.0),
         LuckyWheelItem(name="积分 +30", probability=15.0),
         LuckyWheelItem(name="积分 -30", probability=10.0),
-        LuckyWheelItem(name="邀请码 1 枚", probability=0.4),
-        LuckyWheelItem(name="积分 +50", probability=1.6),
-        LuckyWheelItem(name="积分 -50", probability=1.5),
-        LuckyWheelItem(name="积分翻倍", probability=0.7),
-        LuckyWheelItem(name="积分减半", probability=0.8),
+        LuckyWheelItem(name="邀请码 1 枚", probability=0.3),
+        LuckyWheelItem(name="积分 +50", probability=7),
+        LuckyWheelItem(name="积分 -50", probability=6),
+        LuckyWheelItem(name="积分翻倍", probability=1),
+        LuckyWheelItem(name="积分减半", probability=0.7),
     ],
     cost_credits=10,
     min_credits_required=30,
@@ -150,6 +151,10 @@ def calculate_credits_change(
         if keyword in name:
             return value() if callable(value) else value
 
+    # premium
+    if "premium" in name:
+        return _handle_premium_reward(tg_id, name)
+
     # 使用正则表达式匹配积分变化
     credits_pattern = re.compile(r"([+-])(\d+)")
     match = credits_pattern.search(name)
@@ -159,8 +164,38 @@ def calculate_credits_change(
         credits_value = int(amount)
         return credits_value if sign == "+" else -credits_value
 
-    # 默认返回0
+    # 默认返回 0
     return 0
+
+
+def _handle_premium_reward(tg_id: int, name: str) -> float:
+    """处理 Premium 奖品"""
+    try:
+        days_match = re.search(r"(\d+)", name)
+        if days_match:
+            days = int(days_match.group(1))
+            db = DB()
+            try:
+                new_expiry = update_premium_status(db, tg_id, "plex", days)
+                logger.info(
+                    f"用户 {tg_id} 的 Plex Premium 已更新，新的到期时间为 {new_expiry or '永久会员'}"
+                )
+            except NameError:
+                pass
+            try:
+                new_expiry = update_premium_status(db, tg_id, "emby", days)
+                logger.info(
+                    f"用户 {tg_id} 的 Emby Premium 已更新，新的到期时间为 {new_expiry or '永久会员'}"
+                )
+            except NameError:
+                pass
+    except Exception as e:
+        logger.error(f"更新 Premium 状态失败: {e}")
+    else:
+        db.con.commit()
+    finally:
+        db.close()
+    return 0  # Premium 奖品不涉及积分变化
 
 
 def _handle_invite_code(tg_id: int = None, gen_privileged_code: bool = False) -> float:
@@ -280,7 +315,7 @@ async def spin_wheel(
             config.gen_privileged_code = False
             save_wheel_config(config)
 
-        # 计算积分变化
+        # 更新奖励，计算积分变化
         credits_change = calculate_credits_change(
             winner.name,
             new_credits,
