@@ -85,7 +85,7 @@ def update_emby_credits():
             "select emby_id, tg_id, emby_watched_time, emby_credits from emby_user"
         ).fetchall()
         for user in users:
-            playduration = float(int(duration.get(user[0], 0)) / 3600)
+            playduration = round(float(int(duration.get(user[0], 0)) / 3600), 2)
             if playduration == 0:
                 continue
             # 最大记 8
@@ -249,6 +249,42 @@ def add_all_plex_user():
         _db.con.commit()
     finally:
         _db.close()
+
+
+def update_donation_credits(old_multiplier, new_multiplier):
+    """
+    更新捐赠积分
+
+    Args:
+        old_multiplier: 旧的积分倍数
+        new_multiplier: 新的积分倍数
+    """
+    try:
+        db = DB()
+        # 获取所有捐赠记录
+        donations = db.cur.execute(
+            "SELECT tg_id, donation, credits FROM statistics WHERE donation > 0"
+        ).fetchall()
+
+        for tg_id, donation, credits in donations:
+            # 计算新的积分
+            new_credits = round(
+                credits + donation * (new_multiplier - old_multiplier), 2
+            )
+            # 更新数据库
+            db.cur.execute(
+                "UPDATE statistics SET credits = ? WHERE tg_id = ?",
+                (new_credits, tg_id),
+            )
+            logger.info(
+                f"用户 {tg_id} 捐赠：{donation}, 更新积分: {credits} -> {new_credits}"
+            )
+
+        db.con.commit()
+    except Exception as e:
+        logger.error(str(e))
+    finally:
+        db.close()
 
 
 def add_redeem_code(tg_id=None, num=1, is_privileged=False):

@@ -485,9 +485,11 @@ async def submit_donation_record(
             return BaseResponse(success=False, message="用户不存在")
 
         current_donation = stats_info[1] if stats_info[1] else 0
-        new_donation = current_donation + float(amount)
+        new_donation = round(current_donation + float(amount), 2)
         current_credits = stats_info[2] if stats_info[2] else 0
-        new_credits = current_credits + float(amount) * 2  # 捐赠金额的两倍作为积分
+        new_credits = round(
+            current_credits + float(amount) * settings.DONATION_MULTIPLIER, 2
+        )  # 捐赠金额的倍数作为积分
 
         # 更新捐赠金额
         success = db.update_user_donation(new_donation, tg_id)

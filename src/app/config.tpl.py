@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     UNLOCK_CREDITS: int = 100
     INVITATION_CREDITS: int = 288
     PREMIUM_DAILY_CREDITS: int = 15
+    DONATION_MULTIPLIER: int = 5  # 捐赠积分倍数
 
     # 功能开放设置
     PREMIUM_UNLOCK_ENABLED: bool = False  # 是否开放 premium 解锁功能

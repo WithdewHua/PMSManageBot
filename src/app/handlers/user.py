@@ -210,7 +210,7 @@ async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
     _credits = info[2]
     _donation = info[1]
-    credits = _credits + donation * 2
+    credits = _credits + donation * settings.DONATION_MULTIPLIER
     donate = _donation + donation
     res = _db.update_user_donation(donate, tg_id=tg_id)
     if not res:
