@@ -1,3 +1,4 @@
+import asyncio
 from time import time
 from uuid import NAMESPACE_URL, uuid3
 
@@ -14,7 +15,7 @@ from app.utils import (
 )
 
 
-async def update_plex_credits():
+def update_plex_credits():
     """更新积分及观看时长"""
     logger.info("开始更新 Plex 用户积分及观看时长")
     # 获取一天内的观看时长
@@ -22,6 +23,7 @@ async def update_plex_credits():
         Tautulli().get_home_stats(1, "duration", len(Plex().users_by_id), "top_users")
     )
     _db = DB()
+    notification_tasks = []
     try:
         # update credits and watched_time
         res = _db.cur.execute("select plex_id from user")
@@ -62,10 +64,12 @@ async def update_plex_credits():
                 _db.cur.execute(
                     "UPDATE statistics SET credits=? WHERE tg_id=?", (credits, tg_id)
                 )
-                # 发送消息通知
-                await send_message_by_url(
-                    chat_id=tg_id,
-                    text=f"""
+                if int(play_duration) > 0:
+                    # 需要发送通知
+                    notification_tasks.append(
+                        (
+                            tg_id,
+                            f"""
 Plex 观看积分更新通知
 ====================
 
@@ -78,24 +82,27 @@ Plex 观看积分更新通知
 当前总观看时长：{round(watched_time, 2)} 小时
 
 ====================""",
-                )
+                        )
+                    )
 
     except Exception as e:
         print(e)
     else:
         _db.con.commit()
         logger.info("Plex 用户积分及观看时长更新完成")
+        return notification_tasks
     finally:
         _db.close()
 
 
-async def update_emby_credits():
+def update_emby_credits():
     """更新 emby 积分及观看时长"""
     logger.info("开始更新 Emby 用户积分及观看时长")
     # 获取所有用户的观看时长
     emby = Emby()
     duration = emby.get_user_total_play_time()
     _db = DB()
+    notification_tasks = []
     try:
         # 获取数据库中的观看时长信息
         users = _db.cur.execute(
@@ -131,10 +138,12 @@ async def update_emby_credits():
                     "UPDATE emby_user SET emby_watched_time=? WHERE emby_id=?",
                     (playduration, user[0]),
                 )
-                # 发送消息通知
-                await send_message_by_url(
-                    chat_id=user[1],
-                    text=f"""
+                if int(playduration - user[2]) > 0:
+                    # 需要发送消息通知
+                    notification_tasks.append(
+                        (
+                            user[1],
+                            f"""
 Emby 观看积分更新通知
 ====================
 
@@ -147,20 +156,26 @@ Emby 观看积分更新通知
 当前总观看时长：{round(playduration, 2)} 小时
 
 ====================""",
-                )
+                        )
+                    )
 
     except Exception as e:
         print(e)
     else:
         _db.con.commit()
         logger.info("Emby 用户积分及观看时长更新完成")
+        return notification_tasks
     finally:
         _db.close()
 
 
 async def update_credits():
-    await update_plex_credits()
-    await update_emby_credits()
+    """更新 Plex 和 Emby 用户积分及观看时长"""
+    notification_tasks = await update_plex_credits()
+    notification_tasks.extend(await update_emby_credits())
+    for tg_id, text in notification_tasks:
+        await send_message_by_url(chat_id=tg_id, text=text)
+        await asyncio.sleep(1)
 
 
 def update_plex_info():
