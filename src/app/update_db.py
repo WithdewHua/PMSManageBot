@@ -14,7 +14,7 @@ from app.utils import (
 )
 
 
-def update_plex_credits():
+async def update_plex_credits():
     """更新积分及观看时长"""
     logger.info("开始更新 Plex 用户积分及观看时长")
     # 获取一天内的观看时长
@@ -62,6 +62,23 @@ def update_plex_credits():
                 _db.cur.execute(
                     "UPDATE statistics SET credits=? WHERE tg_id=?", (credits, tg_id)
                 )
+                # 发送消息通知
+                await send_message_by_url(
+                    chat_id=tg_id,
+                    text=f"""
+Plex 观看积分更新通知
+====================
+
+新增观看时长: {round(play_duration, 2)} 小时
+新增积分：{round(credits_inc, 2)}
+
+--------------------
+
+当前总积分：{round(credits, 2)}
+当前总观看时长：{round(watched_time, 2)} 小时
+
+====================""",
+                )
 
     except Exception as e:
         print(e)
@@ -72,7 +89,7 @@ def update_plex_credits():
         _db.close()
 
 
-def update_emby_credits():
+async def update_emby_credits():
     """更新 emby 积分及观看时长"""
     logger.info("开始更新 Emby 用户积分及观看时长")
     # 获取所有用户的观看时长
@@ -107,11 +124,29 @@ def update_emby_credits():
                     # 清空 emby_user 表中积分信息
                     _db.update_user_credits(0, emby_id=user[0])
                     # 在 statistic 表中增加用户数据
-                    _db.add_user_data(user[1], credits=user[3] + credits_inc)
+                    _credits = user[3] + credits_inc
+                    _db.add_user_data(user[1], credits=_credits)
                 # 更新 emby_user 表中观看时间
                 _db.cur.execute(
                     "UPDATE emby_user SET emby_watched_time=? WHERE emby_id=?",
                     (playduration, user[0]),
+                )
+                # 发送消息通知
+                await send_message_by_url(
+                    chat_id=user[1],
+                    text=f"""
+Emby 观看积分更新通知
+====================
+
+新增观看时长: {round(playduration - user[2], 2)} 小时
+新增积分：{round(credits_inc, 2)}
+
+--------------------
+
+当前总积分：{round(_credits, 2)}
+当前总观看时长：{round(playduration, 2)} 小时
+
+====================""",
                 )
 
     except Exception as e:
@@ -123,9 +158,9 @@ def update_emby_credits():
         _db.close()
 
 
-def update_credits():
-    update_plex_credits()
-    update_emby_credits()
+async def update_credits():
+    await update_plex_credits()
+    await update_emby_credits()
 
 
 def update_plex_info():

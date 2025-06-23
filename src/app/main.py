@@ -49,8 +49,8 @@ def start_bot(application):
 def add_init_scheduler_job():
     """添加调度任务"""
     scheduler = Scheduler()
-    # 每天凌晨 12:00 更新 Plex/Emby 积分 (同步任务)
-    scheduler.add_sync_job(
+    # 每天凌晨 12:00 更新 Plex/Emby 积分并发送通知 (异步任务)
+    scheduler.add_async_job(
         func=update_credits,
         trigger="cron",
         id="update_credits",
