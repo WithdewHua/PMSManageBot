@@ -81,6 +81,16 @@ class DB:
                     bid_time INTEGER NOT NULL,
                     FOREIGN KEY (auction_id) REFERENCES auctions (id)
                 );
+
+                CREATE TABLE line_traffic_stats(
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    line TEXT NOT NULL,
+                    send_bytes INTEGER NOT NULL,
+                    service TEXT NOT NULL,
+                    username TEXT NOT NULL,
+                    user_id TEXT DEFAULT NULL,
+                    timestamp TEXT NOT NULL
+                )
                 """
             )
         except sqlite3.OperationalError:
@@ -1468,3 +1478,24 @@ class DB:
                 "premium_plex_users": 0,
                 "premium_emby_users": 0,
             }
+
+    def create_line_traffic_entry(
+        self,
+        line: str,
+        send_bytes: int,
+        service: str,
+        username: str,
+        user_id: str,
+        timestamp: str,
+    ):
+        try:
+            self.cur.execute(
+                "INSERT INTO line_traffic_stats (line, send_bytes, service, username, user_id, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+                (line, send_bytes, service, username, user_id, timestamp),
+            )
+        except Exception as e:
+            logger.error(f"Error creating line traffic entry: {e}")
+            return False
+        else:
+            self.con.commit()
+            return True

@@ -15,7 +15,12 @@ from app.handlers.user import *
 from app.log import logger
 from app.premium import check_premium_expiring_soon, check_premium_expiry
 from app.scheduler import Scheduler
-from app.update_db import finish_expired_auctions_job, update_credits, update_plex_info
+from app.update_db import (
+    finish_expired_auctions_job,
+    update_credits,
+    update_line_traffic_stats,
+    update_plex_info,
+)
 from app.utils import refresh_emby_user_info, refresh_tg_user_info
 from telegram.ext import ApplicationBuilder
 
@@ -136,6 +141,17 @@ def add_init_scheduler_job():
         minute=0,
     )
     logger.info("添加定时任务：每天早上 09:00 检查即将过期的 Premium 用户")
+
+    # 每 1min 处理一次线路流量统计
+    scheduler.add_sync_job(
+        func=update_line_traffic_stats,
+        trigger="cron",
+        id="update_line_traffic_stats",
+        replace_existing=True,
+        max_instances=1,
+        minute="*/1",  # 每 1 分钟执行一次
+    )
+    logger.info("添加定时任务：每 1 分钟更新线路流量统计信息")
 
 
 if __name__ == "__main__":

@@ -242,3 +242,21 @@ lucky_wheel_config_cache = RedisCache(
     cache_key_prefix="luckywheel:",
     ttl_seconds=None,  # 持久化存储配置数据
 )
+
+# nginx stream url-based traffic
+stream_traffic_cache = RedisCache(
+    db=15,
+    cache_key_prefix="",
+)
+
+# Emby API Key cache
+emby_api_key_cache = RedisCache(
+    db=3,
+    cache_key_prefix="emby_api_key:",
+)
+
+# Plex token cache
+plex_token_cache = RedisCache(
+    db=3,
+    cache_key_prefix="plex_token_cache:",
+)

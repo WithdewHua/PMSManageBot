@@ -1,7 +1,12 @@
 import asyncio
+import json
+import re
+from datetime import datetime
 from time import time
+from urllib.parse import parse_qs, urlparse
 from uuid import NAMESPACE_URL, uuid3
 
+from app.cache import emby_api_key_cache, plex_token_cache, stream_traffic_cache
 from app.config import settings
 from app.db import DB
 from app.emby import Emby
@@ -409,8 +414,122 @@ async def finish_expired_auctions_job():
         db.close()
 
 
+def update_line_traffic_stats():
+    """
+    更新线路的流量数据
+    """
+
+    # 每次从 redis 中取出 100 条数据
+    values = stream_traffic_cache.redis_client.lpop(
+        "filebeat_nginx_stream_logs", count=100
+    )
+
+    if not values:
+        logger.info("没有新的流量日志数据")
+        return
+
+    _db = DB()
+    processed_count = 0
+
+    try:
+        for raw_log in values:
+            try:
+                # 解析 JSON 日志
+                if isinstance(raw_log, bytes):
+                    raw_log = raw_log.decode("utf-8")
+
+                log_data = json.loads(raw_log)
+
+                # 提取时间戳
+                timestamp = log_data.get("@timestamp", "")
+
+                # 提取后端服务器信息（线路）
+                backend = log_data.get("backend", "")
+
+                # 解析 message 字段中的 nginx 访问日志
+                message = log_data.get("message", "")
+
+                # 使用正则表达式解析 nginx 访问日志格式
+                # 格式: IP - - [时间] "方法 URL 协议" 状态码 字节数 "引用" "用户代理" "-"
+                log_pattern = r'(\S+) - - \[([^\]]+)\] "(\S+) ([^"]+) ([^"]+)" (\d+) (\d+) "([^"]*)" "([^"]*)" "([^"]*)"'
+                match = re.match(log_pattern, message)
+
+                if not match:
+                    logger.warning(f"无法解析日志格式: {message}")
+                    continue
+
+                # 提取需要的字段
+                access_time = match.group(2)
+                url = match.group(4)
+                status_code = int(match.group(6))
+                bytes_sent = int(match.group(7))
+
+                # 只处理成功的请求 (2xx 状态码)
+                if status_code < 200 or status_code >= 300:
+                    continue
+
+                # 解析 URL 获取服务信息
+                parsed_url = urlparse(url)
+                query_params = parse_qs(parsed_url.query)
+
+                # 检查服务和 token
+                service = query_params.get("service")[0]
+                token = query_params.get("token")[0]
+                if service == "plex":
+                    username = plex_token_cache.get(token)
+                    user_id = _db.cur.execute(
+                        "SELECT plex_id FROM user WHERE LOWER(plex_username)=?",
+                        (username,),
+                    ).fetchone()[0]
+                elif service == "emby":
+                    username = emby_api_key_cache.get(token)
+                    user_id = _db.cur.execute(
+                        "SELECT emby_id FROM user WHERE LOWER(emby_username)=?",
+                        (username,),
+                    ).fetchone()[0]
+
+                # 转换时间格式为 ISO 格式
+                try:
+                    # 将 nginx 时间格式转换为 datetime 对象
+                    # 格式: 23/Jun/2025:15:43:03 +0000
+                    dt = datetime.strptime(access_time, "%d/%b/%Y:%H:%M:%S %z")
+                    formatted_timestamp = dt.isoformat()
+                except ValueError:
+                    # 如果解析失败，使用原始的 @timestamp
+                    formatted_timestamp = timestamp
+
+                # 存储到数据库
+                success = _db.create_line_traffic_entry(
+                    line=backend,
+                    send_bytes=bytes_sent,
+                    service=service,
+                    username=username,
+                    user_id=user_id,
+                    timestamp=formatted_timestamp,
+                )
+
+                if success:
+                    processed_count += 1
+
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON 解析错误: {e}, 原始数据: {raw_log}")
+                continue
+            except Exception as e:
+                logger.error(f"处理日志时发生错误: {e}, 原始数据: {raw_log}")
+                continue
+
+        logger.info(f"成功处理了 {processed_count} 条流量日志")
+
+    except Exception as e:
+        logger.error(f"更新线路流量统计时发生错误: {e}")
+    finally:
+        _db.close()
+
+
 if __name__ == "__main__":
     update_plex_credits()
     update_plex_info()
     # add_all_plex_user()
     update_emby_credits()
+    # 测试流量统计更新
+    # update_line_traffic_stats()
