@@ -1295,7 +1295,7 @@ class DB:
 
         # 检查 Plex 用户
         plex_users = self.cur.execute(
-            "SELECT tg_id, plex_username, premium_expiry_time FROM user WHERE is_premium=1 AND premium_expiry_time IS NOT NULL AND premium_expiry_time < ?",
+            "SELECT tg_id, plex_username, premium_expiry_time, plex_line FROM user WHERE is_premium=1 AND premium_expiry_time IS NOT NULL AND premium_expiry_time < ?",
             (current_time,),
         ).fetchall()
 
@@ -1306,12 +1306,13 @@ class DB:
                     "username": user[1],
                     "service": "plex",
                     "expiry_time": user[2],
+                    "line": user[3],
                 }
             )
 
         # 检查 Emby 用户
         emby_users = self.cur.execute(
-            "SELECT tg_id, emby_username, premium_expiry_time FROM emby_user WHERE is_premium=1 AND premium_expiry_time IS NOT NULL AND premium_expiry_time < ?",
+            "SELECT tg_id, emby_username, premium_expiry_time, emby_line FROM emby_user WHERE is_premium=1 AND premium_expiry_time IS NOT NULL AND premium_expiry_time < ?",
             (current_time,),
         ).fetchall()
 
@@ -1322,6 +1323,7 @@ class DB:
                     "username": user[1],
                     "service": "emby",
                     "expiry_time": user[2],
+                    "line": user[3],
                 }
             )
 

@@ -4,9 +4,19 @@ Premium 会员相关功能，包括检查过期状态和即将过期的用户。
 
 from datetime import datetime, timedelta
 
+from app.cache import (
+    emby_last_user_defined_line_cache,
+    emby_user_defined_line_cache,
+    plex_last_user_defined_line_cache,
+    plex_user_defined_line_cache,
+)
 from app.db import DB
 from app.log import logger
-from app.utils import get_user_name_from_tg_id, send_message_by_url
+from app.utils import (
+    get_user_name_from_tg_id,
+    is_binded_premium_line,
+    send_message_by_url,
+)
 
 
 async def check_premium_expiry():
@@ -30,8 +40,18 @@ async def check_premium_expiry():
                 logger.info(
                     f"用户 {user_name} ({user['username']}) 的 {user['service']} Premium 已过期 (原到期时间: {user['expiry_time']})"
                 )
+                # 更新线路绑定
+                line = user.get("line", "")
+                # 绑定的非 Premium 线路不需要更新
+                if not is_binded_premium_line(line):
+                    continue
+                # 解绑 Premium 线路
+                new_line = unbind_premium_line(
+                    db, user["service"], user["username"], user["tg_id"]
+                )
+
                 # 发送通知消息
-                message = f"您的 {user['service']} Premium 已过期，到期时间为 {user['expiry_time']}。"
+                message = f"您的 {user['service']} Premium 已过期，到期时间为 {user['expiry_time']}。已自动解绑 Premium 线路，当前线路为: {new_line}。请重新解锁 Premium 以继续使用高级功能。"
                 await send_message_by_url(user["tg_id"], message)
 
             logger.info(f"已更新 {updated_count} 个用户的 Premium 状态")
@@ -133,3 +153,33 @@ def update_premium_status(db: DB, tg_id: int, service: str, days: int = 30) -> d
             (new_expiry.isoformat(), tg_id),
         )
     return new_expiry
+
+
+def unbind_premium_line(db: DB, service: str, username: str, tg_id: int):
+    """
+    解绑 Premium 线路
+    :param service: 服务类型（"plex" 或 "emby"）
+    :param username: 用户名
+    """
+    if service not in ["plex", "emby"]:
+        raise ValueError("不支持的服务类型")
+    if service == "plex":
+        cache = plex_user_defined_line_cache
+        last_cache = plex_last_user_defined_line_cache
+        db_func = db.set_plex_line
+    elif service == "emby":
+        cache = emby_user_defined_line_cache
+        last_cache = emby_last_user_defined_line_cache
+        db_func = db.set_emby_line
+    # 获取上一次绑定的非 premium 线路
+    last_line = last_cache.get(str(username).lower())
+    # 更新用户的 Emby 线路，last_line 为空则自动选择
+    db_func(last_line, tg_id=tg_id)
+    # 更新缓存
+    if last_line:
+        cache.put(str(username).lower(), last_line)
+        last_cache.delete(str(username).lower())
+    else:
+        cache.delete(str(username).lower())
+
+    return last_line or "AUTO"
