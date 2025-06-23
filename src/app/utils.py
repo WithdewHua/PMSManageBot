@@ -142,7 +142,9 @@ async def send_message_by_url(
                 result = await response.json()
 
                 if result.get("ok"):
-                    logger.info(f"Message sent successfully to {chat_id}")
+                    logger.info(
+                        f"Message sent successfully to {chat_id}: {data.get('text')}"
+                    )
                     return True
                 else:
                     logger.warning(f"Telegram API returned error: {result}")
