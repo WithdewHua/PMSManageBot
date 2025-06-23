@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import sqlite3
+import time
 import traceback
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 from app.config import settings
@@ -502,11 +504,8 @@ class DB:
     def add_wheel_spin_record(self, tg_id: int, item_name: str, credits_change: float):
         """记录转盘旋转记录"""
         try:
-            import time
-            from datetime import datetime
-
             timestamp = int(time.time())
-            date = datetime.now().strftime("%Y-%m-%d")
+            date = datetime.now(settings.TZ).strftime("%Y-%m-%d")
 
             self.cur.execute(
                 "INSERT INTO wheel_stats (tg_id, item_name, credits_change, timestamp, date) VALUES (?, ?, ?, ?, ?)",
@@ -521,8 +520,6 @@ class DB:
     def get_wheel_stats(self):
         """获取转盘统计数据"""
         try:
-            from datetime import datetime, timedelta
-
             # 获取总抽奖次数
             total_spins = self.cur.execute(
                 "SELECT COUNT(*) FROM wheel_stats"
@@ -533,14 +530,16 @@ class DB:
                 "SELECT COUNT(DISTINCT tg_id) FROM wheel_stats"
             ).fetchone()[0]
 
-            # 获取今日抽奖次数
-            today = datetime.now().strftime("%Y-%m-%d")
+            # 获取今日抽奖次数（使用UTC+8北京时间）
+            today = datetime.now(settings.TZ).strftime("%Y-%m-%d")
             today_spins = self.cur.execute(
                 "SELECT COUNT(*) FROM wheel_stats WHERE date = ?", (today,)
             ).fetchone()[0]
 
-            # 获取本周抽奖次数
-            week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+            # 获取本周抽奖次数（使用UTC+8北京时间）
+            week_ago = (datetime.now(settings.TZ) - timedelta(days=7)).strftime(
+                "%Y-%m-%d"
+            )
             week_spins = self.cur.execute(
                 "SELECT COUNT(*) FROM wheel_stats WHERE date >= ?", (week_ago,)
             ).fetchone()[0]
@@ -1112,8 +1111,6 @@ class DB:
     ) -> dict:
         """获取详细的竞拍统计数据"""
         try:
-            import time
-
             # 设置默认时间范围（如果未提供）
             if not start_date:
                 start_date = 0
@@ -1172,10 +1169,11 @@ class DB:
     def get_user_wheel_stats(self, tg_id: int):
         """获取用户个人转盘统计数据"""
         try:
-            from datetime import datetime, timedelta
-
-            today = datetime.now().strftime("%Y-%m-%d")
-            week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+            # 使用UTC+8北京时间
+            today = datetime.now(settings.TZ).strftime("%Y-%m-%d")
+            week_ago = (datetime.now(settings.TZ) - timedelta(days=7)).strftime(
+                "%Y-%m-%d"
+            )
 
             # 获取用户今日游戏次数
             today_spins = self.cur.execute(
@@ -1298,10 +1296,9 @@ class DB:
 
     def get_expired_premium_users(self):
         """获取所有 Premium 已过期的用户"""
-        from datetime import datetime
 
         expired_users = []
-        current_time = datetime.now().isoformat()
+        current_time = datetime.now(settings.TZ).isoformat()
 
         # 检查 Plex 用户
         plex_users = self.cur.execute(
@@ -1341,9 +1338,8 @@ class DB:
 
     def update_expired_premium_status(self):
         """批量更新已过期的 Premium 用户状态"""
-        from datetime import datetime
 
-        current_time = datetime.now().isoformat()
+        current_time = datetime.now(settings.TZ).isoformat()
 
         # 更新 Plex 用户 - 清空过期时间
         plex_result = self.cur.execute(
@@ -1364,9 +1360,8 @@ class DB:
 
     def get_premium_users_expiring_soon(self, days: int = 3):
         """获取即将过期的 Premium 用户（默认3天内）"""
-        from datetime import datetime, timedelta
 
-        current_time = datetime.now()
+        current_time = datetime.now(settings.TZ)
         warning_time = (current_time + timedelta(days=days)).isoformat()
         current_time_str = current_time.isoformat()
 
@@ -1379,7 +1374,7 @@ class DB:
         ).fetchall()
 
         for user in plex_users:
-            expiry_dt = datetime.fromisoformat(user[2])
+            expiry_dt = datetime.fromisoformat(user[2]).astimezone(settings.TZ)
             days_remaining = (expiry_dt - current_time).days
             expiring_users.append(
                 {
@@ -1398,7 +1393,7 @@ class DB:
         ).fetchall()
 
         for user in emby_users:
-            expiry_dt = datetime.fromisoformat(user[2])
+            expiry_dt = datetime.fromisoformat(user[2]).astimezone(settings.TZ)
             days_remaining = (expiry_dt - current_time).days
             expiring_users.append(
                 {
@@ -1415,9 +1410,7 @@ class DB:
     def get_premium_statistics(self):
         """获取 Premium 用户统计信息"""
         try:
-            from datetime import datetime
-
-            current_time = datetime.now().isoformat()
+            current_time = datetime.now(settings.TZ).isoformat()
 
             # 总 Premium 用户数（包含 Plex 和 Emby，去重）
             total_premium_users_query = """
@@ -1499,3 +1492,81 @@ class DB:
         else:
             self.con.commit()
             return True
+
+    def get_premium_line_traffic_statistics(self):
+        """获取Premium线路流量统计信息"""
+        try:
+            now = datetime.now(settings.TZ)
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            week_start = today_start - timedelta(days=now.weekday())
+            month_start = today_start.replace(day=1)
+
+            # 获取Premium线路列表
+            premium_lines = settings.PREMIUM_STREAM_BACKEND
+
+            line_stats = []
+
+            for line in premium_lines:
+                # 计算今日流量
+                today_traffic_query = """
+                SELECT COALESCE(SUM(send_bytes), 0) as traffic
+                FROM line_traffic_stats 
+                WHERE line = ? AND timestamp >= ?
+                """
+                today_traffic = self.cur.execute(
+                    today_traffic_query, (line, today_start.isoformat())
+                ).fetchone()[0]
+
+                # 计算本周流量
+                week_traffic_query = """
+                SELECT COALESCE(SUM(send_bytes), 0) as traffic
+                FROM line_traffic_stats 
+                WHERE line = ? AND timestamp >= ?
+                """
+                week_traffic = self.cur.execute(
+                    week_traffic_query, (line, week_start.isoformat())
+                ).fetchone()[0]
+
+                # 计算本月流量
+                month_traffic_query = """
+                SELECT COALESCE(SUM(send_bytes), 0) as traffic
+                FROM line_traffic_stats 
+                WHERE line = ? AND timestamp >= ?
+                """
+                month_traffic = self.cur.execute(
+                    month_traffic_query, (line, month_start.isoformat())
+                ).fetchone()[0]
+
+                # 获取当前线路流量排名前五的用户（基于本月数据）
+                top_users_query = """
+                SELECT username, SUM(send_bytes) as total_traffic
+                FROM line_traffic_stats 
+                WHERE line = ? AND timestamp >= ?
+                GROUP BY username 
+                ORDER BY total_traffic DESC 
+                LIMIT 5
+                """
+                top_users_result = self.cur.execute(
+                    top_users_query, (line, month_start.isoformat())
+                ).fetchall()
+
+                top_users = []
+                for user_data in top_users_result:
+                    username, traffic = user_data
+                    top_users.append({"username": username, "traffic": traffic})
+
+                line_stats.append(
+                    {
+                        "line": line,
+                        "today_traffic": today_traffic,
+                        "week_traffic": week_traffic,
+                        "month_traffic": month_traffic,
+                        "top_users": top_users,
+                    }
+                )
+
+            return line_stats
+
+        except Exception as e:
+            logger.error(f"Error getting premium line traffic statistics: {e}")
+            return []

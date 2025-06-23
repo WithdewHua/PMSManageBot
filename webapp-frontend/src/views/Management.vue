@@ -647,6 +647,138 @@
                 </v-card-text>
               </v-card>
               
+              <!-- Premium 线路流量统计卡片 -->
+              <v-card class="admin-card-enhanced mb-4">
+                <v-card-title class="text-center">
+                  <v-icon start color="deep-purple">mdi-chart-line</v-icon> Premium 线路流量统计
+                </v-card-title>
+                <v-card-text>
+                  <!-- 加载状态 -->
+                  <div v-if="trafficStatsLoading" class="text-center py-4">
+                    <v-progress-circular indeterminate size="small" color="deep-purple"></v-progress-circular>
+                    <div class="mt-2">加载流量统计中...</div>
+                  </div>
+                  
+                  <!-- 错误状态 -->
+                  <div v-else-if="trafficStatsError" class="text-center py-4">
+                    <v-alert type="error" density="compact">{{ trafficStatsError }}</v-alert>
+                    <v-btn 
+                      color="deep-purple" 
+                      variant="outlined" 
+                      size="small"
+                      class="mt-2"
+                      @click="fetchTrafficStats"
+                    >
+                      重试
+                    </v-btn>
+                  </div>
+                  
+                  <!-- 无数据状态 -->
+                  <div v-else-if="!trafficStats || trafficStats.length === 0" class="text-center py-4">
+                    <v-alert type="info" density="compact">
+                      暂无 Premium 线路流量数据
+                    </v-alert>
+                  </div>
+                  
+                  <!-- 流量统计数据 -->
+                  <div v-else>
+                    <v-row dense>
+                      <v-col 
+                        v-for="lineStat in trafficStats" 
+                        :key="lineStat.line"
+                        cols="12" 
+                        sm="6" 
+                        md="6" 
+                        lg="4"
+                        xl="3"
+                      >
+                        <v-card variant="outlined" class="line-traffic-card">
+                          <div class="line-header">
+                            <v-icon size="small" color="deep-purple" class="mr-2">mdi-server-network</v-icon>
+                            <v-tooltip :text="lineStat.line" location="top">
+                              <template v-slot:activator="{ props }">
+                                <span class="line-name" v-bind="props">{{ lineStat.line }}</span>
+                              </template>
+                            </v-tooltip>
+                          </div>
+                          
+                          <v-card-text class="card-content">
+                            <!-- 流量统计 -->
+                            <div class="traffic-stats mb-3">
+                              <div class="d-flex justify-space-between align-center mb-1">
+                                <span class="text-caption text-medium-emphasis">今日流量：</span>
+                                <v-chip size="small" color="success" variant="tonal">
+                                  {{ formatTrafficSize(lineStat.today_traffic) }}
+                                </v-chip>
+                              </div>
+                              <div class="d-flex justify-space-between align-center mb-1">
+                                <span class="text-caption text-medium-emphasis">本周流量：</span>
+                                <v-chip size="small" color="info" variant="tonal">
+                                  {{ formatTrafficSize(lineStat.week_traffic) }}
+                                </v-chip>
+                              </div>
+                              <div class="d-flex justify-space-between align-center mb-2">
+                                <span class="text-caption text-medium-emphasis">本月流量：</span>
+                                <v-chip size="small" color="warning" variant="tonal">
+                                  {{ formatTrafficSize(lineStat.month_traffic) }}
+                                </v-chip>
+                              </div>
+                            </div>
+                            
+                            <!-- 用户排行 -->
+                            <div v-if="lineStat.top_users && lineStat.top_users.length > 0">
+                              <v-divider class="mb-2"></v-divider>
+                              <div class="text-caption text-medium-emphasis mb-2">
+                                <v-icon size="12" class="mr-1">mdi-trophy</v-icon>
+                                流量排行（本月）
+                              </div>
+                              <div class="top-users-list">
+                                <div 
+                                  v-for="(user, index) in lineStat.top_users.slice(0, 3)" 
+                                  :key="user.username"
+                                  class="d-flex justify-space-between align-center mb-1"
+                                >
+                                  <div class="d-flex align-center">
+                                    <v-icon 
+                                      :color="getUserRankColor(index)" 
+                                      size="12" 
+                                      class="mr-1"
+                                    >
+                                      {{ getUserRankIcon(index) }}
+                                    </v-icon>
+                                    <span class="text-caption">{{ formatUsername(user.username) }}</span>
+                                  </div>
+                                  <span class="text-caption text-medium-emphasis">
+                                    {{ formatTrafficSize(user.traffic) }}
+                                  </span>
+                                </div>
+                                
+                                <!-- 显示更多用户按钮 -->
+                                <div v-if="lineStat.top_users.length > 3" class="text-center mt-2">
+                                  <v-btn
+                                    size="x-small"
+                                    variant="text"
+                                    color="deep-purple"
+                                    @click="showLineUsersDialog(lineStat)"
+                                  >
+                                    查看全部 ({{ lineStat.top_users.length }})
+                                  </v-btn>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <!-- 无用户数据 -->
+                            <div v-else class="text-center py-2">
+                              <span class="text-caption text-medium-emphasis">暂无用户使用数据</span>
+                            </div>
+                          </v-card-text>
+                        </v-card>
+                      </v-col>
+                    </v-row>
+                  </div>
+                </v-card-text>
+              </v-card>
+              
               <!-- 系统信息卡片 -->
               <v-card class="admin-card-enhanced">
                 <v-card-title class="text-center">
@@ -1252,6 +1384,82 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- 线路用户详情对话框 -->
+    <v-dialog v-model="showLineUsersDialogVisible" max-width="500px">
+      <v-card v-if="selectedLineStat">
+        <v-toolbar color="deep-purple" dark flat>
+          <v-btn icon dark @click="closeLineUsersDialog">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+          <v-toolbar-title>
+            <v-icon class="mr-2">mdi-server-network</v-icon>
+            {{ selectedLineStat.line }} - 用户流量排行
+          </v-toolbar-title>
+        </v-toolbar>
+        
+        <v-card-text class="pa-4">
+          <div class="text-caption text-medium-emphasis mb-3">
+            本月流量消耗排行（前{{ selectedLineStat.top_users.length }}名用户）
+          </div>
+          
+          <div class="user-ranking-list">
+            <div 
+              v-for="(user, index) in selectedLineStat.top_users" 
+              :key="user.username"
+              class="d-flex align-center justify-space-between py-2"
+              :class="{ 'border-b': index < selectedLineStat.top_users.length - 1 }"
+            >
+              <div class="d-flex align-center">
+                <div class="rank-badge mr-3">
+                  <v-avatar 
+                    :color="getUserRankColor(index)" 
+                    size="24"
+                  >
+                    <span class="text-caption font-weight-bold text-white">
+                      {{ index + 1 }}
+                    </span>
+                  </v-avatar>
+                </div>
+                <div>
+                  <div class="text-body-2 font-weight-medium">{{ user.username }}</div>
+                  <div class="text-caption text-medium-emphasis">
+                    流量占比: {{ ((user.traffic / selectedLineStat.month_traffic) * 100).toFixed(1) }}%
+                  </div>
+                </div>
+              </div>
+              
+              <div class="text-right">
+                <v-chip 
+                  :color="getUserRankColor(index)" 
+                  size="small" 
+                  variant="tonal"
+                  class="font-weight-medium"
+                >
+                  {{ formatTrafficSize(user.traffic) }}
+                </v-chip>
+              </div>
+            </div>
+          </div>
+          
+          <div class="mt-4 pt-2 border-t">
+            <div class="d-flex justify-space-between align-center">
+              <span class="text-body-2 font-weight-medium">线路总流量（本月）</span>
+              <v-chip color="primary" variant="flat" size="small">
+                {{ formatTrafficSize(selectedLineStat.month_traffic) }}
+              </v-chip>
+            </div>
+          </div>
+        </v-card-text>
+        
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer></v-spacer>
+          <v-btn @click="closeLineUsersDialog" variant="outlined">
+            关闭
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -1265,6 +1473,7 @@ import WheelAdminPanel from '@/components/WheelAdminPanel.vue'
 import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits, setPremiumDailyCredits, setPremiumUnlockEnabled, setCreditsTransferEnabled } from '@/services/adminService.js'
 import { getWheelStats } from '@/services/wheelService.js'
 import { getAuctionStats, getAllAuctions, finishExpiredAuctions, finishAuction, deleteAuction, createAuction, getAuctionBids, updateAuction } from '@/services/auctionService.js'
+import { getPremiumLineTrafficStats, formatTrafficSize, formatUsername } from '@/services/trafficService.js'
 
 export default {
   name: 'Management',
@@ -1363,7 +1572,13 @@ export default {
         premium_emby_users: 0,
       },
       premiumStatsLoading: false,
-      premiumStatsError: null
+      premiumStatsError: null,
+      // Premium 线路流量统计相关数据
+      trafficStats: [],
+      trafficStatsLoading: false,
+      trafficStatsError: null,
+      showLineUsersDialogVisible: false,
+      selectedLineStat: null
     }
   },
   mounted() {
@@ -1377,6 +1592,7 @@ export default {
       if (newTab === 'overview') {
         this.fetchSystemStats()
         this.fetchPremiumStats()
+        this.fetchTrafficStats()
       }
       // 如果切换到设置项tab且是管理员，则获取管理员设置
       if (newTab === 'settings' && this.isAdmin && !this.adminSettings.loaded) {
@@ -1402,6 +1618,7 @@ export default {
         if (this.currentTab === 'overview') {
           await this.fetchSystemStats()
           await this.fetchPremiumStats()
+          await this.fetchTrafficStats()
         }
         // 如果是管理员且当前在设置项tab，则获取管理员设置
         if (this.isAdmin && this.currentTab === 'settings') {
@@ -1465,6 +1682,7 @@ export default {
     async refreshOverviewStats() {
       await this.fetchSystemStats()
       await this.fetchPremiumStats()
+      await this.fetchTrafficStats()
     },
     
     async updatePlexRegister() {
@@ -1995,6 +2213,55 @@ export default {
         duration_hours: 72,
         description: ''
       }
+    },
+    
+    // Premium 线路流量统计相关方法
+    async fetchTrafficStats() {
+      try {
+        this.trafficStatsLoading = true
+        this.trafficStatsError = null
+        const response = await getPremiumLineTrafficStats()
+        this.trafficStats = response.data || []
+        this.trafficStatsLoading = false
+      } catch (err) {
+        this.trafficStatsError = err.response?.data?.detail || '获取流量统计失败'
+        this.trafficStatsLoading = false
+        console.error('获取Premium线路流量统计失败:', err)
+      }
+    },
+    
+    // 格式化流量大小
+    formatTrafficSize(bytes) {
+      return formatTrafficSize(bytes)
+    },
+    
+    // 格式化用户名
+    formatUsername(username, maxLength = 15) {
+      return formatUsername(username, maxLength)
+    },
+    
+    // 获取用户排名颜色
+    getUserRankColor(index) {
+      const colors = ['amber', 'grey-lighten-1', 'deep-orange-lighten-1', 'blue-lighten-1', 'green-lighten-1']
+      return colors[index] || 'grey-lighten-2'
+    },
+    
+    // 获取用户排名图标
+    getUserRankIcon(index) {
+      const icons = ['mdi-trophy', 'mdi-medal', 'mdi-podium-bronze', 'mdi-numeric-4-circle', 'mdi-numeric-5-circle']
+      return icons[index] || 'mdi-account'
+    },
+    
+    // 显示线路用户详情对话框
+    showLineUsersDialog(lineStat) {
+      this.selectedLineStat = lineStat
+      this.showLineUsersDialogVisible = true
+    },
+    
+    // 关闭线路用户详情对话框
+    closeLineUsersDialog() {
+      this.showLineUsersDialogVisible = false
+      this.selectedLineStat = null
     }
   }
 }
@@ -2034,6 +2301,108 @@ export default {
   font-size: 16px;
   color: #666;
   margin: 0;
+}
+
+/* 流量统计卡片样式 */
+.line-traffic-card {
+  transition: all 0.3s ease;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  height: 100%;
+  overflow: hidden;
+}
+
+.line-traffic-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+/* 线路标题样式 */
+.line-header {
+  display: flex;
+  align-items: center;
+  padding: 16px 16px 8px 16px;
+  min-height: 48px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  background-color: rgba(103, 58, 183, 0.02);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.line-name {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.2;
+  word-wrap: break-word;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+  flex: 1;
+  color: rgba(0, 0, 0, 0.87);
+  max-width: calc(100% - 32px);
+  white-space: normal;
+  display: block;
+  cursor: help;
+}
+
+.card-content {
+  padding: 16px !important;
+}
+
+.traffic-stats .v-chip {
+  font-weight: 500;
+  font-size: 0.75rem;
+  min-width: 60px;
+  justify-content: center;
+}
+
+.traffic-stats .d-flex {
+  min-height: 28px;
+}
+
+.top-users-list {
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.user-ranking-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.user-ranking-list .border-b {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.rank-badge {
+  flex-shrink: 0;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .line-traffic-card {
+    margin-bottom: 16px;
+  }
+  
+  .line-header {
+    padding: 12px 12px 6px 12px;
+    min-height: 40px;
+  }
+  
+  .line-name {
+    font-size: 0.9rem;
+  }
+  
+  .card-content {
+    padding: 12px !important;
+  }
+  
+  .traffic-stats .v-chip {
+    font-size: 0.7rem;
+  }
+  
+  .top-users-list {
+    max-height: 100px;
+  }
 }
 
 .admin-grid {

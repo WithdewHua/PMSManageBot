@@ -10,6 +10,7 @@ from app.cache import (
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
 )
+from app.config import settings
 from app.db import DB
 from app.log import logger
 from app.utils import (
@@ -112,12 +113,16 @@ def update_premium_status(db: DB, tg_id: int, service: str, days: int = 30) -> d
         # 永久会员直接跳过
         if bool(user_info[9]) and not current_expiry:
             return None
-        if current_expiry and datetime.fromisoformat(current_expiry) > datetime.now():
+        if current_expiry and datetime.fromisoformat(current_expiry).astimezone(
+            settings.TZ
+        ) > datetime.now(settings.TZ):
             # 如果当前还有Premium，从到期时间开始延长
-            new_expiry = datetime.fromisoformat(current_expiry) + timedelta(days=days)
+            new_expiry = datetime.fromisoformat(current_expiry).astimezone(
+                settings.TZ
+            ) + timedelta(days=days)
         else:
             # 从现在开始计算
-            new_expiry = datetime.now() + timedelta(days=days)
+            new_expiry = datetime.now(settings.TZ) + timedelta(days=days)
 
         # 更新数据库 - 设置is_premium=1和到期时间
         db.cur.execute(
@@ -135,17 +140,16 @@ def update_premium_status(db: DB, tg_id: int, service: str, days: int = 30) -> d
         # 永久会员直接跳过
         if bool(user_info[8]) and not current_expiry:
             return None
-        if (
-            current_expiry
-            and datetime.fromisoformat(str(current_expiry)) > datetime.now()
-        ):
+        if current_expiry and datetime.fromisoformat(str(current_expiry)).astimezone(
+            settings.TZ
+        ) > datetime.now(settings.TZ):
             # 如果当前还有Premium，从到期时间开始延长
-            new_expiry = datetime.fromisoformat(str(current_expiry)) + timedelta(
-                days=days
-            )
+            new_expiry = datetime.fromisoformat(str(current_expiry)).astimezone(
+                settings.TZ
+            ) + timedelta(days=days)
         else:
             # 从现在开始计算
-            new_expiry = datetime.now() + timedelta(days=days)
+            new_expiry = datetime.now(settings.TZ) + timedelta(days=days)
 
         # 更新数据库 - 设置is_premium=1和到期时间
         db.cur.execute(

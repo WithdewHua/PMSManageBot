@@ -174,3 +174,28 @@ async def get_premium_statistics(
     except Exception as e:
         logger.error(f"获取 Premium 统计信息失败: {str(e)}")
         raise HTTPException(status_code=500, detail="获取统计信息失败")
+
+
+@router.get("/line-traffic-stats")
+@require_telegram_auth
+async def get_premium_line_traffic_stats(
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取Premium线路流量统计信息"""
+    try:
+        db = DB()
+        try:
+            stats = db.get_premium_line_traffic_statistics()
+            logger.info(
+                f"用户 {get_user_name_from_tg_id(user.id)} 获取 Premium 线路流量统计信息"
+            )
+            return {"success": True, "data": stats}
+        finally:
+            db.close()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取 Premium 线路流量统计失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取流量统计失败")

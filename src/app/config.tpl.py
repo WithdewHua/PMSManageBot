@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict
 
@@ -7,9 +8,11 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # debug
-    DEBUG: bool = False
+    DEBUG: bool = True
     # log
-    LOG_LEVEL: str = "DEBUG"
+    LOG_LEVEL: str = "INFO"
+    # timezone
+    TZ: timezone = timezone(timedelta(hours=8))
 
     # data folder
     DATA_DIR: str = ""

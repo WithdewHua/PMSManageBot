@@ -473,30 +473,60 @@ def update_line_traffic_stats():
                 query_params = parse_qs(parsed_url.query)
 
                 # 检查服务和 token
-                service = query_params.get("service")[0]
-                token = query_params.get("token")[0]
+                service_list = query_params.get("service")
+                token_list = query_params.get("token")
+
+                if not service_list or not token_list:
+                    logger.warning(f"缺少必要的参数 service 或 token: {url}")
+                    continue
+
+                service = service_list[0]
+                token = token_list[0]
+
+                username = None
+                user_id = None
+
                 if service == "plex":
                     username = plex_token_cache.get(token)
-                    user_id = _db.cur.execute(
-                        "SELECT plex_id FROM user WHERE LOWER(plex_username)=?",
-                        (username,),
-                    ).fetchone()[0]
+                    if username:
+                        user_result = _db.cur.execute(
+                            "SELECT plex_id FROM user WHERE LOWER(plex_username)=?",
+                            (username.lower(),),
+                        ).fetchone()
+                        if user_result:
+                            user_id = user_result[0]
                 elif service == "emby":
                     username = emby_api_key_cache.get(token)
-                    user_id = _db.cur.execute(
-                        "SELECT emby_id FROM user WHERE LOWER(emby_username)=?",
-                        (username,),
-                    ).fetchone()[0]
+                    if username:
+                        user_result = _db.cur.execute(
+                            "SELECT emby_id FROM emby_user WHERE LOWER(emby_username)=?",
+                            (username.lower(),),
+                        ).fetchone()
+                        if user_result:
+                            user_id = user_result[0]
+
+                # 如果无法获取到用户信息，跳过此条记录
+                if not username:
+                    logger.warning(f"无法找到token对应的用户名: {token}")
+                    continue
 
                 # 转换时间格式为 ISO 格式
                 try:
                     # 将 nginx 时间格式转换为 datetime 对象
                     # 格式: 23/Jun/2025:15:43:03 +0000
-                    dt = datetime.strptime(access_time, "%d/%b/%Y:%H:%M:%S %z")
+                    dt = datetime.strptime(
+                        access_time, "%d/%b/%Y:%H:%M:%S %z"
+                    ).astimezone(settings.TZ)
                     formatted_timestamp = dt.isoformat()
                 except ValueError:
                     # 如果解析失败，使用原始的 @timestamp
-                    formatted_timestamp = timestamp
+                    formatted_timestamp = (
+                        datetime.fromisoformat(timestamp)
+                        .astimezone(settings.TZ)
+                        .isoformat()
+                        if timestamp
+                        else ""
+                    )
 
                 # 存储到数据库
                 success = _db.create_line_traffic_entry(
