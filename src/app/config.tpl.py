@@ -11,8 +11,6 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     # log
     LOG_LEVEL: str = "INFO"
-    # timezone
-    TZ: timezone = timezone(timedelta(hours=8))
 
     # data folder
     DATA_DIR: str = ""
@@ -86,6 +84,11 @@ class Settings(BaseSettings):
             self.DATA_PATH.mkdir(parents=True)
         # 启动时尝试从配置文件加载设置
         self.load_config_from_file()
+
+    # 设置北京时间
+    @property
+    def TZ(self):
+        return timezone(timedelta(hours=8))
 
     @property
     def DATA_PATH(self):
