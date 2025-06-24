@@ -176,8 +176,8 @@ Emby 观看积分更新通知
 
 async def update_credits():
     """更新 Plex 和 Emby 用户积分及观看时长"""
-    notification_tasks = await update_plex_credits()
-    notification_tasks.extend(await update_emby_credits())
+    notification_tasks = update_plex_credits()
+    notification_tasks.extend(update_emby_credits())
     for tg_id, text in notification_tasks:
         await send_message_by_url(chat_id=tg_id, text=text)
         await asyncio.sleep(1)
