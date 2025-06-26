@@ -212,6 +212,13 @@
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
+                <v-icon size="small" color="blue-grey-darken-1" class="mr-2">mdi-cloud-download</v-icon>
+                <span>今日流量消耗：</span>
+              </div>
+              <div class="value-display traffic-value">{{ formatTraffic(userInfo.plex_info.daily_traffic || 0) }}</div>
+            </div>
+            <div class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
                 <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-crown</v-icon>
                 <span>Premium 会员：</span>
               </div>
@@ -336,6 +343,13 @@
                   @line-changed="updateEmbyLine"
                 ></emby-line-selector>
               </div>
+            </div>
+            <div class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="blue-grey-darken-1" class="mr-2">mdi-cloud-download</v-icon>
+                <span>今日流量消耗：</span>
+              </div>
+              <div class="value-display traffic-value">{{ formatTraffic(userInfo.emby_info.daily_traffic || 0) }}</div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
@@ -606,6 +620,7 @@ import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
 import { redeemInviteCodeForCredits } from '@/services/inviteCodeService.js'
 import { checkPrivilegedInviteCode } from '@/services/mediaServiceApi.js'
 import { getUserActivityStats } from '@/services/wheelService.js'
+import { formatTraffic } from '@/utils/format.js'
 
 export default {
   name: 'UserInfo',
@@ -665,6 +680,11 @@ export default {
     this.fetchSystemStatus() // 这里会同时获取系统状态和积分转移开关状态
   },
   methods: {
+    // 格式化流量显示
+    formatTraffic(bytes) {
+      return formatTraffic(bytes)
+    },
+
     async fetchUserInfo() {
       try {
         this.loading = true
@@ -1316,6 +1336,12 @@ export default {
   background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%);
   color: #388E3C;
   border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+.traffic-value {
+  background: linear-gradient(135deg, rgba(96, 125, 139, 0.1) 0%, rgba(96, 125, 139, 0.05) 100%);
+  color: #455A64;
+  border: 1px solid rgba(96, 125, 139, 0.2);
 }
 
 /* 观看等级图标样式 */

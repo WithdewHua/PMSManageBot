@@ -74,6 +74,7 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
     REDIS_PASSWORD: str = ""
+    REDIS_LINE_TRAFFIC_STATS_HANDLE_SIZE: int = 1000  # Redis 流量统计单次处理条数
 
     # redeem code
     PRIVILEGED_CODES: list[str] = []

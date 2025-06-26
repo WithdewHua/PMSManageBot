@@ -415,14 +415,16 @@ async def finish_expired_auctions_job():
         db.close()
 
 
-def update_line_traffic_stats():
+def update_line_traffic_stats(
+    count: int = settings.REDIS_LINE_TRAFFIC_STATS_HANDLE_SIZE,
+):
     """
     更新线路的流量数据
     """
 
-    # 每次从 redis 中取出 3000 条数据
+    # 每次从 redis 中取出指定数量的数据
     values = stream_traffic_cache.redis_client.lpop(
-        "filebeat_nginx_stream_logs", count=3000
+        "filebeat_nginx_stream_logs", count=count
     )
 
     if not values:
@@ -451,8 +453,8 @@ def update_line_traffic_stats():
                 message = log_data.get("message", "")
 
                 # 使用正则表达式解析 nginx 访问日志格式
-                # 格式: IP - - [时间] "方法 URL 协议" 状态码 字节数 "引用" "用户代理" "-"
-                log_pattern = r'(\S+) - - \[([^\]]+)\] "(\S+) ([^"]+) ([^"]+)" (\d+) (\d+) "([^"]*)" "([^"]*)" "([^"]*)"'
+                # 格式: IP - - [时间] "方法 URL 协议" 状态码 字节数 "引用"
+                log_pattern = r"(\S+) - - \[([^\]]+)\] \"(\S+) ([^\"]+) ([^\"]+)\" (\d+) (\d+) \"([^\"]*)\""
                 match = re.match(log_pattern, message)
 
                 if not match:

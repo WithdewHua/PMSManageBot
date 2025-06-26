@@ -1570,3 +1570,24 @@ class DB:
         except Exception as e:
             logger.error(f"Error getting premium line traffic statistics: {e}")
             return []
+
+    def get_user_daily_traffic(self, username: str, service: str = None):
+        """获取用户今日流量消耗"""
+        try:
+            now = datetime.now(settings.TZ)
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+            # 查询特定服务的今日流量
+            query = """
+            SELECT COALESCE(SUM(send_bytes), 0) as traffic
+            FROM line_traffic_stats 
+            WHERE LOWER(username) = ? AND service = ? AND timestamp >= ?
+            """
+            result = self.cur.execute(
+                query, (username.lower(), service, today_start.isoformat())
+            ).fetchone()
+            return result[0] if result else 0
+
+        except Exception as e:
+            logger.error(f"Error getting user daily traffic for {username}: {e}")
+            return 0

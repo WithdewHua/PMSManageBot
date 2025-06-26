@@ -69,6 +69,9 @@ async def get_user_info(
             logger.debug(f"正在查询用户 {get_user_name_from_tg_id(tg_id)} 的Plex信息")
             plex_info = db.get_plex_info_by_tg_id(tg_id)
             if plex_info:
+                # 获取今日流量消耗
+                daily_traffic = db.get_user_daily_traffic(plex_info[4], "plex")
+
                 user_info.plex_info = {
                     "username": plex_info[4],
                     "email": plex_info[3],
@@ -77,13 +80,14 @@ async def get_user_info(
                     "line": plex_info[8],
                     "is_premium": plex_info[9] == 1,
                     "premium_expiry": plex_info[10],
+                    "daily_traffic": daily_traffic,
                 }
                 logger.debug(
-                    f"用户 {get_user_name_from_tg_id(tg_id)} 的Plex信息获取成功"
+                    f"用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 信息获取成功，今日流量: {daily_traffic} bytes"
                 )
             else:
                 logger.debug(
-                    f"用户 {get_user_name_from_tg_id(tg_id)} 没有关联的Plex账户"
+                    f"用户 {get_user_name_from_tg_id(tg_id)} 没有关联的 Plex 账户"
                 )
         except Exception as e:
             logger.error(
@@ -95,6 +99,9 @@ async def get_user_info(
             logger.debug(f"正在查询用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 信息")
             emby_info = db.get_emby_info_by_tg_id(tg_id)
             if emby_info:
+                # 获取今日流量消耗
+                daily_traffic = db.get_user_daily_traffic(emby_info[0], "emby")
+
                 user_info.emby_info = {
                     "username": emby_info[0],
                     "watched_time": emby_info[5],
@@ -102,6 +109,7 @@ async def get_user_info(
                     "line": emby_info[7],
                     "is_premium": emby_info[8] == 1,
                     "premium_expiry": emby_info[9],
+                    "daily_traffic": daily_traffic,
                 }
                 created_at = (
                     Emby().get_user_info_from_username(emby_info[0]).get("date_created")
@@ -110,15 +118,15 @@ async def get_user_info(
                     created_at = created_at.split("T")[0]  # 只保留日期部分
                 user_info.emby_info["created_at"] = created_at
                 logger.debug(
-                    f"用户 {get_user_name_from_tg_id(tg_id)} 的Emby信息获取成功"
+                    f"用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 信息获取成功，今日流量: {daily_traffic} bytes"
                 )
             else:
                 logger.debug(
-                    f"用户 {get_user_name_from_tg_id(tg_id)} 没有关联的Emby账户"
+                    f"用户 {get_user_name_from_tg_id(tg_id)} 没有关联的 Emby 账户"
                 )
         except Exception as e:
             logger.error(
-                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的Emby信息失败: {str(e)}"
+                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 信息失败: {str(e)}"
             )
 
         # 获取统计信息
