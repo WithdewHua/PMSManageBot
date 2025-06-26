@@ -35,7 +35,7 @@ def update_plex_credits():
         users = res.fetchall()
         for user in users:
             plex_id = user[0]
-            play_duration = min(int(duration.get(plex_id, 0)), 24)
+            play_duration = round(min(float(duration.get(plex_id, 0)), 24), 2)
             if play_duration == 0:
                 continue
             # 最大记 8h
@@ -114,7 +114,7 @@ def update_emby_credits():
             "select emby_id, tg_id, emby_watched_time, emby_credits from emby_user"
         ).fetchall()
         for user in users:
-            playduration = round(float(int(duration.get(user[0], 0)) / 3600), 2)
+            playduration = round(float(duration.get(user[0], 0)) / 3600, 2)
             if playduration == 0:
                 continue
             # 最大记 8
