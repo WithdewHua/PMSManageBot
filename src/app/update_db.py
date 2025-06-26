@@ -179,7 +179,8 @@ async def update_credits():
     notification_tasks = update_plex_credits()
     notification_tasks.extend(update_emby_credits())
     for tg_id, text in notification_tasks:
-        await send_message_by_url(chat_id=tg_id, text=text)
+        # 发送通知消息，静默模式
+        await send_message_by_url(chat_id=tg_id, text=text, disable_notification=True)
         await asyncio.sleep(1)
 
 
@@ -419,9 +420,9 @@ def update_line_traffic_stats():
     更新线路的流量数据
     """
 
-    # 每次从 redis 中取出 100 条数据
+    # 每次从 redis 中取出 3000 条数据
     values = stream_traffic_cache.redis_client.lpop(
-        "filebeat_nginx_stream_logs", count=100
+        "filebeat_nginx_stream_logs", count=3000
     )
 
     if not values:
