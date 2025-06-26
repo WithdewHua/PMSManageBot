@@ -471,6 +471,10 @@ def update_line_traffic_stats(
                 if status_code < 200 or status_code >= 300:
                     continue
 
+                if not url.startswith("/stream"):
+                    # 只处理 /stream 路径的请求
+                    continue
+
                 # 解析 URL 获取服务信息
                 parsed_url = urlparse(url)
                 query_params = parse_qs(parsed_url.query)
