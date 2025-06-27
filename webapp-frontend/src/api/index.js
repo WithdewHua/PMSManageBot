@@ -44,6 +44,14 @@ export const getEmbyWatchedTimeRankings = () => {
   return apiClient.get('/api/rankings/watched-time/emby')
 }
 
+export const getPlexTrafficRankings = () => {
+  return apiClient.get('/api/rankings/traffic/plex')
+}
+
+export const getEmbyTrafficRankings = () => {
+  return apiClient.get('/api/rankings/traffic/emby')
+}
+
 export const getSystemStats = () => {
   return apiClient.get('/api/system/stats')
 }

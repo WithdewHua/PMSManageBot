@@ -5,6 +5,16 @@
       <div class="rankings-header">
         <h1 class="page-title">排行榜</h1>
         <p class="page-subtitle">积分、捐赠与观看时长排行</p>
+        <v-btn 
+          color="primary" 
+          variant="tonal"
+          size="small"
+          @click="forceRefreshData"
+          class="refresh-btn"
+        >
+          <v-icon start>mdi-refresh</v-icon>
+          刷新数据
+        </v-btn>
       </div>
       
       <div v-if="isCurrentTabLoading()" class="loading-container">
@@ -16,7 +26,7 @@
 
       <div v-else-if="error" class="error-container">
         <v-alert type="error" class="error-alert" rounded="lg" elevation="4">{{ error }}</v-alert>
-        <v-btn color="primary" @click="loadTabData(activeTab)" class="mt-3">
+        <v-btn color="primary" @click="forceRefreshData" class="mt-3">
           重试
         </v-btn>
       </div>
@@ -42,6 +52,10 @@
             <v-tab value="watched" class="tab-item">
               <v-icon start size="18">mdi-clock</v-icon>
               <span class="tab-text">观看时长榜</span>
+            </v-tab>
+            <v-tab value="traffic" class="tab-item">
+              <v-icon start size="18">mdi-download</v-icon>
+              <span class="tab-text">流量榜</span>
             </v-tab>
           </v-tabs>
         </div>
@@ -147,7 +161,7 @@
           <!-- 观看时长榜 -->
           <v-window-item value="watched">
             <!-- 观看时长数据源加载中 -->
-            <div v-if="loading[watchedTimeSource]" class="text-center my-10">
+            <div v-if="loading[`watched-${watchedTimeSource}`]" class="text-center my-10">
               <v-progress-circular indeterminate color="primary"></v-progress-circular>
               <div class="mt-3">加载{{ watchedTimeSource.toUpperCase() }}数据中...</div>
             </div>
@@ -366,6 +380,196 @@
               </v-col>
             </v-row>
           </v-window-item>
+
+          <!-- 流量日榜 -->
+          <v-window-item value="traffic">
+            <!-- 流量数据源加载中 -->
+            <div v-if="loading[`traffic-${trafficSource}`]" class="text-center my-10">
+              <v-progress-circular indeterminate color="primary"></v-progress-circular>
+              <div class="mt-3">加载{{ trafficSource.toUpperCase() }}数据中...</div>
+            </div>
+            
+            <!-- 没有数据的情况 -->
+            <div v-else-if="(trafficSource === 'plex' && rankings.traffic_rank_plex.length === 0) || 
+                            (trafficSource === 'emby' && rankings.traffic_rank_emby.length === 0)" 
+                 class="text-center my-5">
+              <v-list-item>
+                <v-list-item-title class="text-grey">暂无{{ trafficSource.toUpperCase() }}数据</v-list-item-title>
+              </v-list-item>
+            </div>
+            
+            <!-- 有数据的情况 -->
+            <v-row v-else>
+              <v-col cols="12">
+                <div class="d-flex justify-space-between align-center mb-4">
+                  <div class="d-flex align-center gap-2">
+                    <h3 class="text-h6 text-primary font-weight-bold">今日流量排行</h3>
+                    <v-chip size="small" color="info" variant="elevated" class="ml-2">
+                      <v-icon start size="12">mdi-calendar-today</v-icon>
+                      今日统计
+                    </v-chip>
+                  </div>
+                  <v-select
+                      v-model="trafficSource"
+                      :items="[
+                        { title: 'Plex', value: 'plex' },
+                        { title: 'Emby', value: 'emby' }
+                      ]"
+                      item-title="title"
+                      item-value="value"
+                      density="compact"
+                      hide-details
+                      variant="outlined"
+                      class="traffic-source-select"
+                      style="max-width: 150px;"
+                      color="primary"
+                    >
+                      <template v-slot:prepend-inner>
+                        <v-icon size="16" :color="trafficSource === 'plex' ? 'orange' : 'green'">
+                          {{ trafficSource === 'plex' ? 'mdi-plex' : 'mdi-emby' }}
+                        </v-icon>
+                      </template>
+                    </v-select>
+                </div>
+                
+                <!-- Plex 流量榜 -->
+                <div v-if="trafficSource === 'plex'" class="transparent-list">
+                  <v-list lines="two" class="px-2 transparent-list-content">
+                    <v-list-item
+                      v-for="(item, index) in rankings.traffic_rank_plex"
+                      :key="`plex-traffic-${index}`"
+                      :class="{ 'bg-primary-subtle': item.is_self }"
+                      class="ranking-item mb-2"
+                      rounded="lg"
+                      elevation="1"
+                    >
+                      <template v-slot:prepend>
+                        <div class="rank-container">
+                          <div class="rank-number" :class="`rank-${index + 1}`">
+                            <span v-if="index < 3" class="rank-icon">{{ ['🥇', '🥈', '🥉'][index] }}</span>
+                            <span v-else>{{ index + 1 }}</span>
+                          </div>
+                        </div>
+                      </template>
+                      
+                      <template v-slot:default>
+                        <div class="d-flex align-center">
+                          <v-avatar class="user-avatar" size="44" style="margin-right: 16px;">
+                            <v-img 
+                              v-if="item.avatar" 
+                              :src="item.avatar" 
+                              :alt="item.name"
+                              @error="handleImageError"
+                              class="avatar-img"
+                            />
+                            <v-icon v-else size="24" color="orange">mdi-plex</v-icon>
+                          </v-avatar>
+                          <div class="user-info flex-grow-1">
+                            <v-list-item-title class="user-name">
+                              {{ item.name }}
+                              <v-chip
+                                v-if="item.is_premium"
+                                size="x-small"
+                                color="amber"
+                                variant="elevated"
+                                class="ml-2 premium-badge"
+                              >
+                                <v-icon size="12" class="premium-icon">mdi-crown</v-icon>
+                                <span class="premium-text d-none d-md-inline">PREMIUM</span>
+                                <span class="premium-text-short d-none d-sm-inline d-md-none">VIP</span>
+                              </v-chip>
+                            </v-list-item-title>
+                            <v-list-item-subtitle class="user-score">
+                              <div class="d-flex align-center traffic-container">
+                                <v-icon size="16" color="orange" class="mr-1">mdi-download</v-icon>
+                                <span class="traffic-text">{{ formatTraffic(item.traffic) }}</span>
+                                <div class="ml-2">
+                                  <v-chip size="x-small" color="orange" variant="tonal">
+                                    今日
+                                  </v-chip>
+                                </div>
+                              </div>
+                            </v-list-item-subtitle>
+                          </div>
+                        </div>
+                      </template>
+                    </v-list-item>
+                    <v-list-item v-if="rankings.traffic_rank_plex.length === 0" class="text-center">
+                      <v-list-item-title class="text-grey">暂无数据</v-list-item-title>
+                    </v-list-item>
+                  </v-list>
+                </div>
+                
+                <!-- Emby 流量榜 -->
+                <div v-if="trafficSource === 'emby'" class="transparent-list">
+                  <v-list lines="two" class="px-2 transparent-list-content">
+                    <v-list-item
+                      v-for="(item, index) in rankings.traffic_rank_emby"
+                      :key="`emby-traffic-${index}`"
+                      :class="{ 'bg-primary-subtle': item.is_self }"
+                      class="ranking-item mb-2"
+                      rounded="lg"
+                      elevation="1"
+                    >
+                      <template v-slot:prepend>
+                        <div class="rank-container">
+                          <div class="rank-number" :class="`rank-${index + 1}`">
+                            <span v-if="index < 3" class="rank-icon">{{ ['🥇', '🥈', '🥉'][index] }}</span>
+                            <span v-else>{{ index + 1 }}</span>
+                          </div>
+                        </div>
+                      </template>
+                      
+                      <template v-slot:default>
+                        <div class="d-flex align-center">
+                          <v-avatar class="user-avatar" size="44" style="margin-right: 16px;">
+                            <v-img 
+                              v-if="item.avatar" 
+                              :src="item.avatar" 
+                              :alt="item.name"
+                              @error="handleImageError"
+                              class="avatar-img"
+                            />
+                            <v-icon v-else size="24" color="green">mdi-emby</v-icon>
+                          </v-avatar>
+                          <div class="user-info flex-grow-1">
+                            <v-list-item-title class="user-name">
+                              {{ item.name }}
+                              <v-chip
+                                v-if="item.is_premium"
+                                size="x-small"
+                                color="amber"
+                                variant="elevated"
+                                class="ml-2 premium-badge"
+                              >
+                                <v-icon size="12" class="premium-icon">mdi-crown</v-icon>
+                                <span class="premium-text d-none d-md-inline">PREMIUM</span>
+                                <span class="premium-text-short d-none d-sm-inline d-md-none">VIP</span>
+                              </v-chip>
+                            </v-list-item-title>
+                            <v-list-item-subtitle class="user-score">
+                              <div class="d-flex align-center traffic-container">
+                                <v-icon size="16" color="green" class="mr-1">mdi-download</v-icon>
+                                <span class="traffic-text">{{ formatTraffic(item.traffic) }}</span>
+                                <div class="ml-2">
+                                  <v-chip size="x-small" color="green" variant="tonal">
+                                    今日
+                                  </v-chip>
+                                </div>
+                              </div>
+                            </v-list-item-subtitle>
+                          </div>
+                        </div>
+                      </template>
+                    </v-list-item>
+                    <v-list-item v-if="rankings.traffic_rank_emby.length === 0" class="text-center">
+                      <v-list-item-title class="text-grey">暂无数据</v-list-item-title>
+                    </v-list-item>
+                  </v-list>
+                </div>
+              </v-col>
+            </v-row>
+          </v-window-item>
         </v-window>
         </div>
       </div>
@@ -503,7 +707,7 @@
 </template>
 
 <script>
-import { getCreditsRankings, getDonationRankings, getPlexWatchedTimeRankings, getEmbyWatchedTimeRankings } from '@/api'
+import { getCreditsRankings, getDonationRankings, getPlexWatchedTimeRankings, getEmbyWatchedTimeRankings, getPlexTrafficRankings, getEmbyTrafficRankings } from '@/api'
 import { getWatchLevelIcons } from '@/utils/watchLevel.js'
 
 export default {
@@ -512,48 +716,94 @@ export default {
     return {
       activeTab: 'credits',
       watchedTimeSource: 'emby',
+      trafficSource: 'emby',
       showLevelInfo: false,
       rankings: {
         credits_rank: [],
         donation_rank: [],
         watched_time_rank_plex: [],
-        watched_time_rank_emby: []
+        watched_time_rank_emby: [],
+        traffic_rank_plex: [],
+        traffic_rank_emby: []
       },
       loading: {
         credits: false,
         donation: false,
         watched: false,
-        plex: false,
-        emby: false
+        traffic: false,
+        'watched-plex': false,
+        'watched-emby': false,
+        'traffic-plex': false,
+        'traffic-emby': false
       },
       loaded: {
         credits: false,
         donation: false,
         watched: false,
-        plex: false,
-        emby: false
+        traffic: false,
+        'watched-plex': false,
+        'watched-emby': false,
+        'traffic-plex': false,
+        'traffic-emby': false
       },
       error: null
     }
   },
   watch: {
     activeTab(newTab) {
+      console.log(`切换到标签页: ${newTab}`)
       this.loadTabData(newTab)
     },
     watchedTimeSource(newSource) {
+      console.log(`切换观看时长数据源到: ${newSource}`)
       if (this.activeTab === 'watched') {
-        this.loadWatchedTimeData(newSource)
+        // 检查新数据源是否已加载，如果没有则加载
+        const watchedKey = `watched-${newSource}`
+        if (!this.loaded[watchedKey]) {
+          this.loadWatchedTimeData(newSource)
+        }
+      }
+    },
+    trafficSource(newSource) {
+      console.log(`切换流量数据源到: ${newSource}`)
+      if (this.activeTab === 'traffic') {
+        // 检查新数据源是否已加载，如果没有则加载
+        const trafficKey = `traffic-${newSource}`
+        if (!this.loaded[trafficKey]) {
+          this.loadTrafficData(newSource)
+        }
       }
     }
+  },
+  created() {
+    console.log('Rankings组件创建')
+    // 确保API函数已正确导入
+    console.log('API函数检查:', {
+      getCreditsRankings: typeof getCreditsRankings,
+      getDonationRankings: typeof getDonationRankings,
+      getEmbyWatchedTimeRankings: typeof getEmbyWatchedTimeRankings,
+      getPlexWatchedTimeRankings: typeof getPlexWatchedTimeRankings,
+      getEmbyTrafficRankings: typeof getEmbyTrafficRankings,
+      getPlexTrafficRankings: typeof getPlexTrafficRankings
+    })
   },
   mounted() {
     // 默认加载积分榜数据
     this.loadTabData(this.activeTab)
+    // 强制刷新一次，确保数据加载
+    this.$nextTick(() => {
+      if (!this.rankings.credits_rank.length) {
+        this.loadTabData('credits')
+      }
+    })
   },
   methods: {
     async loadTabData(tab) {
+      console.log(`开始加载 ${tab} 数据...`)
+      
       // 如果已经加载过该tab的数据，直接返回
       if (this.loaded[tab]) {
+        console.log(`${tab} 数据已加载，跳过`)
         return
       }
 
@@ -564,19 +814,30 @@ export default {
         let response
         switch (tab) {
           case 'credits':
+            console.log('调用积分排行API...')
             response = await getCreditsRankings()
-            this.rankings.credits_rank = response.data.credits_rank
+            this.rankings.credits_rank = response.data.credits_rank || []
+            console.log('积分排行数据:', this.rankings.credits_rank)
             break
           case 'donation':
+            console.log('调用捐赠排行API...')
             response = await getDonationRankings()
-            this.rankings.donation_rank = response.data.donation_rank
+            this.rankings.donation_rank = response.data.donation_rank || []
+            console.log('捐赠排行数据:', this.rankings.donation_rank)
             break
           case 'watched':
             // 观看时长tab被激活时，加载当前选中的数据源
+            console.log(`加载观看时长数据 - ${this.watchedTimeSource}`)
             await this.loadWatchedTimeData(this.watchedTimeSource)
+            break
+          case 'traffic':
+            // 流量tab被激活时，加载当前选中的数据源
+            console.log(`加载流量数据 - ${this.trafficSource}`)
+            await this.loadTrafficData(this.trafficSource)
             break
         }
         this.loaded[tab] = true
+        console.log(`${tab} 数据加载完成`)
       } catch (err) {
         this.error = err.response?.data?.detail || `获取${this.getTabName(tab)}失败`
         console.error(`获取${this.getTabName(tab)}失败:`, err)
@@ -586,29 +847,74 @@ export default {
     },
 
     async loadWatchedTimeData(source) {
-      // 如果已经加载过该数据源的数据，直接返回
-      if (this.loaded[source]) {
+      console.log(`开始加载观看时长数据 - ${source}`)
+      
+      const watchedKey = `watched-${source}`
+      // 如果已经加载过该数据源的观看时长数据，直接返回
+      if (this.loaded[watchedKey]) {
+        console.log(`${source} 观看时长数据已加载，跳过`)
         return
       }
 
-      this.loading[source] = true
+      this.loading[watchedKey] = true
       this.error = null
 
       try {
         let response
         if (source === 'plex') {
+          console.log('调用Plex观看时长API...')
           response = await getPlexWatchedTimeRankings()
-          this.rankings.watched_time_rank_plex = response.data.watched_time_rank_plex
+          this.rankings.watched_time_rank_plex = response.data.watched_time_rank_plex || []
+          console.log('Plex观看时长数据:', this.rankings.watched_time_rank_plex)
         } else if (source === 'emby') {
+          console.log('调用Emby观看时长API...')
           response = await getEmbyWatchedTimeRankings()
-          this.rankings.watched_time_rank_emby = response.data.watched_time_rank_emby
+          this.rankings.watched_time_rank_emby = response.data.watched_time_rank_emby || []
+          console.log('Emby观看时长数据:', this.rankings.watched_time_rank_emby)
         }
-        this.loaded[source] = true
+        this.loaded[watchedKey] = true
+        console.log(`${source} 观看时长数据加载完成`)
       } catch (err) {
         this.error = err.response?.data?.detail || `获取${source.toUpperCase()}观看时长排行失败`
         console.error(`获取${source.toUpperCase()}观看时长排行失败:`, err)
       } finally {
-        this.loading[source] = false
+        this.loading[watchedKey] = false
+      }
+    },
+
+    async loadTrafficData(source) {
+      console.log(`开始加载流量数据 - ${source}`)
+      
+      const trafficKey = `traffic-${source}`
+      // 如果已经加载过该数据源的流量数据，直接返回
+      if (this.loaded[trafficKey]) {
+        console.log(`${source} 流量数据已加载，跳过`)
+        return
+      }
+
+      this.loading[trafficKey] = true
+      this.error = null
+
+      try {
+        let response
+        if (source === 'plex') {
+          console.log('调用Plex流量API...')
+          response = await getPlexTrafficRankings()
+          this.rankings.traffic_rank_plex = response.data.traffic_rank_plex || []
+          console.log('Plex流量数据:', this.rankings.traffic_rank_plex)
+        } else if (source === 'emby') {
+          console.log('调用Emby流量API...')
+          response = await getEmbyTrafficRankings()
+          this.rankings.traffic_rank_emby = response.data.traffic_rank_emby || []
+          console.log('Emby流量数据:', this.rankings.traffic_rank_emby)
+        }
+        this.loaded[trafficKey] = true
+        console.log(`${source} 流量数据加载完成`)
+      } catch (err) {
+        this.error = err.response?.data?.detail || `获取${source.toUpperCase()}流量排行失败`
+        console.error(`获取${source.toUpperCase()}流量排行失败:`, err)
+      } finally {
+        this.loading[trafficKey] = false
       }
     },
 
@@ -616,16 +922,39 @@ export default {
       const names = {
         credits: '积分排行榜',
         donation: '捐赠排行榜',
-        watched: '观看时长排行榜'
+        watched: '观看时长排行榜',
+        traffic: '流量排行榜'
       }
       return names[tab] || '排行榜'
     },
 
     isCurrentTabLoading() {
       if (this.activeTab === 'watched') {
-        return this.loading[this.watchedTimeSource]
+        return this.loading[`watched-${this.watchedTimeSource}`]
+      }
+      if (this.activeTab === 'traffic') {
+        return this.loading[`traffic-${this.trafficSource}`]
       }
       return this.loading[this.activeTab]
+    },
+
+    // 强制重新加载当前标签页数据
+    async forceRefreshData() {
+      console.log('强制刷新数据...')
+      
+      // 重置加载状态
+      if (this.activeTab === 'watched') {
+        const watchedKey = `watched-${this.watchedTimeSource}`
+        this.loaded[watchedKey] = false
+        await this.loadWatchedTimeData(this.watchedTimeSource)
+      } else if (this.activeTab === 'traffic') {
+        const trafficKey = `traffic-${this.trafficSource}`
+        this.loaded[trafficKey] = false
+        await this.loadTrafficData(this.trafficSource)
+      } else {
+        this.loaded[this.activeTab] = false
+        await this.loadTabData(this.activeTab)
+      }
     },
     
     // 使用导入的工具函数，直接传递观看时间参数
@@ -648,6 +977,16 @@ export default {
         '☆': '新手 (100小时以下)'
       };
       return tooltips[iconEmoji] || '等级图标';
+    },
+    
+    // 格式化流量显示
+    formatTraffic(bytes) {
+      if (bytes === 0) return '0 B'
+      
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+      const i = Math.floor(Math.log(bytes) / Math.log(1024))
+      
+      return parseFloat((bytes / Math.pow(1024, i)).toFixed(2)) + ' ' + sizes[i]
     },
     
     // 处理头像图片加载错误
@@ -692,7 +1031,14 @@ export default {
 .page-subtitle {
   font-size: 16px;
   color: #666;
-  margin: 0;
+  margin: 0 0 16px 0;
+}
+
+.refresh-btn {
+  margin-top: 16px;
+  font-weight: 600;
+  border-radius: 12px;
+  transition: all 0.3s ease;
 }
 
 .transparent-container {
@@ -1457,6 +1803,17 @@ export default {
     font-size: 13px;
   }
 
+  .traffic-container {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  
+  .traffic-text {
+    font-size: 13px;
+  }
+
   /* 等级对话框移动端适配 */
   .level-progress-demo {
     padding: 16px;
@@ -1517,6 +1874,15 @@ export default {
   }
   
   .watched-time-text {
+    font-size: 12px;
+  }
+
+  .traffic-container {
+    font-size: 12px;
+    gap: 4px;
+  }
+  
+  .traffic-text {
     font-size: 12px;
   }
 
@@ -1639,6 +2005,44 @@ export default {
   background: rgba(255, 255, 255, 0.95);
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* 流量选择器样式 */
+.traffic-source-select {
+  min-width: 180px;
+}
+
+.traffic-source-select :deep(.v-field) {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.traffic-source-select :deep(.v-field):hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* 流量容器样式 */
+.traffic-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+  gap: 8px;
+  min-height: 24px;
+  width: 100%;
+}
+
+.traffic-text {
+  white-space: nowrap;
+  font-weight: 500;
+  flex-shrink: 0;
+  min-width: fit-content;
+  color: rgba(0, 0, 0, 0.87);
 }
 
 /* 信息按钮增强样式 */

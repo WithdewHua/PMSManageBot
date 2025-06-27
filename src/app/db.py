@@ -1674,3 +1674,61 @@ class DB:
                 "week": {"total": 0, "emby": 0, "plex": 0, "lines": []},
                 "month": {"total": 0, "emby": 0, "plex": 0, "lines": []},
             }
+
+    def get_plex_traffic_rank(self):
+        """获取 Plex 今日流量排行榜"""
+        try:
+            # 使用北京时间计算今日开始时间
+            now_beijing = datetime.now(settings.TZ)
+            today_start = now_beijing.replace(hour=0, minute=0, second=0, microsecond=0)
+
+            query = """
+            SELECT u.plex_username, lts.user_id, SUM(lts.send_bytes) as total_traffic,
+                   COALESCE(u.is_premium, 0) as is_premium,
+                   u.tg_id
+            FROM line_traffic_stats lts
+            LEFT JOIN user u ON LOWER(lts.username) = LOWER(u.plex_username)
+            WHERE lts.service = 'plex' 
+                AND lts.timestamp >= ?
+                AND lts.username IS NOT NULL
+                AND lts.username != ''
+            GROUP BY lts.username, lts.user_id, u.is_premium, u.tg_id
+            ORDER BY total_traffic DESC
+            LIMIT 50
+            """
+
+            result = self.cur.execute(query, (today_start.isoformat(),)).fetchall()
+            return result
+
+        except Exception as e:
+            logger.error(f"Error getting Plex traffic rank: {e}")
+            return []
+
+    def get_emby_traffic_rank(self):
+        """获取 Emby 今日流量排行榜"""
+        try:
+            # 使用北京时间计算今日开始时间
+            now_beijing = datetime.now(settings.TZ)
+            today_start = now_beijing.replace(hour=0, minute=0, second=0, microsecond=0)
+
+            query = """
+            SELECT eu.emby_username, lts.user_id, SUM(lts.send_bytes) as total_traffic,
+                   COALESCE(eu.is_premium, 0) as is_premium,
+                   eu.tg_id
+            FROM line_traffic_stats lts
+            LEFT JOIN emby_user eu ON LOWER(lts.username) = LOWER(eu.emby_username)
+            WHERE lts.service = 'emby' 
+                AND lts.timestamp >= ?
+                AND lts.username IS NOT NULL
+                AND lts.username != ''
+            GROUP BY lts.username, lts.user_id, eu.is_premium, eu.tg_id
+            ORDER BY total_traffic DESC
+            LIMIT 50
+            """
+
+            result = self.cur.execute(query, (today_start.isoformat(),)).fetchall()
+            return result
+
+        except Exception as e:
+            logger.error(f"Error getting Emby traffic rank: {e}")
+            return []

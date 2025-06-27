@@ -185,3 +185,100 @@ async def get_emby_watched_time_rankings(
     finally:
         db.close()
         logger.debug("数据库连接已关闭")
+
+
+@router.get("/rankings/traffic/plex")
+@require_telegram_auth
+async def get_plex_traffic_rankings(
+    request: Request, user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取 Plex 今日流量排行榜数据"""
+    logger.info(
+        f"{user.username or user.first_name or user.id} 开始获取 Plex 流量排行榜数据"
+    )
+
+    db = DB()
+    try:
+        traffic_rank_plex = []
+        try:
+            logger.debug("正在查询 Plex 流量排行")
+            plex_traffic_data = db.get_plex_traffic_rank()
+            if plex_traffic_data:
+                traffic_rank_plex = [
+                    {
+                        "name": info[0],  # username
+                        "traffic": info[2],  # total_traffic
+                        "avatar": Plex.get_user_avatar_by_username(info[0]),
+                        "is_premium": bool(info[3])
+                        if info[3] is not None
+                        else False,  # is_premium
+                        "is_self": info[4] == user.id
+                        if info[4]
+                        else False,  # tg_id 比较
+                    }
+                    for info in plex_traffic_data
+                    if info[2] > 0  # 流量大于0
+                ]
+        except Exception as e:
+            logger.error(f"获取 Plex 流量排行失败: {str(e)}")
+
+        logger.info(
+            f"{user.username or user.first_name or user.id} 获取 Plex 流量排行榜数据成功"
+        )
+        return {"traffic_rank_plex": traffic_rank_plex}
+    except Exception as e:
+        logger.error(f"获取 Plex 流量排行榜数据时发生未预期的错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取 Plex 流量排行榜数据失败")
+    finally:
+        db.close()
+        logger.debug("数据库连接已关闭")
+
+
+@router.get("/rankings/traffic/emby")
+@require_telegram_auth
+async def get_emby_traffic_rankings(
+    request: Request, user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取 Emby 今日流量排行榜数据"""
+    logger.info(
+        f"{user.username or user.first_name or user.id} 开始获取 Emby 流量排行榜数据"
+    )
+
+    db = DB()
+    try:
+        traffic_rank_emby = []
+        emby = Emby()
+        try:
+            logger.debug("正在查询 Emby 流量排行")
+            emby_traffic_data = db.get_emby_traffic_rank()
+            if emby_traffic_data:
+                traffic_rank_emby = [
+                    {
+                        "name": info[0],  # username
+                        "traffic": info[2],  # total_traffic
+                        "avatar": emby.get_user_avatar_by_username(
+                            info[0], from_emby=False
+                        ),
+                        "is_premium": bool(info[3])
+                        if info[3] is not None
+                        else False,  # is_premium
+                        "is_self": info[4] == user.id
+                        if info[4]
+                        else False,  # tg_id 比较
+                    }
+                    for info in emby_traffic_data
+                    if info[2] > 0  # 流量大于0
+                ]
+        except Exception as e:
+            logger.error(f"获取 Emby 流量排行失败: {str(e)}")
+
+        logger.info(
+            f"{user.username or user.first_name or user.id} 获取 Emby 流量排行榜数据成功"
+        )
+        return {"traffic_rank_emby": traffic_rank_emby}
+    except Exception as e:
+        logger.error(f"获取 Emby 流量排行榜数据时发生未预期的错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取 Emby 流量排行榜数据失败")
+    finally:
+        db.close()
+        logger.debug("数据库连接已关闭")

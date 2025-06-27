@@ -550,6 +550,9 @@ async def update_line_traffic_stats(
                 )
 
                 if success:
+                    logger.info(
+                        f"成功处理日志: line={backend}, service={service}, user={username}, bytes={bytes_sent}, time={formatted_timestamp}"
+                    )
                     processed_count += 1
 
             except json.JSONDecodeError as e:
