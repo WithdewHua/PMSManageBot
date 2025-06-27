@@ -1593,7 +1593,7 @@ class DB:
             return 0
 
     def get_traffic_statistics(self):
-        """获取全面的流量统计信息，包括今日/本周/本月，按服务类型分类"""
+        """获取全面的流量统计信息，包括今日/本周/本月，按服务类型和线路分类"""
         try:
             now = datetime.now(settings.TZ)
             today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -1623,6 +1623,18 @@ class DB:
                     service_query, (start_time,)
                 ).fetchall()
 
+                # 查询按线路分组的流量统计
+                line_query = """
+                SELECT 
+                    line,
+                    COALESCE(SUM(send_bytes), 0) as total_traffic
+                FROM line_traffic_stats 
+                WHERE timestamp >= ?
+                GROUP BY line
+                ORDER BY total_traffic DESC
+                """
+                line_results = self.cur.execute(line_query, (start_time,)).fetchall()
+
                 # 计算总流量
                 total_query = """
                 SELECT COALESCE(SUM(send_bytes), 0) as total_traffic
@@ -1634,13 +1646,22 @@ class DB:
                 ]
 
                 # 构建期间数据
-                period_data = {"total": total_traffic, "emby": 0, "plex": 0}
+                period_data = {
+                    "total": total_traffic,
+                    "emby": 0,
+                    "plex": 0,
+                    "lines": [],
+                }
 
                 for service, traffic in service_results:
                     if service.lower() == "emby":
                         period_data["emby"] = traffic
                     elif service.lower() == "plex":
                         period_data["plex"] = traffic
+
+                # 添加线路数据
+                for line, traffic in line_results:
+                    period_data["lines"].append({"line": line, "traffic": traffic})
 
                 result[period_name] = period_data
 
@@ -1649,7 +1670,7 @@ class DB:
         except Exception as e:
             logger.error(f"Error getting comprehensive traffic statistics: {e}")
             return {
-                "today": {"total": 0, "emby": 0, "plex": 0},
-                "week": {"total": 0, "emby": 0, "plex": 0},
-                "month": {"total": 0, "emby": 0, "plex": 0},
+                "today": {"total": 0, "emby": 0, "plex": 0, "lines": []},
+                "week": {"total": 0, "emby": 0, "plex": 0, "lines": []},
+                "month": {"total": 0, "emby": 0, "plex": 0, "lines": []},
             }

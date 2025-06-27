@@ -773,6 +773,19 @@
                         </v-col>
                       </v-row>
                     </div>
+                    
+                    <!-- 查看线路详情按钮 -->
+                    <div class="text-center mt-4">
+                      <v-btn 
+                        color="blue-darken-2" 
+                        variant="outlined" 
+                        size="small"
+                        @click="showLineTrafficDialog = true"
+                      >
+                        <v-icon start>mdi-lan</v-icon>
+                        查看线路流量详情
+                      </v-btn>
+                    </div>
                   </div>
                 </v-card-text>
               </v-card>
@@ -1616,6 +1629,110 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- 线路流量详情对话框 -->
+    <v-dialog v-model="showLineTrafficDialog" max-width="900">
+      <v-card>
+        <v-card-title class="text-center bg-blue-darken-2 text-white">
+          <v-icon start>mdi-lan</v-icon>
+          各线路流量详情
+        </v-card-title>
+        
+        <v-card-text class="pa-6">
+          <!-- 标签页切换 -->
+          <v-tabs v-model="lineTrafficTab" align-tabs="center" color="blue-darken-2" class="mb-4">
+            <v-tab value="today">
+              <v-icon start>mdi-calendar-today</v-icon>
+              今日
+            </v-tab>
+            <v-tab value="week">
+              <v-icon start>mdi-calendar-week</v-icon>
+              本周
+            </v-tab>
+            <v-tab value="month">
+              <v-icon start>mdi-calendar-month</v-icon>
+              本月
+            </v-tab>
+          </v-tabs>
+
+          <!-- 标签页内容 -->
+          <v-window v-model="lineTrafficTab">
+            <!-- 今日流量 -->
+            <v-window-item value="today">
+              <div v-if="trafficOverview.today.lines.length === 0" class="text-center py-8">
+                <v-icon size="64" color="grey-lighten-1">mdi-database-off</v-icon>
+                <div class="text-grey-darken-1 mt-2">暂无今日线路流量数据</div>
+              </div>
+              <v-row v-else>
+                <v-col cols="12" md="6" lg="4" v-for="(line, index) in trafficOverview.today.lines" :key="'today-' + index">
+                  <v-card class="line-traffic-card" variant="outlined">
+                    <v-card-title class="text-center bg-success text-white py-2">
+                      <v-icon start>mdi-server</v-icon>
+                      {{ line.line }}
+                    </v-card-title>
+                    <v-card-text class="text-center py-4">
+                      <div class="text-h6 text-success">{{ formatTrafficSize(line.traffic) }}</div>
+                      <div class="text-caption text-grey-darken-1">今日流量</div>
+                    </v-card-text>
+                  </v-card>
+                </v-col>
+              </v-row>
+            </v-window-item>
+
+            <!-- 本周流量 -->
+            <v-window-item value="week">
+              <div v-if="trafficOverview.week.lines.length === 0" class="text-center py-8">
+                <v-icon size="64" color="grey-lighten-1">mdi-database-off</v-icon>
+                <div class="text-grey-darken-1 mt-2">暂无本周线路流量数据</div>
+              </div>
+              <v-row v-else>
+                <v-col cols="12" md="6" lg="4" v-for="(line, index) in trafficOverview.week.lines" :key="'week-' + index">
+                  <v-card class="line-traffic-card" variant="outlined">
+                    <v-card-title class="text-center bg-info text-white py-2">
+                      <v-icon start>mdi-server</v-icon>
+                      {{ line.line }}
+                    </v-card-title>
+                    <v-card-text class="text-center py-4">
+                      <div class="text-h6 text-info">{{ formatTrafficSize(line.traffic) }}</div>
+                      <div class="text-caption text-grey-darken-1">本周流量</div>
+                    </v-card-text>
+                  </v-card>
+                </v-col>
+              </v-row>
+            </v-window-item>
+
+            <!-- 本月流量 -->
+            <v-window-item value="month">
+              <div v-if="trafficOverview.month.lines.length === 0" class="text-center py-8">
+                <v-icon size="64" color="grey-lighten-1">mdi-database-off</v-icon>
+                <div class="text-grey-darken-1 mt-2">暂无本月线路流量数据</div>
+              </div>
+              <v-row v-else>
+                <v-col cols="12" md="6" lg="4" v-for="(line, index) in trafficOverview.month.lines" :key="'month-' + index">
+                  <v-card class="line-traffic-card" variant="outlined">
+                    <v-card-title class="text-center bg-deep-purple text-white py-2">
+                      <v-icon start>mdi-server</v-icon>
+                      {{ line.line }}
+                    </v-card-title>
+                    <v-card-text class="text-center py-4">
+                      <div class="text-h6 text-deep-purple">{{ formatTrafficSize(line.traffic) }}</div>
+                      <div class="text-caption text-grey-darken-1">本月流量</div>
+                    </v-card-text>
+                  </v-card>
+                </v-col>
+              </v-row>
+            </v-window-item>
+          </v-window>
+        </v-card-text>
+        
+        <v-card-actions class="pa-4 pt-0">
+          <v-spacer></v-spacer>
+          <v-btn @click="showLineTrafficDialog = false" variant="outlined">
+            关闭
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -1737,12 +1854,15 @@ export default {
       selectedLineStat: null,
       // 流量概览统计数据
       trafficOverview: {
-        today: { total: 0, emby: 0, plex: 0 },
-        week: { total: 0, emby: 0, plex: 0 },
-        month: { total: 0, emby: 0, plex: 0 }
+        today: { total: 0, emby: 0, plex: 0, lines: [] },
+        week: { total: 0, emby: 0, plex: 0, lines: [] },
+        month: { total: 0, emby: 0, plex: 0, lines: [] }
       },
       trafficOverviewLoading: false,
-      trafficOverviewError: null
+      trafficOverviewError: null,
+      // 线路流量详情对话框
+      showLineTrafficDialog: false,
+      lineTrafficTab: 'today'
     }
   },
   mounted() {
@@ -2403,9 +2523,9 @@ export default {
         this.trafficOverviewError = null
         const response = await getTrafficOverview()
         this.trafficOverview = response.data || {
-          today: { total: 0, emby: 0, plex: 0 },
-          week: { total: 0, emby: 0, plex: 0 },
-          month: { total: 0, emby: 0, plex: 0 }
+          today: { total: 0, emby: 0, plex: 0, lines: [] },
+          week: { total: 0, emby: 0, plex: 0, lines: [] },
+          month: { total: 0, emby: 0, plex: 0, lines: [] }
         }
         this.trafficOverviewLoading = false
       } catch (err) {
@@ -3332,5 +3452,27 @@ export default {
   .stat-number {
     font-size: 20px;
   }
+}
+
+/* 线路流量卡片样式 */
+.line-traffic-card {
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.line-traffic-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.line-traffic-card .v-card-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.line-traffic-card .text-h6 {
+  font-weight: 700;
+  font-size: 18px;
 }
 </style>
