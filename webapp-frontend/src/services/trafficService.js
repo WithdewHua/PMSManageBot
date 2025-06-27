@@ -19,6 +19,20 @@ export async function getPremiumLineTrafficStats() {
 }
 
 /**
+ * 获取全平台流量统计概览
+ * @returns {Promise<Object>} 流量概览数据
+ */
+export async function getTrafficOverview() {
+  try {
+    const response = await apiClient.get('/api/system/traffic-overview');
+    return response.data;
+  } catch (error) {
+    console.error('获取流量统计概览失败:', error);
+    throw error;
+  }
+}
+
+/**
  * 格式化流量大小显示
  * @param {number} bytes - 字节数
  * @returns {string} 格式化后的流量大小

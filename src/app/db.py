@@ -1591,3 +1591,65 @@ class DB:
         except Exception as e:
             logger.error(f"Error getting user daily traffic for {username}: {e}")
             return 0
+
+    def get_traffic_statistics(self):
+        """获取全面的流量统计信息，包括今日/本周/本月，按服务类型分类"""
+        try:
+            now = datetime.now(settings.TZ)
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            week_start = today_start - timedelta(days=now.weekday())
+            month_start = today_start.replace(day=1)
+
+            # 获取所有服务类型的流量统计
+            periods = [
+                ("today", today_start.isoformat()),
+                ("week", week_start.isoformat()),
+                ("month", month_start.isoformat()),
+            ]
+
+            result = {}
+
+            for period_name, start_time in periods:
+                # 查询按服务类型分组的流量统计
+                service_query = """
+                SELECT 
+                    service,
+                    COALESCE(SUM(send_bytes), 0) as total_traffic
+                FROM line_traffic_stats 
+                WHERE timestamp >= ?
+                GROUP BY service
+                """
+                service_results = self.cur.execute(
+                    service_query, (start_time,)
+                ).fetchall()
+
+                # 计算总流量
+                total_query = """
+                SELECT COALESCE(SUM(send_bytes), 0) as total_traffic
+                FROM line_traffic_stats 
+                WHERE timestamp >= ?
+                """
+                total_traffic = self.cur.execute(total_query, (start_time,)).fetchone()[
+                    0
+                ]
+
+                # 构建期间数据
+                period_data = {"total": total_traffic, "emby": 0, "plex": 0}
+
+                for service, traffic in service_results:
+                    if service.lower() == "emby":
+                        period_data["emby"] = traffic
+                    elif service.lower() == "plex":
+                        period_data["plex"] = traffic
+
+                result[period_name] = period_data
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Error getting comprehensive traffic statistics: {e}")
+            return {
+                "today": {"total": 0, "emby": 0, "plex": 0},
+                "week": {"total": 0, "emby": 0, "plex": 0},
+                "month": {"total": 0, "emby": 0, "plex": 0},
+            }

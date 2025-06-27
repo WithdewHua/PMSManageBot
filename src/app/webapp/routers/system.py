@@ -70,3 +70,29 @@ async def get_system_status():
     except Exception as e:
         logger.error(f"获取系统状态信息失败: {str(e)}")
         raise HTTPException(status_code=500, detail="获取系统状态信息失败")
+
+
+@router.get("/traffic-overview")
+@require_telegram_auth
+async def get_traffic_overview(
+    request: Request, user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取流量统计概览数据（不需要管理员权限）"""
+    logger.info(f"{user.username or user.first_name or user.id} 获取流量统计概览")
+
+    db = DB()
+    try:
+        traffic_stats = db.get_traffic_statistics()
+        logger.info("流量统计概览数据获取成功")
+
+        return {
+            "success": True,
+            "message": "获取成功",
+            "data": traffic_stats,
+        }
+    except Exception as e:
+        logger.error(f"获取流量统计概览失败: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取流量统计失败")
+    finally:
+        db.close()
+        logger.debug("数据库连接已关闭")

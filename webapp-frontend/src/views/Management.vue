@@ -541,7 +541,7 @@
           <!-- 概览 Tab -->
           <v-window-item value="overview">
             <!-- 加载状态 -->
-            <div v-if="systemStatsLoading || premiumStatsLoading" class="text-center my-10">
+            <div v-if="systemStatsLoading || premiumStatsLoading || trafficOverviewLoading" class="text-center my-10">
               <v-progress-circular indeterminate color="primary"></v-progress-circular>
               <div class="mt-3">加载系统统计中...</div>
             </div>
@@ -647,6 +647,136 @@
                 </v-card-text>
               </v-card>
               
+              <!-- 全平台流量统计卡片 -->
+              <v-card class="admin-card-enhanced mb-4">
+                <v-card-title class="text-center">
+                  <v-icon start color="blue-darken-2">mdi-chart-bar</v-icon> 全站流量统计
+                </v-card-title>
+                <v-card-text>
+                  <!-- 加载状态 -->
+                  <div v-if="trafficOverviewLoading" class="text-center py-4">
+                    <v-progress-circular indeterminate size="small" color="blue-darken-2"></v-progress-circular>
+                    <div class="mt-2">加载流量概览中...</div>
+                  </div>
+                  
+                  <!-- 错误状态 -->
+                  <div v-else-if="trafficOverviewError" class="text-center py-4">
+                    <v-alert type="error" density="compact">{{ trafficOverviewError }}</v-alert>
+                    <v-btn 
+                      color="blue-darken-2" 
+                      variant="outlined" 
+                      size="small"
+                      class="mt-2"
+                      @click="fetchTrafficOverview"
+                    >
+                      重试
+                    </v-btn>
+                  </div>
+                  
+                  <!-- 流量概览数据 -->
+                  <div v-else>
+                    <!-- 今日流量统计 -->
+                    <div class="mb-6">
+                      <div class="d-flex align-center mb-3">
+                        <v-icon size="20" color="success" class="mr-2">mdi-calendar-today</v-icon>
+                        <span class="text-subtitle1 font-weight-medium">今日流量</span>
+                        <v-spacer></v-spacer>
+                        <v-chip size="small" color="success" variant="tonal">
+                          <v-icon start size="12">mdi-trending-up</v-icon>
+                          实时
+                        </v-chip>
+                      </div>
+                      <v-row>
+                        <v-col cols="12" sm="4">
+                          <div class="stat-item">
+                            <div class="stat-value text-primary">{{ formatTrafficSize(trafficOverview.today.total) }}</div>
+                            <div class="stat-label">总计</div>
+                          </div>
+                        </v-col>
+                        <v-col cols="12" sm="4">
+                          <div class="stat-item">
+                            <div class="stat-value text-green-darken-2">{{ formatTrafficSize(trafficOverview.today.emby) }}</div>
+                            <div class="stat-label">Emby 流量</div>
+                          </div>
+                        </v-col>
+                        <v-col cols="12" sm="4">
+                          <div class="stat-item">
+                            <div class="stat-value text-orange-darken-2">{{ formatTrafficSize(trafficOverview.today.plex) }}</div>
+                            <div class="stat-label">Plex 流量</div>
+                          </div>
+                        </v-col>
+                      </v-row>
+                    </div>
+                    
+                    <!-- 本周流量统计 -->
+                    <div class="mb-6">
+                      <div class="d-flex align-center mb-3">
+                        <v-icon size="20" color="info" class="mr-2">mdi-calendar-week</v-icon>
+                        <span class="text-subtitle1 font-weight-medium">本周流量</span>
+                        <v-spacer></v-spacer>
+                        <v-chip size="small" color="info" variant="tonal">
+                          <v-icon start size="12">mdi-chart-timeline-variant</v-icon>
+                          周统计
+                        </v-chip>
+                      </div>
+                      <v-row>
+                        <v-col cols="12" sm="4">
+                          <div class="stat-item">
+                            <div class="stat-value text-primary">{{ formatTrafficSize(trafficOverview.week.total) }}</div>
+                            <div class="stat-label">总计</div>
+                          </div>
+                        </v-col>
+                        <v-col cols="12" sm="4">
+                          <div class="stat-item">
+                            <div class="stat-value text-green-darken-2">{{ formatTrafficSize(trafficOverview.week.emby) }}</div>
+                            <div class="stat-label">Emby 流量</div>
+                          </div>
+                        </v-col>
+                        <v-col cols="12" sm="4">
+                          <div class="stat-item">
+                            <div class="stat-value text-orange-darken-2">{{ formatTrafficSize(trafficOverview.week.plex) }}</div>
+                            <div class="stat-label">Plex 流量</div>
+                          </div>
+                        </v-col>
+                      </v-row>
+                    </div>
+                    
+                    <!-- 本月流量统计 -->
+                    <div>
+                      <div class="d-flex align-center mb-3">
+                        <v-icon size="20" color="deep-purple" class="mr-2">mdi-calendar-month</v-icon>
+                        <span class="text-subtitle1 font-weight-medium">本月流量</span>
+                        <v-spacer></v-spacer>
+                        <v-chip size="small" color="deep-purple" variant="tonal">
+                          <v-icon start size="12">mdi-chart-box</v-icon>
+                          月度汇总
+                        </v-chip>
+                      </div>
+                      <v-row>
+                        <v-col cols="12" sm="4">
+                          <div class="stat-item">
+                            <div class="stat-value text-primary">{{ formatTrafficSize(trafficOverview.month.total) }}</div>
+                            <div class="stat-label">总计</div>
+                          </div>
+                        </v-col>
+                        <v-col cols="12" sm="4">
+                          <div class="stat-item">
+                            <div class="stat-value text-green-darken-2">{{ formatTrafficSize(trafficOverview.month.emby) }}</div>
+                            <div class="stat-label">Emby 流量</div>
+                          </div>
+                        </v-col>
+                        <v-col cols="12" sm="4">
+                          <div class="stat-item">
+                            <div class="stat-value text-orange-darken-2">{{ formatTrafficSize(trafficOverview.month.plex) }}</div>
+                            <div class="stat-label">Plex 流量</div>
+                          </div>
+                        </v-col>
+                      </v-row>
+                    </div>
+                  </div>
+                </v-card-text>
+              </v-card>
+              
               <!-- Premium 线路流量统计卡片 -->
               <v-card class="admin-card-enhanced mb-4">
                 <v-card-title class="text-center">
@@ -682,99 +812,125 @@
                   
                   <!-- 流量统计数据 -->
                   <div v-else>
-                    <v-row dense>
-                      <v-col 
+                    <div class="premium-traffic-grid">
+                      <div 
                         v-for="lineStat in trafficStats" 
                         :key="lineStat.line"
-                        cols="12" 
-                        sm="6" 
-                        md="6" 
-                        lg="4"
-                        xl="3"
+                        class="premium-line-card"
                       >
-                        <v-card variant="outlined" class="line-traffic-card">
-                          <div class="line-header">
-                            <v-icon size="small" color="deep-purple" class="mr-2">mdi-server-network</v-icon>
+                        <!-- 线路卡片标题栏 -->
+                        <div class="premium-line-header">
+                          <div class="line-title-wrapper">
+                            <v-icon color="deep-purple" class="line-icon">mdi-server-network</v-icon>
                             <v-tooltip :text="lineStat.line" location="top">
                               <template v-slot:activator="{ props }">
-                                <span class="line-name" v-bind="props">{{ lineStat.line }}</span>
+                                <h3 class="line-title" v-bind="props">{{ lineStat.line }}</h3>
                               </template>
                             </v-tooltip>
                           </div>
+                          <v-chip size="small" color="deep-purple" variant="tonal" class="status-chip">
+                            <v-icon start size="12">mdi-check-circle</v-icon>
+                            运行中
+                          </v-chip>
+                        </div>
+                        
+                        <!-- 流量统计区域 -->
+                        <div class="traffic-stats-section">
+                          <div class="stats-header">
+                            <v-icon size="16" color="deep-purple" class="mr-2">mdi-chart-line</v-icon>
+                            <span class="section-title">流量统计</span>
+                          </div>
                           
-                          <v-card-text class="card-content">
-                            <!-- 流量统计 -->
-                            <div class="traffic-stats mb-3">
-                              <div class="d-flex justify-space-between align-center mb-1">
-                                <span class="text-caption text-medium-emphasis">今日流量：</span>
-                                <v-chip size="small" color="success" variant="tonal">
-                                  {{ formatTrafficSize(lineStat.today_traffic) }}
-                                </v-chip>
+                          <div class="traffic-metrics">
+                            <div class="metric-item today">
+                              <div class="metric-label">
+                                <v-icon size="12" color="success">mdi-calendar-today</v-icon>
+                                今日
                               </div>
-                              <div class="d-flex justify-space-between align-center mb-1">
-                                <span class="text-caption text-medium-emphasis">本周流量：</span>
-                                <v-chip size="small" color="info" variant="tonal">
-                                  {{ formatTrafficSize(lineStat.week_traffic) }}
-                                </v-chip>
-                              </div>
-                              <div class="d-flex justify-space-between align-center mb-2">
-                                <span class="text-caption text-medium-emphasis">本月流量：</span>
-                                <v-chip size="small" color="warning" variant="tonal">
-                                  {{ formatTrafficSize(lineStat.month_traffic) }}
-                                </v-chip>
+                              <div class="metric-value success">
+                                {{ formatTrafficSize(lineStat.today_traffic) }}
                               </div>
                             </div>
                             
-                            <!-- 用户排行 -->
-                            <div v-if="lineStat.top_users && lineStat.top_users.length > 0">
-                              <v-divider class="mb-2"></v-divider>
-                              <div class="text-caption text-medium-emphasis mb-2">
-                                <v-icon size="12" class="mr-1">mdi-trophy</v-icon>
-                                流量排行（本月）
+                            <div class="metric-item week">
+                              <div class="metric-label">
+                                <v-icon size="12" color="info">mdi-calendar-week</v-icon>
+                                本周
                               </div>
-                              <div class="top-users-list">
-                                <div 
-                                  v-for="(user, index) in lineStat.top_users.slice(0, 3)" 
-                                  :key="user.username"
-                                  class="d-flex justify-space-between align-center mb-1"
-                                >
-                                  <div class="d-flex align-center">
-                                    <v-icon 
-                                      :color="getUserRankColor(index)" 
-                                      size="12" 
-                                      class="mr-1"
-                                    >
-                                      {{ getUserRankIcon(index) }}
-                                    </v-icon>
-                                    <span class="text-caption">{{ formatUsername(user.username) }}</span>
-                                  </div>
-                                  <span class="text-caption text-medium-emphasis">
-                                    {{ formatTrafficSize(user.traffic) }}
-                                  </span>
-                                </div>
-                                
-                                <!-- 显示更多用户按钮 -->
-                                <div v-if="lineStat.top_users.length > 3" class="text-center mt-2">
-                                  <v-btn
-                                    size="x-small"
-                                    variant="text"
-                                    color="deep-purple"
-                                    @click="showLineUsersDialog(lineStat)"
+                              <div class="metric-value info">
+                                {{ formatTrafficSize(lineStat.week_traffic) }}
+                              </div>
+                            </div>
+                            
+                            <div class="metric-item month">
+                              <div class="metric-label">
+                                <v-icon size="12" color="warning">mdi-calendar-month</v-icon>
+                                本月
+                              </div>
+                              <div class="metric-value warning">
+                                {{ formatTrafficSize(lineStat.month_traffic) }}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <!-- 用户排行区域 -->
+                        <div v-if="lineStat.top_users && lineStat.top_users.length > 0" class="ranking-section">
+                          <div class="stats-header">
+                            <v-icon size="16" color="amber-darken-2" class="mr-2">mdi-trophy</v-icon>
+                            <span class="section-title">流量排行</span>
+                            <v-chip size="x-small" color="amber-darken-2" variant="tonal" class="ml-2">
+                              本月
+                            </v-chip>
+                          </div>
+                          
+                          <div class="ranking-list">
+                            <div 
+                              v-for="(user, index) in lineStat.top_users.slice(0, 3)" 
+                              :key="user.username"
+                              class="ranking-item"
+                            >
+                              <div class="user-info">
+                                <div class="rank-badge" :class="`rank-${index + 1}`">
+                                  <v-icon 
+                                    :color="getUserRankColor(index)" 
+                                    size="14"
                                   >
-                                    查看全部 ({{ lineStat.top_users.length }})
-                                  </v-btn>
+                                    {{ getUserRankIcon(index) }}
+                                  </v-icon>
                                 </div>
+                                <span class="username">{{ formatUsername(user.username) }}</span>
+                              </div>
+                              <div class="traffic-amount">
+                                {{ formatTrafficSize(user.traffic) }}
                               </div>
                             </div>
                             
-                            <!-- 无用户数据 -->
-                            <div v-else class="text-center py-2">
-                              <span class="text-caption text-medium-emphasis">暂无用户使用数据</span>
+                            <!-- 查看更多按钮 -->
+                            <div v-if="lineStat.top_users.length > 3" class="view-more-section">
+                              <v-btn
+                                size="small"
+                                variant="outlined"
+                                color="deep-purple"
+                                class="view-more-btn"
+                                @click="showLineUsersDialog(lineStat)"
+                              >
+                                <v-icon start size="16">mdi-account-group</v-icon>
+                                查看全部 {{ lineStat.top_users.length }} 用户
+                              </v-btn>
                             </div>
-                          </v-card-text>
-                        </v-card>
-                      </v-col>
-                    </v-row>
+                          </div>
+                        </div>
+                        
+                        <!-- 无数据状态 -->
+                        <div v-else class="no-data-section">
+                          <div class="no-data-content">
+                            <v-icon size="32" color="grey-lighten-1">mdi-account-off-outline</v-icon>
+                            <p class="no-data-text">暂无用户使用数据</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </v-card-text>
               </v-card>
@@ -1473,7 +1629,7 @@ import WheelAdminPanel from '@/components/WheelAdminPanel.vue'
 import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits, setPremiumDailyCredits, setPremiumUnlockEnabled, setCreditsTransferEnabled } from '@/services/adminService.js'
 import { getWheelStats } from '@/services/wheelService.js'
 import { getAuctionStats, getAllAuctions, finishExpiredAuctions, finishAuction, deleteAuction, createAuction, getAuctionBids, updateAuction } from '@/services/auctionService.js'
-import { getPremiumLineTrafficStats, formatTrafficSize, formatUsername } from '@/services/trafficService.js'
+import { getPremiumLineTrafficStats, formatTrafficSize, formatUsername, getTrafficOverview } from '@/services/trafficService.js'
 
 export default {
   name: 'Management',
@@ -1578,7 +1734,15 @@ export default {
       trafficStatsLoading: false,
       trafficStatsError: null,
       showLineUsersDialogVisible: false,
-      selectedLineStat: null
+      selectedLineStat: null,
+      // 流量概览统计数据
+      trafficOverview: {
+        today: { total: 0, emby: 0, plex: 0 },
+        week: { total: 0, emby: 0, plex: 0 },
+        month: { total: 0, emby: 0, plex: 0 }
+      },
+      trafficOverviewLoading: false,
+      trafficOverviewError: null
     }
   },
   mounted() {
@@ -1593,6 +1757,7 @@ export default {
         this.fetchSystemStats()
         this.fetchPremiumStats()
         this.fetchTrafficStats()
+        this.fetchTrafficOverview()
       }
       // 如果切换到设置项tab且是管理员，则获取管理员设置
       if (newTab === 'settings' && this.isAdmin && !this.adminSettings.loaded) {
@@ -1619,6 +1784,7 @@ export default {
           await this.fetchSystemStats()
           await this.fetchPremiumStats()
           await this.fetchTrafficStats()
+          await this.fetchTrafficOverview()
         }
         // 如果是管理员且当前在设置项tab，则获取管理员设置
         if (this.isAdmin && this.currentTab === 'settings') {
@@ -1683,6 +1849,7 @@ export default {
       await this.fetchSystemStats()
       await this.fetchPremiumStats()
       await this.fetchTrafficStats()
+      await this.fetchTrafficOverview()
     },
     
     async updatePlexRegister() {
@@ -2230,6 +2397,24 @@ export default {
       }
     },
     
+    async fetchTrafficOverview() {
+      try {
+        this.trafficOverviewLoading = true
+        this.trafficOverviewError = null
+        const response = await getTrafficOverview()
+        this.trafficOverview = response.data || {
+          today: { total: 0, emby: 0, plex: 0 },
+          week: { total: 0, emby: 0, plex: 0 },
+          month: { total: 0, emby: 0, plex: 0 }
+        }
+        this.trafficOverviewLoading = false
+      } catch (err) {
+        this.trafficOverviewError = err.response?.data?.detail || '获取流量概览失败'
+        this.trafficOverviewLoading = false
+        console.error('获取流量概览失败:', err)
+      }
+    },
+    
     // 格式化流量大小
     formatTrafficSize(bytes) {
       return formatTrafficSize(bytes)
@@ -2303,7 +2488,319 @@ export default {
   margin: 0;
 }
 
-/* 流量统计卡片样式 */
+/* Premium流量统计网格布局 */
+.premium-traffic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 24px;
+  margin-top: 8px;
+}
+
+/* Premium线路卡片样式 */
+.premium-line-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.98) 100%);
+  border-radius: 20px;
+  box-shadow: 0 15px 35px rgba(103, 58, 183, 0.1);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(103, 58, 183, 0.15);
+  transition: all 0.3s ease;
+  overflow: hidden;
+  position: relative;
+  min-height: 320px;
+}
+
+.premium-line-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 25px 50px rgba(103, 58, 183, 0.2);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 1) 100%);
+}
+
+.premium-line-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(135deg, #673ab7 0%, #9c27b0 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.premium-line-card:hover::before {
+  opacity: 1;
+}
+
+/* 线路标题栏样式 */
+.premium-line-header {
+  background: linear-gradient(135deg, rgba(103, 58, 183, 0.08) 0%, rgba(156, 39, 176, 0.08) 100%);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(103, 58, 183, 0.15);
+  padding: 20px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.line-title-wrapper {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.line-icon {
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.line-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+  word-break: break-word;
+  line-height: 1.3;
+  cursor: help;
+}
+
+.status-chip {
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+/* 统计区域通用样式 */
+.traffic-stats-section,
+.ranking-section {
+  padding: 20px 24px;
+}
+
+.stats-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #333;
+}
+
+/* 流量指标样式 */
+.traffic-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.metric-item {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.9) 100%);
+  border-radius: 12px;
+  padding: 16px 12px;
+  text-align: center;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+}
+
+.metric-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.metric-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: #666;
+  margin-bottom: 8px;
+  gap: 4px;
+}
+
+.metric-value {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.metric-value.success { color: #2e7d32; }
+.metric-value.info { color: #1976d2; }
+.metric-value.warning { color: #f57c00; }
+
+/* 排行榜样式 */
+.ranking-section {
+  border-top: 1px solid rgba(103, 58, 183, 0.1);
+  background: linear-gradient(135deg, rgba(103, 58, 183, 0.02) 0%, rgba(156, 39, 176, 0.02) 100%);
+}
+
+.ranking-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 10px;
+  border: 1px solid rgba(103, 58, 183, 0.1);
+  transition: all 0.2s ease;
+  margin-bottom: 8px;
+}
+
+.ranking-item:hover {
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(103, 58, 183, 0.15);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.rank-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.rank-badge.rank-1 { background: linear-gradient(135deg, #ffd700, #ffed4e); }
+.rank-badge.rank-2 { background: linear-gradient(135deg, #c0c0c0, #e5e5e5); }
+.rank-badge.rank-3 { background: linear-gradient(135deg, #cd7f32, #deb887); }
+
+.username {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #333;
+  word-break: break-word;
+}
+
+.traffic-amount {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #666;
+  flex-shrink: 0;
+}
+
+/* 查看更多按钮 */
+.view-more-section {
+  text-align: center;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(103, 58, 183, 0.1);
+}
+
+.view-more-btn {
+  border-radius: 12px;
+  text-transform: none;
+  font-weight: 500;
+}
+
+/* 无数据状态 */
+.no-data-section {
+  padding: 40px 24px;
+  text-align: center;
+}
+
+.no-data-content {
+  opacity: 0.6;
+}
+
+.no-data-text {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 0;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .premium-traffic-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .premium-line-card {
+    min-height: 280px;
+  }
+  
+  .premium-line-header {
+    padding: 16px 20px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .status-chip {
+    margin-left: 0;
+    align-self: flex-end;
+  }
+  
+  .traffic-stats-section,
+  .ranking-section {
+    padding: 16px 20px;
+  }
+  
+  .traffic-metrics {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .metric-item {
+    padding: 12px 10px;
+  }
+  
+  .metric-value {
+    font-size: 0.9rem;
+  }
+  
+  .ranking-item {
+    padding: 10px 12px;
+  }
+  
+  .username {
+    font-size: 0.8rem;
+  }
+  
+  .traffic-amount {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .premium-line-header {
+    padding: 12px 16px;
+  }
+  
+  .line-title {
+    font-size: 1rem;
+  }
+  
+  .traffic-stats-section,
+  .ranking-section {
+    padding: 12px 16px;
+  }
+  
+  .metric-item {
+    padding: 10px 8px;
+  }
+  
+  .metric-label {
+    font-size: 0.7rem;
+  }
+  
+  .metric-value {
+    font-size: 0.85rem;
+  }
+}
+
+/* 流量统计卡片样式 - 保留原有的简单卡片样式作为备用 */
 .line-traffic-card {
   transition: all 0.3s ease;
   border: 1px solid rgba(0, 0, 0, 0.08);
