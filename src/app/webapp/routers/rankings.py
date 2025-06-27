@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from app.config import settings
 from app.db import DB
 from app.emby import Emby
@@ -7,7 +9,7 @@ from app.utils import get_user_avatar_from_tg_id, get_user_name_from_tg_id
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import TelegramUser
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 router = APIRouter(prefix="/api", tags=["rankings"])
 
@@ -190,19 +192,55 @@ async def get_emby_watched_time_rankings(
 @router.get("/rankings/traffic/plex")
 @require_telegram_auth
 async def get_plex_traffic_rankings(
-    request: Request, user: TelegramUser = Depends(get_telegram_user)
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+    start_date: str = Query(None, description="开始日期，格式: YYYY-MM-DD"),
+    end_date: str = Query(None, description="结束日期，格式: YYYY-MM-DD"),
 ):
-    """获取 Plex 今日流量排行榜数据"""
+    """获取 Plex 流量排行榜数据
+
+    Args:
+        start_date: 开始日期，格式: YYYY-MM-DD，默认为今日
+        end_date: 结束日期，格式: YYYY-MM-DD，默认为今日
+    """
     logger.info(
-        f"{user.username or user.first_name or user.id} 开始获取 Plex 流量排行榜数据"
+        f"{user.username or user.first_name or user.id} 开始获取 Plex 流量排行榜数据 (日期范围: {start_date} - {end_date})"
     )
 
     db = DB()
     try:
+        # 解析日期参数
+        parsed_start_date = None
+        parsed_end_date = None
+
+        if start_date:
+            try:
+                parsed_start_date = datetime.strptime(start_date, "%Y-%m-%d")
+                parsed_start_date = parsed_start_date.replace(tzinfo=settings.TZ)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400, detail="开始日期格式错误，应为 YYYY-MM-DD"
+                )
+
+        if end_date:
+            try:
+                parsed_end_date = datetime.strptime(end_date, "%Y-%m-%d")
+                parsed_end_date = parsed_end_date.replace(
+                    hour=23, minute=59, second=59, tzinfo=settings.TZ
+                )
+            except ValueError:
+                raise HTTPException(
+                    status_code=400, detail="结束日期格式错误，应为 YYYY-MM-DD"
+                )
+
         traffic_rank_plex = []
         try:
-            logger.debug("正在查询 Plex 流量排行")
-            plex_traffic_data = db.get_plex_traffic_rank()
+            logger.debug(
+                f"正在查询 Plex 流量排行 (日期范围: {parsed_start_date} - {parsed_end_date})"
+            )
+            plex_traffic_data = db.get_plex_traffic_rank(
+                parsed_start_date, parsed_end_date
+            )
             if plex_traffic_data:
                 traffic_rank_plex = [
                     {
@@ -237,20 +275,56 @@ async def get_plex_traffic_rankings(
 @router.get("/rankings/traffic/emby")
 @require_telegram_auth
 async def get_emby_traffic_rankings(
-    request: Request, user: TelegramUser = Depends(get_telegram_user)
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+    start_date: str = Query(None, description="开始日期，格式: YYYY-MM-DD"),
+    end_date: str = Query(None, description="结束日期，格式: YYYY-MM-DD"),
 ):
-    """获取 Emby 今日流量排行榜数据"""
+    """获取 Emby 流量排行榜数据
+
+    Args:
+        start_date: 开始日期，格式: YYYY-MM-DD，默认为今日
+        end_date: 结束日期，格式: YYYY-MM-DD，默认为今日
+    """
     logger.info(
-        f"{user.username or user.first_name or user.id} 开始获取 Emby 流量排行榜数据"
+        f"{user.username or user.first_name or user.id} 开始获取 Emby 流量排行榜数据 (日期范围: {start_date} - {end_date})"
     )
 
     db = DB()
     try:
+        # 解析日期参数
+        parsed_start_date = None
+        parsed_end_date = None
+
+        if start_date:
+            try:
+                parsed_start_date = datetime.strptime(start_date, "%Y-%m-%d")
+                parsed_start_date = parsed_start_date.replace(tzinfo=settings.TZ)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400, detail="开始日期格式错误，应为 YYYY-MM-DD"
+                )
+
+        if end_date:
+            try:
+                parsed_end_date = datetime.strptime(end_date, "%Y-%m-%d")
+                parsed_end_date = parsed_end_date.replace(
+                    hour=23, minute=59, second=59, tzinfo=settings.TZ
+                )
+            except ValueError:
+                raise HTTPException(
+                    status_code=400, detail="结束日期格式错误，应为 YYYY-MM-DD"
+                )
+
         traffic_rank_emby = []
         emby = Emby()
         try:
-            logger.debug("正在查询 Emby 流量排行")
-            emby_traffic_data = db.get_emby_traffic_rank()
+            logger.debug(
+                f"正在查询 Emby 流量排行 (日期范围: {parsed_start_date} - {parsed_end_date})"
+            )
+            emby_traffic_data = db.get_emby_traffic_rank(
+                parsed_start_date, parsed_end_date
+            )
             if emby_traffic_data:
                 traffic_rank_emby = [
                     {

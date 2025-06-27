@@ -206,7 +206,7 @@
                       density="compact"
                       hide-details
                       variant="outlined"
-                      class="watched-source-select"
+                      class="control-select watched-source-select"
                       style="max-width: 150px;"
                       color="primary"
                     >
@@ -403,33 +403,74 @@
               <v-col cols="12">
                 <div class="d-flex justify-space-between align-center mb-4">
                   <div class="d-flex align-center gap-2">
-                    <h3 class="text-h6 text-primary font-weight-bold">今日流量排行</h3>
-                    <v-chip size="small" color="info" variant="elevated" class="ml-2">
+                    <h3 class="text-h6 text-primary font-weight-bold">流量排行</h3>
+                    <v-chip size="small" :color="getDateRangeChipColor()" variant="elevated" class="ml-2">
                       <v-icon start size="12">mdi-calendar-today</v-icon>
-                      今日统计
+                      {{ getDateRangeText() }}
                     </v-chip>
                   </div>
-                  <v-select
-                      v-model="trafficSource"
+                  <div class="d-flex align-center gap-4">
+                    <!-- 日期范围选择 -->
+                    <v-select
+                      v-model="trafficDateRange"
                       :items="[
-                        { title: 'Plex', value: 'plex' },
-                        { title: 'Emby', value: 'emby' }
+                        { title: '今日', value: 'today' },
+                        { title: '昨日', value: 'yesterday' },
+                        { title: '本周', value: 'week' },
+                        { title: '本月', value: 'month' },
+                        { title: '自定义', value: 'custom' }
                       ]"
                       item-title="title"
                       item-value="value"
                       density="compact"
                       hide-details
                       variant="outlined"
-                      class="traffic-source-select"
-                      style="max-width: 150px;"
+                      class="control-select date-range-select"
                       color="primary"
                     >
                       <template v-slot:prepend-inner>
-                        <v-icon size="16" :color="trafficSource === 'plex' ? 'orange' : 'green'">
-                          {{ trafficSource === 'plex' ? 'mdi-plex' : 'mdi-emby' }}
-                        </v-icon>
+                        <v-icon size="16" color="primary">mdi-calendar-range</v-icon>
                       </template>
                     </v-select>
+
+                    <!-- 自定义日期按钮 -->
+                    <v-btn
+                      v-if="trafficDateRange === 'custom'"
+                      icon
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      @click="showDatePicker = true"
+                      class="custom-date-btn"
+                    >
+                      <v-icon size="18">mdi-calendar-edit</v-icon>
+                      <v-tooltip activator="parent" location="top">
+                        选择日期范围
+                      </v-tooltip>
+                    </v-btn>
+
+                    <!-- 数据源选择 -->
+                    <v-select
+                        v-model="trafficSource"
+                        :items="[
+                          { title: 'Plex', value: 'plex' },
+                          { title: 'Emby', value: 'emby' }
+                        ]"
+                        item-title="title"
+                        item-value="value"
+                        density="compact"
+                        hide-details
+                        variant="outlined"
+                        class="control-select traffic-source-select"
+                        color="primary"
+                      >
+                        <template v-slot:prepend-inner>
+                          <v-icon size="16" :color="trafficSource === 'plex' ? 'orange' : 'green'">
+                            {{ trafficSource === 'plex' ? 'mdi-plex' : 'mdi-emby' }}
+                          </v-icon>
+                        </template>
+                      </v-select>
+                  </div>
                 </div>
                 
                 <!-- Plex 流量榜 -->
@@ -485,7 +526,7 @@
                                 <span class="traffic-text">{{ formatTraffic(item.traffic) }}</span>
                                 <div class="ml-2">
                                   <v-chip size="x-small" color="orange" variant="tonal">
-                                    今日
+                                    {{ getDateRangeText() }}
                                   </v-chip>
                                 </div>
                               </div>
@@ -553,7 +594,7 @@
                                 <span class="traffic-text">{{ formatTraffic(item.traffic) }}</span>
                                 <div class="ml-2">
                                   <v-chip size="x-small" color="green" variant="tonal">
-                                    今日
+                                    {{ getDateRangeText() }}
                                   </v-chip>
                                 </div>
                               </div>
@@ -703,6 +744,79 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- 自定义日期选择对话框 -->
+    <v-dialog v-model="showDatePicker" max-width="480">
+      <v-card class="date-picker-dialog">
+        <v-card-title class="text-h6 d-flex align-center justify-center pa-6">
+          <v-icon color="primary" class="mr-2" size="28">mdi-calendar-range</v-icon>
+          <span class="dialog-title">选择日期范围</span>
+        </v-card-title>
+        
+        <v-card-text class="py-6">
+          <v-row>
+            <v-col cols="12">
+              <v-text-field
+                v-model="trafficStartDate"
+                label="开始日期"
+                type="date"
+                variant="outlined"
+                :min="getMinDate()"
+                :max="getMaxDate()"
+                color="primary"
+                prepend-inner-icon="mdi-calendar-start"
+                hide-details="auto"
+                class="mb-4"
+              />
+            </v-col>
+            <v-col cols="12">
+              <v-text-field
+                v-model="trafficEndDate"
+                label="结束日期"
+                type="date"
+                variant="outlined"
+                :min="trafficStartDate || getMinDate()"
+                :max="getMaxDate()"
+                color="primary"
+                prepend-inner-icon="mdi-calendar-end"
+                hide-details="auto"
+              />
+            </v-col>
+          </v-row>
+          
+          <div class="mt-4 pa-3 bg-blue-lighten-5 rounded">
+            <div class="d-flex align-center">
+              <v-icon size="16" color="info" class="mr-2">mdi-information</v-icon>
+              <span class="text-caption text-medium-emphasis">
+                日期范围限制在当月内，最晚到今天
+              </span>
+            </div>
+          </div>
+        </v-card-text>
+        
+        <v-card-actions class="pa-6">
+          <v-btn 
+            color="grey" 
+            variant="text"
+            @click="showDatePicker = false"
+            class="mr-2"
+          >
+            取消
+          </v-btn>
+          <v-spacer></v-spacer>
+          <v-btn 
+            color="primary" 
+            variant="elevated"
+            @click="confirmDateSelection"
+            :disabled="!trafficStartDate || !trafficEndDate"
+            class="px-6"
+          >
+            <v-icon class="mr-2">mdi-check</v-icon>
+            确定
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -718,6 +832,11 @@ export default {
       watchedTimeSource: 'emby',
       trafficSource: 'emby',
       showLevelInfo: false,
+      // 流量榜日期选择
+      trafficDateRange: 'today', // 'today', 'yesterday', 'week', 'custom'
+      trafficStartDate: null,
+      trafficEndDate: null,
+      showDatePicker: false,
       rankings: {
         credits_rank: [],
         donation_rank: [],
@@ -773,6 +892,22 @@ export default {
           this.loadTrafficData(newSource)
         }
       }
+    },
+    trafficDateRange(newRange) {
+      console.log(`切换流量日期范围到: ${newRange}`)
+      this.updateTrafficDatesByRange(newRange)
+      if (this.activeTab === 'traffic') {
+        // 重置加载状态并重新加载数据
+        const trafficKey = `traffic-${this.trafficSource}`
+        this.loaded[trafficKey] = false
+        this.loadTrafficData(this.trafficSource)
+      }
+    },
+    trafficStartDate() {
+      this.onTrafficDateChange()
+    },
+    trafficEndDate() {
+      this.onTrafficDateChange()
     }
   },
   created() {
@@ -786,6 +921,9 @@ export default {
       getEmbyTrafficRankings: typeof getEmbyTrafficRankings,
       getPlexTrafficRankings: typeof getPlexTrafficRankings
     })
+    
+    // 初始化流量日期为今日
+    this.updateTrafficDatesByRange('today')
   },
   mounted() {
     // 默认加载积分榜数据
@@ -898,13 +1036,13 @@ export default {
       try {
         let response
         if (source === 'plex') {
-          console.log('调用Plex流量API...')
-          response = await getPlexTrafficRankings()
+          console.log('调用Plex流量API...', { startDate: this.trafficStartDate, endDate: this.trafficEndDate })
+          response = await getPlexTrafficRankings(this.trafficStartDate, this.trafficEndDate)
           this.rankings.traffic_rank_plex = response.data.traffic_rank_plex || []
           console.log('Plex流量数据:', this.rankings.traffic_rank_plex)
         } else if (source === 'emby') {
-          console.log('调用Emby流量API...')
-          response = await getEmbyTrafficRankings()
+          console.log('调用Emby流量API...', { startDate: this.trafficStartDate, endDate: this.trafficEndDate })
+          response = await getEmbyTrafficRankings(this.trafficStartDate, this.trafficEndDate)
           this.rankings.traffic_rank_emby = response.data.traffic_rank_emby || []
           console.log('Emby流量数据:', this.rankings.traffic_rank_emby)
         }
@@ -993,6 +1131,139 @@ export default {
     handleImageError(event) {
       // 头像加载失败时，隐藏图片，显示默认图标
       event.target.style.display = 'none';
+    },
+
+    // 根据日期范围设置开始和结束日期
+    updateTrafficDatesByRange(range) {
+      const today = new Date()
+      const year = today.getFullYear()
+      const month = today.getMonth()
+      const date = today.getDate()
+
+      switch (range) {
+        case 'today': {
+          this.trafficStartDate = this.formatDate(new Date(year, month, date))
+          this.trafficEndDate = this.formatDate(new Date(year, month, date))
+          break
+        }
+        case 'yesterday': {
+          const yesterday = new Date(year, month, date - 1)
+          this.trafficStartDate = this.formatDate(yesterday)
+          this.trafficEndDate = this.formatDate(yesterday)
+          break
+        }
+        case 'week': {
+          // 本周（周一到今天）
+          const weekStart = new Date(today)
+          const dayOfWeek = today.getDay()
+          const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1) // 如果是周日，则减6天到周一
+          weekStart.setDate(diff)
+          this.trafficStartDate = this.formatDate(weekStart)
+          this.trafficEndDate = this.formatDate(today)
+          break
+        }
+        case 'month': {
+          // 本月1号到今天
+          const monthStart = new Date(year, month, 1)
+          this.trafficStartDate = this.formatDate(monthStart)
+          this.trafficEndDate = this.formatDate(today)
+          break
+        }
+        case 'custom': {
+          // 自定义日期，不在这里设置
+          break
+        }
+      }
+    },
+
+    // 格式化日期为 YYYY-MM-DD
+    formatDate(date) {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    },
+
+    // 当自定义日期改变时触发
+    onTrafficDateChange() {
+      if (this.trafficDateRange === 'custom' && this.trafficStartDate && this.trafficEndDate) {
+        // 确保结束日期不早于开始日期
+        if (new Date(this.trafficEndDate) < new Date(this.trafficStartDate)) {
+          this.trafficEndDate = this.trafficStartDate
+        }
+        
+        // 确保日期范围在当月内
+        const today = new Date()
+        const currentMonthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+        
+        if (new Date(this.trafficStartDate) < currentMonthStart) {
+          this.trafficStartDate = this.formatDate(currentMonthStart)
+        }
+        
+        if (new Date(this.trafficEndDate) > today) {
+          this.trafficEndDate = this.formatDate(today)
+        }
+
+        if (this.activeTab === 'traffic') {
+          // 重置加载状态并重新加载数据
+          const trafficKey = `traffic-${this.trafficSource}`
+          this.loaded[trafficKey] = false
+          this.loadTrafficData(this.trafficSource)
+        }
+      }
+    },
+
+    // 获取日期范围的显示文本
+    getDateRangeText() {
+      if (!this.trafficStartDate || !this.trafficEndDate) {
+        return '今日'
+      }
+
+      if (this.trafficStartDate === this.trafficEndDate) {
+        return this.trafficStartDate === this.formatDate(new Date()) ? '今日' : this.trafficStartDate
+      }
+
+      return `${this.trafficStartDate} 至 ${this.trafficEndDate}`
+    },
+
+    // 获取当月最大日期（今天）
+    getMaxDate() {
+      return this.formatDate(new Date())
+    },
+
+    // 获取当月最小日期（本月1号）
+    getMinDate() {
+      const today = new Date()
+      return this.formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
+    },
+
+    // 确认日期选择
+    confirmDateSelection() {
+      this.showDatePicker = false
+      // 触发数据重新加载
+      if (this.activeTab === 'traffic') {
+        const trafficKey = `traffic-${this.trafficSource}`
+        this.loaded[trafficKey] = false
+        this.loadTrafficData(this.trafficSource)
+      }
+    },
+
+    // 获取日期范围芯片的颜色
+    getDateRangeChipColor() {
+      switch (this.trafficDateRange) {
+        case 'today':
+          return 'success'
+        case 'yesterday':
+          return 'info'
+        case 'week':
+          return 'warning'
+        case 'month':
+          return 'secondary'
+        case 'custom':
+          return 'primary'
+        default:
+          return 'info'
+      }
     }
   }
 }
@@ -1992,8 +2263,12 @@ export default {
   box-shadow: 0 15px 35px rgba(var(--v-theme-primary), 0.3) !important;
 }
 
-/* 优化观看时长选择器样式 */
-.watched-source-select :deep(.v-field) {
+/* 统一的控件选择器样式 */
+.control-select {
+  min-width: 150px;
+}
+
+.control-select :deep(.v-field) {
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(10px);
   border-radius: 12px;
@@ -2001,29 +2276,36 @@ export default {
   transition: all 0.3s ease;
 }
 
-.watched-source-select :deep(.v-field):hover {
+.control-select :deep(.v-field):hover {
   background: rgba(255, 255, 255, 0.95);
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
-/* 流量选择器样式 */
-.traffic-source-select {
+/* 观看时长选择器特殊设置 */
+.watched-source-select {
   min-width: 180px;
 }
 
-.traffic-source-select :deep(.v-field) {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
+/* 流量榜日期选择器特殊设置 */
+.date-range-select {
+  min-width: 120px;
 }
 
-.traffic-source-select :deep(.v-field):hover {
-  background: rgba(255, 255, 255, 0.95);
+/* 自定义日期按钮样式 */
+.custom-date-btn {
+  background: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(10px);
+  border-radius: 12px !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.3s ease !important;
+  height: 40px !important; /* 与选择器高度保持一致 */
+}
+
+.custom-date-btn:hover {
+  background: rgba(255, 255, 255, 0.95) !important;
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
 }
 
 /* 流量容器样式 */
@@ -2211,6 +2493,128 @@ export default {
   
   .premium-text-short {
     font-size: 7px;
+  }
+}
+
+/* 日期选择器样式 */
+.date-picker-dialog {
+  border-radius: 16px !important;
+  overflow: hidden;
+}
+
+.date-picker-dialog .v-card-title {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* 控件间距统一设置 */
+.gap-4 {
+  gap: 16px !important;
+}
+
+.date-range-select {
+  min-width: 120px;
+  margin-right: 0 !important; /* 移除右边距，使用gap代替 */
+}
+
+.traffic-source-select {
+  min-width: 150px !important;
+}
+
+/* 日期范围控件容器 */
+.toolbar-controls {
+  gap: 16px !important;
+}
+
+/* 流量榜控件间距 - 移除，使用通用gap设置 */
+
+/* 日期输入框样式 */
+:deep(.v-text-field input[type="date"]) {
+  padding: 8px 12px;
+}
+
+:deep(.v-text-field input[type="date"]::-webkit-calendar-picker-indicator) {
+  opacity: 0.6;
+  transition: all 0.2s ease;
+}
+
+:deep(.v-text-field input[type="date"]::-webkit-calendar-picker-indicator:hover) {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* 信息提示框样式 */
+.bg-blue-lighten-5 {
+  background-color: rgba(33, 150, 243, 0.08) !important;
+}
+
+/* 移动端响应式设计 - 控件间距 */
+@media (max-width: 768px) {
+  /* 移动端控件间距调整 */
+  .d-flex.align-center.gap-4,
+  .gap-4 {
+    gap: 12px !important;
+    flex-wrap: wrap;
+  }
+
+  .control-select {
+    min-width: 120px !important;
+  }
+
+  .date-range-select {
+    min-width: 100px !important;
+  }
+
+  .traffic-source-select {
+    min-width: 120px !important;
+  }
+
+  .watched-source-select {
+    min-width: 140px !important;
+  }
+
+  .custom-date-btn {
+    height: 36px !important;
+  }
+
+  /* 移动端工具栏调整 */
+  .d-flex.justify-space-between.align-center.mb-4 {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+
+  .d-flex.justify-space-between.align-center.mb-4 > div:last-child {
+    align-self: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  .control-select {
+    min-width: 100px !important;
+    font-size: 12px;
+  }
+
+  .date-range-select {
+    min-width: 90px !important;
+  }
+
+  .traffic-source-select {
+    min-width: 100px !important;
+  }
+
+  .watched-source-select {
+    min-width: 120px !important;
+  }
+
+  .custom-date-btn {
+    height: 32px !important;
+    width: 32px !important;
+  }
+
+  .d-flex.align-center.gap-4,
+  .gap-4 {
+    gap: 8px !important;
   }
 }
 </style>

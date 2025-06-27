@@ -44,12 +44,26 @@ export const getEmbyWatchedTimeRankings = () => {
   return apiClient.get('/api/rankings/watched-time/emby')
 }
 
-export const getPlexTrafficRankings = () => {
-  return apiClient.get('/api/rankings/traffic/plex')
+export const getPlexTrafficRankings = (startDate = null, endDate = null) => {
+  const params = new URLSearchParams()
+  if (startDate) params.append('start_date', startDate)
+  if (endDate) params.append('end_date', endDate)
+  
+  const queryString = params.toString()
+  const url = `/api/rankings/traffic/plex${queryString ? `?${queryString}` : ''}`
+  
+  return apiClient.get(url)
 }
 
-export const getEmbyTrafficRankings = () => {
-  return apiClient.get('/api/rankings/traffic/emby')
+export const getEmbyTrafficRankings = (startDate = null, endDate = null) => {
+  const params = new URLSearchParams()
+  if (startDate) params.append('start_date', startDate)
+  if (endDate) params.append('end_date', endDate)
+  
+  const queryString = params.toString()
+  const url = `/api/rankings/traffic/emby${queryString ? `?${queryString}` : ''}`
+  
+  return apiClient.get(url)
 }
 
 export const getSystemStats = () => {
