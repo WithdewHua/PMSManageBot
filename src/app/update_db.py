@@ -415,7 +415,7 @@ async def finish_expired_auctions_job():
         db.close()
 
 
-def update_line_traffic_stats(
+async def update_line_traffic_stats(
     count: int = settings.REDIS_LINE_TRAFFIC_STATS_HANDLE_SIZE,
 ):
     """
@@ -484,7 +484,7 @@ def update_line_traffic_stats(
                 token_list = query_params.get("token")
 
                 if not service_list or not token_list:
-                    logger.warning(f"缺少必要的参数 service 或 token: {url}")
+                    logger.warning(f"缺少必要的参数 service 或 token: {message}")
                     continue
 
                 service = service_list[0]
@@ -511,10 +511,14 @@ def update_line_traffic_stats(
                         ).fetchone()
                         if user_result:
                             user_id = user_result[0]
+                    else:
+                        # 尝试通过 api key 获取用户名
+                        emby = Emby()
+                        username = await emby.get_emby_username_from_api_key(token)
 
                 # 如果无法获取到用户信息，跳过此条记录
                 if not username:
-                    logger.warning(f"无法找到token对应的用户名: {token}")
+                    logger.warning(f"无法找到 token 对应的用户名: {token}")
                     continue
 
                 # 转换时间格式为 ISO 格式

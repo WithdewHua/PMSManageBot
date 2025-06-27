@@ -5,8 +5,10 @@ import pickle
 from time import time
 from typing import Any, Optional, Union
 
+import aiohttp
 import filelock
 import requests
+from app.cache import emby_api_key_cache
 from app.config import settings
 from app.log import logger
 
@@ -377,3 +379,35 @@ class Emby:
         except Exception as e:
             logger.error(f"Emby用户 {username} 认证时发生错误: {str(e)}")
             return False, None
+
+    async def get_emby_username_from_api_key(self, api_key: str) -> Optional[str]:
+        """
+        请求 Emby API 获取用户名
+        """
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{self.base_url.rstrip('/')}/Sessions?api_key={api_key}"
+                ) as response:
+                    response.raise_for_status()
+                    if response.status == 200:
+                        sessions = await response.json()
+                        usernames = set()
+                        for session in sessions:
+                            if "UserName" in session:
+                                usernames.add(session["UserName"].lower())
+                        if len(usernames) == 1:
+                            # 只有一个用户名才认为是有效的
+                            username = str(usernames.pop()).lower()
+                            logger.info(f"Got username from api_key: {username}")
+                            emby_api_key_cache.put(api_key, username)
+                            return username
+                        else:
+                            logger.info("Multi usernames found, maybe admin, skip")
+                    else:
+                        logger.error(
+                            f"Failed to get username: {response.status}, {await response.text()}"
+                        )
+        except Exception as e:
+            logger.error(f"Error fetching Emby username: {e}")
+        return None

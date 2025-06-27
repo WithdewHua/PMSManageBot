@@ -143,7 +143,7 @@ def add_init_scheduler_job():
     logger.info("添加定时任务：每天早上 09:00 检查即将过期的 Premium 用户")
 
     # 每 1min 处理一次线路流量统计
-    scheduler.add_sync_job(
+    scheduler.add_async_job(
         func=update_line_traffic_stats,
         trigger="cron",
         id="update_line_traffic_stats",
