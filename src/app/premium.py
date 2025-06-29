@@ -45,6 +45,13 @@ async def check_premium_expiry():
                 line = user.get("line", "")
                 # 绑定的非 Premium 线路不需要更新
                 if not is_binded_premium_line(line):
+                    logger.info(
+                        f"用户 {user_name} ({user['username']}) 的 {user['service']} Premium 线路未绑定，跳过解绑"
+                    )
+                    await send_message_by_url(
+                        user["tg_id"],
+                        f"您的 {user['service']} Premium 已过期，到期时间为 {user['expiry_time']}。当前线路绑定线路为: {line}。请重新解锁 Premium 以继续使用高级功能。",
+                    )
                     continue
                 # 解绑 Premium 线路
                 new_line = unbind_premium_line(
