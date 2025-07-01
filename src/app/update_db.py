@@ -486,15 +486,18 @@ async def update_line_traffic_stats(
                 # 检查服务和 token
                 service_list = query_params.get("service")
                 token_list = query_params.get("token")
-
-                if query_params.get("api_key"):
-                    # 兼容 emby 反代
-                    token_list = query_params.get("api_key")
-                    service_list = ["emby"]
-
                 if not service_list or not token_list:
-                    logger.warning(f"缺少必要的参数 service 或 token: {message}")
-                    continue
+                    if query_params.get("api_key"):
+                        # 兼容 emby 反代
+                        logger.warning(
+                            f"缺少必要的参数 service 或 token，但发现 api_key: {url}"
+                        )
+                        service_list = ["emby"]
+                        token_list = query_params.get("api_key")
+                    else:
+                        # 如果没有 service 或 token，跳过此条记录
+                        logger.warning(f"缺少必要的参数 service 或 token: {url}")
+                        continue
 
                 service = service_list[0]
                 token = token_list[0]
