@@ -471,8 +471,12 @@ async def update_line_traffic_stats(
                 if status_code < 200 or status_code >= 300:
                     continue
 
-                if not url.startswith("/stream"):
+                if not url.startswith("/stream") and not re.search(
+                    r"[Oo]riginal\.|[Ss]tream\.?", url
+                ):
                     # 只处理 /stream 路径的请求
+                    # 或者包含 "Original." 的请求（兼容下 emby 反代）
+                    logger.debug(f"跳过非流媒体请求: {url}")
                     continue
 
                 # 解析 URL 获取服务信息
@@ -482,6 +486,11 @@ async def update_line_traffic_stats(
                 # 检查服务和 token
                 service_list = query_params.get("service")
                 token_list = query_params.get("token")
+
+                if query_params.get("api_key"):
+                    # 兼容 emby 反代
+                    token_list = query_params.get("api_key")
+                    service_list = ["emby"]
 
                 if not service_list or not token_list:
                     logger.warning(f"缺少必要的参数 service 或 token: {message}")
