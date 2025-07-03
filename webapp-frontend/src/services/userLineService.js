@@ -148,6 +148,56 @@ export async function getAvailablePlexLinesByUser(email) {
   return getAvailableLinesByUser('plex', null, email);
 }
 
+/**
+ * 基于用户名/邮箱获取当前绑定的线路信息
+ * @param {string} service - 服务类型 ('emby' 或 'plex')
+ * @param {string} username - 用户名（Emby用）
+ * @param {string} email - 邮箱（Plex用）
+ * @returns {Promise<Object>} 当前绑定的线路信息
+ */
+export async function getCurrentBoundLine(service, username, email) {
+  try {
+    const payload = {};
+    
+    if (service === 'emby') {
+      payload.username = username;
+    } else {
+      payload.email = email;
+    }
+    
+    const response = await apiClient.post(`/api/user/lines/${service}/current`, payload);
+    return {
+      success: true,
+      data: response.data
+    };
+  } catch (error) {
+    console.error(`获取用户当前绑定的${service}线路失败:`, error);
+    return {
+      success: false,
+      error: error,
+      message: error.response?.data?.detail || error.response?.data?.message || '获取当前绑定线路失败'
+    };
+  }
+}
+
+/**
+ * 基于用户名获取当前绑定的Emby线路信息
+ * @param {string} username - Emby用户名
+ * @returns {Promise<Object>} 当前绑定的线路信息
+ */
+export async function getCurrentBoundEmbyLine(username) {
+  return getCurrentBoundLine('emby', username, null);
+}
+
+/**
+ * 基于邮箱获取当前绑定的Plex线路信息
+ * @param {string} email - Plex邮箱
+ * @returns {Promise<Object>} 当前绑定的线路信息
+ */
+export async function getCurrentBoundPlexLine(email) {
+  return getCurrentBoundLine('plex', null, email);
+}
+
 // 为了向后兼容，保留原有的特定服务函数
 
 /**

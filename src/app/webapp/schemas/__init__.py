@@ -32,6 +32,7 @@ from .user import (
     BindPlexRequest,
     CreditsTransferRequest,
     CreditsTransferResponse,
+    CurrentLineResponse,
     EmbyLineInfo,
     PlexLineInfo,
     PlexLineRequest,

@@ -137,3 +137,11 @@ class CreditsTransferResponse(BaseModel):
     transferred_amount: Optional[float] = None
     fee_amount: Optional[float] = None
     current_credits: Optional[float] = None
+
+
+class CurrentLineResponse(BaseModel):
+    """当前绑定线路响应模型"""
+
+    success: bool
+    message: str
+    line: Optional[str] = None

@@ -369,14 +369,15 @@ class DB:
 
     def get_plex_info_by_plex_email(self, plex_email: str):
         rslt = self.cur.execute(
-            "SELECT * FROM user WHERE plex_email = ?", (plex_email,)
+            "SELECT * FROM user WHERE LOWER(plex_email) = ?", (plex_email.lower(),)
         )
         info = rslt.fetchone()
         return info
 
     def get_emby_info_by_emby_username(self, username: str):
         return self.cur.execute(
-            "SELECT * FROM emby_user WHERE emby_username = ?", (username,)
+            "SELECT * FROM emby_user WHERE LOWER(emby_username) = ?",
+            (username.lower(),),
         ).fetchone()
 
     def get_emby_info_by_tg_id(self, tg_id):

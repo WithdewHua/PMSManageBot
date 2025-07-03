@@ -189,7 +189,19 @@
                 >
                   <v-list-item-title class="d-flex align-center justify-space-between">
                     <div class="line-name-container">
-                      <span class="line-name">{{ lineInfo.name }}</span>
+                      <div class="line-name-wrapper">
+                        <span class="line-name">{{ lineInfo.name }}</span>
+                        <v-chip
+                          v-if="currentBoundLine === lineInfo.name"
+                          size="x-small"
+                          color="success"
+                          variant="flat"
+                          class="ml-2 current-line-chip"
+                        >
+                          <v-icon size="x-small" class="mr-1">mdi-link</v-icon>
+                          当前绑定
+                        </v-chip>
+                      </div>
                       <div v-if="lineInfo.tags && lineInfo.tags.length > 0" class="tags-container mt-1">
                         <v-chip
                           v-for="tag in lineInfo.tags"
@@ -279,7 +291,7 @@
 </template>
 
 <script>
-import { authBindLine, getAvailableEmbyLinesByUser, getAvailablePlexLinesByUser } from '../services/userLineService';
+import { authBindLine, getAvailableEmbyLinesByUser, getAvailablePlexLinesByUser, getCurrentBoundEmbyLine, getCurrentBoundPlexLine } from '../services/userLineService';
 
 export default {
   name: 'BindLineDialog',
@@ -299,6 +311,7 @@ export default {
       selectedLine: '',
       customLine: '',
       availableLines: [],
+      currentBoundLine: null, // 存储当前绑定的线路信息
       errorMessage: '',
       successMessage: '',
       plexAuthMethod: 'password', // 默认Plex认证方式为密码
@@ -338,6 +351,7 @@ export default {
       // 服务类型改变时重置表单和线路列表
       this.resetForm();
       this.availableLines = [];
+      this.currentBoundLine = null;
       this.selectedLine = '';
       this.customLine = '';
     },
@@ -346,6 +360,7 @@ export default {
       this.password = '';
       this.plexToken = '';
       this.availableLines = [];
+      this.currentBoundLine = null;
       this.selectedLine = '';
       this.errorMessage = '';
     },
@@ -353,6 +368,7 @@ export default {
       handler() {
         // 用户名变化时清空线路列表和错误信息
         this.availableLines = [];
+        this.currentBoundLine = null;
         this.selectedLine = '';
         this.errorMessage = '';
       },
@@ -362,6 +378,7 @@ export default {
       handler() {
         // 邮箱变化时清空线路列表和错误信息
         this.availableLines = [];
+        this.currentBoundLine = null;
         this.selectedLine = '';
         this.errorMessage = '';
       },
@@ -415,6 +432,7 @@ export default {
       this.plexToken = '';
       this.selectedLine = '';
       this.customLine = '';
+      this.currentBoundLine = null; // 重置当前绑定线路信息
       this.errorMessage = '';
       this.successMessage = '';
       this.showTokenHelp = false; // 重置帮助提示状态
@@ -432,11 +450,13 @@ export default {
       if (this.serviceType === 'emby') {
         if (!this.username || !this.username.trim()) {
           this.availableLines = [];
+          this.currentBoundLine = null;
           return;
         }
       } else {
         if (!this.email || !this.email.trim()) {
           this.availableLines = [];
+          this.currentBoundLine = null;
           return;
         }
       }
@@ -444,23 +464,39 @@ export default {
       this.loadingLines = true;
       this.errorMessage = '';
       try {
-        let lines = [];
-        if (this.serviceType === 'emby') {
-          lines = await getAvailableEmbyLinesByUser(this.username);
-        } else {
-          lines = await getAvailablePlexLinesByUser(this.email);
-        }
+        // 并行获取可用线路和当前绑定线路
+        const [linesResult, currentLineResult] = await Promise.all([
+          this.serviceType === 'emby' 
+            ? getAvailableEmbyLinesByUser(this.username)
+            : getAvailablePlexLinesByUser(this.email),
+          this.serviceType === 'emby'
+            ? getCurrentBoundEmbyLine(this.username)
+            : getCurrentBoundPlexLine(this.email)
+        ]);
         
         // 保留完整的线路信息（包括标签）
-        this.availableLines = lines;
+        this.availableLines = linesResult;
+        
+        // 处理当前绑定线路信息
+        if (currentLineResult.success && currentLineResult.data?.line) {
+          this.currentBoundLine = currentLineResult.data.line;
+          // 如果没有手动选择过线路，自动设置为当前绑定的线路
+          if (!this.selectedLine) {
+            this.selectedLine = this.currentBoundLine;
+          }
+        } else {
+          this.currentBoundLine = null;
+        }
+        
       } catch (error) {
-        console.error('获取线路列表失败:', error);
+        console.error('获取线路信息失败:', error);
         if (error.response?.data?.message) {
           this.errorMessage = error.response.data.message;
         } else {
-          this.errorMessage = `获取线路列表失败，请检查${this.serviceType === 'emby' ? '用户名' : '邮箱'}是否正确`;
+          this.errorMessage = `获取线路信息失败，请检查${this.serviceType === 'emby' ? '用户名' : '邮箱'}是否正确`;
         }
         this.availableLines = [];
+        this.currentBoundLine = null;
       } finally {
         this.loadingLines = false;
       }
@@ -569,6 +605,9 @@ export default {
         
         if (result.success) {
           this.successMessage = result.message || '认证并绑定线路成功';
+          
+          // 更新当前绑定线路
+          this.currentBoundLine = this.selectedLine;
           
           // 立即通知父组件刷新数据
           this.$emit('line-bound', {
@@ -682,12 +721,27 @@ export default {
   min-width: 0;
 }
 
+.line-name-wrapper {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
 .line-name {
   font-weight: 500;
   font-size: 14px;
   word-break: break-all;
   overflow-wrap: break-word;
   line-height: 1.3;
+}
+
+.current-line-chip {
+  color: white !important;
+  font-weight: 500 !important;
+  font-size: 10px !important;
+  height: 20px !important;
 }
 
 .tags-container {

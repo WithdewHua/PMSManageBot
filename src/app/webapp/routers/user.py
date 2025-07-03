@@ -31,6 +31,7 @@ from app.webapp.schemas import (
     BindPlexRequest,
     CreditsTransferRequest,
     CreditsTransferResponse,
+    CurrentLineResponse,
     EmbyLineInfo,
     EmbyLineRequest,
     EmbyLinesResponse,
@@ -1563,5 +1564,75 @@ async def get_all_users(
     except Exception as e:
         logger.error(f"获取用户列表失败: {str(e)}")
         raise HTTPException(status_code=500, detail="获取用户列表失败")
+    finally:
+        db.close()
+
+
+@router.post("/lines/{service}/current", response_model=CurrentLineResponse)
+@require_telegram_auth
+async def get_current_bound_line(
+    service: str,
+    request: Request,
+    data: dict = Body(...),
+):
+    """获取用户当前绑定的线路信息（基于用户名/邮箱）"""
+    if service not in ["emby", "plex"]:
+        raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
+
+    db = DB()
+    try:
+        if service == "emby":
+            username = data.get("username")
+            if not username:
+                return CurrentLineResponse(success=False, message="用户名不能为空")
+
+            # 查询Emby用户信息
+            emby_info = db.get_emby_info_by_emby_username(username)
+            if not emby_info:
+                return CurrentLineResponse(
+                    success=False, message="该用户未在系统中注册"
+                )
+
+            current_line = emby_info[7]  # emby_line字段是第8列(索引7)
+            if current_line:
+                return CurrentLineResponse(
+                    success=True,
+                    line=current_line,
+                    message=f"用户 {username} 当前绑定线路: {current_line}",
+                )
+            else:
+                return CurrentLineResponse(
+                    success=True, line=None, message=f"用户 {username} 未绑定任何线路"
+                )
+
+        else:  # plex
+            email = data.get("email")
+            if not email:
+                return CurrentLineResponse(success=False, message="邮箱不能为空")
+
+            # 查询Plex用户信息
+            plex_info = db.get_plex_info_by_plex_email(email)
+            if not plex_info:
+                return CurrentLineResponse(
+                    success=False, message="该用户未在系统中注册"
+                )
+
+            current_line = plex_info[8]  # plex_line字段是第9列(索引8)
+            if current_line:
+                return CurrentLineResponse(
+                    success=True,
+                    line=current_line,
+                    message=f"用户 {email} 当前绑定线路: {current_line}",
+                )
+            else:
+                return CurrentLineResponse(
+                    success=True, line=None, message=f"用户 {email} 未绑定任何线路"
+                )
+
+    except Exception as e:
+        logger.error(f"获取用户当前绑定线路时发生错误: {str(e)}")
+        return CurrentLineResponse(
+            success=False, message=f"获取当前绑定线路失败: {str(e)}"
+        )
     finally:
         db.close()
