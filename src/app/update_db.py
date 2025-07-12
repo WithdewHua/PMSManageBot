@@ -486,6 +486,7 @@ async def update_line_traffic_stats(
                 # 检查服务和 token
                 service_list = query_params.get("service")
                 token_list = query_params.get("token")
+                line_list = query_params.get("line")
                 if not service_list or not token_list:
                     if query_params.get("api_key"):
                         # 兼容 emby 反代
@@ -501,6 +502,8 @@ async def update_line_traffic_stats(
 
                 service = service_list[0]
                 token = token_list[0]
+                # 优先使用 line 参数，如果没有则使用 filebeat 中定义的 backend
+                backend = line_list[0] if line_list else backend
 
                 username = None
                 user_id = None
