@@ -504,6 +504,9 @@ async def update_line_traffic_stats(
                 token = token_list[0]
                 # 优先使用 line 参数，如果没有则使用 filebeat 中定义的 backend
                 backend = line_list[0] if line_list else backend
+                if not backend:
+                    logger.warning(f"缺少 backend 信息: {url}")
+                    continue
 
                 username = None
                 user_id = None
