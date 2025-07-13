@@ -1662,7 +1662,16 @@ class DB:
 
                 # 添加线路数据
                 for line, traffic in line_results:
-                    period_data["lines"].append({"line": line, "traffic": traffic})
+                    # 排除自定义线路
+                    for _line in (
+                        settings.STREAM_BACKEND + settings.PREMIUM_STREAM_BACKEND
+                    ):
+                        if line.lower() in _line.lower():
+                            # 只统计已知的线路
+                            period_data["lines"].append(
+                                {"line": line, "traffic": traffic}
+                            )
+                            break
 
                 result[period_name] = period_data
 
