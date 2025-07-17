@@ -981,7 +981,7 @@ async def unbind_plex_line(
             logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定Plex账户")
             return BaseResponse(success=False, message="您尚未绑定 Plex 账户，请先绑定")
 
-        plex_username, plex_line = plex_info[1], plex_info[7]
+        plex_username, plex_line = plex_info[4], plex_info[8]
         if not plex_line:
             logger.warning(
                 f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定线路，无需解绑"
