@@ -502,8 +502,9 @@ async def update_line_traffic_stats(
 
                 service = service_list[0]
                 token = token_list[0]
-                # 优先使用 backend，因为 line 中可能会是反代的自定义线路，不应该这么统计
-                backend = backend or (line_list[0] if line_list else None)
+                # 优先使用 line 参数，如果没有则使用 backend
+                # line 可能是自定义线路，仍会统计到，只是在线路流量统计中不会显示
+                backend = line_list[0] if line_list else backend
                 if not backend:
                     logger.warning(f"缺少 backend 信息: {url}")
                     continue
