@@ -260,3 +260,9 @@ plex_token_cache = RedisCache(
     db=3,
     cache_key_prefix="plex_token_cache:",
 )
+
+# 存储用户积分信息
+user_credits_cache = RedisCache(
+    db=0,
+    cache_key_prefix="user_credits:",
+)

@@ -1,12 +1,17 @@
 import asyncio
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from time import time
 from urllib.parse import parse_qs, urlparse
 from uuid import NAMESPACE_URL, uuid3
 
-from app.cache import emby_api_key_cache, plex_token_cache, stream_traffic_cache
+from app.cache import (
+    emby_api_key_cache,
+    plex_token_cache,
+    stream_traffic_cache,
+    user_credits_cache,
+)
 from app.config import settings
 from app.db import DB
 from app.emby import Emby
@@ -41,16 +46,36 @@ def update_plex_credits():
             # 最大记 8h
             credits_inc = min(play_duration, 8)
             res = _db.cur.execute(
-                "SELECT credits,watched_time,tg_id FROM user WHERE plex_id=?",
+                "SELECT credits,watched_time,tg_id,plex_username,is_premium FROM user WHERE plex_id=?",
                 (plex_id,),
             ).fetchone()
             if not res:
                 continue
             watched_time_init = res[1]
             tg_id = res[2]
+            plex_username = res[3]
+            is_premium = res[4]
+            # 获取用户昨日的流量使用情况
+            traffic_usage = _db.get_user_daily_traffic(
+                plex_username,
+                "plex",
+                date=datetime.now(settings.TZ) - timedelta(days=1),
+            )
+            traffic_usage_exceed = traffic_usage - (
+                settings.USER_TRAFFIC_LIMIT
+                if not is_premium
+                else settings.PREMIUM_USER_TRAFFIC_LIMIT
+            )
+            traffic_cost_credits = 0
+            if traffic_usage_exceed > 0:
+                traffic_cost_credits = round(
+                    (traffic_usage_exceed / (10 * 1024 * 1024 * 1024))
+                    * settings.CREDITS_COST_PER_10GB,
+                    2,
+                )
             if not tg_id:
                 credits_init = res[0]
-                credits = credits_init + credits_inc
+                credits = credits_init + credits_inc - traffic_cost_credits
                 watched_time = watched_time_init + play_duration
                 _db.cur.execute(
                     "UPDATE user SET credits=?,watched_time=? WHERE plex_id=?",
@@ -60,7 +85,7 @@ def update_plex_credits():
                 credits_init = _db.cur.execute(
                     "SELECT credits FROM statistics WHERE tg_id=?", (tg_id,)
                 ).fetchone()[0]
-                credits = credits_init + credits_inc
+                credits = credits_init + credits_inc - traffic_cost_credits
                 watched_time = watched_time_init + play_duration
                 _db.cur.execute(
                     "UPDATE user SET watched_time=? WHERE plex_id=?",
@@ -79,7 +104,12 @@ Plex 观看积分更新通知
 ====================
 
 新增观看时长: {round(play_duration, 2)} 小时
-新增积分：{round(credits_inc, 2)}
+新增观看积分：{round(credits_inc, 2)}
+流量使用情况：{round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
+超出每日流量限额：{round(traffic_usage_exceed / (1024 * 1024 * 1024), 2)} GB
+流量消耗积分：{round(traffic_cost_credits, 2)}
+
+积分变化：{round(credits_inc - traffic_cost_credits, 2)}
 
 --------------------
 
@@ -111,7 +141,7 @@ def update_emby_credits():
     try:
         # 获取数据库中的观看时长信息
         users = _db.cur.execute(
-            "select emby_id, tg_id, emby_watched_time, emby_credits from emby_user"
+            "select emby_id, tg_id, emby_watched_time, emby_credits, emby_username, is_premium from emby_user"
         ).fetchall()
         for user in users:
             playduration = round(float(duration.get(user[0], 0)) / 3600, 2)
@@ -119,8 +149,28 @@ def update_emby_credits():
                 continue
             # 最大记 8
             credits_inc = min(playduration - user[2], 8)
+            emby_username, is_premium = user[4], user[5]
+            # 获取用户昨日的流量使用情况
+            traffic_usage = _db.get_user_daily_traffic(
+                emby_username,
+                "emby",
+                date=datetime.now(settings.TZ) - timedelta(days=1),
+            )
+            traffic_usage_exceed = traffic_usage - (
+                settings.USER_TRAFFIC_LIMIT
+                if not is_premium
+                else settings.PREMIUM_USER_TRAFFIC_LIMIT
+            )
+            traffic_cost_credits = 0
+            if traffic_usage_exceed > 0:
+                traffic_cost_credits = round(
+                    (traffic_usage_exceed / (10 * 1024 * 1024 * 1024))
+                    * settings.CREDITS_COST_PER_10GB,
+                    2,
+                )
+
             if not user[1]:
-                _credits = user[3] + credits_inc
+                _credits = user[3] + credits_inc - traffic_cost_credits
                 _db.cur.execute(
                     "UPDATE emby_user SET emby_watched_time=?,emby_credits=? WHERE emby_id=?",
                     (playduration, _credits, user[0]),
@@ -130,13 +180,13 @@ def update_emby_credits():
                 # statistics 表中有数据
                 if stats_info:
                     credits_init = stats_info[2]
-                    _credits = credits_init + credits_inc
+                    _credits = credits_init + credits_inc - traffic_cost_credits
                     _db.update_user_credits(_credits, tg_id=user[1])
                 else:
                     # 清空 emby_user 表中积分信息
                     _db.update_user_credits(0, emby_id=user[0])
                     # 在 statistic 表中增加用户数据
-                    _credits = user[3] + credits_inc
+                    _credits = user[3] + credits_inc - traffic_cost_credits
                     _db.add_user_data(user[1], credits=_credits)
                 # 更新 emby_user 表中观看时间
                 _db.cur.execute(
@@ -153,7 +203,12 @@ Emby 观看积分更新通知
 ====================
 
 新增观看时长: {round(playduration - user[2], 2)} 小时
-新增积分：{round(credits_inc, 2)}
+新增观看积分：{round(credits_inc, 2)}
+流量使用情况：{round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
+超出每日流量限额：{round(traffic_usage_exceed / (1024 * 1024 * 1024), 2)} GB
+流量消耗积分：{round(traffic_cost_credits, 2)}
+
+积分变化：{round(credits_inc - traffic_cost_credits, 2)}
 
 --------------------
 
@@ -585,6 +640,43 @@ async def update_line_traffic_stats(
 
     except Exception as e:
         logger.error(f"更新线路流量统计时发生错误: {e}")
+    finally:
+        _db.close()
+
+
+def update_users_credits():
+    """
+    检查用户积分是否为负数
+    """
+    _db = DB()
+    try:
+        # 从 statistics 表中获取所有用户的积分信息
+        stats = _db.cur.execute("SELECT tg_id, credits FROM statistics").fetchall()
+        user_stats = {tg_id: credits for tg_id, credits in stats}
+        # 获取 Plex 用户信息
+        plex_users = _db.cur.execute(
+            "SELECT plex_id, tg_id, credits, plex_username FROM user"
+        ).fetchall()
+        for user in plex_users:
+            tg_id = user[1]
+            credits = user[2]
+            plex_username = user[3]
+            if tg_id:
+                credits = user_stats.get(tg_id, 0)
+            user_credits_cache.put(f"plex:{plex_username.lower()}", credits)
+        # 获取 Emby 用户信息
+        emby_users = _db.cur.execute(
+            "SELECT emby_id, tg_id, emby_credits, emby_username FROM emby_user"
+        ).fetchall()
+        for user in emby_users:
+            tg_id = user[1]
+            credits = user[2]
+            emby_username = user[3]
+            if tg_id:
+                credits = user_stats.get(tg_id, 0)
+            user_credits_cache.put(f"emby:{emby_username.lower()}", credits)
+    except Exception as e:
+        logger.error(f"检查用户积分时发生错误: {e}")
     finally:
         _db.close()
 

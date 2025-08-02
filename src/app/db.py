@@ -1572,20 +1572,34 @@ class DB:
             logger.error(f"Error getting premium line traffic statistics: {e}")
             return []
 
-    def get_user_daily_traffic(self, username: str, service: str = None):
-        """获取用户今日流量消耗"""
+    def get_user_daily_traffic(
+        self, username: str, service: str = None, date: datetime = None
+    ):
+        """获取用户指定日期的流量消耗，默认为今日"""
         try:
-            now = datetime.now(settings.TZ)
-            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            # 如果未指定日期，使用今日
+            if date is None:
+                date = datetime.now(settings.TZ)
 
-            # 查询特定服务的今日流量
+            # 确保日期对象包含时区信息
+            if date.tzinfo is None:
+                date = date.replace(tzinfo=settings.TZ)
+            else:
+                date = date.astimezone(settings.TZ)
+
+            # 计算指定日期的开始和结束时间
+            day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
+            day_end = date.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+            # 查询特定服务的指定日期流量
             query = """
             SELECT COALESCE(SUM(send_bytes), 0) as traffic
             FROM line_traffic_stats 
-            WHERE LOWER(username) = ? AND service = ? AND timestamp >= ?
+            WHERE LOWER(username) = ? AND service = ? AND timestamp >= ? AND timestamp <= ?
             """
             result = self.cur.execute(
-                query, (username.lower(), service, today_start.isoformat())
+                query,
+                (username.lower(), service, day_start.isoformat(), day_end.isoformat()),
             ).fetchone()
             return result[0] if result else 0
 

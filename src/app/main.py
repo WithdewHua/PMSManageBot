@@ -20,6 +20,7 @@ from app.update_db import (
     update_credits,
     update_line_traffic_stats,
     update_plex_info,
+    update_users_credits,
 )
 from app.utils import refresh_emby_user_info, refresh_tg_user_info
 from telegram.ext import ApplicationBuilder
@@ -152,6 +153,17 @@ def add_init_scheduler_job():
         minute="*/1",  # 每 1 分钟执行一次
     )
     logger.info("添加定时任务：每 1 分钟更新线路流量统计信息")
+
+    # 每 5min 更新一次积分信息
+    scheduler.add_sync_job(
+        func=update_users_credits,
+        trigger="cron",
+        id="update_users_credits",
+        replace_existing=True,
+        max_instances=1,
+        minute="*/5",  # 每 5 分钟执行一次
+    )
+    logger.info("添加定时任务：每 5 分钟更新用户积分信息")
 
 
 if __name__ == "__main__":

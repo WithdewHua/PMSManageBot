@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     INVITATION_CREDITS: int = 288
     PREMIUM_DAILY_CREDITS: int = 15
     DONATION_MULTIPLIER: int = 5  # 捐赠积分倍数
+    USER_TRAFFIC_LIMIT: int = (
+        30 * 1024 * 1024 * 1024
+    )  # 每日用户流量限额，单位为字节（30GB）
+    PREMIUM_USER_TRAFFIC_LIMIT: int = (
+        60 * 1024 * 1024 * 1024
+    )  # 每日高级用户流量限额，单位为字节（60GB）
+    CREDITS_COST_PER_10GB: int = 5  # 超出每日限额后，每 10GB 流量消耗的积分
 
     # 功能开放设置
     PREMIUM_UNLOCK_ENABLED: bool = False  # 是否开放 premium 解锁功能
