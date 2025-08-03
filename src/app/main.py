@@ -17,10 +17,10 @@ from app.premium import check_premium_expiring_soon, check_premium_expiry
 from app.scheduler import Scheduler
 from app.update_db import (
     finish_expired_auctions_job,
+    rewrite_users_credits_to_redis,
     update_credits,
     update_line_traffic_stats,
     update_plex_info,
-    update_users_credits,
 )
 from app.utils import refresh_emby_user_info, refresh_tg_user_info
 from telegram.ext import ApplicationBuilder
@@ -156,7 +156,7 @@ def add_init_scheduler_job():
 
     # 每 5min 更新一次积分信息
     scheduler.add_sync_job(
-        func=update_users_credits,
+        func=rewrite_users_credits_to_redis,
         trigger="cron",
         id="update_users_credits",
         replace_existing=True,

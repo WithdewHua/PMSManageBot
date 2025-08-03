@@ -660,9 +660,9 @@ async def update_line_traffic_stats(
         _db.close()
 
 
-def update_users_credits():
+def rewrite_users_credits_to_redis():
     """
-    检查用户积分是否为负数
+    将用户积分信息写入 redis 缓存
     """
     _db = DB()
     try:
