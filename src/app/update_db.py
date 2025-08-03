@@ -28,13 +28,15 @@ from app.utils import (
 def update_plex_credits():
     """更新积分及观看时长"""
     logger.info("开始更新 Plex 用户积分及观看时长")
-    # 获取一天内的观看时长
-    duration = get_user_total_duration(
-        Tautulli().get_home_stats(1, "duration", len(Plex().users_by_id), "top_users")
-    )
     _db = DB()
     notification_tasks = []
     try:
+        # 获取一天内的观看时长
+        duration = get_user_total_duration(
+            Tautulli().get_home_stats(
+                1, "duration", len(Plex().users_by_id), "top_users"
+            )
+        )
         # update credits and watched_time
         res = _db.cur.execute("select plex_id from user")
         users = res.fetchall()
@@ -121,7 +123,14 @@ Plex 观看积分更新通知
                     )
 
     except Exception as e:
-        print(e)
+        logger.error(f"更新 Plex 用户积分及观看时长失败: {e}")
+        notification_tasks.append(
+            (
+                settings.ADMIN_CHAT_ID[0],
+                f"更新 Plex 用户积分及观看时长失败: {e}",
+            )
+        )
+        return notification_tasks
     else:
         _db.con.commit()
         logger.info("Plex 用户积分及观看时长更新完成")
@@ -135,10 +144,10 @@ def update_emby_credits():
     logger.info("开始更新 Emby 用户积分及观看时长")
     # 获取所有用户的观看时长
     emby = Emby()
-    duration = emby.get_user_total_play_time()
     _db = DB()
     notification_tasks = []
     try:
+        duration = emby.get_user_total_play_time()
         # 获取数据库中的观看时长信息
         users = _db.cur.execute(
             "select emby_id, tg_id, emby_watched_time, emby_credits, emby_username, is_premium from emby_user"
@@ -220,7 +229,14 @@ Emby 观看积分更新通知
                     )
 
     except Exception as e:
-        print(e)
+        logger.error(f"更新 Emby 用户积分及观看时长失败: {e}")
+        notification_tasks.append(
+            (
+                settings.ADMIN_CHAT_ID[0],
+                f"更新 Emby 用户积分及观看时长失败: {e}",
+            )
+        )
+        return notification_tasks
     else:
         _db.con.commit()
         logger.info("Emby 用户积分及观看时长更新完成")
