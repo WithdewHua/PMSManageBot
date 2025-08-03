@@ -108,7 +108,7 @@ Plex 观看积分更新通知
 新增观看时长: {round(play_duration, 2)} 小时
 新增观看积分：{round(credits_inc, 2)}
 流量使用情况：{round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
-超出每日流量限额：{round(traffic_usage_exceed / (1024 * 1024 * 1024), 2)} GB
+超出每日流量限额：{max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
 流量消耗积分：{round(traffic_cost_credits, 2)}
 
 积分变化：{round(credits_inc - traffic_cost_credits, 2)}
@@ -214,7 +214,7 @@ Emby 观看积分更新通知
 新增观看时长: {round(playduration - user[2], 2)} 小时
 新增观看积分：{round(credits_inc, 2)}
 流量使用情况：{round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
-超出每日流量限额：{round(traffic_usage_exceed / (1024 * 1024 * 1024), 2)} GB
+超出每日流量限额：{max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
 流量消耗积分：{round(traffic_cost_credits, 2)}
 
 积分变化：{round(credits_inc - traffic_cost_credits, 2)}
