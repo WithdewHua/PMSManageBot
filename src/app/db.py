@@ -1573,9 +1573,20 @@ class DB:
             return []
 
     def get_user_daily_traffic(
-        self, username: str, service: str = None, date: datetime = None
+        self,
+        username: str,
+        service: str = None,
+        date: datetime = None,
+        premium_only: bool = False,
     ):
-        """获取用户指定日期的流量消耗，默认为今日"""
+        """获取用户指定日期的流量消耗，默认为今日
+
+        Args:
+            username: 用户名
+            service: 服务类型 (plex/emby)
+            date: 指定日期，默认为今日
+            premium_only: 是否只统计 premium 线路流量，默认为 False
+        """
         try:
             # 如果未指定日期，使用今日
             if date is None:
@@ -1591,16 +1602,34 @@ class DB:
             day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
             day_end = date.replace(hour=23, minute=59, second=59, microsecond=999999)
 
+            # 构建查询条件
+            base_conditions = "LOWER(username) = ? AND service = ? AND timestamp >= ? AND timestamp <= ?"
+            params = [
+                username.lower(),
+                service,
+                day_start.isoformat(),
+                day_end.isoformat(),
+            ]
+
+            # 如果只统计 premium 线路
+            if premium_only:
+                premium_lines = settings.PREMIUM_STREAM_BACKEND
+                if premium_lines:
+                    # 构建线路过滤条件
+                    line_conditions = " OR ".join(["line = ?" for _ in premium_lines])
+                    base_conditions += f" AND ({line_conditions})"
+                    params.extend(premium_lines)
+                else:
+                    # 如果没有配置 premium 线路，返回 0
+                    return 0
+
             # 查询特定服务的指定日期流量
-            query = """
+            query = f"""
             SELECT COALESCE(SUM(send_bytes), 0) as traffic
             FROM line_traffic_stats 
-            WHERE LOWER(username) = ? AND service = ? AND timestamp >= ? AND timestamp <= ?
+            WHERE {base_conditions}
             """
-            result = self.cur.execute(
-                query,
-                (username.lower(), service, day_start.isoformat(), day_end.isoformat()),
-            ).fetchone()
+            result = self.cur.execute(query, params).fetchone()
             return result[0] if result else 0
 
         except Exception as e:

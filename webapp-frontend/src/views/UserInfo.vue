@@ -217,6 +217,13 @@
               </div>
               <div class="value-display traffic-value">{{ formatTraffic(userInfo.plex_info.daily_traffic || 0) }}</div>
             </div>
+            <div v-if="userInfo.plex_info.daily_premium_traffic > 0" class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-star-circle</v-icon>
+                <span>Premium 线路流量：</span>
+              </div>
+              <div class="value-display traffic-value premium-traffic">{{ formatTraffic(userInfo.plex_info.daily_premium_traffic || 0) }}</div>
+            </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
                 <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-crown</v-icon>
@@ -350,6 +357,13 @@
                 <span>今日流量消耗：</span>
               </div>
               <div class="value-display traffic-value">{{ formatTraffic(userInfo.emby_info.daily_traffic || 0) }}</div>
+            </div>
+            <div v-if="userInfo.emby_info.daily_premium_traffic > 0" class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-star-circle</v-icon>
+                <span>Premium 线路流量：</span>
+              </div>
+              <div class="value-display traffic-value premium-traffic">{{ formatTraffic(userInfo.emby_info.daily_premium_traffic || 0) }}</div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
@@ -641,10 +655,14 @@ export default {
         donation: 0,
         invitation_codes: [],
         plex_info: {
-          line: null
+          line: null,
+          daily_traffic: 0,
+          daily_premium_traffic: 0
         },
         emby_info: {
-          line: null
+          line: null,
+          daily_traffic: 0,
+          daily_premium_traffic: 0
         },
         overseerr_info: null,
         is_admin: false
@@ -1342,6 +1360,13 @@ export default {
   background: linear-gradient(135deg, rgba(96, 125, 139, 0.1) 0%, rgba(96, 125, 139, 0.05) 100%);
   color: #455A64;
   border: 1px solid rgba(96, 125, 139, 0.2);
+}
+
+.premium-traffic {
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.15) 0%, rgba(255, 193, 7, 0.08) 100%);
+  color: #F57C00;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.1);
 }
 
 /* 观看等级图标样式 */

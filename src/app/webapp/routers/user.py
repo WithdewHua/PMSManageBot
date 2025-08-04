@@ -72,6 +72,10 @@ async def get_user_info(
             if plex_info:
                 # 获取今日流量消耗
                 daily_traffic = db.get_user_daily_traffic(plex_info[4], "plex")
+                # 获取今日 Premium 线路流量消耗
+                daily_premium_traffic = db.get_user_daily_traffic(
+                    plex_info[4], "plex", premium_only=True
+                )
 
                 user_info.plex_info = {
                     "username": plex_info[4],
@@ -82,9 +86,10 @@ async def get_user_info(
                     "is_premium": plex_info[9] == 1,
                     "premium_expiry": plex_info[10],
                     "daily_traffic": daily_traffic,
+                    "daily_premium_traffic": daily_premium_traffic,
                 }
                 logger.debug(
-                    f"用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 信息获取成功，今日流量: {daily_traffic} bytes"
+                    f"用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 信息获取成功，今日流量: {daily_traffic} bytes, Premium流量: {daily_premium_traffic} bytes"
                 )
             else:
                 logger.debug(
@@ -102,6 +107,10 @@ async def get_user_info(
             if emby_info:
                 # 获取今日流量消耗
                 daily_traffic = db.get_user_daily_traffic(emby_info[0], "emby")
+                # 获取今日 Premium 线路流量消耗
+                daily_premium_traffic = db.get_user_daily_traffic(
+                    emby_info[0], "emby", premium_only=True
+                )
 
                 user_info.emby_info = {
                     "username": emby_info[0],
@@ -111,6 +120,7 @@ async def get_user_info(
                     "is_premium": emby_info[8] == 1,
                     "premium_expiry": emby_info[9],
                     "daily_traffic": daily_traffic,
+                    "daily_premium_traffic": daily_premium_traffic,
                 }
                 created_at = (
                     Emby().get_user_info_from_username(emby_info[0]).get("date_created")
@@ -119,7 +129,7 @@ async def get_user_info(
                     created_at = created_at.split("T")[0]  # 只保留日期部分
                 user_info.emby_info["created_at"] = created_at
                 logger.debug(
-                    f"用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 信息获取成功，今日流量: {daily_traffic} bytes"
+                    f"用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 信息获取成功，今日流量: {daily_traffic} bytes, Premium流量: {daily_premium_traffic} bytes"
                 )
             else:
                 logger.debug(
