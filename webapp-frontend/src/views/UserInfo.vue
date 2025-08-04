@@ -213,14 +213,14 @@
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
                 <v-icon size="small" color="blue-grey-darken-1" class="mr-2">mdi-cloud-download</v-icon>
-                <span>今日流量消耗：</span>
+                <span>今日总流量：</span>
               </div>
               <div class="value-display traffic-value">{{ formatTraffic(userInfo.plex_info.daily_traffic || 0) }}</div>
             </div>
             <div v-if="userInfo.plex_info.daily_premium_traffic > 0" class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
                 <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-star-circle</v-icon>
-                <span>Premium 线路流量：</span>
+                <span>今日 Premium 流量：</span>
               </div>
               <div class="value-display traffic-value premium-traffic">{{ formatTraffic(userInfo.plex_info.daily_premium_traffic || 0) }}</div>
             </div>
@@ -354,14 +354,14 @@
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
                 <v-icon size="small" color="blue-grey-darken-1" class="mr-2">mdi-cloud-download</v-icon>
-                <span>今日流量消耗：</span>
+                <span>今日总流量：</span>
               </div>
               <div class="value-display traffic-value">{{ formatTraffic(userInfo.emby_info.daily_traffic || 0) }}</div>
             </div>
             <div v-if="userInfo.emby_info.daily_premium_traffic > 0" class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
                 <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-star-circle</v-icon>
-                <span>Premium 线路流量：</span>
+                <span>今日 Premium 流量：</span>
               </div>
               <div class="value-display traffic-value premium-traffic">{{ formatTraffic(userInfo.emby_info.daily_premium_traffic || 0) }}</div>
             </div>
