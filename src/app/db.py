@@ -1776,7 +1776,7 @@ class DB:
                 AND lts.timestamp <= ?
                 AND lts.username IS NOT NULL
                 AND lts.username != ''
-            GROUP BY lts.username, lts.user_id, u.is_premium, u.tg_id
+            GROUP BY LOWER(lts.username), lts.user_id, u.is_premium, u.tg_id
             ORDER BY total_traffic DESC
             LIMIT 50
             """
@@ -1838,7 +1838,7 @@ class DB:
                 AND lts.timestamp <= ?
                 AND lts.username IS NOT NULL
                 AND lts.username != ''
-            GROUP BY lts.username, lts.user_id, eu.is_premium, eu.tg_id
+            GROUP BY LOWER(lts.username), lts.user_id, eu.is_premium, eu.tg_id
             ORDER BY total_traffic DESC
             LIMIT 50
             """
