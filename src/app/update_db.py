@@ -123,6 +123,11 @@ Premium 流量使用情况：{round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
                         )
                     )
 
+            logger.info(
+                f"更新 Plex 用户 {plex_username} ({plex_id}) 的积分和观看时长: "
+                f"新增观看时长 {round(play_duration, 2)} 小时，新增观看积分 {round(credits_inc, 2)}, 流量消耗积分 {round(traffic_cost_credits, 2)}"
+            )
+
     except Exception as e:
         logger.error(f"更新 Plex 用户积分及观看时长失败: {e}")
         notification_tasks.append(
@@ -230,6 +235,10 @@ Premium 流量使用情况：{round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
                         )
                     )
 
+            logger.info(
+                f"更新 Emby 用户 {emby_username} ({user[0]}) 的积分和观看时长: "
+                f"新增观看时长 {round(playduration - user[2], 2)} 小时，新增观看积分 {round(credits_inc, 2)}, 流量消耗积分 {round(traffic_cost_credits, 2)}"
+            )
     except Exception as e:
         logger.error(f"更新 Emby 用户积分及观看时长失败: {e}")
         notification_tasks.append(
