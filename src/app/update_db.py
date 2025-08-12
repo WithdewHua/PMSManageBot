@@ -97,7 +97,7 @@ def update_plex_credits():
                 _db.cur.execute(
                     "UPDATE statistics SET credits=? WHERE tg_id=?", (credits, tg_id)
                 )
-                if int(play_duration) > 0:
+                if play_duration > 0:
                     # 需要发送通知
                     notification_tasks.append(
                         (
@@ -204,7 +204,7 @@ def update_emby_credits():
                     "UPDATE emby_user SET emby_watched_time=? WHERE emby_id=?",
                     (playduration, user[0]),
                 )
-                if int(playduration - user[2]) > 0:
+                if (playduration - user[2]) > 0:
                     # 需要发送消息通知
                     notification_tasks.append(
                         (
