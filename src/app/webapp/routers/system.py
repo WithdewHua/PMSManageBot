@@ -19,19 +19,24 @@ async def get_system_stats(
 
     db = DB()
     try:
-        # 获取Plex用户数量
+        # 获取所有Plex用户数量
         plex_users_count = db.get_plex_users_num()
 
-        # 获取Emby用户数量
+        # 获取所有Emby用户数量
         emby_users_count = db.get_emby_users_num()
 
         # 获取总用户数量（去重，避免同时绑定两个服务的用户被重复计算）
+        # 1. 先统计有 tg_id 的用户（通过 tg_id 去重）
+        # 2. 再统计没有 tg_id 的用户（这些用户无法去重，按账户数量计算）
         total_users_query = """
-        SELECT COUNT(DISTINCT tg_id) FROM (
-            SELECT tg_id FROM user WHERE tg_id IS NOT NULL
-            UNION
-            SELECT tg_id FROM emby_user WHERE tg_id IS NOT NULL
-        )
+        SELECT 
+            (SELECT COUNT(DISTINCT tg_id) FROM (
+                SELECT tg_id FROM user WHERE tg_id IS NOT NULL
+                UNION
+                SELECT tg_id FROM emby_user WHERE tg_id IS NOT NULL
+            )) +
+            (SELECT COUNT(*) FROM user WHERE tg_id IS NULL) +
+            (SELECT COUNT(*) FROM emby_user WHERE tg_id IS NULL)
         """
         rslt = db.cur.execute(total_users_query)
         total_users_count = rslt.fetchone()[0]
