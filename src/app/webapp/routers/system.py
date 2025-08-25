@@ -68,6 +68,12 @@ async def get_system_status():
             "premium_unlock_enabled": settings.PREMIUM_UNLOCK_ENABLED,
             "premium_daily_credits": settings.PREMIUM_DAILY_CREDITS,
             "credits_transfer_enabled": settings.CREDITS_TRANSFER_ENABLED,
+            "community_links": {
+                "group": getattr(settings, "TG_GROUP", ""),
+                "channel": getattr(
+                    settings, "TG_CHANNEL", getattr(settings, "TG_GROUP", "")
+                ),  # 如果没有单独的频道，使用群组链接
+            },
         }
 
         logger.info("获取系统状态信息")

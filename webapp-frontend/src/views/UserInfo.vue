@@ -561,6 +561,78 @@
           </v-card-text>
         </v-card>
 
+        <!-- 交流群和通知频道链接 - 只有拥有账户的用户才能看到 -->
+        <div v-if="(userInfo.plex_info || userInfo.emby_info) && (systemStatus.community_links?.group || systemStatus.community_links?.channel)" class="community-links-section">
+          <v-card class="community-links-card">
+            <v-card-title class="card-title-section">
+              <v-icon start color="blue-darken-2">mdi-account-group</v-icon> 交流讨论
+            </v-card-title>
+            <v-card-text>
+              <div class="community-links-grid">
+                <!-- 交流群链接 -->
+                <div 
+                  v-if="systemStatus.community_links?.group"
+                  class="community-link-item" 
+                  @click="openCommunityLink('group')"
+                  @contextmenu.prevent="showLinkContextMenu('group', $event)"
+                  :title="'点击打开，右键复制链接'"
+                >
+                  <div class="link-icon-wrapper group-link">
+                    <v-icon color="white" size="20">mdi-forum</v-icon>
+                  </div>
+                  <div class="link-content">
+                    <div class="link-title">用户交流群</div>
+                    <div class="link-description">随便聊聊</div>
+                  </div>
+                  <div class="link-actions">
+                    <v-btn
+                      icon
+                      size="x-small"
+                      variant="text"
+                      @click.stop="copyLinkUrl('group')"
+                      title="复制链接"
+                      class="copy-link-btn"
+                    >
+                      <v-icon size="16">mdi-content-copy</v-icon>
+                    </v-btn>
+                    <v-icon color="primary" size="20">mdi-chevron-right</v-icon>
+                  </div>
+                </div>
+
+                <!-- 通知频道链接 -->
+                <div 
+                  v-if="systemStatus.community_links?.channel && systemStatus.community_links.channel !== systemStatus.community_links.group"
+                  class="community-link-item" 
+                  @click="openCommunityLink('channel')"
+                  @contextmenu.prevent="showLinkContextMenu('channel', $event)"
+                  :title="'点击打开，右键复制链接'"
+                >
+                  <div class="link-icon-wrapper channel-link">
+                    <v-icon color="white" size="20">mdi-bullhorn</v-icon>
+                  </div>
+                  <div class="link-content">
+                    <div class="link-title">官方通知频道</div>
+                    <div class="link-description">获取最新服务公告和更新</div>
+                  </div>
+                  <div class="link-actions">
+                    <v-btn
+                      icon
+                      size="x-small"
+                      variant="text"
+                      @click.stop="copyLinkUrl('channel')"
+                      title="复制链接"
+                      class="copy-link-btn"
+                    >
+                      <v-icon size="16">mdi-content-copy</v-icon>
+                    </v-btn>
+                    <v-icon color="primary" size="20">mdi-chevron-right</v-icon>
+                  </div>
+                </div>
+              </div>
+            </v-card-text>
+          </v-card>
+        </div>
+
         <div v-if="!userInfo.plex_info && !userInfo.emby_info" class="no-accounts-message">
           <v-alert 
             type="info" 
@@ -685,7 +757,11 @@ export default {
       },
       activityLoading: false,
       systemStatus: {
-        premium_unlock_enabled: true
+        premium_unlock_enabled: true,
+        community_links: {
+          group: '',
+          channel: ''
+        }
       },
       creditsTransferEnabled: true, // 积分转移功能开关状态
       currentPremiumExpiry: null,
@@ -1089,6 +1165,101 @@ export default {
         return dateString
       } catch (error) {
         return dateString
+      }
+    },
+
+    // 打开社区链接
+    openCommunityLink(type) {
+      let url = '';
+      let title = '';
+      
+      if (type === 'group') {
+        url = this.systemStatus.community_links?.group || '';
+        title = '用户交流群';
+      } else if (type === 'channel') {
+        url = this.systemStatus.community_links?.channel || '';
+        title = '官方通知频道';
+      }
+
+      if (url) {
+        if (window.Telegram?.WebApp) {
+          // 在 Telegram 环境中打开链接
+          window.Telegram.WebApp.openTelegramLink(url);
+          this.showMessage(`正在打开${title}...`, 'success');
+        } else {
+          // 在浏览器环境中的处理
+          try {
+            // 尝试直接打开链接
+            const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+            
+            // 检查是否被弹窗拦截器拦截
+            if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+              // 被拦截，显示手动打开提示
+              this.showBrowserLinkDialog(url, title);
+            } else {
+              // 成功打开
+              this.showMessage(`正在打开${title}...`, 'success');
+            }
+          } catch (error) {
+            console.error('打开链接失败:', error);
+            // 出错时也显示手动打开提示
+            this.showBrowserLinkDialog(url, title);
+          }
+        }
+      } else {
+        this.showMessage(`${title}链接暂未配置`, 'error');
+      }
+    },
+
+    // 在浏览器中显示链接对话框（用于被弹窗拦截的情况）
+    showBrowserLinkDialog(url, title) {
+      // 创建一个简单的确认对话框
+      const message = `浏览器阻止了弹窗，请手动打开${title}：\n\n${url}\n\n点击确定复制链接到剪贴板`;
+      
+      if (confirm(message)) {
+        // 用户确认后复制链接到剪贴板
+        this.copyToClipboard(url);
+        this.showMessage('链接已复制到剪贴板，请手动打开', 'success');
+      }
+    },
+
+    // 复制社区链接URL
+    copyLinkUrl(type) {
+      let url = '';
+      let title = '';
+      
+      if (type === 'group') {
+        url = this.systemStatus.community_links?.group || '';
+        title = '用户交流群';
+      } else if (type === 'channel') {
+        url = this.systemStatus.community_links?.channel || '';
+        title = '官方通知频道';
+      }
+
+      if (url) {
+        this.copyToClipboard(url);
+        this.showMessage(`${title}链接已复制`, 'success');
+      } else {
+        this.showMessage(`${title}链接暂未配置`, 'error');
+      }
+    },
+
+    // 显示链接右键菜单
+    showLinkContextMenu(type, event) {
+      // 阻止默认右键菜单
+      event.preventDefault();
+      
+      let title = type === 'group' ? '用户交流群' : '官方通知频道';
+      
+      // 在非Telegram环境中提供复制选项
+      if (!window.Telegram?.WebApp) {
+        const message = `${title}选项：\n1. 打开链接\n2. 复制链接\n\n请选择操作（确定=打开链接，取消=复制链接）`;
+        
+        if (confirm(message)) {
+          this.openCommunityLink(type);
+        } else {
+          this.copyLinkUrl(type);
+        }
       }
     },
   }
@@ -1931,6 +2102,218 @@ export default {
 
 .total-stats {
   border-left: 4px solid #4CAF50;
+}
+
+/* 社区链接部分样式 */
+.community-links-section {
+  margin-bottom: 20px;
+}
+
+.community-links-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: none;
+}
+
+.community-links-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+}
+
+.community-links-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.community-link-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(241, 245, 249, 0.9) 100%);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.community-link-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.03) 0%, rgba(118, 75, 162, 0.03) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.community-link-item:hover::before {
+  opacity: 1;
+}
+
+.community-link-item:hover {
+  transform: translateX(4px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  border-color: rgba(102, 126, 234, 0.2);
+}
+
+.link-icon-wrapper {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.group-link {
+  background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%);
+}
+
+.channel-link {
+  background: linear-gradient(135deg, #FF9800 0%, #FFB74D 100%);
+}
+
+.community-link-item:hover .link-icon-wrapper {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+.link-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.link-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.3;
+}
+
+.link-description {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.4;
+  opacity: 0.9;
+}
+
+.community-link-item:hover .link-title {
+  color: #667eea;
+}
+
+.community-link-item:hover .link-description {
+  color: #555;
+  opacity: 1;
+}
+
+.link-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.copy-link-btn {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: rgba(102, 126, 234, 0.1) !important;
+  border-radius: 6px;
+}
+
+.community-link-item:hover .copy-link-btn {
+  opacity: 1;
+}
+
+.copy-link-btn:hover {
+  background: rgba(102, 126, 234, 0.2) !important;
+  transform: scale(1.1);
+}
+
+.no-links-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  color: #999;
+  font-size: 14px;
+  font-style: italic;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .community-links-grid {
+    gap: 10px;
+  }
+  
+  .community-link-item {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+  
+  .link-icon-wrapper {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+  
+  .link-title {
+    font-size: 14px;
+  }
+  
+  .link-description {
+    font-size: 12px;
+  }
+
+  .copy-link-btn {
+    opacity: 1; /* 在移动设备上始终显示复制按钮 */
+  }
+}
+
+@media (max-width: 480px) {
+  .community-link-item {
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  
+  .link-icon-wrapper {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+  
+  .link-icon-wrapper .v-icon {
+    font-size: 18px !important;
+  }
+  
+  .link-title {
+    font-size: 13px;
+  }
+  
+  .link-description {
+    font-size: 11px;
+  }
+
+  .link-actions {
+    gap: 4px;
+  }
+
+  .copy-link-btn {
+    opacity: 1; /* 在小屏设备上始终显示 */
+  }
 }
 
 /* Premium 按钮美化 */

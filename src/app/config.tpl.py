@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     TG_API_TOKEN: str = ""
     ADMIN_CHAT_ID: list = []
     TG_GROUP: str = ""
+    TG_CHANNEL: str = ""  # 可选的通知频道链接，如果不设置将使用群组链接
 
     # WebApp
     ENABLE_WEBAPP: bool = True  # 是否启用 WebApp
