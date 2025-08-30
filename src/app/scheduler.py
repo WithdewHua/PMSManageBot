@@ -1,3 +1,4 @@
+from app.config import settings
 from app.utils import SingletonMeta
 from apscheduler.executors.asyncio import AsyncIOExecutor
 from apscheduler.executors.pool import ThreadPoolExecutor
@@ -15,7 +16,7 @@ class Scheduler(metaclass=SingletonMeta):
             "threadpool": ThreadPoolExecutor(100),
         }
         self.scheduler = AsyncIOScheduler(
-            jobstores=self.jobstores, executors=self.executors
+            jobstores=self.jobstores, executors=self.executors, timezone=settings.TZ
         )
 
         self.start()

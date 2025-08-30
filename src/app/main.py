@@ -90,7 +90,8 @@ def add_init_scheduler_job():
         day_of_week="*",
         hour=12,
         minute=10,
-        next_run_time=datetime.datetime.now() + datetime.timedelta(seconds=30),
+        next_run_time=datetime.datetime.now(settings.TZ)
+        + datetime.timedelta(seconds=30),
     )
     logger.info("添加定时任务：每天中午 12:10 更新 Telegram 用户信息")
 
@@ -104,7 +105,8 @@ def add_init_scheduler_job():
         day_of_week="*",
         hour=7,
         minute=0,
-        next_run_time=datetime.datetime.now() + datetime.timedelta(minutes=1),
+        next_run_time=datetime.datetime.now(settings.TZ)
+        + datetime.timedelta(minutes=1),
     )
     logger.info("添加定时任务：每天早上 07:00 更新 Emby 用户信息")
 
