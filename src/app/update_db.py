@@ -728,13 +728,15 @@ def write_user_info_cache():
             if plex_username:
                 user_info_cache.put(
                     f"plex:{plex_username.lower()}",
-                    {
-                        "plex_id": plex_id,
-                        "tg_id": tg_id,
-                        "plex_username": plex_username,
-                        "plex_email": plex_email,
-                        "is_premium": is_premium,
-                    },
+                    json.dumps(
+                        {
+                            "plex_id": plex_id,
+                            "tg_id": tg_id,
+                            "plex_username": plex_username,
+                            "plex_email": plex_email,
+                            "is_premium": is_premium,
+                        }
+                    ),
                 )
         # 获取 Emby 用户信息
         emby_users = _db.cur.execute(
@@ -748,12 +750,14 @@ def write_user_info_cache():
             if emby_username:
                 user_info_cache.put(
                     f"emby:{emby_username.lower()}",
-                    {
-                        "emby_id": emby_id,
-                        "tg_id": tg_id,
-                        "emby_username": emby_username,
-                        "is_premium": is_premium,
-                    },
+                    json.dumps(
+                        {
+                            "emby_id": emby_id,
+                            "tg_id": tg_id,
+                            "emby_username": emby_username,
+                            "is_premium": is_premium,
+                        }
+                    ),
                 )
     except Exception as e:
         logger.error(f"写入用户信息缓存时发生错误: {e}")
