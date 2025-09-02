@@ -1,4 +1,5 @@
 import time
+import traceback
 from typing import Optional
 
 from app.log import logger
@@ -102,30 +103,34 @@ class RedisCache:
             key: 缓存键
             value: 缓存值
         """
-        # 检查容量并清理过期项
-        if self.capacity > 0 and self._cache_usage_key:
-            current_size = self.redis_client.zcard(self._cache_usage_key)
-            if current_size >= self.capacity:
-                # 获取最旧的项并删除
-                oldest_items = self.redis_client.zrange(
-                    self._cache_usage_key, 0, current_size - self.capacity
-                )
-                if oldest_items:
-                    pipeline = self.redis_client.pipeline()
-                    for old_key in oldest_items:
-                        pipeline.delete(self._get_cache_key(old_key))
-                        pipeline.zrem(self._cache_usage_key, old_key)
-                    pipeline.execute()
+        try:
+            # 检查容量并清理过期项
+            if self.capacity > 0 and self._cache_usage_key:
+                current_size = self.redis_client.zcard(self._cache_usage_key)
+                if current_size >= self.capacity:
+                    # 获取最旧的项并删除
+                    oldest_items = self.redis_client.zrange(
+                        self._cache_usage_key, 0, current_size - self.capacity
+                    )
+                    if oldest_items:
+                        pipeline = self.redis_client.pipeline()
+                        for old_key in oldest_items:
+                            pipeline.delete(self._get_cache_key(old_key))
+                            pipeline.zrem(self._cache_usage_key, old_key)
+                        pipeline.execute()
 
-        # 添加新项
-        cache_key = self._get_cache_key(key)
-        pipeline = self.redis_client.pipeline()
-        pipeline.set(cache_key, value, ex=self.ttl_seconds)
-        if self._cache_usage_key:
-            pipeline.zadd(self._cache_usage_key, {key: time.time()})
-        pipeline.execute()
+            # 添加新项
+            cache_key = self._get_cache_key(key)
+            pipeline = self.redis_client.pipeline()
+            pipeline.set(cache_key, value, ex=self.ttl_seconds)
+            if self._cache_usage_key:
+                pipeline.zadd(self._cache_usage_key, {key: time.time()})
+            pipeline.execute()
 
-        logger.info(f"Added key to cache: {key}")
+            logger.debug(f"Added key to cache: {key}")
+        except Exception as e:
+            logger.error(f"Failed to add key to cache: {key}, error: {e}")
+            logger.exception(traceback.format_exc())
 
     def delete(self, key: str):
         """删除缓存条目"""
@@ -249,6 +254,7 @@ stream_traffic_cache = RedisCache(
     cache_key_prefix="",
 )
 
+### API/Token ###
 # Emby API Key cache
 emby_api_key_cache = RedisCache(
     db=3,
@@ -261,8 +267,14 @@ plex_token_cache = RedisCache(
     cache_key_prefix="plex_token_cache:",
 )
 
+### User Info ###
 # 存储用户积分信息
 user_credits_cache = RedisCache(
     db=0,
     cache_key_prefix="user_credits:",
+)
+# 存储用户信息
+user_info_cache = RedisCache(
+    db=2,
+    cache_key_prefix="user_info:",
 )

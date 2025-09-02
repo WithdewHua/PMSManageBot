@@ -11,6 +11,7 @@ from app.cache import (
     plex_token_cache,
     stream_traffic_cache,
     user_credits_cache,
+    user_info_cache,
 )
 from app.config import settings
 from app.db import DB
@@ -704,6 +705,58 @@ def rewrite_users_credits_to_redis():
             user_credits_cache.put(f"emby:{emby_username.lower()}", credits)
     except Exception as e:
         logger.error(f"检查用户积分时发生错误: {e}")
+    finally:
+        _db.close()
+
+
+def write_user_info_cache():
+    """
+    将 user info 写入 redis 缓存
+    """
+    _db = DB()
+    try:
+        # 获取 Plex 用户信息
+        plex_users = _db.cur.execute(
+            "SELECT plex_id, tg_id, plex_username, plex_email, is_premium FROM user"
+        ).fetchall()
+        for user in plex_users:
+            plex_id = user[0]
+            tg_id = user[1]
+            plex_username = user[2]
+            plex_email = user[3]
+            is_premium = user[4]
+            if plex_username:
+                user_info_cache.put(
+                    f"plex:{plex_username.lower()}",
+                    {
+                        "plex_id": plex_id,
+                        "tg_id": tg_id,
+                        "plex_username": plex_username,
+                        "plex_email": plex_email,
+                        "is_premium": is_premium,
+                    },
+                )
+        # 获取 Emby 用户信息
+        emby_users = _db.cur.execute(
+            "SELECT emby_id, tg_id, emby_username, is_premium FROM emby_user"
+        ).fetchall()
+        for user in emby_users:
+            emby_id = user[0]
+            tg_id = user[1]
+            emby_username = user[2]
+            is_premium = user[4]
+            if emby_username:
+                user_info_cache.put(
+                    f"emby:{emby_username.lower()}",
+                    {
+                        "emby_id": emby_id,
+                        "tg_id": tg_id,
+                        "emby_username": emby_username,
+                        "is_premium": is_premium,
+                    },
+                )
+    except Exception as e:
+        logger.error(f"写入用户信息缓存时发生错误: {e}")
     finally:
         _db.close()
 

@@ -21,6 +21,7 @@ from app.update_db import (
     update_credits,
     update_line_traffic_stats,
     update_plex_info,
+    write_user_info_cache,
 )
 from app.utils import refresh_emby_user_info, refresh_tg_user_info
 from telegram.ext import ApplicationBuilder
@@ -166,6 +167,19 @@ def add_init_scheduler_job():
         minute="*/5",  # 每 5 分钟执行一次
     )
     logger.info("添加定时任务：每 5 分钟更新用户积分信息")
+
+    # 每 1h 更新一次用户信息
+    scheduler.add_sync_job(
+        func=write_user_info_cache,
+        trigger="cron",
+        id="write_user_info_cache",
+        replace_existing=True,
+        max_instances=1,
+        hour="*/1",  # 每 1 小时执行一次
+        next_run_time=datetime.datetime.now(settings.TZ)
+        + datetime.timedelta(seconds=30),  # 启动后执行一次
+    )
+    logger.info("添加定时任务：每 1 小时更新用户信息")
 
 
 if __name__ == "__main__":
