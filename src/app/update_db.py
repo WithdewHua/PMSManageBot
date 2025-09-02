@@ -746,7 +746,7 @@ def write_user_info_cache():
             emby_id = user[0]
             tg_id = user[1]
             emby_username = user[2]
-            is_premium = user[4]
+            is_premium = user[3]
             if emby_username:
                 user_info_cache.put(
                     f"emby:{emby_username.lower()}",
