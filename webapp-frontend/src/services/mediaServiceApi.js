@@ -25,8 +25,13 @@ export function redeemMediaServiceInviteCode(serviceType, data) {
       return reject(new Error('缺少 Plex 邮箱'));
     }
     
-    if (serviceType === 'emby' && !data.username) {
-      return reject(new Error('缺少 Emby 用户名'));
+    if (serviceType === 'emby') {
+      if (!data.username) {
+        return reject(new Error('缺少 Emby 用户名'));
+      }
+      if (!data.password || typeof data.password !== 'string' || data.password.length <= 4) {
+        return reject(new Error('Emby 密码不能为空且长度需大于 4 位'));
+      }
     }
 
     // 生产环境：使用apiClient发送请求

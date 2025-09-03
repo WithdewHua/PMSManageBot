@@ -26,6 +26,7 @@ class RedeemInviteCodeRequest(BaseModel):
     code: str
     email: Optional[str] = None  # Plex 使用
     username: Optional[str] = None  # Emby 使用
+    password: Optional[str] = None  # Emby 使用
 
 
 class RedeemResponse(BaseModel):

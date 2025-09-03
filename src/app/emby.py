@@ -26,7 +26,10 @@ class Emby:
         self.api_token = api_token
 
     def add_user(
-        self, username: str, user_template: str = settings.EMBY_USER_TEMPLATE
+        self,
+        username: str,
+        password: str,
+        user_template: str = settings.EMBY_USER_TEMPLATE,
     ) -> tuple[bool, str]:
         header = {"accept": "application/json", "Content-Type": "application/json"}
 
@@ -45,13 +48,42 @@ class Emby:
 
             if response:
                 if response.status_code == 200:
-                    return True, response.json()["Id"]
+                    emby_id = response.json()["Id"]
+                    # 修改密码
+                    if self.change_user_password(emby_id, new_password=password):
+                        return True, response.json()["Id"]
+                    else:
+                        return False, "Failed to change user password"
                 else:
                     return False, response.text
             else:
                 return False, "Unknown error"
         except Exception as e:
             return False, str(e)
+
+    def change_user_password(self, emby_id, new_password: str):
+        """修改用户密码"""
+        header = {"accept": "application/json", "Content-Type": "application/json"}
+
+        data = {"Id": emby_id, "NewPw": new_password, "ResetPassword": False}
+        try:
+            response = requests.post(
+                url=self.base_url
+                + f"/Users/{emby_id}/Password"
+                + f"?api_key={self.api_token}",
+                data=json.dumps(data),
+                headers=header,
+            )
+            if response.status_code in [200, 204]:
+                return True
+            else:
+                logger.error(
+                    f"Error changing password for {emby_id}: {response.status_code}/{response.text}"
+                )
+                return False
+        except Exception as e:
+            logger.error(f"Error changing password for {emby_id}: {e}")
+            return False
 
     def get_uid_from_username(self, username: str) -> Optional[str]:
         return self.get_user_info_from_username(username).get("id")

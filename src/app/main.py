@@ -4,10 +4,6 @@ import threading
 from copy import copy
 
 from app.config import settings
-from app.handlers.db import *
-
-# from app.handlers.emby import *
-# from app.handlers.plex import *
 from app.handlers.rank import *
 from app.handlers.start import *
 from app.handlers.status import *

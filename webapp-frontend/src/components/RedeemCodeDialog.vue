@@ -69,6 +69,20 @@
             class="mb-3"
           ></v-text-field>
 
+          <!-- Emby 密码输入框，仅在 emby 时显示 -->
+          <v-text-field
+            v-if="serviceType === 'emby'"
+            v-model="password"
+            label="Emby 密码"
+            :rules="passwordRules"
+            type="password"
+            required
+            outlined
+            dense
+            hide-details="auto"
+            class="mb-3"
+          ></v-text-field>
+
           <div v-if="errorMessage" class="error-message mt-3">
             {{ errorMessage }}
           </div>
@@ -114,6 +128,7 @@ export default {
       inviteCode: '',
       email: '',
       username: '',
+      password: '',
       errorMessage: '',
       successMessage: '',
       registerStatus: {
@@ -124,6 +139,10 @@ export default {
       inviteCodeRules: [
         v => !!v || '请输入邀请码',
         v => v.length >= 6 || '邀请码长度不正确'
+      ],
+      passwordRules: [
+        v => !!v || '请输入 Emby 密码',
+        v => v.length > 4 || '密码长度需大于 4 位',
       ],
       emailRules: [
         v => !!v || '请输入 Plex 邮箱',
@@ -151,6 +170,7 @@ export default {
       this.inviteCode = '';
       this.email = '';
       this.username = '';
+      this.password = '';
       this.errorMessage = '';
       this.successMessage = '';
       this.isPrivilegedCode = false;
@@ -224,10 +244,10 @@ export default {
 
       // 确保根据服务类型，对应字段有值
       if ((this.serviceType === 'plex' && !this.email) || 
-          (this.serviceType === 'emby' && !this.username)) {
-        this.errorMessage = `请填写${this.serviceType === 'plex' ? 'Plex 邮箱' : 'Emby 用户名'}`;
-        return;
-      }
+            (this.serviceType === 'emby' && (!this.username || !this.password))) {
+          this.errorMessage = `请填写${this.serviceType === 'plex' ? 'Plex 邮箱' : 'Emby 用户名和密码'}`;
+          return;
+        }
 
       this.loading = true;
       this.errorMessage = '';
@@ -238,7 +258,9 @@ export default {
         const requestData = {
           code: this.inviteCode,
           // 根据服务类型添加对应字段
-          ...(this.serviceType === 'plex' ? { email: this.email } : { username: this.username })
+            ...(this.serviceType === 'plex' 
+              ? { email: this.email } 
+              : { username: this.username, password: this.password })
         };
 
         // 使用服务函数发送请求

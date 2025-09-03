@@ -261,6 +261,7 @@ async def redeem_emby_code(
     try:
         code = data.code
         username = data.username
+        password = data.password
         is_privileged = code in settings.PRIVILEGED_CODES
 
         # 检查是否允许注册（特权码跳过检查）
@@ -270,6 +271,10 @@ async def redeem_emby_code(
         # 验证用户名
         if not username or len(username) < 2:
             return RedeemResponse(success=False, message="请输入有效的用户名")
+
+        # 验证密码
+        if not password or len(password) < 4:
+            return RedeemResponse(success=False, message="请输入有效的密码")
 
         _db = DB()
 
@@ -294,7 +299,7 @@ async def redeem_emby_code(
                 )
 
             # 创建用户
-            flag, msg = _emby.add_user(username=username)
+            flag, msg = _emby.add_user(username=username, password=password)
             if not flag:
                 return RedeemResponse(success=False, message=f"创建用户失败: {msg}")
 
