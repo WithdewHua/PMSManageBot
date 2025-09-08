@@ -37,7 +37,7 @@ async def get_credits_rankings(
                         "is_self": info[0] == user.id,  # tg_id 比较
                     }
                     for info in credits_data
-                    if info[1] > 0 and info[0] not in settings.ADMIN_CHAT_ID
+                    if info[0] not in settings.ADMIN_CHAT_ID
                 ]
         except Exception as e:
             logger.error(f"获取积分排行失败: {str(e)}")
