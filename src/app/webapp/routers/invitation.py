@@ -242,6 +242,7 @@ async def redeem_plex_code(
             return RedeemResponse(
                 success=True, message="邀请码兑换成功！请登录 Plex 确认邀请"
             )
+
         finally:
             _db.close()
 
@@ -330,7 +331,7 @@ async def redeem_emby_code(
             # 返回成功响应
             return RedeemResponse(
                 success=True,
-                message=f"邀请码兑换成功！用户名为 {username}，密码为空，请及时登录 Emby 修改密码",
+                message=f"邀请码兑换成功！用户名为 {username}，密码为 {password}",
             )
         finally:
             _db.close()
