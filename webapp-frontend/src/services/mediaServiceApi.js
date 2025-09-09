@@ -40,7 +40,8 @@ export function redeemMediaServiceInviteCode(serviceType, data) {
         .then(response => {
           resolve({
             success: response.data.success,
-            message: response.data.message
+            message: response.data.message,
+            telegram_bound: response.data.telegram_bound || false
           });
         })
         .catch(error => {
@@ -53,7 +54,8 @@ export function redeemMediaServiceInviteCode(serviceType, data) {
         // 模拟成功响应
         resolve({
           success: true,
-          message: `邀请码兑换成功！已添加到 ${serviceType === 'plex' ? 'Plex' : 'Emby'}。`
+          message: `邀请码兑换成功！已添加到 ${serviceType === 'plex' ? 'Plex' : 'Emby'}。`,
+          telegram_bound: data.bindToTelegram || false
         });
       }, 800);
     }

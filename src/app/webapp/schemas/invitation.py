@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class InvitePointsResponse(BaseModel):
@@ -27,6 +27,9 @@ class RedeemInviteCodeRequest(BaseModel):
     email: Optional[str] = None  # Plex 使用
     username: Optional[str] = None  # Emby 使用
     password: Optional[str] = None  # Emby 使用
+    bind_to_telegram: Optional[bool] = Field(
+        False, alias="bindToTelegram"
+    )  # 是否绑定到 Telegram 账号
 
 
 class RedeemResponse(BaseModel):
@@ -34,6 +37,7 @@ class RedeemResponse(BaseModel):
 
     success: bool
     message: str
+    telegram_bound: Optional[bool] = None  # 是否成功绑定到 Telegram
 
 
 class CheckPrivilegedCodeRequest(BaseModel):

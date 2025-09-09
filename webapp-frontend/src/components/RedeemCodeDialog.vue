@@ -83,6 +83,28 @@
             class="mb-3"
           ></v-text-field>
 
+          <!-- 绑定 Telegram 账号选项 -->
+          <div class="bind-tg-section mb-3">
+            <v-checkbox
+              v-model="bindToTelegram"
+              color="purple"
+              dense
+              hide-details
+            >
+              <template v-slot:label>
+                <div class="bind-tg-label">
+                  <v-icon color="purple" small class="mr-2">mdi-telegram</v-icon>
+                  <span>绑定到当前 Telegram 账号</span>
+                </div>
+              </template>
+            </v-checkbox>
+            <div v-if="bindToTelegram" class="bind-tg-hint">
+              <small class="text--secondary">
+                兑换成功后会自动绑定到您当前的 Telegram 账号
+              </small>
+            </div>
+          </div>
+
           <div v-if="errorMessage" class="error-message mt-3">
             {{ errorMessage }}
           </div>
@@ -129,6 +151,7 @@ export default {
       email: '',
       username: '',
       password: '',
+      bindToTelegram: true, // 默认勾选绑定到 Telegram
       errorMessage: '',
       successMessage: '',
       registerStatus: {
@@ -171,6 +194,7 @@ export default {
       this.email = '';
       this.username = '';
       this.password = '';
+      this.bindToTelegram = true; // 重置时默认勾选
       this.errorMessage = '';
       this.successMessage = '';
       this.isPrivilegedCode = false;
@@ -257,6 +281,7 @@ export default {
         // 构建请求数据
         const requestData = {
           code: this.inviteCode,
+          bindToTelegram: this.bindToTelegram, // 添加绑定 Telegram 的选项
           // 根据服务类型添加对应字段
             ...(this.serviceType === 'plex' 
               ? { email: this.email } 
@@ -267,7 +292,16 @@ export default {
         const response = await redeemMediaServiceInviteCode(this.serviceType, requestData);
 
         if (response.success) {
-          this.successMessage = response.message || `邀请码兑换成功！已添加到 ${this.serviceType === 'plex' ? 'Plex' : 'Emby'}。`;
+          let message = response.message || `邀请码兑换成功！已添加到 ${this.serviceType === 'plex' ? 'Plex' : 'Emby'}。`;
+          
+          // 如果绑定了 Telegram，添加提示信息
+          if (this.bindToTelegram && response.telegram_bound) {
+            message += ' 已成功绑定到当前 Telegram 账号。';
+          } else if (this.bindToTelegram && !response.telegram_bound) {
+            message += ' Telegram 绑定失败，请稍后手动绑定。';
+          }
+          
+          this.successMessage = message;
           
           // 3秒后自动关闭对话框
           setTimeout(() => {
@@ -354,5 +388,36 @@ export default {
   font-weight: 500;
   display: flex;
   align-items: center;
+}
+
+.bind-tg-section {
+  border: 1px solid rgba(147, 51, 234, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  background-color: rgba(147, 51, 234, 0.05);
+}
+
+.bind-tg-label {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.bind-tg-hint {
+  margin-left: 32px;
+  margin-top: 4px;
+}
+
+:deep(.bind-tg-section .v-input--checkbox) {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+:deep(.bind-tg-section .v-input--checkbox .v-input__control) {
+  min-height: auto;
+}
+
+:deep(.bind-tg-section .v-input--checkbox .v-input__slot) {
+  margin-bottom: 0;
 }
 </style>

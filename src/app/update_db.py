@@ -280,6 +280,22 @@ def update_plex_info():
                 "UPDATE user SET plex_username=?,plex_email=? WHERE plex_id=?",
                 (username, email, uid),
             )
+        # 检查是否存在 plex_id 为空的用户
+        empty_plex_users = _db.cur.execute(
+            "SELECT plex_email FROM user WHERE plex_id IS NULL"
+        ).fetchall()
+        for user in empty_plex_users:
+            email = user[0]
+            # 处理 plex_id 为空的用户
+            plex_id = _plex.get_user_id_by_email(email)
+            plex_username = _plex.get_username_by_user_id(plex_id) if plex_id else None
+            if plex_id and plex_username:
+                _db.cur.execute(
+                    "UPDATE user SET plex_id=?, plex_username=? WHERE plex_email=?",
+                    (plex_id, plex_username, email),
+                )
+            else:
+                logger.warning(f"无法找到 Plex 用户 {email} 的 ID 或用户名，跳过更新。")
         # 更新所有用户的头像
         _plex.update_all_user_avatars()
     except Exception as e:
