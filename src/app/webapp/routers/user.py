@@ -907,6 +907,12 @@ async def bind_plex_line(
             return BaseResponse(success=False, message="您尚未绑定Plex账户，请先绑定")
 
         plex_username, plex_line = plex_info[4], plex_info[8]
+        # 可能存在 plex 用户信息还没更新的情况
+        if not plex_username:
+            logger.error(f"用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 用户名为空")
+            return BaseResponse(
+                success=False, message="Plex 用户信息异常，暂时无法绑定线路"
+            )
         if plex_line == line:
             logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 已绑定该线路")
             return BaseResponse(success=False, message="该线路已绑定，请勿重复操作")
