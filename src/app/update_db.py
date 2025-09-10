@@ -702,6 +702,9 @@ def rewrite_users_credits_to_redis():
             "SELECT plex_id, tg_id, credits, plex_username FROM user"
         ).fetchall()
         for user in plex_users:
+            # 未接受邀请，此时数据库中的 plex_id 为空
+            if not user[0]:
+                continue
             tg_id = user[1]
             credits = user[2]
             plex_username = user[3]
@@ -737,6 +740,9 @@ def write_user_info_cache():
         ).fetchall()
         for user in plex_users:
             plex_id = user[0]
+            # 未接受邀请，此时数据库中的 plex_id 为空
+            if not plex_id:
+                continue
             tg_id = user[1]
             plex_username = user[2]
             plex_email = user[3]
