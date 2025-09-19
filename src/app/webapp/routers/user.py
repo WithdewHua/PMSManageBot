@@ -61,7 +61,7 @@ async def get_user_info(
     try:
         tg_id = user_id
         is_admin = False
-        if tg_id in settings.ADMIN_CHAT_ID:
+        if tg_id in settings.TG_ADMIN_CHAT_ID:
             is_admin = True
         user_info = UserInfo(tg_id=tg_id, is_admin=is_admin)
 

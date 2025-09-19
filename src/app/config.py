@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     # log
     LOG_LEVEL: str = "INFO"
 
+    # app name
+    SITE_NAME: str = "PMS"
+
     # data folder
     DATA_DIR: str = ""
 
@@ -48,12 +51,12 @@ class Settings(BaseSettings):
 
     # TG
     TG_API_TOKEN: str = ""
-    ADMIN_CHAT_ID: list = []
+    TG_ADMIN_CHAT_ID: list[str] = []
     TG_GROUP: str = ""
     TG_CHANNEL: str = ""  # 可选的通知频道链接，如果不设置将使用群组链接
 
     # WebApp
-    ENABLE_WEBAPP: bool = True  # 是否启用 WebApp
+    WEBAPP_ENABLE: bool = True  # 是否启用 WebApp
     WEBAPP_URL: str = "https://yourdomain.com"  # WebApp 的公开 URL
     WEBAPP_PORT: int = 5000  # WebApp 服务器监听端口
     WEBAPP_HOST: str = "127.0.0.1"  # WebApp 服务器监听地址
@@ -156,14 +159,20 @@ class Settings(BaseSettings):
                                 setattr(self, key, int(value))
                             elif isinstance(current_value, list):
                                 # 列表用逗号分隔
+                                value = [
+                                    item.strip()
+                                    for item in value.split(",")
+                                    if item.strip()
+                                ]
+                                if key == "TG_ADMIN_CHAT_ID":
+                                    # 确保 TG_ADMIN_CHAT_ID 中的元素是 int 类型
+                                    value = [
+                                        int(item) for item in value if item.isdigit()
+                                    ]
                                 setattr(
                                     self,
                                     key,
-                                    [
-                                        item.strip()
-                                        for item in value.split(",")
-                                        if item.strip()
-                                    ],
+                                    value,
                                 )
                             else:
                                 setattr(self, key, value)

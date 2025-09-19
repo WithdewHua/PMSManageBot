@@ -19,7 +19,7 @@ Emby: {"可注册" if settings.EMBY_REGISTER else "注册关闭"}
 # 管理员命令: 设置注册状态
 async def set_register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
-    if chat_id not in settings.ADMIN_CHAT_ID:
+    if chat_id not in settings.TG_ADMIN_CHAT_ID:
         await send_message(chat_id=chat_id, text="错误：越权操作", context=context)
         return
     text = update.message.text

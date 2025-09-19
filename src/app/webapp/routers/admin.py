@@ -35,7 +35,7 @@ def check_admin_permission(user: TelegramUser):
     if user.id == 123456789:  # 模拟用户ID
         return True
 
-    if user.id not in settings.ADMIN_CHAT_ID:
+    if user.id not in settings.TG_ADMIN_CHAT_ID:
         raise HTTPException(status_code=403, detail="权限不足，需要管理员权限")
     return True
 

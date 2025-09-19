@@ -63,6 +63,8 @@ async def get_system_status():
     """获取系统状态信息（公开接口，不需要登录）"""
     try:
         status_data = {
+            "site_name": settings.SITE_NAME,
+            "emby_entry_url": settings.EMBY_BASE_URL,
             "plex_register": settings.PLEX_REGISTER,
             "emby_register": settings.EMBY_REGISTER,
             "premium_unlock_enabled": settings.PREMIUM_UNLOCK_ENABLED,

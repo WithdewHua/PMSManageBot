@@ -131,12 +131,13 @@ Premium 流量使用情况：{round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
 
     except Exception as e:
         logger.error(f"更新 Plex 用户积分及观看时长失败: {e}")
-        notification_tasks.append(
-            (
-                settings.ADMIN_CHAT_ID[0],
-                f"更新 Plex 用户积分及观看时长失败: {e}",
+        for chat_id in settings.TG_ADMIN_CHAT_ID:
+            notification_tasks.append(
+                (
+                    chat_id,
+                    f"更新 Plex 用户积分及观看时长失败: {e}",
+                )
             )
-        )
         return notification_tasks
     else:
         _db.con.commit()
@@ -242,12 +243,13 @@ Premium 流量使用情况：{round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
             )
     except Exception as e:
         logger.error(f"更新 Emby 用户积分及观看时长失败: {e}")
-        notification_tasks.append(
-            (
-                settings.ADMIN_CHAT_ID[0],
-                f"更新 Emby 用户积分及观看时长失败: {e}",
+        for chat_id in settings.TG_ADMIN_CHAT_ID:
+            notification_tasks.append(
+                (
+                    chat_id,
+                    f"更新 Emby 用户积分及观看时长失败: {e}",
+                )
             )
-        )
         return notification_tasks
     else:
         _db.con.commit()
@@ -502,7 +504,7 @@ async def finish_expired_auctions_job():
             )
             if not autction.get("credits_reduced", False):
                 # 如果未扣除积分，通知管理员
-                for chat_id in settings.ADMIN_CHAT_ID:
+                for chat_id in settings.TG_ADMIN_CHAT_ID:
                     await send_message_by_url(
                         chat_id=chat_id,
                         text=f"用户 {autction.get('winner_id')} 在竞拍 {autction['title']} 中获胜，但未扣除积分。",

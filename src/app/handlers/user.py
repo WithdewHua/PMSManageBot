@@ -187,7 +187,7 @@ async def create_overseerr(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 # 管理员命令: 设置捐赠信息
 async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
-    if chat_id not in settings.ADMIN_CHAT_ID:
+    if chat_id not in settings.TG_ADMIN_CHAT_ID:
         await send_message(chat_id=chat_id, text="错误：越权操作", context=context)
         return
     text = update.message.text

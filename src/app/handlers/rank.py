@@ -89,7 +89,7 @@ async def watched_time_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 # 设备榜
 async def device_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
-    if chat_id not in settings.ADMIN_CHAT_ID:
+    if chat_id not in settings.TG_ADMIN_CHAT_ID:
         await send_message(chat_id=chat_id, text="错误：越权操作", context=context)
         return
     emby = Emby()

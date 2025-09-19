@@ -211,7 +211,7 @@ def caculate_credits_fund(unlock_time, unlock_credits: int):
         return 0
 
 
-def get_user_info_from_tg_id(chat_id, token=settings.TG_API_TOKEN):
+def get_user_info_from_tg_id(chat_id: int, token=settings.TG_API_TOKEN):
     """Get telegram user's info
     cache format: {tg_id: {"first_name": first_name, "username": username, "added": timestamp}}
     """
@@ -259,12 +259,12 @@ async def get_tg_user_photo_url(tg_id: int, token: str = settings.TG_API_TOKEN):
     return None
 
 
-def get_user_name_from_tg_id(chat_id, token=settings.TG_API_TOKEN):
+def get_user_name_from_tg_id(chat_id: int, token=settings.TG_API_TOKEN):
     user_info = get_user_info_from_tg_id(chat_id, token=token)
     return user_info.get("first_name") or user_info.get("username") or chat_id
 
 
-def get_user_avatar_from_tg_id(chat_id, token=settings.TG_API_TOKEN):
+def get_user_avatar_from_tg_id(chat_id: int, token=settings.TG_API_TOKEN):
     """从缓存中获取用户头像URL"""
     user_info = get_user_info_from_tg_id(chat_id, token=token)
     return user_info.get("photo_url")

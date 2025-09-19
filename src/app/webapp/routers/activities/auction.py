@@ -544,7 +544,7 @@ async def finish_auction_admin(
                 )
                 if not winner.get("credits_reduced", False):
                     # 如果未扣除积分，通知管理员
-                    for chat_id in settings.ADMIN_CHAT_ID:
+                    for chat_id in settings.TG_ADMIN_CHAT_ID:
                         await send_message_by_url(
                             chat_id=chat_id,
                             text=f"用户 {winner.get('winner_id')} 在竞拍 {existing_auction['title']} 中获胜，但未扣除积分。",

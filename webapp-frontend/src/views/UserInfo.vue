@@ -2,7 +2,7 @@
   <div class="user-info-container">
     <div class="content-wrapper">
       <div class="user-info-header">
-        <h1 class="page-title">FunMedia 用户中心</h1>
+        <h1 class="page-title">{{ systemStatus.site_name }} 用户中心</h1>
         <p class="page-subtitle">账户信息与服务管理</p>
       </div>
       
@@ -331,10 +331,10 @@
               </div>
               <div 
                 class="entrance-url-chip"
-                @click="copyToClipboard('auto.emby.funmedia.10101.io')"
+                @click="copyToClipboard(systemStatus.emby_entry_url)"
                 title="点击复制线路地址"
               >
-                auto.emby.funmedia.10101.io
+                {{ systemStatus.emby_entry_url }}
                 <v-icon size="x-small" class="ml-1">mdi-content-copy</v-icon>
               </div>
             </div>
@@ -757,6 +757,8 @@ export default {
       },
       activityLoading: false,
       systemStatus: {
+        site_name: '', // 默认值，从后端获取后会更新
+        emby_entry_url: '', // 默认值，从后端获取后会更新
         premium_unlock_enabled: true,
         community_links: {
           group: '',

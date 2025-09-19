@@ -258,7 +258,7 @@ async def redeem_plex_code(
                 except Exception as e:
                     logger.error(f"绑定 Telegram 账户过程出错: {str(e)}")
 
-            for admin in settings.ADMIN_CHAT_ID:
+            for admin in settings.TG_ADMIN_CHAT_ID:
                 bind_status = (
                     f"（已绑定 TG: {get_user_name_from_tg_id(telegram_user_id)}）"
                     if telegram_bound
@@ -396,7 +396,7 @@ async def redeem_emby_code(
                 # 不绑定到 Telegram 时，添加 emby 用户信息
                 _db.add_emby_user(username, emby_id=emby_id)
 
-            for admin in settings.ADMIN_CHAT_ID:
+            for admin in settings.TG_ADMIN_CHAT_ID:
                 bind_status = (
                     f"（已绑定 TG: {get_user_name_from_tg_id(telegram_user_id)}）"
                     if telegram_bound
