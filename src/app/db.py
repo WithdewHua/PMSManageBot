@@ -16,89 +16,85 @@ class DB:
     def __init__(self, db=settings.DATA_PATH / "data.db"):
         self.con = sqlite3.connect(db)
         self.cur = self.con.cursor()
-        # self.create_table()
+        self.create_table()
 
     def create_table(self):
-        try:
-            self.cur.executescript(
-                """
-                CREATE TABLE user(
-                    plex_id,
-                    tg_id,
-                    credits,
-                    plex_email,
-                    plex_username,
-                    all_lib,
-                    unlock_time,
-                    watched_time,
-                    plex_line,
-                    is_premium,
-                    premium_expiry_time
-                );
+        self.cur.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS user(
+                plex_id,
+                tg_id,
+                credits,
+                plex_email,
+                plex_username,
+                all_lib,
+                unlock_time,
+                watched_time,
+                plex_line,
+                is_premium,
+                premium_expiry_time
+            );
 
-                CREATE TABLE invitation(
-                    code, owner, is_used, userd_by
-                );
+            CREATE TABLE IF NOT EXISTS invitation(
+                code, owner, is_used, userd_by
+            );
 
-                CREATE TABLE statistics(
-                    tg_id, donation, credits
-                );
+            CREATE TABLE IF NOT EXISTS statistics(
+                tg_id, donation, credits
+            );
 
-                CREATE TABLE emby_user(
-                    emby_username, emby_id, tg_id, emby_is_unlock, emby_unlock_time, emby_watched_time, emby_credits, emby_line, is_premium, premium_expiry_time
-                );
+            CREATE TABLE IF NOT EXISTS emby_user(
+                emby_username, emby_id, tg_id, emby_is_unlock, emby_unlock_time, emby_watched_time, emby_credits, emby_line, is_premium, premium_expiry_time
+            );
 
-                CREATE TABLE overseerr(
-                    user_id, user_email, tg_id
-                );
+            CREATE TABLE IF NOT EXISTS overseerr(
+                user_id, user_email, tg_id
+            );
 
-                CREATE TABLE wheel_stats(
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    tg_id INTEGER,
-                    item_name TEXT,
-                    credits_change REAL,
-                    timestamp INTEGER,
-                    date TEXT
-                );
+            CREATE TABLE IF NOT EXISTS wheel_stats(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tg_id INTEGER,
+                item_name TEXT,
+                credits_change REAL,
+                timestamp INTEGER,
+                date TEXT
+            );
 
-                CREATE TABLE auctions(
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    title TEXT NOT NULL,
-                    description TEXT NOT NULL,
-                    starting_price REAL NOT NULL,
-                    current_price REAL NOT NULL,
-                    end_time INTEGER NOT NULL,
-                    created_by INTEGER NOT NULL,
-                    created_at INTEGER NOT NULL,
-                    is_active INTEGER DEFAULT 1,
-                    winner_id INTEGER DEFAULT NULL,
-                    bid_count INTEGER DEFAULT 0
-                );
+            CREATE TABLE IF NOT EXISTS auctions(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL,
+                starting_price REAL NOT NULL,
+                current_price REAL NOT NULL,
+                end_time INTEGER NOT NULL,
+                created_by INTEGER NOT NULL,
+                created_at INTEGER NOT NULL,
+                is_active INTEGER DEFAULT 1,
+                winner_id INTEGER DEFAULT NULL,
+                bid_count INTEGER DEFAULT 0
+            );
 
-                CREATE TABLE auction_bids(
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    auction_id INTEGER NOT NULL,
-                    bidder_id INTEGER NOT NULL,
-                    bid_amount REAL NOT NULL,
-                    bid_time INTEGER NOT NULL,
-                    FOREIGN KEY (auction_id) REFERENCES auctions (id)
-                );
+            CREATE TABLE IF NOT EXISTS auction_bids(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                auction_id INTEGER NOT NULL,
+                bidder_id INTEGER NOT NULL,
+                bid_amount REAL NOT NULL,
+                bid_time INTEGER NOT NULL,
+                FOREIGN KEY (auction_id) REFERENCES auctions (id)
+            );
 
-                CREATE TABLE line_traffic_stats(
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    line TEXT NOT NULL,
-                    send_bytes INTEGER NOT NULL,
-                    service TEXT NOT NULL,
-                    username TEXT NOT NULL,
-                    user_id TEXT DEFAULT NULL,
-                    timestamp TEXT NOT NULL
-                )
-                """
+            CREATE TABLE IF NOT EXISTS line_traffic_stats(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                line TEXT NOT NULL,
+                send_bytes INTEGER NOT NULL,
+                service TEXT NOT NULL,
+                username TEXT NOT NULL,
+                user_id TEXT DEFAULT NULL,
+                timestamp TEXT NOT NULL
             )
-        except sqlite3.OperationalError:
-            logger.warning("Table user is created already, skip...")
-        else:
-            self.con.commit()
+            """
+        )
+        self.con.commit()
 
     def add_plex_user(
         self,
