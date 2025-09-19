@@ -516,6 +516,94 @@ async def finish_expired_auctions_job():
         db.close()
 
 
+async def monthly_traffic_data_migration():
+    """定时任务：月度流量数据迁移聚合"""
+    try:
+        db = DB()
+
+        # 检查今天是否是每月1号
+        now = datetime.now(settings.TZ)
+        if now.day != 1:
+            logger.info(
+                f"今天不是每月1号，跳过月度流量数据迁移任务。当前日期: {now.strftime('%Y-%m-%d')}"
+            )
+            return
+
+        # 获取上个月的年月字符串
+        last_month = now.replace(day=1) - timedelta(days=1)
+        target_month = last_month.strftime("%Y-%m")
+
+        logger.info(f"开始执行月度流量数据迁移任务，目标月份: {target_month}")
+
+        # 第一步：聚合上个月的数据
+        success, message = db.aggregate_monthly_traffic_data(target_month)
+
+        if success:
+            logger.info(f"数据聚合成功: {message}")
+
+            # 第二步：清理原始数据
+            cleanup_success, cleanup_message = db.cleanup_monthly_traffic_data(
+                target_month
+            )
+
+            if cleanup_success:
+                logger.info(f"数据清理成功: {cleanup_message}")
+
+                # 通知管理员成功
+                notification_message = f"""
+月度流量数据迁移完成
+=====================
+
+目标月份：{target_month}
+聚合结果：{message}
+清理结果：{cleanup_message}
+
+====================="""
+
+                for admin_chat_id in settings.TG_ADMIN_CHAT_ID:
+                    await send_message_by_url(
+                        chat_id=admin_chat_id,
+                        text=notification_message,
+                        disable_notification=True,
+                    )
+            else:
+                # 聚合成功但清理失败
+                error_message = f"月度流量数据聚合成功，但清理失败: {cleanup_message}"
+                logger.error(error_message)
+
+                for admin_chat_id in settings.TG_ADMIN_CHAT_ID:
+                    await send_message_by_url(
+                        chat_id=admin_chat_id,
+                        text=f"⚠️ {error_message}",
+                    )
+        else:
+            # 聚合失败
+            error_message = f"月度流量数据聚合失败: {message}"
+            logger.error(error_message)
+
+            for admin_chat_id in settings.TG_ADMIN_CHAT_ID:
+                await send_message_by_url(
+                    chat_id=admin_chat_id,
+                    text=f"❌ {error_message}",
+                )
+
+        return success, message
+
+    except Exception as e:
+        error_msg = f"月度流量数据迁移任务执行失败: {e}"
+        logger.error(error_msg)
+
+        for admin_chat_id in settings.TG_ADMIN_CHAT_ID:
+            await send_message_by_url(
+                chat_id=admin_chat_id,
+                text=f"❌ {error_msg}",
+            )
+
+        return False, error_msg
+    finally:
+        db.close()
+
+
 async def update_line_traffic_stats(
     count: int = settings.REDIS_LINE_TRAFFIC_STATS_HANDLE_SIZE,
 ):

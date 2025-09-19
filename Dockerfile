@@ -66,6 +66,7 @@ COPY --from=frontend-builder /app/webapp-frontend/dist ./webapp-frontend/dist
 
 # 复制应用程序源代码
 COPY src/ ./src/
+COPY scripts ./scripts
 
 # 复制启动脚本
 COPY start.sh ./start.sh

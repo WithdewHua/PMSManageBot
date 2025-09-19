@@ -91,7 +91,35 @@ class DB:
                 username TEXT NOT NULL,
                 user_id TEXT DEFAULT NULL,
                 timestamp TEXT NOT NULL
-            )
+            );
+
+            -- 月度流量聚合表
+            CREATE TABLE IF NOT EXISTS line_traffic_monthly_stats(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                line TEXT NOT NULL,
+                service TEXT NOT NULL,
+                username TEXT NOT NULL,
+                user_id TEXT DEFAULT NULL,
+                year_month TEXT NOT NULL,
+                total_bytes INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(line, service, username, year_month)
+            );
+
+            -- 索引优化：为 line_traffic_stats 表添加关键索引（当月数据）
+            CREATE INDEX IF NOT EXISTS idx_line_traffic_timestamp ON line_traffic_stats(timestamp);
+            CREATE INDEX IF NOT EXISTS idx_line_traffic_service_user_time ON line_traffic_stats(service, username, timestamp);
+            CREATE INDEX IF NOT EXISTS idx_line_traffic_line_time ON line_traffic_stats(line, timestamp);
+            CREATE INDEX IF NOT EXISTS idx_line_traffic_daily_query ON line_traffic_stats(service, username, date(timestamp));
+            CREATE INDEX IF NOT EXISTS idx_line_traffic_line_stats ON line_traffic_stats(line, timestamp, send_bytes);
+            -- 添加月份索引，用于快速识别和处理当月数据
+            CREATE INDEX IF NOT EXISTS idx_line_traffic_month ON line_traffic_stats(date(timestamp, 'start of month'));
+
+            -- 索引优化：为 line_traffic_monthly_stats 表添加索引（历史月度数据）
+            CREATE INDEX IF NOT EXISTS idx_monthly_traffic_service_user_month ON line_traffic_monthly_stats(service, username, year_month);
+            CREATE INDEX IF NOT EXISTS idx_monthly_traffic_line_month ON line_traffic_monthly_stats(line, year_month);
+            CREATE INDEX IF NOT EXISTS idx_monthly_traffic_month ON line_traffic_monthly_stats(year_month);
+            CREATE INDEX IF NOT EXISTS idx_monthly_traffic_line_stats ON line_traffic_monthly_stats(line, year_month, total_bytes);
             """
         )
         self.con.commit()
@@ -1598,35 +1626,52 @@ class DB:
             day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
             day_end = date.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-            # 构建查询条件
-            base_conditions = "LOWER(username) = ? AND service = ? AND timestamp >= ? AND timestamp <= ?"
-            params = [
-                username.lower(),
-                service,
-                day_start.isoformat(),
-                day_end.isoformat(),
-            ]
+            # 判断查询日期是否为当月
+            now = datetime.now(settings.TZ)
+            current_month_start = now.replace(
+                day=1, hour=0, minute=0, second=0, microsecond=0
+            )
 
-            # 如果只统计 premium 线路
-            if premium_only:
-                premium_lines = settings.PREMIUM_STREAM_BACKEND
-                if premium_lines:
-                    # 构建线路过滤条件
-                    line_conditions = " OR ".join(["line = ?" for _ in premium_lines])
-                    base_conditions += f" AND ({line_conditions})"
-                    params.extend(premium_lines)
-                else:
-                    # 如果没有配置 premium 线路，返回 0
-                    return 0
+            if date >= current_month_start:
+                # 当月数据，从 line_traffic_stats 表查询
+                # 构建查询条件
+                base_conditions = "LOWER(username) = ? AND service = ? AND timestamp >= ? AND timestamp <= ?"
+                params = [
+                    username.lower(),
+                    service,
+                    day_start.isoformat(),
+                    day_end.isoformat(),
+                ]
 
-            # 查询特定服务的指定日期流量
-            query = f"""
-            SELECT COALESCE(SUM(send_bytes), 0) as traffic
-            FROM line_traffic_stats 
-            WHERE {base_conditions}
-            """
-            result = self.cur.execute(query, params).fetchone()
-            return result[0] if result else 0
+                # 如果只统计 premium 线路
+                if premium_only:
+                    premium_lines = settings.PREMIUM_STREAM_BACKEND
+                    if premium_lines:
+                        # 构建线路过滤条件
+                        line_conditions = " OR ".join(
+                            ["line = ?" for _ in premium_lines]
+                        )
+                        base_conditions += f" AND ({line_conditions})"
+                        params.extend(premium_lines)
+                    else:
+                        # 如果没有配置 premium 线路，返回 0
+                        return 0
+
+                # 查询特定服务的指定日期流量
+                query = f"""
+                SELECT COALESCE(SUM(send_bytes), 0) as traffic
+                FROM line_traffic_stats 
+                WHERE {base_conditions}
+                """
+                result = self.cur.execute(query, params).fetchone()
+                return result[0] if result else 0
+            else:
+                # 历史月份数据，从 line_traffic_monthly_stats 表查询
+                # 注意：月度表只有月度总计，无法精确到天，返回 0
+                logger.warning(
+                    f"无法获取历史日期 {date.strftime('%Y-%m-%d')} 的精确日流量数据"
+                )
+                return 0
 
         except Exception as e:
             logger.error(f"Error getting user daily traffic for {username}: {e}")
@@ -1761,6 +1806,7 @@ class DB:
                 if end_date > today_end:
                     end_date = today_end
 
+            # 仅当月数据，从 line_traffic_stats 表查询
             query = """
             SELECT u.plex_username, lts.user_id, SUM(lts.send_bytes) as total_traffic,
                    COALESCE(u.is_premium, 0) as is_premium,
@@ -1847,3 +1893,192 @@ class DB:
         except Exception as e:
             logger.error(f"Error getting Emby traffic rank: {e}")
             return []
+
+    def aggregate_monthly_traffic_data(
+        self, target_month: str = None
+    ) -> tuple[bool, str]:
+        """
+        聚合指定月份的流量数据到月度统计表
+
+        Args:
+            target_month: 目标月份，格式为 'YYYY-MM'，如果为 None 则处理上个月的数据
+
+        Returns:
+            tuple: (是否成功, 消息)
+        """
+        try:
+            from datetime import datetime, timedelta
+
+            if target_month is None:
+                # 默认处理上个月的数据
+                now = datetime.now(settings.TZ)
+                if now.day == 1:
+                    # 如果是每月1号，处理上个月数据
+                    last_month = now.replace(day=1) - timedelta(days=1)
+                    target_month = last_month.strftime("%Y-%m")
+                else:
+                    return False, "只能在每月1号自动处理上个月数据"
+
+            logger.info(f"开始聚合 {target_month} 的流量数据")
+
+            # 验证月份格式
+            try:
+                datetime.strptime(target_month, "%Y-%m")
+            except ValueError:
+                return False, f"月份格式错误: {target_month}，应为 YYYY-MM 格式"
+
+            # 检查是否已经聚合过该月份的数据
+            existing_check = self.cur.execute(
+                "SELECT COUNT(*) FROM line_traffic_monthly_stats WHERE year_month = ?",
+                (target_month,),
+            ).fetchone()[0]
+
+            if existing_check > 0:
+                return False, f"月份 {target_month} 的数据已经聚合过，跳过处理"
+
+            # 计算目标月份的开始和结束时间
+            month_start = datetime.strptime(f"{target_month}-01", "%Y-%m-%d").replace(
+                tzinfo=settings.TZ
+            )
+            if month_start.month == 12:
+                next_month_start = month_start.replace(
+                    year=month_start.year + 1, month=1
+                )
+            else:
+                next_month_start = month_start.replace(month=month_start.month + 1)
+
+            month_start_str = month_start.isoformat()
+            next_month_start_str = next_month_start.isoformat()
+
+            # 聚合查询：按 line, service, username 分组求和
+            aggregation_query = """
+            SELECT 
+                line,
+                service,
+                username,
+                user_id,
+                SUM(send_bytes) as total_bytes,
+                COUNT(*) as record_count
+            FROM line_traffic_stats 
+            WHERE timestamp >= ? AND timestamp < ?
+            GROUP BY line, service, username
+            HAVING SUM(send_bytes) > 0
+            ORDER BY total_bytes DESC
+            """
+
+            aggregated_data = self.cur.execute(
+                aggregation_query, (month_start_str, next_month_start_str)
+            ).fetchall()
+
+            if not aggregated_data:
+                return False, f"月份 {target_month} 没有找到需要聚合的数据"
+
+            # 插入聚合数据到月度统计表
+            current_time = datetime.now(settings.TZ).isoformat()
+            insert_count = 0
+
+            for record in aggregated_data:
+                line, service, username, user_id, total_bytes, record_count = record
+
+                try:
+                    self.cur.execute(
+                        """
+                        INSERT INTO line_traffic_monthly_stats 
+                        (line, service, username, user_id, year_month, total_bytes, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                        (
+                            line,
+                            service,
+                            username,
+                            user_id,
+                            target_month,
+                            total_bytes,
+                            current_time,
+                        ),
+                    )
+                    insert_count += 1
+                except Exception as e:
+                    logger.warning(f"插入月度聚合数据失败: {e}, 数据: {record}")
+
+            self.con.commit()
+
+            logger.info(
+                f"成功聚合 {target_month} 月份数据: {len(aggregated_data)} 个用户组合，插入 {insert_count} 条记录"
+            )
+            return (
+                True,
+                f"成功聚合 {target_month} 月份数据: 处理了 {len(aggregated_data)} 个用户组合",
+            )
+
+        except Exception as e:
+            logger.error(f"聚合月度流量数据失败: {e}")
+            return False, f"聚合月度流量数据失败: {str(e)}"
+
+    def cleanup_monthly_traffic_data(self, target_month: str) -> tuple[bool, str]:
+        """
+        清理已聚合月份的原始流量数据
+
+        Args:
+            target_month: 目标月份，格式为 'YYYY-MM'
+
+        Returns:
+            tuple: (是否成功, 消息)
+        """
+        try:
+            # 验证月份格式
+            try:
+                datetime.strptime(target_month, "%Y-%m")
+            except ValueError:
+                return False, f"月份格式错误: {target_month}，应为 YYYY-MM 格式"
+
+            # 检查月度聚合数据是否存在
+            monthly_check = self.cur.execute(
+                "SELECT COUNT(*) FROM line_traffic_monthly_stats WHERE year_month = ?",
+                (target_month,),
+            ).fetchone()[0]
+
+            if monthly_check == 0:
+                return False, f"月份 {target_month} 的聚合数据不存在，不能清理原始数据"
+
+            # 计算目标月份的时间范围
+            month_start = datetime.strptime(f"{target_month}-01", "%Y-%m-%d").replace(
+                tzinfo=settings.TZ
+            )
+            if month_start.month == 12:
+                next_month_start = month_start.replace(
+                    year=month_start.year + 1, month=1
+                )
+            else:
+                next_month_start = month_start.replace(month=month_start.month + 1)
+
+            month_start_str = month_start.isoformat()
+            next_month_start_str = next_month_start.isoformat()
+
+            # 统计要删除的记录数
+            delete_count_query = """
+            SELECT COUNT(*) FROM line_traffic_stats 
+            WHERE timestamp >= ? AND timestamp < ?
+            """
+            delete_count = self.cur.execute(
+                delete_count_query, (month_start_str, next_month_start_str)
+            ).fetchone()[0]
+
+            if delete_count == 0:
+                return True, f"月份 {target_month} 没有需要清理的原始数据"
+
+            # 删除原始数据
+            delete_query = """
+            DELETE FROM line_traffic_stats 
+            WHERE timestamp >= ? AND timestamp < ?
+            """
+
+            self.cur.execute(delete_query, (month_start_str, next_month_start_str))
+            self.con.commit()
+
+            logger.info(f"已清理 {target_month} 月份的 {delete_count} 条原始流量数据")
+            return True, f"成功清理 {target_month} 月份的 {delete_count} 条原始流量数据"
+
+        except Exception as e:
+            logger.error(f"清理月度流量数据失败: {e}")
+            return False, f"清理月度流量数据失败: {str(e)}"

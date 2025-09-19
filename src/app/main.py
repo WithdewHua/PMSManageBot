@@ -13,6 +13,7 @@ from app.premium import check_premium_expiring_soon, check_premium_expiry
 from app.scheduler import Scheduler
 from app.update_db import (
     finish_expired_auctions_job,
+    monthly_traffic_data_migration,
     rewrite_users_credits_to_redis,
     update_credits,
     update_line_traffic_stats,
@@ -176,6 +177,19 @@ def add_init_scheduler_job():
         + datetime.timedelta(seconds=30),  # 启动后执行一次
     )
     logger.info("添加定时任务：每 1 小时更新用户信息")
+
+    # 每月 1 号凌晨 1:00 执行月度流量数据迁移聚合
+    scheduler.add_async_job(
+        func=monthly_traffic_data_migration,
+        trigger="cron",
+        id="monthly_traffic_data_migration",
+        replace_existing=True,
+        max_instances=1,
+        day=1,
+        hour=1,
+        minute=0,
+    )
+    logger.info("添加定时任务：每月 1 号凌晨 1:00 执行月度流量数据迁移聚合")
 
 
 if __name__ == "__main__":
