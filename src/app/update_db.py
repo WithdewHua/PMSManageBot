@@ -19,7 +19,7 @@ from app.emby import Emby
 from app.log import logger
 from app.plex import Plex
 from app.tautulli import Tautulli
-from app.utils import (
+from app.utils.utils import (
     get_user_name_from_tg_id,
     get_user_total_duration,
     send_message_by_url,

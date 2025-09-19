@@ -1,5 +1,5 @@
 from app.config import settings
-from app.utils import SingletonMeta
+from app.utils.utils import SingletonMeta
 from apscheduler.executors.asyncio import AsyncIOExecutor
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.jobstores.memory import MemoryJobStore

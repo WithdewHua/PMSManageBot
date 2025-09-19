@@ -19,7 +19,7 @@ from app.update_db import (
     update_plex_info,
     write_user_info_cache,
 )
-from app.utils import refresh_emby_user_info, refresh_tg_user_info
+from app.utils.utils import refresh_emby_user_info, refresh_tg_user_info
 from telegram.ext import ApplicationBuilder
 
 

@@ -8,7 +8,7 @@ from app.config import settings
 from app.db import DB
 from app.log import uvicorn_logger as logger
 from app.premium import update_premium_status
-from app.utils import get_user_name_from_tg_id
+from app.utils.utils import get_user_name_from_tg_id
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import BaseResponse, TelegramUser

@@ -14,7 +14,7 @@ from app.emby import Emby
 from app.log import uvicorn_logger as logger
 from app.plex import Plex
 from app.tautulli import Tautulli
-from app.utils import (
+from app.utils.utils import (
     caculate_credits_fund,
     get_user_info_from_tg_id,
     get_user_name_from_tg_id,
@@ -1498,7 +1498,7 @@ async def transfer_credits(
                 )
 
             # 记录转移日志
-            from app.utils import get_user_name_from_tg_id
+            from app.utils.utils import get_user_name_from_tg_id
 
             sender_name = get_user_name_from_tg_id(sender_id)
             target_name = get_user_name_from_tg_id(target_tg_id)

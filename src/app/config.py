@@ -3,6 +3,7 @@ from datetime import timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict
 
+from app.utils.system import SystemUtils
 from pydantic_settings import BaseSettings
 
 
@@ -60,7 +61,11 @@ class Settings(BaseSettings):
     WEBAPP_URL: str = "https://yourdomain.com"  # WebApp 的公开 URL
     WEBAPP_PORT: int = 5000  # WebApp 服务器监听端口
     WEBAPP_HOST: str = "127.0.0.1"  # WebApp 服务器监听地址
-    WEBAPP_STATIC_DIR: str = "../webapp-frontend/dist"  # WebApp 前端静态文件目录
+    WEBAPP_STATIC_DIR: str = (
+        "../webapp-frontend/dist"
+        if not SystemUtils.is_container()
+        else "/app/webapp-frontend/dist"
+    )  # WebApp 前端静态文件目录
     SESSION_SECRET_KEY: str = ""  # 用于会话加密的密钥
 
     # tautulli
@@ -105,7 +110,11 @@ class Settings(BaseSettings):
     @property
     def DATA_PATH(self):
         if not self.DATA_DIR:
-            return Path(__file__).parents[2] / "data"
+            return (
+                Path(__file__).parents[2] / "data"
+                if not SystemUtils.is_container()
+                else Path("/app/data")
+            )
         return Path(self.DATA_DIR)
 
     @property

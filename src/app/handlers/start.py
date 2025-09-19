@@ -1,7 +1,7 @@
 import textwrap
 
 from app.config import settings
-from app.utils import send_message
+from app.utils.utils import send_message
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 

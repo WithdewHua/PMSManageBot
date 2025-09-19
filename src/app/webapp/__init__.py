@@ -45,6 +45,14 @@ app.add_middleware(
 # 添加 Telegram 认证中间件
 app.add_middleware(TelegramAuthMiddleware)
 
+
+# 健康检查端点
+@app.get("/health")
+async def health_check():
+    """健康检查端点"""
+    return {"status": "ok", "message": "PMSManageBot is running"}
+
+
 # 注册路由
 app.include_router(user_router)
 app.include_router(rankings_router)

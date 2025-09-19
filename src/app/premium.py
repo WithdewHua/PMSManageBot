@@ -13,7 +13,7 @@ from app.cache import (
 from app.config import settings
 from app.db import DB
 from app.log import logger
-from app.utils import (
+from app.utils.utils import (
     get_user_name_from_tg_id,
     is_binded_premium_line,
     send_message_by_url,

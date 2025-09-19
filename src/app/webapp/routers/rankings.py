@@ -5,7 +5,7 @@ from app.db import DB
 from app.emby import Emby
 from app.log import uvicorn_logger as logger
 from app.plex import Plex
-from app.utils import get_user_avatar_from_tg_id, get_user_name_from_tg_id
+from app.utils.utils import get_user_avatar_from_tg_id, get_user_name_from_tg_id
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import TelegramUser

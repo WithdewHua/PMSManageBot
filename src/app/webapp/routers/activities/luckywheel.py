@@ -8,7 +8,7 @@ from app.db import DB
 from app.log import logger
 from app.premium import update_premium_status
 from app.update_db import add_redeem_code
-from app.utils import get_user_name_from_tg_id
+from app.utils.utils import get_user_name_from_tg_id
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.routers.admin import check_admin_permission

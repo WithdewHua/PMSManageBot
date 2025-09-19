@@ -1,0 +1,81 @@
+# Git 相关
+.git
+.gitignore
+.gitattributes
+
+# Python 缓存和临时文件
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# 虚拟环境
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE 和编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 日志文件
+*.log
+logs/
+
+# 测试
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Node.js 相关
+webapp-frontend/node_modules/
+webapp-frontend/dist/
+webapp-frontend/.nuxt/
+webapp-frontend/.output/
+webapp-frontend/.cache/
+
+# 文档
+# README.md  # 构建时需要
+*.md
+!README.md
+docs/
+
+# 部署相关
+docker-compose.yml
+deploy.sh
+Dockerfile*
+
+# 开发工具
+.env.example
+
+# 数据库迁移（如果不需要在容器中运行）
+# alembic/
+
+# 缓存文件（运行时生成）
+data/
