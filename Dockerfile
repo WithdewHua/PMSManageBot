@@ -67,6 +67,10 @@ COPY --from=frontend-builder /app/webapp-frontend/dist ./webapp-frontend/dist
 # 复制应用程序源代码
 COPY src/ ./src/
 
+# 复制启动脚本
+COPY start.sh ./start.sh
+RUN chmod +x ./start.sh
+
 # 创建数据目录
 RUN mkdir -p /app/data
 
@@ -74,4 +78,4 @@ RUN mkdir -p /app/data
 EXPOSE 6000
 
 # 启动命令
-CMD ["python3", "-m", "app.main"]
+CMD ["./start.sh"]

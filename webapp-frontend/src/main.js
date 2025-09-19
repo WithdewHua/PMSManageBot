@@ -13,7 +13,7 @@ import '@mdi/font/css/materialdesignicons.css'
 import registerServiceWorker from './registerServiceWorker'
 
 // 获取正确的环境变量
-const apiBaseUrl = process.env.VUE_APP_API_URL || 'http://localhost:6000'
+const apiBaseUrl = process.env.WEBAPP_URL || 'http://localhost:6000'
 
 // API 配置
 const apiConfig = {

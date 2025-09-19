@@ -312,6 +312,7 @@ webapp-frontend/node_modules/
 webapp-frontend/dist/
 webapp-frontend/.env.local
 webapp-frontend/.env.*.local
+webapp-frontend/.env.production
 webapp-frontend/npm-debug.log*
 webapp-frontend/yarn-debug.log*
 webapp-frontend/yarn-error.log*

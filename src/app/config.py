@@ -58,7 +58,7 @@ class Settings(BaseSettings):
 
     # WebApp
     WEBAPP_ENABLE: bool = True  # 是否启用 WebApp
-    WEBAPP_URL: str = "https://yourdomain.com"  # WebApp 的公开 URL
+    WEBAPP_URL: str = "https://yourdomain.com"  # WebApp 的公开 URL，只接受环境变量
     WEBAPP_PORT: int = 6000  # WebApp 服务器监听端口
     WEBAPP_HOST: str = "127.0.0.1"  # WebApp 服务器监听地址
     WEBAPP_STATIC_DIR: str = (
@@ -142,6 +142,10 @@ class Settings(BaseSettings):
 
     def _load_from_env_file(self):
         """从 .env 文件加载环境变量"""
+
+        ignore_env = [
+            "WEBAPP_URL",
+        ]
         try:
             with open(self.ENV_FILE_PATH, "r", encoding="utf-8") as f:
                 for line in f:
@@ -150,6 +154,9 @@ class Settings(BaseSettings):
                         key, value = line.split("=", 1)
                         key = key.strip()
                         value = value.strip().strip('"').strip("'")
+
+                        if key in ignore_env:
+                            continue
 
                         # 设置环境变量
                         os.environ[key] = value

@@ -7,3 +7,5 @@ services:
     restart: unless-stopped
     volumes:
       - ./data:/app/data
+    environment:
+      - WEBAPP_URL=https://yourdomain
