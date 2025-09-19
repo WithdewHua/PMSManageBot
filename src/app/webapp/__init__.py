@@ -75,7 +75,7 @@ def setup_static_files():
         # pics
         app.mount(
             "/pics",
-            StaticFiles(directory=str(settings.TG_USER_PROFILE_CACHE_PATH)),
+            StaticFiles(directory=str(settings.TG_USER_PROFILE_CACHE_PATH.absolute())),
             name="pics",
         )
         app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="webapp")
