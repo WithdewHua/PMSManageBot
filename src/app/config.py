@@ -123,11 +123,11 @@ class Settings(BaseSettings):
 
     @property
     def TG_USER_PROFILE_CACHE_PATH(self):
+        path = Path(self.DATA_PATH) / "pics"
         if self.WEBAPP_ENABLE and Path(self.WEBAPP_STATIC_DIR).exists():
-            path = Path(self.DATA_PATH) / "pics"
             if not path.exists():
                 path.mkdir(parents=True, exist_ok=True)
-            return path
+        return path
 
     @property
     def ENV_FILE_PATH(self):

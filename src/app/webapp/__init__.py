@@ -72,6 +72,12 @@ def setup_static_files():
         return False
 
     try:
+        # pics
+        app.mount(
+            "/pics",
+            StaticFiles(directory=str(settings.TG_USER_PROFILE_CACHE_PATH)),
+            name="pics",
+        )
         app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="webapp")
         return True
     except Exception as e:
