@@ -3,7 +3,7 @@ services:
     image: ghcr.io/withdewhua/pmsmanagebot:latest
     container_name: PMSManageBot
     ports:
-      - 6000:5000
+      - 6000:6000
     restart: unless-stopped
     volumes:
       - ./data:/app/data
