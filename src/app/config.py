@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # debug
-    DEBUG: bool = True
+    DEBUG: bool = False
     # log
     LOG_LEVEL: str = "INFO"
 
@@ -115,7 +115,7 @@ class Settings(BaseSettings):
             path = Path(self.WEBAPP_STATIC_DIR) / "pics"
             if not path.exists():
                 path.mkdir(parents=True, exist_ok=True)
-        return path
+            return path
 
     @property
     def ENV_FILE_PATH(self):
@@ -155,7 +155,7 @@ class Settings(BaseSettings):
                             elif isinstance(current_value, int):
                                 setattr(self, key, int(value))
                             elif isinstance(current_value, list):
-                                # 假设列表用逗号分隔
+                                # 列表用逗号分隔
                                 setattr(
                                     self,
                                     key,
@@ -240,8 +240,11 @@ class Settings(BaseSettings):
             ):
                 value = getattr(self, key)
                 # 只保存基本类型
-                if isinstance(value, (str, int, bool, list)):
+                if isinstance(value, (str, int, bool)):
                     config[key] = value
+                if isinstance(value, list):
+                    value = [str(v) for v in value]
+                    config[key] = ",".join(value)
 
         return config
 
@@ -262,8 +265,11 @@ class Settings(BaseSettings):
                     and not callable(getattr(self, key))
                 ):
                     value = getattr(self, key)
-                    if isinstance(value, (str, int, bool, list)):
+                    if isinstance(value, (str, int, bool)):
                         config[key] = value
+                    if isinstance(value, list):
+                        value = [str(v) for v in value]
+                        config[key] = ",".join(value)
         else:
             # 只保存非敏感配置项
             config = self.get_saveable_config()
