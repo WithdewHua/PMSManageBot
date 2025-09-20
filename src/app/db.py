@@ -36,7 +36,7 @@ class DB:
             );
 
             CREATE TABLE IF NOT EXISTS invitation(
-                code, owner, is_used, userd_by
+                code, owner, is_used, used_by
             );
 
             CREATE TABLE IF NOT EXISTS statistics(
