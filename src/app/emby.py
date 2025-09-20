@@ -88,7 +88,9 @@ class Emby:
     def get_uid_from_username(self, username: str) -> Optional[str]:
         return self.get_user_info_from_username(username).get("id")
 
-    def get_user_info_from_username(self, username: str, from_emby=True):
+    def get_user_info_from_username(
+        self, username: str, from_emby=True, is_hidden=settings.EMBY_USER_IS_HIDDEN
+    ):
         cache = {}
         user_info = {}
         with self.cache_lock:
@@ -109,7 +111,7 @@ class Emby:
             headers = {"accept": "application/json"}
 
             params = {
-                "IsHidden": "true",
+                "IsHidden": str(is_hidden).lower(),
                 "IsDisabled": "false",
                 "Limit": "1",
                 "NameStartsWithOrGreater": username,

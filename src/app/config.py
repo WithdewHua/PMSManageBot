@@ -78,6 +78,7 @@ class Settings(BaseSettings):
     EMBY_API_TOKEN: str = ""
     EMBY_ADMIN_USER: str = ""
     EMBY_USER_TEMPLATE: str = ""
+    EMBY_USER_IS_HIDDEN: bool = True  # 新用户是否在登录界面隐藏
 
     # 后端线路
     STREAM_BACKEND: list[str] = []
