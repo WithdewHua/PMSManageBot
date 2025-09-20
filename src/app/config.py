@@ -8,8 +8,6 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # debug
-    DEBUG: bool = False
     # log
     LOG_LEVEL: str = "INFO"
 

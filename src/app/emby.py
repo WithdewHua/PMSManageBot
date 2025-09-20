@@ -129,9 +129,16 @@ class Emby:
                     response_json = response.json()
                     logger.debug(f"{response_json=}")
 
-                    if response.status_code == 200 and response_json.get("Items"):
+                    if response.status_code == 200:
+                        if (
+                            response_json.get("Items") is None
+                            or len(response_json["Items"]) == 0
+                        ):
+                            # 用户不存在
+                            return {}
                         name = response_json["Items"][0]["Name"]
                         break
+                    response.raise_for_status()
                 except Exception as e:
                     logger.error(f"Error fetching user ID for {username}: {e}")
                     retry -= 1
