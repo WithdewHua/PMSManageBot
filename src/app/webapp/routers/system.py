@@ -64,7 +64,7 @@ async def get_system_status():
     try:
         status_data = {
             "site_name": settings.SITE_NAME,
-            "emby_entry_url": settings.EMBY_ENTRY_UR or settings.EMBY_BASE_URL,
+            "emby_entry_url": settings.EMBY_ENTRY_URL or settings.EMBY_BASE_URL,
             "plex_register": settings.PLEX_REGISTER,
             "emby_register": settings.EMBY_REGISTER,
             "premium_unlock_enabled": settings.PREMIUM_UNLOCK_ENABLED,
