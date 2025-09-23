@@ -75,6 +75,7 @@ class Settings(BaseSettings):
     # emby
     EMBY_REGISTER: bool = True
     EMBY_BASE_URL: str = ""
+    EMBY_ENTRY_URL: str = ""  # 可指定 Emby 入口 URL，默认与 EMBY_BASE_URL 相同
     EMBY_API_TOKEN: str = ""
     EMBY_ADMIN_USER: str = ""
     EMBY_USER_TEMPLATE: str = ""
