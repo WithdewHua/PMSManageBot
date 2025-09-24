@@ -1,6 +1,39 @@
-// 缓存版本，需要更新缓存时更改此版本号
-const CACHE_VERSION = 'v1.2';
+// 自动版本控制 - 构建时会被自动更新
+const BUILD_DATE = '20250924';
+const MANUAL_VERSION = '0.1.1-1758678351735';
+const CACHE_VERSION = `v${BUILD_DATE}`;
 const CACHE_NAME = `funmedia-assistant-${CACHE_VERSION}`;
+const FULL_CACHE_NAME = `${CACHE_NAME}-${MANUAL_VERSION}`;
+
+// 版本检查和强制更新功能
+const checkForUpdates = async () => {
+  try {
+    const response = await fetch('/version.json', { 
+      cache: 'no-cache',
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+    
+    if (response.ok) {
+      const serverVersion = await response.json();
+      const currentVersion = MANUAL_VERSION;
+      
+      if (serverVersion.version !== currentVersion) {
+        console.log('发现新版本，准备更新缓存');
+        // 通知客户端有新版本
+        self.clients.matchAll().then(clients => {
+          clients.forEach(client => {
+            client.postMessage({
+              type: 'NEW_VERSION_AVAILABLE',
+              version: serverVersion.version
+            });
+          });
+        });
+      }
+    }
+  } catch (error) {
+    console.log('版本检查失败:', error);
+  }
+};
 
 // 基础缓存资源（只缓存核心导航资源）
 const urlsToCache = [
@@ -12,29 +45,47 @@ const urlsToCache = [
 
 // 安装 Service Worker
 self.addEventListener('install', event => {
+  console.log('Service Worker 安装中...', FULL_CACHE_NAME);
   event.waitUntil(
-    caches.open(CACHE_NAME)
+    caches.open(FULL_CACHE_NAME)
       .then(cache => {
-        console.log('Service Worker: 缓存资源中');
+        console.log('Service Worker: 缓存基础资源');
         return cache.addAll(urlsToCache);
       })
-      .then(() => self.skipWaiting())
+      .then(() => {
+        console.log('Service Worker: 强制激活新版本');
+        self.skipWaiting();
+      })
   );
 });
 
-// 激活 Service Worker
+// 定期检查更新（每小时检查一次）
+setInterval(checkForUpdates, 60 * 60 * 1000);
+
+// Service Worker 激活时立即检查更新
 self.addEventListener('activate', event => {
+  console.log('Service Worker 激活中...', FULL_CACHE_NAME);
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cache => {
-          if (cache !== CACHE_NAME) {
-            console.log('Service Worker: 清除旧缓存 ' + cache);
-            return caches.delete(cache);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
+    Promise.all([
+      // 清理旧缓存
+      caches.keys().then(cacheNames => {
+        return Promise.all(
+          cacheNames.map(cacheName => {
+            // 清除所有不匹配当前版本的缓存
+            if (cacheName !== FULL_CACHE_NAME && cacheName.startsWith('funmedia-assistant-')) {
+              console.log('Service Worker: 清除旧缓存', cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      }),
+      // 检查版本更新
+      checkForUpdates()
+    ])
+    .then(() => {
+      console.log('Service Worker: 激活完成，接管所有客户端');
+      return self.clients.claim();
+    })
   );
 });
 
@@ -85,7 +136,7 @@ self.addEventListener('fetch', event => {
                 const responseToCache = response.clone();
                 
                 // 打开缓存并存储响应
-                caches.open(CACHE_NAME)
+                caches.open(FULL_CACHE_NAME)
                   .then(cache => {
                     console.log('缓存资源:', url.pathname);
                     cache.put(event.request, responseToCache);
