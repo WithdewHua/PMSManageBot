@@ -643,7 +643,7 @@ async def update_line_traffic_stats(
 
                 # 使用正则表达式解析 nginx 访问日志格式
                 # 格式: IP - - [时间] "方法 URL 协议" 状态码 字节数 "引用"
-                log_pattern = r"(\S+) - - \[([^\]]+)\] \"(\S+) ([^\"]+) ([^\"]+)\" (\d+) (\d+) \"([^\"]*)\""
+                log_pattern = r"(\S+) - \S+? \[([^\]]+)\] \"(\S+) ([^\"]+) ([^\"]+)\" (\d+) (\d+) \"([^\"]*)\""
                 match = re.match(log_pattern, message)
 
                 if not match:

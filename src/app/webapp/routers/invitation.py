@@ -303,7 +303,7 @@ async def redeem_emby_code(
     try:
         code = data.code
         username = data.username
-        password = data.password
+        password = str(data.password).strip()
         bind_to_telegram = data.bind_to_telegram
         telegram_user_id = telegram_user.id
         is_privileged = code in settings.PRIVILEGED_CODES
