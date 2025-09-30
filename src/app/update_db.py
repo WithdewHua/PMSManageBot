@@ -1,5 +1,6 @@
 import asyncio
 import json
+import math
 import re
 from datetime import datetime, timedelta
 from time import time
@@ -72,9 +73,10 @@ def update_plex_credits():
             )
             traffic_cost_credits = 0
             if traffic_usage_exceed > 0:
+                # 按10GB档位计费，不足10GB按10GB计算
+                gb_tiers = math.ceil(traffic_usage_exceed / (10 * 1024 * 1024 * 1024))
                 traffic_cost_credits = round(
-                    (traffic_usage_exceed / (10 * 1024 * 1024 * 1024))
-                    * settings.CREDITS_COST_PER_10GB,
+                    gb_tiers * settings.CREDITS_COST_PER_10GB,
                     2,
                 )
             if not tg_id:
@@ -181,9 +183,10 @@ def update_emby_credits():
             )
             traffic_cost_credits = 0
             if traffic_usage_exceed > 0:
+                # 按10GB档位计费，不足10GB按10GB计算
+                gb_tiers = math.ceil(traffic_usage_exceed / (10 * 1024 * 1024 * 1024))
                 traffic_cost_credits = round(
-                    (traffic_usage_exceed / (10 * 1024 * 1024 * 1024))
-                    * settings.CREDITS_COST_PER_10GB,
+                    gb_tiers * settings.CREDITS_COST_PER_10GB,
                     2,
                 )
 
