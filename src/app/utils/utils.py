@@ -4,7 +4,7 @@ import asyncio
 import pickle
 import threading
 from time import time
-from typing import Optional
+from typing import Optional, Union
 
 import aiohttp
 import filelock
@@ -95,7 +95,7 @@ async def send_message(chat_id, text: str, context: ContextTypes.DEFAULT_TYPE, *
 
 
 async def send_message_by_url(
-    chat_id,
+    chat_id: Union[int, str],
     text: str,
     token: str = settings.TG_API_TOKEN,
     max_retries: int = 10,

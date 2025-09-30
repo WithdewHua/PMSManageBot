@@ -340,11 +340,12 @@ async def spin_wheel(
             f"用户 {get_user_name_from_tg_id(user_id)} 转盘结果: {winner.name}, 积分变化: {credits_change}, 最终积分: {final_credits}"
         )
         if generated_privileged_code:
-            await send_message_by_url(
-                chat_id=settings.TG_ADMIN_CHAT_ID,
-                text=f"用户 {get_user_name_from_tg_id(user_id)} 在转盘中获得了特权邀请码",
-                token=settings.TG_API_TOKEN,
-            )
+            for chat_id in settings.TG_ADMIN_CHAT_ID:
+                await send_message_by_url(
+                    chat_id=chat_id,
+                    text=f"用户 {get_user_name_from_tg_id(user_id)} 在转盘中获得了特权邀请码",
+                    token=settings.TG_API_TOKEN,
+                )
 
         return LuckyWheelSpinResult(
             item=winner, credits_change=credits_change, current_credits=final_credits
