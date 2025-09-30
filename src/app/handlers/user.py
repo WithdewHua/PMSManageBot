@@ -136,28 +136,28 @@ async def create_overseerr(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 text="错误: 未绑定 Emby 帐号，不允许创建 Overseer 账户",
                 context=context,
             )
-            raise
+            return
         if plex_info:
             await send_message(
                 chat_id=chat_id,
                 text="错误：您已绑定 Plex 账户，请使用 Plex 帐号登录 Overseer",
                 context=context,
             )
-            raise
+            return
         if overseerr_info:
             await send_message(
                 chat_id=chat_id,
                 text="错误：您已创建过 Overseerr 账户，请勿重复创建",
                 context=context,
             )
-            raise
+            return
         if overseerr_info_by_email:
             await send_message(
                 chat_id=chat_id,
                 text="错误：已存在该邮箱创建的 Overseerr 账户，请勿重复创建",
                 context=context,
             )
-            raise
+            return
         # 创建账户
         _overseerr = Overseerr()
         flag, msg = _overseerr.add_user(email, password)
@@ -168,7 +168,7 @@ async def create_overseerr(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 text="错误：创建账户失败，请联系管理员",
                 context=context,
             )
-            raise
+            return
         # 保存至数据库
         rslt = db.add_overseerr_user(user_id=msg, user_email=email, tg_id=chat_id)
         if not rslt:
@@ -177,7 +177,7 @@ async def create_overseerr(update: Update, context: ContextTypes.DEFAULT_TYPE) -
                 text="错误：数据库操作失败，请联系管理员",
                 context=context,
             )
-            raise
+            return
     except Exception as e:
         logger.error(e)
     finally:
