@@ -52,6 +52,18 @@ class CheckPrivilegedCodeResponse(BaseModel):
     privileged: bool
 
 
+class BatchCheckPrivilegedCodesRequest(BaseModel):
+    """批量检查特权邀请码请求模型"""
+
+    codes: list[str]
+
+
+class BatchCheckPrivilegedCodesResponse(BaseModel):
+    """批量检查特权邀请码响应模型"""
+
+    results: dict[str, bool]  # 邀请码 -> 是否为特权码的映射
+
+
 class RedeemForCreditsRequest(BaseModel):
     """邀请码兑换积分请求模型"""
 

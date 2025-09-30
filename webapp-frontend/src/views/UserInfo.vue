@@ -704,7 +704,7 @@ import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
 import { redeemInviteCodeForCredits } from '@/services/inviteCodeService.js'
-import { checkPrivilegedInviteCode } from '@/services/mediaServiceApi.js'
+import { checkPrivilegedInviteCode, batchCheckPrivilegedInviteCodes } from '@/services/mediaServiceApi.js'
 import { getUserActivityStats } from '@/services/wheelService.js'
 import { formatTraffic } from '@/utils/format.js'
 
@@ -834,6 +834,32 @@ export default {
     // 检查特权邀请码
     async checkPrivilegedCodes() {
       // 重置特权码状态映射
+      this.privilegedCodes = {};
+      
+      if (!this.userInfo.invitation_codes || this.userInfo.invitation_codes.length === 0) {
+        return;
+      }
+      
+      try {
+        // 使用批量检查API，一次性检查所有邀请码
+        const result = await batchCheckPrivilegedInviteCodes(this.userInfo.invitation_codes);
+        
+        // 将结果映射到索引
+        this.userInfo.invitation_codes.forEach((code, index) => {
+          this.privilegedCodes[index] = result.results[code] || false;
+        });
+        
+        console.log(`批量检查 ${this.userInfo.invitation_codes.length} 个邀请码完成`);
+      } catch (error) {
+        console.error('批量检查邀请码特权状态失败:', error);
+        // 出错时使用回退方案：逐个检查
+        console.log('使用回退方案：逐个检查邀请码');
+        await this.checkPrivilegedCodesLegacy();
+      }
+    },
+
+    // 回退方案：逐个检查邀请码（保留原有逻辑作为备用）
+    async checkPrivilegedCodesLegacy() {
       this.privilegedCodes = {};
       
       for (let i = 0; i < this.userInfo.invitation_codes.length; i++) {

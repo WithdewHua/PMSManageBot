@@ -10,6 +10,8 @@ from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import (
+    BatchCheckPrivilegedCodesRequest,
+    BatchCheckPrivilegedCodesResponse,
     CheckPrivilegedCodeRequest,
     CheckPrivilegedCodeResponse,
     GenerateInviteCodeResponse,
@@ -456,6 +458,36 @@ async def check_privileged_invite_code(
         logger.error(f"检查特权邀请码失败: {str(e)}")
         # 出错时默认返回非特权状态，避免意外授权
         return CheckPrivilegedCodeResponse(privileged=False)
+
+
+@router.post(
+    "/batch-check-privileged", response_model=BatchCheckPrivilegedCodesResponse
+)
+async def batch_check_privileged_invite_codes(
+    request: Request,
+    data: BatchCheckPrivilegedCodesRequest = Body(...),
+):
+    """
+    批量检查邀请码是否为特权邀请码
+    """
+    try:
+        codes = data.codes
+
+        # 批量检查邀请码是否为特权码
+        # 使用集合操作提高性能，一次性检查所有邀请码
+        privileged_set = set(settings.PRIVILEGED_CODES)
+        results = {code: code in privileged_set for code in codes}
+
+        logger.info(
+            f"批量检查 {len(codes)} 个邀请码，发现 {sum(results.values())} 个特权码"
+        )
+        return BatchCheckPrivilegedCodesResponse(results=results)
+
+    except Exception as e:
+        logger.error(f"批量检查特权邀请码失败: {str(e)}")
+        # 出错时返回所有邀请码都为非特权状态，避免意外授权
+        error_results = {code: False for code in data.codes}
+        return BatchCheckPrivilegedCodesResponse(results=error_results)
 
 
 @router.post("/redeem-for-credits", response_model=RedeemForCreditsResponse)

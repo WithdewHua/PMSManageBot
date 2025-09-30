@@ -20,6 +20,8 @@ from .invitation import (
     RedeemResponse,
     CheckPrivilegedCodeRequest,
     CheckPrivilegedCodeResponse,
+    BatchCheckPrivilegedCodesRequest,
+    BatchCheckPrivilegedCodesResponse,
     RedeemForCreditsRequest,
     RedeemForCreditsResponse,
 )
