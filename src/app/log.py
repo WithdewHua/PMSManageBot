@@ -45,18 +45,3 @@ logger.addHandler(consoleHandler)
 
 # uvicorn 日志
 uvicorn_logger = logging.getLogger("uvicorn")
-uvicorn_logger.setLevel(getattr(logging, settings.LOG_LEVEL))
-
-# 为 uvicorn 日志也应用时区格式化器
-for handler in uvicorn_logger.handlers:
-    if isinstance(handler, logging.StreamHandler):
-        handler.setFormatter(logFormatter)
-
-# uvicorn.access 日志
-uvicorn_access_logger = logging.getLogger("uvicorn.access")
-uvicorn_access_logger.setLevel(getattr(logging, settings.LOG_LEVEL))
-
-# 为 uvicorn.access 日志也应用时区格式化器
-for handler in uvicorn_access_logger.handlers:
-    if isinstance(handler, logging.StreamHandler):
-        handler.setFormatter(logFormatter)
