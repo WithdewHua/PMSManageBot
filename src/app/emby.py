@@ -65,7 +65,7 @@ class Emby:
         """修改用户密码"""
         header = {"accept": "application/json", "Content-Type": "application/json"}
 
-        data = {"Id": emby_id, "NewPw": new_password, "ResetPassword": False}
+        data = {"Id": emby_id, "NewPw": new_password.strip(), "ResetPassword": False}
         try:
             response = requests.post(
                 url=self.base_url

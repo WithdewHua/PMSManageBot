@@ -416,6 +416,13 @@ async def redeem_emby_code(
                 )
 
             # 返回成功响应
+            if telegram_bound:
+                message = f"邀请码兑换成功！用户名为 {username}，密码为 {password}，并已绑定到您的 Telegram 账户"
+                await send_message_by_url(
+                    chat_id=telegram_user_id,
+                    text=message,
+                    token=settings.TG_API_TOKEN,
+                )
             return RedeemResponse(
                 success=True,
                 message=f"邀请码兑换成功！用户名为 {username}，密码为 {password}",

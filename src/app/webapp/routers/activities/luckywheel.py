@@ -4,11 +4,12 @@ import secrets
 import time
 
 from app.cache import lucky_wheel_config_cache
+from app.config import settings
 from app.db import DB
 from app.log import logger
 from app.premium import update_premium_status
 from app.update_db import add_redeem_code
-from app.utils.utils import get_user_name_from_tg_id
+from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.routers.admin import check_admin_permission
@@ -309,11 +310,13 @@ async def spin_wheel(
 
         # 如果中奖奖品是邀请码，判断是否需要生成特权邀请码
         gen_privileged_code = False
+        generated_privileged_code = False
         if "邀请码" in winner.name and config.gen_privileged_code:
             gen_privileged_code = True
             # 生成后立马关闭生成特权邀请码
             config.gen_privileged_code = False
             save_wheel_config(config)
+            generated_privileged_code = True
 
         # 更新奖励，计算积分变化
         credits_change = calculate_credits_change(
@@ -336,6 +339,12 @@ async def spin_wheel(
         logger.info(
             f"用户 {get_user_name_from_tg_id(user_id)} 转盘结果: {winner.name}, 积分变化: {credits_change}, 最终积分: {final_credits}"
         )
+        if generated_privileged_code:
+            await send_message_by_url(
+                chat_id=settings.TG_ADMIN_CHAT_ID,
+                text=f"用户 {get_user_name_from_tg_id(user_id)} 在转盘中获得了特权邀请码",
+                token=settings.TG_API_TOKEN,
+            )
 
         return LuckyWheelSpinResult(
             item=winner, credits_change=credits_change, current_credits=final_credits
