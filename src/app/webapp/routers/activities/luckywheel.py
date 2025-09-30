@@ -517,8 +517,9 @@ def random_select_winner(
         if random_value < accumulated_probability:
             return item
 
-    # 保护措施
-    return adjusted_items[-1][0]
+    # 保护措施：返回概率最高的奖品
+    highest_prob_item = max(adjusted_items, key=lambda x: x[1])
+    return highest_prob_item[0]
 
 
 def get_randomness_stats(items: list[LuckyWheelItem], iterations: int = 10000) -> dict:
