@@ -786,7 +786,6 @@ class DB:
                         "bidder_id": result[2],
                         "bid_amount": result[3],
                         "bid_time": result[4],
-                        "bidder_name": f"用户{result[2]}",
                     }
                 )
             return bids

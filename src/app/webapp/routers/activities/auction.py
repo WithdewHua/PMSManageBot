@@ -603,9 +603,7 @@ async def get_auction_bids_admin(
                 "bidder_id": bid_data["bidder_id"],
                 "bid_amount": bid_data["bid_amount"],
                 "bid_time": datetime.fromtimestamp(bid_data["bid_time"]),
-                "bidder_name": bid_data.get(
-                    "bidder_name", f"用户{bid_data['bidder_id']}"
-                ),
+                "bidder_name": get_user_name_from_tg_id(bid_data["bidder_id"]),
             }
             bids.append(bid)
 
