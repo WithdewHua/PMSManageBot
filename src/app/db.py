@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
+import json
 import sqlite3
 import time
 import traceback
 from datetime import datetime, timedelta
 from typing import List, Optional
 
+from app.cache import user_info_cache
 from app.config import settings
 from app.log import logger
 
@@ -160,6 +162,18 @@ class DB:
             return False
         else:
             self.con.commit()
+            user_info_cache.put(
+                f"plex:{plex_username.lower()}",
+                json.dumps(
+                    {
+                        "plex_id": plex_id,
+                        "tg_id": tg_id,
+                        "plex_email": plex_email,
+                        "plex_username": plex_username,
+                        "is_premium": is_premium,
+                    }
+                ),
+            )
         return True
 
     def add_emby_user(
@@ -196,6 +210,17 @@ class DB:
             return False
         else:
             self.con.commit()
+            user_info_cache.put(
+                f"emby:{emby_username.lower()}",
+                json.dumps(
+                    {
+                        "emby_id": emby_id,
+                        "tg_id": tg_id,
+                        "emby_username": emby_username,
+                        "is_premium": is_premium,
+                    }
+                ),
+            )
         return True
 
     def add_overseerr_user(self, user_id: int, user_email: str, tg_id: int):
