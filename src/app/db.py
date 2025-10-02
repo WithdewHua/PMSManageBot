@@ -162,18 +162,31 @@ class DB:
             return False
         else:
             self.con.commit()
-            user_info_cache.put(
-                f"plex:{plex_username.lower()}",
-                json.dumps(
-                    {
-                        "plex_id": plex_id,
-                        "tg_id": tg_id,
-                        "plex_email": plex_email,
-                        "plex_username": plex_username,
-                        "is_premium": is_premium,
-                    }
-                ),
+            if plex_username:
+                user_info_cache.put(
+                    f"plex:{plex_username.lower()}",
+                    json.dumps(
+                        {
+                            "plex_id": plex_id,
+                            "tg_id": tg_id,
+                            "plex_email": plex_email,
+                            "plex_username": plex_username,
+                            "is_premium": is_premium,
+                        }
+                    ),
+                )
+        return True
+
+    def delete_plex_user(self, plex_email: str):
+        try:
+            self.cur.execute(
+                "DELETE FROM user WHERE LOWER(plex_email) = ?", (plex_email.lower(),)
             )
+        except Exception as e:
+            logger.error(f"Error: {e}")
+            return False
+        else:
+            self.con.commit()
         return True
 
     def add_emby_user(

@@ -4,6 +4,7 @@ import math
 import re
 from datetime import datetime, timedelta
 from time import time
+from typing import Optional
 from urllib.parse import parse_qs, urlparse
 from uuid import NAMESPACE_URL, uuid3
 
@@ -272,37 +273,84 @@ async def update_credits():
         await asyncio.sleep(1)
 
 
-def update_plex_info():
+def update_plex_info(
+    plex_name=True, plex_id=True, plex_avatar=True, target_email: Optional[str] = None
+):
     """更新 plex 用户信息"""
     _db = DB()
     _plex = Plex()
     try:
-        users = _plex.users_by_id
-        for uid, user in users.items():
-            email = user[1].email
-            username = user[0]
-            _db.cur.execute(
-                "UPDATE user SET plex_username=?,plex_email=? WHERE plex_id=?",
-                (username, email, uid),
-            )
-        # 检查是否存在 plex_id 为空的用户
-        empty_plex_users = _db.cur.execute(
-            "SELECT plex_email FROM user WHERE plex_id IS NULL"
-        ).fetchall()
-        for user in empty_plex_users:
-            email = user[0]
-            # 处理 plex_id 为空的用户
-            plex_id = _plex.get_user_id_by_email(email)
-            plex_username = _plex.get_username_by_user_id(plex_id) if plex_id else None
-            if plex_id and plex_username:
+        if plex_name:
+            users = _plex.users_by_id
+            for uid, user in users.items():
+                email = user[1].email
+                username = user[0]
                 _db.cur.execute(
-                    "UPDATE user SET plex_id=?, plex_username=? WHERE plex_email=?",
-                    (plex_id, plex_username, email),
+                    "UPDATE user SET plex_username=?,plex_email=? WHERE plex_id=?",
+                    (username, email, uid),
                 )
+        if plex_id:
+            # 检查是否存在 plex_id 为空的用户
+            if target_email:
+                # 如果指定了目标邮箱，只处理该邮箱
+                empty_plex_users = _db.cur.execute(
+                    "SELECT plex_email FROM user WHERE plex_id IS NULL AND plex_email=?",
+                    (target_email,),
+                ).fetchall()
             else:
-                logger.warning(f"无法找到 Plex 用户 {email} 的 ID 或用户名，跳过更新。")
+                # 处理所有 plex_id 为空的用户
+                empty_plex_users = _db.cur.execute(
+                    "SELECT plex_email FROM user WHERE plex_id IS NULL"
+                ).fetchall()
+
+            for user in empty_plex_users:
+                email = user[0]
+                # 处理 plex_id 为空的用户
+                plex_id = _plex.get_user_id_by_email(email)
+                plex_username = (
+                    _plex.get_username_by_user_id(plex_id) if plex_id else None
+                )
+                if plex_id and plex_username:
+                    _db.cur.execute(
+                        "UPDATE user SET plex_id=?, plex_username=? WHERE plex_email=?",
+                        (plex_id, plex_username, email),
+                    )
+                    logger.info(f"成功更新 Plex 用户 {email} 的 plex_id: {plex_id}")
+
+                    # 如果是针对特定邮箱的调度任务，且成功获取到 plex_id，则标记任务待删除
+                    if target_email and email.lower() == target_email.lower():
+                        # 使用延迟删除，避免在任务执行过程中删除自己
+                        import threading
+
+                        def delayed_job_removal():
+                            try:
+                                import time
+
+                                # 等待当前任务执行完成
+                                time.sleep(2)
+                                from app.scheduler import Scheduler
+
+                                scheduler = Scheduler()
+                                job_id = f"update_plex_info_for_{target_email}"
+                                scheduler.remove_job(job_id)
+                                logger.info(f"成功删除调度任务: {job_id}")
+                            except Exception as e:
+                                logger.warning(f"延迟删除调度任务失败: {e}")
+
+                        # 在新线程中执行删除操作
+                        threading.Thread(
+                            target=delayed_job_removal, daemon=True
+                        ).start()
+                        logger.info(
+                            f"已标记删除调度任务: update_plex_info_for_{target_email}"
+                        )
+                else:
+                    logger.warning(
+                        f"无法找到 Plex 用户 {email} 的 ID 或用户名，跳过更新。"
+                    )
         # 更新所有用户的头像
-        _plex.update_all_user_avatars()
+        if plex_avatar:
+            _plex.update_all_user_avatars()
     except Exception as e:
         print(e)
     else:

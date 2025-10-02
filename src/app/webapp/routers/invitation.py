@@ -1,3 +1,4 @@
+import datetime
 from time import time
 from uuid import NAMESPACE_URL, uuid3
 
@@ -6,6 +7,8 @@ from app.db import DB
 from app.emby import Emby
 from app.log import uvicorn_logger as logger
 from app.plex import Plex
+from app.scheduler import Scheduler
+from app.update_db import update_plex_info
 from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
@@ -197,6 +200,10 @@ async def redeem_plex_code(
         _db = DB()
 
         try:
+            # 检查 plex 人数是否已满
+            if int(_db.get_plex_users_num()) == 100:
+                return RedeemResponse(success=False, message="Plex 用户数已达上限")
+
             # 检查邀请码是否存在且未被使用
             res = _db.verify_invitation_code_is_used(code)
             if not res:
@@ -253,12 +260,30 @@ async def redeem_plex_code(
                             logger.info(
                                 f"成功将 Plex 账户 {email} 绑定到 Telegram 用户 {telegram_user_id}"
                             )
+                            # 增加调度任务，稍后更新 plex_id
+                            # 每 1min 执行一次，最多执行 60 次（1小时后自动停止）
+                            scheduler = Scheduler()
+                            scheduler.add_sync_job(
+                                func=update_plex_info,
+                                args=(False, True, False, email),
+                                trigger="interval",
+                                minutes=1,
+                                id=f"update_plex_info_for_{email}",
+                                replace_existing=True,
+                                max_instances=1,
+                                start_date=datetime.datetime.now(settings.TZ)
+                                + datetime.timedelta(minutes=3),
+                                end_date=datetime.datetime.now(settings.TZ)
+                                + datetime.timedelta(hours=1),
+                            )
                         else:
                             logger.error(
                                 f"绑定 Plex 账户到 Telegram 失败: {telegram_user_id} -> {email}"
                             )
                 except Exception as e:
                     logger.error(f"绑定 Telegram 账户过程出错: {str(e)}")
+                    # 删除 plex 用户记录，避免脏数据
+                    _db.delete_plex_user(email)
 
             for admin in settings.TG_ADMIN_CHAT_ID:
                 bind_status = (

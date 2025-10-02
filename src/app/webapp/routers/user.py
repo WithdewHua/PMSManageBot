@@ -239,8 +239,13 @@ async def bind_plex_account(
                 success=False, message="该邮箱无 Plex 权限，请检查输入的邮箱"
             )
 
-        # 检查该plex_id是否已绑定其他TG账户
-        plex_info = _db.get_plex_info_by_plex_id(plex_id)
+        # 检查该用户是否已绑定其他TG账户
+        # 邮箱可能修改，所以用 plex_id 来判断
+        # 但如果是刚接受邀请且兑换邀请码选择了绑定，则可能数据库中没有该 plex_id 的记录
+        # 所以使用 email 再检查一次
+        plex_info = _db.get_plex_info_by_plex_id(
+            plex_id
+        ) or _db.get_plex_info_by_plex_email(email)
         if plex_info:
             tg_id_bound = plex_info[1]
             if tg_id_bound:
@@ -251,7 +256,6 @@ async def bind_plex_account(
                     success=False,
                     message=f"该 Plex 账户已经绑定 Telegram 账户 {tg_id_bound}",
                 )
-
             # 更新已存在用户的tg_id
             rslt = _db.update_user_tg_id(tg_id, plex_id=plex_id)
             if not rslt:
