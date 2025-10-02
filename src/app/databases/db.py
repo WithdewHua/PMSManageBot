@@ -7,8 +7,8 @@ import traceback
 from datetime import datetime, timedelta
 from typing import List, Optional
 
-from app.cache import user_info_cache
 from app.config import settings
+from app.databases.cache import user_info_cache
 from app.log import logger
 
 

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from app.config import settings
-from app.db import DB
+from app.databases.db import DB
 from app.log import logger
 
 

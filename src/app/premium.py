@@ -4,16 +4,17 @@ Premium 会员相关功能，包括检查过期状态和即将过期的用户。
 
 from datetime import datetime, timedelta
 
-from app.cache import (
+from app.config import settings
+from app.databases.cache import (
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
 )
-from app.config import settings
-from app.db import DB
+from app.databases.db import DB
 from app.log import logger
 from app.utils.utils import (
+    format_traffic_size,
     get_user_name_from_tg_id,
     is_binded_premium_line,
     send_message_by_url,
@@ -194,3 +195,120 @@ def unbind_premium_line(db: DB, service: str, username: str, tg_id: int):
         cache.delete(str(username).lower())
 
     return last_line or "AUTO"
+
+
+def format_premium_statistics_message(stats) -> str:
+    """
+    格式化 Premium 线路统计信息为 Telegram 消息格式
+    :param stats: 统计数据列表
+    :return: 格式化后的消息字符串
+    """
+    if not stats:
+        return "📊 Premium 线路统计信息\n\n❌ 暂无统计数据"
+
+    current_time = datetime.now(settings.TZ).strftime("%Y-%m-%d %H:%M:%S")
+
+    message_parts = [
+        "📊 Premium 线路统计信息",
+        f"⏰ 统计时间: {current_time}",
+        "─" * 40,
+    ]
+
+    total_today = 0
+    total_week = 0
+    total_month = 0
+
+    for line_stat in stats:
+        line = line_stat["line"]
+        today_traffic = line_stat["today_traffic"]
+        week_traffic = line_stat["week_traffic"]
+        month_traffic = line_stat["month_traffic"]
+        top_users = line_stat["top_users"]
+
+        total_today += today_traffic
+        total_week += week_traffic
+        total_month += month_traffic
+
+        # 清理线路名称中的多余字符
+        clean_line = line.strip("[]'\"")
+        message_parts.append(f"🔗 线路: {clean_line}")
+        message_parts.append(f"📈 今日流量: {format_traffic_size(today_traffic)}")
+        message_parts.append(f"📊 本周流量: {format_traffic_size(week_traffic)}")
+        message_parts.append(f"📉 本月流量: {format_traffic_size(month_traffic)}")
+
+        if top_users:
+            message_parts.append("👥 今日TOP用户:")
+            for i, user in enumerate(top_users, 1):
+                username = user["username"]
+                traffic = format_traffic_size(user["traffic"])
+                message_parts.append(f"  {i}. {username}: {traffic}")
+        else:
+            message_parts.append("👥 今日暂无用户使用")
+
+        message_parts.append("")  # 空行分隔
+
+    # 添加总计信息
+    message_parts.extend(
+        [
+            "📋 总计统计:",
+            f"📈 今日总流量: {format_traffic_size(total_today)}",
+            f"📊 本周总流量: {format_traffic_size(total_week)}",
+            f"📉 本月总流量: {format_traffic_size(total_month)}",
+            "─" * 40,
+        ]
+    )
+
+    return "\n".join(message_parts)
+
+
+async def get_and_send_premium_statistics():
+    """
+    获取Premium线路统计信息并发送给管理员
+    """
+    db = DB()
+    try:
+        logger.info("开始获取Premium线路统计信息")
+
+        # 获取统计数据
+        stats = db.get_premium_line_traffic_statistics()
+
+        if not stats:
+            logger.warning("未获取到 Premium 线路统计数据")
+            return
+
+        # 格式化消息
+        message = format_premium_statistics_message(stats)
+
+        # 发送给所有管理员
+        admin_chat_ids = settings.TG_ADMIN_CHAT_ID
+        if not admin_chat_ids:
+            logger.warning("未配置管理员 ID，无法发送统计信息")
+            return
+
+        success_count = 0
+        for admin_id in admin_chat_ids:
+            try:
+                # 转换为整数类型（如果是字符串）
+                chat_id = int(admin_id) if isinstance(admin_id, str) else admin_id
+
+                success = await send_message_by_url(
+                    chat_id=chat_id, text=message, parse_mode="Markdown"
+                )
+
+                if success:
+                    success_count += 1
+                    logger.info(f"成功发送 Premium 统计信息给管理员 {chat_id}")
+                else:
+                    logger.error(f"发送 Premium 统计信息给管理员 {chat_id} 失败")
+
+            except Exception as e:
+                logger.error(f"发送消息给管理员 {admin_id} 时发生错误: {str(e)}")
+
+        logger.info(
+            f"Premium 统计信息发送完成，成功发送给 {success_count}/{len(admin_chat_ids)} 个管理员"
+        )
+
+    except Exception as e:
+        logger.error(f"获取并发送 Premium 统计信息时出错: {str(e)}")
+    finally:
+        db.close()

@@ -3,12 +3,12 @@ import re
 import secrets
 import time
 
-from app.cache import lucky_wheel_config_cache
 from app.config import settings
-from app.db import DB
+from app.databases.cache import lucky_wheel_config_cache
+from app.databases.db import DB
+from app.databases.db_func import add_redeem_code
 from app.log import logger
 from app.premium import update_premium_status
-from app.update_db import add_redeem_code
 from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth

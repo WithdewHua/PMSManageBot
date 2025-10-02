@@ -8,19 +8,19 @@ from typing import Optional
 from urllib.parse import parse_qs, urlparse
 from uuid import NAMESPACE_URL, uuid3
 
-from app.cache import (
+from app.config import settings
+from app.databases.cache import (
     emby_api_key_cache,
     plex_token_cache,
     stream_traffic_cache,
     user_credits_cache,
     user_info_cache,
 )
-from app.config import settings
-from app.db import DB
-from app.emby import Emby
+from app.databases.db import DB
 from app.log import logger
-from app.plex import Plex
-from app.tautulli import Tautulli
+from app.modules.emby import Emby
+from app.modules.plex import Plex
+from app.modules.tautulli import Tautulli
 from app.utils.utils import (
     get_user_name_from_tg_id,
     get_user_total_duration,

@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta
 
 from app.config import settings
-from app.db import DB
+from app.databases.db import DB
+from app.databases.db_func import finish_expired_auctions_job
 from app.log import uvicorn_logger as logger
-from app.update_db import finish_expired_auctions_job
 from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth

@@ -1,5 +1,5 @@
 from app.config import settings
-from app.db import DB
+from app.databases.db import DB
 from app.log import uvicorn_logger as logger
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth

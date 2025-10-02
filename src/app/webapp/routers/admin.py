@@ -1,4 +1,5 @@
-from app.cache import (
+from app.config import settings
+from app.databases.cache import (
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
     free_premium_lines_cache,
@@ -7,8 +8,7 @@ from app.cache import (
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
 )
-from app.config import settings
-from app.db import DB
+from app.databases.db import DB
 from app.log import uvicorn_logger as logger
 from app.utils.utils import (
     get_user_name_from_tg_id,
@@ -50,7 +50,7 @@ async def get_admin_settings(
 
     try:
         # 从Redis缓存获取免费高级线路列表
-        from app.cache import free_premium_lines_cache
+        from app.databases.cache import free_premium_lines_cache
 
         free_premium_lines = free_premium_lines_cache.get("free_lines")
         free_premium_lines = free_premium_lines.split(",") if free_premium_lines else []
@@ -941,7 +941,7 @@ async def delete_premium_line_generic(
         )
 
         # 从免费高级线路列表中移除（如果存在）
-        from app.cache import free_premium_lines_cache
+        from app.databases.cache import free_premium_lines_cache
 
         free_premium_lines = free_premium_lines_cache.get("free_lines")
         if free_premium_lines:
@@ -1040,7 +1040,7 @@ async def generate_admin_invite_codes(
             return BaseResponse(success=False, message="参数错误")
 
         # 导入生成邀请码的函数
-        from app.update_db import add_redeem_code
+        from app.databases.db_func import add_redeem_code
 
         # 检查目标用户是否存在
         stats_info = db.get_stats_by_tg_id(tg_id)

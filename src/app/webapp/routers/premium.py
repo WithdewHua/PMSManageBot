@@ -5,7 +5,7 @@ Premium 会员相关路由
 from typing import Optional
 
 from app.config import settings
-from app.db import DB
+from app.databases.db import DB
 from app.log import uvicorn_logger as logger
 from app.premium import update_premium_status
 from app.utils.utils import get_user_name_from_tg_id

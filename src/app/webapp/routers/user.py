@@ -1,19 +1,19 @@
 from time import time
 from typing import Optional
 
-from app.cache import (
+from app.config import settings
+from app.databases.cache import (
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
     get_line_tags,
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
 )
-from app.config import settings
-from app.db import DB
-from app.emby import Emby
+from app.databases.db import DB
 from app.log import uvicorn_logger as logger
-from app.plex import Plex
-from app.tautulli import Tautulli
+from app.modules.emby import Emby
+from app.modules.plex import Plex
+from app.modules.tautulli import Tautulli
 from app.utils.utils import (
     caculate_credits_fund,
     get_user_info_from_tg_id,
@@ -445,7 +445,7 @@ async def get_emby_lines(
     # 如果不是premium用户，检查免费高级线路
     elif settings.PREMIUM_FREE:
         # 从Redis缓存获取免费高级线路列表
-        from app.cache import free_premium_lines_cache
+        from app.databases.cache import free_premium_lines_cache
 
         free_premium_lines = free_premium_lines_cache.get("free_lines")
         free_premium_lines = free_premium_lines.split(",") if free_premium_lines else []
@@ -496,7 +496,7 @@ async def bind_emby_line(
             if is_premium_line_flag:
                 # 检查该高级线路是否在免费列表中
                 if settings.PREMIUM_FREE:
-                    from app.cache import free_premium_lines_cache
+                    from app.databases.cache import free_premium_lines_cache
 
                     free_premium_lines = free_premium_lines_cache.get("free_lines")
                     free_premium_lines = (
@@ -570,7 +570,7 @@ async def unbind_emby_line(
         if not success:
             logger.error(f"重置用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 线路失败")
             return BaseResponse(success=False, message="重置线路失败")
-        from app.cache import emby_user_defined_line_cache
+        from app.databases.cache import emby_user_defined_line_cache
 
         # 删除 redis 缓存
         emby_user_defined_line_cache.delete(str(emby_username).lower())
@@ -867,7 +867,7 @@ async def get_plex_lines(
                 )
         elif settings.PREMIUM_FREE:
             # 普通用户在免费开放期间可以看到免费的高级线路
-            from app.cache import free_premium_lines_cache
+            from app.databases.cache import free_premium_lines_cache
 
             free_premium_lines = free_premium_lines_cache.get("free_lines")
             free_premium_lines = (
@@ -937,7 +937,7 @@ async def bind_plex_line(
             if is_premium_line_flag:
                 # 检查该高级线路是否在免费列表中
                 if settings.PREMIUM_FREE:
-                    from app.cache import free_premium_lines_cache
+                    from app.databases.cache import free_premium_lines_cache
 
                     free_premium_lines = free_premium_lines_cache.get("free_lines")
                     free_premium_lines = (
@@ -1137,7 +1137,7 @@ async def _auth_bind_emby_line(
     line: str,
 ) -> BaseResponse:
     """认证并绑定Emby线路的内部方法"""
-    from app.cache import (
+    from app.databases.cache import (
         emby_last_user_defined_line_cache,
         emby_user_defined_line_cache,
     )
@@ -1157,7 +1157,7 @@ async def _auth_bind_emby_line(
         is_premium_line_flag = is_binded_premium_line(line)
         if is_premium_line_flag:
             if settings.PREMIUM_FREE:
-                from app.cache import free_premium_lines_cache
+                from app.databases.cache import free_premium_lines_cache
 
                 free_premium_lines = free_premium_lines_cache.get("free_lines")
                 free_premium_lines = (
@@ -1202,7 +1202,7 @@ async def _auth_bind_plex_line(
     token: Optional[str] = None,
 ) -> BaseResponse:
     """认证并绑定Plex线路的内部方法"""
-    from app.cache import (
+    from app.databases.cache import (
         plex_last_user_defined_line_cache,
         plex_user_defined_line_cache,
     )
@@ -1224,7 +1224,7 @@ async def _auth_bind_plex_line(
         is_premium_line_flag = is_binded_premium_line(line)
         if is_premium_line_flag:
             if settings.PREMIUM_FREE:
-                from app.cache import free_premium_lines_cache
+                from app.databases.cache import free_premium_lines_cache
 
                 free_premium_lines = free_premium_lines_cache.get("free_lines")
                 free_premium_lines = (
@@ -1305,7 +1305,7 @@ async def get_emby_lines_by_user(
         # 如果不是premium用户，检查免费高级线路
         elif settings.PREMIUM_FREE:
             # 从Redis缓存获取免费高级线路列表
-            from app.cache import free_premium_lines_cache
+            from app.databases.cache import free_premium_lines_cache
 
             free_premium_lines = free_premium_lines_cache.get("free_lines")
             free_premium_lines = (
@@ -1379,7 +1379,7 @@ async def get_plex_lines_by_user(
                 )
         elif settings.PREMIUM_FREE:
             # 普通用户在免费开放期间可以看到免费的高级线路
-            from app.cache import free_premium_lines_cache
+            from app.databases.cache import free_premium_lines_cache
 
             free_premium_lines = free_premium_lines_cache.get("free_lines")
             free_premium_lines = (

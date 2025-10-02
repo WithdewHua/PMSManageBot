@@ -3,12 +3,12 @@ from time import time
 from uuid import NAMESPACE_URL, uuid3
 
 from app.config import settings
-from app.db import DB
-from app.emby import Emby
+from app.databases.db import DB
+from app.databases.db_func import update_plex_info
 from app.log import uvicorn_logger as logger
-from app.plex import Plex
+from app.modules.emby import Emby
+from app.modules.plex import Plex
 from app.scheduler import Scheduler
-from app.update_db import update_plex_info
 from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth

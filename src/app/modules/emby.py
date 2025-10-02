@@ -8,8 +8,8 @@ from typing import Any, Optional, Union
 import aiohttp
 import filelock
 import requests
-from app.cache import emby_api_key_cache
 from app.config import settings
+from app.databases.cache import emby_api_key_cache
 from app.log import logger
 
 

@@ -2,8 +2,8 @@ import time
 import traceback
 from typing import Optional
 
+from app.databases.redis import Redis
 from app.log import logger
-from app.redis import Redis
 
 
 class RedisCache:
@@ -225,7 +225,7 @@ line_tags_cache = RedisCache(
 def get_line_tags(line_name: str) -> list[str]:
     """从Redis获取线路的标签信息"""
     try:
-        from app.cache import line_tags_cache
+        from app.databases.cache import line_tags_cache
 
         # 从Redis获取线路标签
         tags_str = line_tags_cache.get(line_name)

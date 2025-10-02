@@ -4,14 +4,7 @@ import threading
 from copy import copy
 
 from app.config import settings
-from app.handlers.rank import *
-from app.handlers.start import *
-from app.handlers.status import *
-from app.handlers.user import *
-from app.log import logger
-from app.premium import check_premium_expiring_soon, check_premium_expiry
-from app.scheduler import Scheduler
-from app.update_db import (
+from app.databases.db_func import (
     finish_expired_auctions_job,
     monthly_traffic_data_migration,
     rewrite_users_credits_to_redis,
@@ -20,6 +13,17 @@ from app.update_db import (
     update_plex_info,
     write_user_info_cache,
 )
+from app.handlers.rank import *
+from app.handlers.start import *
+from app.handlers.status import *
+from app.handlers.user import *
+from app.log import logger
+from app.premium import (
+    check_premium_expiring_soon,
+    check_premium_expiry,
+    get_and_send_premium_statistics,
+)
+from app.scheduler import Scheduler
 from app.utils.utils import refresh_emby_user_info, refresh_tg_user_info
 from telegram.ext import ApplicationBuilder
 
@@ -190,6 +194,19 @@ def add_init_scheduler_job():
         minute=0,
     )
     logger.info("添加定时任务：每月 1 号凌晨 1:00 执行月度流量数据迁移聚合")
+
+    # 每天 23:59 获取并发送Premium线路统计信息给管理员 (异步任务)
+    scheduler.add_async_job(
+        func=get_and_send_premium_statistics,
+        trigger="cron",
+        id="send_premium_statistics",
+        replace_existing=True,
+        max_instances=1,
+        day_of_week="*",
+        hour=23,
+        minute=59,
+    )
+    logger.info("添加定时任务：每天 23:59 发送 Premium 线路统计信息给管理员")
 
 
 if __name__ == "__main__":
