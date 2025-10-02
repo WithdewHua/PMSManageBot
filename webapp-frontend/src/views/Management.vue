@@ -893,7 +893,7 @@
                             <v-icon size="16" color="amber-darken-2" class="mr-2">mdi-trophy</v-icon>
                             <span class="section-title">流量排行</span>
                             <v-chip size="x-small" color="amber-darken-2" variant="tonal" class="ml-2">
-                              本月
+                              今日
                             </v-chip>
                           </div>
                           
@@ -1569,7 +1569,7 @@
         
         <v-card-text class="pa-4">
           <div class="text-caption text-medium-emphasis mb-3">
-            本月流量消耗排行（前{{ selectedLineStat.top_users.length }}名用户）
+            今日流量消耗排行（前{{ selectedLineStat.top_users.length }}名用户）
           </div>
           
           <div class="user-ranking-list">
@@ -1593,7 +1593,7 @@
                 <div>
                   <div class="text-body-2 font-weight-medium">{{ user.username }}</div>
                   <div class="text-caption text-medium-emphasis">
-                    流量占比: {{ ((user.traffic / selectedLineStat.month_traffic) * 100).toFixed(1) }}%
+                    流量占比: {{ ((user.traffic / selectedLineStat.today_traffic) * 100).toFixed(1) }}%
                   </div>
                 </div>
               </div>
@@ -1613,9 +1613,9 @@
           
           <div class="mt-4 pt-2 border-t">
             <div class="d-flex justify-space-between align-center">
-              <span class="text-body-2 font-weight-medium">线路总流量（本月）</span>
+              <span class="text-body-2 font-weight-medium">线路总流量（今日）</span>
               <v-chip color="primary" variant="flat" size="small">
-                {{ formatTrafficSize(selectedLineStat.month_traffic) }}
+                {{ formatTrafficSize(selectedLineStat.today_traffic) }}
               </v-chip>
             </div>
           </div>

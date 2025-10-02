@@ -1620,7 +1620,7 @@ class DB:
                     month_traffic_query, (line, month_start.isoformat())
                 ).fetchone()[0]
 
-                # 获取当前线路流量排名前五的用户（基于本月数据）
+                # 获取当前线路流量排名前五的用户（基于今日数据）
                 top_users_query = """
                 SELECT username, SUM(send_bytes) as total_traffic
                 FROM line_traffic_stats 
@@ -1630,7 +1630,7 @@ class DB:
                 LIMIT 5
                 """
                 top_users_result = self.cur.execute(
-                    top_users_query, (line, month_start.isoformat())
+                    top_users_query, (line, today_start.isoformat())
                 ).fetchall()
 
                 top_users = []
