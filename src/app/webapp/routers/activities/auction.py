@@ -292,6 +292,57 @@ async def place_bid(
                 f"用户 {get_user_name_from_tg_id(current_user.id)} 对竞拍 {bid_request.auction_id} 出价 {bid_request.bid_amount}"
             )
 
+            # 发送通知给其他参与者和管理员
+            try:
+                # 获取该拍卖的其他参与者
+                other_participants = db.get_auction_participants(
+                    bid_request.auction_id, exclude_user_id=current_user.id
+                )
+
+                # 准备通知消息
+                bidder_name = get_user_name_from_tg_id(current_user.id)
+                auction_title = auction_data.get(
+                    "title", f"竞拍 #{bid_request.auction_id}"
+                )
+
+                # 通知其他参与者
+                participant_message = (
+                    f"🔔 竞拍更新通知\n\n"
+                    f"📝 竞拍: {auction_title}\n"
+                    f"👤 最新出价 {bid_request.bid_amount} 积分\n\n"
+                    f"快来查看详情并参与竞拍吧！"
+                )
+
+                for participant_id in other_participants:
+                    try:
+                        await send_message_by_url(
+                            chat_id=participant_id, text=participant_message
+                        )
+                    except Exception as e:
+                        logger.warning(f"发送通知给参与者 {participant_id} 失败: {e}")
+
+                # 通知管理员
+                admin_message = (
+                    f"🎯 拍卖新出价通知\n\n"
+                    f"📝 竞拍: {auction_title}\n"
+                    f"👤 出价者: {bidder_name} (ID: {current_user.id})\n"
+                    f"💰 出价金额: {bid_request.bid_amount} 积分\n"
+                    f"📊 总出价次数: {auction_data['bid_count'] + 1}\n\n"
+                    f"🔗 查看详情: /auction_{bid_request.auction_id}"
+                )
+
+                for admin_chat_id in settings.TG_ADMIN_CHAT_ID:
+                    try:
+                        await send_message_by_url(
+                            chat_id=admin_chat_id, text=admin_message
+                        )
+                    except Exception as e:
+                        logger.warning(f"发送通知给管理员 {admin_chat_id} 失败: {e}")
+
+            except Exception as e:
+                logger.error(f"发送出价通知失败: {e}")
+                # 通知发送失败不影响出价成功
+
             return PlaceBidResponse(
                 success=True,
                 message="出价成功",

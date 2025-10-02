@@ -819,6 +819,27 @@ class DB:
             logger.error(f"Error getting user highest bid: {e}")
             return None
 
+    def get_auction_participants(
+        self, auction_id: int, exclude_user_id: int = None
+    ) -> List[int]:
+        """获取拍卖的所有参与者（出价者）ID列表，可排除指定用户"""
+        try:
+            if exclude_user_id:
+                results = self.cur.execute(
+                    "SELECT DISTINCT bidder_id FROM auction_bids WHERE auction_id = ? AND bidder_id != ?",
+                    (auction_id, exclude_user_id),
+                ).fetchall()
+            else:
+                results = self.cur.execute(
+                    "SELECT DISTINCT bidder_id FROM auction_bids WHERE auction_id = ?",
+                    (auction_id,),
+                ).fetchall()
+
+            return [result[0] for result in results]
+        except Exception as e:
+            logger.error(f"Error getting auction participants: {e}")
+            return []
+
     def finish_expired_auctions(self) -> List[dict]:
         """结束过期的竞拍"""
         try:
