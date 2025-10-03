@@ -28,14 +28,15 @@ class UPayService:
         """生成订单ID"""
         return f"CRYPTO_DONATION_{uuid.uuid4().hex[:16].upper()}"
 
-    def generate_signature(self, params: Dict[str, str]) -> str:
+    def generate_signature(self, params: Dict) -> str:
         """生成签名"""
         try:
             # 按照 UPAY 文档要求的参数顺序
             sorted_params = []
             for key in sorted(params.keys()):
                 if key != "signature":
-                    sorted_params.append(f"{key}={params[key]}")
+                    # 将参数值转换为字符串进行签名计算
+                    sorted_params.append(f"{key}={str(params[key])}")
 
             # 拼接参数和密钥
             sign_string = "&".join(sorted_params) + self.secret_key
@@ -89,7 +90,7 @@ class UPayService:
             params = {
                 "type": crypto_type,
                 "order_id": order_id,
-                "amount": str(amount),
+                "amount": amount,  # 保持为数值类型，不转换为字符串
                 "notify_url": self.notify_url,
                 "redirect_url": self.redirect_url,
             }

@@ -114,8 +114,9 @@ class UPayCallbackData(BaseModel):
     amount: float = Field(..., description="原始订单金额（CNY）")
     actual_amount: float = Field(..., description="实际支付金额（加密货币）")
     token: str = Field(..., description="收款钱包地址")
-    block_transaction_id: str = Field(..., description="区块链交易哈希")
+    block_transaction_id: Optional[str] = Field(None, description="区块链交易哈希")
     status: int = Field(..., description="订单状态：2=支付成功")
+    time: Optional[str] = Field(None, description="支付完成时间")
     signature: str = Field(..., description="签名")
 
     @validator("status")

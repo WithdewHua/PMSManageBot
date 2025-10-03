@@ -54,12 +54,12 @@ export const getCryptoDonationOrder = async (orderId) => {
  * 支持的加密货币类型
  */
 export const CRYPTO_TYPES = [
-  { value: 'USDC-Polygon', text: 'USDC (Polygon)', icon: 'mdi-currency-usd' },
-  { value: 'USDC-ArbitrumOne', text: 'USDC (Arbitrum One)', icon: 'mdi-currency-usd' },
-  { value: 'USDC-BSC', text: 'USDC (BSC)', icon: 'mdi-currency-usd' },
-  { value: 'USDT-Polygon', text: 'USDT (Polygon)', icon: 'mdi-tether' },
-  { value: 'USDT-ArbitrumOne', text: 'USDT (Arbitrum One)', icon: 'mdi-tether' },
-  { value: 'USDT-BSC', text: 'USDT (BSC)', icon: 'mdi-tether' }
+  { value: 'USDC-Polygon', text: 'USDC (Polygon)', icon: 'mdi-hexagon-multiple' },
+  { value: 'USDC-ArbitrumOne', text: 'USDC (Arbitrum One)', icon: 'mdi-circle-outline' },
+  { value: 'USDC-BSC', text: 'USDC (BSC)', icon: 'mdi-circle-slice-8' },
+  { value: 'USDT-Polygon', text: 'USDT (Polygon)', icon: 'mdi-hexagon-multiple' },
+  { value: 'USDT-ArbitrumOne', text: 'USDT (Arbitrum One)', icon: 'mdi-circle-outline' },
+  { value: 'USDT-BSC', text: 'USDT (BSC)', icon: 'mdi-circle-slice-8' }
 ]
 
 /**

@@ -177,7 +177,7 @@
                   <span class="section-title">Crypto 捐赠</span>
                 </div>
                 <p class="section-description">
-                  使用加密货币进行捐赠，支持多种主流数字货币。支付完成后将自动更新您的捐赠金额和积分。
+                  使用加密货币进行捐赠，支付完成后将自动更新您的捐赠金额和积分。
                 </p>
 
                 <!-- 账号绑定检查提示 -->
@@ -238,7 +238,7 @@
                         :rules="[rules.required, rules.minAmount]"
                         prepend-inner-icon="mdi-currency-cny"
                         class="form-field"
-                        hint="最低捐赠金额为 0.01 CNY，UPAY 系统将自动处理汇率转换"
+                        hint="最低捐赠金额为 0.01 CNY，系统将自动处理汇率转换"
                         persistent-hint
                       ></v-text-field>
                     </v-col>
