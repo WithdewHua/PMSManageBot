@@ -51,7 +51,6 @@ class DonationRegistrationResponse(BaseModel):
 
     id: int
     user_id: int
-    username: str
     payment_method: PaymentMethod
     amount: float
     note: Optional[str]

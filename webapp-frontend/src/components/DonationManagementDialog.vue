@@ -115,7 +115,6 @@
                   class="notice-alert mt-4"
                   rounded="lg"
                 >
-                  <v-icon start>mdi-information</v-icon>
                   <div class="notice-content">
                     <div class="notice-title">登记须知：</div>
                     <ul class="notice-list">

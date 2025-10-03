@@ -201,6 +201,24 @@
                     </v-btn>
                   </div>
                   
+                  <!-- 自助捐助登记管理 -->
+                  <v-divider class="my-3"></v-divider>
+                  <div class="d-flex justify-space-between align-center mb-3">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="orange-darken-2" class="mr-2">mdi-hand-heart</v-icon>
+                      <span>自助捐助登记管理：</span>
+                    </div>
+                    <v-btn
+                      color="orange-darken-2"
+                      variant="outlined"
+                      size="small"
+                      @click="openDonationRegistrationDialog"
+                    >
+                      <v-icon start size="small">mdi-clipboard-list</v-icon>
+                      管理登记
+                    </v-btn>
+                  </div>
+                  
                   <!-- 邀请码管理 -->
                   <v-divider class="my-3"></v-divider>
                   <div class="d-flex justify-space-between align-center mb-3">
@@ -973,6 +991,11 @@
       @donation-submitted="handleDonationSubmitted"
     />
     
+    <donation-registration-management-dialog
+      ref="donationRegistrationDialog"
+      @registration-processed="handleRegistrationProcessed"
+    />
+    
     <admin-invite-code-dialog
       ref="inviteCodeDialog"
       @invite-codes-generated="handleInviteCodesGenerated"
@@ -1739,6 +1762,7 @@
 <script>
 import { getUserInfo, getSystemStats, getPremiumStatistics } from '@/api'
 import DonationDialog from '@/components/DonationDialog.vue'
+import DonationRegistrationManagementDialog from '@/components/DonationRegistrationManagementDialog.vue'
 import AdminInviteCodeDialog from '@/components/AdminInviteCodeDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
@@ -1752,6 +1776,7 @@ export default {
   name: 'Management',
   components: {
     DonationDialog,
+    DonationRegistrationManagementDialog,
     AdminInviteCodeDialog,
     TagManagementDialog,
     LineManagementDialog,
@@ -2125,6 +2150,11 @@ export default {
       this.$refs.donationDialog.open();
     },
     
+    // 打开自助捐助登记管理对话框
+    openDonationRegistrationDialog() {
+      this.$refs.donationRegistrationDialog.open();
+    },
+    
     // 打开邀请码管理对话框
     openInviteCodeDialog() {
       this.$refs.inviteCodeDialog.open();
@@ -2164,6 +2194,13 @@ export default {
     // 处理捐赠提交完成事件
     handleDonationSubmitted() {
       this.showMessage('捐赠记录已添加');
+    },
+    
+    // 处理自助捐助登记处理完成事件
+    handleRegistrationProcessed(data) {
+      const action = data.approved ? '批准' : '拒绝';
+      this.showMessage(`已${action}用户 ${data.registration.user_id} 的捐助登记`);
+      console.log('登记处理完成:', data);
     },
 
     // 打开转盘管理
