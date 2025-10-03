@@ -35,13 +35,13 @@ class UPayService:
             sorted_params = []
             for key in sorted(params.keys()):
                 if key != "signature":
-                    # 特殊处理金额字段，保持指定小数格式
+                    # 特殊处理金额字段，去除尾随零
                     if key == "amount" and isinstance(params[key], (int, float)):
-                        value_str = f"{float(params[key]):.2f}"
+                        value_str = f"{float(params[key]):.2f}".rstrip("0").rstrip(".")
                     elif key == "actual_amount" and isinstance(
                         params[key], (int, float)
                     ):
-                        value_str = f"{float(params[key]):.4f}"
+                        value_str = f"{float(params[key]):.4f}".rstrip("0").rstrip(".")
                     else:
                         # 将参数值转换为字符串进行签名计算
                         value_str = str(params[key])
@@ -72,17 +72,17 @@ class UPayService:
             params = {}
             for key, value in data.items():
                 if key != "signature":
-                    # 特殊处理金额相关字段，保持指定小数格式
+                    # 特殊处理金额相关字段，去除尾随零
                     if key == "amount" and isinstance(value, (int, float, str)):
                         try:
-                            params[key] = f"{float(value):.2f}"
+                            params[key] = f"{float(value):.2f}".rstrip("0").rstrip(".")
                         except (ValueError, TypeError):
                             params[key] = str(value)
                     elif key == "actual_amount" and isinstance(
                         value, (int, float, str)
                     ):
                         try:
-                            params[key] = f"{float(value):.4f}"
+                            params[key] = f"{float(value):.4f}".rstrip("0").rstrip(".")
                         except (ValueError, TypeError):
                             params[key] = str(value)
                     else:
