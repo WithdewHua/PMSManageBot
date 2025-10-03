@@ -21,7 +21,7 @@ class UPayService:
             f"{settings.WEBAPP_URL.rstrip('/')}/api/crypto-donations/callback"
         )
         self.redirect_url = (
-            f"{settings.WEBAPP_URL.rstrip('/')}/api/crypto-donations/payment-callback"
+            f"{settings.WEBAPP_URL.rstrip('/')}/api/crypto-donations/payment-success"
         )
 
     def generate_order_id(self) -> str:

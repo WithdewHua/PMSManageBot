@@ -5,6 +5,7 @@ from copy import copy
 
 from app.config import settings
 from app.databases.db_func import (
+    check_expired_crypto_donation_orders,
     finish_expired_auctions_job,
     monthly_traffic_data_migration,
     rewrite_users_credits_to_redis,
@@ -208,6 +209,17 @@ def add_init_scheduler_job():
         minute=59,
     )
     logger.info("添加定时任务：每天 23:59 发送 Premium 线路统计信息给管理员")
+
+    # 每 10 分钟检查并更新过期的 crypto 捐赠订单状态 (异步任务)
+    scheduler.add_async_job(
+        func=check_expired_crypto_donation_orders,
+        trigger="cron",
+        id="check_expired_crypto_donation_orders",
+        replace_existing=True,
+        max_instances=1,
+        minute="*/10",  # 每 10 分钟执行一次
+    )
+    logger.info("添加定时任务：每 10 分钟检查过期的 crypto 捐赠订单")
 
     # 恢复现有竞拍的定时任务
     try:

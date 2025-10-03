@@ -2645,3 +2645,72 @@ class DB:
         except Exception as e:
             logger.error(f"获取用户 crypto 捐赠订单历史失败: {e}")
             return []
+
+    def get_expired_crypto_donation_orders(self) -> List[dict]:
+        """获取所有已过期但状态仍为等待支付的 crypto 捐赠订单"""
+        try:
+            import time
+
+            current_time = int(time.time())
+
+            results = self.cur.execute(
+                """SELECT * FROM crypto_donation_orders 
+                   WHERE status = 1 AND expiration_time IS NOT NULL AND expiration_time <= ?
+                   ORDER BY created_at ASC""",
+                (current_time,),
+            ).fetchall()
+
+            expired_orders = []
+            for result in results:
+                expired_orders.append(
+                    {
+                        "id": result[0],
+                        "user_id": result[1],
+                        "order_id": result[2],
+                        "trade_id": result[3],
+                        "crypto_type": result[4],
+                        "amount": result[5],
+                        "actual_amount": result[6],
+                        "payment_address": result[7],
+                        "block_transaction_id": result[8],
+                        "status": result[9],
+                        "payment_url": result[10],
+                        "expiration_time": result[11],
+                        "created_at": result[12],
+                        "updated_at": result[13],
+                        "paid_at": result[14],
+                        "note": result[15],
+                    }
+                )
+            return expired_orders
+        except Exception as e:
+            logger.error(f"获取过期 crypto 捐赠订单失败: {e}")
+            return []
+
+    def update_expired_crypto_donation_orders(self) -> int:
+        """批量更新已过期的 crypto 捐赠订单状态为已过期(3)"""
+        try:
+            import time
+            from datetime import datetime
+
+            current_time = int(time.time())
+            updated_at = datetime.now(settings.TZ).isoformat()
+
+            # 更新所有过期的订单状态
+            result = self.cur.execute(
+                """UPDATE crypto_donation_orders 
+                   SET status = 3, updated_at = ?
+                   WHERE status = 1 AND expiration_time IS NOT NULL AND expiration_time <= ?""",
+                (updated_at, current_time),
+            )
+
+            self.con.commit()
+            updated_count = result.rowcount
+
+            if updated_count > 0:
+                logger.info(f"成功更新 {updated_count} 个过期的 crypto 捐赠订单状态")
+
+            return updated_count
+        except Exception as e:
+            logger.error(f"更新过期 crypto 捐赠订单状态失败: {e}")
+            return 0
