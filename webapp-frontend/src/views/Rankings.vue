@@ -4,7 +4,7 @@
     <div class="content-wrapper">
       <div class="rankings-header">
         <h1 class="page-title">排行榜</h1>
-        <p class="page-subtitle">积分、捐赠与观看时长排行</p>
+        <p class="page-subtitle">系统数据榜单</p>
         <v-btn 
           color="primary" 
           variant="tonal"
@@ -56,6 +56,10 @@
             <v-tab value="traffic" class="tab-item">
               <v-icon start size="18">mdi-download</v-icon>
               <span class="tab-text">流量榜</span>
+            </v-tab>
+            <v-tab value="invitation" class="tab-item">
+              <v-icon start size="18">mdi-account-plus</v-icon>
+              <span class="tab-text">邀请榜</span>
             </v-tab>
           </v-tabs>
         </div>
@@ -611,6 +615,54 @@
               </v-col>
             </v-row>
           </v-window-item>
+
+          <!-- 邀请榜 -->
+          <v-window-item value="invitation">
+            <v-list lines="two" class="px-2">
+              <v-list-item
+                v-for="(item, index) in rankings.invitation_rank"
+                :key="`invitation-${index}`"
+                :class="{ 'bg-primary-subtle': item.is_self }"
+                class="ranking-item mb-2"
+                rounded="lg"
+                elevation="1"
+              >
+                <template v-slot:prepend>
+                  <div class="rank-container">
+                    <div class="rank-number" :class="`rank-${index + 1}`">
+                      <span v-if="index < 3" class="rank-icon">{{ ['🥇', '🥈', '🥉'][index] }}</span>
+                      <span v-else>{{ index + 1 }}</span>
+                    </div>
+                  </div>
+                </template>
+                
+                <template v-slot:default>
+                  <div class="d-flex align-center">
+                    <v-avatar class="user-avatar" size="44" style="margin-right: 16px;">
+                      <v-img 
+                        v-if="item.avatar" 
+                        :src="item.avatar" 
+                        :alt="item.name"
+                        @error="handleImageError"
+                        class="avatar-img"
+                      />
+                      <v-icon v-else size="24" color="grey-lighten-1">mdi-account-circle</v-icon>
+                    </v-avatar>
+                    <div class="user-info flex-grow-1">
+                      <v-list-item-title class="user-name">{{ item.name }}</v-list-item-title>
+                      <v-list-item-subtitle class="user-score">
+                        <v-icon size="16" color="green" class="mr-1">mdi-account-plus</v-icon>
+                        {{ item.invite_count }} 人
+                      </v-list-item-subtitle>
+                    </div>
+                  </div>
+                </template>
+              </v-list-item>
+              <v-list-item v-if="rankings.invitation_rank.length === 0" class="text-center">
+                <v-list-item-title class="text-grey">暂无数据</v-list-item-title>
+              </v-list-item>
+            </v-list>
+          </v-window-item>
         </v-window>
         </div>
       </div>
@@ -821,7 +873,7 @@
 </template>
 
 <script>
-import { getCreditsRankings, getDonationRankings, getPlexWatchedTimeRankings, getEmbyWatchedTimeRankings, getPlexTrafficRankings, getEmbyTrafficRankings } from '@/api'
+import { getCreditsRankings, getDonationRankings, getPlexWatchedTimeRankings, getEmbyWatchedTimeRankings, getPlexTrafficRankings, getEmbyTrafficRankings, getInvitationRankings } from '@/api'
 import { getWatchLevelIcons } from '@/utils/watchLevel.js'
 
 export default {
@@ -843,13 +895,15 @@ export default {
         watched_time_rank_plex: [],
         watched_time_rank_emby: [],
         traffic_rank_plex: [],
-        traffic_rank_emby: []
+        traffic_rank_emby: [],
+        invitation_rank: []
       },
       loading: {
         credits: false,
         donation: false,
         watched: false,
         traffic: false,
+        invitation: false,
         'watched-plex': false,
         'watched-emby': false,
         'traffic-plex': false,
@@ -860,6 +914,7 @@ export default {
         donation: false,
         watched: false,
         traffic: false,
+        invitation: false,
         'watched-plex': false,
         'watched-emby': false,
         'traffic-plex': false,
@@ -973,6 +1028,12 @@ export default {
             console.log(`加载流量数据 - ${this.trafficSource}`)
             await this.loadTrafficData(this.trafficSource)
             break
+          case 'invitation':
+            console.log('调用邀请排行API...')
+            response = await getInvitationRankings()
+            this.rankings.invitation_rank = response.data.invitation_rank || []
+            console.log('邀请排行数据:', this.rankings.invitation_rank)
+            break
         }
         this.loaded[tab] = true
         console.log(`${tab} 数据加载完成`)
@@ -1061,7 +1122,8 @@ export default {
         credits: '积分排行榜',
         donation: '捐赠排行榜',
         watched: '观看时长排行榜',
-        traffic: '流量排行榜'
+        traffic: '流量排行榜',
+        invitation: '邀请排行榜'
       }
       return names[tab] || '排行榜'
     },

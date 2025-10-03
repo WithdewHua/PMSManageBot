@@ -189,6 +189,46 @@ async def get_emby_watched_time_rankings(
         logger.debug("数据库连接已关闭")
 
 
+@router.get("/rankings/invitation")
+@require_telegram_auth
+async def get_invitation_rankings(
+    request: Request, user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取邀请排行榜数据"""
+    logger.info(f"{user.username or user.first_name or user.id} 开始获取邀请排行榜数据")
+
+    db = DB()
+    try:
+        invitation_rankings = []
+        try:
+            logger.debug("正在查询邀请排行")
+            invitation_data = db.get_invitation_rank()
+            if invitation_data:
+                invitation_rankings = [
+                    {
+                        "name": get_user_name_from_tg_id(info[0]),
+                        "invite_count": info[1],
+                        "avatar": get_user_avatar_from_tg_id(info[0]),
+                        "is_self": info[0] == user.id,  # tg_id 比较
+                    }
+                    for info in invitation_data
+                    if info[0] not in settings.TG_ADMIN_CHAT_ID and info[1] > 0
+                ]
+        except Exception as e:
+            logger.error(f"获取邀请排行失败: {str(e)}")
+
+        logger.info(
+            f"{user.username or user.first_name or user.id} 获取邀请排行榜数据成功"
+        )
+        return {"invitation_rank": invitation_rankings}
+    except Exception as e:
+        logger.error(f"获取邀请排行榜数据时发生未预期的错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取邀请排行榜数据失败")
+    finally:
+        db.close()
+        logger.debug("数据库连接已关闭")
+
+
 @router.get("/rankings/traffic/plex")
 @require_telegram_auth
 async def get_plex_traffic_rankings(

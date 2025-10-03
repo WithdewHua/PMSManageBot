@@ -44,6 +44,10 @@ export const getEmbyWatchedTimeRankings = () => {
   return apiClient.get('/api/rankings/watched-time/emby')
 }
 
+export const getInvitationRankings = () => {
+  return apiClient.get('/api/rankings/invitation')
+}
+
 export const getPlexTrafficRankings = (startDate = null, endDate = null) => {
   const params = new URLSearchParams()
   if (startDate) params.append('start_date', startDate)

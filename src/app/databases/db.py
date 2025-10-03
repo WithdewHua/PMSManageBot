@@ -488,6 +488,18 @@ class DB:
             "SELECT emby_id,emby_username,emby_watched_time,is_premium,tg_id FROM emby_user ORDER BY emby_watched_time DESC"
         ).fetchall()
 
+    def get_invitation_rank(self):
+        """获取邀请排行榜数据"""
+        rslt = self.cur.execute(
+            """SELECT owner, COUNT(DISTINCT used_by) as invite_count 
+            FROM invitation 
+            WHERE is_used = 1 AND used_by IS NOT NULL 
+            GROUP BY owner 
+            ORDER BY invite_count DESC"""
+        )
+        res = rslt.fetchall()
+        return res
+
     def verify_invitation_code_is_used(self, code):
         rslt = self.cur.execute(
             "SELECT is_used,owner FROM invitation WHERE code=?", (code,)
