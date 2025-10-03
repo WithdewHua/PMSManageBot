@@ -23,6 +23,7 @@ from .crypto_donation import (
     UPayCreateOrderRequest,
     UPayCreateOrderResponse,
     UPayCallbackData,
+    CryptoTypesResponse,
 )
 from .invitation import (
     GenerateInviteCodeResponse,

@@ -15,10 +15,11 @@ from app.webapp.schemas.crypto_donation import (
     CryptoDonationOrderCreateResponse,
     CryptoDonationOrderListResponse,
     CryptoDonationOrderResponse,
+    CryptoTypesResponse,
     UPayCallbackData,
 )
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 router = APIRouter(prefix="/api/crypto-donations", tags=["crypto-donations"])
 
@@ -44,6 +45,19 @@ def check_user_binding(user_id: int) -> bool:
     except Exception as e:
         logger.error(f"检查用户绑定状态失败: {e}")
         return False
+
+
+@router.get("/crypto-types", response_model=CryptoTypesResponse)
+async def get_crypto_types():
+    """获取支持的加密货币类型"""
+    try:
+        return CryptoTypesResponse(data=settings.UPAY_CRYPTO_TYPES)
+    except Exception as e:
+        logger.error(f"获取加密货币类型失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取加密货币类型失败",
+        )
 
 
 @router.post("/create", response_model=CryptoDonationOrderCreateResponse)
@@ -78,7 +92,7 @@ async def create_crypto_donation_order(
         success = db.create_crypto_donation_order(
             user_id=user_id,
             order_id=order_id,
-            crypto_type=order_data.crypto_type.value,
+            crypto_type=order_data.crypto_type,
             amount=order_data.amount,
             note=order_data.note,
         )
@@ -91,7 +105,7 @@ async def create_crypto_donation_order(
 
         # 调用 UPAY 创建订单
         upay_result = await upay_service.create_order(
-            crypto_type=order_data.crypto_type.value,
+            crypto_type=order_data.crypto_type,
             amount=order_data.amount,
             order_id=order_id,
         )
@@ -138,7 +152,7 @@ async def create_crypto_donation_order(
 
 👤 用户: {user_name} ({user_id})
 🆔 订单号: {order_id}
-💳 加密货币: {order_data.crypto_type.value}
+💳 加密货币: {order_data.crypto_type}
 💵 金额: {order_data.amount:.2f} CNY
 📝 备注: {order_data.note or '无'}
 
@@ -281,7 +295,7 @@ async def upay_payment_callback(request: Request):
         # 只处理支付成功的回调
         if callback.status != 2:
             logger.warning(f"接收到非支付成功回调，状态: {callback.status}")
-            return "ok"
+            return PlainTextResponse(content="ok")
 
         db = DB()
 
@@ -296,7 +310,7 @@ async def upay_payment_callback(request: Request):
         if order["status"] == 2:
             logger.info(f"订单 {callback.order_id} 已经处理过，跳过")
             db.close()
-            return "ok"
+            return PlainTextResponse(content="ok")
 
         # 更新订单状态为已支付
         success = db.complete_crypto_donation_order(
@@ -414,7 +428,7 @@ async def upay_payment_callback(request: Request):
         db.close()
 
         logger.info(f"UPAY 回调处理完成，订单 {callback.order_id} 支付成功")
-        return "ok"
+        return PlainTextResponse(content="ok")
 
     except Exception as e:
         logger.error(f"处理 UPAY 回调失败: {e}")

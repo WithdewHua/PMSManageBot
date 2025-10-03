@@ -1,6 +1,6 @@
 // 自动版本控制 - 构建时会被自动更新
 const BUILD_DATE = '20251003';
-const MANUAL_VERSION = '0.1.1-1759499081765';
+const MANUAL_VERSION = '0.1.1-1759512824002';
 const CACHE_VERSION = `v${BUILD_DATE}`;
 const CACHE_NAME = `funmedia-assistant-${CACHE_VERSION}`;
 const FULL_CACHE_NAME = `${CACHE_NAME}-${MANUAL_VERSION}`;

@@ -151,7 +151,7 @@ class DB:
                 user_id INTEGER NOT NULL,
                 order_id TEXT NOT NULL UNIQUE,              -- 商户订单号，唯一标识
                 trade_id TEXT,                              -- UPAY 系统生成的交易订单号
-                crypto_type TEXT NOT NULL CHECK (crypto_type IN ('USDC-Polygon', 'USDC-ArbitrumOne', 'USDC-BSC', 'USDT-Polygon', 'USDT-ArbitrumOne', 'USDT-BSC')),
+                crypto_type TEXT NOT NULL,                  -- 加密货币类型（动态配置）
                 amount REAL NOT NULL CHECK (amount > 0),    -- 原始订单金额（CNY）
                 actual_amount REAL,                         -- 实际支付金额（加密货币数量）
                 payment_address TEXT,                       -- 收款钱包地址
@@ -729,8 +729,6 @@ class DB:
     ) -> Optional[int]:
         """创建竞拍"""
         try:
-            import time
-
             created_at = int(time.time())
 
             self.cur.execute(
@@ -782,8 +780,6 @@ class DB:
     def get_active_auctions(self, limit: int = 50) -> List[dict]:
         """获取活跃竞拍列表"""
         try:
-            import time
-
             current_time = int(time.time())
 
             results = self.cur.execute(
@@ -818,8 +814,6 @@ class DB:
     def place_bid(self, auction_id: int, bidder_id: int, bid_amount: float) -> bool:
         """出价"""
         try:
-            import time
-
             bid_time = int(time.time())
 
             # 检查竞拍是否存在且活跃
@@ -918,8 +912,6 @@ class DB:
     def finish_expired_auctions(self) -> List[dict]:
         """结束过期的竞拍"""
         try:
-            import time
-
             current_time = int(time.time())
 
             # 查找过期的活跃竞拍
@@ -994,7 +986,6 @@ class DB:
             ).fetchone()[0]
 
             # 活跃竞拍数
-            import time
 
             current_time = int(time.time())
             active_auctions = self.cur.execute(
@@ -1035,8 +1026,6 @@ class DB:
         try:
             if status:
                 if status == "active":
-                    import time
-
                     current_time = int(time.time())
                     self.cur.execute(
                         """SELECT * FROM auctions 
@@ -1046,8 +1035,6 @@ class DB:
                         (current_time, limit, offset),
                     )
                 elif status == "ended":
-                    import time
-
                     current_time = int(time.time())
                     self.cur.execute(
                         """SELECT * FROM auctions 
@@ -1099,7 +1086,6 @@ class DB:
 
     def _get_auction_status(self, auction) -> str:
         """获取竞拍状态"""
-        import time
 
         current_time = int(time.time())
 
@@ -2040,8 +2026,6 @@ class DB:
             tuple: (是否成功, 消息)
         """
         try:
-            from datetime import datetime, timedelta
-
             if target_month is None:
                 # 默认处理上个月的数据
                 now = datetime.now(settings.TZ)
@@ -2226,8 +2210,6 @@ class DB:
     ) -> bool:
         """创建捐赠登记记录"""
         try:
-            from datetime import datetime
-
             created_at = datetime.now(settings.TZ).isoformat()
 
             self.cur.execute(
@@ -2386,8 +2368,6 @@ class DB:
     ) -> bool:
         """确认捐赠登记状态"""
         try:
-            from datetime import datetime
-
             processed_at = datetime.now(settings.TZ).isoformat()
             status = "approved" if approved else "rejected"
 
@@ -2464,7 +2444,10 @@ class DB:
     ) -> bool:
         """创建 crypto 捐赠订单"""
         try:
-            from datetime import datetime
+            # 验证加密货币类型是否支持
+            if crypto_type not in settings.UPAY_CRYPTO_TYPES:
+                logger.error(f"不支持的加密货币类型: {crypto_type}")
+                return False
 
             created_at = datetime.now(settings.TZ).isoformat()
 
@@ -2491,8 +2474,6 @@ class DB:
     ) -> bool:
         """更新 crypto 捐赠订单的 UPAY 信息"""
         try:
-            from datetime import datetime
-
             updated_at = datetime.now(settings.TZ).isoformat()
 
             self.cur.execute(
@@ -2524,8 +2505,6 @@ class DB:
     ) -> bool:
         """完成 crypto 捐赠订单支付"""
         try:
-            from datetime import datetime
-
             paid_at = datetime.now(settings.TZ).isoformat()
             updated_at = paid_at
 
@@ -2649,9 +2628,7 @@ class DB:
     def get_expired_crypto_donation_orders(self) -> List[dict]:
         """获取所有已过期但状态仍为等待支付的 crypto 捐赠订单"""
         try:
-            import time
-
-            current_time = int(time.time())
+            current_time = int(time.time() * 1000)  # 当前时间的毫秒时间戳
 
             results = self.cur.execute(
                 """SELECT * FROM crypto_donation_orders 
@@ -2690,10 +2667,7 @@ class DB:
     def update_expired_crypto_donation_orders(self) -> int:
         """批量更新已过期的 crypto 捐赠订单状态为已过期(3)"""
         try:
-            import time
-            from datetime import datetime
-
-            current_time = int(time.time())
+            current_time = int(time.time() * 1000)  # 当前时间的毫秒时间戳
             updated_at = datetime.now(settings.TZ).isoformat()
 
             # 更新所有过期的订单状态

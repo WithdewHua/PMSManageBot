@@ -101,6 +101,18 @@ class Settings(BaseSettings):
     UPAY_NOTIFY_URL: str = ""  # 支付完成异步通知地址
     UPAY_REDIRECT_URL: str = ""  # 支付完成后跳转地址
 
+    # 支持的加密货币类型配置（简化为列表）
+    UPAY_CRYPTO_TYPES: list[str] = [
+        "USDC-Polygon",
+        "USDC-ArbitrumOne",
+        "USDC-BSC",
+        "USDC-ERC20",
+        "USDT-Polygon",
+        "USDT-ArbitrumOne",
+        "USDT-BSC",
+        "USDT-ERC20",
+    ]
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if not self.DATA_PATH.exists():

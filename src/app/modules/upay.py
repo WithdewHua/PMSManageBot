@@ -145,15 +145,3 @@ class UPayService:
         except Exception as e:
             logger.error(f"创建 UPAY 订单异常: {e}")
             return None
-
-    def get_crypto_type_display_name(self, crypto_type: str) -> str:
-        """获取加密货币显示名称"""
-        display_names = {
-            "USDC-Polygon": "USDC (Polygon)",
-            "USDC-ArbitrumOne": "USDC (Arbitrum One)",
-            "USDC-BSC": "USDC (BSC)",
-            "USDT-Polygon": "USDT (Polygon)",
-            "USDT-ArbitrumOne": "USDT (Arbitrum One)",
-            "USDT-BSC": "USDT (BSC)",
-        }
-        return display_names.get(crypto_type, crypto_type)

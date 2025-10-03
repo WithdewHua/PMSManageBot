@@ -210,19 +210,6 @@
                         prepend-inner-icon="mdi-bitcoin"
                         class="form-field"
                       >
-                        <template v-slot:item="{ props, item }">
-                          <v-list-item v-bind="props">
-                            <template v-slot:prepend>
-                              <v-icon :icon="item.raw.icon" size="small" class="mr-2"></v-icon>
-                            </template>
-                          </v-list-item>
-                        </template>
-                        <template v-slot:selection="{ item }">
-                          <div class="d-flex align-center">
-                            <v-icon :icon="item.raw.icon" size="small" class="mr-2"></v-icon>
-                            {{ item.title }}
-                          </div>
-                        </template>
                       </v-select>
                     </v-col>
                     
@@ -358,8 +345,9 @@ import { submitDonationRegistration } from '@/services/donationService'
 import { 
   createCryptoDonationOrder, 
   getUserCryptoDonationOrders,
-  CRYPTO_TYPES,
-  ORDER_STATUS
+  getCryptoTypesWithFallback,
+  CRYPTO_TYPES, 
+  ORDER_STATUS 
 } from '@/services/cryptoDonationService'
 
 export default {
@@ -397,12 +385,8 @@ export default {
         { title: '其他', value: 'other' }
       ],
       
-      // 加密货币类型选项
-      cryptoTypes: CRYPTO_TYPES.map(crypto => ({
-        title: crypto.text,
-        value: crypto.value,
-        icon: crypto.icon
-      })),
+      // 加密货币类型选项（动态获取）
+      cryptoTypes: [],
       
       // 表单验证规则
       rules: {
@@ -557,6 +541,24 @@ export default {
       }
     },
 
+    // 加载加密货币类型
+    async loadCryptoTypes() {
+      try {
+        const cryptoTypesData = await getCryptoTypesWithFallback()
+        this.cryptoTypes = cryptoTypesData.map(crypto => ({
+          title: crypto,
+          value: crypto
+        }))
+      } catch (error) {
+        console.error('加载加密货币类型失败:', error)
+        // 使用备用配置
+        this.cryptoTypes = CRYPTO_TYPES.map(crypto => ({
+          title: crypto,
+          value: crypto
+        }))
+      }
+    },
+
     // 加载 Crypto 订单历史
     async loadCryptoOrders() {
       try {
@@ -569,16 +571,15 @@ export default {
       }
     },
 
-    // 获取加密货币图标
+    // 获取加密货币图标（统一显示为 bitcoin）
+    // eslint-disable-next-line no-unused-vars
     getCryptoIcon(cryptoType) {
-      const crypto = CRYPTO_TYPES.find(c => c.value === cryptoType)
-      return crypto ? crypto.icon : 'mdi-bitcoin'
+      return 'mdi-bitcoin'
     },
 
-    // 获取加密货币显示名称
+    // 获取加密货币显示名称（简化版）
     getCryptoDisplayName(cryptoType) {
-      const crypto = CRYPTO_TYPES.find(c => c.value === cryptoType)
-      return crypto ? crypto.text : cryptoType
+      return cryptoType
     },
 
     // 获取订单状态颜色
@@ -634,6 +635,9 @@ export default {
 
   // 组件生命周期
   async mounted() {
+    // 加载加密货币类型
+    await this.loadCryptoTypes()
+    
     // 当组件挂载且对话框打开时，加载 Crypto 订单历史
     this.$watch('dialog', async (newVal) => {
       if (newVal) {

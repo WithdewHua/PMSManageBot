@@ -6,7 +6,13 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
+from app.config import settings
 from pydantic import BaseModel, Field, validator
+
+
+def get_supported_crypto_types():
+    """获取支持的加密货币类型列表"""
+    return settings.UPAY_CRYPTO_TYPES
 
 
 class CryptoType(str, Enum):
@@ -18,6 +24,14 @@ class CryptoType(str, Enum):
     USDT_POLYGON = "USDT-Polygon"
     USDT_ARBITRUM = "USDT-ArbitrumOne"
     USDT_BSC = "USDT-BSC"
+
+    @classmethod
+    def validate_crypto_type(cls, value: str) -> str:
+        """验证加密货币类型是否在配置的支持列表中"""
+        supported_types = get_supported_crypto_types()
+        if value not in supported_types:
+            raise ValueError(f"不支持的加密货币类型: {value}")
+        return value
 
 
 class CryptoDonationOrderStatus(int, Enum):
@@ -31,9 +45,13 @@ class CryptoDonationOrderStatus(int, Enum):
 class CryptoDonationOrderCreate(BaseModel):
     """创建 Crypto 捐赠订单请求"""
 
-    crypto_type: CryptoType = Field(..., description="加密货币类型")
+    crypto_type: str = Field(..., description="加密货币类型")
     amount: float = Field(..., gt=0, description="捐赠金额（CNY），必须大于0")
     note: Optional[str] = Field(None, max_length=200, description="备注信息")
+
+    @validator("crypto_type")
+    def validate_crypto_type(cls, v):
+        return CryptoType.validate_crypto_type(v)
 
     @validator("amount")
     def validate_amount(cls, v):
@@ -52,7 +70,7 @@ class CryptoDonationOrderResponse(BaseModel):
     user_id: int
     order_id: str
     trade_id: Optional[str]
-    crypto_type: CryptoType
+    crypto_type: str
     amount: float
     actual_amount: Optional[float]
     payment_address: Optional[str]
