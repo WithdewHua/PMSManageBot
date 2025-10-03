@@ -35,8 +35,18 @@ class UPayService:
             sorted_params = []
             for key in sorted(params.keys()):
                 if key != "signature":
-                    # 将参数值转换为字符串进行签名计算
-                    sorted_params.append(f"{key}={str(params[key])}")
+                    # 特殊处理金额字段，保持指定小数格式
+                    if key == "amount" and isinstance(params[key], (int, float)):
+                        value_str = f"{float(params[key]):.2f}"
+                    elif key == "actual_amount" and isinstance(
+                        params[key], (int, float)
+                    ):
+                        value_str = f"{float(params[key]):.4f}"
+                    else:
+                        # 将参数值转换为字符串进行签名计算
+                        value_str = str(params[key])
+
+                    sorted_params.append(f"{key}={value_str}")
 
             # 拼接参数和密钥
             sign_string = "&".join(sorted_params) + self.secret_key
@@ -62,7 +72,21 @@ class UPayService:
             params = {}
             for key, value in data.items():
                 if key != "signature":
-                    params[key] = str(value)
+                    # 特殊处理金额相关字段，保持指定小数格式
+                    if key == "amount" and isinstance(value, (int, float, str)):
+                        try:
+                            params[key] = f"{float(value):.2f}"
+                        except (ValueError, TypeError):
+                            params[key] = str(value)
+                    elif key == "actual_amount" and isinstance(
+                        value, (int, float, str)
+                    ):
+                        try:
+                            params[key] = f"{float(value):.4f}"
+                        except (ValueError, TypeError):
+                            params[key] = str(value)
+                    else:
+                        params[key] = str(value)
 
             # 生成预期签名
             expected_signature = self.generate_signature(params)
