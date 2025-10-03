@@ -7,11 +7,18 @@
   >
     <v-card class="donation-management-dialog">
       <v-card-title class="dialog-title">
-        <v-icon start color="primary">mdi-hand-heart</v-icon>
-        捐赠管理
-        <v-spacer></v-spacer>
-        <v-btn icon variant="text" @click="close" size="small">
-          <v-icon>mdi-close</v-icon>
+        <div class="title-content">
+          <v-icon start color="primary">mdi-hand-heart</v-icon>
+          捐赠管理
+        </div>
+        <v-btn 
+          icon 
+          variant="text" 
+          @click="close" 
+          class="close-btn"
+          size="small"
+        >
+          <v-icon size="18">mdi-close</v-icon>
         </v-btn>
       </v-card-title>
 
@@ -88,12 +95,24 @@
                           <div class="checkbox-label">
                             <v-icon size="small" class="mr-1">mdi-account-plus</v-icon>
                             捐赠开号
-                            <v-tooltip activator="parent" location="top">
-                              选择此项表示为捐赠开号，只记录捐赠金额，不增加积分，并会生成一个普通邀请码
-                            </v-tooltip>
                           </div>
                         </template>
                       </v-checkbox>
+                      
+                      <!-- 捐赠开号说明 -->
+                      <v-alert
+                        v-if="selfRegisterForm.isDonationRegistration"
+                        type="info"
+                        variant="tonal"
+                        density="compact"
+                        class="donation-registration-notice mt-2 mb-2"
+                        rounded="lg"
+                      >
+                        <v-icon start size="small">mdi-information</v-icon>
+                        <span class="notice-text">
+                          选择捐赠开号将只记录捐赠金额，不增加积分，并会生成一个普通邀请码（仅在开放捐入期间有效）
+                        </span>
+                      </v-alert>
                     </v-col>
 
                     <v-col cols="12">
@@ -325,6 +344,43 @@ export default {
   font-weight: 600;
   color: #333;
   padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+.title-content {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px !important;
+  height: 32px !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px !important;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #666 !important;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #333 !important;
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.close-btn:active {
+  transform: scale(0.95);
+  transition-duration: 0.1s;
 }
 
 .donation-tabs {
@@ -420,6 +476,17 @@ export default {
   font-weight: 500;
 }
 
+.donation-registration-notice {
+  border: 1px solid rgba(33, 150, 243, 0.2);
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.05) 0%, rgba(33, 150, 243, 0.02) 100%) !important;
+}
+
+.donation-registration-notice .notice-text {
+  font-size: 12px;
+  line-height: 1.4;
+  color: #1976D2;
+}
+
 .coming-soon-alert {
   border: 1px solid rgba(255, 152, 0, 0.2);
   background: linear-gradient(135deg, rgba(255, 152, 0, 0.05) 0%, rgba(255, 152, 0, 0.02) 100%) !important;
@@ -457,6 +524,14 @@ export default {
     font-size: 16px;
   }
   
+  .close-btn {
+    top: 10px;
+    right: 10px;
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 6px !important;
+  }
+  
   .section-title {
     font-size: 15px;
   }
@@ -483,6 +558,19 @@ export default {
 @media (max-width: 480px) {
   .tab-content {
     min-height: 350px;
+  }
+  
+  .dialog-title {
+    padding: 12px 16px;
+    font-size: 15px;
+  }
+  
+  .close-btn {
+    top: 8px;
+    right: 8px;
+    width: 26px !important;
+    height: 26px !important;
+    border-radius: 5px !important;
   }
   
   .section-header {
