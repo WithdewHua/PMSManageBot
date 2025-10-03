@@ -1,4 +1,4 @@
-import { api } from '@/api'
+import { apiClient } from '@/main'
 
 /**
  * 提交捐赠自助登记
@@ -10,7 +10,7 @@ import { api } from '@/api'
  */
 export async function submitDonationRegistration(data) {
   try {
-    const response = await api.post('/donations/register', data)
+    const response = await apiClient.post('/api/donations/register', data)
     return response.data
   } catch (error) {
     console.error('提交捐赠登记失败:', error)
@@ -24,7 +24,7 @@ export async function submitDonationRegistration(data) {
  */
 export async function getDonationRegistrations() {
   try {
-    const response = await api.get('/donations/registrations')
+    const response = await apiClient.get('/api/donations/registrations')
     return response.data
   } catch (error) {
     console.error('获取捐赠登记历史失败:', error)
@@ -39,7 +39,7 @@ export async function getDonationRegistrations() {
  */
 export async function getDonationRegistrationDetail(registrationId) {
   try {
-    const response = await api.get(`/donations/registrations/${registrationId}`)
+    const response = await apiClient.get(`/api/donations/registrations/${registrationId}`)
     return response.data
   } catch (error) {
     console.error('获取捐赠登记详情失败:', error)
@@ -57,7 +57,7 @@ export async function getDonationRegistrationDetail(registrationId) {
  */
 export async function confirmDonationRegistration(registrationId, data) {
   try {
-    const response = await api.post(`/donations/registrations/${registrationId}/confirm`, data)
+    const response = await apiClient.post(`/api/donations/registrations/${registrationId}/confirm`, data)
     return response.data
   } catch (error) {
     console.error('确认捐赠登记失败:', error)
@@ -71,7 +71,7 @@ export async function confirmDonationRegistration(registrationId, data) {
  */
 export async function getPendingDonationRegistrations() {
   try {
-    const response = await api.get('/donations/registrations/pending')
+    const response = await apiClient.get('/api/donations/registrations/pending')
     return response.data
   } catch (error) {
     console.error('获取待处理捐赠登记失败:', error)

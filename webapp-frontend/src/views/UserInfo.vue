@@ -1122,7 +1122,7 @@ export default {
     },
     
     // 处理捐赠登记提交事件
-    handleDonationRegistrationSubmitted(result) {
+    handleDonationRegistrationSubmitted() {
       // 显示成功消息
       this.showMessage('捐赠登记提交成功！管理员将在24小时内处理。', 'success');
       // 可以选择是否重新获取用户信息，因为登记尚未被确认
