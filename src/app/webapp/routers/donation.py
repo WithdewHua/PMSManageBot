@@ -273,7 +273,54 @@ async def confirm_donation_registration(
         # 记录管理员操作
         logger.info(f"管理员 {admin_id} {action}了捐赠登记 {registration_id}")
 
-        # TODO: 发送用户通知
+        # 发送用户通知
+        try:
+            user_id = registration["user_id"]
+            user_name = get_user_name_from_tg_id(user_id)
+            admin_name = get_user_name_from_tg_id(admin_id)
+
+            if confirm_data.approved:
+                # 批准通知
+                notification_text = f"""✅ 您的捐赠登记已批准
+
+📝 登记编号: #{registration_id}
+💰 捐赠金额: {registration['amount']}元
+💳 支付方式: {registration['payment_method']}
+👨‍💼 处理管理员: {admin_name}
+⏰ 处理时间: {updated_registration['processed_at']}"""
+
+                if confirm_data.admin_note:
+                    notification_text += f"\n📋 管理员备注: {confirm_data.admin_note}"
+
+                notification_text += "\n\n感谢您的捐赠支持！"
+            else:
+                # 拒绝通知
+                notification_text = f"""❌ 您的捐赠登记被拒绝
+
+📝 登记编号: #{registration_id}
+💰 捐赠金额: {registration['amount']}元
+💳 支付方式: {registration['payment_method']}
+👨‍💼 处理管理员: {admin_name}
+⏰ 处理时间: {updated_registration['processed_at']}"""
+
+                if confirm_data.admin_note:
+                    notification_text += f"\n📋 拒绝原因: {confirm_data.admin_note}"
+                else:
+                    notification_text += "\n📋 拒绝原因: 未提供具体原因"
+
+                notification_text += "\n\n如有疑问，请联系管理员。"
+
+            await send_message_by_url(
+                chat_id=user_id,
+                text=notification_text,
+                parse_mode="HTML",
+            )
+
+            logger.info(f"已向用户 {user_name}({user_id}) 发送捐赠登记{action}通知")
+
+        except Exception as e:
+            logger.warning(f"发送用户捐赠登记{action}通知失败: {e}")
+            # 即使通知发送失败，也不影响主要业务逻辑
 
         return DonationRegistrationConfirmResponse(
             success=True,
