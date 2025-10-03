@@ -84,7 +84,7 @@
                         </v-avatar>
                         <div>
                           <div class="text-body-1 font-weight-bold">
-                            用户 {{ registration.user_id }}
+                            {{ registration.username || `用户 ${registration.user_id}` }}
                           </div>
                           <div class="text-caption text-grey-darken-1">
                             ID: {{ registration.id }}
@@ -148,32 +148,37 @@
                   </v-card-text>
                   
                   <!-- 操作按钮 -->
-                  <v-card-actions class="pt-0">
-                    <v-btn
-                      @click="handleRegistration(registration, true)"
-                      color="success"
-                      variant="flat"
-                      size="small"
-                      :loading="processingIds.includes(registration.id)"
-                      :disabled="processingIds.includes(registration.id)"
-                      block
-                      class="mb-2"
-                    >
-                      <v-icon start>mdi-check</v-icon>
-                      批准
-                    </v-btn>
-                    <v-btn
-                      @click="handleRegistration(registration, false)"
-                      color="error"
-                      variant="outlined"
-                      size="small"
-                      :loading="processingIds.includes(registration.id)"
-                      :disabled="processingIds.includes(registration.id)"
-                      block
-                    >
-                      <v-icon start>mdi-close</v-icon>
-                      拒绝
-                    </v-btn>
+                  <v-card-actions class="pt-0 px-3 pb-3">
+                    <v-row dense>
+                      <v-col cols="6">
+                        <v-btn
+                          @click="handleRegistration(registration, true)"
+                          color="success"
+                          variant="flat"
+                          size="small"
+                          :loading="processingIds.includes(registration.id)"
+                          :disabled="processingIds.includes(registration.id)"
+                          block
+                        >
+                          <v-icon start>mdi-check</v-icon>
+                          批准
+                        </v-btn>
+                      </v-col>
+                      <v-col cols="6">
+                        <v-btn
+                          @click="handleRegistration(registration, false)"
+                          color="error"
+                          variant="outlined"
+                          size="small"
+                          :loading="processingIds.includes(registration.id)"
+                          :disabled="processingIds.includes(registration.id)"
+                          block
+                        >
+                          <v-icon start>mdi-close</v-icon>
+                          拒绝
+                        </v-btn>
+                      </v-col>
+                    </v-row>
                   </v-card-actions>
                 </v-card>
               </v-col>
@@ -264,8 +269,9 @@ export default {
     
     async handleRegistration(registration, approved) {
       const action = approved ? '批准' : '拒绝'
+      const userName = registration.username || `用户 ${registration.user_id}`
       
-      if (!confirm(`确定要${action}用户 ${registration.user_id} 的捐助登记吗？\n金额：¥${registration.amount.toFixed(2)}`)) {
+      if (!confirm(`确定要${action}${userName}的捐助登记吗？\n金额：¥${registration.amount.toFixed(2)}`)) {
         return
       }
       
