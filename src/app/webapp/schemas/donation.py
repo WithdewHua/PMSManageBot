@@ -59,6 +59,7 @@ class DonationRegistrationResponse(BaseModel):
     created_at: datetime
     processed_at: Optional[datetime]
     processed_by: Optional[int]
+    username: Optional[str]  # 用户名（从 tg_id 获取）
     processed_by_username: Optional[str]
 
     class Config:

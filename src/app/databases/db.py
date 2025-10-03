@@ -2211,19 +2211,21 @@ class DB:
     def get_donation_registration_by_id(self, registration_id: int) -> Optional[dict]:
         """根据ID获取捐赠登记信息"""
         try:
+            from app.utils.utils import get_user_name_from_tg_id
+
             result = self.cur.execute(
-                """SELECT dr.*, s1.tg_id as username, s2.tg_id as processed_by_username
+                """SELECT dr.*
                    FROM donation_registrations dr
-                   LEFT JOIN statistics s1 ON dr.user_id = s1.tg_id
-                   LEFT JOIN statistics s2 ON dr.processed_by = s2.tg_id
                    WHERE dr.id = ?""",
                 (registration_id,),
             ).fetchone()
 
             if result:
+                user_id = result[1]
+                processed_by = result[9]
                 return {
                     "id": result[0],
-                    "user_id": result[1],
+                    "user_id": user_id,
                     "payment_method": result[2],
                     "amount": result[3],
                     "note": result[4],
@@ -2231,9 +2233,11 @@ class DB:
                     "admin_note": result[6],
                     "created_at": result[7],
                     "processed_at": result[8],
-                    "processed_by": result[9],
-                    "username": result[10],
-                    "processed_by_username": result[11],
+                    "processed_by": processed_by,
+                    "username": get_user_name_from_tg_id(user_id),
+                    "processed_by_username": get_user_name_from_tg_id(processed_by)
+                    if processed_by
+                    else None,
                 }
             return None
         except Exception as e:
@@ -2245,10 +2249,11 @@ class DB:
     ) -> List[dict]:
         """获取用户的捐赠登记历史"""
         try:
+            from app.utils.utils import get_user_name_from_tg_id
+
             results = self.cur.execute(
-                """SELECT dr.*, s.tg_id as processed_by_username
+                """SELECT dr.*
                    FROM donation_registrations dr
-                   LEFT JOIN statistics s ON dr.processed_by = s.tg_id
                    WHERE dr.user_id = ?
                    ORDER BY dr.created_at DESC
                    LIMIT ?""",
@@ -2257,10 +2262,12 @@ class DB:
 
             registrations = []
             for result in results:
+                user_id_result = result[1]
+                processed_by = result[9]
                 registrations.append(
                     {
                         "id": result[0],
-                        "user_id": result[1],
+                        "user_id": user_id_result,
                         "payment_method": result[2],
                         "amount": result[3],
                         "note": result[4],
@@ -2268,8 +2275,11 @@ class DB:
                         "admin_note": result[6],
                         "created_at": result[7],
                         "processed_at": result[8],
-                        "processed_by": result[9],
-                        "processed_by_username": result[10],
+                        "processed_by": processed_by,
+                        "username": get_user_name_from_tg_id(user_id_result),
+                        "processed_by_username": get_user_name_from_tg_id(processed_by)
+                        if processed_by
+                        else None,
                     }
                 )
             return registrations
@@ -2280,10 +2290,11 @@ class DB:
     def get_pending_donation_registrations(self, limit: int = 50) -> List[dict]:
         """获取待处理的捐赠登记列表"""
         try:
+            from app.utils.utils import get_user_name_from_tg_id
+
             results = self.cur.execute(
-                """SELECT dr.*, s.tg_id as username
+                """SELECT dr.*
                    FROM donation_registrations dr
-                   LEFT JOIN statistics s ON dr.user_id = s.tg_id
                    WHERE dr.status = 'pending'
                    ORDER BY dr.created_at ASC
                    LIMIT ?""",
@@ -2292,10 +2303,11 @@ class DB:
 
             registrations = []
             for result in results:
+                user_id = result[1]
                 registrations.append(
                     {
                         "id": result[0],
-                        "user_id": result[1],
+                        "user_id": user_id,
                         "payment_method": result[2],
                         "amount": result[3],
                         "note": result[4],
@@ -2304,7 +2316,10 @@ class DB:
                         "created_at": result[7],
                         "processed_at": result[8],
                         "processed_by": result[9],
-                        "username": result[10],
+                        "username": get_user_name_from_tg_id(user_id),
+                        "processed_by_username": get_user_name_from_tg_id(result[9])
+                        if result[9]
+                        else None,
                     }
                 )
             return registrations
