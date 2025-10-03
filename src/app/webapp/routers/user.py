@@ -157,6 +157,19 @@ async def get_user_info(
                 f"获取用户 {get_user_name_from_tg_id(tg_id)} 的统计信息失败: {str(e)}"
             )
 
+        # 获取邀请人数
+        try:
+            logger.debug(f"正在查询用户 {get_user_name_from_tg_id(tg_id)} 的邀请人数")
+            invitee_count = db.get_invitee_count_by_owner(tg_id)
+            user_info.invitee_count = invitee_count
+            logger.debug(
+                f"用户 {get_user_name_from_tg_id(tg_id)} 的邀请人数获取成功: {invitee_count}"
+            )
+        except Exception as e:
+            logger.error(
+                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的邀请人数失败: {str(e)}"
+            )
+
         # 获取Overseerr信息
         try:
             logger.debug(

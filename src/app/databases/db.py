@@ -508,6 +508,19 @@ class DB:
         res = [_[0] for _ in res]
         return res
 
+    def get_invitee_count_by_owner(self, tg_id):
+        """获取用户邀请的人数"""
+        try:
+            rslt = self.cur.execute(
+                "SELECT COUNT(DISTINCT used_by) FROM invitation WHERE owner=? AND is_used=1 AND used_by IS NOT NULL",
+                (tg_id,),
+            )
+            count = rslt.fetchone()
+            return count[0] if count else 0
+        except Exception as e:
+            logger.error(f"获取邀请人数失败: {e}")
+            return 0
+
     def set_emby_line(self, line, tg_id=None, emby_id=None):
         try:
             if tg_id:

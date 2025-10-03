@@ -21,6 +21,7 @@ class UserInfo(BaseModel):
     tg_id: int
     credits: float = 0
     donation: float = 0
+    invitee_count: int = 0  # 邀请人数
     invitation_codes: List[str] = []
     plex_info: Optional[Dict[str, Any]] = None
     emby_info: Optional[Dict[str, Any]] = None

@@ -77,6 +77,13 @@
               </div>
               <div class="value-display donation-value">{{ userInfo.donation.toFixed(2) }}</div>
             </div>
+            <div class="d-flex justify-space-between mb-3 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="purple-darken-1" class="mr-2">mdi-account-multiple</v-icon>
+                <span>邀请人数：</span>
+              </div>
+              <div class="value-display invitee-value">{{ userInfo.invitee_count || 0 }}</div>
+            </div>
             <v-divider class="my-3"></v-divider>
 
             <div v-if="userInfo.invitation_codes && userInfo.invitation_codes.length > 0">
@@ -725,6 +732,7 @@ export default {
       userInfo: {
         credits: 0,
         donation: 0,
+        invitee_count: 0,
         invitation_codes: [],
         plex_info: {
           line: null,
@@ -1553,6 +1561,12 @@ export default {
   background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%);
   color: #388E3C;
   border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+.invitee-value {
+  background: linear-gradient(135deg, rgba(156, 39, 176, 0.1) 0%, rgba(156, 39, 176, 0.05) 100%);
+  color: #7B1FA2;
+  border: 1px solid rgba(156, 39, 176, 0.2);
 }
 
 .traffic-value {
