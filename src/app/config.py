@@ -100,8 +100,7 @@ class Settings(BaseSettings):
     UPAY_SECRET_KEY: str = ""  # UPAY 签名密钥
     UPAY_NOTIFY_URL: str = ""  # 支付完成异步通知地址
     UPAY_REDIRECT_URL: str = ""  # 支付完成后跳转地址
-
-    # 支持的加密货币类型配置（简化为列表）
+    # 支持的加密货币类型配置
     UPAY_CRYPTO_TYPES: list[str] = [
         "USDC-Polygon",
         "USDC-ArbitrumOne",
