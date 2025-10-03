@@ -133,6 +133,43 @@ async def get_user_donation_registrations(
         )
 
 
+@router.get("/registrations/pending", response_model=DonationRegistrationListResponse)
+@require_telegram_auth
+async def get_pending_donation_registrations(
+    request: Request, limit: int = 50, user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取待处理的捐赠登记列表（管理员专用）"""
+    try:
+        # 检查管理员权限
+        check_admin_permission(user)
+        # 限制查询数量
+        limit = min(limit, 200)
+
+        db = DB()
+        registrations = db.get_pending_donation_registrations(limit=limit)
+        db.close()
+
+        registration_responses = [
+            DonationRegistrationResponse(**reg) for reg in registrations
+        ]
+
+        return DonationRegistrationListResponse(
+            success=True,
+            data=registration_responses,
+            total=len(registration_responses),
+            page=1,
+            per_page=limit,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取待处理捐赠登记失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="服务器内部错误"
+        )
+
+
 @router.get(
     "/registrations/{registration_id}",
     response_model=DonationRegistrationDetailResponse,
@@ -171,43 +208,6 @@ async def get_donation_registration_detail(
         raise
     except Exception as e:
         logger.error(f"获取捐赠登记详情失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="服务器内部错误"
-        )
-
-
-@router.get("/registrations/pending", response_model=DonationRegistrationListResponse)
-@require_telegram_auth
-async def get_pending_donation_registrations(
-    request: Request, limit: int = 50, user: TelegramUser = Depends(get_telegram_user)
-):
-    """获取待处理的捐赠登记列表（管理员专用）"""
-    try:
-        # 检查管理员权限
-        check_admin_permission(user)
-        # 限制查询数量
-        limit = min(limit, 200)
-
-        db = DB()
-        registrations = db.get_pending_donation_registrations(limit=limit)
-        db.close()
-
-        registration_responses = [
-            DonationRegistrationResponse(**reg) for reg in registrations
-        ]
-
-        return DonationRegistrationListResponse(
-            success=True,
-            data=registration_responses,
-            total=len(registration_responses),
-            page=1,
-            per_page=limit,
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"获取待处理捐赠登记失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="服务器内部错误"
         )

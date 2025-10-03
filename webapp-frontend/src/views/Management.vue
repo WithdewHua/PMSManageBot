@@ -206,7 +206,7 @@
                   <div class="d-flex justify-space-between align-center mb-3">
                     <div class="d-flex align-center">
                       <v-icon size="small" color="orange-darken-2" class="mr-2">mdi-hand-heart</v-icon>
-                      <span>自助捐助登记管理：</span>
+                      <span>捐赠资助登记管理：</span>
                     </div>
                     <v-btn
                       color="orange-darken-2"
