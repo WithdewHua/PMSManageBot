@@ -112,16 +112,17 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每天早上 07:00 更新 Emby 用户信息")
 
-    # 每小时检查并结束过期的竞拍活动 (同步任务)
+    # 每 24 小时检查并结束过期的竞拍活动（兜底机制）
     scheduler.add_async_job(
         func=finish_expired_auctions_job,
         trigger="cron",
-        id="finish_expired_auctions",
+        id="finish_expired_auctions_fallback",
         replace_existing=True,
         max_instances=1,
-        minute=0,  # 每小时的第0分钟执行
+        hour=2,  # 每天凌晨2点执行一次作为兜底
+        minute=0,
     )
-    logger.info("添加定时任务：每小时自动结束过期竞拍活动")
+    logger.info("添加定时任务：每天凌晨 2 点检查过期竞拍活动（兜底机制）")
 
     # 每 5 分钟检查 Premium 会员过期状态 (异步任务)
     scheduler.add_async_job(
@@ -207,6 +208,14 @@ def add_init_scheduler_job():
         minute=59,
     )
     logger.info("添加定时任务：每天 23:59 发送 Premium 线路统计信息给管理员")
+
+    # 恢复现有竞拍的定时任务
+    try:
+        from app.webapp.routers.activities.auction import restore_auction_schedules
+
+        restore_auction_schedules()
+    except Exception as e:
+        logger.error(f"恢复竞拍定时任务失败: {e}")
 
 
 if __name__ == "__main__":

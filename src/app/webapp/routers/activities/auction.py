@@ -4,6 +4,7 @@ from app.config import settings
 from app.databases.db import DB
 from app.databases.db_func import finish_expired_auctions_job
 from app.log import uvicorn_logger as logger
+from app.scheduler import Scheduler
 from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
@@ -21,6 +22,97 @@ from app.webapp.schemas import (
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 
 router = APIRouter(prefix="/auction", tags=["auction"])
+
+
+async def finish_single_auction_job(auction_id: int):
+    """
+    单个竞拍结束任务
+    """
+    try:
+        db = DB()
+
+        # 检查竞拍是否存在且处于活跃状态
+        auction_data = db.get_auction_by_id(auction_id)
+        if not auction_data or not auction_data["is_active"]:
+            logger.info(f"竞拍 {auction_id} 不存在或已结束，跳过自动结束任务")
+            return
+
+        # 结束竞拍
+        success, winner = db.finish_auction_by_id(auction_id)
+
+        if success and winner:
+            # 通知用户
+            await send_message_by_url(
+                winner.get("winner_id"),
+                f"恭喜你，竞拍 {auction_data['title']} 获胜！最终出价为 {winner.get('final_price')} 积分",
+            )
+            if not winner.get("credits_reduced", False):
+                # 如果未扣除积分，通知管理员
+                for chat_id in settings.TG_ADMIN_CHAT_ID:
+                    await send_message_by_url(
+                        chat_id=chat_id,
+                        text=f"用户 {winner.get('winner_id')} 在竞拍 {auction_data['title']} 中获胜，但未扣除积分。",
+                    )
+            logger.info(f"竞拍 {auction_id} 自动结束成功")
+        else:
+            logger.warning(f"竞拍 {auction_id} 自动结束失败")
+
+    except Exception as e:
+        logger.error(f"自动结束竞拍 {auction_id} 失败: {e}")
+    finally:
+        if "db" in locals():
+            db.close()
+
+
+def restore_auction_schedules():
+    """
+    启动时恢复现有活跃竞拍的定时任务
+    """
+    try:
+        db = DB()
+        scheduler = Scheduler()
+
+        # 获取所有活跃的竞拍
+        active_auctions = db.get_active_auctions()
+
+        import time
+
+        current_time = int(time.time())
+
+        for auction_data in active_auctions:
+            auction_id = auction_data["id"]
+            end_time = auction_data["end_time"]
+
+            # 跳过已过期的竞拍（这些会被兜底任务处理）
+            if end_time <= current_time:
+                logger.warning(f"竞拍 {auction_id} 已过期，将由兜底任务处理")
+                continue
+
+            # 为未过期的竞拍创建定时任务
+            job_id = f"finish_auction_{auction_id}"
+            end_datetime = datetime.fromtimestamp(end_time)
+
+            scheduler.add_async_job(
+                func=finish_single_auction_job,
+                args=[auction_id],
+                trigger="date",
+                run_date=end_datetime,
+                id=job_id,
+                replace_existing=True,
+                max_instances=1,
+            )
+
+            logger.info(f"恢复竞拍 {auction_id} 的定时任务，结束时间: {end_datetime}")
+
+        logger.info(
+            f"已恢复 {len([a for a in active_auctions if a['end_time'] > current_time])} 个竞拍的定时任务"
+        )
+
+    except Exception as e:
+        logger.error(f"恢复竞拍定时任务失败: {e}")
+    finally:
+        if "db" in locals():
+            db.close()
 
 
 async def send_bid_notifications(
@@ -258,8 +350,23 @@ async def create_auction(
         )
 
         if auction_id:
+            # 添加定时任务：在竞拍结束时间自动结束竞拍
+            scheduler = Scheduler()
+            job_id = f"finish_auction_{auction_id}"
+
+            scheduler.add_async_job(
+                func=finish_single_auction_job,
+                args=[auction_id],
+                trigger="date",
+                run_date=end_time,
+                id=job_id,
+                replace_existing=True,
+                max_instances=1,
+            )
+
             logger.info(
-                f"管理员 {get_user_name_from_tg_id(current_user.id)} 创建了竞拍: {request_data.title}"
+                f"管理员 {get_user_name_from_tg_id(current_user.id)} 创建了竞拍: {request_data.title}，"
+                f"将在 {end_time} 自动结束"
             )
             return {
                 "success": True,
@@ -503,10 +610,32 @@ async def update_auction_admin(
             "starting_price": update_data.starting_price,
         }
 
+        scheduler = Scheduler()
+        old_job_id = f"finish_auction_{auction_id}"
+
         # 如果更新了时长，重新计算结束时间
         if hasattr(update_data, "duration_hours") and update_data.duration_hours:
             new_end_time = datetime.now() + timedelta(hours=update_data.duration_hours)
             update_dict["end_time"] = int(new_end_time.timestamp())
+
+            # 移除旧的定时任务
+            try:
+                scheduler.remove_job(old_job_id)
+                logger.info(f"移除竞拍 {auction_id} 的旧定时任务")
+            except Exception as e:
+                logger.warning(f"移除竞拍 {auction_id} 旧定时任务失败: {e}")
+
+            # 添加新的定时任务
+            scheduler.add_async_job(
+                func=finish_single_auction_job,
+                args=[auction_id],
+                trigger="date",
+                run_date=new_end_time,
+                id=old_job_id,
+                replace_existing=True,
+                max_instances=1,
+            )
+            logger.info(f"为竞拍 {auction_id} 设置新的结束时间: {new_end_time}")
 
         success = db.update_auction(auction_id, update_dict)
 
@@ -552,6 +681,15 @@ async def delete_auction_admin(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="竞拍不存在"
             )
+
+        # 移除对应的定时任务
+        scheduler = Scheduler()
+        job_id = f"finish_auction_{auction_id}"
+        try:
+            scheduler.remove_job(job_id)
+            logger.info(f"移除竞拍 {auction_id} 的定时任务")
+        except Exception as e:
+            logger.warning(f"移除竞拍 {auction_id} 定时任务失败: {e}")
 
         success = db.delete_auction(auction_id)
 
@@ -602,6 +740,15 @@ async def finish_auction_admin(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="竞拍已结束"
             )
+
+        # 移除对应的定时任务
+        scheduler = Scheduler()
+        job_id = f"finish_auction_{auction_id}"
+        try:
+            scheduler.remove_job(job_id)
+            logger.info(f"移除竞拍 {auction_id} 的定时任务（手动结束）")
+        except Exception as e:
+            logger.warning(f"移除竞拍 {auction_id} 定时任务失败: {e}")
 
         success, winner = db.finish_auction_by_id(auction_id)
 
