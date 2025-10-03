@@ -135,6 +135,7 @@ class DB:
                 created_at TEXT NOT NULL,
                 processed_at TEXT,
                 processed_by INTEGER,
+                is_donation_registration INTEGER DEFAULT 0 CHECK (is_donation_registration IN (0, 1)),
                 FOREIGN KEY (user_id) REFERENCES statistics (tg_id),
                 FOREIGN KEY (processed_by) REFERENCES statistics (tg_id)
             );
@@ -2188,7 +2189,12 @@ class DB:
             return False, f"清理月度流量数据失败: {str(e)}"
 
     def create_donation_registration(
-        self, user_id: int, payment_method: str, amount: float, note: str = None
+        self,
+        user_id: int,
+        payment_method: str,
+        amount: float,
+        note: str = None,
+        is_donation_registration: bool = False,
     ) -> bool:
         """创建捐赠登记记录"""
         try:
@@ -2198,9 +2204,16 @@ class DB:
 
             self.cur.execute(
                 """INSERT INTO donation_registrations 
-                   (user_id, payment_method, amount, note, created_at) 
-                   VALUES (?, ?, ?, ?, ?)""",
-                (user_id, payment_method, amount, note, created_at),
+                   (user_id, payment_method, amount, note, created_at, is_donation_registration) 
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    user_id,
+                    payment_method,
+                    amount,
+                    note,
+                    created_at,
+                    int(is_donation_registration),
+                ),
             )
             self.con.commit()
             return True
@@ -2234,6 +2247,9 @@ class DB:
                     "created_at": result[7],
                     "processed_at": result[8],
                     "processed_by": processed_by,
+                    "is_donation_registration": bool(result[10])
+                    if len(result) > 10
+                    else False,
                     "username": get_user_name_from_tg_id(user_id),
                     "processed_by_username": get_user_name_from_tg_id(processed_by)
                     if processed_by
@@ -2276,6 +2292,9 @@ class DB:
                         "created_at": result[7],
                         "processed_at": result[8],
                         "processed_by": processed_by,
+                        "is_donation_registration": bool(result[10])
+                        if len(result) > 10
+                        else False,
                         "username": get_user_name_from_tg_id(user_id_result),
                         "processed_by_username": get_user_name_from_tg_id(processed_by)
                         if processed_by
@@ -2316,6 +2335,9 @@ class DB:
                         "created_at": result[7],
                         "processed_at": result[8],
                         "processed_by": result[9],
+                        "is_donation_registration": bool(result[10])
+                        if len(result) > 10
+                        else False,
                         "username": get_user_name_from_tg_id(user_id),
                         "processed_by_username": get_user_name_from_tg_id(result[9])
                         if result[9]
@@ -2334,7 +2356,7 @@ class DB:
         admin_note: str = None,
         processed_by: int = None,
     ) -> bool:
-        """确认捐赠登记"""
+        """确认捐赠登记状态"""
         try:
             from datetime import datetime
 
@@ -2348,34 +2370,6 @@ class DB:
                    WHERE id = ?""",
                 (status, admin_note, processed_at, processed_by, registration_id),
             )
-
-            # 如果批准，更新用户捐赠金额和积分
-            if approved:
-                # 获取登记信息
-                registration = self.get_donation_registration_by_id(registration_id)
-                if registration:
-                    user_id = registration["user_id"]
-                    amount = registration["amount"]
-
-                    # 更新捐赠金额
-                    current_stats = self.get_stats_by_tg_id(user_id)
-                    if current_stats:
-                        new_donation = current_stats[1] + amount
-                        new_credits = (
-                            current_stats[2] + amount * settings.DONATION_MULTIPLIER
-                        )  # 捐赠积分 1:DONATION_MULTIPLIER
-
-                        self.cur.execute(
-                            "UPDATE statistics SET donation = ?, credits = ? WHERE tg_id = ?",
-                            (new_donation, new_credits, user_id),
-                        )
-                    else:
-                        # 如果用户统计记录不存在，创建一个
-                        self.add_user_data(
-                            user_id,
-                            credits=amount,
-                            donation=amount * settings.DONATION_MULTIPLIER,
-                        )
 
             self.con.commit()
             return True

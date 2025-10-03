@@ -28,6 +28,10 @@ class DonationRegistrationCreate(BaseModel):
     payment_method: PaymentMethod = Field(..., description="支付方式")
     amount: float = Field(..., gt=0, description="捐赠金额，必须大于0")
     note: Optional[str] = Field(None, max_length=200, description="备注信息")
+    is_donation_registration: bool = Field(
+        False,
+        description="是否为捐赠开号，True表示只记录捐赠金额，不增加积分，并生成邀请码",
+    )
 
     @validator("amount")
     def validate_amount(cls, v):
@@ -59,6 +63,7 @@ class DonationRegistrationResponse(BaseModel):
     created_at: datetime
     processed_at: Optional[datetime]
     processed_by: Optional[int]
+    is_donation_registration: bool = False
     username: Optional[str]  # 用户名（从 tg_id 获取）
     processed_by_username: Optional[str]
 

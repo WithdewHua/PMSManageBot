@@ -77,6 +77,26 @@
                     </v-col>
 
                     <v-col cols="12">
+                      <v-checkbox
+                        v-model="selfRegisterForm.isDonationRegistration"
+                        label="捐赠开号"
+                        color="primary"
+                        class="form-field"
+                        density="comfortable"
+                      >
+                        <template #label>
+                          <div class="checkbox-label">
+                            <v-icon size="small" class="mr-1">mdi-account-plus</v-icon>
+                            捐赠开号
+                            <v-tooltip activator="parent" location="top">
+                              选择此项表示为捐赠开号，只记录捐赠金额，不增加积分，并会生成一个普通邀请码
+                            </v-tooltip>
+                          </div>
+                        </template>
+                      </v-checkbox>
+                    </v-col>
+
+                    <v-col cols="12">
                       <v-textarea
                         v-model="selfRegisterForm.note"
                         label="备注信息（可选）"
@@ -119,8 +139,9 @@
                     <div class="notice-title">登记须知：</div>
                     <ul class="notice-list">
                       <li>请确保填写的金额与实际捐赠金额一致</li>
+                      <li>如选择"捐赠开号"，系统将只记录捐赠金额，不增加积分，并生成普通邀请码</li>
                       <li>管理员将在 24 小时内处理您的登记申请</li>
-                      <li>确认后系统将自动增加对应的捐赠金额和积分</li>
+                      <li>确认后系统将自动增加对应的捐赠金额和积分（捐赠开号除外）</li>
                       <li>如有疑问，请联系管理员</li>
                     </ul>
                   </div>
@@ -179,7 +200,8 @@ export default {
       selfRegisterForm: {
         paymentMethod: '',
         amount: '',
-        note: ''
+        note: '',
+        isDonationRegistration: false
       },
       
       // 支付方式选项
@@ -219,7 +241,8 @@ export default {
       this.selfRegisterForm = {
         paymentMethod: '',
         amount: '',
-        note: ''
+        note: '',
+        isDonationRegistration: false
       }
       this.formValid = false
       this.submitting = false
@@ -253,7 +276,8 @@ export default {
         const formData = {
           payment_method: this.selfRegisterForm.paymentMethod,
           amount: parseFloat(this.selfRegisterForm.amount),
-          note: this.selfRegisterForm.note || ''
+          note: this.selfRegisterForm.note || '',
+          is_donation_registration: this.selfRegisterForm.isDonationRegistration
         }
         
         const response = await submitDonationRegistration(formData)
@@ -387,6 +411,13 @@ export default {
 
 .notice-list li {
   margin-bottom: 4px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .coming-soon-alert {

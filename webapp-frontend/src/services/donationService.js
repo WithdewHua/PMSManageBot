@@ -6,6 +6,7 @@ import { apiClient } from '@/main'
  * @param {string} data.payment_method - 支付方式 (wechat/alipay/bank/other)
  * @param {number} data.amount - 捐赠金额
  * @param {string} data.note - 备注信息
+ * @param {boolean} data.is_donation_registration - 是否为捐赠开号（只记录捐赠金额，不增加积分，并生成邀请码）
  * @returns {Promise} API响应
  */
 export async function submitDonationRegistration(data) {
