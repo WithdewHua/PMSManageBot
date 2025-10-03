@@ -13,6 +13,7 @@ from app.webapp.routers import (
 from app.webapp.routers.activities.auction import router as auction_router
 from app.webapp.routers.activities.luckywheel import router as luckywheel_router
 from app.webapp.routers.admin import router as admin_router
+from app.webapp.routers.crypto_donation import router as crypto_donation_router
 from app.webapp.routers.invitation import router as invitation_router
 from app.webapp.routers.premium import router as premium_router
 from app.webapp.startup.lifespan import lifespan
@@ -66,6 +67,7 @@ app.include_router(invitation_router)  # 添加邀请码路由
 app.include_router(premium_router)  # 添加 Premium 路由
 app.include_router(admin_router)  # 添加管理员路由
 app.include_router(donation_router)  # 添加捐赠路由
+app.include_router(crypto_donation_router)  # 添加 Crypto 捐赠路由
 app.include_router(luckywheel_router, prefix="/api")  # 添加幸运大转盘路由
 app.include_router(auction_router, prefix="/api")  # 添加竞拍活动路由
 

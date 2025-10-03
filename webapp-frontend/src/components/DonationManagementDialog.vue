@@ -177,21 +177,173 @@
                   <span class="section-title">Crypto 捐赠</span>
                 </div>
                 <p class="section-description">
-                  使用加密货币进行捐赠，支持多种主流数字货币。
+                  使用加密货币进行捐赠，支持多种主流数字货币。支付完成后将自动更新您的捐赠金额和积分。
                 </p>
 
-                <!-- 占位内容 -->
+                <!-- 账号绑定检查提示 -->
                 <v-alert
-                  type="warning"
+                  v-if="!userBindingChecked"
+                  type="info"
                   variant="tonal"
-                  class="coming-soon-alert"
+                  class="mb-4"
                   rounded="lg"
                 >
                   <div class="alert-content">
-                    <div class="alert-title">功能开发中</div>
-                    <div class="alert-text">Crypto 捐赠功能正在开发中，敬请期待！</div>
+                    <div class="alert-title">温馨提示</div>
+                    <div class="alert-text">
+                      <v-icon size="small" class="mr-1">mdi-information</v-icon>
+                      只有绑定了 Emby 或 Plex 账号的用户才能进行 Crypto 捐赠
+                    </div>
                   </div>
                 </v-alert>
+
+                <!-- Crypto 捐赠表单 -->
+                <v-form ref="cryptoForm" v-model="cryptoFormValid" class="donation-form">
+                  <v-row>
+                    <v-col cols="12">
+                      <v-select
+                        v-model="cryptoForm.cryptoType"
+                        :items="cryptoTypes"
+                        label="选择加密货币"
+                        variant="outlined"
+                        :rules="[rules.required]"
+                        prepend-inner-icon="mdi-bitcoin"
+                        class="form-field"
+                      >
+                        <template v-slot:item="{ props, item }">
+                          <v-list-item v-bind="props">
+                            <template v-slot:prepend>
+                              <v-icon :icon="item.raw.icon" size="small" class="mr-2"></v-icon>
+                            </template>
+                          </v-list-item>
+                        </template>
+                        <template v-slot:selection="{ item }">
+                          <div class="d-flex align-center">
+                            <v-icon :icon="item.raw.icon" size="small" class="mr-2"></v-icon>
+                            {{ item.title }}
+                          </div>
+                        </template>
+                      </v-select>
+                    </v-col>
+                    
+                    <v-col cols="12">
+                      <v-text-field
+                        v-model="cryptoForm.amount"
+                        label="捐赠金额"
+                        variant="outlined"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        suffix="CNY"
+                        :rules="[rules.required, rules.minAmount]"
+                        prepend-inner-icon="mdi-currency-cny"
+                        class="form-field"
+                        hint="最低捐赠金额为 0.01 CNY，UPAY 系统将自动处理汇率转换"
+                        persistent-hint
+                      ></v-text-field>
+                    </v-col>
+
+                    <v-col cols="12">
+                      <v-textarea
+                        v-model="cryptoForm.note"
+                        label="备注信息（可选）"
+                        variant="outlined"
+                        rows="3"
+                        counter="200"
+                        maxlength="200"
+                        prepend-inner-icon="mdi-note-text"
+                        class="form-field"
+                        placeholder="如：特殊说明、感谢留言等"
+                      ></v-textarea>
+                    </v-col>
+                  </v-row>
+
+                  <div class="form-actions">
+                    <v-btn
+                      :loading="cryptoSubmitting"
+                      :disabled="!cryptoFormValid || cryptoSubmitting"
+                      color="orange-darken-2"
+                      size="large"
+                      block
+                      @click="createCryptoOrder"
+                      class="action-btn"
+                    >
+                      <v-icon start>mdi-bitcoin</v-icon>
+                      创建 Crypto 支付订单
+                    </v-btn>
+                  </div>
+                </v-form>
+
+                <!-- 历史订单 -->
+                <div v-if="cryptoOrders.length > 0" class="crypto-orders-section mt-6">
+                  <v-divider class="mb-4"></v-divider>
+                  <div class="section-header mb-4">
+                    <v-icon color="blue-darken-2" class="mr-2">mdi-history</v-icon>
+                    <span class="section-title">历史订单</span>
+                  </div>
+                  
+                  <v-card
+                    v-for="order in cryptoOrders"
+                    :key="order.id"
+                    class="crypto-order-card mb-3"
+                    variant="outlined"
+                  >
+                    <v-card-text class="pa-4">
+                      <div class="d-flex justify-space-between align-center mb-2">
+                        <div class="d-flex align-center">
+                          <v-icon :icon="getCryptoIcon(order.crypto_type)" size="small" class="mr-2"></v-icon>
+                          <span class="font-weight-medium">{{ getCryptoDisplayName(order.crypto_type) }}</span>
+                        </div>
+                        <v-chip
+                          :color="getOrderStatusColor(order.status)"
+                          size="small"
+                          variant="flat"
+                        >
+                          <v-icon start size="x-small" :icon="getOrderStatusIcon(order.status)"></v-icon>
+                          {{ getOrderStatusText(order.status) }}
+                        </v-chip>
+                      </div>
+                      
+                      <div class="order-details">
+                        <div class="order-detail-row">
+                          <span class="detail-label">订单金额:</span>
+                          <span class="detail-value">¥{{ order.amount }}</span>
+                        </div>
+                        <div v-if="order.actual_amount" class="order-detail-row">
+                          <span class="detail-label">实付金额:</span>
+                          <span class="detail-value">{{ order.actual_amount }} {{ getCryptoSymbol(order.crypto_type) }}</span>
+                        </div>
+                        <div class="order-detail-row">
+                          <span class="detail-label">创建时间:</span>
+                          <span class="detail-value">{{ formatDateTime(order.created_at) }}</span>
+                        </div>
+                        <div v-if="order.paid_at" class="order-detail-row">
+                          <span class="detail-label">支付时间:</span>
+                          <span class="detail-value">{{ formatDateTime(order.paid_at) }}</span>
+                        </div>
+                        <div v-if="order.note" class="order-detail-row">
+                          <span class="detail-label">备注:</span>
+                          <span class="detail-value">{{ order.note }}</span>
+                        </div>
+                      </div>
+                      
+                      <!-- 支付链接 -->
+                      <div v-if="order.status === 1 && order.payment_url" class="mt-3">
+                        <v-btn
+                          :href="order.payment_url"
+                          target="_blank"
+                          color="success"
+                          size="small"
+                          variant="outlined"
+                          block
+                        >
+                          <v-icon start size="small">mdi-open-in-new</v-icon>
+                          前往支付
+                        </v-btn>
+                      </div>
+                    </v-card-text>
+                  </v-card>
+                </div>
               </div>
             </v-container>
           </v-window-item>
@@ -203,6 +355,12 @@
 
 <script>
 import { submitDonationRegistration } from '@/services/donationService'
+import { 
+  createCryptoDonationOrder, 
+  getUserCryptoDonationOrders,
+  CRYPTO_TYPES,
+  ORDER_STATUS
+} from '@/services/cryptoDonationService'
 
 export default {
   name: 'DonationManagementDialog',
@@ -221,12 +379,30 @@ export default {
         isDonationRegistration: false
       },
       
+      // Crypto 捐赠相关
+      cryptoFormValid: false,
+      cryptoSubmitting: false,
+      cryptoOrders: [],
+      userBindingChecked: true, // 默认为 true，实际检查在组件挂载时进行
+      cryptoForm: {
+        cryptoType: '',
+        amount: '',
+        note: ''
+      },
+      
       // 支付方式选项
       paymentMethods: [
         { title: '微信赞赏码', value: 'wechat' },
         { title: '支付宝口令', value: 'alipay' },
         { title: '其他', value: 'other' }
       ],
+      
+      // 加密货币类型选项
+      cryptoTypes: CRYPTO_TYPES.map(crypto => ({
+        title: crypto.text,
+        value: crypto.value,
+        icon: crypto.icon
+      })),
       
       // 表单验证规则
       rules: {
@@ -263,6 +439,9 @@ export default {
       }
       this.formValid = false
       this.submitting = false
+      
+      // 重置 Crypto 表单
+      this.resetCryptoForm()
       
       // 重置表单验证状态
       if (this.$refs.selfRegisterForm) {
@@ -313,6 +492,132 @@ export default {
         this.submitting = false
       }
     },
+
+    // 创建 Crypto 支付订单
+    async createCryptoOrder() {
+      // 验证表单
+      const { valid } = await this.$refs.cryptoForm.validate()
+      if (!valid) {
+        return
+      }
+      
+      try {
+        this.cryptoSubmitting = true
+        
+        const orderData = {
+          crypto_type: this.cryptoForm.cryptoType,
+          amount: parseFloat(this.cryptoForm.amount),
+          note: this.cryptoForm.note || ''
+        }
+        
+        const response = await createCryptoDonationOrder(orderData)
+        
+        if (response.success) {
+          this.showMessage('Crypto 支付订单创建成功！', 'success')
+          
+          // 重置表单
+          this.resetCryptoForm()
+          
+          // 刷新订单列表
+          await this.loadCryptoOrders()
+          
+          // 如果有支付链接，打开支付页面
+          if (response.data.payment_url) {
+            window.open(response.data.payment_url, '_blank')
+          }
+          
+          this.$emit('crypto-order-created', response.data)
+        } else {
+          this.showMessage(response.message || '创建订单失败，请稍后重试', 'error')
+        }
+      } catch (error) {
+        console.error('创建 Crypto 支付订单失败:', error)
+        if (error.response?.status === 403) {
+          this.showMessage('请先绑定 Emby 或 Plex 账号后再进行捐赠', 'warning')
+          this.userBindingChecked = false
+        } else {
+          this.showMessage('创建订单失败，请稍后重试', 'error')
+        }
+      } finally {
+        this.cryptoSubmitting = false
+      }
+    },
+
+    // 重置 Crypto 表单
+    resetCryptoForm() {
+      this.cryptoForm = {
+        cryptoType: '',
+        amount: '',
+        note: ''
+      }
+      this.cryptoFormValid = false
+      
+      if (this.$refs.cryptoForm) {
+        this.$refs.cryptoForm.resetValidation()
+      }
+    },
+
+    // 加载 Crypto 订单历史
+    async loadCryptoOrders() {
+      try {
+        const response = await getUserCryptoDonationOrders()
+        if (response.success) {
+          this.cryptoOrders = response.data || []
+        }
+      } catch (error) {
+        console.error('加载 Crypto 订单历史失败:', error)
+      }
+    },
+
+    // 获取加密货币图标
+    getCryptoIcon(cryptoType) {
+      const crypto = CRYPTO_TYPES.find(c => c.value === cryptoType)
+      return crypto ? crypto.icon : 'mdi-bitcoin'
+    },
+
+    // 获取加密货币显示名称
+    getCryptoDisplayName(cryptoType) {
+      const crypto = CRYPTO_TYPES.find(c => c.value === cryptoType)
+      return crypto ? crypto.text : cryptoType
+    },
+
+    // 获取订单状态颜色
+    getOrderStatusColor(status) {
+      return ORDER_STATUS[status]?.color || 'grey'
+    },
+
+    // 获取订单状态图标
+    getOrderStatusIcon(status) {
+      return ORDER_STATUS[status]?.icon || 'mdi-help-circle'
+    },
+
+    // 获取订单状态文本
+    getOrderStatusText(status) {
+      return ORDER_STATUS[status]?.text || '未知状态'
+    },
+
+    // 获取加密货币符号
+    getCryptoSymbol(cryptoType) {
+      if (cryptoType.includes('USDC')) return 'USDC'
+      if (cryptoType.includes('USDT')) return 'USDT'
+      return cryptoType.split('-')[0]
+    },
+
+    // 格式化日期时间
+    formatDateTime(dateString) {
+      if (!dateString) return '-'
+      try {
+        return new Date(dateString).toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      } catch (error) {
+        return dateString
+      }
+    },
     
     // 显示消息
     showMessage(message, type = 'success') {
@@ -325,6 +630,16 @@ export default {
         alert(message)
       }
     }
+  },
+
+  // 组件生命周期
+  async mounted() {
+    // 当组件挂载且对话框打开时，加载 Crypto 订单历史
+    this.$watch('dialog', async (newVal) => {
+      if (newVal) {
+        await this.loadCryptoOrders()
+      }
+    })
   }
 }
 </script>
@@ -506,8 +821,48 @@ export default {
 }
 
 .crypto-content {
-  text-align: center;
-  padding: 40px 20px;
+  text-align: left;
+}
+
+.crypto-orders-section {
+  margin-top: 24px;
+}
+
+.crypto-order-card {
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.crypto-order-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.order-details {
+  margin-top: 12px;
+}
+
+.order-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.order-detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-size: 13px;
+  color: #666;
+  font-weight: 400;
+}
+
+.detail-value {
+  font-size: 13px;
+  color: #333;
+  font-weight: 500;
 }
 
 /* 响应式设计 */

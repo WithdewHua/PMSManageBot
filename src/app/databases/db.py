@@ -144,6 +144,34 @@ class DB:
             CREATE INDEX IF NOT EXISTS idx_donation_user_status ON donation_registrations(user_id, status);
             CREATE INDEX IF NOT EXISTS idx_donation_status_created ON donation_registrations(status, created_at);
             CREATE INDEX IF NOT EXISTS idx_donation_created_at ON donation_registrations(created_at);
+
+            -- Crypto 捐赠订单表
+            CREATE TABLE IF NOT EXISTS crypto_donation_orders(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                order_id TEXT NOT NULL UNIQUE,              -- 商户订单号，唯一标识
+                trade_id TEXT,                              -- UPAY 系统生成的交易订单号
+                crypto_type TEXT NOT NULL CHECK (crypto_type IN ('USDC-Polygon', 'USDC-ArbitrumOne', 'USDC-BSC', 'USDT-Polygon', 'USDT-ArbitrumOne', 'USDT-BSC')),
+                amount REAL NOT NULL CHECK (amount > 0),    -- 原始订单金额（CNY）
+                actual_amount REAL,                         -- 实际支付金额（加密货币数量）
+                payment_address TEXT,                       -- 收款钱包地址
+                block_transaction_id TEXT,                  -- 区块链交易哈希
+                status INTEGER NOT NULL DEFAULT 1 CHECK (status IN (1, 2, 3)),  -- 订单状态：1=等待支付, 2=支付成功, 3=已过期
+                payment_url TEXT,                           -- 支付页面URL
+                expiration_time INTEGER,                    -- 过期时间戳
+                created_at TEXT NOT NULL,
+                updated_at TEXT,
+                paid_at TEXT,                               -- 支付完成时间
+                note TEXT,                                  -- 备注信息
+                FOREIGN KEY (user_id) REFERENCES statistics (tg_id)
+            );
+
+            -- 索引优化：为 crypto_donation_orders 表添加索引
+            CREATE INDEX IF NOT EXISTS idx_crypto_order_user_status ON crypto_donation_orders(user_id, status);
+            CREATE INDEX IF NOT EXISTS idx_crypto_order_status_created ON crypto_donation_orders(status, created_at);
+            CREATE INDEX IF NOT EXISTS idx_crypto_order_created_at ON crypto_donation_orders(created_at);
+            CREATE INDEX IF NOT EXISTS idx_crypto_order_trade_id ON crypto_donation_orders(trade_id);
+            CREATE INDEX IF NOT EXISTS idx_crypto_order_order_id ON crypto_donation_orders(order_id);
             """
         )
         self.con.commit()
@@ -2424,3 +2452,196 @@ class DB:
                 "rejected_registrations": 0,
                 "total_approved_amount": 0.0,
             }
+
+    # Crypto 捐赠订单相关方法
+    def create_crypto_donation_order(
+        self,
+        user_id: int,
+        order_id: str,
+        crypto_type: str,
+        amount: float,
+        note: str = None,
+    ) -> bool:
+        """创建 crypto 捐赠订单"""
+        try:
+            from datetime import datetime
+
+            created_at = datetime.now(settings.TZ).isoformat()
+
+            self.cur.execute(
+                """INSERT INTO crypto_donation_orders 
+                   (user_id, order_id, crypto_type, amount, created_at, note) 
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (user_id, order_id, crypto_type, amount, created_at, note),
+            )
+            self.con.commit()
+            return True
+        except Exception as e:
+            logger.error(f"创建 crypto 捐赠订单失败: {e}")
+            return False
+
+    def update_crypto_donation_order_upay_info(
+        self,
+        order_id: str,
+        trade_id: str,
+        actual_amount: float,
+        payment_address: str,
+        payment_url: str,
+        expiration_time: int,
+    ) -> bool:
+        """更新 crypto 捐赠订单的 UPAY 信息"""
+        try:
+            from datetime import datetime
+
+            updated_at = datetime.now(settings.TZ).isoformat()
+
+            self.cur.execute(
+                """UPDATE crypto_donation_orders 
+                   SET trade_id = ?, actual_amount = ?, payment_address = ?, 
+                       payment_url = ?, expiration_time = ?, updated_at = ?
+                   WHERE order_id = ?""",
+                (
+                    trade_id,
+                    actual_amount,
+                    payment_address,
+                    payment_url,
+                    expiration_time,
+                    updated_at,
+                    order_id,
+                ),
+            )
+            self.con.commit()
+            return True
+        except Exception as e:
+            logger.error(f"更新 crypto 捐赠订单 UPAY 信息失败: {e}")
+            return False
+
+    def complete_crypto_donation_order(
+        self,
+        trade_id: str,
+        block_transaction_id: str,
+        actual_amount: float,
+    ) -> bool:
+        """完成 crypto 捐赠订单支付"""
+        try:
+            from datetime import datetime
+
+            paid_at = datetime.now(settings.TZ).isoformat()
+            updated_at = paid_at
+
+            self.cur.execute(
+                """UPDATE crypto_donation_orders 
+                   SET status = 2, block_transaction_id = ?, actual_amount = ?, 
+                       paid_at = ?, updated_at = ?
+                   WHERE trade_id = ?""",
+                (block_transaction_id, actual_amount, paid_at, updated_at, trade_id),
+            )
+            self.con.commit()
+            return True
+        except Exception as e:
+            logger.error(f"完成 crypto 捐赠订单支付失败: {e}")
+            return False
+
+    def get_crypto_donation_order_by_order_id(self, order_id: str) -> Optional[dict]:
+        """根据订单ID获取 crypto 捐赠订单"""
+        try:
+            result = self.cur.execute(
+                """SELECT * FROM crypto_donation_orders WHERE order_id = ?""",
+                (order_id,),
+            ).fetchone()
+
+            if result:
+                return {
+                    "id": result[0],
+                    "user_id": result[1],
+                    "order_id": result[2],
+                    "trade_id": result[3],
+                    "crypto_type": result[4],
+                    "amount": result[5],
+                    "actual_amount": result[6],
+                    "payment_address": result[7],
+                    "block_transaction_id": result[8],
+                    "status": result[9],
+                    "payment_url": result[10],
+                    "expiration_time": result[11],
+                    "created_at": result[12],
+                    "updated_at": result[13],
+                    "paid_at": result[14],
+                    "note": result[15],
+                }
+            return None
+        except Exception as e:
+            logger.error(f"获取 crypto 捐赠订单失败: {e}")
+            return None
+
+    def get_crypto_donation_order_by_trade_id(self, trade_id: str) -> Optional[dict]:
+        """根据交易ID获取 crypto 捐赠订单"""
+        try:
+            result = self.cur.execute(
+                """SELECT * FROM crypto_donation_orders WHERE trade_id = ?""",
+                (trade_id,),
+            ).fetchone()
+
+            if result:
+                return {
+                    "id": result[0],
+                    "user_id": result[1],
+                    "order_id": result[2],
+                    "trade_id": result[3],
+                    "crypto_type": result[4],
+                    "amount": result[5],
+                    "actual_amount": result[6],
+                    "payment_address": result[7],
+                    "block_transaction_id": result[8],
+                    "status": result[9],
+                    "payment_url": result[10],
+                    "expiration_time": result[11],
+                    "created_at": result[12],
+                    "updated_at": result[13],
+                    "paid_at": result[14],
+                    "note": result[15],
+                }
+            return None
+        except Exception as e:
+            logger.error(f"获取 crypto 捐赠订单失败: {e}")
+            return None
+
+    def get_crypto_donation_orders_by_user(
+        self, user_id: int, limit: int = 20
+    ) -> List[dict]:
+        """获取用户的 crypto 捐赠订单历史"""
+        try:
+            results = self.cur.execute(
+                """SELECT * FROM crypto_donation_orders 
+                   WHERE user_id = ? 
+                   ORDER BY created_at DESC 
+                   LIMIT ?""",
+                (user_id, limit),
+            ).fetchall()
+
+            orders = []
+            for result in results:
+                orders.append(
+                    {
+                        "id": result[0],
+                        "user_id": result[1],
+                        "order_id": result[2],
+                        "trade_id": result[3],
+                        "crypto_type": result[4],
+                        "amount": result[5],
+                        "actual_amount": result[6],
+                        "payment_address": result[7],
+                        "block_transaction_id": result[8],
+                        "status": result[9],
+                        "payment_url": result[10],
+                        "expiration_time": result[11],
+                        "created_at": result[12],
+                        "updated_at": result[13],
+                        "paid_at": result[14],
+                        "note": result[15],
+                    }
+                )
+            return orders
+        except Exception as e:
+            logger.error(f"获取用户 crypto 捐赠订单历史失败: {e}")
+            return []

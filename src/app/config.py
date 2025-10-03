@@ -95,6 +95,12 @@ class Settings(BaseSettings):
     # redeem code
     PRIVILEGED_CODES: list[str] = []
 
+    # UPAY 支付配置
+    UPAY_BASE_URL: str = "http://localhost:8090"  # UPAY 服务地址
+    UPAY_SECRET_KEY: str = ""  # UPAY 签名密钥
+    UPAY_NOTIFY_URL: str = ""  # 支付完成异步通知地址
+    UPAY_REDIRECT_URL: str = ""  # 支付完成后跳转地址
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if not self.DATA_PATH.exists():
@@ -253,6 +259,7 @@ class Settings(BaseSettings):
             "TAUTULLI_APIKEY",
             "REDIS_PASSWORD",
             "WEBAPP_SESSION_SECRET_KEY",
+            "UPAY_SECRET_KEY",
         }
 
         config = {}
