@@ -108,7 +108,6 @@
                         class="donation-registration-notice mt-2 mb-2"
                         rounded="lg"
                       >
-                        <v-icon start size="small">mdi-information</v-icon>
                         <span class="notice-text">
                           选择捐赠开号将只记录捐赠金额，不增加积分，并会生成一个普通邀请码（仅在开放捐入期间有效）
                         </span>
@@ -188,7 +187,6 @@
                   class="coming-soon-alert"
                   rounded="lg"
                 >
-                  <v-icon start>mdi-construction</v-icon>
                   <div class="alert-content">
                     <div class="alert-title">功能开发中</div>
                     <div class="alert-text">Crypto 捐赠功能正在开发中，敬请期待！</div>
