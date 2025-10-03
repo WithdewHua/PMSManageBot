@@ -75,7 +75,20 @@
                 <v-icon size="small" color="success" class="mr-2">mdi-currency-usd</v-icon>
                 <span>捐赠金额：</span>
               </div>
-              <div class="value-display donation-value">{{ userInfo.donation.toFixed(2) }}</div>
+              <div class="d-flex align-center">
+                <v-btn
+                  icon
+                  size="x-small"
+                  color="amber-darken-2"
+                  variant="outlined"
+                  @click="openDonationManagementDialog"
+                  title="捐赠管理"
+                  class="mr-2 donation-manage-btn"
+                >
+                  <v-icon size="small">mdi-cog</v-icon>
+                </v-btn>
+                <div class="value-display donation-value">{{ userInfo.donation.toFixed(2) }}</div>
+              </div>
             </div>
             <div class="d-flex justify-space-between mb-3 align-center">
               <div class="d-flex align-center">
@@ -668,6 +681,12 @@
       @donation-submitted="handleDonationSubmitted"
     />
     
+    <!-- 使用捐赠管理对话框组件 -->
+    <donation-management-dialog
+      ref="donationManagementDialog"
+      @registration-submitted="handleDonationRegistrationSubmitted"
+    />
+    
     <!-- 使用积分转移对话框组件 -->
     <credits-transfer-dialog
       ref="creditsTransferDialog"
@@ -705,6 +724,7 @@ import EmbyLineSelector from '@/components/EmbyLineSelector.vue'
 import PlexLineSelector from '@/components/PlexLineSelector.vue'
 import NsfwDialog from '@/components/NsfwDialog.vue'
 import DonationDialog from '@/components/DonationDialog.vue'
+import DonationManagementDialog from '@/components/DonationManagementDialog.vue'
 import CreditsTransferDialog from '@/components/CreditsTransferDialog.vue'
 import PremiumUnlockDialog from '@/components/PremiumUnlockDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
@@ -722,6 +742,7 @@ export default {
     PlexLineSelector,
     NsfwDialog,
     DonationDialog,
+    DonationManagementDialog,
     CreditsTransferDialog,
     PremiumUnlockDialog,
     TagManagementDialog,
@@ -1061,6 +1082,11 @@ export default {
       this.$refs.donationDialog.open();
     },
     
+    // 打开捐赠管理对话框
+    openDonationManagementDialog() {
+      this.$refs.donationManagementDialog.open();
+    },
+    
     // 处理积分转移按钮点击事件
     handleCreditsTransferClick() {
       if (!this.creditsTransferEnabled) {
@@ -1093,6 +1119,14 @@ export default {
     handleDonationSubmitted() {
       // 重新获取用户信息以更新捐赠金额
       this.fetchUserInfo();
+    },
+    
+    // 处理捐赠登记提交事件
+    handleDonationRegistrationSubmitted(result) {
+      // 显示成功消息
+      this.showMessage('捐赠登记提交成功！管理员将在24小时内处理。', 'success');
+      // 可以选择是否重新获取用户信息，因为登记尚未被确认
+      // this.fetchUserInfo();
     },
     
     // 打开标签管理对话框
@@ -1782,6 +1816,16 @@ export default {
 .redeem-button:disabled,
 .redeem-button-horizontal:disabled {
   opacity: 0.6;
+}
+
+/* 捐赠管理按钮样式 */
+.donation-manage-btn {
+  transition: all 0.3s ease;
+}
+
+.donation-manage-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
 }
 
 /* 积分转移按钮样式 */

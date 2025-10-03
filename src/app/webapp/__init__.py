@@ -4,7 +4,12 @@ from pathlib import Path
 from app.config import settings
 from app.log import logger
 from app.webapp.middlewares import TelegramAuthMiddleware
-from app.webapp.routers import rankings_router, system_router, user_router
+from app.webapp.routers import (
+    donation_router,
+    rankings_router,
+    system_router,
+    user_router,
+)
 from app.webapp.routers.activities.auction import router as auction_router
 from app.webapp.routers.activities.luckywheel import router as luckywheel_router
 from app.webapp.routers.admin import router as admin_router
@@ -60,6 +65,7 @@ app.include_router(system_router)  # 添加系统统计路由
 app.include_router(invitation_router)  # 添加邀请码路由
 app.include_router(premium_router)  # 添加 Premium 路由
 app.include_router(admin_router)  # 添加管理员路由
+app.include_router(donation_router)  # 添加捐赠路由
 app.include_router(luckywheel_router, prefix="/api")  # 添加幸运大转盘路由
 app.include_router(auction_router, prefix="/api")  # 添加竞拍活动路由
 

@@ -122,6 +122,27 @@ class DB:
             CREATE INDEX IF NOT EXISTS idx_monthly_traffic_line_month ON line_traffic_monthly_stats(line, year_month);
             CREATE INDEX IF NOT EXISTS idx_monthly_traffic_month ON line_traffic_monthly_stats(year_month);
             CREATE INDEX IF NOT EXISTS idx_monthly_traffic_line_stats ON line_traffic_monthly_stats(line, year_month, total_bytes);
+
+            -- 捐赠登记表
+            CREATE TABLE IF NOT EXISTS donation_registrations(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                payment_method TEXT NOT NULL CHECK (payment_method IN ('wechat', 'alipay', 'bank', 'other')),
+                amount REAL NOT NULL CHECK (amount > 0),
+                note TEXT,
+                status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+                admin_note TEXT,
+                created_at TEXT NOT NULL,
+                processed_at TEXT,
+                processed_by INTEGER,
+                FOREIGN KEY (user_id) REFERENCES statistics (tg_id),
+                FOREIGN KEY (processed_by) REFERENCES statistics (tg_id)
+            );
+
+            -- 索引优化：为 donation_registrations 表添加索引
+            CREATE INDEX IF NOT EXISTS idx_donation_user_status ON donation_registrations(user_id, status);
+            CREATE INDEX IF NOT EXISTS idx_donation_status_created ON donation_registrations(status, created_at);
+            CREATE INDEX IF NOT EXISTS idx_donation_created_at ON donation_registrations(created_at);
             """
         )
         self.con.commit()
@@ -2165,3 +2186,232 @@ class DB:
         except Exception as e:
             logger.error(f"清理月度流量数据失败: {e}")
             return False, f"清理月度流量数据失败: {str(e)}"
+
+    def create_donation_registration(
+        self, user_id: int, payment_method: str, amount: float, note: str = None
+    ) -> bool:
+        """创建捐赠登记记录"""
+        try:
+            from datetime import datetime
+
+            created_at = datetime.now(settings.TZ).isoformat()
+
+            self.cur.execute(
+                """INSERT INTO donation_registrations 
+                   (user_id, payment_method, amount, note, created_at) 
+                   VALUES (?, ?, ?, ?, ?)""",
+                (user_id, payment_method, amount, note, created_at),
+            )
+            self.con.commit()
+            return True
+        except Exception as e:
+            logger.error(f"创建捐赠登记失败: {e}")
+            return False
+
+    def get_donation_registration_by_id(self, registration_id: int) -> Optional[dict]:
+        """根据ID获取捐赠登记信息"""
+        try:
+            result = self.cur.execute(
+                """SELECT dr.*, s1.tg_id as username, s2.tg_id as processed_by_username
+                   FROM donation_registrations dr
+                   LEFT JOIN statistics s1 ON dr.user_id = s1.tg_id
+                   LEFT JOIN statistics s2 ON dr.processed_by = s2.tg_id
+                   WHERE dr.id = ?""",
+                (registration_id,),
+            ).fetchone()
+
+            if result:
+                return {
+                    "id": result[0],
+                    "user_id": result[1],
+                    "payment_method": result[2],
+                    "amount": result[3],
+                    "note": result[4],
+                    "status": result[5],
+                    "admin_note": result[6],
+                    "created_at": result[7],
+                    "processed_at": result[8],
+                    "processed_by": result[9],
+                    "username": result[10],
+                    "processed_by_username": result[11],
+                }
+            return None
+        except Exception as e:
+            logger.error(f"获取捐赠登记信息失败: {e}")
+            return None
+
+    def get_donation_registrations_by_user(
+        self, user_id: int, limit: int = 20
+    ) -> List[dict]:
+        """获取用户的捐赠登记历史"""
+        try:
+            results = self.cur.execute(
+                """SELECT dr.*, s.tg_id as processed_by_username
+                   FROM donation_registrations dr
+                   LEFT JOIN statistics s ON dr.processed_by = s.tg_id
+                   WHERE dr.user_id = ?
+                   ORDER BY dr.created_at DESC
+                   LIMIT ?""",
+                (user_id, limit),
+            ).fetchall()
+
+            registrations = []
+            for result in results:
+                registrations.append(
+                    {
+                        "id": result[0],
+                        "user_id": result[1],
+                        "payment_method": result[2],
+                        "amount": result[3],
+                        "note": result[4],
+                        "status": result[5],
+                        "admin_note": result[6],
+                        "created_at": result[7],
+                        "processed_at": result[8],
+                        "processed_by": result[9],
+                        "processed_by_username": result[10],
+                    }
+                )
+            return registrations
+        except Exception as e:
+            logger.error(f"获取用户捐赠登记历史失败: {e}")
+            return []
+
+    def get_pending_donation_registrations(self, limit: int = 50) -> List[dict]:
+        """获取待处理的捐赠登记列表"""
+        try:
+            results = self.cur.execute(
+                """SELECT dr.*, s.tg_id as username
+                   FROM donation_registrations dr
+                   LEFT JOIN statistics s ON dr.user_id = s.tg_id
+                   WHERE dr.status = 'pending'
+                   ORDER BY dr.created_at ASC
+                   LIMIT ?""",
+                (limit,),
+            ).fetchall()
+
+            registrations = []
+            for result in results:
+                registrations.append(
+                    {
+                        "id": result[0],
+                        "user_id": result[1],
+                        "payment_method": result[2],
+                        "amount": result[3],
+                        "note": result[4],
+                        "status": result[5],
+                        "admin_note": result[6],
+                        "created_at": result[7],
+                        "processed_at": result[8],
+                        "processed_by": result[9],
+                        "username": result[10],
+                    }
+                )
+            return registrations
+        except Exception as e:
+            logger.error(f"获取待处理捐赠登记失败: {e}")
+            return []
+
+    def confirm_donation_registration(
+        self,
+        registration_id: int,
+        approved: bool,
+        admin_note: str = None,
+        processed_by: int = None,
+    ) -> bool:
+        """确认捐赠登记"""
+        try:
+            from datetime import datetime
+
+            processed_at = datetime.now(settings.TZ).isoformat()
+            status = "approved" if approved else "rejected"
+
+            # 更新登记状态
+            self.cur.execute(
+                """UPDATE donation_registrations 
+                   SET status = ?, admin_note = ?, processed_at = ?, processed_by = ?
+                   WHERE id = ?""",
+                (status, admin_note, processed_at, processed_by, registration_id),
+            )
+
+            # 如果批准，更新用户捐赠金额和积分
+            if approved:
+                # 获取登记信息
+                registration = self.get_donation_registration_by_id(registration_id)
+                if registration:
+                    user_id = registration["user_id"]
+                    amount = registration["amount"]
+
+                    # 更新捐赠金额
+                    current_stats = self.get_stats_by_tg_id(user_id)
+                    if current_stats:
+                        new_donation = current_stats[1] + amount
+                        new_credits = (
+                            current_stats[2] + amount * settings.DONATION_MULTIPLIER
+                        )  # 捐赠积分 1:DONATION_MULTIPLIER
+
+                        self.cur.execute(
+                            "UPDATE statistics SET donation = ?, credits = ? WHERE tg_id = ?",
+                            (new_donation, new_credits, user_id),
+                        )
+                    else:
+                        # 如果用户统计记录不存在，创建一个
+                        self.add_user_data(
+                            user_id,
+                            credits=amount,
+                            donation=amount * settings.DONATION_MULTIPLIER,
+                        )
+
+            self.con.commit()
+            return True
+        except Exception as e:
+            logger.error(f"确认捐赠登记失败: {e}")
+            return False
+
+    def get_donation_statistics(self) -> dict:
+        """获取捐赠统计信息"""
+        try:
+            # 总登记数
+            total_registrations = self.cur.execute(
+                "SELECT COUNT(*) FROM donation_registrations"
+            ).fetchone()[0]
+
+            # 待处理数
+            pending_registrations = self.cur.execute(
+                "SELECT COUNT(*) FROM donation_registrations WHERE status = 'pending'"
+            ).fetchone()[0]
+
+            # 已批准数
+            approved_registrations = self.cur.execute(
+                "SELECT COUNT(*) FROM donation_registrations WHERE status = 'approved'"
+            ).fetchone()[0]
+
+            # 已拒绝数
+            rejected_registrations = self.cur.execute(
+                "SELECT COUNT(*) FROM donation_registrations WHERE status = 'rejected'"
+            ).fetchone()[0]
+
+            # 总捐赠金额（已批准的）
+            total_amount_result = self.cur.execute(
+                "SELECT SUM(amount) FROM donation_registrations WHERE status = 'approved'"
+            ).fetchone()
+            total_amount = (
+                float(total_amount_result[0]) if total_amount_result[0] else 0.0
+            )
+
+            return {
+                "total_registrations": total_registrations,
+                "pending_registrations": pending_registrations,
+                "approved_registrations": approved_registrations,
+                "rejected_registrations": rejected_registrations,
+                "total_approved_amount": total_amount,
+            }
+        except Exception as e:
+            logger.error(f"获取捐赠统计信息失败: {e}")
+            return {
+                "total_registrations": 0,
+                "pending_registrations": 0,
+                "approved_registrations": 0,
+                "rejected_registrations": 0,
+                "total_approved_amount": 0.0,
+            }
