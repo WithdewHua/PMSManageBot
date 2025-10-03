@@ -105,6 +105,14 @@ class CryptoDonationOrderListResponse(BaseModel):
     per_page: int = 20
 
 
+class CryptoTypesResponse(BaseModel):
+    """支持的加密货币类型响应"""
+
+    success: bool = True
+    data: list[str] = Field(..., description="支持的加密货币类型列表")
+    message: str = "获取加密货币类型成功"
+
+
 class UPayCreateOrderRequest(BaseModel):
     """UPAY 创建订单请求"""
 
