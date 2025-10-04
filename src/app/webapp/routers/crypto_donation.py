@@ -192,7 +192,7 @@ async def create_crypto_donation_order(
 
 @router.get("/orders/all", response_model=CryptoDonationOrderListResponse)
 @require_telegram_auth
-async def get_all_crypto_donation_orders_admin(
+async def get_all_crypto_donation_orders(
     request: Request,
     user: TelegramUser = Depends(get_telegram_user),
     page: int = 1,
@@ -221,7 +221,15 @@ async def get_all_crypto_donation_orders_admin(
 
         db.close()
 
-        order_responses = [CryptoDonationOrderResponse(**order) for order in orders]
+        # 为每个订单添加用户名信息
+        order_responses = []
+        for order in orders:
+            # 添加用户名到订单数据
+            order_with_username = {
+                **order,
+                "username": get_user_name_from_tg_id(order.get("user_id")),
+            }
+            order_responses.append(CryptoDonationOrderResponse(**order_with_username))
 
         return CryptoDonationOrderListResponse(
             data=order_responses, total=total, page=page, per_page=per_page

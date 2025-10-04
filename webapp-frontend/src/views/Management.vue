@@ -185,83 +185,67 @@
               <v-card-text>
                 <div v-if="!adminLoading && !adminError">
                   <v-row>
-                    <!-- 左侧描述 -->
-                    <v-col cols="12" md="4">
-                      <div class="d-flex align-center mb-2">
-                        <v-icon size="large" color="red-darken-2" class="mr-3">mdi-hand-heart</v-icon>
-                        <div>
-                          <div class="text-subtitle1 font-weight-medium">捐赠管理中心</div>
-                          <div class="text-caption text-medium-emphasis">统一管理捐赠记录和自助登记</div>
-                        </div>
-                      </div>
+                    <!-- 添加捐赠 -->
+                    <v-col cols="12" sm="6" md="4">
+                      <v-card variant="outlined" class="donation-feature-card">
+                        <v-card-text class="text-center pa-4">
+                          <v-icon size="32" color="red-darken-2" class="mb-2">mdi-plus-circle</v-icon>
+                          <div class="text-subtitle2 mb-2">添加捐赠</div>
+                          <div class="text-caption text-medium-emphasis mb-3">手动添加用户捐赠记录</div>
+                          <v-btn
+                            color="red-darken-2"
+                            variant="flat"
+                            size="small"
+                            block
+                            prepend-icon="mdi-plus"
+                            @click="openDonationDialog"
+                          >
+                            添加捐赠
+                          </v-btn>
+                        </v-card-text>
+                      </v-card>
                     </v-col>
                     
-                    <!-- 右侧功能按钮 -->
-                    <v-col cols="12" md="8">
-                      <v-row>
-                        <!-- 添加捐赠 -->
-                        <v-col cols="12" sm="6" md="4">
-                          <v-card variant="outlined" class="donation-feature-card">
-                            <v-card-text class="text-center pa-4">
-                              <v-icon size="32" color="red-darken-2" class="mb-2">mdi-plus-circle</v-icon>
-                              <div class="text-subtitle2 mb-2">添加捐赠</div>
-                              <div class="text-caption text-medium-emphasis mb-3">手动添加用户捐赠记录</div>
-                              <v-btn
-                                color="red-darken-2"
-                                variant="flat"
-                                size="small"
-                                block
-                                @click="openDonationDialog"
-                              >
-                                <v-icon start size="small">mdi-plus</v-icon>
-                                添加捐赠
-                              </v-btn>
-                            </v-card-text>
-                          </v-card>
-                        </v-col>
-                        
-                        <!-- 登记管理 -->
-                        <v-col cols="12" sm="6" md="4">
-                          <v-card variant="outlined" class="donation-feature-card">
-                            <v-card-text class="text-center pa-4">
-                              <v-icon size="32" color="orange-darken-2" class="mb-2">mdi-clipboard-list</v-icon>
-                              <div class="text-subtitle2 mb-2">登记管理</div>
-                              <div class="text-caption text-medium-emphasis mb-3">管理用户自助捐赠登记</div>
-                              <v-btn
-                                color="orange-darken-2"
-                                variant="flat"
-                                size="small"
-                                block
-                                @click="openDonationRegistrationDialog"
-                              >
-                                <v-icon start size="small">mdi-clipboard-list</v-icon>
-                                管理登记
-                              </v-btn>
-                            </v-card-text>
-                          </v-card>
-                        </v-col>
-                        
-                        <!-- Crypto 捐赠记录 -->
-                        <v-col cols="12" sm="12" md="4">
-                          <v-card variant="outlined" class="donation-feature-card">
-                            <v-card-text class="text-center pa-4">
-                              <v-icon size="32" color="purple-darken-2" class="mb-2">mdi-bitcoin</v-icon>
-                              <div class="text-subtitle2 mb-2">Crypto 捐赠</div>
-                              <div class="text-caption text-medium-emphasis mb-3">查看加密货币捐赠记录</div>
-                              <v-btn
-                                color="purple-darken-2"
-                                variant="flat"
-                                size="small"
-                                block
-                                @click="openCryptoDonationDialog"
-                              >
-                                <v-icon start size="small">mdi-eye</v-icon>
-                                查看记录
-                              </v-btn>
-                            </v-card-text>
-                          </v-card>
-                        </v-col>
-                      </v-row>
+                    <!-- 登记管理 -->
+                    <v-col cols="12" sm="6" md="4">
+                      <v-card variant="outlined" class="donation-feature-card">
+                        <v-card-text class="text-center pa-4">
+                          <v-icon size="32" color="orange-darken-2" class="mb-2">mdi-clipboard-list</v-icon>
+                          <div class="text-subtitle2 mb-2">登记管理</div>
+                          <div class="text-caption text-medium-emphasis mb-3">管理用户自助捐赠登记</div>
+                          <v-btn
+                            color="orange-darken-2"
+                            variant="flat"
+                            size="small"
+                            block
+                            prepend-icon="mdi-clipboard-list"
+                            @click="openDonationRegistrationDialog"
+                          >
+                            管理登记
+                          </v-btn>
+                        </v-card-text>
+                      </v-card>
+                    </v-col>
+                    
+                    <!-- Crypto 捐赠记录 -->
+                    <v-col cols="12" sm="12" md="4">
+                      <v-card variant="outlined" class="donation-feature-card">
+                        <v-card-text class="text-center pa-4">
+                          <v-icon size="32" color="purple-darken-2" class="mb-2">mdi-bitcoin</v-icon>
+                          <div class="text-subtitle2 mb-2">Crypto 捐赠</div>
+                          <div class="text-caption text-medium-emphasis mb-3">查看加密货币捐赠记录</div>
+                          <v-btn
+                            color="purple-darken-2"
+                            variant="flat"
+                            size="small"
+                            block
+                            prepend-icon="mdi-eye"
+                            @click="openCryptoDonationDialog"
+                          >
+                            查看记录
+                          </v-btn>
+                        </v-card-text>
+                      </v-card>
                     </v-col>
                   </v-row>
                 </div>
@@ -1142,7 +1126,7 @@
             v-else
             :headers="[
               { title: 'ID', key: 'id', sortable: true, width: 80 },
-              { title: '用户ID', key: 'user_id', sortable: true, width: 100 },
+              { title: '用户信息', key: 'user_info', sortable: true, width: 150 },
               { title: '订单号', key: 'order_id', sortable: true, width: 200 },
               { title: '加密货币', key: 'crypto_type', sortable: true, width: 130 },
               { title: '金额(CNY)', key: 'amount', sortable: true, width: 120 },
@@ -1159,10 +1143,15 @@
             :items-per-page="cryptoDonationPerPage"
             hide-default-footer
           >
-            <template #item.user_id="{ item }">
-              <v-chip size="small" color="blue-grey" variant="tonal">
-                {{ item.user_id }}
-              </v-chip>
+            <template #item.user_info="{ item }">
+              <div>
+                <div class="text-body-2 font-weight-medium">
+                  {{ item.username ? `@${item.username}` : `用户 ${item.user_id}` }}
+                </div>
+                <div class="text-caption text-medium-emphasis">
+                  ID: {{ item.user_id }}
+                </div>
+              </div>
             </template>
             
             <template #item.order_id="{ item }">

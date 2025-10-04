@@ -68,6 +68,7 @@ class CryptoDonationOrderResponse(BaseModel):
 
     id: int
     user_id: int
+    username: Optional[str] = Field(None, description="Telegram 用户名")
     order_id: str
     trade_id: Optional[str]
     crypto_type: str
