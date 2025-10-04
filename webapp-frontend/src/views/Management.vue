@@ -2720,7 +2720,18 @@ export default {
     // 格式化日期时间
     formatDateTime(dateTime) {
       if (!dateTime) return '-'
-      return new Date(dateTime).toLocaleString('zh-CN')
+      try {
+        const date = new Date(dateTime)
+        return date.toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      } catch (err) {
+        return '格式错误'
+      }
     },
 
     // 获取时间状态
@@ -2907,23 +2918,6 @@ export default {
     onCryptoDonationPageChange(page) {
       this.cryptoDonationPage = page
       this.fetchCryptoDonationOrders()
-    },
-    
-    // 格式化日期时间
-    formatDateTime(dateTimeStr) {
-      if (!dateTimeStr) return '未知'
-      try {
-        const date = new Date(dateTimeStr)
-        return date.toLocaleString('zh-CN', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      } catch (err) {
-        return '格式错误'
-      }
     },
     
     // 获取订单状态信息
