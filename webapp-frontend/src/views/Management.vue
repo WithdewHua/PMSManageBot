@@ -177,6 +177,97 @@
               </v-card-text>
             </v-card>
 
+            <!-- 捐赠管理 -->
+            <v-card class="admin-card-enhanced mb-4">
+              <v-card-title class="text-center">
+                <v-icon start color="red-darken-2">mdi-gift</v-icon> 捐赠管理
+              </v-card-title>
+              <v-card-text>
+                <div v-if="!adminLoading && !adminError">
+                  <v-row>
+                    <!-- 左侧描述 -->
+                    <v-col cols="12" md="4">
+                      <div class="d-flex align-center mb-2">
+                        <v-icon size="large" color="red-darken-2" class="mr-3">mdi-hand-heart</v-icon>
+                        <div>
+                          <div class="text-subtitle1 font-weight-medium">捐赠管理中心</div>
+                          <div class="text-caption text-medium-emphasis">统一管理捐赠记录和自助登记</div>
+                        </div>
+                      </div>
+                    </v-col>
+                    
+                    <!-- 右侧功能按钮 -->
+                    <v-col cols="12" md="8">
+                      <v-row>
+                        <!-- 添加捐赠 -->
+                        <v-col cols="12" sm="6" md="4">
+                          <v-card variant="outlined" class="donation-feature-card">
+                            <v-card-text class="text-center pa-4">
+                              <v-icon size="32" color="red-darken-2" class="mb-2">mdi-plus-circle</v-icon>
+                              <div class="text-subtitle2 mb-2">添加捐赠</div>
+                              <div class="text-caption text-medium-emphasis mb-3">手动添加用户捐赠记录</div>
+                              <v-btn
+                                color="red-darken-2"
+                                variant="flat"
+                                size="small"
+                                block
+                                @click="openDonationDialog"
+                              >
+                                <v-icon start size="small">mdi-plus</v-icon>
+                                添加捐赠
+                              </v-btn>
+                            </v-card-text>
+                          </v-card>
+                        </v-col>
+                        
+                        <!-- 登记管理 -->
+                        <v-col cols="12" sm="6" md="4">
+                          <v-card variant="outlined" class="donation-feature-card">
+                            <v-card-text class="text-center pa-4">
+                              <v-icon size="32" color="orange-darken-2" class="mb-2">mdi-clipboard-list</v-icon>
+                              <div class="text-subtitle2 mb-2">登记管理</div>
+                              <div class="text-caption text-medium-emphasis mb-3">管理用户自助捐赠登记</div>
+                              <v-btn
+                                color="orange-darken-2"
+                                variant="flat"
+                                size="small"
+                                block
+                                @click="openDonationRegistrationDialog"
+                              >
+                                <v-icon start size="small">mdi-clipboard-list</v-icon>
+                                管理登记
+                              </v-btn>
+                            </v-card-text>
+                          </v-card>
+                        </v-col>
+                        
+                        <!-- Crypto 捐赠记录 -->
+                        <v-col cols="12" sm="12" md="4">
+                          <v-card variant="outlined" class="donation-feature-card">
+                            <v-card-text class="text-center pa-4">
+                              <v-icon size="32" color="purple-darken-2" class="mb-2">mdi-bitcoin</v-icon>
+                              <div class="text-subtitle2 mb-2">Crypto 捐赠</div>
+                              <div class="text-caption text-medium-emphasis mb-3">查看加密货币捐赠记录</div>
+                              <v-btn
+                                color="purple-darken-2"
+                                variant="flat"
+                                size="small"
+                                block
+                                @click="openCryptoDonationDialog"
+                              >
+                                <v-icon start size="small">mdi-eye</v-icon>
+                                查看记录
+                              </v-btn>
+                            </v-card-text>
+                          </v-card>
+                        </v-col>
+                      </v-row>
+                    </v-col>
+                  </v-row>
+                </div>
+              </v-card-text>
+            </v-card>
+
             <!-- 系统管理 -->
             <v-card class="admin-card-enhanced mb-4">
               <v-card-title class="text-center">
@@ -184,43 +275,7 @@
               </v-card-title>
               <v-card-text>
                 <div v-if="!adminLoading && !adminError">
-                  <!-- 捐赠管理 -->
-                  <div class="d-flex justify-space-between align-center mb-3">
-                    <div class="d-flex align-center">
-                      <v-icon size="small" color="red-darken-2" class="mr-2">mdi-gift</v-icon>
-                      <span>捐赠记录管理：</span>
-                    </div>
-                    <v-btn
-                      color="red-darken-2"
-                      variant="outlined"
-                      size="small"
-                      @click="openDonationDialog"
-                    >
-                      <v-icon start size="small">mdi-plus</v-icon>
-                      添加捐赠
-                    </v-btn>
-                  </div>
-                  
-                  <!-- 自助捐助登记管理 -->
-                  <v-divider class="my-3"></v-divider>
-                  <div class="d-flex justify-space-between align-center mb-3">
-                    <div class="d-flex align-center">
-                      <v-icon size="small" color="orange-darken-2" class="mr-2">mdi-hand-heart</v-icon>
-                      <span>捐赠资助登记管理：</span>
-                    </div>
-                    <v-btn
-                      color="orange-darken-2"
-                      variant="outlined"
-                      size="small"
-                      @click="openDonationRegistrationDialog"
-                    >
-                      <v-icon start size="small">mdi-clipboard-list</v-icon>
-                      管理登记
-                    </v-btn>
-                  </div>
-                  
                   <!-- 邀请码管理 -->
-                  <v-divider class="my-3"></v-divider>
                   <div class="d-flex justify-space-between align-center mb-3">
                     <div class="d-flex align-center">
                       <v-icon size="small" color="blue-darken-2" class="mr-2">mdi-ticket-confirmation</v-icon>
@@ -1011,6 +1066,183 @@
       @lines-updated="handleLinesUpdated"
     />
 
+    <!-- Crypto 捐赠管理对话框 -->
+    <v-dialog v-model="showCryptoDonationDialog" max-width="1200px" persistent>
+      <v-card>
+        <v-toolbar color="purple-darken-2" dark flat>
+          <v-btn icon dark @click="closeCryptoDonationDialog">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+          <v-toolbar-title>
+            <v-icon class="mr-2">mdi-bitcoin</v-icon>
+            Crypto 捐赠记录管理
+          </v-toolbar-title>
+          <v-spacer></v-spacer>
+          <v-btn icon dark @click="fetchCryptoDonationOrders">
+            <v-icon>mdi-refresh</v-icon>
+          </v-btn>
+        </v-toolbar>
+        
+        <v-card-text class="pa-6">
+          <!-- 筛选控件 -->
+          <v-row class="mb-4">
+            <v-col cols="12" md="4">
+              <v-select
+                v-model="cryptoDonationStatusFilter"
+                :items="[
+                  { title: '全部状态', value: null },
+                  { title: '等待支付', value: '1' },
+                  { title: '支付成功', value: '2' },
+                  { title: '已过期', value: '3' }
+                ]"
+                item-title="title"
+                item-value="value"
+                label="状态筛选"
+                variant="outlined"
+                density="compact"
+                @update:model-value="onCryptoDonationStatusFilterChange"
+              ></v-select>
+            </v-col>
+            <v-col cols="12" md="8" class="d-flex align-center">
+              <v-spacer></v-spacer>
+              <v-chip v-if="cryptoDonationTotal > 0" color="primary" variant="tonal" class="mr-2">
+                <v-icon start size="16">mdi-database</v-icon>
+                共 {{ cryptoDonationTotal }} 条记录
+              </v-chip>
+            </v-col>
+          </v-row>
+          
+          <!-- 加载状态 -->
+          <div v-if="cryptoDonationLoading" class="text-center py-8">
+            <v-progress-circular indeterminate color="purple-darken-2"></v-progress-circular>
+            <div class="mt-2">加载 Crypto 捐赠记录中...</div>
+          </div>
+          
+          <!-- 错误状态 -->
+          <div v-else-if="cryptoDonationError" class="text-center py-8">
+            <v-alert type="error" density="compact">{{ cryptoDonationError }}</v-alert>
+            <v-btn 
+              color="purple-darken-2" 
+              variant="outlined" 
+              class="mt-3"
+              @click="fetchCryptoDonationOrders"
+            >
+              重试
+            </v-btn>
+          </div>
+          
+          <!-- 无数据 -->
+          <div v-else-if="cryptoDonationOrders.length === 0" class="text-center py-8">
+            <v-icon size="64" color="grey-lighten-1">mdi-database-off</v-icon>
+            <div class="text-grey-darken-1 mt-2">暂无 Crypto 捐赠记录</div>
+          </div>
+          
+          <!-- 数据表格 -->
+          <v-data-table
+            v-else
+            :headers="[
+              { title: 'ID', key: 'id', sortable: true, width: 80 },
+              { title: '用户ID', key: 'user_id', sortable: true, width: 100 },
+              { title: '订单号', key: 'order_id', sortable: true, width: 200 },
+              { title: '加密货币', key: 'crypto_type', sortable: true, width: 130 },
+              { title: '金额(CNY)', key: 'amount', sortable: true, width: 120 },
+              { title: '实际金额', key: 'actual_amount', sortable: true, width: 120 },
+              { title: '状态', key: 'status', sortable: true, width: 100 },
+              { title: '创建时间', key: 'created_at', sortable: true, width: 150 },
+              { title: '完成时间', key: 'paid_at', sortable: true, width: 150 },
+              { title: '备注', key: 'note', sortable: false, width: 120 }
+            ]"
+            :items="cryptoDonationOrders"
+            :loading="cryptoDonationLoading"
+            density="compact"
+            class="crypto-donation-table"
+            :items-per-page="cryptoDonationPerPage"
+            hide-default-footer
+          >
+            <template #item.user_id="{ item }">
+              <v-chip size="small" color="blue-grey" variant="tonal">
+                {{ item.user_id }}
+              </v-chip>
+            </template>
+            
+            <template #item.order_id="{ item }">
+              <div class="text-truncate" style="max-width: 180px;" :title="item.order_id">
+                {{ item.order_id }}
+              </div>
+            </template>
+            
+            <template #item.crypto_type="{ item }">
+              <v-chip size="small" color="purple" variant="tonal">
+                <v-icon start size="12">mdi-bitcoin</v-icon>
+                {{ item.crypto_type }}
+              </v-chip>
+            </template>
+            
+            <template #item.amount="{ item }">
+              <span class="text-success font-weight-bold">
+                ¥{{ item.amount?.toFixed(2) || '0.00' }}
+              </span>
+            </template>
+            
+            <template #item.actual_amount="{ item }">
+              <span v-if="item.actual_amount" class="text-primary font-weight-bold">
+                ¥{{ item.actual_amount.toFixed(2) }}
+              </span>
+              <span v-else class="text-grey">-</span>
+            </template>
+            
+            <template #item.status="{ item }">
+              <v-chip
+                :color="getOrderStatusInfo(item.status).color"
+                size="small"
+                variant="flat"
+              >
+                <v-icon start size="12">{{ getOrderStatusInfo(item.status).icon }}</v-icon>
+                {{ getOrderStatusInfo(item.status).text }}
+              </v-chip>
+            </template>
+            
+            <template #item.created_at="{ item }">
+              <div class="text-caption">
+                {{ formatDateTime(item.created_at) }}
+              </div>
+            </template>
+            
+            <template #item.paid_at="{ item }">
+              <div v-if="item.paid_at" class="text-caption text-success">
+                {{ formatDateTime(item.paid_at) }}
+              </div>
+              <span v-else class="text-grey">-</span>
+            </template>
+            
+            <template #item.note="{ item }">
+              <div v-if="item.note" class="text-truncate" style="max-width: 100px;" :title="item.note">
+                {{ item.note }}
+              </div>
+              <span v-else class="text-grey">-</span>
+            </template>
+          </v-data-table>
+          
+          <!-- 分页 -->
+          <div v-if="cryptoDonationTotal > cryptoDonationPerPage" class="d-flex justify-center mt-4">
+            <v-pagination
+              v-model="cryptoDonationPage"
+              :length="Math.ceil(cryptoDonationTotal / cryptoDonationPerPage)"
+              :total-visible="7"
+              @update:model-value="onCryptoDonationPageChange"
+            ></v-pagination>
+          </div>
+        </v-card-text>
+        
+        <v-card-actions class="pa-6 pt-0">
+          <v-spacer></v-spacer>
+          <v-btn @click="closeCryptoDonationDialog" variant="outlined">
+            关闭
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <!-- 转盘管理弹窗 -->
     <v-dialog 
       v-model="showWheelManagement" 
@@ -1771,6 +2003,7 @@ import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, set
 import { getWheelStats } from '@/services/wheelService.js'
 import { getAuctionStats, getAllAuctions, finishExpiredAuctions, finishAuction, deleteAuction, createAuction, getAuctionBids, updateAuction } from '@/services/auctionService.js'
 import { getPremiumLineTrafficStats, formatTrafficSize, formatUsername, getTrafficOverview } from '@/services/trafficService.js'
+import { getAllCryptoDonationOrdersAdmin, ORDER_STATUS } from '@/services/cryptoDonationService.js'
 
 export default {
   name: 'Management',
@@ -1887,7 +2120,17 @@ export default {
       trafficOverviewError: null,
       // 线路流量详情对话框
       showLineTrafficDialog: false,
-      lineTrafficTab: 'today'
+      lineTrafficTab: 'today',
+      // Crypto 捐赠管理对话框
+      showCryptoDonationDialog: false,
+      cryptoDonationOrders: [],
+      cryptoDonationLoading: false,
+      cryptoDonationError: null,
+      cryptoDonationPage: 1,
+      cryptoDonationPerPage: 20,
+      cryptoDonationTotal: 0,
+      cryptoDonationStatusFilter: null,
+      ORDER_STATUS
     }
   },
   mounted() {
@@ -2604,6 +2847,94 @@ export default {
     closeLineUsersDialog() {
       this.showLineUsersDialogVisible = false
       this.selectedLineStat = null
+    },
+    
+    // ========== Crypto 捐赠管理相关方法 ========== //
+    
+    // 打开 Crypto 捐赠管理对话框
+    openCryptoDonationDialog() {
+      this.showCryptoDonationDialog = true
+      this.fetchCryptoDonationOrders()
+    },
+    
+    // 关闭 Crypto 捐赠管理对话框
+    closeCryptoDonationDialog() {
+      this.showCryptoDonationDialog = false
+      this.cryptoDonationOrders = []
+      this.cryptoDonationPage = 1
+      this.cryptoDonationStatusFilter = null
+    },
+    
+    // 获取 Crypto 捐赠订单列表
+    async fetchCryptoDonationOrders() {
+      try {
+        this.cryptoDonationLoading = true
+        this.cryptoDonationError = null
+        
+        const params = {
+          page: this.cryptoDonationPage,
+          per_page: this.cryptoDonationPerPage
+        }
+        
+        if (this.cryptoDonationStatusFilter) {
+          params.status_filter = this.cryptoDonationStatusFilter
+        }
+        
+        const response = await getAllCryptoDonationOrdersAdmin(params)
+        
+        if (response.success) {
+          this.cryptoDonationOrders = response.data
+          this.cryptoDonationTotal = response.total
+        } else {
+          throw new Error(response.message || '获取数据失败')
+        }
+        
+        this.cryptoDonationLoading = false
+      } catch (err) {
+        this.cryptoDonationError = err.response?.data?.detail || err.message || '获取 Crypto 捐赠订单失败'
+        this.cryptoDonationLoading = false
+        console.error('获取 Crypto 捐赠订单失败:', err)
+      }
+    },
+    
+    // 状态筛选变化
+    onCryptoDonationStatusFilterChange() {
+      this.cryptoDonationPage = 1
+      this.fetchCryptoDonationOrders()
+    },
+    
+    // 页面变化
+    onCryptoDonationPageChange(page) {
+      this.cryptoDonationPage = page
+      this.fetchCryptoDonationOrders()
+    },
+    
+    // 格式化日期时间
+    formatDateTime(dateTimeStr) {
+      if (!dateTimeStr) return '未知'
+      try {
+        const date = new Date(dateTimeStr)
+        return date.toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      } catch (err) {
+        return '格式错误'
+      }
+    },
+    
+    // 获取订单状态信息
+    getOrderStatusInfo(status) {
+      return this.ORDER_STATUS[status] || { text: '未知', color: 'grey', icon: 'mdi-help' }
+    },
+    
+    // 获取用户名（从用户ID）
+    async getUserNameById(userId) {
+      // 这里可以添加获取用户名的逻辑，暂时返回用户ID
+      return `用户 ${userId}`
     }
   }
 }
@@ -3511,5 +3842,90 @@ export default {
 .line-traffic-card .text-h6 {
   font-weight: 700;
   font-size: 18px;
+}
+
+/* 捐赠管理功能卡片样式 */
+.donation-feature-card {
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  border: 2px solid transparent;
+  background: linear-gradient(145deg, #f8f9fa, #ffffff);
+}
+
+.donation-feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+  border-color: rgba(var(--v-theme-primary), 0.2);
+}
+
+.donation-feature-card .v-icon {
+  transition: transform 0.3s ease;
+}
+
+.donation-feature-card:hover .v-icon {
+  transform: scale(1.1);
+}
+
+.donation-feature-card .v-btn {
+  transition: all 0.3s ease;
+}
+
+.donation-feature-card:hover .v-btn {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 响应式优化 */
+@media (max-width: 600px) {
+  .donation-feature-card .v-card-text {
+    padding: 16px 12px !important;
+  }
+  
+  .donation-feature-card .v-icon {
+    margin-bottom: 8px !important;
+  }
+  
+  .donation-feature-card .text-subtitle2 {
+    font-size: 14px;
+  }
+  
+  .donation-feature-card .text-caption {
+    font-size: 12px;
+    margin-bottom: 12px !important;
+  }
+}
+
+/* Crypto 捐赠表格样式 */
+.crypto-donation-table {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.crypto-donation-table :deep(.v-data-table__wrapper) {
+  border-radius: 8px;
+}
+
+.crypto-donation-table :deep(.v-data-table-header__content) {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.crypto-donation-table :deep(.v-data-table__td) {
+  font-size: 13px;
+}
+
+/* 响应式表格优化 */
+@media (max-width: 960px) {
+  .crypto-donation-table :deep(.v-data-table__wrapper) {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 600px) {
+  .crypto-donation-table :deep(.v-data-table__td),
+  .crypto-donation-table :deep(.v-data-table-header__content) {
+    font-size: 12px;
+    padding: 8px 4px;
+  }
 }
 </style>

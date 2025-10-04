@@ -2625,6 +2625,75 @@ class DB:
             logger.error(f"获取用户 crypto 捐赠订单历史失败: {e}")
             return []
 
+    def get_all_crypto_donation_orders(
+        self, limit: int = 100, offset: int = 0, status_filter: str = None
+    ) -> List[dict]:
+        """获取所有 crypto 捐赠订单历史（管理员用）"""
+        try:
+            # 构建查询条件
+            where_clause = ""
+            params = []
+
+            if status_filter and status_filter in ["0", "1", "2", "3"]:
+                where_clause = "WHERE status = ?"
+                params.append(int(status_filter))
+
+            # 构建完整的SQL语句
+            sql = f"""SELECT * FROM crypto_donation_orders 
+                     {where_clause} 
+                     ORDER BY created_at DESC 
+                     LIMIT ? OFFSET ?"""
+            params.extend([limit, offset])
+
+            results = self.cur.execute(sql, params).fetchall()
+
+            orders = []
+            for result in results:
+                orders.append(
+                    {
+                        "id": result[0],
+                        "user_id": result[1],
+                        "order_id": result[2],
+                        "trade_id": result[3],
+                        "crypto_type": result[4],
+                        "amount": result[5],
+                        "actual_amount": result[6],
+                        "payment_address": result[7],
+                        "block_transaction_id": result[8],
+                        "status": result[9],
+                        "payment_url": result[10],
+                        "expiration_time": result[11],
+                        "created_at": result[12],
+                        "updated_at": result[13],
+                        "paid_at": result[14],
+                        "note": result[15],
+                    }
+                )
+            return orders
+        except Exception as e:
+            logger.error(f"获取所有 crypto 捐赠订单历史失败: {e}")
+            return []
+
+    def get_crypto_donation_orders_count(self, status_filter: str = None) -> int:
+        """获取 crypto 捐赠订单总数（管理员用）"""
+        try:
+            # 构建查询条件
+            where_clause = ""
+            params = []
+
+            if status_filter and status_filter in ["0", "1", "2", "3"]:
+                where_clause = "WHERE status = ?"
+                params.append(int(status_filter))
+
+            # 构建完整的SQL语句
+            sql = f"SELECT COUNT(*) FROM crypto_donation_orders {where_clause}"
+
+            result = self.cur.execute(sql, params).fetchone()
+            return result[0] if result else 0
+        except Exception as e:
+            logger.error(f"获取 crypto 捐赠订单总数失败: {e}")
+            return 0
+
     def get_expired_crypto_donation_orders(self) -> List[dict]:
         """获取所有已过期但状态仍为等待支付的 crypto 捐赠订单"""
         try:

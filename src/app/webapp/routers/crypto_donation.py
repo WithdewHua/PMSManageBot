@@ -9,6 +9,7 @@ from app.modules.upay import UPayService
 from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
+from app.webapp.routers.admin import check_admin_permission
 from app.webapp.schemas import TelegramUser
 from app.webapp.schemas.crypto_donation import (
     CryptoDonationOrderCreate,
@@ -186,6 +187,53 @@ async def create_crypto_donation_order(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="创建订单失败",
+        )
+
+
+@router.get("/orders/all", response_model=CryptoDonationOrderListResponse)
+@require_telegram_auth
+async def get_all_crypto_donation_orders_admin(
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+    page: int = 1,
+    per_page: int = 20,
+    status_filter: str = None,
+):
+    """获取所有 Crypto 捐赠订单列表（管理员专用）"""
+    try:
+        # 检查管理员权限
+        check_admin_permission(user)
+
+        # 限制分页参数
+        per_page = min(max(per_page, 1), 100)
+        page = max(page, 1)
+        offset = (page - 1) * per_page
+
+        db = DB()
+
+        # 获取订单列表
+        orders = db.get_all_crypto_donation_orders(
+            limit=per_page, offset=offset, status_filter=status_filter
+        )
+
+        # 获取总数
+        total = db.get_crypto_donation_orders_count(status_filter=status_filter)
+
+        db.close()
+
+        order_responses = [CryptoDonationOrderResponse(**order) for order in orders]
+
+        return CryptoDonationOrderListResponse(
+            data=order_responses, total=total, page=page, per_page=per_page
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"获取所有 Crypto 捐赠订单失败: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="获取订单列表失败",
         )
 
 

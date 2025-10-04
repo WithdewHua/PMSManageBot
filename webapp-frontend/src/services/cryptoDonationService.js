@@ -65,6 +65,31 @@ export const getCryptoDonationOrder = async (orderId) => {
 }
 
 /**
+ * 获取所有 Crypto 捐赠订单列表（管理员专用）
+ * @param {Object} params 查询参数
+ * @param {number} params.page 页码，默认为 1
+ * @param {number} params.per_page 每页数量，默认为 20
+ * @param {string} params.status_filter 状态筛选，可选值：'1'等待支付, '2'支付成功, '3'已过期
+ * @returns {Promise} API 响应
+ */
+export const getAllCryptoDonationOrdersAdmin = async (params = {}) => {
+  try {
+    const queryParams = new URLSearchParams()
+    
+    if (params.page) queryParams.append('page', params.page)
+    if (params.per_page) queryParams.append('per_page', params.per_page)
+    if (params.status_filter) queryParams.append('status_filter', params.status_filter)
+    
+    const url = `/api/crypto-donations/orders/all${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+    const response = await apiClient.get(url)
+    return response.data
+  } catch (error) {
+    console.error('获取所有 Crypto 捐赠订单列表失败:', error)
+    throw error
+  }
+}
+
+/**
  * 支持的加密货币类型（备用，兼容性）
  */
 export const CRYPTO_TYPES = [
