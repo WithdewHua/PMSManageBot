@@ -989,7 +989,7 @@ async def check_expired_crypto_donation_orders():
             for user_id, message in notification_messages:
                 try:
                     await send_message_by_url(
-                        chat_id=user_id, text=message, disable_notification=True
+                        chat_id=user_id, text=message, disable_notification=False
                     )
                     await asyncio.sleep(0.5)  # 避免发送过于频繁
                 except Exception as e:

@@ -292,7 +292,7 @@ async def get_and_send_premium_statistics():
                 chat_id = int(admin_id) if isinstance(admin_id, str) else admin_id
 
                 success = await send_message_by_url(
-                    chat_id=chat_id, text=message, parse_mode="Markdown"
+                    chat_id=chat_id, text=message, parse_mode="HTML"
                 )
 
                 if success:
