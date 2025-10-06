@@ -172,6 +172,30 @@ class Plex:
                     )
                     continue
 
+    def add_shared_libs_for_user(self, email: str, add_sections: Union[str, list]):
+        """更新指定用户的资料库权限"""
+
+        if isinstance(add_sections, str):
+            add_sections = [add_sections]
+
+        user_info = self.users_by_email.get(email)
+        if not user_info:
+            logger.error(f"无法找到 Plex 用户 {email}")
+            return
+
+        try:
+            cur_libs = self.get_user_shared_libs_by_id(user_info[0])
+            cur_libs.extend(add_sections)
+            new_libs = list(set(cur_libs))
+            logger.info(
+                f"为 Plex 用户 {user_info[1].username} 更新资料库权限: {', '.join(new_libs)}"
+            )
+            self.update_user_shared_libs(user_info[0], libs=new_libs)
+        except Exception:
+            logger.error(
+                f"无法为 Plex 用户 {user_info[1].username} 更新资料库权限({', '.join(new_libs)})"
+            )
+
     def _authenticate_user_by_username(
         self, username: str, password: str
     ) -> tuple[bool, Optional[int]]:

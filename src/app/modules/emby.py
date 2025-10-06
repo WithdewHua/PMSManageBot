@@ -225,7 +225,12 @@ class Emby:
 
         return libraries
 
-    def add_user_library(self, user_id, library=settings.NSFW_LIBS):
+    def add_user_library(
+        self, user_id, library: Union[str, list[str]] = settings.NSFW_LIBS
+    ):
+        if isinstance(library, str):
+            library = [library]
+
         headers = {"accept": "application/json", "Content-Type": "application/json"}
         params = {"api_key": self.api_token}
 

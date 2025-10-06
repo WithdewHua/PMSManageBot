@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     OVERSEERR_API_TOKEN: str = ""
 
     # library
-    NSFW_LIBS: list = ["NSFW", "NC17 Movies"]
+    NSFW_LIBS: list = ["NSFW", "NC17 Movies", "Hentai"]
 
     # credits
     UNLOCK_CREDITS: int = 100
