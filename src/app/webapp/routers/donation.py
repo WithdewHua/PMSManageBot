@@ -396,9 +396,18 @@ async def confirm_donation_registration(
 
             logger.info(f"已向用户 {user_name}({user_id}) 发送捐赠登记{action}通知")
 
+            # 发送通知给管理员确认通知已发送
+            admin_notification_text = f"管理员 {admin_name}，已成功{action}捐赠登记 {registration_id}，用户 {user_name}({user_id}) 已收到通知。"
+
         except Exception as e:
             logger.warning(f"发送用户捐赠登记{action}通知失败: {e}")
-            # 即使通知发送失败，也不影响主要业务逻辑
+            # 即使通知发送失败，也不影响主要业务逻辑，但发送通知给管理员
+            admin_notification_text = f"管理员 {admin_name}，处理的捐赠登记 {registration_id} 的通知发送失败，请检查日志。"
+        await send_message_by_url(
+            chat_id=admin_id,
+            text=admin_notification_text,
+            parse_mode="HTML",
+        )
 
         return DonationRegistrationConfirmResponse(
             success=True,
