@@ -131,6 +131,7 @@ class Plex:
 
     def update_user_shared_libs(self, user_id, libs: list):
         """update shared libraries with specified user by id"""
+        logger.info(f"Updating shared libraries for user {user_id}: {libs}")
         self.my_plex_account.updateFriend(
             self.my_plex_account.user(user_id), self.plex_server, sections=libs
         )

@@ -695,7 +695,8 @@ async def nsfw_operation(
                 _plex = Plex()
                 try:
                     _plex.update_user_shared_libs(plex_id, _plex.get_libraries())
-                except Exception:
+                except Exception as e:
+                    logger.error(f"更新权限失败: {str(e)}")
                     raise HTTPException(status_code=500, detail="更新权限失败")
 
                 # 解锁时间
@@ -776,7 +777,8 @@ async def nsfw_operation(
 
                 try:
                     _plex.update_user_shared_libs(plex_id, sections)
-                except Exception:
+                except Exception as e:
+                    logger.error(f"更新权限失败: {str(e)}")
                     raise HTTPException(status_code=500, detail="更新权限失败")
 
                 # 更新数据库

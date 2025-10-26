@@ -244,6 +244,8 @@ class Emby:
 
         for lib_name in library:
             lib = libraries.get(lib_name)
+            if not lib:
+                return False, f"Library {lib_name} not found"
             guid = lib.get("guid")
             subfolders_id = lib.get("subfolders_id")
             enabled_folders = policy.get("EnabledFolders")
