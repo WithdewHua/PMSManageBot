@@ -18,9 +18,11 @@ def get_supported_crypto_types():
 class CryptoType(str, Enum):
     """支持的加密货币类型枚举"""
 
+    USDC_ERC20 = "USDC-ERC20"
     USDC_POLYGON = "USDC-Polygon"
     USDC_ARBITRUM = "USDC-ArbitrumOne"
     USDC_BSC = "USDC-BSC"
+    USDT_ERC20 = "USDT-ERC20"
     USDT_POLYGON = "USDT-Polygon"
     USDT_ARBITRUM = "USDT-ArbitrumOne"
     USDT_BSC = "USDT-BSC"
