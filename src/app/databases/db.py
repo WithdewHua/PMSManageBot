@@ -2182,6 +2182,7 @@ class DatabaseORM:
                         LineTrafficStats.user_id,
                         PlexUser.is_premium,
                         PlexUser.tg_id,
+                        PlexUser.plex_username,
                     )
                     .order_by(func.sum(LineTrafficStats.send_bytes).desc())
                     .limit(50)
@@ -2253,6 +2254,7 @@ class DatabaseORM:
                         LineTrafficStats.user_id,
                         EmbyUser.is_premium,
                         EmbyUser.tg_id,
+                        EmbyUser.emby_username,
                     )
                     .order_by(func.sum(LineTrafficStats.send_bytes).desc())
                     .limit(50)
