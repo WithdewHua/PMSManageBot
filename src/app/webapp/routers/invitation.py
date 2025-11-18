@@ -3,7 +3,7 @@ from time import time
 from uuid import NAMESPACE_URL, uuid3
 
 from app.config import settings
-from app.databases.db import DB
+from app.databases import db
 from app.databases.db_func import update_plex_info
 from app.log import uvicorn_logger as logger
 from app.modules.emby import Emby
@@ -45,10 +45,9 @@ async def get_invite_points_info(
     """
     try:
         user_id = telegram_user.id
-        _db = DB()
 
         # 获取用户统计信息
-        stats_info = _db.get_stats_by_tg_id(user_id)
+        stats_info = db.get_stats_by_tg_id(user_id)
 
         # 如果用户不存在
         if not stats_info:
@@ -83,8 +82,6 @@ async def get_invite_points_info(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取邀请码积分信息失败",
         )
-    finally:
-        _db.close()
 
 
 @router.post("/generate", response_model=GenerateInviteCodeResponse)
@@ -98,10 +95,9 @@ async def generate_invite_code(
     """
     try:
         user_id = telegram_user.id
-        _db = DB()
 
         # 获取用户统计信息
-        stats_info = _db.get_stats_by_tg_id(user_id)
+        stats_info = db.get_stats_by_tg_id(user_id)
 
         # 如果用户不存在
         if not stats_info:
@@ -130,14 +126,14 @@ async def generate_invite_code(
         invite_code = uuid3(NAMESPACE_URL, str(user_id + time())).hex
 
         # 先添加邀请码
-        res = _db.add_invitation_code(code=invite_code, owner=user_id)
+        res = db.add_invitation_code(code=invite_code, owner=user_id)
         if not res:
             return GenerateInviteCodeResponse(
                 success=False, message="生成邀请码失败，请稍后再试"
             )
 
         # 然后更新积分
-        res = _db.update_user_credits(new_credits, tg_id=user_id)
+        res = db.update_user_credits(new_credits, tg_id=user_id)
         if not res:
             # 如果更新积分失败，需要回滚邀请码
             # 实际应用中应该有更完善的事务处理
@@ -157,8 +153,6 @@ async def generate_invite_code(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="生成邀请码失败，请稍后再试",
         )
-    finally:
-        _db.close()
 
 
 @router.get("/register-status")
@@ -197,122 +191,116 @@ async def redeem_plex_code(
         if not email or "@" not in email:
             return RedeemResponse(success=False, message="请输入有效的邮箱地址")
 
-        _db = DB()
+        # 检查 plex 人数是否已满
+        if int(db.get_plex_users_num()) == 100:
+            return RedeemResponse(success=False, message="Plex 用户数已达上限")
 
-        try:
-            # 检查 plex 人数是否已满
-            if int(_db.get_plex_users_num()) == 100:
-                return RedeemResponse(success=False, message="Plex 用户数已达上限")
+        # 检查邀请码是否存在且未被使用
+        res = db.verify_invitation_code_is_used(code)
+        if not res:
+            return RedeemResponse(success=False, message="邀请码不存在")
 
-            # 检查邀请码是否存在且未被使用
-            res = _db.verify_invitation_code_is_used(code)
-            if not res:
-                return RedeemResponse(success=False, message="邀请码不存在")
+        if res[0]:
+            return RedeemResponse(success=False, message="邀请码已被使用")
+        code_owner = res[1]
 
-            if res[0]:
-                return RedeemResponse(success=False, message="邀请码已被使用")
-            code_owner = res[1]
+        # 实例化 Plex 对象
+        _plex = Plex()
 
-            # 实例化 Plex 对象
-            _plex = Plex()
-
-            # 检查该用户是否已经被邀请
-            if email in _plex.users_by_email:
-                return RedeemResponse(
-                    success=False, message="该邮箱账户已被邀请，请使用其他邮箱"
-                )
-
-            # 发送邀请
-            if not _plex.invite_friend(email):
-                return RedeemResponse(
-                    success=False, message="邀请失败，请稍后再试或联系管理员"
-                )
-
-            # 更新邀请码状态
-            res = _db.update_invitation_status(code=code, used_by=email)
-            if not res:
-                return RedeemResponse(
-                    success=False, message="更新邀请码状态失败，请联系管理员"
-                )
-
-            telegram_bound = False
-
-            # 如果用户选择绑定到 Telegram
-            if bind_to_telegram:
-                try:
-                    # 检查是否已经存在该 Telegram 用户的 Plex 绑定
-                    existing_plex_info = _db.get_plex_info_by_tg_id(telegram_user_id)
-                    if existing_plex_info:
-                        logger.warning(
-                            f"Telegram 用户 {telegram_user_id} 已绑定其他 Plex 账户"
-                        )
-                    else:
-                        # 添加 Plex 用户到数据库，暂时不设置 plex_id（需要用户接受邀请后获取）
-                        success = _db.add_plex_user(
-                            tg_id=telegram_user_id, plex_email=email, credits=0
-                        )
-                        if success:
-                            # 确保用户在统计表中存在
-                            stats_info = _db.get_stats_by_tg_id(telegram_user_id)
-                            if not stats_info:
-                                _db.add_user_data(telegram_user_id, credits=0)
-                            telegram_bound = True
-                            logger.info(
-                                f"成功将 Plex 账户 {email} 绑定到 Telegram 用户 {telegram_user_id}"
-                            )
-                            # 增加调度任务，稍后更新 plex_id
-                            # 每 1min 执行一次，最多执行 60 次（1小时后自动停止）
-                            scheduler = Scheduler()
-                            scheduler.add_sync_job(
-                                func=update_plex_info,
-                                args=(False, True, False, email),
-                                trigger="interval",
-                                minutes=1,
-                                id=f"update_plex_info_for_{email}",
-                                replace_existing=True,
-                                max_instances=1,
-                                start_date=datetime.datetime.now(settings.TZ)
-                                + datetime.timedelta(minutes=3),
-                                end_date=datetime.datetime.now(settings.TZ)
-                                + datetime.timedelta(hours=1),
-                            )
-                        else:
-                            logger.error(
-                                f"绑定 Plex 账户到 Telegram 失败: {telegram_user_id} -> {email}"
-                            )
-                except Exception as e:
-                    logger.error(f"绑定 Telegram 账户过程出错: {str(e)}")
-                    # 删除 plex 用户记录，避免脏数据
-                    _db.delete_plex_user(email)
-
-            for admin in settings.TG_ADMIN_CHAT_ID:
-                bind_status = (
-                    f"（已绑定 TG: {get_user_name_from_tg_id(telegram_user_id)}）"
-                    if telegram_bound
-                    else ""
-                )
-                await send_message_by_url(
-                    chat_id=admin,
-                    text=f"信息：{get_user_name_from_tg_id(code_owner)} 成功邀请 Plex 用户 {email}{bind_status}",
-                    token=settings.TG_API_TOKEN,
-                )
-
-            if is_privileged:
-                # 如果是特权邀请码，更新特权邀请码列表
-                settings.PRIVILEGED_CODES.remove(code)
-                settings.save_config_to_env_file(
-                    {"PRIVILEGED_CODES": ",".join(settings.PRIVILEGED_CODES)}
-                )
-
-            # 返回成功响应
+        # 检查该用户是否已经被邀请
+        if email in _plex.users_by_email:
             return RedeemResponse(
-                success=True,
-                message="邀请码兑换成功！请登录 Plex 确认邀请",
-                telegram_bound=telegram_bound,
+                success=False, message="该邮箱账户已被邀请，请使用其他邮箱"
             )
 
-        finally:
-            _db.close()
+        # 发送邀请
+        if not _plex.invite_friend(email):
+            return RedeemResponse(
+                success=False, message="邀请失败，请稍后再试或联系管理员"
+            )
+
+        # 更新邀请码状态
+        res = db.update_invitation_status(code=code, used_by=email)
+        if not res:
+            return RedeemResponse(
+                success=False, message="更新邀请码状态失败，请联系管理员"
+            )
+
+        telegram_bound = False
+
+        # 如果用户选择绑定到 Telegram
+        if bind_to_telegram:
+            try:
+                # 检查是否已经存在该 Telegram 用户的 Plex 绑定
+                existing_plex_info = db.get_plex_info_by_tg_id(telegram_user_id)
+                if existing_plex_info:
+                    logger.warning(
+                        f"Telegram 用户 {telegram_user_id} 已绑定其他 Plex 账户"
+                    )
+                else:
+                    # 添加 Plex 用户到数据库，暂时不设置 plex_id（需要用户接受邀请后获取）
+                    success = db.add_plex_user(
+                        tg_id=telegram_user_id, plex_email=email, credits=0
+                    )
+                    if success:
+                        # 确保用户在统计表中存在
+                        stats_info = db.get_stats_by_tg_id(telegram_user_id)
+                        if not stats_info:
+                            db.add_user_data(telegram_user_id, credits=0)
+                        telegram_bound = True
+                        logger.info(
+                            f"成功将 Plex 账户 {email} 绑定到 Telegram 用户 {telegram_user_id}"
+                        )
+                        # 增加调度任务，稍后更新 plex_id
+                        # 每 1min 执行一次，最多执行 60 次（1小时后自动停止）
+                        scheduler = Scheduler()
+                        scheduler.add_sync_job(
+                            func=update_plex_info,
+                            args=(False, True, False, email),
+                            trigger="interval",
+                            minutes=1,
+                            id=f"update_plex_info_for_{email}",
+                            replace_existing=True,
+                            max_instances=1,
+                            start_date=datetime.datetime.now(settings.TZ)
+                            + datetime.timedelta(minutes=3),
+                            end_date=datetime.datetime.now(settings.TZ)
+                            + datetime.timedelta(hours=1),
+                        )
+                    else:
+                        logger.error(
+                            f"绑定 Plex 账户到 Telegram 失败: {telegram_user_id} -> {email}"
+                        )
+            except Exception as e:
+                logger.error(f"绑定 Telegram 账户过程出错: {str(e)}")
+                # 删除 plex 用户记录，避免脏数据
+                db.delete_plex_user(email)
+
+        for admin in settings.TG_ADMIN_CHAT_ID:
+            bind_status = (
+                f"（已绑定 TG: {get_user_name_from_tg_id(telegram_user_id)}）"
+                if telegram_bound
+                else ""
+            )
+            await send_message_by_url(
+                chat_id=admin,
+                text=f"信息：{get_user_name_from_tg_id(code_owner)} 成功邀请 Plex 用户 {email}{bind_status}",
+                token=settings.TG_API_TOKEN,
+            )
+
+        if is_privileged:
+            # 如果是特权邀请码，更新特权邀请码列表
+            settings.PRIVILEGED_CODES.remove(code)
+            settings.save_config_to_env_file(
+                {"PRIVILEGED_CODES": ",".join(settings.PRIVILEGED_CODES)}
+            )
+
+        # 返回成功响应
+        return RedeemResponse(
+            success=True,
+            message="邀请码兑换成功！请登录 Plex 确认邀请",
+            telegram_bound=telegram_bound,
+        )
 
     except Exception as e:
         logger.error(f"兑换 Plex 邀请码失败: {str(e)}")
@@ -347,116 +335,111 @@ async def redeem_emby_code(
         if not password or len(password) < 4:
             return RedeemResponse(success=False, message="请输入有效的密码")
 
-        _db = DB()
+        # 检查邀请码是否存在且未被使用
+        res = db.verify_invitation_code_is_used(code)
+        if not res:
+            return RedeemResponse(success=False, message="邀请码不存在")
 
-        try:
-            # 检查邀请码是否存在且未被使用
-            res = _db.verify_invitation_code_is_used(code)
-            if not res:
-                return RedeemResponse(success=False, message="邀请码不存在")
+        if res[0]:
+            return RedeemResponse(success=False, message="邀请码已被使用")
 
-            if res[0]:
-                return RedeemResponse(success=False, message="邀请码已被使用")
+        code_owner = res[1]
 
-            code_owner = res[1]
+        # 检查该用户是否存在
+        _emby = Emby()
+        if db.get_emby_info_by_emby_username(username) or _emby.get_uid_from_username(
+            username
+        ):
+            return RedeemResponse(
+                success=False, message="该用户名已存在，请使用其他用户名"
+            )
 
-            # 检查该用户是否存在
-            _emby = Emby()
-            if _db.get_emby_info_by_emby_username(
-                username
-            ) or _emby.get_uid_from_username(username):
-                return RedeemResponse(
-                    success=False, message="该用户名已存在，请使用其他用户名"
-                )
+        # 创建用户
+        flag, msg = _emby.add_user(username=username, password=password)
+        if not flag:
+            return RedeemResponse(success=False, message=f"创建用户失败: {msg}")
 
-            # 创建用户
-            flag, msg = _emby.add_user(username=username, password=password)
-            if not flag:
-                return RedeemResponse(success=False, message=f"创建用户失败: {msg}")
+        # 更新邀请码状态
+        res = db.update_invitation_status(code=code, used_by=username)
+        if not res:
+            return RedeemResponse(
+                success=False, message="更新邀请码状态失败，请联系管理员"
+            )
 
-            # 更新邀请码状态
-            res = _db.update_invitation_status(code=code, used_by=username)
-            if not res:
-                return RedeemResponse(
-                    success=False, message="更新邀请码状态失败，请联系管理员"
-                )
+        telegram_bound = False
+        emby_id = msg  # msg 是创建成功时返回的 emby_id
 
-            telegram_bound = False
-            emby_id = msg  # msg 是创建成功时返回的 emby_id
-
-            # 如果用户选择绑定到 Telegram
-            if bind_to_telegram:
-                try:
-                    # 检查是否已经存在该 Telegram 用户的 Emby 绑定
-                    existing_emby_info = _db.get_emby_info_by_tg_id(telegram_user_id)
-                    if existing_emby_info:
-                        logger.warning(
-                            f"Telegram 用户 {telegram_user_id} 已绑定其他 Emby 账户"
+        # 如果用户选择绑定到 Telegram
+        if bind_to_telegram:
+            try:
+                # 检查是否已经存在该 Telegram 用户的 Emby 绑定
+                existing_emby_info = db.get_emby_info_by_tg_id(telegram_user_id)
+                if existing_emby_info:
+                    logger.warning(
+                        f"Telegram 用户 {telegram_user_id} 已绑定其他 Emby 账户"
+                    )
+                    # 即使已绑定其他账户，也添加新的 Emby 用户记录，但设置 tg_id 为 None
+                    db.add_emby_user(username, emby_id=emby_id)
+                else:
+                    # 添加 emby 用户信息并绑定到 Telegram
+                    success = db.add_emby_user(
+                        username, emby_id=emby_id, tg_id=telegram_user_id
+                    )
+                    if success:
+                        # 确保用户在统计表中存在
+                        stats_info = db.get_stats_by_tg_id(telegram_user_id)
+                        if not stats_info:
+                            db.add_user_data(telegram_user_id, credits=0)
+                        telegram_bound = True
+                        logger.info(
+                            f"成功将 Emby 账户 {username} 绑定到 Telegram 用户 {telegram_user_id}"
                         )
-                        # 即使已绑定其他账户，也添加新的 Emby 用户记录，但设置 tg_id 为 None
-                        _db.add_emby_user(username, emby_id=emby_id)
                     else:
-                        # 添加 emby 用户信息并绑定到 Telegram
-                        success = _db.add_emby_user(
-                            username, emby_id=emby_id, tg_id=telegram_user_id
+                        # 如果绑定失败，仍然添加 Emby 用户记录，但不绑定 TG
+                        db.add_emby_user(username, emby_id=emby_id)
+                        logger.error(
+                            f"绑定 Emby 账户到 Telegram 失败: {telegram_user_id} -> {username}"
                         )
-                        if success:
-                            # 确保用户在统计表中存在
-                            stats_info = _db.get_stats_by_tg_id(telegram_user_id)
-                            if not stats_info:
-                                _db.add_user_data(telegram_user_id, credits=0)
-                            telegram_bound = True
-                            logger.info(
-                                f"成功将 Emby 账户 {username} 绑定到 Telegram 用户 {telegram_user_id}"
-                            )
-                        else:
-                            # 如果绑定失败，仍然添加 Emby 用户记录，但不绑定 TG
-                            _db.add_emby_user(username, emby_id=emby_id)
-                            logger.error(
-                                f"绑定 Emby 账户到 Telegram 失败: {telegram_user_id} -> {username}"
-                            )
-                except Exception as e:
-                    # 如果绑定过程出错，仍然添加 Emby 用户记录，但不绑定 TG
-                    _db.add_emby_user(username, emby_id=emby_id)
-                    logger.error(f"绑定 Telegram 账户过程出错: {str(e)}")
-            else:
-                # 不绑定到 Telegram 时，添加 emby 用户信息
-                _db.add_emby_user(username, emby_id=emby_id)
+            except Exception as e:
+                # 如果绑定过程出错，仍然添加 Emby 用户记录，但不绑定 TG
+                db.add_emby_user(username, emby_id=emby_id)
+                logger.error(f"绑定 Telegram 账户过程出错: {str(e)}")
+        else:
+            # 不绑定到 Telegram 时，添加 emby 用户信息
+            db.add_emby_user(username, emby_id=emby_id)
 
-            for admin in settings.TG_ADMIN_CHAT_ID:
-                bind_status = (
-                    f"（已绑定 TG: {get_user_name_from_tg_id(telegram_user_id)}）"
-                    if telegram_bound
-                    else ""
-                )
-                await send_message_by_url(
-                    chat_id=admin,
-                    text=f"信息：{get_user_name_from_tg_id(code_owner)} 成功邀请 Emby 用户 {username}{bind_status}",
-                    token=settings.TG_API_TOKEN,
-                )
-
-            if is_privileged:
-                # 如果是特权邀请码，使用后从列表中移除
-                settings.PRIVILEGED_CODES.remove(code)
-                settings.save_config_to_env_file(
-                    {"PRIVILEGED_CODES": ",".join(settings.PRIVILEGED_CODES)}
-                )
-
-            # 返回成功响应
-            message = f"邀请码兑换成功！用户名为 {username}，密码为 {password}"
-
+        for admin in settings.TG_ADMIN_CHAT_ID:
+            bind_status = (
+                f"（已绑定 TG: {get_user_name_from_tg_id(telegram_user_id)}）"
+                if telegram_bound
+                else ""
+            )
             await send_message_by_url(
-                chat_id=telegram_user_id,
-                text=message,
+                chat_id=admin,
+                text=f"信息：{get_user_name_from_tg_id(code_owner)} 成功邀请 Emby 用户 {username}{bind_status}",
                 token=settings.TG_API_TOKEN,
             )
-            return RedeemResponse(
-                success=True,
-                message=message,
-                telegram_bound=telegram_bound,
+
+        if is_privileged:
+            # 如果是特权邀请码，使用后从列表中移除
+            settings.PRIVILEGED_CODES.remove(code)
+            settings.save_config_to_env_file(
+                {"PRIVILEGED_CODES": ",".join(settings.PRIVILEGED_CODES)}
             )
-        finally:
-            _db.close()
+
+        # 返回成功响应
+        message = f"邀请码兑换成功！用户名为 {username}，密码为 {password}"
+
+        await send_message_by_url(
+            chat_id=telegram_user_id,
+            text=message,
+            token=settings.TG_API_TOKEN,
+        )
+        return RedeemResponse(
+            success=True,
+            message=message,
+            telegram_bound=telegram_bound,
+        )
 
     except Exception as e:
         logger.error(f"兑换 Emby 邀请码失败: {str(e)}")
@@ -529,61 +512,53 @@ async def redeem_invite_code_for_credits(
         user_id = telegram_user.id
         code = data.code
 
-        _db = DB()
+        # 检查邀请码是否存在且未被使用
+        res = db.verify_invitation_code_is_used(code)
+        if not res:
+            return RedeemForCreditsResponse(success=False, message="邀请码不存在")
 
-        try:
-            # 检查邀请码是否存在且未被使用
-            res = _db.verify_invitation_code_is_used(code)
-            if not res:
-                return RedeemForCreditsResponse(success=False, message="邀请码不存在")
-
-            if res[0]:  # is_used = True
-                return RedeemForCreditsResponse(success=False, message="邀请码已被使用")
-            code_owner = res[1]
-            # 获取用户当前积分
-            stats_info = _db.get_stats_by_tg_id(user_id)
-            if not stats_info:
-                return RedeemForCreditsResponse(
-                    success=False, message="用户未绑定 Plex/Emby 账户"
-                )
-
-            current_credits = stats_info[2]
-
-            # 计算可获得的积分 (通常是生成邀请码所需积分的一半或某个比例)
-            credits_earned = settings.INVITATION_CREDITS * 0.8  # 80%的回收率
-
-            # 更新积分
-            new_credits = current_credits + credits_earned
-            res = _db.update_user_credits(new_credits, tg_id=user_id)
-            if not res:
-                return RedeemForCreditsResponse(
-                    success=False, message="更新积分失败，请稍后再试"
-                )
-
-            # 标记邀请码为已使用
-            res = _db.update_invitation_status(
-                code=code, used_by=f"credits_by_{user_id}"
-            )
-            if not res:
-                # 如果标记失败，需要回滚积分
-                _db.update_user_credits(current_credits, tg_id=user_id)
-                return RedeemForCreditsResponse(
-                    success=False, message="更新邀请码状态失败，请联系管理员"
-                )
-
-            logger.info(
-                f"用户 {get_user_name_from_tg_id(user_id)} 成功将邀请码 {code} ({get_user_name_from_tg_id(code_owner)}) 兑换为 {credits_earned} 积分"
-            )
-
+        if res[0]:  # is_used = True
+            return RedeemForCreditsResponse(success=False, message="邀请码已被使用")
+        code_owner = res[1]
+        # 获取用户当前积分
+        stats_info = db.get_stats_by_tg_id(user_id)
+        if not stats_info:
             return RedeemForCreditsResponse(
-                success=True,
-                message=f"成功兑换 {credits_earned} 积分！",
-                credits_earned=credits_earned,
-                current_credits=new_credits,
+                success=False, message="用户未绑定 Plex/Emby 账户"
             )
 
-        finally:
-            _db.close()
+        current_credits = stats_info[2]
+
+        # 计算可获得的积分 (通常是生成邀请码所需积分的一半或某个比例)
+        credits_earned = settings.INVITATION_CREDITS * 0.8  # 80%的回收率
+
+        # 更新积分
+        new_credits = current_credits + credits_earned
+        res = db.update_user_credits(new_credits, tg_id=user_id)
+        if not res:
+            return RedeemForCreditsResponse(
+                success=False, message="更新积分失败，请稍后再试"
+            )
+
+        # 标记邀请码为已使用
+        res = db.update_invitation_status(code=code, used_by=f"credits_by_{user_id}")
+        if not res:
+            # 如果标记失败，需要回滚积分
+            db.update_user_credits(current_credits, tg_id=user_id)
+            return RedeemForCreditsResponse(
+                success=False, message="更新邀请码状态失败，请联系管理员"
+            )
+
+        logger.info(
+            f"用户 {get_user_name_from_tg_id(user_id)} 成功将邀请码 {code} ({get_user_name_from_tg_id(code_owner)}) 兑换为 {credits_earned} 积分"
+        )
+
+        return RedeemForCreditsResponse(
+            success=True,
+            message=f"成功兑换 {credits_earned} 积分！",
+            credits_earned=credits_earned,
+            current_credits=new_credits,
+        )
 
     except Exception as e:
         logger.error(f"邀请码兑换积分失败: {str(e)}")

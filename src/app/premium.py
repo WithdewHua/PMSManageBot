@@ -1,29 +1,32 @@
 """
-Premium 会员相关功能，包括检查过期状态和即将过期的用户。
+Premium 会员相关功能,包括检查过期状态和即将过期的用户。
 """
 
 from datetime import datetime, timedelta
 
 from app.config import settings
+from app.databases import db
 from app.databases.cache import (
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
 )
-from app.databases.db import DB
+from app.databases.session import get_session
 from app.log import logger
+from app.models.models import EmbyUser, PlexUser
 from app.utils.utils import (
     format_traffic_size,
     get_user_name_from_tg_id,
     is_binded_premium_line,
     send_message_by_url,
 )
+from sqlalchemy import update as sql_update
 
 
 async def check_premium_expiry():
     """检查并更新 Premium 会员过期状态"""
-    db = DB()
+
     try:
         logger.info("开始检查 Premium 会员过期状态")
 
@@ -69,13 +72,11 @@ async def check_premium_expiry():
 
     except Exception as e:
         logger.error(f"检查 Premium 过期状态时出错: {str(e)}")
-    finally:
-        db.close()
 
 
 async def check_premium_expiring_soon(days: int = 3):
     """检查即将过期的 Premium 用户并记录日志"""
-    db = DB()
+
     try:
         logger.info(f"检查 {days} 天内即将过期的 Premium 用户")
         expiring_users = db.get_premium_users_expiring_soon(days)
@@ -96,11 +97,9 @@ async def check_premium_expiring_soon(days: int = 3):
 
     except Exception as e:
         logger.error(f"检查即将过期的 Premium 用户时出错: {str(e)}")
-    finally:
-        db.close()
 
 
-def update_premium_status(db: DB, tg_id: int, service: str, days: int = 30) -> datetime:
+def update_premium_status(db, tg_id: int, service: str, days: int = 30) -> datetime:
     """
     更新用户的 Premium 状态，延长 Premium 会员时间
     :param db: 数据库连接对象
@@ -133,10 +132,13 @@ def update_premium_status(db: DB, tg_id: int, service: str, days: int = 30) -> d
             new_expiry = datetime.now(settings.TZ) + timedelta(days=days)
 
         # 更新数据库 - 设置is_premium=1和到期时间
-        db.cur.execute(
-            "UPDATE user SET is_premium=1, premium_expiry_time=? WHERE tg_id=?",
-            (new_expiry.isoformat(), tg_id),
-        )
+        with get_session() as session:
+            stmt = (
+                sql_update(PlexUser)
+                .where(PlexUser.tg_id == tg_id)
+                .values(is_premium=1, premium_expiry_time=new_expiry.isoformat())
+            )
+            session.execute(stmt)
 
     elif service == "emby":
         user_info = db.get_emby_info_by_tg_id(tg_id)
@@ -160,14 +162,18 @@ def update_premium_status(db: DB, tg_id: int, service: str, days: int = 30) -> d
             new_expiry = datetime.now(settings.TZ) + timedelta(days=days)
 
         # 更新数据库 - 设置is_premium=1和到期时间
-        db.cur.execute(
-            "UPDATE emby_user SET is_premium=1, premium_expiry_time=? WHERE tg_id=?",
-            (new_expiry.isoformat(), tg_id),
-        )
+        with get_session() as session:
+            stmt = (
+                sql_update(EmbyUser)
+                .where(EmbyUser.tg_id == tg_id)
+                .values(is_premium=1, premium_expiry_time=new_expiry.isoformat())
+            )
+            session.execute(stmt)
+
     return new_expiry
 
 
-def unbind_premium_line(db: DB, service: str, username: str, tg_id: int):
+def unbind_premium_line(db, service: str, username: str, tg_id: int):
     """
     解绑 Premium 线路
     :param service: 服务类型（"plex" 或 "emby"）
@@ -265,7 +271,7 @@ async def get_and_send_premium_statistics():
     """
     获取Premium线路统计信息并发送给管理员
     """
-    db = DB()
+
     try:
         logger.info("开始获取Premium线路统计信息")
 
@@ -310,5 +316,3 @@ async def get_and_send_premium_statistics():
 
     except Exception as e:
         logger.error(f"获取并发送 Premium 统计信息时出错: {str(e)}")
-    finally:
-        db.close()

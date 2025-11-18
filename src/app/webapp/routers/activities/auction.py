@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from app.config import settings
-from app.databases.db import DB
+from app.databases import db
 from app.databases.db_func import finish_expired_auctions_job
 from app.log import uvicorn_logger as logger
 from app.scheduler import Scheduler
@@ -29,8 +29,6 @@ async def finish_single_auction_job(auction_id: int):
     单个竞拍结束任务
     """
     try:
-        db = DB()
-
         # 检查竞拍是否存在且处于活跃状态
         auction_data = db.get_auction_by_id(auction_id)
         if not auction_data or not auction_data["is_active"]:
@@ -59,9 +57,6 @@ async def finish_single_auction_job(auction_id: int):
 
     except Exception as e:
         logger.error(f"自动结束竞拍 {auction_id} 失败: {e}")
-    finally:
-        if "db" in locals():
-            db.close()
 
 
 def restore_auction_schedules():
@@ -69,7 +64,6 @@ def restore_auction_schedules():
     启动时恢复现有活跃竞拍的定时任务
     """
     try:
-        db = DB()
         scheduler = Scheduler()
 
         # 获取所有活跃的竞拍
@@ -110,9 +104,6 @@ def restore_auction_schedules():
 
     except Exception as e:
         logger.error(f"恢复竞拍定时任务失败: {e}")
-    finally:
-        if "db" in locals():
-            db.close()
 
 
 async def send_bid_notifications(
@@ -126,8 +117,6 @@ async def send_bid_notifications(
     后台任务：发送出价通知给其他参与者和管理员
     """
     try:
-        db = DB()
-
         # 获取该拍卖的其他参与者
         other_participants = db.get_auction_participants(
             auction_id, exclude_user_id=bidder_id
@@ -171,9 +160,6 @@ async def send_bid_notifications(
 
     except Exception as e:
         logger.error(f"发送出价通知失败: {e}")
-    finally:
-        if "db" in locals():
-            db.close()
 
 
 @router.get("/list", response_model=AuctionListResponse)
@@ -183,7 +169,6 @@ async def get_auction_list(
 ):
     """获取竞拍列表"""
     try:
-        db = DB()
         auctions_data = db.get_active_auctions()
 
         auctions = []
@@ -210,9 +195,6 @@ async def get_auction_list(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取竞拍列表失败"
         )
-    finally:
-        if "db" in locals():
-            db.close()
 
 
 @router.get("/stats", response_model=AuctionStatsResponse)
@@ -225,7 +207,6 @@ async def get_auction_stats(
         # 检查管理员权限
         check_admin_permission(current_user)
 
-        db = DB()
         stats = db.get_auction_stats()
 
         return AuctionStatsResponse(
@@ -242,9 +223,6 @@ async def get_auction_stats(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取统计数据失败"
         )
-    finally:
-        if "db" in locals():
-            db.close()
 
 
 @router.get("/{auction_id}", response_model=AuctionDetailResponse)
@@ -256,7 +234,6 @@ async def get_auction_detail(
 ):
     """获取竞拍详情"""
     try:
-        db = DB()
         auction_data = db.get_auction_by_id(auction_id)
 
         if not auction_data:
@@ -317,9 +294,6 @@ async def get_auction_detail(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取竞拍详情失败"
         )
-    finally:
-        if "db" in locals():
-            db.close()
 
 
 @router.post("/create")
@@ -333,8 +307,6 @@ async def create_auction(
     try:
         # 检查管理员权限
         check_admin_permission(current_user)
-
-        db = DB()
 
         # 计算结束时间
         end_time = datetime.now() + timedelta(hours=request_data.duration_hours)
@@ -385,9 +357,6 @@ async def create_auction(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建竞拍失败"
         )
-    finally:
-        if "db" in locals():
-            db.close()
 
 
 @router.post("/bid", response_model=PlaceBidResponse)
@@ -400,8 +369,6 @@ async def place_bid(
 ):
     """出价"""
     try:
-        db = DB()
-
         # 检查竞拍是否存在
         auction_data = db.get_auction_by_id(bid_request.auction_id)
         if not auction_data:
@@ -490,9 +457,6 @@ async def place_bid(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="出价失败"
         )
-    finally:
-        if "db" in locals():
-            db.close()
 
 
 @router.post("/finish-expired")
@@ -541,7 +505,6 @@ async def get_all_auctions_admin(
         # 检查管理员权限
         check_admin_permission(current_user)
 
-        db = DB()
         offset = (page - 1) * limit
 
         auctions_data = db.get_all_auctions(
@@ -576,9 +539,6 @@ async def get_all_auctions_admin(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取竞拍列表失败"
         )
-    finally:
-        if "db" in locals():
-            db.close()
 
 
 @router.put("/admin/{auction_id}")
@@ -593,8 +553,6 @@ async def update_auction_admin(
     try:
         # 检查管理员权限
         check_admin_permission(current_user)
-
-        db = DB()
 
         # 检查竞拍是否存在
         existing_auction = db.get_auction_by_id(auction_id)
@@ -656,9 +614,6 @@ async def update_auction_admin(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="更新竞拍失败"
         )
-    finally:
-        if "db" in locals():
-            db.close()
 
 
 @router.delete("/admin/{auction_id}")
@@ -672,8 +627,6 @@ async def delete_auction_admin(
     try:
         # 检查管理员权限
         check_admin_permission(current_user)
-
-        db = DB()
 
         # 检查竞拍是否存在
         existing_auction = db.get_auction_by_id(auction_id)
@@ -710,9 +663,6 @@ async def delete_auction_admin(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="删除竞拍失败"
         )
-    finally:
-        if "db" in locals():
-            db.close()
 
 
 @router.post("/admin/{auction_id}/finish")
@@ -726,8 +676,6 @@ async def finish_auction_admin(
     try:
         # 检查管理员权限
         check_admin_permission(current_user)
-
-        db = DB()
 
         # 检查竞拍是否存在且处于活跃状态
         existing_auction = db.get_auction_by_id(auction_id)
@@ -786,9 +734,6 @@ async def finish_auction_admin(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="结束竞拍失败"
         )
-    finally:
-        if "db" in locals():
-            db.close()
 
 
 @router.get("/admin/{auction_id}/bids")
@@ -803,8 +748,6 @@ async def get_auction_bids_admin(
     try:
         # 检查管理员权限
         check_admin_permission(current_user)
-
-        db = DB()
 
         # 检查竞拍是否存在
         existing_auction = db.get_auction_by_id(auction_id)
@@ -836,9 +779,6 @@ async def get_auction_bids_admin(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取出价历史失败"
         )
-    finally:
-        if "db" in locals():
-            db.close()
 
 
 @router.get("/admin/user/{user_id}/history")
@@ -854,7 +794,6 @@ async def get_user_auction_history_admin(
         # 检查管理员权限
         check_admin_permission(current_user)
 
-        db = DB()
         auctions_data = db.get_user_auction_history(user_id, limit=limit)
 
         auctions = []
@@ -883,9 +822,6 @@ async def get_user_auction_history_admin(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取用户竞拍历史失败",
         )
-    finally:
-        if "db" in locals():
-            db.close()
 
 
 @router.get("/admin/detailed-stats")
@@ -901,7 +837,6 @@ async def get_detailed_auction_stats_admin(
         # 检查管理员权限
         check_admin_permission(current_user)
 
-        db = DB()
         stats = db.get_detailed_auction_stats(start_date=start_date, end_date=end_date)
 
         return stats
@@ -913,6 +848,3 @@ async def get_detailed_auction_stats_admin(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取详细统计失败"
         )
-    finally:
-        if "db" in locals():
-            db.close()

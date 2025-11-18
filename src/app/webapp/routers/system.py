@@ -1,10 +1,13 @@
 from app.config import settings
-from app.databases.db import DB
+from app.databases import db
+from app.databases.session import get_session
 from app.log import uvicorn_logger as logger
+from app.models.models import EmbyUser, PlexUser
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import TelegramUser
 from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import func, select
 
 router = APIRouter(prefix="/api/system", tags=["system"])
 
@@ -17,7 +20,6 @@ async def get_system_stats(
     """获取系统统计信息（不需要管理员权限）"""
     logger.info(f"{user.username or user.first_name or user.id} 获取系统统计信息")
 
-    db = DB()
     try:
         # 获取所有Plex用户数量
         plex_users_count = db.get_plex_users_num()
@@ -26,20 +28,30 @@ async def get_system_stats(
         emby_users_count = db.get_emby_users_num()
 
         # 获取总用户数量（去重，避免同时绑定两个服务的用户被重复计算）
-        # 1. 先统计有 tg_id 的用户（通过 tg_id 去重）
-        # 2. 再统计没有 tg_id 的用户（这些用户无法去重，按账户数量计算）
-        total_users_query = """
-        SELECT 
-            (SELECT COUNT(DISTINCT tg_id) FROM (
-                SELECT tg_id FROM user WHERE tg_id IS NOT NULL
-                UNION
-                SELECT tg_id FROM emby_user WHERE tg_id IS NOT NULL
-            )) +
-            (SELECT COUNT(*) FROM user WHERE tg_id IS NULL) +
-            (SELECT COUNT(*) FROM emby_user WHERE tg_id IS NULL)
-        """
-        rslt = db.cur.execute(total_users_query)
-        total_users_count = rslt.fetchone()[0]
+        with get_session() as session:
+            # 1. 统计有 tg_id 的唯一用户（通过 UNION 去重）
+            plex_tg_ids = select(PlexUser.tg_id).where(PlexUser.tg_id.isnot(None))
+            emby_tg_ids = select(EmbyUser.tg_id).where(EmbyUser.tg_id.isnot(None))
+            union_query = plex_tg_ids.union(emby_tg_ids)
+            unique_tg_count = session.execute(
+                select(func.count(func.distinct(union_query.c.tg_id))).select_from(
+                    union_query.subquery()
+                )
+            ).scalar()
+
+            # 2. 统计没有 tg_id 的用户
+            plex_no_tg = session.execute(
+                select(func.count())
+                .select_from(PlexUser)
+                .where(PlexUser.tg_id.is_(None))
+            ).scalar()
+            emby_no_tg = session.execute(
+                select(func.count())
+                .select_from(EmbyUser)
+                .where(EmbyUser.tg_id.is_(None))
+            ).scalar()
+
+            total_users_count = unique_tg_count + plex_no_tg + emby_no_tg
 
         stats = {
             "plex_users": plex_users_count,
@@ -53,9 +65,6 @@ async def get_system_stats(
     except Exception as e:
         logger.error(f"获取系统统计信息失败: {str(e)}")
         raise HTTPException(status_code=500, detail="获取系统统计信息失败")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.get("/status")
@@ -93,7 +102,6 @@ async def get_traffic_overview(
     """获取流量统计概览数据（不需要管理员权限）"""
     logger.info(f"{user.username or user.first_name or user.id} 获取流量统计概览")
 
-    db = DB()
     try:
         traffic_stats = db.get_traffic_statistics()
         logger.info("流量统计概览数据获取成功")
@@ -106,6 +114,3 @@ async def get_traffic_overview(
     except Exception as e:
         logger.error(f"获取流量统计概览失败: {str(e)}")
         raise HTTPException(status_code=500, detail="获取流量统计失败")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")

@@ -14,6 +14,7 @@ from app.databases.db_func import (
     update_plex_info,
     write_user_info_cache,
 )
+from app.databases.session import init_db
 from app.handlers.rank import *
 from app.handlers.start import *
 from app.handlers.status import *
@@ -232,6 +233,9 @@ def add_init_scheduler_job():
 
 if __name__ == "__main__":
     logger.info("启动 PMSManageBot 服务...")
+
+    # 初始化数据库
+    init_db()
 
     # 启动定时任务
     logger.info("启动调度器...")

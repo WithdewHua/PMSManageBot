@@ -1,5 +1,5 @@
 from app.config import settings
-from app.databases.db import DB
+from app.databases import db
 from app.log import logger
 from app.modules.emby import Emby
 from app.utils.utils import get_user_name_from_tg_id, send_message
@@ -10,8 +10,7 @@ from telegram.ext import CommandHandler, ContextTypes
 # 积分榜
 async def credits_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
-    _db = DB()
-    res = _db.get_credits_rank()
+    res = db.get_credits_rank()
     rank = [
         f"{i}. {get_user_name_from_tg_id(info[0])}: {info[1]:.2f}"
         for i, info in enumerate(res, 1)
@@ -35,8 +34,7 @@ async def credits_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 # 捐赠榜
 async def donation_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
-    _db = DB()
-    res = _db.get_donation_rank()
+    res = db.get_donation_rank()
     rank = [
         f"{i}. {get_user_name_from_tg_id(info[0])}: {info[1]:.2f}"
         for i, info in enumerate(res, 1)
@@ -60,12 +58,11 @@ async def donation_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 # 观看时长榜
 async def watched_time_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
-    _db = DB()
-    res = _db.get_plex_watched_time_rank()
+    res = db.get_plex_watched_time_rank()
     rank = [
         f"{i}. {info[2]}: {info[3]:.2f}" for i, info in enumerate(res, 1) if i <= 15
     ]
-    emby_res = _db.get_emby_watched_time_rank()
+    emby_res = db.get_emby_watched_time_rank()
     emby_rank = [
         f"{i}. {info[1]}: {info[2]:.2f}"
         for i, info in enumerate(emby_res, 1)

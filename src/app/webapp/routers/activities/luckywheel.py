@@ -4,8 +4,8 @@ import secrets
 import time
 
 from app.config import settings
+from app.databases import db
 from app.databases.cache import lucky_wheel_config_cache
-from app.databases.db import DB
 from app.databases.db_func import add_redeem_code
 from app.log import logger
 from app.premium import update_premium_status
@@ -175,7 +175,7 @@ def _handle_premium_reward(tg_id: int, name: str) -> float:
         days_match = re.search(r"(\d+)", name)
         if days_match:
             days = int(days_match.group(1))
-            db = DB()
+
             try:
                 new_expiry = update_premium_status(db, tg_id, "plex", days)
                 logger.info(
@@ -192,10 +192,6 @@ def _handle_premium_reward(tg_id: int, name: str) -> float:
                 pass
     except Exception as e:
         logger.error(f"更新 Premium 状态失败: {e}")
-    else:
-        db.con.commit()
-    finally:
-        db.close()
     return 0  # Premium 奖品不涉及积分变化
 
 
@@ -281,7 +277,6 @@ async def spin_wheel(
 ):
     """转动转盘"""
     try:
-        db = DB()
         user_id = current_user.id
 
         # 获取转盘配置
@@ -358,8 +353,6 @@ async def spin_wheel(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="转盘操作失败"
         )
-    finally:
-        db.close()
 
 
 @router.get("/user-status")
@@ -369,7 +362,6 @@ async def get_user_status(
 ):
     """获取用户转盘参与状态"""
     try:
-        db = DB()
         user_id = current_user.id
 
         # 获取转盘配置
@@ -396,8 +388,6 @@ async def get_user_status(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取用户状态失败"
         )
-    finally:
-        db.close()
 
 
 def get_randomness_config_from_redis() -> dict:
@@ -690,7 +680,6 @@ async def get_wheel_statistics(
         # 检查管理员权限
         check_admin_permission(current_user)
 
-        db = DB()
         stats = db.get_wheel_stats()
 
         return stats
@@ -702,9 +691,6 @@ async def get_wheel_statistics(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取统计数据失败"
         )
-    finally:
-        if "db" in locals():
-            db.close()
 
 
 @router.get("/user-activity-stats")
@@ -714,7 +700,6 @@ async def get_user_activity_stats(
 ):
     """获取用户个人活动统计数据"""
     try:
-        db = DB()
         user_id = current_user.id
 
         # 获取用户转盘统计数据
@@ -728,5 +713,3 @@ async def get_user_activity_stats(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取用户活动统计失败",
         )
-    finally:
-        db.close()

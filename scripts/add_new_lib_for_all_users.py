@@ -1,23 +1,25 @@
 from app.config import settings
-from app.databases.db import DB
+from app.databases.session import get_session
+from app.models.models import EmbyUser, PlexUser
 from app.modules.emby import Emby
 from app.modules.plex import Plex
+from sqlalchemy import select
 
 settings.load_config_from_file()
 
-db = DB()
+
 _plex = Plex()
 _emby = Emby()
 
 
 def update_plex():
-    plex_users = db.cur.execute(
-        "select plex_email, plex_username from user where all_lib=1"
-    ).fetchall()
+    with get_session() as session:
+        stmt = select(PlexUser.plex_email, PlexUser.plex_username).where(
+            PlexUser.all_lib == 1
+        )
+        plex_users = session.execute(stmt).all()
 
-    for plex_user in plex_users:
-        email = plex_user[0]
-        username = plex_user[1]
+    for email, username in plex_users:
         if email == settings.PLEX_ADMIN_EMAIL:
             continue
         print(f"Adding Hentai library for Plex user: {username}")
@@ -25,13 +27,14 @@ def update_plex():
 
 
 def update_emby():
-    emby_users = db.cur.execute(
-        "select emby_id, emby_username from emby_user where emby_is_unlock=1"
-    ).fetchall()
+    # 使用 session.execute 替代 db.cur.execute
+    with get_session() as session:
+        stmt = select(EmbyUser.emby_id, EmbyUser.emby_username).where(
+            EmbyUser.emby_is_unlock == 1
+        )
+        emby_users = session.execute(stmt).all()
 
-    for emby_user in emby_users:
-        emby_id = emby_user[0]
-        emby_username = emby_user[1]
+    for emby_id, emby_username in emby_users:
         if emby_username == settings.EMBY_ADMIN_USER:
             continue
         print(f"Adding Hentai library for Emby user: {emby_username}")

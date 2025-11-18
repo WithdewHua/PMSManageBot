@@ -1,180 +1,115 @@
 #!/usr/bin/env python3
+"""
+ORM-based database operations using SQLAlchemy
+"""
 
 import json
-import sqlite3
 import time
 import traceback
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from app.config import settings
 from app.databases.cache import user_info_cache
+from app.databases.session import get_session
 from app.log import logger
+from app.models.models import (
+    AuctionBids,
+    Auctions,
+    CryptoDonationOrders,
+    DonationRegistrations,
+    EmbyUser,
+    Invitation,
+    LineTrafficMonthlyStats,
+    LineTrafficStats,
+    Overseerr,
+    PlexUser,
+    Statistics,
+    WheelStats,
+)
+from sqlalchemy import delete, func, select, update
 
 
-class DB:
-    """class DB"""
+class DatabaseORM:
+    """
+    基于 ORM 的数据库操作类
+    """
 
-    def __init__(self, db=settings.DATA_PATH / "data.db"):
-        self.con = sqlite3.connect(db)
-        self.cur = self.con.cursor()
-        self.create_table()
+    class _CurWrapper:
+        """A tiny compatibility wrapper so existing code that calls
+        `db.cur.execute(...).fetchall()` keeps working while we migrate
+        everything to ORM/session usage. It translates simple SQL strings
+        (including positional `?` params) to SQLAlchemy `text()` calls.
+        """
 
-    def create_table(self):
-        self.cur.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS user(
-                plex_id,
-                tg_id,
-                credits,
-                plex_email,
-                plex_username,
-                all_lib,
-                unlock_time,
-                watched_time,
-                plex_line,
-                is_premium,
-                premium_expiry_time
-            );
+        def __init__(self, parent: "DatabaseORM"):
+            self._parent = parent
+            self._last_rows = []
 
-            CREATE TABLE IF NOT EXISTS invitation(
-                code, owner, is_used, used_by
-            );
+        def _prepare(self, query: str, params=None):
+            # Convert DB-API positional `?` placeholders to SQLAlchemy named
+            # parameters (:p0, :p1, ...). If params is a dict, assume it's
+            # already named and pass through.
+            from sqlalchemy import text
 
-            CREATE TABLE IF NOT EXISTS statistics(
-                tg_id, donation, credits
-            );
+            if params is None:
+                return text(query), None
 
-            CREATE TABLE IF NOT EXISTS emby_user(
-                emby_username, emby_id, tg_id, emby_is_unlock, emby_unlock_time, emby_watched_time, emby_credits, emby_line, is_premium, premium_expiry_time
-            );
+            # If params is a dict, pass directly
+            if isinstance(params, dict):
+                return text(query), params
 
-            CREATE TABLE IF NOT EXISTS overseerr(
-                user_id, user_email, tg_id
-            );
+            # Assume sequence/tuple positional params and convert `?` placeholders
+            if isinstance(params, (list, tuple)):
+                # quick replacement: replace each '?' with :p{i}
+                parts = query.split("?")
+                if len(parts) - 1 != len(params):
+                    # fallback: don't transform, let SQLAlchemy try to bind
+                    return text(query), params
+                new_query = []
+                for i, part in enumerate(parts[:-1]):
+                    new_query.append(part)
+                    new_query.append(f":p{i}")
+                new_query.append(parts[-1])
+                named = {f"p{i}": params[i] for i in range(len(params))}
+                return text("".join(new_query)), named
 
-            CREATE TABLE IF NOT EXISTS wheel_stats(
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                tg_id INTEGER,
-                item_name TEXT,
-                credits_change REAL,
-                timestamp INTEGER,
-                date TEXT
-            );
+            # Unknown param style: pass as-is
+            return text(query), params
 
-            CREATE TABLE IF NOT EXISTS auctions(
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                description TEXT NOT NULL,
-                starting_price REAL NOT NULL,
-                current_price REAL NOT NULL,
-                end_time INTEGER NOT NULL,
-                created_by INTEGER NOT NULL,
-                created_at INTEGER NOT NULL,
-                is_active INTEGER DEFAULT 1,
-                winner_id INTEGER DEFAULT NULL,
-                bid_count INTEGER DEFAULT 0
-            );
+        def execute(self, query: str, params=None):
+            stmt, bound_params = self._prepare(query, params)
+            # Use a session to execute; fetch all rows and store them
+            try:
+                with get_session() as session:
+                    if bound_params is not None:
+                        res = session.execute(stmt, bound_params)
+                    else:
+                        res = session.execute(stmt)
+                    # SQLAlchemy 1.4+ returns Row objects; convert to tuples
+                    rows = res.fetchall()
+                    # keep as list of tuples for compatibility
+                    self._last_rows = [tuple(r) for r in rows]
+            except Exception:
+                # On any failure just set empty and re-raise so caller sees it
+                self._last_rows = []
+                raise
+            return self
 
-            CREATE TABLE IF NOT EXISTS auction_bids(
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                auction_id INTEGER NOT NULL,
-                bidder_id INTEGER NOT NULL,
-                bid_amount REAL NOT NULL,
-                bid_time INTEGER NOT NULL,
-                FOREIGN KEY (auction_id) REFERENCES auctions (id)
-            );
+        def fetchall(self):
+            return self._last_rows
 
-            CREATE TABLE IF NOT EXISTS line_traffic_stats(
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                line TEXT NOT NULL,
-                send_bytes INTEGER NOT NULL,
-                service TEXT NOT NULL,
-                username TEXT NOT NULL,
-                user_id TEXT DEFAULT NULL,
-                timestamp TEXT NOT NULL
-            );
+        def fetchone(self):
+            return self._last_rows[0] if self._last_rows else None
 
-            -- 月度流量聚合表
-            CREATE TABLE IF NOT EXISTS line_traffic_monthly_stats(
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                line TEXT NOT NULL,
-                service TEXT NOT NULL,
-                username TEXT NOT NULL,
-                user_id TEXT DEFAULT NULL,
-                year_month TEXT NOT NULL,
-                total_bytes INTEGER NOT NULL,
-                created_at TEXT NOT NULL,
-                UNIQUE(line, service, username, year_month)
-            );
+    @property
+    def cur(self):
+        # Return a long-lived wrapper instance per DatabaseORM instance
+        if not hasattr(self, "_cur"):
+            self._cur = DatabaseORM._CurWrapper(self)
+        return self._cur
 
-            -- 索引优化：为 line_traffic_stats 表添加关键索引（当月数据）
-            CREATE INDEX IF NOT EXISTS idx_line_traffic_timestamp ON line_traffic_stats(timestamp);
-            CREATE INDEX IF NOT EXISTS idx_line_traffic_service_user_time ON line_traffic_stats(service, username, timestamp);
-            CREATE INDEX IF NOT EXISTS idx_line_traffic_line_time ON line_traffic_stats(line, timestamp);
-            CREATE INDEX IF NOT EXISTS idx_line_traffic_daily_query ON line_traffic_stats(service, username, date(timestamp));
-            CREATE INDEX IF NOT EXISTS idx_line_traffic_line_stats ON line_traffic_stats(line, timestamp, send_bytes);
-            -- 添加月份索引，用于快速识别和处理当月数据
-            CREATE INDEX IF NOT EXISTS idx_line_traffic_month ON line_traffic_stats(date(timestamp, 'start of month'));
-
-            -- 索引优化：为 line_traffic_monthly_stats 表添加索引（历史月度数据）
-            CREATE INDEX IF NOT EXISTS idx_monthly_traffic_service_user_month ON line_traffic_monthly_stats(service, username, year_month);
-            CREATE INDEX IF NOT EXISTS idx_monthly_traffic_line_month ON line_traffic_monthly_stats(line, year_month);
-            CREATE INDEX IF NOT EXISTS idx_monthly_traffic_month ON line_traffic_monthly_stats(year_month);
-            CREATE INDEX IF NOT EXISTS idx_monthly_traffic_line_stats ON line_traffic_monthly_stats(line, year_month, total_bytes);
-
-            -- 捐赠登记表
-            CREATE TABLE IF NOT EXISTS donation_registrations(
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                payment_method TEXT NOT NULL CHECK (payment_method IN ('wechat', 'alipay', 'bank', 'other')),
-                amount REAL NOT NULL CHECK (amount > 0),
-                note TEXT,
-                status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-                admin_note TEXT,
-                created_at TEXT NOT NULL,
-                processed_at TEXT,
-                processed_by INTEGER,
-                is_donation_registration INTEGER DEFAULT 0 CHECK (is_donation_registration IN (0, 1)),
-                FOREIGN KEY (user_id) REFERENCES statistics (tg_id),
-                FOREIGN KEY (processed_by) REFERENCES statistics (tg_id)
-            );
-
-            -- 索引优化：为 donation_registrations 表添加索引
-            CREATE INDEX IF NOT EXISTS idx_donation_user_status ON donation_registrations(user_id, status);
-            CREATE INDEX IF NOT EXISTS idx_donation_status_created ON donation_registrations(status, created_at);
-            CREATE INDEX IF NOT EXISTS idx_donation_created_at ON donation_registrations(created_at);
-
-            -- Crypto 捐赠订单表
-            CREATE TABLE IF NOT EXISTS crypto_donation_orders(
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                order_id TEXT NOT NULL UNIQUE,              -- 商户订单号，唯一标识
-                trade_id TEXT,                              -- UPAY 系统生成的交易订单号
-                crypto_type TEXT NOT NULL,                  -- 加密货币类型（动态配置）
-                amount REAL NOT NULL CHECK (amount > 0),    -- 原始订单金额（CNY）
-                actual_amount REAL,                         -- 实际支付金额（加密货币数量）
-                payment_address TEXT,                       -- 收款钱包地址
-                block_transaction_id TEXT,                  -- 区块链交易哈希
-                status INTEGER NOT NULL DEFAULT 1 CHECK (status IN (1, 2, 3)),  -- 订单状态：1=等待支付, 2=支付成功, 3=已过期
-                payment_url TEXT,                           -- 支付页面URL
-                expiration_time INTEGER,                    -- 过期时间戳
-                created_at TEXT NOT NULL,
-                updated_at TEXT,
-                paid_at TEXT,                               -- 支付完成时间
-                note TEXT,                                  -- 备注信息
-                FOREIGN KEY (user_id) REFERENCES statistics (tg_id)
-            );
-
-            -- 索引优化：为 crypto_donation_orders 表添加索引
-            CREATE INDEX IF NOT EXISTS idx_crypto_order_user_status ON crypto_donation_orders(user_id, status);
-            CREATE INDEX IF NOT EXISTS idx_crypto_order_status_created ON crypto_donation_orders(status, created_at);
-            CREATE INDEX IF NOT EXISTS idx_crypto_order_created_at ON crypto_donation_orders(created_at);
-            CREATE INDEX IF NOT EXISTS idx_crypto_order_trade_id ON crypto_donation_orders(trade_id);
-            CREATE INDEX IF NOT EXISTS idx_crypto_order_order_id ON crypto_donation_orders(order_id);
-            """
-        )
-        self.con.commit()
+    # ==================== Plex User Operations ====================
 
     def add_plex_user(
         self,
@@ -182,532 +117,758 @@ class DB:
         tg_id: Optional[int] = None,
         plex_email: Optional[str] = None,
         plex_username: Optional[str] = None,
-        credits: int = 0,
-        all_lib=0,
-        unlock_time=None,
-        watched_time=0,
+        credits: float = 0,
+        all_lib: int = 0,
+        unlock_time: Optional[str] = None,
+        watched_time: float = 0,
         plex_line: Optional[str] = None,
-        is_premium: Optional[int] = 0,
+        is_premium: int = 0,
         premium_expiry_time: Optional[str] = None,
-    ):
+    ) -> bool:
+        """添加 Plex 用户"""
         try:
-            self.cur.execute(
-                "INSERT INTO user VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    plex_id,
-                    tg_id,
-                    credits,
-                    plex_email,
-                    plex_username,
-                    all_lib,
-                    unlock_time,
-                    watched_time,
-                    plex_line,
-                    is_premium,
-                    premium_expiry_time,
-                ),
-            )
-        except Exception as e:
-            logger.error(f"Error: {e}")
-            return False
-        else:
-            self.con.commit()
-            if plex_username:
-                user_info_cache.put(
-                    f"plex:{plex_username.lower()}",
-                    json.dumps(
-                        {
-                            "plex_id": plex_id,
-                            "tg_id": tg_id,
-                            "plex_email": plex_email,
-                            "plex_username": plex_username,
-                            "is_premium": is_premium,
-                        }
-                    ),
+            with get_session() as session:
+                user = PlexUser(
+                    plex_id=plex_id,
+                    tg_id=tg_id,
+                    credits=credits,
+                    plex_email=plex_email,
+                    plex_username=plex_username,
+                    all_lib=all_lib,
+                    unlock_time=unlock_time,
+                    watched_time=watched_time,
+                    plex_line=plex_line,
+                    is_premium=is_premium,
+                    premium_expiry_time=premium_expiry_time,
                 )
-        return True
+                session.add(user)
 
-    def delete_plex_user(self, plex_email: str):
-        try:
-            self.cur.execute(
-                "DELETE FROM user WHERE LOWER(plex_email) = ?", (plex_email.lower(),)
-            )
+                # 更新缓存
+                if plex_username:
+                    user_info_cache.put(
+                        f"plex:{plex_username.lower()}",
+                        json.dumps(
+                            {
+                                "plex_id": plex_id,
+                                "tg_id": tg_id,
+                                "plex_email": plex_email,
+                                "plex_username": plex_username,
+                                "is_premium": is_premium,
+                            }
+                        ),
+                    )
+                return True
         except Exception as e:
-            logger.error(f"Error: {e}")
+            logger.error(f"Error adding plex user: {e}")
             return False
-        else:
-            self.con.commit()
-        return True
+
+    def delete_plex_user(self, plex_email: str) -> bool:
+        """删除 Plex 用户"""
+        try:
+            with get_session() as session:
+                session.execute(
+                    delete(PlexUser).where(
+                        func.lower(PlexUser.plex_email) == plex_email.lower()
+                    )
+                )
+                return True
+        except Exception as e:
+            logger.error(f"Error deleting plex user: {e}")
+            return False
+
+    def get_plex_users_num(self) -> int:
+        """获取 Plex 用户数量"""
+        with get_session() as session:
+            stmt = select(func.count(PlexUser.plex_id))
+            return session.execute(stmt).scalar()
+
+    def get_plex_info_by_tg_id(self, tg_id: int) -> Optional[Tuple]:
+        """通过 Telegram ID 获取 Plex 用户信息"""
+        with get_session() as session:
+            stmt = select(PlexUser).where(PlexUser.tg_id == tg_id)
+            user = session.execute(stmt).scalar_one_or_none()
+            if user:
+                return (
+                    user.plex_id,
+                    user.tg_id,
+                    user.credits,
+                    user.plex_email,
+                    user.plex_username,
+                    user.all_lib,
+                    user.unlock_time,
+                    user.watched_time,
+                    user.plex_line,
+                    user.is_premium,
+                    user.premium_expiry_time,
+                )
+            return None
+
+    def get_plex_info_by_plex_id(self, plex_id: int) -> Optional[Tuple]:
+        """通过 Plex ID 获取用户信息"""
+        with get_session() as session:
+            stmt = select(PlexUser).where(PlexUser.plex_id == plex_id)
+            user = session.execute(stmt).scalar_one_or_none()
+            if user:
+                return (
+                    user.plex_id,
+                    user.tg_id,
+                    user.credits,
+                    user.plex_email,
+                    user.plex_username,
+                    user.all_lib,
+                    user.unlock_time,
+                    user.watched_time,
+                    user.plex_line,
+                    user.is_premium,
+                    user.premium_expiry_time,
+                )
+            return None
+
+    def get_plex_info_by_plex_username(self, plex_username: str) -> Optional[Tuple]:
+        """通过 Plex 用户名获取用户信息"""
+        with get_session() as session:
+            stmt = select(PlexUser).where(
+                func.lower(PlexUser.plex_username) == plex_username.lower()
+            )
+            user = session.execute(stmt).scalar_one_or_none()
+            if user:
+                return (
+                    user.plex_id,
+                    user.tg_id,
+                    user.credits,
+                    user.plex_email,
+                    user.plex_username,
+                    user.all_lib,
+                    user.unlock_time,
+                    user.watched_time,
+                    user.plex_line,
+                    user.is_premium,
+                    user.premium_expiry_time,
+                )
+            return None
+
+    def get_plex_info_by_plex_email(self, plex_email: str) -> Optional[Tuple]:
+        """通过 Plex 邮箱获取用户信息"""
+        with get_session() as session:
+            stmt = select(PlexUser).where(
+                func.lower(PlexUser.plex_email) == plex_email.lower()
+            )
+            user = session.execute(stmt).scalar_one_or_none()
+            if user:
+                return (
+                    user.plex_id,
+                    user.tg_id,
+                    user.credits,
+                    user.plex_email,
+                    user.plex_username,
+                    user.all_lib,
+                    user.unlock_time,
+                    user.watched_time,
+                    user.plex_line,
+                    user.is_premium,
+                    user.premium_expiry_time,
+                )
+            return None
+
+    # ==================== Emby User Operations ====================
 
     def add_emby_user(
         self,
         emby_username: str,
         emby_id: Optional[str] = None,
         tg_id: Optional[int] = None,
-        emby_is_unlock: Optional[int] = 0,
+        emby_is_unlock: int = 0,
         emby_unlock_time: Optional[int] = None,
         emby_watched_time: float = 0,
         emby_credits: float = 0,
         emby_line: Optional[str] = None,
-        is_premium: Optional[int] = 0,
+        is_premium: int = 0,
         premium_expiry_time: Optional[str] = None,
     ) -> bool:
+        """添加 Emby 用户"""
         try:
-            self.cur.execute(
-                "INSERT INTO emby_user VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    emby_username,
-                    emby_id,
-                    tg_id,
-                    emby_is_unlock,
-                    emby_unlock_time,
-                    emby_watched_time,
-                    emby_credits,
-                    emby_line,
-                    is_premium,
-                    premium_expiry_time,
-                ),
-            )
-        except Exception as e:
-            logger.error(f"Error: {e}")
-            return False
-        else:
-            self.con.commit()
-            user_info_cache.put(
-                f"emby:{emby_username.lower()}",
-                json.dumps(
-                    {
-                        "emby_id": emby_id,
-                        "tg_id": tg_id,
-                        "emby_username": emby_username,
-                        "is_premium": is_premium,
-                    }
-                ),
-            )
-        return True
-
-    def add_overseerr_user(self, user_id: int, user_email: str, tg_id: int):
-        try:
-            self.cur.execute(
-                "INSERT INTO overseerr VALUES (?, ?, ?)",
-                (user_id, user_email, tg_id),
-            )
-        except Exception as e:
-            logger.error(f"Error: {e}")
-            return False
-        else:
-            self.con.commit()
-            return True
-
-    def add_user_data(self, tg_id, credits=0, donation=0):
-        try:
-            self.cur.execute(
-                "INSERT INTO statistics VALUES (?, ?, ?)", (tg_id, donation, credits)
-            )
-        except Exception as e:
-            logger.error(f"Error: {e}")
-            return False
-        else:
-            self.con.commit()
-        return True
-
-    def update_user_tg_id(self, tg_id, plex_id=None, emby_id=None):
-        try:
-            if plex_id:
-                self.cur.execute(
-                    "UPDATE user SET tg_id=? WHERE plex_id=?", (tg_id, plex_id)
+            with get_session() as session:
+                user = EmbyUser(
+                    emby_username=emby_username,
+                    emby_id=emby_id,
+                    tg_id=tg_id,
+                    emby_is_unlock=emby_is_unlock,
+                    emby_unlock_time=emby_unlock_time,
+                    emby_watched_time=emby_watched_time,
+                    emby_credits=emby_credits,
+                    emby_line=emby_line,
+                    is_premium=is_premium,
+                    premium_expiry_time=premium_expiry_time,
                 )
-            if emby_id:
-                self.cur.execute(
-                    "UPDATE emby_user SET tg_id=? WHERE emby_id=?", (tg_id, emby_id)
+                session.add(user)
+
+                # 更新缓存
+                user_info_cache.put(
+                    f"emby:{emby_username.lower()}",
+                    json.dumps(
+                        {
+                            "emby_id": emby_id,
+                            "tg_id": tg_id,
+                            "emby_username": emby_username,
+                            "is_premium": is_premium,
+                        }
+                    ),
                 )
+                return True
         except Exception as e:
-            logger.error(f"Error: {e}")
+            logger.error(f"Error adding emby user: {e}")
             return False
-        else:
-            self.con.commit()
-        return True
 
-    def add_invitation_code(self, code, owner, is_used=0, used_by=None) -> bool:
+    def get_emby_users_num(self) -> int:
+        """获取 Emby 用户数量"""
+        with get_session() as session:
+            stmt = select(func.count(EmbyUser.emby_username))
+            return session.execute(stmt).scalar()
+
+    def get_emby_info_by_emby_username(self, username: str) -> Optional[Tuple]:
+        """通过 Emby 用户名获取用户信息"""
+        with get_session() as session:
+            stmt = select(EmbyUser).where(EmbyUser.emby_username == username)
+            user = session.execute(stmt).scalar_one_or_none()
+            if user:
+                return (
+                    user.emby_username,
+                    user.emby_id,
+                    user.tg_id,
+                    user.emby_is_unlock,
+                    user.emby_unlock_time,
+                    user.emby_watched_time,
+                    user.emby_credits,
+                    user.emby_line,
+                    user.is_premium,
+                    user.premium_expiry_time,
+                )
+            return None
+
+    def get_emby_info_by_tg_id(self, tg_id: int) -> Optional[Tuple]:
+        """通过 Telegram ID 获取 Emby 用户信息"""
+        with get_session() as session:
+            stmt = select(EmbyUser).where(EmbyUser.tg_id == tg_id)
+            user = session.execute(stmt).scalar_one_or_none()
+            if user:
+                return (
+                    user.emby_username,
+                    user.emby_id,
+                    user.tg_id,
+                    user.emby_is_unlock,
+                    user.emby_unlock_time,
+                    user.emby_watched_time,
+                    user.emby_credits,
+                    user.emby_line,
+                    user.is_premium,
+                    user.premium_expiry_time,
+                )
+            return None
+
+    def get_emby_info_by_emby_id(self, emby_id: str) -> Optional[Tuple]:
+        """通过 Emby ID 获取用户信息"""
+        with get_session() as session:
+            stmt = select(EmbyUser).where(EmbyUser.emby_id == emby_id)
+            user = session.execute(stmt).scalar_one_or_none()
+            if user:
+                return (
+                    user.emby_username,
+                    user.emby_id,
+                    user.tg_id,
+                    user.emby_is_unlock,
+                    user.emby_unlock_time,
+                    user.emby_watched_time,
+                    user.emby_credits,
+                    user.emby_line,
+                    user.is_premium,
+                    user.premium_expiry_time,
+                )
+            return None
+
+    # ==================== Statistics Operations ====================
+
+    def add_user_data(
+        self, tg_id: int, credits: float = 0, donation: float = 0
+    ) -> bool:
+        """添加用户统计数据"""
         try:
-            self.cur.execute(
-                "INSERT INTO invitation VALUES (?, ?, ?, ?)",
-                (code, owner, is_used, used_by),
-            )
+            with get_session() as session:
+                stats = Statistics(tg_id=tg_id, credits=credits, donation=donation)
+                session.add(stats)
+                return True
         except Exception as e:
-            logger.error(f"Error: {e}")
+            logger.error(f"Error adding user data: {e}")
             return False
-        else:
-            self.con.commit()
-        return True
 
-    def get_stats_by_tg_id(self, tg_id):
-        return self.cur.execute(
-            "SELECT * from statistics WHERE tg_id=?", (tg_id,)
-        ).fetchone()
+    def get_stats_by_tg_id(self, tg_id: int) -> Optional[Tuple]:
+        """通过 Telegram ID 获取统计信息"""
+        with get_session() as session:
+            stmt = select(Statistics).where(Statistics.tg_id == tg_id)
+            stats = session.execute(stmt).scalar_one_or_none()
+            if stats:
+                return (stats.tg_id, stats.donation, stats.credits)
+            return None
+
+    def get_user_credits(self, tg_id: int) -> Optional[float]:
+        """获取用户积分"""
+        with get_session() as session:
+            stmt = select(Statistics).where(Statistics.tg_id == tg_id)
+            stats = session.execute(stmt).scalar_one_or_none()
+            return stats.credits if stats else None
+
+    def update_user_donation(self, donation: float, tg_id: int) -> bool:
+        """更新用户捐赠金额"""
+        try:
+            with get_session() as session:
+                session.execute(
+                    update(Statistics)
+                    .where(Statistics.tg_id == tg_id)
+                    .values(donation=donation)
+                )
+                return True
+        except Exception as e:
+            logger.error(f"Error updating user donation: {e}")
+            return False
+
+    # ==================== Invitation Operations ====================
+
+    def add_invitation_code(
+        self, code: str, owner: int, is_used: int = 0, used_by: Optional[int] = None
+    ) -> bool:
+        """添加邀请码"""
+        try:
+            with get_session() as session:
+                invitation = Invitation(
+                    code=code, owner=owner, is_used=is_used, used_by=used_by
+                )
+                session.add(invitation)
+                return True
+        except Exception as e:
+            logger.error(f"Error adding invitation code: {e}")
+            return False
+
+    def update_invitation_status(self, code: str, used_by: int) -> bool:
+        """更新邀请码状态"""
+        try:
+            with get_session() as session:
+                session.execute(
+                    update(Invitation)
+                    .where(Invitation.code == code)
+                    .values(is_used=1, used_by=used_by)
+                )
+                return True
+        except Exception as e:
+            logger.error(f"Error updating invitation status: {e}")
+            return False
+
+    # ==================== Overseerr Operations ====================
+
+    def add_overseerr_user(self, user_id: int, user_email: str, tg_id: int) -> bool:
+        """添加 Overseerr 用户"""
+        try:
+            with get_session() as session:
+                user = Overseerr(user_id=user_id, user_email=user_email, tg_id=tg_id)
+                session.add(user)
+                return True
+        except Exception as e:
+            logger.error(f"Error adding overseerr user: {e}")
+            return False
+
+    def get_overseerr_info_by_tg_id(self, tg_id: int) -> Optional[Tuple]:
+        """通过 Telegram ID 获取 Overseerr 用户信息"""
+        with get_session() as session:
+            stmt = select(Overseerr).where(Overseerr.tg_id == tg_id)
+            user = session.execute(stmt).scalar_one_or_none()
+            if user:
+                return (user.user_id, user.user_email, user.tg_id)
+            return None
+
+    # ==================== Update Operations ====================
+
+    def update_user_tg_id(
+        self, tg_id: int, plex_id: Optional[int] = None, emby_id: Optional[str] = None
+    ) -> bool:
+        """更新用户 Telegram ID"""
+        try:
+            with get_session() as session:
+                if plex_id is not None:
+                    session.execute(
+                        update(PlexUser)
+                        .where(PlexUser.plex_id == plex_id)
+                        .values(tg_id=tg_id)
+                    )
+                if emby_id is not None:
+                    session.execute(
+                        update(EmbyUser)
+                        .where(EmbyUser.emby_id == emby_id)
+                        .values(tg_id=tg_id)
+                    )
+                return True
+        except Exception as e:
+            logger.error(f"Error updating user tg_id: {e}")
+            return False
 
     def update_user_credits(
-        self, credits: float, plex_id=None, emby_id=None, tg_id=None
-    ):
-        """Update user's credits"""
+        self,
+        credits: float,
+        plex_id: Optional[int] = None,
+        emby_id: Optional[str] = None,
+        tg_id: Optional[int] = None,
+    ) -> bool:
+        """更新用户积分"""
         try:
-            if tg_id:
-                self.cur.execute(
-                    "UPDATE statistics SET credits=? WHERE tg_id=?", (credits, tg_id)
-                )
-            elif plex_id:
-                self.cur.execute(
-                    "UPDATE user SET credits=? WHERE plex_id=?", (credits, plex_id)
-                )
-            elif emby_id:
-                self.cur.execute(
-                    "UPDATE emby_user SET emby_credits=? WHERE emby_id=?",
-                    (credits, emby_id),
-                )
-            else:
-                logger.error("Error: there is no enough params")
+            with get_session() as session:
+                if tg_id is not None:
+                    session.execute(
+                        update(Statistics)
+                        .where(Statistics.tg_id == tg_id)
+                        .values(credits=credits)
+                    )
+                elif plex_id is not None:
+                    session.execute(
+                        update(PlexUser)
+                        .where(PlexUser.plex_id == plex_id)
+                        .values(credits=credits)
+                    )
+                elif emby_id is not None:
+                    session.execute(
+                        update(EmbyUser)
+                        .where(EmbyUser.emby_id == emby_id)
+                        .values(emby_credits=credits)
+                    )
+                else:
+                    logger.error("Error: there is no enough params")
+                    return False
+                return True
         except Exception as e:
-            logger.error(f"Error: {e}")
+            logger.error(f"Error updating user credits: {e}")
             return False
-        else:
-            self.con.commit()
-        return True
-
-    def get_user_credits(self, tg_id):
-        """Get user's credits by tg_id"""
-        try:
-            rslt = self.cur.execute(
-                "SELECT credits FROM statistics WHERE tg_id=?", (tg_id,)
-            )
-            res = rslt.fetchone()
-            if res:
-                return True, res[0]
-            return False, f"未找到用户: {tg_id}"
-        except Exception as e:
-            logger.error(f"Error: {e}")
-            return False, "获取积分失败"
-
-    def update_user_donation(self, donation: int, tg_id):
-        """Update user's donation"""
-        try:
-            self.cur.execute(
-                "UPDATE statistics SET donation=? WHERE tg_id=?", (donation, tg_id)
-            )
-        except Exception as e:
-            logger.error(f"Error: {e}")
-            return False
-        else:
-            self.con.commit()
-        return True
-
-    def update_invitation_status(self, code, used_by):
-        try:
-            self.cur.execute(
-                "UPDATE invitation SET is_used=?,used_by=? WHERE code=?",
-                (1, used_by, code),
-            )
-        except Exception as e:
-            logger.error(f"Error: {e}")
-            return False
-        else:
-            self.con.commit()
-        return True
 
     def update_all_lib_flag(
         self,
         all_lib: int,
-        unlock_time=None,
-        plex_id=None,
-        emby_id=None,
-        tg_id=None,
-        media_server="plex",
-    ):
+        unlock_time: Optional[str] = None,
+        plex_id: Optional[int] = None,
+        emby_id: Optional[str] = None,
+        tg_id: Optional[int] = None,
+        media_server: str = "plex",
+    ) -> bool:
+        """更新全库权限标志"""
         try:
-            if media_server.lower() == "plex":
-                if plex_id:
-                    self.cur.execute(
-                        "UPDATE user SET all_lib=?,unlock_time=? WHERE plex_id=?",
-                        (all_lib, unlock_time, plex_id),
-                    )
-                elif tg_id:
-                    self.cur.execute(
-                        "UPDATE user SET all_lib=?,unlock_time=? WHERE tg_id=?",
-                        (all_lib, unlock_time, tg_id),
-                    )
-            elif media_server.lower() == "emby":
-                if emby_id:
-                    self.cur.execute(
-                        "UPDATE emby_user SET emby_is_unlock=?,emby_unlock_time=? WHERE emby_id=?",
-                        (all_lib, unlock_time, emby_id),
-                    )
-                elif tg_id:
-                    self.cur.execute(
-                        "UPDATE emby_user SET emby_is_unlock=?,emby_unlock_time=? WHERE tg_id=?",
-                        (all_lib, unlock_time, tg_id),
-                    )
-            else:
-                logger.error("Error: please specify correct media server")
+            with get_session() as session:
+                if media_server.lower() == "plex":
+                    if plex_id is not None:
+                        session.execute(
+                            update(PlexUser)
+                            .where(PlexUser.plex_id == plex_id)
+                            .values(all_lib=all_lib, unlock_time=unlock_time)
+                        )
+                    elif tg_id is not None:
+                        session.execute(
+                            update(PlexUser)
+                            .where(PlexUser.tg_id == tg_id)
+                            .values(all_lib=all_lib, unlock_time=unlock_time)
+                        )
+                elif media_server.lower() == "emby":
+                    if emby_id is not None:
+                        session.execute(
+                            update(EmbyUser)
+                            .where(EmbyUser.emby_id == emby_id)
+                            .values(
+                                emby_is_unlock=all_lib, emby_unlock_time=unlock_time
+                            )
+                        )
+                    elif tg_id is not None:
+                        session.execute(
+                            update(EmbyUser)
+                            .where(EmbyUser.tg_id == tg_id)
+                            .values(
+                                emby_is_unlock=all_lib, emby_unlock_time=unlock_time
+                            )
+                        )
+                else:
+                    logger.error("Error: please specify correct media server")
+                    return False
+                return True
         except Exception as e:
-            logger.error(f"Error: {e}")
+            logger.error(f"Error updating all_lib_flag: {e}")
             return False
-        else:
-            self.con.commit()
-        return True
 
-    def get_plex_users_num(self):
-        rslt = self.cur.execute("SELECT count(*) FROM user")
-        return rslt.fetchone()[0]
+    def get_overseerr_info_by_email(self, email: str) -> Optional[Tuple]:
+        """通过邮箱获取 Overseerr 用户信息"""
+        with get_session() as session:
+            stmt = select(Overseerr).where(Overseerr.user_email == email)
+            user = session.execute(stmt).scalar_one_or_none()
+            if user:
+                return (user.user_id, user.user_email, user.tg_id)
+            return None
 
-    def get_emby_users_num(self):
-        rslt = self.cur.execute("SELECT count(*) FROM emby_user")
-        return rslt.fetchone()[0]
+    # ==================== Rank Operations ====================
 
-    def get_plex_info_by_tg_id(self, tg_id):
-        rslt = self.cur.execute("SELECT * FROM user WHERE tg_id = ?", (tg_id,))
-        info = rslt.fetchone()
-        return info
+    def get_credits_rank(self) -> list:
+        """获取积分排行"""
+        with get_session() as session:
+            stmt = select(Statistics.tg_id, Statistics.credits).order_by(
+                Statistics.credits.desc()
+            )
+            results = session.execute(stmt).fetchall()
+            return [(r[0], r[1]) for r in results]
 
-    def get_plex_info_by_plex_id(self, plex_id):
-        rslt = self.cur.execute("SELECT * FROM user WHERE plex_id = ?", (plex_id,))
-        info = rslt.fetchone()
-        return info
+    def get_donation_rank(self) -> list:
+        """获取捐赠排行"""
+        with get_session() as session:
+            stmt = select(Statistics.tg_id, Statistics.donation).order_by(
+                Statistics.donation.desc()
+            )
+            results = session.execute(stmt).fetchall()
+            return [(r[0], r[1]) for r in results]
 
-    def get_plex_info_by_plex_username(self, plex_username: str):
-        rslt = self.cur.execute(
-            "SELECT * FROM user WHERE plex_username = ?", (plex_username,)
-        )
-        info = rslt.fetchone()
-        return info
+    def get_plex_watched_time_rank(self) -> list:
+        """获取 Plex 观看时长排行"""
+        with get_session() as session:
+            stmt = select(
+                PlexUser.plex_id,
+                PlexUser.tg_id,
+                PlexUser.plex_username,
+                PlexUser.watched_time,
+                PlexUser.is_premium,
+            ).order_by(PlexUser.watched_time.desc())
+            results = session.execute(stmt).fetchall()
+            return [(r[0], r[1], r[2], r[3], r[4]) for r in results]
 
-    def get_plex_info_by_plex_email(self, plex_email: str):
-        rslt = self.cur.execute(
-            "SELECT * FROM user WHERE LOWER(plex_email) = ?", (plex_email.lower(),)
-        )
-        info = rslt.fetchone()
-        return info
+    def get_emby_watched_time_rank(self) -> list:
+        """获取 Emby 观看时长排行"""
+        with get_session() as session:
+            stmt = select(
+                EmbyUser.emby_id,
+                EmbyUser.emby_username,
+                EmbyUser.emby_watched_time,
+                EmbyUser.is_premium,
+                EmbyUser.tg_id,
+            ).order_by(EmbyUser.emby_watched_time.desc())
+            results = session.execute(stmt).fetchall()
+            return [(r[0], r[1], r[2], r[3], r[4]) for r in results]
 
-    def get_emby_info_by_emby_username(self, username: str):
-        return self.cur.execute(
-            "SELECT * FROM emby_user WHERE LOWER(emby_username) = ?",
-            (username.lower(),),
-        ).fetchone()
-
-    def get_emby_info_by_tg_id(self, tg_id):
-        return self.cur.execute(
-            "SELECT * FROM emby_user WHERE tg_id = ?", (tg_id,)
-        ).fetchone()
-
-    def get_emby_info_by_emby_id(self, emby_id):
-        return self.cur.execute(
-            "SELECT * FROM emby_user WHERE emby_id = ?", (emby_id,)
-        ).fetchone()
-
-    def get_overseerr_info_by_tg_id(self, tg_id):
-        return self.cur.execute(
-            "SELECT * FROM overseerr WHERE tg_id = ?", (tg_id,)
-        ).fetchone()
-
-    def get_overseerr_info_by_email(self, email):
-        return self.cur.execute(
-            "SELECT * FROM overseerr WHERE user_email = ?", (email,)
-        ).fetchone()
-
-    def get_credits_rank(self):
-        rslt = self.cur.execute(
-            "SELECT tg_id,credits FROM statistics ORDER BY credits DESC"
-        )
-        res = rslt.fetchall()
-        return res
-
-    def get_donation_rank(self):
-        rslt = self.cur.execute(
-            "SELECT tg_id,donation FROM statistics ORDER BY donation DESC"
-        )
-        res = rslt.fetchall()
-        return res
-
-    def get_plex_watched_time_rank(self):
-        rslt = self.cur.execute(
-            "SELECT plex_id,tg_id,plex_username,watched_time,is_premium FROM user ORDER BY watched_time DESC"
-        )
-        res = rslt.fetchall()
-        return res
-
-    def get_emby_watched_time_rank(self):
-        return self.cur.execute(
-            "SELECT emby_id,emby_username,emby_watched_time,is_premium,tg_id FROM emby_user ORDER BY emby_watched_time DESC"
-        ).fetchall()
-
-    def get_invitation_rank(self):
+    def get_invitation_rank(self) -> list:
         """获取邀请排行榜数据"""
-        rslt = self.cur.execute(
-            """SELECT owner, COUNT(DISTINCT used_by) as invite_count 
-            FROM invitation 
-            WHERE is_used = 1 AND used_by IS NOT NULL 
-            GROUP BY owner 
-            ORDER BY invite_count DESC"""
-        )
-        res = rslt.fetchall()
-        return res
-
-    def verify_invitation_code_is_used(self, code):
-        rslt = self.cur.execute(
-            "SELECT is_used,owner FROM invitation WHERE code=?", (code,)
-        )
-        res = rslt.fetchone()
-        return res
-
-    def get_invitation_code_by_owner(self, tg_id, is_available=True):
-        if is_available:
-            rslt = self.cur.execute(
-                "SELECT code FROM invitation WHERE owner=? and is_used=0", (tg_id,)
+        with get_session() as session:
+            stmt = (
+                select(
+                    Invitation.owner,
+                    func.count(func.distinct(Invitation.used_by)).label("invite_count"),
+                )
+                .where(Invitation.is_used == 1, Invitation.used_by.isnot(None))
+                .group_by(Invitation.owner)
+                .order_by(func.count(func.distinct(Invitation.used_by)).desc())
             )
-        else:
-            rslt = self.cur.execute(
-                "SELECT code FROM invitation WHERE owner=?", (tg_id,)
-            )
-        res = rslt.fetchall()
-        res = [_[0] for _ in res]
-        return res
+            results = session.execute(stmt).fetchall()
+            return [(r[0], r[1]) for r in results]
 
-    def get_invitee_count_by_owner(self, tg_id):
+    # ==================== Invitation Query Operations ====================
+
+    def verify_invitation_code_is_used(self, code: str) -> Optional[Tuple]:
+        """验证邀请码是否已使用"""
+        with get_session() as session:
+            stmt = select(Invitation.is_used, Invitation.owner).where(
+                Invitation.code == code
+            )
+            result = session.execute(stmt).fetchone()
+            return (result[0], result[1]) if result else None
+
+    def get_invitation_code_by_owner(
+        self, tg_id: int, is_available: bool = True
+    ) -> list:
+        """获取用户的邀请码"""
+        with get_session() as session:
+            if is_available:
+                stmt = select(Invitation.code).where(
+                    Invitation.owner == tg_id, Invitation.is_used == 0
+                )
+            else:
+                stmt = select(Invitation.code).where(Invitation.owner == tg_id)
+            results = session.execute(stmt).fetchall()
+            return [r[0] for r in results]
+
+    def get_invitee_count_by_owner(self, tg_id: int) -> int:
         """获取用户邀请的人数"""
         try:
-            rslt = self.cur.execute(
-                "SELECT COUNT(DISTINCT used_by) FROM invitation WHERE owner=? AND is_used=1 AND used_by IS NOT NULL",
-                (tg_id,),
-            )
-            count = rslt.fetchone()
-            return count[0] if count else 0
+            with get_session() as session:
+                stmt = select(func.count(func.distinct(Invitation.used_by))).where(
+                    Invitation.owner == tg_id,
+                    Invitation.is_used == 1,
+                    Invitation.used_by.isnot(None),
+                )
+                count = session.execute(stmt).scalar()
+                return count if count else 0
         except Exception as e:
             logger.error(f"获取邀请人数失败: {e}")
             return 0
 
-    def set_emby_line(self, line, tg_id=None, emby_id=None):
+    # ==================== Line Management Operations ====================
+
+    def set_emby_line(
+        self, line: str, tg_id: Optional[int] = None, emby_id: Optional[str] = None
+    ) -> bool:
+        """设置 Emby 线路"""
         try:
-            if tg_id:
-                self.cur.execute(
-                    "UPDATE emby_user SET emby_line=? WHERE tg_id=?", (line, tg_id)
-                )
-            elif emby_id:
-                self.cur.execute(
-                    "UPDATE emby_user SET emby_line=? WHERE emby_id=?", (line, emby_id)
-                )
+            with get_session() as session:
+                if tg_id is not None:
+                    session.execute(
+                        update(EmbyUser)
+                        .where(EmbyUser.tg_id == tg_id)
+                        .values(emby_line=line)
+                    )
+                elif emby_id is not None:
+                    session.execute(
+                        update(EmbyUser)
+                        .where(EmbyUser.emby_id == emby_id)
+                        .values(emby_line=line)
+                    )
+                return True
         except Exception as e:
-            logger.error(f"Error: {e}")
+            logger.error(f"Error setting emby line: {e}")
             return False
-        else:
-            self.con.commit()
-        return True
 
-    def get_emby_line(self, tg_id):
-        return self.cur.execute(
-            "SELECT emby_line FROM emby_user WHERE tg_id=?", (tg_id,)
-        ).fetchone()[0]
+    def get_emby_line(self, tg_id: int) -> Optional[str]:
+        """获取 Emby 线路"""
+        with get_session() as session:
+            stmt = select(EmbyUser.emby_line).where(EmbyUser.tg_id == tg_id)
+            result = session.execute(stmt).scalar_one_or_none()
+            return result
 
-    def get_emby_user_with_binded_line(self):
-        rslt = self.cur.execute(
-            "SELECT emby_username,tg_id,emby_line,is_premium FROM emby_user WHERE emby_line IS NOT NULL"
-        )
-        return rslt.fetchall()
+    def get_emby_user_with_binded_line(self) -> list:
+        """获取绑定线路的 Emby 用户"""
+        with get_session() as session:
+            stmt = select(
+                EmbyUser.emby_username,
+                EmbyUser.tg_id,
+                EmbyUser.emby_line,
+                EmbyUser.is_premium,
+            ).where(EmbyUser.emby_line.isnot(None))
+            results = session.execute(stmt).fetchall()
+            return [(r[0], r[1], r[2], r[3]) for r in results]
 
-    def set_plex_line(self, line, tg_id=None, plex_id=None):
+    def set_plex_line(
+        self, line: str, tg_id: Optional[int] = None, plex_id: Optional[int] = None
+    ) -> bool:
+        """设置 Plex 线路"""
         try:
-            if tg_id:
-                self.cur.execute(
-                    "UPDATE user SET plex_line=? WHERE tg_id=?", (line, tg_id)
-                )
-            elif plex_id:
-                self.cur.execute(
-                    "UPDATE user SET plex_line=? WHERE plex_id=?", (line, plex_id)
-                )
+            with get_session() as session:
+                if tg_id is not None:
+                    session.execute(
+                        update(PlexUser)
+                        .where(PlexUser.tg_id == tg_id)
+                        .values(plex_line=line)
+                    )
+                elif plex_id is not None:
+                    session.execute(
+                        update(PlexUser)
+                        .where(PlexUser.plex_id == plex_id)
+                        .values(plex_line=line)
+                    )
+                return True
         except Exception as e:
-            logger.error(f"Error: {e}")
+            logger.error(f"Error setting plex line: {e}")
             return False
-        else:
-            self.con.commit()
-        return True
 
-    def get_plex_line(self, tg_id):
-        return self.cur.execute(
-            "SELECT plex_line FROM user WHERE tg_id=?", (tg_id,)
-        ).fetchone()[0]
+    def get_plex_line(self, tg_id: int) -> Optional[str]:
+        """获取 Plex 线路"""
+        with get_session() as session:
+            stmt = select(PlexUser.plex_line).where(PlexUser.tg_id == tg_id)
+            result = session.execute(stmt).scalar_one_or_none()
+            return result
 
-    def get_plex_user_with_binded_line(self):
-        rslt = self.cur.execute(
-            "SELECT plex_username,tg_id,plex_line,is_premium FROM user WHERE plex_line IS NOT NULL"
-        )
-        return rslt.fetchall()
+    def get_plex_user_with_binded_line(self) -> list:
+        """获取绑定线路的 Plex 用户"""
+        with get_session() as session:
+            stmt = select(
+                PlexUser.plex_username,
+                PlexUser.tg_id,
+                PlexUser.plex_line,
+                PlexUser.is_premium,
+            ).where(PlexUser.plex_line.isnot(None))
+            results = session.execute(stmt).fetchall()
+            return [(r[0], r[1], r[2], r[3]) for r in results]
 
-    def add_wheel_spin_record(self, tg_id: int, item_name: str, credits_change: float):
+    # ==================== Wheel Operations ====================
+
+    def add_wheel_spin_record(
+        self, tg_id: int, item_name: str, credits_change: float
+    ) -> bool:
         """记录转盘旋转记录"""
         try:
-            timestamp = int(time.time())
-            date = datetime.now(settings.TZ).strftime("%Y-%m-%d")
+            with get_session() as session:
+                timestamp = int(time.time())
+                date = datetime.now(settings.TZ).strftime("%Y-%m-%d")
 
-            self.cur.execute(
-                "INSERT INTO wheel_stats (tg_id, item_name, credits_change, timestamp, date) VALUES (?, ?, ?, ?, ?)",
-                (tg_id, item_name, credits_change, timestamp, date),
-            )
-            self.con.commit()
-            return True
+                wheel_record = WheelStats(
+                    tg_id=tg_id,
+                    item_name=item_name,
+                    credits_change=credits_change,
+                    timestamp=timestamp,
+                    date=date,
+                )
+                session.add(wheel_record)
+                return True
         except Exception as e:
             logger.error(f"Error adding wheel spin record: {e}")
             return False
 
-    def get_wheel_stats(self):
+    def get_wheel_stats(self) -> dict:
         """获取转盘统计数据"""
         try:
-            # 获取总抽奖次数
-            total_spins = self.cur.execute(
-                "SELECT COUNT(*) FROM wheel_stats"
-            ).fetchone()[0]
+            with get_session() as session:
+                today = datetime.now(settings.TZ).strftime("%Y-%m-%d")
+                week_ago = (datetime.now(settings.TZ) - timedelta(days=7)).strftime(
+                    "%Y-%m-%d"
+                )
 
-            # 获取参与用户数（去重）
-            active_users = self.cur.execute(
-                "SELECT COUNT(DISTINCT tg_id) FROM wheel_stats"
-            ).fetchone()[0]
+                # 总抽奖次数
+                total_spins = session.execute(
+                    select(func.count(WheelStats.id))
+                ).scalar()
 
-            # 获取今日抽奖次数（使用UTC+8北京时间）
-            today = datetime.now(settings.TZ).strftime("%Y-%m-%d")
-            today_spins = self.cur.execute(
-                "SELECT COUNT(*) FROM wheel_stats WHERE date = ?", (today,)
-            ).fetchone()[0]
+                # 参与用户数（去重）
+                active_users = session.execute(
+                    select(func.count(func.distinct(WheelStats.tg_id)))
+                ).scalar()
 
-            # 获取本周抽奖次数（使用UTC+8北京时间）
-            week_ago = (datetime.now(settings.TZ) - timedelta(days=7)).strftime(
-                "%Y-%m-%d"
-            )
-            week_spins = self.cur.execute(
-                "SELECT COUNT(*) FROM wheel_stats WHERE date >= ?", (week_ago,)
-            ).fetchone()[0]
+                # 今日抽奖次数
+                today_spins = session.execute(
+                    select(func.count(WheelStats.id)).where(WheelStats.date == today)
+                ).scalar()
 
-            # 获取转盘总积分变化（通过转盘获得或失去的积分总和）
-            total_credits_change_result = self.cur.execute(
-                "SELECT SUM(credits_change) FROM wheel_stats"
-            ).fetchone()
-            total_credits_change = (
-                float(total_credits_change_result[0])
-                if total_credits_change_result[0]
-                else 0.0
-            )
+                # 本周抽奖次数
+                week_spins = session.execute(
+                    select(func.count(WheelStats.id)).where(WheelStats.date >= week_ago)
+                ).scalar()
 
-            # 获取幸运大转盘中总邀请码发放数
-            total_invite_codes_result = self.cur.execute(
-                'SELECT COUNT(*) FROM wheel_stats where item_name="邀请码 1 枚"'
-            ).fetchone()
-            total_invite_codes = (
-                int(total_invite_codes_result[0]) if total_invite_codes_result[0] else 0
-            )
+                # 转盘总积分变化
+                total_credits_change = (
+                    session.execute(
+                        select(func.sum(WheelStats.credits_change))
+                    ).scalar()
+                    or 0.0
+                )
 
-            return {
-                "totalSpins": total_spins,
-                "activeUsers": active_users,
-                "todaySpins": today_spins,
-                "lastWeekSpins": week_spins,
-                "totalCreditsChange": total_credits_change,
-                "totalInviteCodes": total_invite_codes,
-            }
+                # 总邀请码发放数
+                total_invite_codes = (
+                    session.execute(
+                        select(func.count(WheelStats.id)).where(
+                            WheelStats.item_name == "邀请码 1 枚"
+                        )
+                    ).scalar()
+                    or 0
+                )
+
+                return {
+                    "totalSpins": total_spins,
+                    "activeUsers": active_users,
+                    "todaySpins": today_spins,
+                    "lastWeekSpins": week_spins,
+                    "totalCreditsChange": float(total_credits_change),
+                    "totalInviteCodes": total_invite_codes,
+                }
         except Exception as e:
             logger.error(f"Error getting wheel stats: {e}")
             return {
@@ -719,706 +880,125 @@ class DB:
                 "totalInviteCodes": 0,
             }
 
-    def create_auction(
-        self,
-        title: str,
-        description: str,
-        starting_price: float,
-        end_time: int,
-        created_by: int,
-    ) -> Optional[int]:
-        """创建竞拍"""
-        try:
-            created_at = int(time.time())
-
-            self.cur.execute(
-                """INSERT INTO auctions 
-                   (title, description, starting_price, current_price, end_time, created_by, created_at) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    title,
-                    description,
-                    starting_price,
-                    starting_price,
-                    end_time,
-                    created_by,
-                    created_at,
-                ),
-            )
-            self.con.commit()
-            return self.cur.lastrowid
-        except Exception as e:
-            logger.error(f"Error creating auction: {e}")
-            return None
-
-    def get_auction_by_id(self, auction_id: int) -> Optional[dict]:
-        """根据ID获取竞拍信息"""
-        try:
-            result = self.cur.execute(
-                "SELECT * FROM auctions WHERE id = ?", (auction_id,)
-            ).fetchone()
-
-            if result:
-                return {
-                    "id": result[0],
-                    "title": result[1] or f"竞拍活动 #{result[0]}",
-                    "description": result[2] or "无描述",
-                    "starting_price": result[3] or 0,
-                    "current_price": result[4] or result[3] or 0,
-                    "end_time": result[5],
-                    "created_by": result[6],
-                    "created_at": result[7],
-                    "is_active": result[8],
-                    "winner_id": result[9],
-                    "bid_count": result[10],
-                }
-            return None
-        except Exception as e:
-            logger.error(f"Error getting auction by id: {e}")
-            return None
-
-    def get_active_auctions(self, limit: int = 50) -> List[dict]:
-        """获取活跃竞拍列表"""
-        try:
-            current_time = int(time.time())
-
-            results = self.cur.execute(
-                """SELECT * FROM auctions 
-                   WHERE is_active = 1 AND end_time > ? 
-                   ORDER BY created_at DESC LIMIT ?""",
-                (current_time, limit),
-            ).fetchall()
-
-            auctions = []
-            for result in results:
-                auctions.append(
-                    {
-                        "id": result[0],
-                        "title": result[1] or f"竞拍活动 #{result[0]}",
-                        "description": result[2] or "无描述",
-                        "starting_price": result[3] or 0,
-                        "current_price": result[4] or result[3] or 0,
-                        "end_time": result[5],
-                        "created_by": result[6],
-                        "created_at": result[7],
-                        "is_active": result[8],
-                        "winner_id": result[9],
-                        "bid_count": result[10],
-                    }
-                )
-            return auctions
-        except Exception as e:
-            logger.error(f"Error getting active auctions: {e}")
-            return []
-
-    def place_bid(self, auction_id: int, bidder_id: int, bid_amount: float) -> bool:
-        """出价"""
-        try:
-            bid_time = int(time.time())
-
-            # 检查竞拍是否存在且活跃
-            auction = self.get_auction_by_id(auction_id)
-            if (
-                not auction
-                or not auction["is_active"]
-                or auction["end_time"] <= bid_time
-            ):
-                return False
-
-            # 检查出价是否高于当前价格
-            if bid_amount <= auction["current_price"]:
-                return False
-
-            # 插入出价记录
-            self.cur.execute(
-                "INSERT INTO auction_bids (auction_id, bidder_id, bid_amount, bid_time) VALUES (?, ?, ?, ?)",
-                (auction_id, bidder_id, bid_amount, bid_time),
-            )
-
-            # 更新竞拍当前价格和出价次数
-            self.cur.execute(
-                "UPDATE auctions SET current_price = ?, bid_count = bid_count + 1 WHERE id = ?",
-                (bid_amount, auction_id),
-            )
-
-            self.con.commit()
-            return True
-        except Exception as e:
-            logger.error(f"Error placing bid: {e}")
-            return False
-
-    def get_auction_bids(self, auction_id: int, limit: int = 50) -> List[dict]:
-        """获取竞拍出价记录"""
-        try:
-            results = self.cur.execute(
-                """SELECT ab.* 
-                FROM auction_bids ab 
-                WHERE ab.auction_id = ? 
-                ORDER BY ab.bid_time DESC 
-                LIMIT ?""",
-                (auction_id, limit),
-            ).fetchall()
-
-            bids = []
-            for result in results:
-                bids.append(
-                    {
-                        "id": result[0],
-                        "auction_id": result[1],
-                        "bidder_id": result[2],
-                        "bid_amount": result[3],
-                        "bid_time": result[4],
-                    }
-                )
-            return bids
-        except Exception as e:
-            logger.error(f"Error getting auction bids: {e}")
-            return []
-
-    def get_user_highest_bid(self, auction_id: int, user_id: int) -> Optional[float]:
-        """获取用户在特定竞拍中的最高出价"""
-        try:
-            result = self.cur.execute(
-                "SELECT MAX(bid_amount) FROM auction_bids WHERE auction_id = ? AND bidder_id = ?",
-                (auction_id, user_id),
-            ).fetchone()
-
-            return result[0] if result and result[0] else None
-        except Exception as e:
-            logger.error(f"Error getting user highest bid: {e}")
-            return None
-
-    def get_auction_participants(
-        self, auction_id: int, exclude_user_id: int = None
-    ) -> List[int]:
-        """获取拍卖的所有参与者（出价者）ID列表，可排除指定用户"""
-        try:
-            if exclude_user_id:
-                results = self.cur.execute(
-                    "SELECT DISTINCT bidder_id FROM auction_bids WHERE auction_id = ? AND bidder_id != ?",
-                    (auction_id, exclude_user_id),
-                ).fetchall()
-            else:
-                results = self.cur.execute(
-                    "SELECT DISTINCT bidder_id FROM auction_bids WHERE auction_id = ?",
-                    (auction_id,),
-                ).fetchall()
-
-            return [result[0] for result in results]
-        except Exception as e:
-            logger.error(f"Error getting auction participants: {e}")
-            return []
-
-    def finish_expired_auctions(self) -> List[dict]:
-        """结束过期的竞拍"""
-        try:
-            current_time = int(time.time())
-
-            # 查找过期的活跃竞拍
-            expired_auctions = self.cur.execute(
-                "SELECT * FROM auctions WHERE is_active = 1 AND end_time <= ?",
-                (current_time,),
-            ).fetchall()
-
-            finished_auctions = []
-            for auction in expired_auctions:
-                auction_id = auction[0]
-
-                # 获取最高出价者
-                highest_bid = self.cur.execute(
-                    """SELECT bidder_id, MAX(bid_amount) FROM auction_bids 
-                       WHERE auction_id = ? GROUP BY auction_id""",
-                    (auction_id,),
-                ).fetchone()
-
-                winner_id = highest_bid[0] if highest_bid else None
-                final_price = auction[4]  # current_price from auctions table
-                credits_reduced = False
-                # 如果有获胜者，扣除其积分
-                if winner_id and highest_bid:
-                    final_price = highest_bid[1]  # 使用最高出价作为最终价格
-
-                    # 扣除获胜者的积分
-                    success, current_credits = self.get_user_credits(winner_id)
-                    if success and current_credits >= final_price:
-                        self.cur.execute(
-                            "UPDATE statistics SET credits = credits - ? WHERE tg_id = ?",
-                            (final_price, winner_id),
-                        )
-                        credits_reduced = True
-                        logger.info(
-                            f"Auction {auction_id} finished: deducted {final_price} credits from winner {winner_id}"
-                        )
-                    else:
-                        logger.warning(
-                            f"Winner {winner_id} has insufficient credits ({current_credits}) for auction {auction_id} (price: {final_price})"
-                        )
-
-                # 更新竞拍状态
-                self.cur.execute(
-                    "UPDATE auctions SET is_active = 0, winner_id = ?, current_price = ? WHERE id = ?",
-                    (winner_id, final_price, auction_id),
-                )
-
-                finished_auctions.append(
-                    {
-                        "id": auction_id,
-                        "title": auction[1] or f"竞拍活动 #{auction_id}",
-                        "winner_id": winner_id,
-                        "final_price": final_price,
-                        "credits_reduced": credits_reduced,
-                    }
-                )
-
-            self.con.commit()
-            return finished_auctions
-        except Exception as e:
-            logger.error(f"Error finishing expired auctions: {e}")
-            logger.error(traceback.format_exc())
-            return []
-
-    def get_auction_stats(self) -> dict:
-        """获取竞拍统计数据"""
-        try:
-            # 总竞拍数
-            total_auctions = self.cur.execute(
-                "SELECT COUNT(*) FROM auctions"
-            ).fetchone()[0]
-
-            # 活跃竞拍数
-
-            current_time = int(time.time())
-            active_auctions = self.cur.execute(
-                "SELECT COUNT(*) FROM auctions WHERE is_active = 1 AND end_time > ?",
-                (current_time,),
-            ).fetchone()[0]
-
-            # 总出价数
-            total_bids = self.cur.execute(
-                "SELECT COUNT(*) FROM auction_bids"
-            ).fetchone()[0]
-
-            # 总成交价值
-            total_value_result = self.cur.execute(
-                "SELECT SUM(current_price) FROM auctions WHERE winner_id IS NOT NULL"
-            ).fetchone()
-            total_value = float(total_value_result[0]) if total_value_result[0] else 0.0
-
-            return {
-                "total_auctions": total_auctions,
-                "active_auctions": active_auctions,
-                "total_bids": total_bids,
-                "total_value": total_value,
-            }
-        except Exception as e:
-            logger.error(f"Error getting auction stats: {e}")
-            return {
-                "total_auctions": 0,
-                "active_auctions": 0,
-                "total_bids": 0,
-                "total_value": 0.0,
-            }
-
-    def get_all_auctions(
-        self, status: str = None, limit: int = 50, offset: int = 0
-    ) -> List[dict]:
-        """获取所有竞拍活动（管理员用）"""
-        try:
-            if status:
-                if status == "active":
-                    current_time = int(time.time())
-                    self.cur.execute(
-                        """SELECT * FROM auctions 
-                        WHERE is_active = 1 AND end_time > ? 
-                        ORDER BY created_at DESC 
-                        LIMIT ? OFFSET ?""",
-                        (current_time, limit, offset),
-                    )
-                elif status == "ended":
-                    current_time = int(time.time())
-                    self.cur.execute(
-                        """SELECT * FROM auctions 
-                        WHERE is_active = 0 OR end_time <= ? 
-                        ORDER BY created_at DESC 
-                        LIMIT ? OFFSET ?""",
-                        (current_time, limit, offset),
-                    )
-                else:
-                    self.cur.execute(
-                        "SELECT * FROM auctions ORDER BY created_at DESC LIMIT ? OFFSET ?",
-                        (limit, offset),
-                    )
-            else:
-                self.cur.execute(
-                    "SELECT * FROM auctions ORDER BY created_at DESC LIMIT ? OFFSET ?",
-                    (limit, offset),
-                )
-
-            auctions = []
-            for auction in self.cur.fetchall():
-                # 获取出价数量
-                bid_count = self.cur.execute(
-                    "SELECT COUNT(*) FROM auction_bids WHERE auction_id = ?",
-                    (auction[0],),
-                ).fetchone()[0]
-
-                auctions.append(
-                    {
-                        "id": auction[0],
-                        "title": auction[1] or f"竞拍活动 #{auction[0]}",
-                        "description": auction[2] or "无描述",
-                        "starting_price": auction[3] or 0,
-                        "current_price": auction[4] or auction[3] or 0,
-                        "end_time": auction[5],
-                        "created_by": auction[6],
-                        "created_at": auction[7],
-                        "is_active": bool(auction[8]),
-                        "winner_id": auction[9],
-                        "bid_count": bid_count,
-                        "status": self._get_auction_status(auction),
-                    }
-                )
-
-            return auctions
-        except Exception as e:
-            logger.error(f"Error getting all auctions: {e}")
-            return []
-
-    def _get_auction_status(self, auction) -> str:
-        """获取竞拍状态"""
-
-        current_time = int(time.time())
-
-        if not auction[8]:  # is_active
-            return "ended"
-        elif auction[5] <= current_time:  # end_time
-            return "ended"
-        else:
-            return "active"
-
-    def update_auction(self, auction_id: int, update_data: dict) -> bool:
-        """更新竞拍活动"""
-        try:
-            # 构建更新语句
-            set_clauses = []
-            values = []
-
-            if "title" in update_data:
-                set_clauses.append("title = ?")
-                values.append(update_data["title"])
-
-            if "description" in update_data:
-                set_clauses.append("description = ?")
-                values.append(update_data["description"])
-
-            if "starting_price" in update_data:
-                set_clauses.append("starting_price = ?")
-                values.append(update_data["starting_price"])
-
-            if "end_time" in update_data:
-                set_clauses.append("end_time = ?")
-                values.append(update_data["end_time"])
-
-            if not set_clauses:
-                return False
-
-            values.append(auction_id)
-
-            self.cur.execute(
-                f"UPDATE auctions SET {', '.join(set_clauses)} WHERE id = ?",
-                tuple(values),
-            )
-
-            self.con.commit()
-            return self.cur.rowcount > 0
-        except Exception as e:
-            logger.error(f"Error updating auction: {e}")
-            return False
-
-    def delete_auction(self, auction_id: int) -> bool:
-        """删除竞拍活动"""
-        try:
-            # 先删除相关的出价记录
-            self.cur.execute(
-                "DELETE FROM auction_bids WHERE auction_id = ?", (auction_id,)
-            )
-
-            # 再删除竞拍活动
-            self.cur.execute("DELETE FROM auctions WHERE id = ?", (auction_id,))
-
-            self.con.commit()
-            return self.cur.rowcount > 0
-        except Exception as e:
-            logger.error(f"Error deleting auction: {e}")
-            return False
-
-    def finish_auction_by_id(self, auction_id: int) -> tuple:
-        """手动结束指定竞拍活动"""
-        try:
-            # 获取竞拍信息
-            auction = self.get_auction_by_id(auction_id)
-            if not auction:
-                return False, f"竞拍 id {auction_id} 不存在"
-
-            # 获取最高出价
-            highest_bid = self.cur.execute(
-                """SELECT bidder_id, bid_amount FROM auction_bids 
-                WHERE auction_id = ? ORDER BY bid_amount DESC LIMIT 1""",
-                (auction_id,),
-            ).fetchone()
-
-            winner_id = None
-            final_price = auction["starting_price"]
-            credits_reduced = False
-
-            if highest_bid:
-                winner_id = highest_bid[0]
-                final_price = highest_bid[1]
-
-                # 扣除获胜者的积分
-                success, current_credits = self.get_user_credits(winner_id)
-                if success and current_credits >= final_price:
-                    self.cur.execute(
-                        "UPDATE statistics SET credits = credits - ? WHERE tg_id = ?",
-                        (final_price, winner_id),
-                    )
-                    credits_reduced = True
-
-            # 更新竞拍状态
-            self.cur.execute(
-                """UPDATE auctions 
-                SET is_active = 0, winner_id = ?, current_price = ? 
-                WHERE id = ?""",
-                (winner_id, final_price, auction_id),
-            )
-
-            self.con.commit()
-            return True, {
-                "id": auction_id,
-                "title": auction["title"],
-                "winner_id": winner_id,
-                "final_price": final_price,
-                "credits_reduced": credits_reduced,
-            }
-
-        except Exception as e:
-            logger.error(f"Error finishing auction {auction_id}: {e}")
-            logger.error(traceback.format_exc())
-            return False, str(e)
-
-    def get_user_auction_history(self, user_id: int, limit: int = 20) -> List[dict]:
-        """获取用户参与的竞拍历史"""
-        try:
-            self.cur.execute(
-                """SELECT DISTINCT a.*, ab.bid_amount as user_highest_bid
-                FROM auctions a
-                JOIN auction_bids ab ON a.id = ab.auction_id
-                WHERE ab.bidder_id = ?
-                ORDER BY a.created_at DESC
-                LIMIT ?""",
-                (user_id, limit),
-            )
-
-            auctions = []
-            for auction in self.cur.fetchall():
-                # 获取用户最高出价
-                highest_bid = self.cur.execute(
-                    """SELECT MAX(bid_amount) FROM auction_bids 
-                    WHERE auction_id = ? AND bidder_id = ?""",
-                    (auction[0], user_id),
-                ).fetchone()[0]
-
-                auctions.append(
-                    {
-                        "id": auction[0],
-                        "title": auction[1] or f"竞拍活动 #{auction[0]}",
-                        "description": auction[2] or "无描述",
-                        "starting_price": auction[3] or 0,
-                        "current_price": auction[4] or auction[3] or 0,
-                        "end_time": auction[5],
-                        "created_by": auction[6],
-                        "created_at": auction[7],
-                        "is_active": bool(auction[8]),
-                        "winner_id": auction[9],
-                        "user_highest_bid": highest_bid,
-                        "is_winner": auction[9] == user_id,
-                    }
-                )
-
-            return auctions
-        except Exception as e:
-            logger.error(f"Error getting user auction history: {e}")
-            return []
-
-    def get_detailed_auction_stats(
-        self, start_date: int = None, end_date: int = None
-    ) -> dict:
-        """获取详细的竞拍统计数据"""
-        try:
-            # 设置默认时间范围（如果未提供）
-            if not start_date:
-                start_date = 0
-            if not end_date:
-                end_date = int(time.time())
-
-            # 基本统计
-            stats = self.get_auction_stats()
-
-            # 时间段内的统计
-            period_auctions = self.cur.execute(
-                "SELECT COUNT(*) FROM auctions WHERE created_at BETWEEN ? AND ?",
-                (start_date, end_date),
-            ).fetchone()[0]
-
-            period_bids = self.cur.execute(
-                """SELECT COUNT(*) FROM auction_bids ab
-                JOIN auctions a ON ab.auction_id = a.id
-                WHERE a.created_at BETWEEN ? AND ?""",
-                (start_date, end_date),
-            ).fetchone()[0]
-
-            # 平均出价数
-            avg_bids_result = self.cur.execute(
-                """SELECT AVG(bid_count) FROM (
-                    SELECT COUNT(*) as bid_count FROM auction_bids 
-                    GROUP BY auction_id
-                )"""
-            ).fetchone()
-            avg_bids = float(avg_bids_result[0]) if avg_bids_result[0] else 0.0
-
-            # 最高成交价
-            highest_price_result = self.cur.execute(
-                "SELECT MAX(current_price) FROM auctions WHERE winner_id IS NOT NULL"
-            ).fetchone()
-            highest_price = (
-                float(highest_price_result[0]) if highest_price_result[0] else 0.0
-            )
-
-            stats.update(
-                {
-                    "period_auctions": period_auctions,
-                    "period_bids": period_bids,
-                    "avg_bids_per_auction": avg_bids,
-                    "highest_transaction": highest_price,
-                    "start_date": start_date,
-                    "end_date": end_date,
-                }
-            )
-
-            return stats
-        except Exception as e:
-            logger.error(f"Error getting detailed auction stats: {e}")
-            return self.get_auction_stats()
-
-    def get_user_wheel_stats(self, tg_id: int):
+    def get_user_wheel_stats(self, tg_id: int) -> dict:
         """获取用户个人转盘统计数据"""
         try:
-            # 使用UTC+8北京时间
-            today = datetime.now(settings.TZ).strftime("%Y-%m-%d")
-            week_ago = (datetime.now(settings.TZ) - timedelta(days=7)).strftime(
-                "%Y-%m-%d"
-            )
+            with get_session() as session:
+                today = datetime.now(settings.TZ).strftime("%Y-%m-%d")
+                week_ago = (datetime.now(settings.TZ) - timedelta(days=7)).strftime(
+                    "%Y-%m-%d"
+                )
 
-            # 获取用户今日游戏次数
-            today_spins = self.cur.execute(
-                "SELECT COUNT(*) FROM wheel_stats WHERE tg_id = ? AND date = ?",
-                (tg_id, today),
-            ).fetchone()[0]
+                # 用户今日游戏次数
+                today_spins = session.execute(
+                    select(func.count(WheelStats.id)).where(
+                        WheelStats.tg_id == tg_id, WheelStats.date == today
+                    )
+                ).scalar()
 
-            # 获取用户总游戏次数
-            total_spins = self.cur.execute(
-                "SELECT COUNT(*) FROM wheel_stats WHERE tg_id = ?", (tg_id,)
-            ).fetchone()[0]
+                # 用户总游戏次数
+                total_spins = session.execute(
+                    select(func.count(WheelStats.id)).where(WheelStats.tg_id == tg_id)
+                ).scalar()
 
-            # 获取用户本周游戏次数
-            week_spins = self.cur.execute(
-                "SELECT COUNT(*) FROM wheel_stats WHERE tg_id = ? AND date >= ?",
-                (tg_id, week_ago),
-            ).fetchone()[0]
+                # 用户本周游戏次数
+                week_spins = session.execute(
+                    select(func.count(WheelStats.id)).where(
+                        WheelStats.tg_id == tg_id, WheelStats.date >= week_ago
+                    )
+                ).scalar()
 
-            # 获取用户总积分变化
-            total_credits_change_result = self.cur.execute(
-                "SELECT SUM(credits_change) FROM wheel_stats WHERE tg_id = ?", (tg_id,)
-            ).fetchone()
-            total_credits_change = (
-                float(total_credits_change_result[0])
-                if total_credits_change_result[0]
-                else 0.0
-            )
+                # 用户总积分变化
+                total_credits_change = (
+                    session.execute(
+                        select(func.sum(WheelStats.credits_change)).where(
+                            WheelStats.tg_id == tg_id
+                        )
+                    ).scalar()
+                    or 0.0
+                )
 
-            # 获取用户今日积分变化
-            today_credits_change_result = self.cur.execute(
-                "SELECT SUM(credits_change) FROM wheel_stats WHERE tg_id = ? AND date = ?",
-                (tg_id, today),
-            ).fetchone()
-            today_credits_change = (
-                float(today_credits_change_result[0])
-                if today_credits_change_result[0]
-                else 0.0
-            )
+                # 用户今日积分变化
+                today_credits_change = (
+                    session.execute(
+                        select(func.sum(WheelStats.credits_change)).where(
+                            WheelStats.tg_id == tg_id, WheelStats.date == today
+                        )
+                    ).scalar()
+                    or 0.0
+                )
 
-            # 获取用户本周积分变化
-            week_credits_change_result = self.cur.execute(
-                "SELECT SUM(credits_change) FROM wheel_stats WHERE tg_id = ? AND date >= ?",
-                (tg_id, week_ago),
-            ).fetchone()
-            week_credits_change = (
-                float(week_credits_change_result[0])
-                if week_credits_change_result[0]
-                else 0.0
-            )
+                # 用户本周积分变化
+                week_credits_change = (
+                    session.execute(
+                        select(func.sum(WheelStats.credits_change)).where(
+                            WheelStats.tg_id == tg_id, WheelStats.date >= week_ago
+                        )
+                    ).scalar()
+                    or 0.0
+                )
 
-            # 获取用户通过转盘获得的邀请码数量
-            invite_codes_earned = self.cur.execute(
-                'SELECT COUNT(*) FROM wheel_stats WHERE tg_id = ? AND item_name = "邀请码 1 枚"',
-                (tg_id,),
-            ).fetchone()[0]
+                # 用户获得的邀请码数量
+                invite_codes_earned = session.execute(
+                    select(func.count(WheelStats.id)).where(
+                        WheelStats.tg_id == tg_id, WheelStats.item_name == "邀请码 1 枚"
+                    )
+                ).scalar()
 
-            # 获取用户今日获得的邀请码数量
-            today_invite_codes = self.cur.execute(
-                'SELECT COUNT(*) FROM wheel_stats WHERE tg_id = ? AND item_name = "邀请码 1 枚" AND date = ?',
-                (tg_id, today),
-            ).fetchone()[0]
+                # 用户今日获得的邀请码数量
+                today_invite_codes = session.execute(
+                    select(func.count(WheelStats.id)).where(
+                        WheelStats.tg_id == tg_id,
+                        WheelStats.item_name == "邀请码 1 枚",
+                        WheelStats.date == today,
+                    )
+                ).scalar()
 
-            # 获取用户本周获得的邀请码数量
-            week_invite_codes = self.cur.execute(
-                'SELECT COUNT(*) FROM wheel_stats WHERE tg_id = ? AND item_name = "邀请码 1 枚" AND date >= ?',
-                (tg_id, week_ago),
-            ).fetchone()[0]
+                # 用户本周获得的邀请码数量
+                week_invite_codes = session.execute(
+                    select(func.count(WheelStats.id)).where(
+                        WheelStats.tg_id == tg_id,
+                        WheelStats.item_name == "邀请码 1 枚",
+                        WheelStats.date >= week_ago,
+                    )
+                ).scalar()
 
-            # 获取用户最近5次游戏记录
-            recent_games = self.cur.execute(
-                """SELECT item_name, credits_change, date, timestamp 
-                   FROM wheel_stats 
-                   WHERE tg_id = ? 
-                   ORDER BY timestamp DESC 
-                   LIMIT 5""",
-                (tg_id,),
-            ).fetchall()
+                # 最近5次游戏记录
+                stmt = (
+                    select(
+                        WheelStats.item_name,
+                        WheelStats.credits_change,
+                        WheelStats.date,
+                        WheelStats.timestamp,
+                    )
+                    .where(WheelStats.tg_id == tg_id)
+                    .order_by(WheelStats.timestamp.desc())
+                    .limit(5)
+                )
+                recent_games_result = session.execute(stmt).fetchall()
 
-            recent_games_list = []
-            for game in recent_games:
-                recent_games_list.append(
+                recent_games_list = [
                     {
                         "item_name": game[0],
                         "credits_change": game[1],
                         "date": game[2],
                         "timestamp": game[3],
                     }
-                )
+                    for game in recent_games_result
+                ]
 
-            return {
-                "today_spins": today_spins,
-                "total_spins": total_spins,
-                "week_spins": week_spins,
-                "total_credits_change": total_credits_change,
-                "today_credits_change": today_credits_change,
-                "week_credits_change": week_credits_change,
-                "total_invite_codes": invite_codes_earned,
-                "today_invite_codes": today_invite_codes,
-                "week_invite_codes": week_invite_codes,
-                "recent_games": recent_games_list,
-            }
+                return {
+                    "today_spins": today_spins,
+                    "total_spins": total_spins,
+                    "week_spins": week_spins,
+                    "total_credits_change": float(total_credits_change),
+                    "today_credits_change": float(today_credits_change),
+                    "week_credits_change": float(week_credits_change),
+                    "total_invite_codes": invite_codes_earned,
+                    "today_invite_codes": today_invite_codes,
+                    "week_invite_codes": week_invite_codes,
+                    "recent_games": recent_games_list,
+                }
         except Exception as e:
             logger.error(f"Error getting user wheel stats: {e}")
             return {
@@ -1434,178 +1014,218 @@ class DB:
                 "recent_games": [],
             }
 
-    def close(self):
-        self.cur.close()
-        self.con.close()
+    # ==================== Premium Operations ====================
 
-    def get_expired_premium_users(self):
+    def get_expired_premium_users(self) -> list:
         """获取所有 Premium 已过期的用户"""
-
         expired_users = []
         current_time = datetime.now(settings.TZ).isoformat()
 
-        # 检查 Plex 用户
-        plex_users = self.cur.execute(
-            "SELECT tg_id, plex_username, premium_expiry_time, plex_line FROM user WHERE is_premium=1 AND premium_expiry_time IS NOT NULL AND premium_expiry_time < ?",
-            (current_time,),
-        ).fetchall()
-
-        for user in plex_users:
-            expired_users.append(
-                {
-                    "tg_id": user[0],
-                    "username": user[1],
-                    "service": "plex",
-                    "expiry_time": user[2],
-                    "line": user[3],
-                }
+        with get_session() as session:
+            # 检查 Plex 用户
+            plex_stmt = select(
+                PlexUser.tg_id,
+                PlexUser.plex_username,
+                PlexUser.premium_expiry_time,
+                PlexUser.plex_line,
+            ).where(
+                PlexUser.is_premium == 1,
+                PlexUser.premium_expiry_time.isnot(None),
+                PlexUser.premium_expiry_time < current_time,
             )
+            plex_users = session.execute(plex_stmt).fetchall()
 
-        # 检查 Emby 用户
-        emby_users = self.cur.execute(
-            "SELECT tg_id, emby_username, premium_expiry_time, emby_line FROM emby_user WHERE is_premium=1 AND premium_expiry_time IS NOT NULL AND premium_expiry_time < ?",
-            (current_time,),
-        ).fetchall()
+            for user in plex_users:
+                expired_users.append(
+                    {
+                        "tg_id": user[0],
+                        "username": user[1],
+                        "service": "plex",
+                        "expiry_time": user[2],
+                        "line": user[3],
+                    }
+                )
 
-        for user in emby_users:
-            expired_users.append(
-                {
-                    "tg_id": user[0],
-                    "username": user[1],
-                    "service": "emby",
-                    "expiry_time": user[2],
-                    "line": user[3],
-                }
+            # 检查 Emby 用户
+            emby_stmt = select(
+                EmbyUser.tg_id,
+                EmbyUser.emby_username,
+                EmbyUser.premium_expiry_time,
+                EmbyUser.emby_line,
+            ).where(
+                EmbyUser.is_premium == 1,
+                EmbyUser.premium_expiry_time.isnot(None),
+                EmbyUser.premium_expiry_time < current_time,
             )
+            emby_users = session.execute(emby_stmt).fetchall()
+
+            for user in emby_users:
+                expired_users.append(
+                    {
+                        "tg_id": user[0],
+                        "username": user[1],
+                        "service": "emby",
+                        "expiry_time": user[2],
+                        "line": user[3],
+                    }
+                )
 
         return expired_users
 
-    def update_expired_premium_status(self):
+    def update_expired_premium_status(self) -> int:
         """批量更新已过期的 Premium 用户状态"""
-
         current_time = datetime.now(settings.TZ).isoformat()
 
-        # 更新 Plex 用户 - 清空过期时间
-        plex_result = self.cur.execute(
-            "UPDATE user SET is_premium=0, premium_expiry_time=NULL WHERE is_premium=1 AND premium_expiry_time IS NOT NULL AND premium_expiry_time < ?",
-            (current_time,),
-        )
+        with get_session() as session:
+            # 更新 Plex 用户
+            plex_result = session.execute(
+                update(PlexUser)
+                .where(
+                    PlexUser.is_premium == 1,
+                    PlexUser.premium_expiry_time.isnot(None),
+                    PlexUser.premium_expiry_time < current_time,
+                )
+                .values(is_premium=0, premium_expiry_time=None)
+            )
 
-        # 更新 Emby 用户 - 清空过期时间
-        emby_result = self.cur.execute(
-            "UPDATE emby_user SET is_premium=0, premium_expiry_time=NULL WHERE is_premium=1 AND premium_expiry_time IS NOT NULL AND premium_expiry_time < ?",
-            (current_time,),
-        )
+            # 更新 Emby 用户
+            emby_result = session.execute(
+                update(EmbyUser)
+                .where(
+                    EmbyUser.is_premium == 1,
+                    EmbyUser.premium_expiry_time.isnot(None),
+                    EmbyUser.premium_expiry_time < current_time,
+                )
+                .values(is_premium=0, premium_expiry_time=None)
+            )
+            total_updated = plex_result.rowcount + emby_result.rowcount
+            return total_updated
 
-        self.con.commit()
-
-        total_updated = plex_result.rowcount + emby_result.rowcount
-        return total_updated
-
-    def get_premium_users_expiring_soon(self, days: int = 3):
+    def get_premium_users_expiring_soon(self, days: int = 3) -> list:
         """获取即将过期的 Premium 用户（默认3天内）"""
-
         current_time = datetime.now(settings.TZ)
         warning_time = (current_time + timedelta(days=days)).isoformat()
         current_time_str = current_time.isoformat()
 
         expiring_users = []
 
-        # 检查 Plex 用户
-        plex_users = self.cur.execute(
-            "SELECT tg_id, plex_username, premium_expiry_time FROM user WHERE is_premium=1 AND premium_expiry_time IS NOT NULL AND premium_expiry_time > ? AND premium_expiry_time <= ?",
-            (current_time_str, warning_time),
-        ).fetchall()
-
-        for user in plex_users:
-            expiry_dt = datetime.fromisoformat(user[2]).astimezone(settings.TZ)
-            days_remaining = (expiry_dt - current_time).days
-            expiring_users.append(
-                {
-                    "tg_id": user[0],
-                    "username": user[1],
-                    "service": "plex",
-                    "expiry_time": user[2],
-                    "days_remaining": days_remaining,
-                }
+        with get_session() as session:
+            # 检查 Plex 用户
+            plex_stmt = select(
+                PlexUser.tg_id, PlexUser.plex_username, PlexUser.premium_expiry_time
+            ).where(
+                PlexUser.is_premium == 1,
+                PlexUser.premium_expiry_time.isnot(None),
+                PlexUser.premium_expiry_time > current_time_str,
+                PlexUser.premium_expiry_time <= warning_time,
             )
+            plex_users = session.execute(plex_stmt).fetchall()
 
-        # 检查 Emby 用户
-        emby_users = self.cur.execute(
-            "SELECT tg_id, emby_username, premium_expiry_time FROM emby_user WHERE is_premium=1 AND premium_expiry_time IS NOT NULL AND premium_expiry_time > ? AND premium_expiry_time <= ?",
-            (current_time_str, warning_time),
-        ).fetchall()
+            for user in plex_users:
+                expiry_dt = datetime.fromisoformat(user[2]).astimezone(settings.TZ)
+                days_remaining = (expiry_dt - current_time).days
+                expiring_users.append(
+                    {
+                        "tg_id": user[0],
+                        "username": user[1],
+                        "service": "plex",
+                        "expiry_time": user[2],
+                        "days_remaining": days_remaining,
+                    }
+                )
 
-        for user in emby_users:
-            expiry_dt = datetime.fromisoformat(user[2]).astimezone(settings.TZ)
-            days_remaining = (expiry_dt - current_time).days
-            expiring_users.append(
-                {
-                    "tg_id": user[0],
-                    "username": user[1],
-                    "service": "emby",
-                    "expiry_time": user[2],
-                    "days_remaining": days_remaining,
-                }
+            # 检查 Emby 用户
+            emby_stmt = select(
+                EmbyUser.tg_id, EmbyUser.emby_username, EmbyUser.premium_expiry_time
+            ).where(
+                EmbyUser.is_premium == 1,
+                EmbyUser.premium_expiry_time.isnot(None),
+                EmbyUser.premium_expiry_time > current_time_str,
+                EmbyUser.premium_expiry_time <= warning_time,
             )
+            emby_users = session.execute(emby_stmt).fetchall()
+
+            for user in emby_users:
+                expiry_dt = datetime.fromisoformat(user[2]).astimezone(settings.TZ)
+                days_remaining = (expiry_dt - current_time).days
+                expiring_users.append(
+                    {
+                        "tg_id": user[0],
+                        "username": user[1],
+                        "service": "emby",
+                        "expiry_time": user[2],
+                        "days_remaining": days_remaining,
+                    }
+                )
 
         return expiring_users
 
-    def get_premium_statistics(self):
+    def get_premium_statistics(self) -> dict:
         """获取 Premium 用户统计信息"""
         try:
             current_time = datetime.now(settings.TZ).isoformat()
 
-            # 总 Premium 用户数（包含 Plex 和 Emby，去重）
-            total_premium_users_query = """
-            SELECT COUNT(DISTINCT tg_id) FROM (
-                SELECT tg_id FROM user WHERE is_premium=1 AND tg_id IS NOT NULL
-                UNION
-                SELECT tg_id FROM emby_user WHERE is_premium=1 AND tg_id IS NOT NULL
-            )
-            """
-            total_premium_users = self.cur.execute(
-                total_premium_users_query
-            ).fetchone()[0]
+            with get_session() as session:
+                # 总 Premium 用户数（去重）
+                total_premium_users = session.execute(
+                    select(func.count()).select_from(
+                        select(PlexUser.tg_id)
+                        .where(PlexUser.is_premium == 1, PlexUser.tg_id.isnot(None))
+                        .union(
+                            select(EmbyUser.tg_id).where(
+                                EmbyUser.is_premium == 1, EmbyUser.tg_id.isnot(None)
+                            )
+                        )
+                        .subquery()
+                    )
+                ).scalar()
 
-            # 活跃 Premium 用户数（未过期的）
-            active_premium_users_query = """
-            SELECT COUNT(DISTINCT tg_id) FROM (
-                SELECT tg_id FROM user 
-                WHERE is_premium=1 AND tg_id IS NOT NULL 
-                AND (premium_expiry_time IS NULL OR premium_expiry_time > ?)
-                UNION
-                SELECT tg_id FROM emby_user 
-                WHERE is_premium=1 AND tg_id IS NOT NULL 
-                AND (premium_expiry_time IS NULL OR premium_expiry_time > ?)
-            )
-            """
-            active_premium_users = self.cur.execute(
-                active_premium_users_query, (current_time, current_time)
-            ).fetchone()[0]
+                # 活跃 Premium 用户数（未过期的，去重）
+                active_premium_users = session.execute(
+                    select(func.count()).select_from(
+                        select(PlexUser.tg_id)
+                        .where(
+                            PlexUser.is_premium == 1,
+                            PlexUser.tg_id.isnot(None),
+                            (PlexUser.premium_expiry_time.is_(None))
+                            | (PlexUser.premium_expiry_time > current_time),
+                        )
+                        .union(
+                            select(EmbyUser.tg_id).where(
+                                EmbyUser.is_premium == 1,
+                                EmbyUser.tg_id.isnot(None),
+                                (EmbyUser.premium_expiry_time.is_(None))
+                                | (EmbyUser.premium_expiry_time > current_time),
+                            )
+                        )
+                        .subquery()
+                    )
+                ).scalar()
 
-            # Premium Plex 用户数（未过期的）
-            premium_plex_users = self.cur.execute(
-                """SELECT COUNT(*) FROM user 
-                WHERE is_premium=1 
-                AND (premium_expiry_time IS NULL OR premium_expiry_time > ?)""",
-                (current_time,),
-            ).fetchone()[0]
+                # Premium Plex 用户数（未过期的）
+                premium_plex_users = session.execute(
+                    select(func.count(PlexUser.id)).where(
+                        PlexUser.is_premium == 1,
+                        (PlexUser.premium_expiry_time.is_(None))
+                        | (PlexUser.premium_expiry_time > current_time),
+                    )
+                ).scalar()
 
-            # Premium Emby 用户数（未过期的）
-            premium_emby_users = self.cur.execute(
-                """SELECT COUNT(*) FROM emby_user 
-                WHERE is_premium=1 
-                AND (premium_expiry_time IS NULL OR premium_expiry_time > ?)""",
-                (current_time,),
-            ).fetchone()[0]
+                # Premium Emby 用户数（未过期的）
+                premium_emby_users = session.execute(
+                    select(func.count(EmbyUser.emby_username)).where(
+                        EmbyUser.is_premium == 1,
+                        (EmbyUser.premium_expiry_time.is_(None))
+                        | (EmbyUser.premium_expiry_time > current_time),
+                    )
+                ).scalar()
 
-            return {
-                "total_premium_users": total_premium_users,
-                "active_premium_users": active_premium_users,
-                "premium_plex_users": premium_plex_users,
-                "premium_emby_users": premium_emby_users,
-            }
+                return {
+                    "total_premium_users": total_premium_users,
+                    "active_premium_users": active_premium_users,
+                    "premium_plex_users": premium_plex_users,
+                    "premium_emby_users": premium_emby_users,
+                }
 
         except Exception as e:
             logger.error(f"Error getting premium statistics: {e}")
@@ -1616,6 +1236,628 @@ class DB:
                 "premium_emby_users": 0,
             }
 
+    # ==================== Auction Operations ====================
+
+    def create_auction(
+        self,
+        title: str,
+        description: str,
+        starting_price: float,
+        end_time: int,
+        created_by: int,
+    ) -> Optional[int]:
+        """创建竞拍"""
+        try:
+            with get_session() as session:
+                created_at = int(time.time())
+                auction = Auctions(
+                    title=title,
+                    description=description,
+                    starting_price=starting_price,
+                    current_price=starting_price,
+                    end_time=end_time,
+                    created_by=created_by,
+                    created_at=created_at,
+                )
+                session.add(auction)
+                return auction.id
+        except Exception as e:
+            logger.error(f"Error creating auction: {e}")
+            return None
+
+    def get_auction_by_id(self, auction_id: int) -> Optional[dict]:
+        """根据ID获取竞拍信息"""
+        try:
+            with get_session() as session:
+                stmt = select(Auctions).where(Auctions.id == auction_id)
+                auction = session.execute(stmt).scalar_one_or_none()
+
+                if auction:
+                    return {
+                        "id": auction.id,
+                        "title": auction.title or f"竞拍活动 #{auction.id}",
+                        "description": auction.description or "无描述",
+                        "starting_price": auction.starting_price or 0,
+                        "current_price": auction.current_price
+                        or auction.starting_price
+                        or 0,
+                        "end_time": auction.end_time,
+                        "created_by": auction.created_by,
+                        "created_at": auction.created_at,
+                        "is_active": auction.is_active,
+                        "winner_id": auction.winner_id,
+                        "bid_count": auction.bid_count,
+                    }
+                return None
+        except Exception as e:
+            logger.error(f"Error getting auction by id: {e}")
+            return None
+
+    def get_active_auctions(self, limit: int = 50) -> List[dict]:
+        """获取活跃竞拍列表"""
+        try:
+            with get_session() as session:
+                current_time = int(time.time())
+                stmt = (
+                    select(Auctions)
+                    .where(Auctions.is_active == 1, Auctions.end_time > current_time)
+                    .order_by(Auctions.created_at.desc())
+                    .limit(limit)
+                )
+                results = session.execute(stmt).scalars().all()
+
+                auctions = []
+                for auction in results:
+                    auctions.append(
+                        {
+                            "id": auction.id,
+                            "title": auction.title or f"竞拍活动 #{auction.id}",
+                            "description": auction.description or "无描述",
+                            "starting_price": auction.starting_price or 0,
+                            "current_price": auction.current_price
+                            or auction.starting_price
+                            or 0,
+                            "end_time": auction.end_time,
+                            "created_by": auction.created_by,
+                            "created_at": auction.created_at,
+                            "is_active": auction.is_active,
+                            "winner_id": auction.winner_id,
+                            "bid_count": auction.bid_count,
+                        }
+                    )
+                return auctions
+        except Exception as e:
+            logger.error(f"Error getting active auctions: {e}")
+            return []
+
+    def place_bid(self, auction_id: int, bidder_id: int, bid_amount: float) -> bool:
+        """出价"""
+        try:
+            with get_session() as session:
+                bid_time = int(time.time())
+
+                # 检查竞拍是否存在且活跃
+                auction = session.execute(
+                    select(Auctions).where(Auctions.id == auction_id)
+                ).scalar_one_or_none()
+
+                if not auction or not auction.is_active or auction.end_time <= bid_time:
+                    return False
+
+                # 检查出价是否高于当前价格
+                if bid_amount <= auction.current_price:
+                    return False
+
+                # 插入出价记录
+                bid = AuctionBids(
+                    auction_id=auction_id,
+                    bidder_id=bidder_id,
+                    bid_amount=bid_amount,
+                    bid_time=bid_time,
+                )
+                session.add(bid)
+
+                # 更新竞拍当前价格和出价次数
+                session.execute(
+                    update(Auctions)
+                    .where(Auctions.id == auction_id)
+                    .values(current_price=bid_amount, bid_count=Auctions.bid_count + 1)
+                )
+                return True
+        except Exception as e:
+            logger.error(f"Error placing bid: {e}")
+            return False
+
+    def get_auction_bids(self, auction_id: int, limit: int = 50) -> List[dict]:
+        """获取竞拍出价记录"""
+        try:
+            with get_session() as session:
+                stmt = (
+                    select(AuctionBids)
+                    .where(AuctionBids.auction_id == auction_id)
+                    .order_by(AuctionBids.bid_time.desc())
+                    .limit(limit)
+                )
+                results = session.execute(stmt).scalars().all()
+
+                bids = []
+                for bid in results:
+                    bids.append(
+                        {
+                            "id": bid.id,
+                            "auction_id": bid.auction_id,
+                            "bidder_id": bid.bidder_id,
+                            "bid_amount": bid.bid_amount,
+                            "bid_time": bid.bid_time,
+                        }
+                    )
+                return bids
+        except Exception as e:
+            logger.error(f"Error getting auction bids: {e}")
+            return []
+
+    def get_user_highest_bid(self, auction_id: int, user_id: int) -> Optional[float]:
+        """获取用户在特定竞拍中的最高出价"""
+        try:
+            with get_session() as session:
+                stmt = select(func.max(AuctionBids.bid_amount)).where(
+                    AuctionBids.auction_id == auction_id,
+                    AuctionBids.bidder_id == user_id,
+                )
+                result = session.execute(stmt).scalar()
+                return result
+        except Exception as e:
+            logger.error(f"Error getting user highest bid: {e}")
+            return None
+
+    def get_auction_participants(
+        self, auction_id: int, exclude_user_id: Optional[int] = None
+    ) -> List[int]:
+        """获取拍卖的所有参与者（出价者）ID列表，可排除指定用户"""
+        try:
+            with get_session() as session:
+                if exclude_user_id:
+                    stmt = select(func.distinct(AuctionBids.bidder_id)).where(
+                        AuctionBids.auction_id == auction_id,
+                        AuctionBids.bidder_id != exclude_user_id,
+                    )
+                else:
+                    stmt = select(func.distinct(AuctionBids.bidder_id)).where(
+                        AuctionBids.auction_id == auction_id
+                    )
+                results = session.execute(stmt).scalars().all()
+                return list(results)
+        except Exception as e:
+            logger.error(f"Error getting auction participants: {e}")
+            return []
+
+    def finish_expired_auctions(self) -> List[dict]:
+        """结束过期的竞拍"""
+        try:
+            with get_session() as session:
+                current_time = int(time.time())
+
+                # 查找过期的活跃竞拍
+                stmt = select(Auctions).where(
+                    Auctions.is_active == 1, Auctions.end_time <= current_time
+                )
+                expired_auctions = session.execute(stmt).scalars().all()
+
+                finished_auctions = []
+                for auction in expired_auctions:
+                    auction_id = auction.id
+
+                    # 获取最高出价者
+                    highest_bid_stmt = (
+                        select(AuctionBids.bidder_id, func.max(AuctionBids.bid_amount))
+                        .where(AuctionBids.auction_id == auction_id)
+                        .group_by(AuctionBids.auction_id)
+                    )
+                    highest_bid = session.execute(highest_bid_stmt).fetchone()
+
+                    winner_id = highest_bid[0] if highest_bid else None
+                    final_price = auction.current_price
+                    credits_reduced = False
+
+                    # 如果有获胜者，扣除其积分
+                    if winner_id and highest_bid:
+                        final_price = highest_bid[1]
+
+                        # 获取用户当前积分
+                        stats = session.execute(
+                            select(Statistics).where(Statistics.tg_id == winner_id)
+                        ).scalar_one_or_none()
+
+                        if stats and stats.credits >= final_price:
+                            session.execute(
+                                update(Statistics)
+                                .where(Statistics.tg_id == winner_id)
+                                .values(credits=Statistics.credits - final_price)
+                            )
+                            credits_reduced = True
+                            logger.info(
+                                f"Auction {auction_id} finished: deducted {final_price} credits from winner {winner_id}"
+                            )
+                        else:
+                            logger.warning(
+                                f"Winner {winner_id} has insufficient credits for auction {auction_id} (price: {final_price})"
+                            )
+
+                    # 更新竞拍状态
+                    session.execute(
+                        update(Auctions)
+                        .where(Auctions.id == auction_id)
+                        .values(
+                            is_active=0, winner_id=winner_id, current_price=final_price
+                        )
+                    )
+
+                    finished_auctions.append(
+                        {
+                            "id": auction_id,
+                            "title": auction.title or f"竞拍活动 #{auction_id}",
+                            "winner_id": winner_id,
+                            "final_price": final_price,
+                            "credits_reduced": credits_reduced,
+                        }
+                    )
+                return finished_auctions
+        except Exception as e:
+            logger.error(f"Error finishing expired auctions: {e}")
+            logger.error(traceback.format_exc())
+            return []
+
+    def get_auction_stats(self) -> dict:
+        """获取竞拍统计数据"""
+        try:
+            with get_session() as session:
+                current_time = int(time.time())
+
+                # 总竞拍数
+                total_auctions = session.execute(
+                    select(func.count(Auctions.id))
+                ).scalar()
+
+                # 活跃竞拍数
+                active_auctions = session.execute(
+                    select(func.count(Auctions.id)).where(
+                        Auctions.is_active == 1, Auctions.end_time > current_time
+                    )
+                ).scalar()
+
+                # 总出价数
+                total_bids = session.execute(
+                    select(func.count(AuctionBids.id))
+                ).scalar()
+
+                # 总成交价值
+                total_value = (
+                    session.execute(
+                        select(func.sum(Auctions.current_price)).where(
+                            Auctions.winner_id.isnot(None)
+                        )
+                    ).scalar()
+                    or 0.0
+                )
+
+                return {
+                    "total_auctions": total_auctions,
+                    "active_auctions": active_auctions,
+                    "total_bids": total_bids,
+                    "total_value": float(total_value),
+                }
+        except Exception as e:
+            logger.error(f"Error getting auction stats: {e}")
+            return {
+                "total_auctions": 0,
+                "active_auctions": 0,
+                "total_bids": 0,
+                "total_value": 0.0,
+            }
+
+    def get_all_auctions(
+        self, status: Optional[str] = None, limit: int = 50, offset: int = 0
+    ) -> List[dict]:
+        """获取所有竞拍活动（管理员用）"""
+        try:
+            with get_session() as session:
+                current_time = int(time.time())
+
+                if status == "active":
+                    stmt = (
+                        select(Auctions)
+                        .where(
+                            Auctions.is_active == 1, Auctions.end_time > current_time
+                        )
+                        .order_by(Auctions.created_at.desc())
+                        .limit(limit)
+                        .offset(offset)
+                    )
+                elif status == "ended":
+                    stmt = (
+                        select(Auctions)
+                        .where(
+                            (Auctions.is_active == 0)
+                            | (Auctions.end_time <= current_time)
+                        )
+                        .order_by(Auctions.created_at.desc())
+                        .limit(limit)
+                        .offset(offset)
+                    )
+                else:
+                    stmt = (
+                        select(Auctions)
+                        .order_by(Auctions.created_at.desc())
+                        .limit(limit)
+                        .offset(offset)
+                    )
+
+                results = session.execute(stmt).scalars().all()
+
+                auctions = []
+                for auction in results:
+                    # 获取出价数量
+                    bid_count = session.execute(
+                        select(func.count(AuctionBids.id)).where(
+                            AuctionBids.auction_id == auction.id
+                        )
+                    ).scalar()
+
+                    # 判断状态
+                    if not auction.is_active:
+                        auction_status = "ended"
+                    elif auction.end_time <= current_time:
+                        auction_status = "ended"
+                    else:
+                        auction_status = "active"
+
+                    auctions.append(
+                        {
+                            "id": auction.id,
+                            "title": auction.title or f"竞拍活动 #{auction.id}",
+                            "description": auction.description or "无描述",
+                            "starting_price": auction.starting_price or 0,
+                            "current_price": auction.current_price
+                            or auction.starting_price
+                            or 0,
+                            "end_time": auction.end_time,
+                            "created_by": auction.created_by,
+                            "created_at": auction.created_at,
+                            "is_active": bool(auction.is_active),
+                            "winner_id": auction.winner_id,
+                            "bid_count": bid_count,
+                            "status": auction_status,
+                        }
+                    )
+
+                return auctions
+        except Exception as e:
+            logger.error(f"Error getting all auctions: {e}")
+            return []
+
+    def update_auction(self, auction_id: int, update_data: dict) -> bool:
+        """更新竞拍活动"""
+        try:
+            with get_session() as session:
+                values_to_update = {}
+
+                if "title" in update_data:
+                    values_to_update["title"] = update_data["title"]
+                if "description" in update_data:
+                    values_to_update["description"] = update_data["description"]
+                if "starting_price" in update_data:
+                    values_to_update["starting_price"] = update_data["starting_price"]
+                if "end_time" in update_data:
+                    values_to_update["end_time"] = update_data["end_time"]
+
+                if not values_to_update:
+                    return False
+
+                result = session.execute(
+                    update(Auctions)
+                    .where(Auctions.id == auction_id)
+                    .values(**values_to_update)
+                )
+                return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Error updating auction: {e}")
+            return False
+
+    def delete_auction(self, auction_id: int) -> bool:
+        """删除竞拍活动"""
+        try:
+            with get_session() as session:
+                # 先删除相关的出价记录
+                session.execute(
+                    delete(AuctionBids).where(AuctionBids.auction_id == auction_id)
+                )
+
+                # 再删除竞拍活动
+                result = session.execute(
+                    delete(Auctions).where(Auctions.id == auction_id)
+                )
+                return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Error deleting auction: {e}")
+            return False
+
+    def finish_auction_by_id(self, auction_id: int) -> tuple:
+        """手动结束指定竞拍活动"""
+        try:
+            with get_session() as session:
+                # 获取竞拍信息
+                auction = session.execute(
+                    select(Auctions).where(Auctions.id == auction_id)
+                ).scalar_one_or_none()
+
+                if not auction:
+                    return False, f"竞拍 id {auction_id} 不存在"
+
+                # 获取最高出价
+                highest_bid_stmt = (
+                    select(AuctionBids.bidder_id, AuctionBids.bid_amount)
+                    .where(AuctionBids.auction_id == auction_id)
+                    .order_by(AuctionBids.bid_amount.desc())
+                    .limit(1)
+                )
+                highest_bid = session.execute(highest_bid_stmt).fetchone()
+
+                winner_id = None
+                final_price = auction.starting_price
+                credits_reduced = False
+
+                if highest_bid:
+                    winner_id = highest_bid[0]
+                    final_price = highest_bid[1]
+
+                    # 扣除获胜者的积分
+                    stats = session.execute(
+                        select(Statistics).where(Statistics.tg_id == winner_id)
+                    ).scalar_one_or_none()
+
+                    if stats and stats.credits >= final_price:
+                        session.execute(
+                            update(Statistics)
+                            .where(Statistics.tg_id == winner_id)
+                            .values(credits=Statistics.credits - final_price)
+                        )
+                        credits_reduced = True
+
+                # 更新竞拍状态
+                session.execute(
+                    update(Auctions)
+                    .where(Auctions.id == auction_id)
+                    .values(is_active=0, winner_id=winner_id, current_price=final_price)
+                )
+                return True, {
+                    "id": auction_id,
+                    "title": auction.title,
+                    "winner_id": winner_id,
+                    "final_price": final_price,
+                    "credits_reduced": credits_reduced,
+                }
+
+        except Exception as e:
+            logger.error(f"Error finishing auction {auction_id}: {e}")
+            logger.error(traceback.format_exc())
+            return False, str(e)
+
+    def get_user_auction_history(self, user_id: int, limit: int = 20) -> List[dict]:
+        """获取用户参与的竞拍历史"""
+        try:
+            with get_session() as session:
+                # 获取用户参与的竞拍
+                stmt = (
+                    select(Auctions)
+                    .join(AuctionBids, Auctions.id == AuctionBids.auction_id)
+                    .where(AuctionBids.bidder_id == user_id)
+                    .order_by(Auctions.created_at.desc())
+                    .limit(limit)
+                    .distinct()
+                )
+                results = session.execute(stmt).scalars().all()
+
+                auctions = []
+                for auction in results:
+                    # 获取用户最高出价
+                    highest_bid = session.execute(
+                        select(func.max(AuctionBids.bid_amount)).where(
+                            AuctionBids.auction_id == auction.id,
+                            AuctionBids.bidder_id == user_id,
+                        )
+                    ).scalar()
+
+                    auctions.append(
+                        {
+                            "id": auction.id,
+                            "title": auction.title or f"竞拍活动 #{auction.id}",
+                            "description": auction.description or "无描述",
+                            "starting_price": auction.starting_price or 0,
+                            "current_price": auction.current_price
+                            or auction.starting_price
+                            or 0,
+                            "end_time": auction.end_time,
+                            "created_by": auction.created_by,
+                            "created_at": auction.created_at,
+                            "is_active": bool(auction.is_active),
+                            "winner_id": auction.winner_id,
+                            "user_highest_bid": highest_bid,
+                            "is_winner": auction.winner_id == user_id,
+                        }
+                    )
+
+                return auctions
+        except Exception as e:
+            logger.error(f"Error getting user auction history: {e}")
+            return []
+
+    def get_detailed_auction_stats(
+        self, start_date: Optional[int] = None, end_date: Optional[int] = None
+    ) -> dict:
+        """获取详细的竞拍统计数据"""
+        try:
+            with get_session() as session:
+                # 设置默认时间范围（如果未提供）
+                if not start_date:
+                    start_date = 0
+                if not end_date:
+                    end_date = int(time.time())
+
+                # 基本统计
+                stats = self.get_auction_stats()
+
+                # 时间段内的统计
+                period_auctions = session.execute(
+                    select(func.count(Auctions.id)).where(
+                        Auctions.created_at.between(start_date, end_date)
+                    )
+                ).scalar()
+
+                # 时间段内的出价数
+                period_bids = session.execute(
+                    select(func.count(AuctionBids.id))
+                    .join(Auctions, AuctionBids.auction_id == Auctions.id)
+                    .where(Auctions.created_at.between(start_date, end_date))
+                ).scalar()
+
+                # 平均出价数
+                avg_bids = (
+                    session.execute(
+                        select(func.avg(func.count(AuctionBids.id))).group_by(
+                            AuctionBids.auction_id
+                        )
+                    ).scalar()
+                    or 0.0
+                )
+
+                # 最高成交价
+                highest_price = (
+                    session.execute(
+                        select(func.max(Auctions.current_price)).where(
+                            Auctions.winner_id.isnot(None)
+                        )
+                    ).scalar()
+                    or 0.0
+                )
+
+                stats.update(
+                    {
+                        "period_auctions": period_auctions,
+                        "period_bids": period_bids,
+                        "avg_bids_per_auction": float(avg_bids),
+                        "highest_transaction": float(highest_price),
+                        "start_date": start_date,
+                        "end_date": end_date,
+                    }
+                )
+
+                return stats
+        except Exception as e:
+            logger.error(f"Error getting detailed auction stats: {e}")
+            return self.get_auction_stats()
+
+    # ==================== Traffic Statistics Operations ====================
+
     def create_line_traffic_entry(
         self,
         line: str,
@@ -1624,20 +1866,25 @@ class DB:
         username: str,
         user_id: str,
         timestamp: str,
-    ):
+    ) -> bool:
+        """创建流量统计记录"""
         try:
-            self.cur.execute(
-                "INSERT INTO line_traffic_stats (line, send_bytes, service, username, user_id, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-                (line, send_bytes, service, username, user_id, timestamp),
-            )
+            with get_session() as session:
+                traffic_entry = LineTrafficStats(
+                    line=line,
+                    send_bytes=send_bytes,
+                    service=service,
+                    username=username,
+                    user_id=user_id,
+                    timestamp=timestamp,
+                )
+                session.add(traffic_entry)
+                return True
         except Exception as e:
             logger.error(f"Error creating line traffic entry: {e}")
             return False
-        else:
-            self.con.commit()
-            return True
 
-    def get_premium_line_traffic_statistics(self):
+    def get_premium_line_traffic_statistics(self) -> list:
         """获取Premium线路流量统计信息"""
         try:
             now = datetime.now(settings.TZ)
@@ -1650,64 +1897,68 @@ class DB:
 
             line_stats = []
 
-            for line in premium_lines:
-                # 计算今日流量
-                today_traffic_query = """
-                SELECT COALESCE(SUM(send_bytes), 0) as traffic
-                FROM line_traffic_stats 
-                WHERE line = ? AND timestamp >= ?
-                """
-                today_traffic = self.cur.execute(
-                    today_traffic_query, (line, today_start.isoformat())
-                ).fetchone()[0]
+            with get_session() as session:
+                for line in premium_lines:
+                    # 计算今日流量
+                    today_traffic = session.execute(
+                        select(
+                            func.coalesce(func.sum(LineTrafficStats.send_bytes), 0)
+                        ).where(
+                            LineTrafficStats.line == line,
+                            LineTrafficStats.timestamp >= today_start.isoformat(),
+                        )
+                    ).scalar()
 
-                # 计算本周流量
-                week_traffic_query = """
-                SELECT COALESCE(SUM(send_bytes), 0) as traffic
-                FROM line_traffic_stats 
-                WHERE line = ? AND timestamp >= ?
-                """
-                week_traffic = self.cur.execute(
-                    week_traffic_query, (line, week_start.isoformat())
-                ).fetchone()[0]
+                    # 计算本周流量
+                    week_traffic = session.execute(
+                        select(
+                            func.coalesce(func.sum(LineTrafficStats.send_bytes), 0)
+                        ).where(
+                            LineTrafficStats.line == line,
+                            LineTrafficStats.timestamp >= week_start.isoformat(),
+                        )
+                    ).scalar()
 
-                # 计算本月流量
-                month_traffic_query = """
-                SELECT COALESCE(SUM(send_bytes), 0) as traffic
-                FROM line_traffic_stats 
-                WHERE line = ? AND timestamp >= ?
-                """
-                month_traffic = self.cur.execute(
-                    month_traffic_query, (line, month_start.isoformat())
-                ).fetchone()[0]
+                    # 计算本月流量
+                    month_traffic = session.execute(
+                        select(
+                            func.coalesce(func.sum(LineTrafficStats.send_bytes), 0)
+                        ).where(
+                            LineTrafficStats.line == line,
+                            LineTrafficStats.timestamp >= month_start.isoformat(),
+                        )
+                    ).scalar()
 
-                # 获取当前线路流量排名前五的用户（基于今日数据）
-                top_users_query = """
-                SELECT username, SUM(send_bytes) as total_traffic
-                FROM line_traffic_stats 
-                WHERE line = ? AND timestamp >= ?
-                GROUP BY username 
-                ORDER BY total_traffic DESC 
-                LIMIT 5
-                """
-                top_users_result = self.cur.execute(
-                    top_users_query, (line, today_start.isoformat())
-                ).fetchall()
+                    # 获取当前线路流量排名前五的用户（基于今日数据）
+                    top_users_result = session.execute(
+                        select(
+                            LineTrafficStats.username,
+                            func.sum(LineTrafficStats.send_bytes).label(
+                                "total_traffic"
+                            ),
+                        )
+                        .where(
+                            LineTrafficStats.line == line,
+                            LineTrafficStats.timestamp >= today_start.isoformat(),
+                        )
+                        .group_by(LineTrafficStats.username)
+                        .order_by(func.sum(LineTrafficStats.send_bytes).desc())
+                        .limit(5)
+                    ).fetchall()
 
-                top_users = []
-                for user_data in top_users_result:
-                    username, traffic = user_data
-                    top_users.append({"username": username, "traffic": traffic})
+                    top_users = []
+                    for username, traffic in top_users_result:
+                        top_users.append({"username": username, "traffic": traffic})
 
-                line_stats.append(
-                    {
-                        "line": line,
-                        "today_traffic": today_traffic,
-                        "week_traffic": week_traffic,
-                        "month_traffic": month_traffic,
-                        "top_users": top_users,
-                    }
-                )
+                    line_stats.append(
+                        {
+                            "line": line,
+                            "today_traffic": today_traffic,
+                            "week_traffic": week_traffic,
+                            "month_traffic": month_traffic,
+                            "top_users": top_users,
+                        }
+                    )
 
             return line_stats
 
@@ -1721,15 +1972,8 @@ class DB:
         service: str = None,
         date: datetime = None,
         premium_only: bool = False,
-    ):
-        """获取用户指定日期的流量消耗，默认为今日
-
-        Args:
-            username: 用户名
-            service: 服务类型 (plex/emby)
-            date: 指定日期，默认为今日
-            premium_only: 是否只统计 premium 线路流量，默认为 False
-        """
+    ) -> int:
+        """获取用户指定日期的流量消耗，默认为今日"""
         try:
             # 如果未指定日期，使用今日
             if date is None:
@@ -1753,37 +1997,31 @@ class DB:
 
             if date >= current_month_start:
                 # 当月数据，从 line_traffic_stats 表查询
-                # 构建查询条件
-                base_conditions = "LOWER(username) = ? AND service = ? AND timestamp >= ? AND timestamp <= ?"
-                params = [
-                    username.lower(),
-                    service,
-                    day_start.isoformat(),
-                    day_end.isoformat(),
-                ]
+                with get_session() as session:
+                    # 构建基本查询条件
+                    conditions = [
+                        func.lower(LineTrafficStats.username) == username.lower(),
+                        LineTrafficStats.service == service,
+                        LineTrafficStats.timestamp >= day_start.isoformat(),
+                        LineTrafficStats.timestamp <= day_end.isoformat(),
+                    ]
 
-                # 如果只统计 premium 线路
-                if premium_only:
-                    premium_lines = settings.PREMIUM_STREAM_BACKEND
-                    if premium_lines:
-                        # 构建线路过滤条件
-                        line_conditions = " OR ".join(
-                            ["line = ?" for _ in premium_lines]
-                        )
-                        base_conditions += f" AND ({line_conditions})"
-                        params.extend(premium_lines)
-                    else:
-                        # 如果没有配置 premium 线路，返回 0
-                        return 0
+                    # 如果只统计 premium 线路
+                    if premium_only:
+                        premium_lines = settings.PREMIUM_STREAM_BACKEND
+                        if premium_lines:
+                            conditions.append(LineTrafficStats.line.in_(premium_lines))
+                        else:
+                            # 如果没有配置 premium 线路，返回 0
+                            return 0
 
-                # 查询特定服务的指定日期流量
-                query = f"""
-                SELECT COALESCE(SUM(send_bytes), 0) as traffic
-                FROM line_traffic_stats 
-                WHERE {base_conditions}
-                """
-                result = self.cur.execute(query, params).fetchone()
-                return result[0] if result else 0
+                    result = session.execute(
+                        select(
+                            func.coalesce(func.sum(LineTrafficStats.send_bytes), 0)
+                        ).where(*conditions)
+                    ).scalar()
+
+                    return result if result else 0
             else:
                 # 历史月份数据，从 line_traffic_monthly_stats 表查询
                 # 注意：月度表只有月度总计，无法精确到天，返回 0
@@ -1796,7 +2034,7 @@ class DB:
             logger.error(f"Error getting user daily traffic for {username}: {e}")
             return 0
 
-    def get_traffic_statistics(self):
+    def get_traffic_statistics(self) -> dict:
         """获取全面的流量统计信息，包括今日/本周/本月，按服务类型和线路分类"""
         try:
             now = datetime.now(settings.TZ)
@@ -1804,7 +2042,6 @@ class DB:
             week_start = today_start - timedelta(days=now.weekday())
             month_start = today_start.replace(day=1)
 
-            # 获取所有服务类型的流量统计
             periods = [
                 ("today", today_start.isoformat()),
                 ("week", week_start.isoformat()),
@@ -1813,70 +2050,67 @@ class DB:
 
             result = {}
 
-            for period_name, start_time in periods:
-                # 查询按服务类型分组的流量统计
-                service_query = """
-                SELECT 
-                    service,
-                    COALESCE(SUM(send_bytes), 0) as total_traffic
-                FROM line_traffic_stats 
-                WHERE timestamp >= ?
-                GROUP BY service
-                """
-                service_results = self.cur.execute(
-                    service_query, (start_time,)
-                ).fetchall()
+            with get_session() as session:
+                for period_name, start_time in periods:
+                    # 查询按服务类型分组的流量统计
+                    service_results = session.execute(
+                        select(
+                            LineTrafficStats.service,
+                            func.coalesce(
+                                func.sum(LineTrafficStats.send_bytes), 0
+                            ).label("total_traffic"),
+                        )
+                        .where(LineTrafficStats.timestamp >= start_time)
+                        .group_by(LineTrafficStats.service)
+                    ).fetchall()
 
-                # 查询按线路分组的流量统计
-                line_query = """
-                SELECT 
-                    line,
-                    COALESCE(SUM(send_bytes), 0) as total_traffic
-                FROM line_traffic_stats 
-                WHERE timestamp >= ?
-                GROUP BY line
-                ORDER BY total_traffic DESC
-                """
-                line_results = self.cur.execute(line_query, (start_time,)).fetchall()
+                    # 查询按线路分组的流量统计
+                    line_results = session.execute(
+                        select(
+                            LineTrafficStats.line,
+                            func.coalesce(
+                                func.sum(LineTrafficStats.send_bytes), 0
+                            ).label("total_traffic"),
+                        )
+                        .where(LineTrafficStats.timestamp >= start_time)
+                        .group_by(LineTrafficStats.line)
+                        .order_by(func.sum(LineTrafficStats.send_bytes).desc())
+                    ).fetchall()
 
-                # 计算总流量
-                total_query = """
-                SELECT COALESCE(SUM(send_bytes), 0) as total_traffic
-                FROM line_traffic_stats 
-                WHERE timestamp >= ?
-                """
-                total_traffic = self.cur.execute(total_query, (start_time,)).fetchone()[
-                    0
-                ]
+                    # 计算总流量
+                    total_traffic = session.execute(
+                        select(
+                            func.coalesce(func.sum(LineTrafficStats.send_bytes), 0)
+                        ).where(LineTrafficStats.timestamp >= start_time)
+                    ).scalar()
 
-                # 构建期间数据
-                period_data = {
-                    "total": total_traffic,
-                    "emby": 0,
-                    "plex": 0,
-                    "lines": [],
-                }
+                    # 构建期间数据
+                    period_data = {
+                        "total": total_traffic,
+                        "emby": 0,
+                        "plex": 0,
+                        "lines": [],
+                    }
 
-                for service, traffic in service_results:
-                    if service.lower() == "emby":
-                        period_data["emby"] = traffic
-                    elif service.lower() == "plex":
-                        period_data["plex"] = traffic
+                    for service, traffic in service_results:
+                        if service.lower() == "emby":
+                            period_data["emby"] = traffic
+                        elif service.lower() == "plex":
+                            period_data["plex"] = traffic
 
-                # 添加线路数据
-                for line, traffic in line_results:
-                    # 排除自定义线路
-                    for _line in (
-                        settings.STREAM_BACKEND + settings.PREMIUM_STREAM_BACKEND
-                    ):
-                        if line.lower() in _line.lower():
-                            # 只统计已知的线路
-                            period_data["lines"].append(
-                                {"line": line, "traffic": traffic}
-                            )
-                            break
+                    # 添加线路数据
+                    for line, traffic in line_results:
+                        # 排除自定义线路，只统计已知的线路
+                        for _line in (
+                            settings.STREAM_BACKEND + settings.PREMIUM_STREAM_BACKEND
+                        ):
+                            if line.lower() in _line.lower():
+                                period_data["lines"].append(
+                                    {"line": line, "traffic": traffic}
+                                )
+                                break
 
-                result[period_name] = period_data
+                    result[period_name] = period_data
 
             return result
 
@@ -1888,13 +2122,8 @@ class DB:
                 "month": {"total": 0, "emby": 0, "plex": 0, "lines": []},
             }
 
-    def get_plex_traffic_rank(self, start_date=None, end_date=None):
-        """获取 Plex 流量排行榜
-
-        Args:
-            start_date: 开始日期 (datetime对象)，默认为今日开始
-            end_date: 结束日期 (datetime对象)，默认为今日结束
-        """
+    def get_plex_traffic_rank(self, start_date=None, end_date=None) -> list:
+        """获取 Plex 流量排行榜"""
         try:
             # 使用北京时间
             now_beijing = datetime.now(settings.TZ)
@@ -1926,38 +2155,47 @@ class DB:
                     end_date = today_end
 
             # 仅当月数据，从 line_traffic_stats 表查询
-            query = """
-            SELECT u.plex_username, lts.user_id, SUM(lts.send_bytes) as total_traffic,
-                   COALESCE(u.is_premium, 0) as is_premium,
-                   u.tg_id
-            FROM line_traffic_stats lts
-            LEFT JOIN user u ON LOWER(lts.username) = LOWER(u.plex_username)
-            WHERE lts.service = 'plex' 
-                AND lts.timestamp >= ?
-                AND lts.timestamp <= ?
-                AND lts.username IS NOT NULL
-                AND lts.username != ''
-            GROUP BY LOWER(lts.username), lts.user_id, u.is_premium, u.tg_id
-            ORDER BY total_traffic DESC
-            LIMIT 50
-            """
+            with get_session() as session:
+                stmt = (
+                    select(
+                        PlexUser.plex_username,
+                        LineTrafficStats.user_id,
+                        func.sum(LineTrafficStats.send_bytes).label("total_traffic"),
+                        func.coalesce(PlexUser.is_premium, 0).label("is_premium"),
+                        PlexUser.tg_id,
+                    )
+                    .select_from(LineTrafficStats)
+                    .outerjoin(
+                        PlexUser,
+                        func.lower(LineTrafficStats.username)
+                        == func.lower(PlexUser.plex_username),
+                    )
+                    .where(
+                        LineTrafficStats.service == "plex",
+                        LineTrafficStats.timestamp >= start_date.isoformat(),
+                        LineTrafficStats.timestamp <= end_date.isoformat(),
+                        LineTrafficStats.username.isnot(None),
+                        LineTrafficStats.username != "",
+                    )
+                    .group_by(
+                        func.lower(LineTrafficStats.username),
+                        LineTrafficStats.user_id,
+                        PlexUser.is_premium,
+                        PlexUser.tg_id,
+                    )
+                    .order_by(func.sum(LineTrafficStats.send_bytes).desc())
+                    .limit(50)
+                )
 
-            result = self.cur.execute(
-                query, (start_date.isoformat(), end_date.isoformat())
-            ).fetchall()
-            return result
+                results = session.execute(stmt).fetchall()
+                return [(r[0], r[1], r[2], r[3], r[4]) for r in results]
 
         except Exception as e:
             logger.error(f"Error getting Plex traffic rank: {e}")
             return []
 
-    def get_emby_traffic_rank(self, start_date=None, end_date=None):
-        """获取 Emby 流量排行榜
-
-        Args:
-            start_date: 开始日期 (datetime对象)，默认为今日开始
-            end_date: 结束日期 (datetime对象)，默认为今日结束
-        """
+    def get_emby_traffic_rank(self, start_date=None, end_date=None) -> list:
+        """获取 Emby 流量排行榜"""
         try:
             # 使用北京时间
             now_beijing = datetime.now(settings.TZ)
@@ -1988,43 +2226,47 @@ class DB:
                 if end_date > today_end:
                     end_date = today_end
 
-            query = """
-            SELECT eu.emby_username, lts.user_id, SUM(lts.send_bytes) as total_traffic,
-                   COALESCE(eu.is_premium, 0) as is_premium,
-                   eu.tg_id
-            FROM line_traffic_stats lts
-            LEFT JOIN emby_user eu ON LOWER(lts.username) = LOWER(eu.emby_username)
-            WHERE lts.service = 'emby' 
-                AND lts.timestamp >= ?
-                AND lts.timestamp <= ?
-                AND lts.username IS NOT NULL
-                AND lts.username != ''
-            GROUP BY LOWER(lts.username), lts.user_id, eu.is_premium, eu.tg_id
-            ORDER BY total_traffic DESC
-            LIMIT 50
-            """
+            with get_session() as session:
+                stmt = (
+                    select(
+                        EmbyUser.emby_username,
+                        LineTrafficStats.user_id,
+                        func.sum(LineTrafficStats.send_bytes).label("total_traffic"),
+                        func.coalesce(EmbyUser.is_premium, 0).label("is_premium"),
+                        EmbyUser.tg_id,
+                    )
+                    .select_from(LineTrafficStats)
+                    .outerjoin(
+                        EmbyUser,
+                        func.lower(LineTrafficStats.username)
+                        == func.lower(EmbyUser.emby_username),
+                    )
+                    .where(
+                        LineTrafficStats.service == "emby",
+                        LineTrafficStats.timestamp >= start_date.isoformat(),
+                        LineTrafficStats.timestamp <= end_date.isoformat(),
+                        LineTrafficStats.username.isnot(None),
+                        LineTrafficStats.username != "",
+                    )
+                    .group_by(
+                        func.lower(LineTrafficStats.username),
+                        LineTrafficStats.user_id,
+                        EmbyUser.is_premium,
+                        EmbyUser.tg_id,
+                    )
+                    .order_by(func.sum(LineTrafficStats.send_bytes).desc())
+                    .limit(50)
+                )
 
-            result = self.cur.execute(
-                query, (start_date.isoformat(), end_date.isoformat())
-            ).fetchall()
-            return result
+                results = session.execute(stmt).fetchall()
+                return [(r[0], r[1], r[2], r[3], r[4]) for r in results]
 
         except Exception as e:
             logger.error(f"Error getting Emby traffic rank: {e}")
             return []
 
-    def aggregate_monthly_traffic_data(
-        self, target_month: str = None
-    ) -> tuple[bool, str]:
-        """
-        聚合指定月份的流量数据到月度统计表
-
-        Args:
-            target_month: 目标月份，格式为 'YYYY-MM'，如果为 None 则处理上个月的数据
-
-        Returns:
-            tuple: (是否成功, 消息)
-        """
+    def aggregate_monthly_traffic_data(self, target_month: str = None) -> tuple:
+        """聚合指定月份的流量数据到月度统计表"""
         try:
             if target_month is None:
                 # 默认处理上个月的数据
@@ -2044,104 +2286,95 @@ class DB:
             except ValueError:
                 return False, f"月份格式错误: {target_month}，应为 YYYY-MM 格式"
 
-            # 检查是否已经聚合过该月份的数据
-            existing_check = self.cur.execute(
-                "SELECT COUNT(*) FROM line_traffic_monthly_stats WHERE year_month = ?",
-                (target_month,),
-            ).fetchone()[0]
-
-            if existing_check > 0:
-                return False, f"月份 {target_month} 的数据已经聚合过，跳过处理"
-
-            # 计算目标月份的开始和结束时间
-            month_start = datetime.strptime(f"{target_month}-01", "%Y-%m-%d").replace(
-                tzinfo=settings.TZ
-            )
-            if month_start.month == 12:
-                next_month_start = month_start.replace(
-                    year=month_start.year + 1, month=1
-                )
-            else:
-                next_month_start = month_start.replace(month=month_start.month + 1)
-
-            month_start_str = month_start.isoformat()
-            next_month_start_str = next_month_start.isoformat()
-
-            # 聚合查询：按 line, service, username 分组求和
-            aggregation_query = """
-            SELECT 
-                line,
-                service,
-                username,
-                user_id,
-                SUM(send_bytes) as total_bytes,
-                COUNT(*) as record_count
-            FROM line_traffic_stats 
-            WHERE timestamp >= ? AND timestamp < ?
-            GROUP BY line, service, username
-            HAVING SUM(send_bytes) > 0
-            ORDER BY total_bytes DESC
-            """
-
-            aggregated_data = self.cur.execute(
-                aggregation_query, (month_start_str, next_month_start_str)
-            ).fetchall()
-
-            if not aggregated_data:
-                return False, f"月份 {target_month} 没有找到需要聚合的数据"
-
-            # 插入聚合数据到月度统计表
-            current_time = datetime.now(settings.TZ).isoformat()
-            insert_count = 0
-
-            for record in aggregated_data:
-                line, service, username, user_id, total_bytes, record_count = record
-
-                try:
-                    self.cur.execute(
-                        """
-                        INSERT INTO line_traffic_monthly_stats 
-                        (line, service, username, user_id, year_month, total_bytes, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """,
-                        (
-                            line,
-                            service,
-                            username,
-                            user_id,
-                            target_month,
-                            total_bytes,
-                            current_time,
-                        ),
+            with get_session() as session:
+                # 检查是否已经聚合过该月份的数据
+                existing_check = session.execute(
+                    select(func.count(LineTrafficMonthlyStats.id)).where(
+                        LineTrafficMonthlyStats.year_month == target_month
                     )
-                    insert_count += 1
-                except Exception as e:
-                    logger.warning(f"插入月度聚合数据失败: {e}, 数据: {record}")
+                ).scalar()
 
-            self.con.commit()
+                if existing_check > 0:
+                    return False, f"月份 {target_month} 的数据已经聚合过，跳过处理"
 
-            logger.info(
-                f"成功聚合 {target_month} 月份数据: {len(aggregated_data)} 个用户组合，插入 {insert_count} 条记录"
-            )
-            return (
-                True,
-                f"成功聚合 {target_month} 月份数据: 处理了 {len(aggregated_data)} 个用户组合",
-            )
+                # 计算目标月份的开始和结束时间
+                month_start = datetime.strptime(
+                    f"{target_month}-01", "%Y-%m-%d"
+                ).replace(tzinfo=settings.TZ)
+                if month_start.month == 12:
+                    next_month_start = month_start.replace(
+                        year=month_start.year + 1, month=1
+                    )
+                else:
+                    next_month_start = month_start.replace(month=month_start.month + 1)
+
+                month_start_str = month_start.isoformat()
+                next_month_start_str = next_month_start.isoformat()
+
+                # 聚合查询：按 line, service, username 分组求和
+                aggregation_stmt = (
+                    select(
+                        LineTrafficStats.line,
+                        LineTrafficStats.service,
+                        LineTrafficStats.username,
+                        LineTrafficStats.user_id,
+                        func.sum(LineTrafficStats.send_bytes).label("total_bytes"),
+                        func.count(LineTrafficStats.id).label("record_count"),
+                    )
+                    .where(
+                        LineTrafficStats.timestamp >= month_start_str,
+                        LineTrafficStats.timestamp < next_month_start_str,
+                    )
+                    .group_by(
+                        LineTrafficStats.line,
+                        LineTrafficStats.service,
+                        LineTrafficStats.username,
+                    )
+                    .having(func.sum(LineTrafficStats.send_bytes) > 0)
+                    .order_by(func.sum(LineTrafficStats.send_bytes).desc())
+                )
+
+                aggregated_data = session.execute(aggregation_stmt).fetchall()
+
+                if not aggregated_data:
+                    return False, f"月份 {target_month} 没有找到需要聚合的数据"
+
+                # 插入聚合数据到月度统计表
+                current_time = datetime.now(settings.TZ).isoformat()
+                insert_count = 0
+
+                for record in aggregated_data:
+                    line, service, username, user_id, total_bytes, record_count = record
+
+                    try:
+                        monthly_stat = LineTrafficMonthlyStats(
+                            line=line,
+                            service=service,
+                            username=username,
+                            user_id=user_id,
+                            year_month=target_month,
+                            total_bytes=total_bytes,
+                            created_at=current_time,
+                        )
+                        session.add(monthly_stat)
+                        insert_count += 1
+                    except Exception as e:
+                        logger.warning(f"插入月度聚合数据失败: {e}, 数据: {record}")
+
+                logger.info(
+                    f"成功聚合 {target_month} 月份数据: {len(aggregated_data)} 个用户组合，插入 {insert_count} 条记录"
+                )
+                return (
+                    True,
+                    f"成功聚合 {target_month} 月份数据: 处理了 {len(aggregated_data)} 个用户组合",
+                )
 
         except Exception as e:
             logger.error(f"聚合月度流量数据失败: {e}")
             return False, f"聚合月度流量数据失败: {str(e)}"
 
-    def cleanup_monthly_traffic_data(self, target_month: str) -> tuple[bool, str]:
-        """
-        清理已聚合月份的原始流量数据
-
-        Args:
-            target_month: 目标月份，格式为 'YYYY-MM'
-
-        Returns:
-            tuple: (是否成功, 消息)
-        """
+    def cleanup_monthly_traffic_data(self, target_month: str) -> tuple:
+        """清理已聚合月份的原始流量数据"""
         try:
             # 验证月份格式
             try:
@@ -2149,56 +2382,66 @@ class DB:
             except ValueError:
                 return False, f"月份格式错误: {target_month}，应为 YYYY-MM 格式"
 
-            # 检查月度聚合数据是否存在
-            monthly_check = self.cur.execute(
-                "SELECT COUNT(*) FROM line_traffic_monthly_stats WHERE year_month = ?",
-                (target_month,),
-            ).fetchone()[0]
+            with get_session() as session:
+                # 检查月度聚合数据是否存在
+                monthly_check = session.execute(
+                    select(func.count(LineTrafficMonthlyStats.id)).where(
+                        LineTrafficMonthlyStats.year_month == target_month
+                    )
+                ).scalar()
 
-            if monthly_check == 0:
-                return False, f"月份 {target_month} 的聚合数据不存在，不能清理原始数据"
+                if monthly_check == 0:
+                    return (
+                        False,
+                        f"月份 {target_month} 的聚合数据不存在，不能清理原始数据",
+                    )
 
-            # 计算目标月份的时间范围
-            month_start = datetime.strptime(f"{target_month}-01", "%Y-%m-%d").replace(
-                tzinfo=settings.TZ
-            )
-            if month_start.month == 12:
-                next_month_start = month_start.replace(
-                    year=month_start.year + 1, month=1
+                # 计算目标月份的时间范围
+                month_start = datetime.strptime(
+                    f"{target_month}-01", "%Y-%m-%d"
+                ).replace(tzinfo=settings.TZ)
+                if month_start.month == 12:
+                    next_month_start = month_start.replace(
+                        year=month_start.year + 1, month=1
+                    )
+                else:
+                    next_month_start = month_start.replace(month=month_start.month + 1)
+
+                month_start_str = month_start.isoformat()
+                next_month_start_str = next_month_start.isoformat()
+
+                # 统计要删除的记录数
+                delete_count = session.execute(
+                    select(func.count(LineTrafficStats.id)).where(
+                        LineTrafficStats.timestamp >= month_start_str,
+                        LineTrafficStats.timestamp < next_month_start_str,
+                    )
+                ).scalar()
+
+                if delete_count == 0:
+                    return True, f"月份 {target_month} 没有需要清理的原始数据"
+
+                # 删除原始数据
+                session.execute(
+                    delete(LineTrafficStats).where(
+                        LineTrafficStats.timestamp >= month_start_str,
+                        LineTrafficStats.timestamp < next_month_start_str,
+                    )
                 )
-            else:
-                next_month_start = month_start.replace(month=month_start.month + 1)
 
-            month_start_str = month_start.isoformat()
-            next_month_start_str = next_month_start.isoformat()
-
-            # 统计要删除的记录数
-            delete_count_query = """
-            SELECT COUNT(*) FROM line_traffic_stats 
-            WHERE timestamp >= ? AND timestamp < ?
-            """
-            delete_count = self.cur.execute(
-                delete_count_query, (month_start_str, next_month_start_str)
-            ).fetchone()[0]
-
-            if delete_count == 0:
-                return True, f"月份 {target_month} 没有需要清理的原始数据"
-
-            # 删除原始数据
-            delete_query = """
-            DELETE FROM line_traffic_stats 
-            WHERE timestamp >= ? AND timestamp < ?
-            """
-
-            self.cur.execute(delete_query, (month_start_str, next_month_start_str))
-            self.con.commit()
-
-            logger.info(f"已清理 {target_month} 月份的 {delete_count} 条原始流量数据")
-            return True, f"成功清理 {target_month} 月份的 {delete_count} 条原始流量数据"
+                logger.info(
+                    f"已清理 {target_month} 月份的 {delete_count} 条原始流量数据"
+                )
+                return (
+                    True,
+                    f"成功清理 {target_month} 月份的 {delete_count} 条原始流量数据",
+                )
 
         except Exception as e:
             logger.error(f"清理月度流量数据失败: {e}")
             return False, f"清理月度流量数据失败: {str(e)}"
+
+    # ==================== Donation Management Operations ====================
 
     def create_donation_registration(
         self,
@@ -2210,23 +2453,19 @@ class DB:
     ) -> bool:
         """创建捐赠登记记录"""
         try:
-            created_at = datetime.now(settings.TZ).isoformat()
+            with get_session() as session:
+                created_at = datetime.now(settings.TZ).isoformat()
 
-            self.cur.execute(
-                """INSERT INTO donation_registrations 
-                   (user_id, payment_method, amount, note, created_at, is_donation_registration) 
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (
-                    user_id,
-                    payment_method,
-                    amount,
-                    note,
-                    created_at,
-                    int(is_donation_registration),
-                ),
-            )
-            self.con.commit()
-            return True
+                donation = DonationRegistrations(
+                    user_id=user_id,
+                    payment_method=payment_method,
+                    amount=amount,
+                    note=note,
+                    created_at=created_at,
+                    is_donation_registration=int(is_donation_registration),
+                )
+                session.add(donation)
+                return True
         except Exception as e:
             logger.error(f"创建捐赠登记失败: {e}")
             return False
@@ -2236,36 +2475,36 @@ class DB:
         try:
             from app.utils.utils import get_user_name_from_tg_id
 
-            result = self.cur.execute(
-                """SELECT dr.*
-                   FROM donation_registrations dr
-                   WHERE dr.id = ?""",
-                (registration_id,),
-            ).fetchone()
+            with get_session() as session:
+                stmt = select(DonationRegistrations).where(
+                    DonationRegistrations.id == registration_id
+                )
+                result = session.execute(stmt).scalar_one_or_none()
 
-            if result:
-                user_id = result[1]
-                processed_by = result[9]
-                return {
-                    "id": result[0],
-                    "user_id": user_id,
-                    "payment_method": result[2],
-                    "amount": result[3],
-                    "note": result[4],
-                    "status": result[5],
-                    "admin_note": result[6],
-                    "created_at": result[7],
-                    "processed_at": result[8],
-                    "processed_by": processed_by,
-                    "is_donation_registration": bool(result[10])
-                    if len(result) > 10
-                    else False,
-                    "username": get_user_name_from_tg_id(user_id),
-                    "processed_by_username": get_user_name_from_tg_id(processed_by)
-                    if processed_by
-                    else None,
-                }
-            return None
+                if result:
+                    user_id = result.user_id
+                    processed_by = result.processed_by
+
+                    return {
+                        "id": result.id,
+                        "user_id": user_id,
+                        "payment_method": result.payment_method,
+                        "amount": result.amount,
+                        "note": result.note,
+                        "status": result.status,
+                        "admin_note": result.admin_note,
+                        "created_at": result.created_at,
+                        "processed_at": result.processed_at,
+                        "processed_by": processed_by,
+                        "is_donation_registration": bool(
+                            result.is_donation_registration
+                        ),
+                        "username": get_user_name_from_tg_id(user_id),
+                        "processed_by_username": get_user_name_from_tg_id(processed_by)
+                        if processed_by
+                        else None,
+                    }
+                return None
         except Exception as e:
             logger.error(f"获取捐赠登记信息失败: {e}")
             return None
@@ -2277,41 +2516,44 @@ class DB:
         try:
             from app.utils.utils import get_user_name_from_tg_id
 
-            results = self.cur.execute(
-                """SELECT dr.*
-                   FROM donation_registrations dr
-                   WHERE dr.user_id = ?
-                   ORDER BY dr.created_at DESC
-                   LIMIT ?""",
-                (user_id, limit),
-            ).fetchall()
-
-            registrations = []
-            for result in results:
-                user_id_result = result[1]
-                processed_by = result[9]
-                registrations.append(
-                    {
-                        "id": result[0],
-                        "user_id": user_id_result,
-                        "payment_method": result[2],
-                        "amount": result[3],
-                        "note": result[4],
-                        "status": result[5],
-                        "admin_note": result[6],
-                        "created_at": result[7],
-                        "processed_at": result[8],
-                        "processed_by": processed_by,
-                        "is_donation_registration": bool(result[10])
-                        if len(result) > 10
-                        else False,
-                        "username": get_user_name_from_tg_id(user_id_result),
-                        "processed_by_username": get_user_name_from_tg_id(processed_by)
-                        if processed_by
-                        else None,
-                    }
+            with get_session() as session:
+                stmt = (
+                    select(DonationRegistrations)
+                    .where(DonationRegistrations.user_id == user_id)
+                    .order_by(DonationRegistrations.created_at.desc())
+                    .limit(limit)
                 )
-            return registrations
+                results = session.execute(stmt).scalars().all()
+
+                registrations = []
+                for result in results:
+                    user_id_result = result.user_id
+                    processed_by = result.processed_by
+
+                    registrations.append(
+                        {
+                            "id": result.id,
+                            "user_id": user_id_result,
+                            "payment_method": result.payment_method,
+                            "amount": result.amount,
+                            "note": result.note,
+                            "status": result.status,
+                            "admin_note": result.admin_note,
+                            "created_at": result.created_at,
+                            "processed_at": result.processed_at,
+                            "processed_by": processed_by,
+                            "is_donation_registration": bool(
+                                result.is_donation_registration
+                            ),
+                            "username": get_user_name_from_tg_id(user_id_result),
+                            "processed_by_username": get_user_name_from_tg_id(
+                                processed_by
+                            )
+                            if processed_by
+                            else None,
+                        }
+                    )
+                return registrations
         except Exception as e:
             logger.error(f"获取用户捐赠登记历史失败: {e}")
             return []
@@ -2321,40 +2563,44 @@ class DB:
         try:
             from app.utils.utils import get_user_name_from_tg_id
 
-            results = self.cur.execute(
-                """SELECT dr.*
-                   FROM donation_registrations dr
-                   WHERE dr.status = 'pending'
-                   ORDER BY dr.created_at ASC
-                   LIMIT ?""",
-                (limit,),
-            ).fetchall()
-
-            registrations = []
-            for result in results:
-                user_id = result[1]
-                registrations.append(
-                    {
-                        "id": result[0],
-                        "user_id": user_id,
-                        "payment_method": result[2],
-                        "amount": result[3],
-                        "note": result[4],
-                        "status": result[5],
-                        "admin_note": result[6],
-                        "created_at": result[7],
-                        "processed_at": result[8],
-                        "processed_by": result[9],
-                        "is_donation_registration": bool(result[10])
-                        if len(result) > 10
-                        else False,
-                        "username": get_user_name_from_tg_id(user_id),
-                        "processed_by_username": get_user_name_from_tg_id(result[9])
-                        if result[9]
-                        else None,
-                    }
+            with get_session() as session:
+                stmt = (
+                    select(DonationRegistrations)
+                    .where(DonationRegistrations.status == "pending")
+                    .order_by(DonationRegistrations.created_at.asc())
+                    .limit(limit)
                 )
-            return registrations
+                results = session.execute(stmt).scalars().all()
+
+                registrations = []
+                for result in results:
+                    user_id = result.user_id
+                    processed_by = result.processed_by
+
+                    registrations.append(
+                        {
+                            "id": result.id,
+                            "user_id": user_id,
+                            "payment_method": result.payment_method,
+                            "amount": result.amount,
+                            "note": result.note,
+                            "status": result.status,
+                            "admin_note": result.admin_note,
+                            "created_at": result.created_at,
+                            "processed_at": result.processed_at,
+                            "processed_by": processed_by,
+                            "is_donation_registration": bool(
+                                result.is_donation_registration
+                            ),
+                            "username": get_user_name_from_tg_id(user_id),
+                            "processed_by_username": get_user_name_from_tg_id(
+                                processed_by
+                            )
+                            if processed_by
+                            else None,
+                        }
+                    )
+                return registrations
         except Exception as e:
             logger.error(f"获取待处理捐赠登记失败: {e}")
             return []
@@ -2368,19 +2614,21 @@ class DB:
     ) -> bool:
         """确认捐赠登记状态"""
         try:
-            processed_at = datetime.now(settings.TZ).isoformat()
-            status = "approved" if approved else "rejected"
+            with get_session() as session:
+                processed_at = datetime.now(settings.TZ).isoformat()
+                status = "approved" if approved else "rejected"
 
-            # 更新登记状态
-            self.cur.execute(
-                """UPDATE donation_registrations 
-                   SET status = ?, admin_note = ?, processed_at = ?, processed_by = ?
-                   WHERE id = ?""",
-                (status, admin_note, processed_at, processed_by, registration_id),
-            )
-
-            self.con.commit()
-            return True
+                session.execute(
+                    update(DonationRegistrations)
+                    .where(DonationRegistrations.id == registration_id)
+                    .values(
+                        status=status,
+                        admin_note=admin_note,
+                        processed_at=processed_at,
+                        processed_by=processed_by,
+                    )
+                )
+                return True
         except Exception as e:
             logger.error(f"确认捐赠登记失败: {e}")
             return False
@@ -2388,41 +2636,48 @@ class DB:
     def get_donation_statistics(self) -> dict:
         """获取捐赠统计信息"""
         try:
-            # 总登记数
-            total_registrations = self.cur.execute(
-                "SELECT COUNT(*) FROM donation_registrations"
-            ).fetchone()[0]
+            with get_session() as session:
+                # 总登记数
+                total_registrations = session.execute(
+                    select(func.count(DonationRegistrations.id))
+                ).scalar()
 
-            # 待处理数
-            pending_registrations = self.cur.execute(
-                "SELECT COUNT(*) FROM donation_registrations WHERE status = 'pending'"
-            ).fetchone()[0]
+                # 待处理数
+                pending_registrations = session.execute(
+                    select(func.count(DonationRegistrations.id)).where(
+                        DonationRegistrations.status == "pending"
+                    )
+                ).scalar()
 
-            # 已批准数
-            approved_registrations = self.cur.execute(
-                "SELECT COUNT(*) FROM donation_registrations WHERE status = 'approved'"
-            ).fetchone()[0]
+                # 已批准数
+                approved_registrations = session.execute(
+                    select(func.count(DonationRegistrations.id)).where(
+                        DonationRegistrations.status == "approved"
+                    )
+                ).scalar()
 
-            # 已拒绝数
-            rejected_registrations = self.cur.execute(
-                "SELECT COUNT(*) FROM donation_registrations WHERE status = 'rejected'"
-            ).fetchone()[0]
+                # 已拒绝数
+                rejected_registrations = session.execute(
+                    select(func.count(DonationRegistrations.id)).where(
+                        DonationRegistrations.status == "rejected"
+                    )
+                ).scalar()
 
-            # 总捐赠金额（已批准的）
-            total_amount_result = self.cur.execute(
-                "SELECT SUM(amount) FROM donation_registrations WHERE status = 'approved'"
-            ).fetchone()
-            total_amount = (
-                float(total_amount_result[0]) if total_amount_result[0] else 0.0
-            )
+                # 总捐赠金额（已批准的）
+                total_amount = session.execute(
+                    select(func.sum(DonationRegistrations.amount)).where(
+                        DonationRegistrations.status == "approved"
+                    )
+                ).scalar()
+                total_amount = float(total_amount) if total_amount else 0.0
 
-            return {
-                "total_registrations": total_registrations,
-                "pending_registrations": pending_registrations,
-                "approved_registrations": approved_registrations,
-                "rejected_registrations": rejected_registrations,
-                "total_approved_amount": total_amount,
-            }
+                return {
+                    "total_registrations": total_registrations,
+                    "pending_registrations": pending_registrations,
+                    "approved_registrations": approved_registrations,
+                    "rejected_registrations": rejected_registrations,
+                    "total_approved_amount": total_amount,
+                }
         except Exception as e:
             logger.error(f"获取捐赠统计信息失败: {e}")
             return {
@@ -2433,7 +2688,8 @@ class DB:
                 "total_approved_amount": 0.0,
             }
 
-    # Crypto 捐赠订单相关方法
+    # ==================== Crypto Donation Orders Operations ====================
+
     def create_crypto_donation_order(
         self,
         user_id: int,
@@ -2449,16 +2705,19 @@ class DB:
                 logger.error(f"不支持的加密货币类型: {crypto_type}")
                 return False
 
-            created_at = datetime.now(settings.TZ).isoformat()
+            with get_session() as session:
+                created_at = datetime.now(settings.TZ).isoformat()
 
-            self.cur.execute(
-                """INSERT INTO crypto_donation_orders 
-                   (user_id, order_id, crypto_type, amount, created_at, note) 
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (user_id, order_id, crypto_type, amount, created_at, note),
-            )
-            self.con.commit()
-            return True
+                order = CryptoDonationOrders(
+                    user_id=user_id,
+                    order_id=order_id,
+                    crypto_type=crypto_type,
+                    amount=amount,
+                    created_at=created_at,
+                    note=note,
+                )
+                session.add(order)
+                return True
         except Exception as e:
             logger.error(f"创建 crypto 捐赠订单失败: {e}")
             return False
@@ -2474,25 +2733,22 @@ class DB:
     ) -> bool:
         """更新 crypto 捐赠订单的 UPAY 信息"""
         try:
-            updated_at = datetime.now(settings.TZ).isoformat()
+            with get_session() as session:
+                updated_at = datetime.now(settings.TZ).isoformat()
 
-            self.cur.execute(
-                """UPDATE crypto_donation_orders 
-                   SET trade_id = ?, actual_amount = ?, payment_address = ?, 
-                       payment_url = ?, expiration_time = ?, updated_at = ?
-                   WHERE order_id = ?""",
-                (
-                    trade_id,
-                    actual_amount,
-                    payment_address,
-                    payment_url,
-                    expiration_time,
-                    updated_at,
-                    order_id,
-                ),
-            )
-            self.con.commit()
-            return True
+                session.execute(
+                    update(CryptoDonationOrders)
+                    .where(CryptoDonationOrders.order_id == order_id)
+                    .values(
+                        trade_id=trade_id,
+                        actual_amount=actual_amount,
+                        payment_address=payment_address,
+                        payment_url=payment_url,
+                        expiration_time=expiration_time,
+                        updated_at=updated_at,
+                    )
+                )
+                return True
         except Exception as e:
             logger.error(f"更新 crypto 捐赠订单 UPAY 信息失败: {e}")
             return False
@@ -2505,18 +2761,22 @@ class DB:
     ) -> bool:
         """完成 crypto 捐赠订单支付"""
         try:
-            paid_at = datetime.now(settings.TZ).isoformat()
-            updated_at = paid_at
+            with get_session() as session:
+                paid_at = datetime.now(settings.TZ).isoformat()
+                updated_at = paid_at
 
-            self.cur.execute(
-                """UPDATE crypto_donation_orders 
-                   SET status = 2, block_transaction_id = ?, actual_amount = ?, 
-                       paid_at = ?, updated_at = ?
-                   WHERE trade_id = ?""",
-                (block_transaction_id, actual_amount, paid_at, updated_at, trade_id),
-            )
-            self.con.commit()
-            return True
+                session.execute(
+                    update(CryptoDonationOrders)
+                    .where(CryptoDonationOrders.trade_id == trade_id)
+                    .values(
+                        status=2,
+                        block_transaction_id=block_transaction_id,
+                        actual_amount=actual_amount,
+                        paid_at=paid_at,
+                        updated_at=updated_at,
+                    )
+                )
+                return True
         except Exception as e:
             logger.error(f"完成 crypto 捐赠订单支付失败: {e}")
             return False
@@ -2524,31 +2784,32 @@ class DB:
     def get_crypto_donation_order_by_order_id(self, order_id: str) -> Optional[dict]:
         """根据订单ID获取 crypto 捐赠订单"""
         try:
-            result = self.cur.execute(
-                """SELECT * FROM crypto_donation_orders WHERE order_id = ?""",
-                (order_id,),
-            ).fetchone()
+            with get_session() as session:
+                stmt = select(CryptoDonationOrders).where(
+                    CryptoDonationOrders.order_id == order_id
+                )
+                result = session.execute(stmt).scalar_one_or_none()
 
-            if result:
-                return {
-                    "id": result[0],
-                    "user_id": result[1],
-                    "order_id": result[2],
-                    "trade_id": result[3],
-                    "crypto_type": result[4],
-                    "amount": result[5],
-                    "actual_amount": result[6],
-                    "payment_address": result[7],
-                    "block_transaction_id": result[8],
-                    "status": result[9],
-                    "payment_url": result[10],
-                    "expiration_time": result[11],
-                    "created_at": result[12],
-                    "updated_at": result[13],
-                    "paid_at": result[14],
-                    "note": result[15],
-                }
-            return None
+                if result:
+                    return {
+                        "id": result.id,
+                        "user_id": result.user_id,
+                        "order_id": result.order_id,
+                        "trade_id": result.trade_id,
+                        "crypto_type": result.crypto_type,
+                        "amount": result.amount,
+                        "actual_amount": result.actual_amount,
+                        "payment_address": result.payment_address,
+                        "block_transaction_id": result.block_transaction_id,
+                        "status": result.status,
+                        "payment_url": result.payment_url,
+                        "expiration_time": result.expiration_time,
+                        "created_at": result.created_at,
+                        "updated_at": result.updated_at,
+                        "paid_at": result.paid_at,
+                        "note": result.note,
+                    }
+                return None
         except Exception as e:
             logger.error(f"获取 crypto 捐赠订单失败: {e}")
             return None
@@ -2556,31 +2817,32 @@ class DB:
     def get_crypto_donation_order_by_trade_id(self, trade_id: str) -> Optional[dict]:
         """根据交易ID获取 crypto 捐赠订单"""
         try:
-            result = self.cur.execute(
-                """SELECT * FROM crypto_donation_orders WHERE trade_id = ?""",
-                (trade_id,),
-            ).fetchone()
+            with get_session() as session:
+                stmt = select(CryptoDonationOrders).where(
+                    CryptoDonationOrders.trade_id == trade_id
+                )
+                result = session.execute(stmt).scalar_one_or_none()
 
-            if result:
-                return {
-                    "id": result[0],
-                    "user_id": result[1],
-                    "order_id": result[2],
-                    "trade_id": result[3],
-                    "crypto_type": result[4],
-                    "amount": result[5],
-                    "actual_amount": result[6],
-                    "payment_address": result[7],
-                    "block_transaction_id": result[8],
-                    "status": result[9],
-                    "payment_url": result[10],
-                    "expiration_time": result[11],
-                    "created_at": result[12],
-                    "updated_at": result[13],
-                    "paid_at": result[14],
-                    "note": result[15],
-                }
-            return None
+                if result:
+                    return {
+                        "id": result.id,
+                        "user_id": result.user_id,
+                        "order_id": result.order_id,
+                        "trade_id": result.trade_id,
+                        "crypto_type": result.crypto_type,
+                        "amount": result.amount,
+                        "actual_amount": result.actual_amount,
+                        "payment_address": result.payment_address,
+                        "block_transaction_id": result.block_transaction_id,
+                        "status": result.status,
+                        "payment_url": result.payment_url,
+                        "expiration_time": result.expiration_time,
+                        "created_at": result.created_at,
+                        "updated_at": result.updated_at,
+                        "paid_at": result.paid_at,
+                        "note": result.note,
+                    }
+                return None
         except Exception as e:
             logger.error(f"获取 crypto 捐赠订单失败: {e}")
             return None
@@ -2590,37 +2852,38 @@ class DB:
     ) -> List[dict]:
         """获取用户的 crypto 捐赠订单历史"""
         try:
-            results = self.cur.execute(
-                """SELECT * FROM crypto_donation_orders 
-                   WHERE user_id = ? 
-                   ORDER BY created_at DESC 
-                   LIMIT ?""",
-                (user_id, limit),
-            ).fetchall()
-
-            orders = []
-            for result in results:
-                orders.append(
-                    {
-                        "id": result[0],
-                        "user_id": result[1],
-                        "order_id": result[2],
-                        "trade_id": result[3],
-                        "crypto_type": result[4],
-                        "amount": result[5],
-                        "actual_amount": result[6],
-                        "payment_address": result[7],
-                        "block_transaction_id": result[8],
-                        "status": result[9],
-                        "payment_url": result[10],
-                        "expiration_time": result[11],
-                        "created_at": result[12],
-                        "updated_at": result[13],
-                        "paid_at": result[14],
-                        "note": result[15],
-                    }
+            with get_session() as session:
+                stmt = (
+                    select(CryptoDonationOrders)
+                    .where(CryptoDonationOrders.user_id == user_id)
+                    .order_by(CryptoDonationOrders.created_at.desc())
+                    .limit(limit)
                 )
-            return orders
+                results = session.execute(stmt).scalars().all()
+
+                orders = []
+                for result in results:
+                    orders.append(
+                        {
+                            "id": result.id,
+                            "user_id": result.user_id,
+                            "order_id": result.order_id,
+                            "trade_id": result.trade_id,
+                            "crypto_type": result.crypto_type,
+                            "amount": result.amount,
+                            "actual_amount": result.actual_amount,
+                            "payment_address": result.payment_address,
+                            "block_transaction_id": result.block_transaction_id,
+                            "status": result.status,
+                            "payment_url": result.payment_url,
+                            "expiration_time": result.expiration_time,
+                            "created_at": result.created_at,
+                            "updated_at": result.updated_at,
+                            "paid_at": result.paid_at,
+                            "note": result.note,
+                        }
+                    )
+                return orders
         except Exception as e:
             logger.error(f"获取用户 crypto 捐赠订单历史失败: {e}")
             return []
@@ -2630,46 +2893,46 @@ class DB:
     ) -> List[dict]:
         """获取所有 crypto 捐赠订单历史（管理员用）"""
         try:
-            # 构建查询条件
-            where_clause = ""
-            params = []
+            with get_session() as session:
+                # 构建查询
+                stmt = select(CryptoDonationOrders)
 
-            if status_filter and status_filter in ["0", "1", "2", "3"]:
-                where_clause = "WHERE status = ?"
-                params.append(int(status_filter))
+                # 添加状态过滤
+                if status_filter and status_filter in ["0", "1", "2", "3"]:
+                    stmt = stmt.where(CryptoDonationOrders.status == int(status_filter))
 
-            # 构建完整的SQL语句
-            sql = f"""SELECT * FROM crypto_donation_orders 
-                     {where_clause} 
-                     ORDER BY created_at DESC 
-                     LIMIT ? OFFSET ?"""
-            params.extend([limit, offset])
-
-            results = self.cur.execute(sql, params).fetchall()
-
-            orders = []
-            for result in results:
-                orders.append(
-                    {
-                        "id": result[0],
-                        "user_id": result[1],
-                        "order_id": result[2],
-                        "trade_id": result[3],
-                        "crypto_type": result[4],
-                        "amount": result[5],
-                        "actual_amount": result[6],
-                        "payment_address": result[7],
-                        "block_transaction_id": result[8],
-                        "status": result[9],
-                        "payment_url": result[10],
-                        "expiration_time": result[11],
-                        "created_at": result[12],
-                        "updated_at": result[13],
-                        "paid_at": result[14],
-                        "note": result[15],
-                    }
+                # 排序和分页
+                stmt = (
+                    stmt.order_by(CryptoDonationOrders.created_at.desc())
+                    .limit(limit)
+                    .offset(offset)
                 )
-            return orders
+
+                results = session.execute(stmt).scalars().all()
+
+                orders = []
+                for result in results:
+                    orders.append(
+                        {
+                            "id": result.id,
+                            "user_id": result.user_id,
+                            "order_id": result.order_id,
+                            "trade_id": result.trade_id,
+                            "crypto_type": result.crypto_type,
+                            "amount": result.amount,
+                            "actual_amount": result.actual_amount,
+                            "payment_address": result.payment_address,
+                            "block_transaction_id": result.block_transaction_id,
+                            "status": result.status,
+                            "payment_url": result.payment_url,
+                            "expiration_time": result.expiration_time,
+                            "created_at": result.created_at,
+                            "updated_at": result.updated_at,
+                            "paid_at": result.paid_at,
+                            "note": result.note,
+                        }
+                    )
+                return orders
         except Exception as e:
             logger.error(f"获取所有 crypto 捐赠订单历史失败: {e}")
             return []
@@ -2677,19 +2940,16 @@ class DB:
     def get_crypto_donation_orders_count(self, status_filter: str = None) -> int:
         """获取 crypto 捐赠订单总数（管理员用）"""
         try:
-            # 构建查询条件
-            where_clause = ""
-            params = []
+            with get_session() as session:
+                # 构建查询
+                stmt = select(func.count(CryptoDonationOrders.id))
 
-            if status_filter and status_filter in ["0", "1", "2", "3"]:
-                where_clause = "WHERE status = ?"
-                params.append(int(status_filter))
+                # 添加状态过滤
+                if status_filter and status_filter in ["0", "1", "2", "3"]:
+                    stmt = stmt.where(CryptoDonationOrders.status == int(status_filter))
 
-            # 构建完整的SQL语句
-            sql = f"SELECT COUNT(*) FROM crypto_donation_orders {where_clause}"
-
-            result = self.cur.execute(sql, params).fetchone()
-            return result[0] if result else 0
+                result = session.execute(stmt).scalar()
+                return result if result else 0
         except Exception as e:
             logger.error(f"获取 crypto 捐赠订单总数失败: {e}")
             return 0
@@ -2697,38 +2957,43 @@ class DB:
     def get_expired_crypto_donation_orders(self) -> List[dict]:
         """获取所有已过期但状态仍为等待支付的 crypto 捐赠订单"""
         try:
-            current_time = int(time.time() * 1000)  # 当前时间的毫秒时间戳
+            with get_session() as session:
+                current_time = int(time.time() * 1000)  # 当前时间的毫秒时间戳
 
-            results = self.cur.execute(
-                """SELECT * FROM crypto_donation_orders 
-                   WHERE status = 1 AND expiration_time IS NOT NULL AND expiration_time <= ?
-                   ORDER BY created_at ASC""",
-                (current_time,),
-            ).fetchall()
-
-            expired_orders = []
-            for result in results:
-                expired_orders.append(
-                    {
-                        "id": result[0],
-                        "user_id": result[1],
-                        "order_id": result[2],
-                        "trade_id": result[3],
-                        "crypto_type": result[4],
-                        "amount": result[5],
-                        "actual_amount": result[6],
-                        "payment_address": result[7],
-                        "block_transaction_id": result[8],
-                        "status": result[9],
-                        "payment_url": result[10],
-                        "expiration_time": result[11],
-                        "created_at": result[12],
-                        "updated_at": result[13],
-                        "paid_at": result[14],
-                        "note": result[15],
-                    }
+                stmt = (
+                    select(CryptoDonationOrders)
+                    .where(
+                        CryptoDonationOrders.status == 1,
+                        CryptoDonationOrders.expiration_time.isnot(None),
+                        CryptoDonationOrders.expiration_time <= current_time,
+                    )
+                    .order_by(CryptoDonationOrders.created_at.asc())
                 )
-            return expired_orders
+                results = session.execute(stmt).scalars().all()
+
+                expired_orders = []
+                for result in results:
+                    expired_orders.append(
+                        {
+                            "id": result.id,
+                            "user_id": result.user_id,
+                            "order_id": result.order_id,
+                            "trade_id": result.trade_id,
+                            "crypto_type": result.crypto_type,
+                            "amount": result.amount,
+                            "actual_amount": result.actual_amount,
+                            "payment_address": result.payment_address,
+                            "block_transaction_id": result.block_transaction_id,
+                            "status": result.status,
+                            "payment_url": result.payment_url,
+                            "expiration_time": result.expiration_time,
+                            "created_at": result.created_at,
+                            "updated_at": result.updated_at,
+                            "paid_at": result.paid_at,
+                            "note": result.note,
+                        }
+                    )
+                return expired_orders
         except Exception as e:
             logger.error(f"获取过期 crypto 捐赠订单失败: {e}")
             return []
@@ -2736,24 +3001,32 @@ class DB:
     def update_expired_crypto_donation_orders(self) -> int:
         """批量更新已过期的 crypto 捐赠订单状态为已过期(3)"""
         try:
-            current_time = int(time.time() * 1000)  # 当前时间的毫秒时间戳
-            updated_at = datetime.now(settings.TZ).isoformat()
+            with get_session() as session:
+                current_time = int(time.time() * 1000)  # 当前时间的毫秒时间戳
+                updated_at = datetime.now(settings.TZ).isoformat()
 
-            # 更新所有过期的订单状态
-            result = self.cur.execute(
-                """UPDATE crypto_donation_orders 
-                   SET status = 3, updated_at = ?
-                   WHERE status = 1 AND expiration_time IS NOT NULL AND expiration_time <= ?""",
-                (updated_at, current_time),
-            )
+                # 更新所有过期的订单状态
+                result = session.execute(
+                    update(CryptoDonationOrders)
+                    .where(
+                        CryptoDonationOrders.status == 1,
+                        CryptoDonationOrders.expiration_time.isnot(None),
+                        CryptoDonationOrders.expiration_time <= current_time,
+                    )
+                    .values(status=3, updated_at=updated_at)
+                )
+                updated_count = result.rowcount
 
-            self.con.commit()
-            updated_count = result.rowcount
+                if updated_count > 0:
+                    logger.info(
+                        f"成功更新 {updated_count} 个过期的 crypto 捐赠订单状态"
+                    )
 
-            if updated_count > 0:
-                logger.info(f"成功更新 {updated_count} 个过期的 crypto 捐赠订单状态")
-
-            return updated_count
+                return updated_count
         except Exception as e:
             logger.error(f"更新过期 crypto 捐赠订单状态失败: {e}")
             return 0
+
+
+# 创建全局实例
+db = DatabaseORM()

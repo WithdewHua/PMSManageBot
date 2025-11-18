@@ -1,4 +1,5 @@
 from app.config import settings
+from app.databases import db
 from app.databases.cache import (
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
@@ -8,7 +9,6 @@ from app.databases.cache import (
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
 )
-from app.databases.db import DB
 from app.log import uvicorn_logger as logger
 from app.utils.utils import (
     get_user_name_from_tg_id,
@@ -234,7 +234,7 @@ async def unbind_emby_premium_free():
     if settings.PREMIUM_FREE:
         logger.info("Emby Premium Free 功能未启用，跳过解绑操作")
         return True, None
-    db = DB()
+
     try:
         # 获取所有绑定了 Emby 线路的用户
         users = db.get_emby_user_with_binded_line()
@@ -271,9 +271,6 @@ async def unbind_emby_premium_free():
     except Exception as e:
         logger.error(f"解绑所有普通用户的 premium 线路时发生错误: {str(e)}")
         return False, f"解绑所有普通用户的 premium 线路时发生错误: {str(e)}"
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 async def unbind_plex_premium_free():
@@ -282,7 +279,7 @@ async def unbind_plex_premium_free():
     if settings.PREMIUM_FREE:
         logger.info("Plex Premium Free 功能未启用，跳过解绑操作")
         return True, None
-    db = DB()
+
     try:
         # 获取所有绑定了 Plex 线路的用户
         users = db.get_plex_user_with_binded_line()
@@ -319,14 +316,11 @@ async def unbind_plex_premium_free():
     except Exception as e:
         logger.error(f"解绑所有普通用户的 premium 线路时发生错误: {str(e)}")
         return False, f"解绑所有普通用户的 premium 线路时发生错误: {str(e)}"
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 async def handle_free_premium_lines_change(removed_lines: list | set):
     """处理免费高级线路变更，检查并处理不再免费的线路"""
-    db = DB()
+
     try:
         if not removed_lines:
             return True, None
@@ -406,14 +400,11 @@ async def handle_free_premium_lines_change(removed_lines: list | set):
     except Exception as e:
         logger.error(f"处理免费高级线路变更时发生错误: {str(e)}")
         return False, f"处理免费高级线路变更时发生错误: {str(e)}"
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 async def unbind_specified_line_for_all_users(line: str):
     """解绑所有用户的指定线路（通用，同时支持Plex和Emby）"""
-    db = DB()
+
     try:
         # 获取所有绑定了 Emby 线路的用户
         emby_users = db.get_emby_user_with_binded_line()
@@ -454,9 +445,6 @@ async def unbind_specified_line_for_all_users(line: str):
     except Exception as e:
         logger.error(f"解绑所有用户的 {line} 线路时发生错误: {str(e)}")
         return False, f"解绑所有用户的 {line} 线路时发生错误: {str(e)}"
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.post("/donation")
@@ -476,8 +464,6 @@ async def submit_donation_record(
 
         if not tg_id or amount <= 0:
             return BaseResponse(success=False, message="参数错误")
-
-        db = DB()
 
         # 获取当前捐赠金额
         stats_info = db.get_stats_by_tg_id(tg_id)
@@ -531,8 +517,6 @@ async def submit_donation_record(
     except Exception as e:
         logger.error(f"提交捐赠记录失败: {str(e)}")
         return BaseResponse(success=False, message="提交失败")
-    finally:
-        db.close()
 
 
 # ==================== 线路标签管理 API ==================== #
@@ -1029,8 +1013,6 @@ async def generate_admin_invite_codes(
     check_admin_permission(user)
 
     try:
-        db = DB()
-
         tg_id = data.get("tg_id")
         count = data.get("count", 1)
         is_premium = data.get("is_premium", False)
@@ -1087,5 +1069,3 @@ async def generate_admin_invite_codes(
     except Exception as e:
         logger.error(f"管理员生成邀请码失败: {str(e)}")
         return BaseResponse(success=False, message=f"生成邀请码失败: {str(e)}")
-    finally:
-        db.close()

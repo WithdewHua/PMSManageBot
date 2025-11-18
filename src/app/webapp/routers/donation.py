@@ -1,6 +1,8 @@
 from app.config import settings
-from app.databases.db import DB
+from app.databases import db
+from app.databases.session import get_session
 from app.log import logger
+from app.models.models import Statistics
 from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
@@ -16,6 +18,7 @@ from app.webapp.schemas.donation import (
     DonationRegistrationUpdate,
 )
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import update as sql_update
 
 router = APIRouter(prefix="/api/donations", tags=["donations"])
 
@@ -34,8 +37,6 @@ async def create_donation_registration(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="用户信息不完整"
             )
-
-        db = DB()
 
         # 创建捐赠登记记录
         success = db.create_donation_registration(
@@ -76,8 +77,6 @@ async def create_donation_registration(
             f"用户 {user_id} 提交了{'捐赠开号' if registration_data.is_donation_registration else '普通捐赠'}登记: {registration_data.payment_method.value} {registration_data.amount}元"
         )
 
-        db.close()
-
         return DonationRegistrationCreateResponse(
             success=True,
             message="捐赠登记提交成功，管理员将在 24 小时内处理",
@@ -112,9 +111,7 @@ async def get_user_donation_registrations(
         # 限制分页参数
         per_page = min(per_page, 100)
 
-        db = DB()
         registrations = db.get_donation_registrations_by_user(user_id, limit=per_page)
-        db.close()
 
         registration_responses = [
             DonationRegistrationResponse(**reg) for reg in registrations
@@ -149,9 +146,7 @@ async def get_pending_donation_registrations(
         # 限制查询数量
         limit = min(limit, 200)
 
-        db = DB()
         registrations = db.get_pending_donation_registrations(limit=limit)
-        db.close()
 
         registration_responses = [
             DonationRegistrationResponse(**reg) for reg in registrations
@@ -189,9 +184,7 @@ async def get_donation_registration_detail(
         user_id = user.id
         is_admin = user.id in settings.TG_ADMIN_CHAT_ID
 
-        db = DB()
         registration = db.get_donation_registration_by_id(registration_id)
-        db.close()
 
         if not registration:
             raise HTTPException(
@@ -234,19 +227,15 @@ async def confirm_donation_registration(
         check_admin_permission(user)
         admin_id = user.id
 
-        db = DB()
-
         # 检查登记记录是否存在
         registration = db.get_donation_registration_by_id(registration_id)
         if not registration:
-            db.close()
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="捐赠登记记录不存在"
             )
 
         # 检查状态是否为待处理
         if registration["status"] != "pending":
-            db.close()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"此登记记录状态为 {registration['status']}，无法处理",
@@ -261,7 +250,6 @@ async def confirm_donation_registration(
         )
 
         if not success:
-            db.close()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="处理捐赠登记失败",
@@ -289,10 +277,13 @@ async def confirm_donation_registration(
                         current_stats[2] + amount * settings.DONATION_MULTIPLIER
                     )  # 捐赠积分 1:DONATION_MULTIPLIER
 
-                db.cur.execute(
-                    "UPDATE statistics SET donation = ?, credits = ? WHERE tg_id = ?",
-                    (new_donation, new_credits, user_id),
-                )
+                with get_session() as session:
+                    stmt = (
+                        sql_update(Statistics)
+                        .where(Statistics.tg_id == user_id)
+                        .values(donation=new_donation, credits=new_credits)
+                    )
+                    session.execute(stmt)
             else:
                 # 如果用户统计记录不存在，创建一个
                 if is_donation_registration:
@@ -320,12 +311,8 @@ async def confirm_donation_registration(
                 except Exception as e:
                     logger.error(f"为捐赠开号用户 {user_id} 生成邀请码失败: {e}")
 
-            # 提交所有更改
-            db.con.commit()
-
         # 获取更新后的记录
         updated_registration = db.get_donation_registration_by_id(registration_id)
-        db.close()
 
         action = "批准" if confirm_data.approved else "拒绝"
         message = f"捐赠登记已{action}"
@@ -433,9 +420,8 @@ async def get_donation_statistics(
     try:
         # 检查管理员权限
         check_admin_permission(user)
-        db = DB()
+
         stats = db.get_donation_statistics()
-        db.close()
 
         return {"success": True, "data": stats}
 

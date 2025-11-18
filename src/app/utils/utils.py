@@ -9,9 +9,11 @@ from typing import Optional, Union
 import aiohttp
 import filelock
 from app.config import settings
-from app.databases.db import DB
+from app.databases.session import get_session as get_db_session
 from app.log import logger
+from app.models.models import EmbyUser, Statistics
 from app.modules.emby import Emby
+from sqlalchemy import select
 from telegram.ext import ContextTypes
 
 
@@ -300,12 +302,13 @@ async def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
             str(settings.TG_USER_INFO_CACHE_PATH) + ".lock"
         )
         cache = {}
-        db = DB()
+
         session = await get_thread_safe_session()
 
         # 从 statistics 表获取所有用户
-        stats_users = db.cur.execute("SELECT tg_id FROM statistics").fetchall()
-        stats_users = [user[0] for user in stats_users]
+        with get_db_session() as db_session:
+            stmt = select(Statistics.tg_id)
+            stats_users = [tg_id for tg_id in db_session.execute(stmt).scalars().all()]
 
         for tg_id in stats_users:
             if settings.TG_USER_INFO_CACHE_PATH.exists():
@@ -370,8 +373,6 @@ async def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
                     pickle.dump(cache, f)
     except Exception as e:
         logger.error(f"Refresh user tg info failed: {e}")
-    finally:
-        db.close()
 
 
 def refresh_emby_user_info():
@@ -379,16 +380,16 @@ def refresh_emby_user_info():
     emby = Emby()
     # 获取所有的 emby 用户名
     try:
-        db = DB()
+        with get_db_session() as session:
+            stmt = select(EmbyUser.emby_username)
+            emby_users = [
+                username for username in session.execute(stmt).scalars().all()
+            ]
 
-        emby_users = db.cur.execute("SELECT emby_username from emby_user").fetchall()
-        emby_users = [user[0] for user in emby_users]
         for user in emby_users:
             emby.get_user_info_from_username(user)
     except Exception as e:
         logger.error(f"Refresh emby user info failed: {e}")
-    finally:
-        db.close()
 
 
 class SingletonMeta(type):

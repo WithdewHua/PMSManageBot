@@ -3,8 +3,10 @@ Crypto 捐赠相关 API 路由
 """
 
 from app.config import settings
-from app.databases.db import DB
+from app.databases import db
+from app.databases.session import get_session
 from app.log import logger
+from app.models.models import CryptoDonationOrders, EmbyUser, PlexUser
 from app.modules.upay import UPayService
 from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
@@ -21,6 +23,7 @@ from app.webapp.schemas.crypto_donation import (
 )
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, PlainTextResponse
+from sqlalchemy import delete, select
 
 router = APIRouter(prefix="/api/crypto-donations", tags=["crypto-donations"])
 
@@ -28,19 +31,14 @@ router = APIRouter(prefix="/api/crypto-donations", tags=["crypto-donations"])
 def check_user_binding(user_id: int) -> bool:
     """检查用户是否绑定了 emby 或 plex 账号"""
     try:
-        db = DB()
+        with get_session() as session:
+            # 检查 emby 绑定
+            emby_stmt = select(EmbyUser.emby_id).where(EmbyUser.tg_id == user_id)
+            emby_result = session.execute(emby_stmt).scalar_one_or_none()
 
-        # 检查 emby 绑定
-        emby_result = db.cur.execute(
-            "SELECT emby_id FROM emby_user WHERE tg_id = ?", (user_id,)
-        ).fetchone()
-
-        # 检查 plex 绑定
-        plex_result = db.cur.execute(
-            "SELECT plex_id FROM user WHERE tg_id = ?", (user_id,)
-        ).fetchone()
-
-        db.close()
+            # 检查 plex 绑定
+            plex_stmt = select(PlexUser.plex_id).where(PlexUser.tg_id == user_id)
+            plex_result = session.execute(plex_stmt).scalar_one_or_none()
 
         return bool(emby_result or plex_result)
     except Exception as e:
@@ -83,7 +81,6 @@ async def create_crypto_donation_order(
                 detail="不接受无帐号捐赠，请先绑定 Emby 或 Plex 账号后再进行捐赠",
             )
 
-        db = DB()
         upay_service = UPayService()
 
         # 生成唯一订单ID
@@ -113,10 +110,12 @@ async def create_crypto_donation_order(
 
         if not upay_result:
             # 删除本地订单记录
-            db.cur.execute(
-                "DELETE FROM crypto_donation_orders WHERE order_id = ?", (order_id,)
-            )
-            db.con.commit()
+            with get_session() as session:
+                stmt = delete(CryptoDonationOrders).where(
+                    CryptoDonationOrders.order_id == order_id
+                )
+                session.execute(stmt)
+
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="创建支付订单失败，请稍后重试",
@@ -134,7 +133,6 @@ async def create_crypto_donation_order(
 
         # 获取更新后的订单
         updated_order = db.get_crypto_donation_order_by_order_id(order_id)
-        db.close()
 
         if not updated_order:
             raise HTTPException(
@@ -209,8 +207,6 @@ async def get_all_crypto_donation_orders(
         page = max(page, 1)
         offset = (page - 1) * per_page
 
-        db = DB()
-
         # 获取订单列表
         orders = db.get_all_crypto_donation_orders(
             limit=per_page, offset=offset, status_filter=status_filter
@@ -218,8 +214,6 @@ async def get_all_crypto_donation_orders(
 
         # 获取总数
         total = db.get_crypto_donation_orders_count(status_filter=status_filter)
-
-        db.close()
 
         # 为每个订单添加用户名信息
         order_responses = []
@@ -259,9 +253,7 @@ async def get_user_crypto_donation_orders(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="用户信息不完整"
             )
 
-        db = DB()
         orders = db.get_crypto_donation_orders_by_user(user_id, limit=50)
-        db.close()
 
         order_responses = [CryptoDonationOrderResponse(**order) for order in orders]
 
@@ -294,9 +286,7 @@ async def get_crypto_donation_order(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="用户信息不完整"
             )
 
-        db = DB()
         order = db.get_crypto_donation_order_by_order_id(order_id)
-        db.close()
 
         if not order:
             raise HTTPException(
@@ -353,19 +343,15 @@ async def upay_payment_callback(request: Request):
             logger.warning(f"接收到非支付成功回调，状态: {callback.status}")
             return PlainTextResponse(content="ok")
 
-        db = DB()
-
         # 查找订单
         order = db.get_crypto_donation_order_by_trade_id(callback.trade_id)
         if not order:
             logger.error(f"找不到交易ID为 {callback.trade_id} 的订单")
-            db.close()
             return JSONResponse(status_code=404, content={"error": "order not found"})
 
         # 检查订单是否已经处理过
         if order["status"] == 2:
             logger.info(f"订单 {callback.order_id} 已经处理过，跳过")
-            db.close()
             return PlainTextResponse(content="ok")
 
         # 更新订单状态为已支付
@@ -377,7 +363,6 @@ async def upay_payment_callback(request: Request):
 
         if not success:
             logger.error(f"更新订单 {callback.order_id} 状态失败")
-            db.close()
             return JSONResponse(
                 status_code=500, content={"error": "failed to update order status"}
             )
@@ -480,8 +465,6 @@ async def upay_payment_callback(request: Request):
                 logger.error(f"更新用户 {user_id} 捐赠金额或积分失败")
         else:
             logger.error(f"找不到用户 {user_id} 的统计信息")
-
-        db.close()
 
         logger.info(f"UPAY 回调处理完成，订单 {callback.order_id} 支付成功")
         return PlainTextResponse(content="ok")

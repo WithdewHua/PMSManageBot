@@ -16,8 +16,10 @@ from app.databases.cache import (
     user_credits_cache,
     user_info_cache,
 )
-from app.databases.db import DB
+from app.databases.db import db
+from app.databases.session import get_session
 from app.log import logger
+from app.models.models import EmbyUser, PlexUser, Statistics
 from app.modules.emby import Emby
 from app.modules.plex import Plex
 from app.modules.tautulli import Tautulli
@@ -26,12 +28,13 @@ from app.utils.utils import (
     get_user_total_duration,
     send_message_by_url,
 )
+from sqlalchemy import func, select
+from sqlalchemy import update as sql_update
 
 
 def update_plex_credits():
     """更新积分及观看时长"""
     logger.info("开始更新 Plex 用户积分及观看时长")
-    _db = DB()
     notification_tasks = []
     try:
         # 获取一天内的观看时长
@@ -41,19 +44,25 @@ def update_plex_credits():
             )
         )
         # update credits and watched_time
-        res = _db.cur.execute("select plex_id from user")
-        users = res.fetchall()
-        for user in users:
-            plex_id = user[0]
+        with get_session() as session:
+            stmt = select(PlexUser.plex_id).where(PlexUser.plex_id.isnot(None))
+            plex_ids = session.execute(stmt).scalars().all()
+
+        for plex_id in plex_ids:
             play_duration = round(min(float(duration.get(plex_id, 0)), 24), 2)
             if play_duration == 0:
                 continue
             # 最大记 8h
             credits_inc = min(play_duration, 8)
-            res = _db.cur.execute(
-                "SELECT credits,watched_time,tg_id,plex_username,is_premium FROM user WHERE plex_id=?",
-                (plex_id,),
-            ).fetchone()
+            with get_session() as session:
+                stmt = select(
+                    PlexUser.credits,
+                    PlexUser.watched_time,
+                    PlexUser.tg_id,
+                    PlexUser.plex_username,
+                    PlexUser.is_premium,
+                ).where(PlexUser.plex_id == plex_id)
+                res = session.execute(stmt).fetchone()
             if not res:
                 continue
             watched_time_init = res[1]
@@ -61,7 +70,7 @@ def update_plex_credits():
             plex_username = res[3]
             is_premium = res[4]
             # 获取用户昨日的流量使用情况
-            traffic_usage = _db.get_user_daily_traffic(
+            traffic_usage = db.get_user_daily_traffic(
                 plex_username,
                 "plex",
                 date=datetime.now(settings.TZ) - timedelta(days=1),
@@ -84,23 +93,32 @@ def update_plex_credits():
                 credits_init = res[0]
                 credits = credits_init + credits_inc - traffic_cost_credits
                 watched_time = watched_time_init + play_duration
-                _db.cur.execute(
-                    "UPDATE user SET credits=?,watched_time=? WHERE plex_id=?",
-                    (credits, watched_time, plex_id),
-                )
+                with get_session() as session:
+                    stmt = (
+                        sql_update(PlexUser)
+                        .where(PlexUser.plex_id == plex_id)
+                        .values(credits=credits, watched_time=watched_time)
+                    )
+                    session.execute(stmt)
             else:
-                credits_init = _db.cur.execute(
-                    "SELECT credits FROM statistics WHERE tg_id=?", (tg_id,)
-                ).fetchone()[0]
+                with get_session() as session:
+                    stmt = select(Statistics.credits).where(Statistics.tg_id == tg_id)
+                    credits_init = session.execute(stmt).scalar()
                 credits = credits_init + credits_inc - traffic_cost_credits
                 watched_time = watched_time_init + play_duration
-                _db.cur.execute(
-                    "UPDATE user SET watched_time=? WHERE plex_id=?",
-                    (watched_time, plex_id),
-                )
-                _db.cur.execute(
-                    "UPDATE statistics SET credits=? WHERE tg_id=?", (credits, tg_id)
-                )
+                with get_session() as session:
+                    stmt1 = (
+                        sql_update(PlexUser)
+                        .where(PlexUser.plex_id == plex_id)
+                        .values(watched_time=watched_time)
+                    )
+                    stmt2 = (
+                        sql_update(Statistics)
+                        .where(Statistics.tg_id == tg_id)
+                        .values(credits=credits)
+                    )
+                    session.execute(stmt1)
+                    session.execute(stmt2)
                 if play_duration > 0:
                     # 需要发送通知
                     notification_tasks.append(
@@ -143,11 +161,8 @@ Premium 流量使用情况：{round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
             )
         return notification_tasks
     else:
-        _db.con.commit()
         logger.info("Plex 用户积分及观看时长更新完成")
         return notification_tasks
-    finally:
-        _db.close()
 
 
 def update_emby_credits():
@@ -155,14 +170,20 @@ def update_emby_credits():
     logger.info("开始更新 Emby 用户积分及观看时长")
     # 获取所有用户的观看时长
     emby = Emby()
-    _db = DB()
     notification_tasks = []
     try:
         duration = emby.get_user_total_play_time()
         # 获取数据库中的观看时长信息
-        users = _db.cur.execute(
-            "select emby_id, tg_id, emby_watched_time, emby_credits, emby_username, is_premium from emby_user"
-        ).fetchall()
+        with get_session() as session:
+            stmt = select(
+                EmbyUser.emby_id,
+                EmbyUser.tg_id,
+                EmbyUser.emby_watched_time,
+                EmbyUser.emby_credits,
+                EmbyUser.emby_username,
+                EmbyUser.is_premium,
+            )
+            users = session.execute(stmt).fetchall()
         for user in users:
             playduration = round(float(duration.get(user[0], 0)) / 3600, 2)
             if playduration == 0:
@@ -171,7 +192,7 @@ def update_emby_credits():
             credits_inc = min(playduration - user[2], 8)
             emby_username, is_premium = user[4], user[5]
             # 获取用户昨日的流量使用情况
-            traffic_usage = _db.get_user_daily_traffic(
+            traffic_usage = db.get_user_daily_traffic(
                 emby_username,
                 "emby",
                 date=datetime.now(settings.TZ) - timedelta(days=1),
@@ -193,28 +214,34 @@ def update_emby_credits():
 
             if not user[1]:
                 _credits = user[3] + credits_inc - traffic_cost_credits
-                _db.cur.execute(
-                    "UPDATE emby_user SET emby_watched_time=?,emby_credits=? WHERE emby_id=?",
-                    (playduration, _credits, user[0]),
-                )
+                with get_session() as session:
+                    stmt = (
+                        sql_update(EmbyUser)
+                        .where(EmbyUser.emby_id == user[0])
+                        .values(emby_watched_time=playduration, emby_credits=_credits)
+                    )
+                    session.execute(stmt)
             else:
-                stats_info = _db.get_stats_by_tg_id(user[1])
+                stats_info = db.get_stats_by_tg_id(user[1])
                 # statistics 表中有数据
                 if stats_info:
                     credits_init = stats_info[2]
                     _credits = credits_init + credits_inc - traffic_cost_credits
-                    _db.update_user_credits(_credits, tg_id=user[1])
+                    db.update_user_credits(_credits, tg_id=user[1])
                 else:
                     # 清空 emby_user 表中积分信息
-                    _db.update_user_credits(0, emby_id=user[0])
+                    db.update_user_credits(0, emby_id=user[0])
                     # 在 statistic 表中增加用户数据
                     _credits = user[3] + credits_inc - traffic_cost_credits
-                    _db.add_user_data(user[1], credits=_credits)
+                    db.add_user_data(user[1], credits=_credits)
                 # 更新 emby_user 表中观看时间
-                _db.cur.execute(
-                    "UPDATE emby_user SET emby_watched_time=? WHERE emby_id=?",
-                    (playduration, user[0]),
-                )
+                with get_session() as session:
+                    stmt = (
+                        sql_update(EmbyUser)
+                        .where(EmbyUser.emby_id == user[0])
+                        .values(emby_watched_time=playduration)
+                    )
+                    session.execute(stmt)
                 if (playduration - user[2]) > 0:
                     # 需要发送消息通知
                     notification_tasks.append(
@@ -256,11 +283,8 @@ Premium 流量使用情况：{round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
             )
         return notification_tasks
     else:
-        _db.con.commit()
         logger.info("Emby 用户积分及观看时长更新完成")
         return notification_tasks
-    finally:
-        _db.close()
 
 
 async def update_credits():
@@ -277,7 +301,6 @@ def update_plex_info(
     plex_name=True, plex_id=True, plex_avatar=True, target_email: Optional[str] = None
 ):
     """更新 plex 用户信息"""
-    _db = DB()
     _plex = Plex()
     try:
         if plex_name:
@@ -285,23 +308,25 @@ def update_plex_info(
             for uid, user in users.items():
                 email = user[1].email
                 username = user[0]
-                _db.cur.execute(
-                    "UPDATE user SET plex_username=?,plex_email=? WHERE plex_id=?",
-                    (username, email, uid),
-                )
+                with get_session() as session:
+                    stmt = (
+                        sql_update(PlexUser)
+                        .where(PlexUser.plex_id == uid)
+                        .values(plex_username=username, plex_email=email)
+                    )
+                    session.execute(stmt)
         if plex_id:
             # 检查是否存在 plex_id 为空的用户
-            if target_email:
-                # 如果指定了目标邮箱，只处理该邮箱
-                empty_plex_users = _db.cur.execute(
-                    "SELECT plex_email FROM user WHERE plex_id IS NULL AND plex_email=?",
-                    (target_email,),
-                ).fetchall()
-            else:
-                # 处理所有 plex_id 为空的用户
-                empty_plex_users = _db.cur.execute(
-                    "SELECT plex_email FROM user WHERE plex_id IS NULL"
-                ).fetchall()
+            with get_session() as session:
+                if target_email:
+                    # 如果指定了目标邮箱,只处理该邮箱
+                    stmt = select(PlexUser.plex_email).where(
+                        PlexUser.plex_id.is_(None), PlexUser.plex_email == target_email
+                    )
+                else:
+                    # 处理所有 plex_id 为空的用户
+                    stmt = select(PlexUser.plex_email).where(PlexUser.plex_id.is_(None))
+                empty_plex_users = session.execute(stmt).fetchall()
 
             for user in empty_plex_users:
                 email = user[0]
@@ -311,10 +336,13 @@ def update_plex_info(
                     _plex.get_username_by_user_id(plex_id) if plex_id else None
                 )
                 if plex_id and plex_username:
-                    _db.cur.execute(
-                        "UPDATE user SET plex_id=?, plex_username=? WHERE plex_email=?",
-                        (plex_id, plex_username, email),
-                    )
+                    with get_session() as session:
+                        stmt = (
+                            sql_update(PlexUser)
+                            .where(PlexUser.plex_email == email)
+                            .values(plex_id=plex_id, plex_username=plex_username)
+                        )
+                        session.execute(stmt)
                     logger.info(f"成功更新 Plex 用户 {email} 的 plex_id: {plex_id}")
 
                     # 如果是针对特定邮箱的调度任务，且成功获取到 plex_id，则标记任务待删除
@@ -353,15 +381,10 @@ def update_plex_info(
             _plex.update_all_user_avatars()
     except Exception as e:
         print(e)
-    else:
-        _db.con.commit()
-    finally:
-        _db.close()
 
 
 def update_all_lib():
     """更新用户资料库权限状态"""
-    _db = DB()
     _plex = Plex()
     try:
         users = _plex.users_by_email
@@ -369,21 +392,22 @@ def update_all_lib():
         for email, user in users.items():
             if not email:
                 continue
-            _info = _db.cur.execute("select * from user where plex_email=?", (email,))
-            _info = _info.fetchone()
+            with get_session() as session:
+                stmt = select(PlexUser).where(PlexUser.plex_email == email)
+                _info = session.execute(stmt).fetchone()
             if not _info:
                 continue
             cur_libs = _plex.get_user_shared_libs_by_id(user[0])
             all_lib_flag = 1 if not set(all_libs).difference(set(cur_libs)) else 0
-            _db.cur.execute(
-                "UPDATE user SET all_lib=? WHERE plex_email=?", (all_lib_flag, email)
-            )
+            with get_session() as session:
+                stmt = (
+                    sql_update(PlexUser)
+                    .where(PlexUser.plex_email == email)
+                    .values(all_lib=all_lib_flag)
+                )
+                session.execute(stmt)
     except Exception as e:
         print(e)
-    else:
-        _db.con.commit()
-    finally:
-        _db.close()
 
 
 def update_watched_time():
@@ -393,24 +417,23 @@ def update_watched_time():
             36500, "duration", len(Plex().users_by_id), "top_users"
         )
     )
-    _db = DB()
     try:
-        res = _db.cur.execute("select plex_id from user")
-        users = res.fetchall()
+        with get_session() as session:
+            stmt = select(PlexUser.plex_id)
+            users = session.execute(stmt).fetchall()
         for user in users:
             plex_id = user[0]
             watched_time = duration.get(plex_id, 0)
-            _db.cur.execute(
-                "UPDATE user SET watched_time=? WHERE plex_id=?",
-                (watched_time, plex_id),
-            )
+            with get_session() as session:
+                stmt = (
+                    sql_update(PlexUser)
+                    .where(PlexUser.plex_id == plex_id)
+                    .values(watched_time=watched_time)
+                )
+                session.execute(stmt)
 
     except Exception as e:
         print(e)
-    else:
-        _db.con.commit()
-    finally:
-        _db.close()
 
 
 def add_all_plex_user():
@@ -424,11 +447,11 @@ def add_all_plex_user():
     _plex = Plex()
     users = [user for user in _plex.my_plex_account.users()]
     users.append(_plex.my_plex_account)
-    _db = DB()
     all_libs = Plex().get_libraries()
     try:
-        _existing_users = _db.cur.execute("select plex_id from user").fetchall()
-        existing_users = [user[0] for user in _existing_users]
+        with get_session() as session:
+            stmt = select(PlexUser.plex_id)
+            existing_users = [user[0] for user in session.execute(stmt).fetchall()]
         for user in users:
             # 已存在用户及未接受邀请用户跳过
             if user.id in existing_users or (not user.email):
@@ -441,7 +464,7 @@ def add_all_plex_user():
                 print(e)
                 continue
             all_lib_flag = 1 if not set(all_libs).difference(set(cur_libs)) else 0
-            _db.add_plex_user(
+            db.add_plex_user(
                 plex_id=user.id,
                 tg_id=None,
                 plex_email=user.email,
@@ -453,10 +476,6 @@ def add_all_plex_user():
 
     except Exception as e:
         print(e)
-    else:
-        _db.con.commit()
-    finally:
-        _db.close()
 
 
 def update_donation_credits(old_multiplier, new_multiplier):
@@ -468,11 +487,12 @@ def update_donation_credits(old_multiplier, new_multiplier):
         new_multiplier: 新的积分倍数
     """
     try:
-        db = DB()
         # 获取所有捐赠记录
-        donations = db.cur.execute(
-            "SELECT tg_id, donation, credits FROM statistics WHERE donation > 0"
-        ).fetchall()
+        with get_session() as session:
+            stmt = select(
+                Statistics.tg_id, Statistics.donation, Statistics.credits
+            ).where(Statistics.donation > 0)
+            donations = session.execute(stmt).fetchall()
 
         for tg_id, donation, credits in donations:
             # 计算新的积分
@@ -480,19 +500,19 @@ def update_donation_credits(old_multiplier, new_multiplier):
                 credits + donation * (new_multiplier - old_multiplier), 2
             )
             # 更新数据库
-            db.cur.execute(
-                "UPDATE statistics SET credits = ? WHERE tg_id = ?",
-                (new_credits, tg_id),
-            )
+            with get_session() as session:
+                stmt = (
+                    sql_update(Statistics)
+                    .where(Statistics.tg_id == tg_id)
+                    .values(credits=new_credits)
+                )
+                session.execute(stmt)
             logger.info(
                 f"用户 {tg_id} 捐赠：{donation}, 更新积分: {credits} -> {new_credits}"
             )
 
-        db.con.commit()
     except Exception as e:
         logger.error(str(e))
-    finally:
-        db.close()
 
 
 def add_redeem_code(tg_id=None, num=1, is_privileged=False):
@@ -506,11 +526,10 @@ def add_redeem_code(tg_id=None, num=1, is_privileged=False):
     """
     from app.config import settings
 
-    db = DB()
     if tg_id is None:
-        tg_id = [
-            u[0] for u in db.cur.execute("SELECT tg_id FROM statistics").fetchall()
-        ]
+        with get_session() as session:
+            stmt = select(Statistics.tg_id)
+            tg_id = [u[0] for u in session.execute(stmt).fetchall()]
     elif not isinstance(tg_id, list):
         tg_id = [tg_id]
     try:
@@ -536,16 +555,11 @@ def add_redeem_code(tg_id=None, num=1, is_privileged=False):
                     )
     except Exception as e:
         print(e)
-    else:
-        db.con.commit()
-    finally:
-        db.close()
 
 
 async def finish_expired_auctions_job():
     """定时任务：结束过期的竞拍活动"""
     try:
-        db = DB()
         finished_auctions = db.finish_expired_auctions()
         # 通知用户
         for autction in finished_auctions:
@@ -563,15 +577,11 @@ async def finish_expired_auctions_job():
         return finished_auctions
     except Exception as e:
         logger.error(f"自动结束过期竞拍失败: {e}")
-    finally:
-        db.close()
 
 
 async def monthly_traffic_data_migration():
     """定时任务：月度流量数据迁移聚合"""
     try:
-        db = DB()
-
         # 检查今天是否是每月1号
         now = datetime.now(settings.TZ)
         if now.day != 1:
@@ -651,8 +661,6 @@ async def monthly_traffic_data_migration():
             )
 
         return False, error_msg
-    finally:
-        db.close()
 
 
 async def update_line_traffic_stats(
@@ -671,7 +679,6 @@ async def update_line_traffic_stats(
         logger.info("没有新的流量日志数据")
         return
 
-    _db = DB()
     processed_count = 0
 
     try:
@@ -755,19 +762,21 @@ async def update_line_traffic_stats(
                 if service == "plex":
                     username = plex_token_cache.get(token)
                     if username:
-                        user_result = _db.cur.execute(
-                            "SELECT plex_id FROM user WHERE LOWER(plex_username)=?",
-                            (username.lower(),),
-                        ).fetchone()
+                        with get_session() as session:
+                            stmt = select(PlexUser.plex_id).where(
+                                func.lower(PlexUser.plex_username) == username.lower()
+                            )
+                            user_result = session.execute(stmt).fetchone()
                         if user_result:
                             user_id = user_result[0]
                 elif service == "emby":
                     username = emby_api_key_cache.get(token)
                     if username:
-                        user_result = _db.cur.execute(
-                            "SELECT emby_id FROM emby_user WHERE LOWER(emby_username)=?",
-                            (username.lower(),),
-                        ).fetchone()
+                        with get_session() as session:
+                            stmt = select(EmbyUser.emby_id).where(
+                                func.lower(EmbyUser.emby_username) == username.lower()
+                            )
+                            user_result = session.execute(stmt).fetchone()
                         if user_result:
                             user_id = user_result[0]
                     else:
@@ -799,7 +808,7 @@ async def update_line_traffic_stats(
                     )
 
                 # 存储到数据库
-                success = _db.create_line_traffic_entry(
+                success = db.create_line_traffic_entry(
                     line=backend,
                     send_bytes=bytes_sent,
                     service=service,
@@ -825,23 +834,27 @@ async def update_line_traffic_stats(
 
     except Exception as e:
         logger.error(f"更新线路流量统计时发生错误: {e}")
-    finally:
-        _db.close()
 
 
 def rewrite_users_credits_to_redis():
     """
     将用户积分信息写入 redis 缓存
     """
-    _db = DB()
     try:
         # 从 statistics 表中获取所有用户的积分信息
-        stats = _db.cur.execute("SELECT tg_id, credits FROM statistics").fetchall()
+        with get_session() as session:
+            stmt = select(Statistics.tg_id, Statistics.credits)
+            stats = session.execute(stmt).fetchall()
         user_stats = {tg_id: credits for tg_id, credits in stats}
         # 获取 Plex 用户信息
-        plex_users = _db.cur.execute(
-            "SELECT plex_id, tg_id, credits, plex_username FROM user"
-        ).fetchall()
+        with get_session() as session:
+            stmt = select(
+                PlexUser.plex_id,
+                PlexUser.tg_id,
+                PlexUser.credits,
+                PlexUser.plex_username,
+            )
+            plex_users = session.execute(stmt).fetchall()
         for user in plex_users:
             # 未接受邀请，此时数据库中的 plex_id 为空
             if not user[0]:
@@ -853,9 +866,14 @@ def rewrite_users_credits_to_redis():
                 credits = user_stats.get(tg_id, 0)
             user_credits_cache.put(f"plex:{plex_username.lower()}", credits)
         # 获取 Emby 用户信息
-        emby_users = _db.cur.execute(
-            "SELECT emby_id, tg_id, emby_credits, emby_username FROM emby_user"
-        ).fetchall()
+        with get_session() as session:
+            stmt = select(
+                EmbyUser.emby_id,
+                EmbyUser.tg_id,
+                EmbyUser.emby_credits,
+                EmbyUser.emby_username,
+            )
+            emby_users = session.execute(stmt).fetchall()
         for user in emby_users:
             tg_id = user[1]
             credits = user[2]
@@ -865,20 +883,23 @@ def rewrite_users_credits_to_redis():
             user_credits_cache.put(f"emby:{emby_username.lower()}", credits)
     except Exception as e:
         logger.error(f"检查用户积分时发生错误: {e}")
-    finally:
-        _db.close()
 
 
 def write_user_info_cache():
     """
     将 user info 写入 redis 缓存
     """
-    _db = DB()
     try:
         # 获取 Plex 用户信息
-        plex_users = _db.cur.execute(
-            "SELECT plex_id, tg_id, plex_username, plex_email, is_premium FROM user"
-        ).fetchall()
+        with get_session() as session:
+            stmt = select(
+                PlexUser.plex_id,
+                PlexUser.tg_id,
+                PlexUser.plex_username,
+                PlexUser.plex_email,
+                PlexUser.is_premium,
+            )
+            plex_users = session.execute(stmt).fetchall()
         for user in plex_users:
             plex_id = user[0]
             # 未接受邀请，此时数据库中的 plex_id 为空
@@ -902,9 +923,14 @@ def write_user_info_cache():
                     ),
                 )
         # 获取 Emby 用户信息
-        emby_users = _db.cur.execute(
-            "SELECT emby_id, tg_id, emby_username, is_premium FROM emby_user"
-        ).fetchall()
+        with get_session() as session:
+            stmt = select(
+                EmbyUser.emby_id,
+                EmbyUser.tg_id,
+                EmbyUser.emby_username,
+                EmbyUser.is_premium,
+            )
+            emby_users = session.execute(stmt).fetchall()
         for user in emby_users:
             emby_id = user[0]
             tg_id = user[1]
@@ -924,16 +950,12 @@ def write_user_info_cache():
                 )
     except Exception as e:
         logger.error(f"写入用户信息缓存时发生错误: {e}")
-    finally:
-        _db.close()
 
 
 async def check_expired_crypto_donation_orders():
     """定时任务：检查并更新过期的 crypto 捐赠订单状态"""
     try:
         logger.info("开始检查过期的 crypto 捐赠订单")
-
-        db = DB()
 
         # 获取过期的订单（用于通知）
         expired_orders = db.get_expired_crypto_donation_orders()
@@ -1007,8 +1029,6 @@ async def check_expired_crypto_donation_orders():
                     logger.warning(
                         f"向管理员 {admin_chat_id} 发送过期订单统计失败: {e}"
                     )
-
-        db.close()
 
     except Exception as e:
         logger.error(f"检查过期 crypto 捐赠订单失败: {e}")

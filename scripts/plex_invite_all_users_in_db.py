@@ -1,11 +1,14 @@
 from app.config import settings
-from app.databases.db import DB
+from app.databases.session import get_session
+from app.models.models import PlexUser
 from app.modules.plex import Plex
+from sqlalchemy import select
 
-db = DB()
 plex = Plex()
 
-plex_users = db.cur.execute("select plex_email, all_lib from user").fetchall()
+with get_session() as session:
+    stmt = select(PlexUser.plex_email, PlexUser.all_lib)
+    plex_users = session.execute(stmt).all()
 
 all_libs = plex.get_libraries()
 not_all_libs = list(set(all_libs) - set(settings.NSFW_LIBS))

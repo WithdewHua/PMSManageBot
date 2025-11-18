@@ -112,6 +112,27 @@ class Settings(BaseSettings):
         "USDT-ERC20",
     ]
 
+    # 数据库配置
+    DATABASE_TYPE: str = "sqlite"  # 数据库类型: sqlite, postgresql, mysql
+    DATABASE_URL: str = ""  # 完整数据库连接 URL（优先级高于单独配置）
+    # PostgreSQL 配置
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_USER: str = "pmsmanagebot"
+    POSTGRES_PASSWORD: str = ""
+    POSTGRES_DB: str = "pmsmanagebot"
+    # MySQL 配置
+    MYSQL_HOST: str = "localhost"
+    MYSQL_PORT: int = 3306
+    MYSQL_USER: str = "pmsmanagebot"
+    MYSQL_PASSWORD: str = ""
+    MYSQL_DB: str = "pmsmanagebot"
+    # 数据库连接池配置
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 10
+    DB_POOL_RECYCLE: int = 3600  # 连接回收时间（秒）
+    DB_ECHO: bool = False  # 是否打印 SQL 语句
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if not self.DATA_PATH.exists():
@@ -145,6 +166,48 @@ class Settings(BaseSettings):
             if not path.exists():
                 path.mkdir(parents=True, exist_ok=True)
         return path
+
+    @property
+    def DB_URL(self):
+        """
+        获取数据库连接 URL
+
+        优先级：
+        1. DATABASE_URL 环境变量（如果已设置）
+        2. 根据 DATABASE_TYPE 构建 URL
+        """
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
+
+        db_type = self.DATABASE_TYPE.lower()
+
+        if db_type == "postgresql":
+            return (
+                f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
+                f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            )
+        elif db_type == "mysql":
+            return (
+                f"mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}@"
+                f"{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DB}"
+            )
+        else:
+            # 默认使用 SQLite
+            db_path = self.DATA_PATH / "data.db"
+            return f"sqlite:///{db_path}"
+
+    @property
+    def DB_CONNECT_ARGS(self):
+        """
+        获取数据库连接参数
+
+        """
+        db_type = self.DATABASE_TYPE.lower()
+
+        if db_type == "sqlite":
+            return {"check_same_thread": False}
+        else:
+            return {}
 
     @property
     def ENV_FILE_PATH(self):

@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from app.config import settings
-from app.databases.db import DB
+from app.databases import db
 from app.log import uvicorn_logger as logger
 from app.modules.emby import Emby
 from app.modules.plex import Plex
@@ -22,7 +22,6 @@ async def get_credits_rankings(
     """获取积分排行榜数据"""
     logger.info(f"{user.username or user.first_name or user.id} 开始获取积分排行榜数据")
 
-    db = DB()
     try:
         credits_rankings = []
         try:
@@ -49,9 +48,6 @@ async def get_credits_rankings(
     except Exception as e:
         logger.error(f"获取积分排行榜数据时发生未预期的错误: {str(e)}")
         raise HTTPException(status_code=500, detail="获取积分排行榜数据失败")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.get("/rankings/donation")
@@ -62,7 +58,6 @@ async def get_donation_rankings(
     """获取捐赠排行榜数据"""
     logger.info(f"{user.username or user.first_name or user.id} 开始获取捐赠排行榜数据")
 
-    db = DB()
     try:
         donation_rankings = []
         try:
@@ -89,9 +84,6 @@ async def get_donation_rankings(
     except Exception as e:
         logger.error(f"获取捐赠排行榜数据时发生未预期的错误: {str(e)}")
         raise HTTPException(status_code=500, detail="获取捐赠排行榜数据失败")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.get("/rankings/watched-time/plex")
@@ -104,7 +96,6 @@ async def get_plex_watched_time_rankings(
         f"{user.username or user.first_name or user.id} 开始获取Plex观看时长排行榜数据"
     )
 
-    db = DB()
     try:
         watched_time_rank_plex = []
         try:
@@ -134,9 +125,6 @@ async def get_plex_watched_time_rankings(
     except Exception as e:
         logger.error(f"获取Plex观看时长排行榜数据时发生未预期的错误: {str(e)}")
         raise HTTPException(status_code=500, detail="获取Plex观看时长排行榜数据失败")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.get("/rankings/watched-time/emby")
@@ -149,7 +137,6 @@ async def get_emby_watched_time_rankings(
         f"{user.username or user.first_name or user.id} 开始获取Emby观看时长排行榜数据"
     )
 
-    db = DB()
     try:
         watched_time_rank_emby = []
         emby = Emby()
@@ -184,9 +171,6 @@ async def get_emby_watched_time_rankings(
     except Exception as e:
         logger.error(f"获取Emby观看时长排行榜数据时发生未预期的错误: {str(e)}")
         raise HTTPException(status_code=500, detail="获取Emby观看时长排行榜数据失败")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.get("/rankings/invitation")
@@ -197,7 +181,6 @@ async def get_invitation_rankings(
     """获取邀请排行榜数据"""
     logger.info(f"{user.username or user.first_name or user.id} 开始获取邀请排行榜数据")
 
-    db = DB()
     try:
         invitation_rankings = []
         try:
@@ -224,9 +207,6 @@ async def get_invitation_rankings(
     except Exception as e:
         logger.error(f"获取邀请排行榜数据时发生未预期的错误: {str(e)}")
         raise HTTPException(status_code=500, detail="获取邀请排行榜数据失败")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.get("/rankings/traffic/plex")
@@ -247,7 +227,6 @@ async def get_plex_traffic_rankings(
         f"{user.username or user.first_name or user.id} 开始获取 Plex 流量排行榜数据 (日期范围: {start_date} - {end_date})"
     )
 
-    db = DB()
     try:
         # 解析日期参数
         parsed_start_date = None
@@ -307,9 +286,6 @@ async def get_plex_traffic_rankings(
     except Exception as e:
         logger.error(f"获取 Plex 流量排行榜数据时发生未预期的错误: {str(e)}")
         raise HTTPException(status_code=500, detail="获取 Plex 流量排行榜数据失败")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.get("/rankings/traffic/emby")
@@ -330,7 +306,6 @@ async def get_emby_traffic_rankings(
         f"{user.username or user.first_name or user.id} 开始获取 Emby 流量排行榜数据 (日期范围: {start_date} - {end_date})"
     )
 
-    db = DB()
     try:
         # 解析日期参数
         parsed_start_date = None
@@ -393,6 +368,3 @@ async def get_emby_traffic_rankings(
     except Exception as e:
         logger.error(f"获取 Emby 流量排行榜数据时发生未预期的错误: {str(e)}")
         raise HTTPException(status_code=500, detail="获取 Emby 流量排行榜数据失败")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
