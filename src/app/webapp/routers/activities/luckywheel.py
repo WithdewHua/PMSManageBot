@@ -283,10 +283,10 @@ async def spin_wheel(
         config = get_wheel_config()
 
         # 获取用户当前积分
-        flag, current_credits = db.get_user_credits(user_id)
-        if not flag:
+        current_credits = db.get_user_credits(user_id)
+        if not current_credits:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=current_credits
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"未找到用户 {user_id}"
             )
 
         # 检查积分是否足够
@@ -368,10 +368,10 @@ async def get_user_status(
         config = get_wheel_config()
 
         # 获取用户当前积分
-        flag, current_credits = db.get_user_credits(user_id)
-        if not flag:
+        current_credits = db.get_user_credits(user_id)
+        if not current_credits:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=current_credits
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"未找到用户 {user_id}"
             )
 
         can_participate = current_credits >= config.min_credits_required

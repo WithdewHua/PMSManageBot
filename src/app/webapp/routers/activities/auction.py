@@ -404,13 +404,12 @@ async def place_bid(
             )
 
         # 检查用户积分是否足够
-        user_credits_result = db.get_user_credits(current_user.id)
-        if not user_credits_result[0]:
+        user_credits = db.get_user_credits(current_user.id)
+        if not user_credits:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="无法获取用户积分信息"
             )
 
-        user_credits = user_credits_result[1]
         if user_credits < bid_request.bid_amount:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
