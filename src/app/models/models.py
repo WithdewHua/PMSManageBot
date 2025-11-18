@@ -100,7 +100,7 @@ class WheelStats(Base):
 
     __tablename__ = "wheel_stats"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
     tg_id: Mapped[int] = mapped_column(BIGINT, index=True, nullable=False)
     item_name: Mapped[str] = mapped_column(Text, nullable=False)
     credits_change: Mapped[float] = mapped_column(Float, nullable=False)
@@ -113,7 +113,7 @@ class Auctions(Base):
 
     __tablename__ = "auctions"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     starting_price: Mapped[float] = mapped_column(Float, nullable=False)
@@ -136,7 +136,7 @@ class AuctionBids(Base):
 
     __tablename__ = "auction_bids"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
     auction_id: Mapped[int] = mapped_column(
         BIGINT, ForeignKey("auctions.id"), nullable=False, index=True
     )

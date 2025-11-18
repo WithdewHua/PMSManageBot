@@ -71,6 +71,10 @@ COPY --from=frontend-builder /app/webapp-frontend/dist ./webapp-frontend/dist
 COPY src/ ./src/
 COPY scripts ./scripts
 
+# 复制 Alembic 配置和迁移文件
+COPY alembic.ini ./alembic.ini
+COPY alembic/ ./alembic/
+
 # 复制启动脚本
 COPY start.sh ./start.sh
 RUN chmod +x ./start.sh

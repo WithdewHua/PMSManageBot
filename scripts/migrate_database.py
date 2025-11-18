@@ -331,6 +331,56 @@ def migrate_from_sqlite(old_db_path: Path):
         logger.info(f"Total records:   {total_records}")
         logger.info("=" * 60)
 
+        # 如果是 PostgreSQL，修复所有序列
+        if settings.DATABASE_TYPE == "postgresql":
+            logger.info("Fixing PostgreSQL sequences...")
+            try:
+                from sqlalchemy import create_engine, text
+
+                engine = create_engine(settings.DB_URL)
+                with engine.connect() as conn:
+                    # 修复所有表的序列
+                    tables_with_sequences = [
+                        "plex_user",
+                        "emby_user",
+                        "plex_user",
+                        "invitation",
+                        "line_traffic_stats",
+                        "line_traffic_monthly_stats",
+                        "overseerr",
+                        "wheel_stats",
+                        "auctions",
+                        "auction_bids",
+                        "donation_registrations",
+                        "crypto_donation_orders",
+                    ]
+
+                    for table in tables_with_sequences:
+                        try:
+                            # 获取表中的最大 ID
+                            result = conn.execute(text(f"SELECT MAX(id) FROM {table}"))
+                            max_id = result.scalar()
+
+                            if max_id is not None:
+                                # 重置序列
+                                conn.execute(
+                                    text(
+                                        f"SELECT setval('{table}_id_seq', {max_id}, true)"
+                                    )
+                                )
+                                logger.info(
+                                    f"  ✅ Fixed sequence for {table} (max_id: {max_id})"
+                                )
+                        except Exception as e:
+                            logger.warning(
+                                f"  ⚠️  Could not fix sequence for {table}: {e}"
+                            )
+
+                    conn.commit()
+                logger.info("PostgreSQL sequences fixed successfully!")
+            except Exception as e:
+                logger.error(f"Failed to fix PostgreSQL sequences: {e}")
+
         logger.info("Migration completed successfully!")
         return True
 
