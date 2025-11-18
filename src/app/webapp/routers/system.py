@@ -33,10 +33,10 @@ async def get_system_stats(
             plex_tg_ids = select(PlexUser.tg_id).where(PlexUser.tg_id.isnot(None))
             emby_tg_ids = select(EmbyUser.tg_id).where(EmbyUser.tg_id.isnot(None))
             union_query = plex_tg_ids.union(emby_tg_ids)
+            # 修复笛卡尔积警告：直接对子查询计数
+            union_subquery = union_query.subquery()
             unique_tg_count = session.execute(
-                select(func.count(func.distinct(union_query.c.tg_id))).select_from(
-                    union_query.subquery()
-                )
+                select(func.count()).select_from(union_subquery)
             ).scalar()
 
             # 2. 统计没有 tg_id 的用户
