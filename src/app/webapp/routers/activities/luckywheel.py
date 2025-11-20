@@ -2,6 +2,7 @@ import json
 import re
 import secrets
 import time
+import traceback
 
 from app.config import settings
 from app.databases import db
@@ -369,7 +370,7 @@ async def get_user_status(
 
         # 获取用户当前积分
         current_credits = db.get_user_credits(user_id)
-        if not current_credits:
+        if current_credits is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"未找到用户 {user_id}"
             )
@@ -385,6 +386,7 @@ async def get_user_status(
 
     except Exception as e:
         logger.error(f"获取用户转盘状态失败: {e}")
+        logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取用户状态失败"
         )
