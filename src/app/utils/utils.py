@@ -156,13 +156,13 @@ async def send_message_by_url(
     # Use global session manager to avoid connection pool issues
     session = await get_thread_safe_session()
 
-    for attempt in range(max_retries):
-        try:
-            logger.debug(
-                f"Attempt {attempt + 1}/{max_retries}: Sending message to {chat_id}"
-            )
+    async with session.post(url, data=data) as response:
+        for attempt in range(max_retries):
+            try:
+                logger.debug(
+                    f"Attempt {attempt + 1}/{max_retries}: Sending message to {chat_id}"
+                )
 
-            async with session.post(url, data=data) as response:
                 response.raise_for_status()
                 result = await response.json()
 
@@ -175,37 +175,37 @@ async def send_message_by_url(
                     logger.warning(f"Telegram API returned error: {result}")
                     return False
 
-        except (
-            aiohttp.ClientError,
-            aiohttp.ServerTimeoutError,
-            asyncio.TimeoutError,
-        ) as e:
-            # Network-related errors, worth retrying
-            logger.warning(
-                f"Network error on attempt {attempt + 1}: {type(e).__name__}: {e}"
-            )
-            if attempt == max_retries - 1:
-                logger.error(
-                    f"Failed to send message to {chat_id} after {max_retries} attempts: {e}"
+            except (
+                aiohttp.ClientError,
+                aiohttp.ServerTimeoutError,
+                asyncio.TimeoutError,
+            ) as e:
+                # Network-related errors, worth retrying
+                logger.warning(
+                    f"Network error on attempt {attempt + 1}: {type(e).__name__}: {e}"
                 )
-                return False
+                if attempt == max_retries - 1:
+                    logger.error(
+                        f"Failed to send message to {chat_id} after {max_retries} attempts: {e}"
+                    )
+                    return False
 
-        except Exception as e:
-            # Other errors, may not be worth retrying
-            logger.error(
-                f"Unexpected error on attempt {attempt + 1}: {type(e).__name__}: {e}"
-            )
-            if attempt == max_retries - 1:
+            except Exception as e:
+                # Other errors, may not be worth retrying
                 logger.error(
-                    f"Failed to send message to {chat_id} after {max_retries} attempts: {e}"
+                    f"Unexpected error on attempt {attempt + 1}: {type(e).__name__}: {e}"
                 )
-                return False
+                if attempt == max_retries - 1:
+                    logger.error(
+                        f"Failed to send message to {chat_id} after {max_retries} attempts: {e}"
+                    )
+                    return False
 
-        # Exponential backoff for retries
-        if attempt < max_retries - 1:
-            wait_time = min(2**attempt, 10)  # Cap at 10 seconds
-            logger.debug(f"Waiting {wait_time} seconds before retry...")
-            await asyncio.sleep(wait_time)
+            # Exponential backoff for retries
+            if attempt < max_retries - 1:
+                wait_time = min(2**attempt, 10)  # Cap at 10 seconds
+                logger.debug(f"Waiting {wait_time} seconds before retry...")
+                await asyncio.sleep(wait_time)
 
     return False
 
