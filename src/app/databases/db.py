@@ -2458,6 +2458,14 @@ class DatabaseORM:
             with get_session() as session:
                 created_at = datetime.now(settings.TZ).isoformat()
 
+                # 确保统计信息存在以通过外键校验
+                stats_exists = session.execute(
+                    select(Statistics.tg_id).where(Statistics.tg_id == user_id)
+                ).scalar_one_or_none()
+                if not stats_exists:
+                    session.add(Statistics(tg_id=user_id, credits=0, donation=0))
+                    session.flush()
+
                 donation = DonationRegistrations(
                     user_id=user_id,
                     payment_method=payment_method,
