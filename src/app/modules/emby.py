@@ -38,6 +38,9 @@ class Emby:
             "CopyFromUserId": self.get_uid_from_username(user_template),
             "UserCopyOptions": ["UserPolicy"],
         }
+        logger.info(
+            f"Adding Emby user {username} with data: {data}, coping from {user_template}"
+        )
 
         try:
             response = requests.post(
