@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+from typing import Optional, Union
 
 from pydantic import BaseModel, Field, validator
 
@@ -64,8 +64,8 @@ class DonationRegistrationResponse(BaseModel):
     processed_at: Optional[datetime]
     processed_by: Optional[int]
     is_donation_registration: bool = False
-    username: Optional[str]  # 用户名（从 tg_id 获取）
-    processed_by_username: Optional[str]
+    username: Union[str, int, None]  # 用户名（从 tg_id 获取）
+    processed_by_username: Union[str, int, None]
 
     class Config:
         from_attributes = True
