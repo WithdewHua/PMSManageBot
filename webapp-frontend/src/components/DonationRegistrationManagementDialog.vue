@@ -91,13 +91,24 @@
                           </div>
                         </div>
                       </div>
-                      <v-chip 
-                        :color="getPaymentMethodColor(registration.payment_method)"
-                        size="small"
-                        variant="tonal"
-                      >
-                        {{ getPaymentMethodText(registration.payment_method) }}
-                      </v-chip>
+                      <div class="d-flex flex-column align-end ga-1">
+                        <v-chip 
+                          :color="getPaymentMethodColor(registration.payment_method)"
+                          size="small"
+                          variant="tonal"
+                        >
+                          {{ getPaymentMethodText(registration.payment_method) }}
+                        </v-chip>
+                        <v-chip 
+                          v-if="registration.is_donation_registration"
+                          color="purple"
+                          size="small"
+                          variant="flat"
+                        >
+                          <v-icon start size="small">mdi-account-plus</v-icon>
+                          捐赠开号
+                        </v-chip>
+                      </div>
                     </div>
                   </v-card-title>
                   
