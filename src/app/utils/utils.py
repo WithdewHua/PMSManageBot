@@ -295,7 +295,9 @@ def get_user_avatar_from_tg_id(chat_id: int, token=settings.TG_API_TOKEN):
     return user_info.get("photo_url")
 
 
-async def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
+async def refresh_tg_user_info(
+    tg_id: Optional[int] = None, token: str = settings.TG_API_TOKEN
+):
     """刷新用户信息"""
     try:
         cache_file_lock = filelock.FileLock(
@@ -305,11 +307,15 @@ async def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
 
         session = await get_thread_safe_session()
 
-        # 从 statistics 表获取所有用户
-        with get_db_session() as db_session:
-            stmt = select(Statistics.tg_id)
-            stats_users = [tg_id for tg_id in db_session.execute(stmt).scalars().all()]
-
+        if not tg_id:
+            # 从 statistics 表获取所有用户
+            with get_db_session() as db_session:
+                stmt = select(Statistics.tg_id)
+                stats_users = [
+                    tg_id for tg_id in db_session.execute(stmt).scalars().all()
+                ]
+        else:
+            stats_users = [tg_id]
         for tg_id in stats_users:
             if settings.TG_USER_INFO_CACHE_PATH.exists():
                 with open(settings.TG_USER_INFO_CACHE_PATH, "rb") as f:
@@ -375,16 +381,19 @@ async def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
         logger.error(f"Refresh user tg info failed: {e}")
 
 
-def refresh_emby_user_info():
+def refresh_emby_user_info(emby_username: Optional[str] = None):
     """刷新 emby user info"""
     emby = Emby()
     # 获取所有的 emby 用户名
     try:
-        with get_db_session() as session:
-            stmt = select(EmbyUser.emby_username)
-            emby_users = [
-                username for username in session.execute(stmt).scalars().all()
-            ]
+        if not emby_username:
+            with get_db_session() as session:
+                stmt = select(EmbyUser.emby_username)
+                emby_users = [
+                    username for username in session.execute(stmt).scalars().all()
+                ]
+        else:
+            emby_users = [emby_username]
 
         for user in emby_users:
             emby.get_user_info_from_username(user)

@@ -2643,6 +2643,20 @@ class DatabaseORM:
             logger.error(f"确认捐赠登记失败: {e}")
             return False
 
+    def delete_donation_registration(self, registration_id: int) -> bool:
+        """删除捐赠登记记录"""
+        try:
+            with get_session() as session:
+                session.execute(
+                    delete(DonationRegistrations).where(
+                        DonationRegistrations.id == registration_id
+                    )
+                )
+                return True
+        except Exception as e:
+            logger.error(f"删除捐赠登记失败: {e}")
+            return False
+
     def get_donation_statistics(self) -> dict:
         """获取捐赠统计信息"""
         try:

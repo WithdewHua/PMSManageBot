@@ -9,7 +9,12 @@ from app.log import uvicorn_logger as logger
 from app.modules.emby import Emby
 from app.modules.plex import Plex
 from app.scheduler import Scheduler
-from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
+from app.utils.utils import (
+    get_user_name_from_tg_id,
+    refresh_emby_user_info,
+    refresh_tg_user_info,
+    send_message_by_url,
+)
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import (
@@ -25,7 +30,15 @@ from app.webapp.schemas import (
     RedeemResponse,
     TelegramUser,
 )
-from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    HTTPException,
+    Request,
+    status,
+)
 
 # 创建路由器
 router = APIRouter(
@@ -172,6 +185,7 @@ async def get_register_status():
 @require_telegram_auth
 async def redeem_plex_code(
     request: Request,
+    background_tasks: BackgroundTasks,
     data: RedeemInviteCodeRequest = Body(...),
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
@@ -182,6 +196,9 @@ async def redeem_plex_code(
         bind_to_telegram = data.bind_to_telegram
         telegram_user_id = telegram_user.id
         is_privileged = code in settings.PRIVILEGED_CODES
+
+        # 创建后台任务以刷新 tg 用户信息
+        background_tasks.add_task(refresh_tg_user_info, tg_id=telegram_user_id)
 
         # 检查是否允许注册
         if not settings.PLEX_REGISTER and not is_privileged:
@@ -311,6 +328,7 @@ async def redeem_plex_code(
 @require_telegram_auth
 async def redeem_emby_code(
     request: Request,
+    background_tasks: BackgroundTasks,
     data: RedeemInviteCodeRequest = Body(...),
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
@@ -322,6 +340,9 @@ async def redeem_emby_code(
         bind_to_telegram = data.bind_to_telegram
         telegram_user_id = telegram_user.id
         is_privileged = code in settings.PRIVILEGED_CODES
+
+        # 创建后台任务以刷新 tg 用户信息
+        background_tasks.add_task(refresh_tg_user_info, tg_id=telegram_user_id)
 
         # 检查是否允许注册（特权码跳过检查）
         if not settings.EMBY_REGISTER and not is_privileged:
@@ -426,6 +447,9 @@ async def redeem_emby_code(
             settings.save_config_to_env_file(
                 {"PRIVILEGED_CODES": ",".join(settings.PRIVILEGED_CODES)}
             )
+
+        # 创建后台任务以刷新用户信息
+        background_tasks.add_task(refresh_emby_user_info, emby_username=username)
 
         # 返回成功响应
         message = f"邀请码兑换成功！用户名为 {username}，密码为 {password}"

@@ -3,7 +3,11 @@ from app.databases import db
 from app.databases.session import get_session
 from app.log import logger
 from app.models.models import Statistics
-from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
+from app.utils.utils import (
+    get_user_name_from_tg_id,
+    refresh_tg_user_info,
+    send_message_by_url,
+)
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.routers.admin import check_admin_permission
@@ -17,7 +21,7 @@ from app.webapp.schemas.donation import (
     DonationRegistrationResponse,
     DonationRegistrationUpdate,
 )
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy import update as sql_update
 
 router = APIRouter(prefix="/api/donations", tags=["donations"])
@@ -27,6 +31,7 @@ router = APIRouter(prefix="/api/donations", tags=["donations"])
 @require_telegram_auth
 async def create_donation_registration(
     request: Request,
+    background_tasks: BackgroundTasks,
     registration_data: DonationRegistrationCreate,
     user: TelegramUser = Depends(get_telegram_user),
 ):
@@ -37,6 +42,8 @@ async def create_donation_registration(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="用户信息不完整"
             )
+        # 创建后台任务以刷新用户信息
+        background_tasks.add_task(refresh_tg_user_info, tg_id=user_id)
 
         # 创建捐赠登记记录
         success = db.create_donation_registration(
@@ -74,8 +81,10 @@ async def create_donation_registration(
             )
 
         logger.info(
-            f"用户 {user_id} 提交了{'捐赠开号' if registration_data.is_donation_registration else '普通捐赠'}登记: {registration_data.payment_method.value} {registration_data.amount}元"
+            f"用户 {get_user_name_from_tg_id(user_id)} 提交了{'捐赠开号' if registration_data.is_donation_registration else '普通捐赠'}登记: {registration_data.payment_method.value} {registration_data.amount}元"
         )
+
+        # 增加刷新用户信息的任务
 
         return DonationRegistrationCreateResponse(
             success=True,
@@ -87,8 +96,10 @@ async def create_donation_registration(
         raise
     except Exception as e:
         logger.error(f"创建捐赠登记失败: {e}")
+        db.delete_donation_registration(registration_id=registration.get("id"))
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="服务器内部错误"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="创建捐赠登记失败，请联系管理员",
         )
 
 

@@ -23,6 +23,7 @@ from app.utils.utils import (
     get_user_name_from_tg_id,
     get_user_total_duration,
     is_binded_premium_line,
+    refresh_tg_user_info,
     send_message_by_url,
 )
 from app.webapp.auth import get_telegram_user
@@ -44,7 +45,7 @@ from app.webapp.schemas import (
     TelegramUser,
     UserInfo,
 )
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
 from sqlalchemy import select
 
 router = APIRouter(prefix="/api/user", tags=["user"])
@@ -53,11 +54,15 @@ router = APIRouter(prefix="/api/user", tags=["user"])
 @router.get("/info")
 @require_telegram_auth
 async def get_user_info(
-    request: Request, user: TelegramUser = Depends(get_telegram_user)
+    request: Request,
+    background_tasks: BackgroundTasks,
+    user: TelegramUser = Depends(get_telegram_user),
 ):
     """获取用户信息"""
     user_id = user.id
     user_name = user.username or user.first_name
+    # 刷新 TG 用户信息
+    background_tasks.add_task(refresh_tg_user_info, tg_id=user_id)
     # 从数据库获取更多用户信息
     logger.info(f"开始获取用户 {user_name or user_id} 的详细信息")
     # 连接数据库
