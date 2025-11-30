@@ -2350,11 +2350,17 @@ class DatabaseORM:
                 skip_count = 0
                 update_count = 0
 
+                # 使用 SAVEPOINT 来处理每条记录，避免整个事务回滚
+                from sqlalchemy import exc as sa_exc
+
                 for record in aggregated_data:
                     line, service, username, user_id, total_bytes, record_count = record
 
+                    # 为每条记录创建一个保存点
+                    savepoint = session.begin_nested()
+
                     try:
-                        # 先检查记录是否已存在（通用方案，适用于所有数据库）
+                        # 先检查记录是否已存在
                         existing_record = session.execute(
                             select(LineTrafficMonthlyStats).where(
                                 LineTrafficMonthlyStats.line == line,
@@ -2367,7 +2373,6 @@ class DatabaseORM:
                         if existing_record:
                             # 记录已存在，检查是否需要更新
                             if existing_record.total_bytes != total_bytes:
-                                # 数据不一致，更新为最新值
                                 existing_record.total_bytes = total_bytes
                                 existing_record.created_at = current_time
                                 update_count += 1
@@ -2389,9 +2394,25 @@ class DatabaseORM:
                             )
                             session.add(monthly_stat)
                             insert_count += 1
-                    except Exception as e:
-                        logger.warning(f"处理月度聚合数据失败: {e}, 数据: {record}")
+
+                        # 提交这条记录的保存点
+                        savepoint.commit()
+
+                    except sa_exc.IntegrityError:
+                        # 唯一约束冲突，回滚到保存点
+                        savepoint.rollback()
                         skip_count += 1
+                        logger.debug(
+                            f"跳过重复记录（唯一约束冲突）: {line}, {service}, {username}, {target_month}"
+                        )
+                    except Exception as e:
+                        # 其他错误，回滚到保存点
+                        savepoint.rollback()
+                        skip_count += 1
+                        logger.warning(
+                            f"处理月度聚合数据失败: {e}, 数据: line={line}, service={service}, "
+                            f"username={username}, month={target_month}"
+                        )
 
                 logger.info(
                     f"成功聚合 {target_month} 月份数据: {len(aggregated_data)} 个用户组合，"
