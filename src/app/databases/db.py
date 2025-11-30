@@ -2313,7 +2313,7 @@ class DatabaseORM:
                 month_start_str = month_start.isoformat()
                 next_month_start_str = next_month_start.isoformat()
 
-                # 聚合查询：按 line, service, username 分组求和
+                # 聚合查询：按 line, service, username, user_id 分组求和
                 aggregation_stmt = (
                     select(
                         LineTrafficStats.line,
@@ -2331,6 +2331,7 @@ class DatabaseORM:
                         LineTrafficStats.line,
                         LineTrafficStats.service,
                         LineTrafficStats.username,
+                        LineTrafficStats.user_id,
                     )
                     .having(func.sum(LineTrafficStats.send_bytes) > 0)
                     .order_by(func.sum(LineTrafficStats.send_bytes).desc())
