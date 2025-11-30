@@ -2289,7 +2289,7 @@ class DatabaseORM:
                 return False, f"月份格式错误: {target_month}，应为 YYYY-MM 格式"
 
             with get_session() as session:
-                # 检查是否已经聚合过该月份的数据
+                # 检查是否已经聚合过该月份的数据（已改为警告而非阻止）
                 existing_check = session.execute(
                     select(func.count(LineTrafficMonthlyStats.id)).where(
                         LineTrafficMonthlyStats.year_month == target_month
@@ -2297,7 +2297,9 @@ class DatabaseORM:
                 ).scalar()
 
                 if existing_check > 0:
-                    return False, f"月份 {target_month} 的数据已经聚合过，跳过处理"
+                    logger.warning(
+                        f"月份 {target_month} 已存在 {existing_check} 条聚合数据，将跳过重复记录"
+                    )
 
                 # 计算目标月份的开始和结束时间
                 month_start = datetime.strptime(
@@ -2345,31 +2347,60 @@ class DatabaseORM:
                 # 插入聚合数据到月度统计表
                 current_time = datetime.now(settings.TZ).isoformat()
                 insert_count = 0
+                skip_count = 0
+                update_count = 0
 
                 for record in aggregated_data:
                     line, service, username, user_id, total_bytes, record_count = record
 
                     try:
-                        monthly_stat = LineTrafficMonthlyStats(
-                            line=line,
-                            service=service,
-                            username=username,
-                            user_id=user_id,
-                            year_month=target_month,
-                            total_bytes=total_bytes,
-                            created_at=current_time,
-                        )
-                        session.add(monthly_stat)
-                        insert_count += 1
+                        # 先检查记录是否已存在（通用方案，适用于所有数据库）
+                        existing_record = session.execute(
+                            select(LineTrafficMonthlyStats).where(
+                                LineTrafficMonthlyStats.line == line,
+                                LineTrafficMonthlyStats.service == service,
+                                LineTrafficMonthlyStats.username == username,
+                                LineTrafficMonthlyStats.year_month == target_month,
+                            )
+                        ).scalar_one_or_none()
+
+                        if existing_record:
+                            # 记录已存在，检查是否需要更新
+                            if existing_record.total_bytes != total_bytes:
+                                # 数据不一致，更新为最新值
+                                existing_record.total_bytes = total_bytes
+                                existing_record.created_at = current_time
+                                update_count += 1
+                                logger.debug(
+                                    f"更新月度流量记录: {line}, {service}, {username}, {target_month}"
+                                )
+                            else:
+                                skip_count += 1
+                        else:
+                            # 记录不存在，插入新记录
+                            monthly_stat = LineTrafficMonthlyStats(
+                                line=line,
+                                service=service,
+                                username=username,
+                                user_id=user_id,
+                                year_month=target_month,
+                                total_bytes=total_bytes,
+                                created_at=current_time,
+                            )
+                            session.add(monthly_stat)
+                            insert_count += 1
                     except Exception as e:
-                        logger.warning(f"插入月度聚合数据失败: {e}, 数据: {record}")
+                        logger.warning(f"处理月度聚合数据失败: {e}, 数据: {record}")
+                        skip_count += 1
 
                 logger.info(
-                    f"成功聚合 {target_month} 月份数据: {len(aggregated_data)} 个用户组合，插入 {insert_count} 条记录"
+                    f"成功聚合 {target_month} 月份数据: {len(aggregated_data)} 个用户组合，"
+                    f"插入 {insert_count} 条新记录，更新 {update_count} 条记录，跳过 {skip_count} 条重复记录"
                 )
                 return (
                     True,
-                    f"成功聚合 {target_month} 月份数据: 处理了 {len(aggregated_data)} 个用户组合",
+                    f"成功聚合 {target_month} 月份数据: 插入了 {insert_count} 条新记录，"
+                    f"更新了 {update_count} 条记录，跳过了 {skip_count} 条重复记录",
                 )
 
         except Exception as e:
