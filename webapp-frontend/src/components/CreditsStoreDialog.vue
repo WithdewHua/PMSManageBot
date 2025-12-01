@@ -2,11 +2,17 @@
   <v-dialog v-model="dialog" max-width="600px" persistent>
     <v-card class="credits-store-dialog">
       <v-card-title class="dialog-title">
-        <v-icon start color="amber-darken-2">mdi-store</v-icon>
-        积分商城
+        <v-icon start size="28">mdi-store</v-icon>
+        <span class="title-text">积分商城</span>
         <v-spacer></v-spacer>
-        <v-btn icon size="small" @click="close">
-          <v-icon>mdi-close</v-icon>
+        <v-btn 
+          icon 
+          variant="text" 
+          size="small" 
+          @click="close"
+          class="close-btn"
+        >
+          <v-icon size="24">mdi-close</v-icon>
         </v-btn>
       </v-card-title>
 
@@ -50,15 +56,6 @@
           </v-list-item>
         </v-list>
       </v-card-text>
-
-      <v-divider></v-divider>
-
-      <v-card-actions class="dialog-actions">
-        <v-spacer></v-spacer>
-        <v-btn color="grey-darken-1" variant="text" @click="close">
-          关闭
-        </v-btn>
-      </v-card-actions>
     </v-card>
   </v-dialog>
 </template>
@@ -145,6 +142,28 @@ export default {
   padding: 20px 24px;
   background: linear-gradient(135deg, #FFA726 0%, #FB8C00 100%);
   color: white;
+  display: flex;
+  align-items: center;
+}
+
+.title-text {
+  margin-left: 8px;
+}
+
+.close-btn {
+  color: white !important;
+  opacity: 0.9;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  transform: rotate(90deg);
+}
+
+.close-btn:active {
+  transform: rotate(90deg) scale(0.95);
 }
 
 .dialog-content {
@@ -187,9 +206,5 @@ export default {
 .item-badge {
   font-size: 0.75rem;
   font-weight: 600;
-}
-
-.dialog-actions {
-  padding: 16px 24px;
 }
 </style>

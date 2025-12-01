@@ -2,11 +2,18 @@
   <v-dialog v-model="showDialog" max-width="500" persistent>
     <v-card>
       <v-card-title class="dialog-header">
-        <v-icon start color="blue-darken-2">mdi-shield-key</v-icon>
-        兑换 Vaultwarden 账户
+        <v-icon start size="28">mdi-shield-key</v-icon>
+        <span class="title-text">兑换 Vaultwarden 账户</span>
         <v-spacer></v-spacer>
-        <v-btn icon size="small" @click="closeDialog" :disabled="processing">
-          <v-icon>mdi-close</v-icon>
+        <v-btn 
+          icon 
+          variant="text" 
+          size="small" 
+          @click="closeDialog" 
+          :disabled="processing"
+          class="close-btn"
+        >
+          <v-icon size="24">mdi-close</v-icon>
         </v-btn>
       </v-card-title>
 
@@ -273,6 +280,32 @@ export default {
   font-size: 1.25rem;
   font-weight: 600;
   padding: 20px 24px;
+  display: flex;
+  align-items: center;
+}
+
+.title-text {
+  margin-left: 8px;
+}
+
+.close-btn {
+  color: white !important;
+  opacity: 0.9;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover:not([disabled]) {
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  transform: rotate(90deg);
+}
+
+.close-btn:active:not([disabled]) {
+  transform: rotate(90deg) scale(0.95);
+}
+
+.close-btn[disabled] {
+  opacity: 0.5;
 }
 
 .error-message {
