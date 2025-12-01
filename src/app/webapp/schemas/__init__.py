@@ -58,3 +58,8 @@ from .user import (
     TelegramUser,
     UserInfo,
 )
+from .vaultwarden import (
+    VaultwardenRedeemInfoResponse,
+    VaultwardenRedeemRequest,
+    VaultwardenRedeemResponse,
+)

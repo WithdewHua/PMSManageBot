@@ -686,6 +686,12 @@
       @transfer-completed="handleCreditsTransferCompleted"
     />
     
+    <!-- 使用 Vaultwarden 兑换对话框组件 -->
+    <vaultwarden-redeem-dialog
+      ref="vaultwardenRedeemDialog"
+      @redeem-success="handleVaultwardenRedeemSuccess"
+    />
+    
     <!-- 使用Premium解锁对话框组件 -->
     <premium-unlock-dialog
       ref="premiumUnlockDialog"
@@ -719,6 +725,7 @@ import DonationDialog from '@/components/DonationDialog.vue'
 import DonationManagementDialog from '@/components/DonationManagementDialog.vue'
 import CreditsTransferDialog from '@/components/CreditsTransferDialog.vue'
 import CreditsStoreDialog from '@/components/CreditsStoreDialog.vue'
+import VaultwardenRedeemDialog from '@/components/VaultwardenRedeemDialog.vue'
 import PremiumUnlockDialog from '@/components/PremiumUnlockDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
@@ -738,6 +745,7 @@ export default {
     DonationManagementDialog,
     CreditsTransferDialog,
     CreditsStoreDialog,
+    VaultwardenRedeemDialog,
     PremiumUnlockDialog,
     TagManagementDialog,
     LineManagementDialog
@@ -1093,6 +1101,10 @@ export default {
           // 打开积分转移对话框
           this.openCreditsTransferDialog();
           break;
+        case 'vaultwarden':
+          // 打开 Vaultwarden 兑换对话框
+          this.openVaultwardenRedeemDialog();
+          break;
         // 可以在这里添加其他菜单项的处理
         // case 'exchange':
         //   this.openCreditsExchangeDialog();
@@ -1131,6 +1143,22 @@ export default {
       
       // 显示成功消息
       this.showMessage(`成功转移 ${amount} 积分给用户 ${target_user}`, 'success');
+    },
+    
+    // 打开 Vaultwarden 兑换对话框
+    openVaultwardenRedeemDialog() {
+      this.$refs.vaultwardenRedeemDialog.open();
+    },
+    
+    // 处理 Vaultwarden 兑换成功事件
+    handleVaultwardenRedeemSuccess(result) {
+      const { credits_deducted, remaining_credits } = result;
+      
+      // 更新用户积分
+      this.userInfo.credits = remaining_credits;
+      
+      // 显示成功消息
+      this.showMessage(`成功兑换 Vaultwarden 账户，扣除 ${credits_deducted} 积分`, 'success');
     },
     
     // 处理捐赠提交事件

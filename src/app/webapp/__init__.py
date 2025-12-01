@@ -16,6 +16,7 @@ from app.webapp.routers.admin import router as admin_router
 from app.webapp.routers.crypto_donation import router as crypto_donation_router
 from app.webapp.routers.invitation import router as invitation_router
 from app.webapp.routers.premium import router as premium_router
+from app.webapp.routers.vaultwarden import router as vaultwarden_router
 from app.webapp.startup.lifespan import lifespan
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -70,6 +71,7 @@ app.include_router(donation_router)  # 添加捐赠路由
 app.include_router(crypto_donation_router)  # 添加 Crypto 捐赠路由
 app.include_router(luckywheel_router, prefix="/api")  # 添加幸运大转盘路由
 app.include_router(auction_router, prefix="/api")  # 添加竞拍活动路由
+app.include_router(vaultwarden_router)  # 添加 Vaultwarden 路由
 
 
 def setup_static_files():

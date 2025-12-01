@@ -79,6 +79,15 @@ export default {
           iconColor: 'white',
           disabled: false
         },
+        {
+          value: 'vaultwarden',
+          title: '兑换 Vaultwarden',
+          subtitle: '使用积分兑换密码管理器账户',
+          icon: 'mdi-shield-key',
+          color: 'blue-darken-2',
+          iconColor: 'white',
+          disabled: false
+        },
         // 可以在这里添加更多功能项
         // {
         //   value: 'exchange',

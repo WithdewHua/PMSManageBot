@@ -112,6 +112,12 @@ class Settings(BaseSettings):
         "USDT-ERC20",
     ]
 
+    # Vaultwarden 配置
+    VAULTWARDEN_ENABLED: bool = False  # 是否启用 Vaultwarden 兑换功能
+    VAULTWARDEN_BASE_URL: str = ""  # Vaultwarden 服务地址
+    VAULTWARDEN_ADMIN_TOKEN: str = ""  # Vaultwarden 管理员 Token
+    VAULTWARDEN_REDEEM_CREDITS: int = 500  # 兑换 Vaultwarden 账户所需积分
+
     # 数据库配置
     DATABASE_TYPE: str = "sqlite"  # 数据库类型: sqlite, postgresql, mysql
     DATABASE_URL: str = ""  # 完整数据库连接 URL（优先级高于单独配置）
