@@ -45,27 +45,13 @@
                 <v-btn
                   icon
                   size="x-small"
-                  :color="creditsTransferEnabled ? 'amber-darken-2' : 'grey'"
+                  color="amber-darken-2"
                   variant="outlined"
-                  @click="handleCreditsTransferClick"
-                  :title="creditsTransferEnabled ? '积分转移' : '积分转移功能暂时关闭'"
-                  class="mr-2 credits-transfer-btn"
-                  :class="{ 'disabled-style': !creditsTransferEnabled }"
+                  @click="openCreditsStoreDialog"
+                  title="积分商城"
+                  class="mr-2 credits-store-btn"
                 >
-                  <v-icon 
-                    size="small" 
-                    :class="{ 'text-grey-darken-2': !creditsTransferEnabled }"
-                  >
-                    {{ creditsTransferEnabled ? 'mdi-bank-transfer' : 'mdi-bank-transfer-out' }}
-                  </v-icon>
-                  <v-icon 
-                    v-if="!creditsTransferEnabled" 
-                    size="x-small" 
-                    class="disable-icon"
-                    color="error"
-                  >
-                    mdi-cancel
-                  </v-icon>
+                  <v-icon size="small">mdi-store</v-icon>
                 </v-btn>
                 <div class="value-display credits-value">{{ userInfo.credits.toFixed(2) }}</div>
               </div>
@@ -687,6 +673,12 @@
       @registration-submitted="handleDonationRegistrationSubmitted"
     />
     
+    <!-- 使用积分商城对话框组件 -->
+    <credits-store-dialog
+      ref="creditsStoreDialog"
+      @menu-selected="handleCreditsStoreMenuSelected"
+    />
+    
     <!-- 使用积分转移对话框组件 -->
     <credits-transfer-dialog
       ref="creditsTransferDialog"
@@ -726,6 +718,7 @@ import NsfwDialog from '@/components/NsfwDialog.vue'
 import DonationDialog from '@/components/DonationDialog.vue'
 import DonationManagementDialog from '@/components/DonationManagementDialog.vue'
 import CreditsTransferDialog from '@/components/CreditsTransferDialog.vue'
+import CreditsStoreDialog from '@/components/CreditsStoreDialog.vue'
 import PremiumUnlockDialog from '@/components/PremiumUnlockDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
@@ -744,6 +737,7 @@ export default {
     DonationDialog,
     DonationManagementDialog,
     CreditsTransferDialog,
+    CreditsStoreDialog,
     PremiumUnlockDialog,
     TagManagementDialog,
     LineManagementDialog
@@ -1085,6 +1079,30 @@ export default {
     // 打开捐赠管理对话框
     openDonationManagementDialog() {
       this.$refs.donationManagementDialog.open();
+    },
+    
+    // 打开积分商城对话框
+    openCreditsStoreDialog() {
+      this.$refs.creditsStoreDialog.open();
+    },
+    
+    // 处理积分商城菜单选择
+    handleCreditsStoreMenuSelected(menuValue) {
+      switch (menuValue) {
+        case 'transfer':
+          // 打开积分转移对话框
+          this.openCreditsTransferDialog();
+          break;
+        // 可以在这里添加其他菜单项的处理
+        // case 'exchange':
+        //   this.openCreditsExchangeDialog();
+        //   break;
+        // case 'history':
+        //   this.openCreditsHistoryDialog();
+        //   break;
+        default:
+          break;
+      }
     },
     
     // 处理积分转移按钮点击事件
@@ -1828,29 +1846,14 @@ export default {
   box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
 }
 
-/* 积分转移按钮样式 */
-.credits-transfer-btn {
+/* 积分商城按钮样式 */
+.credits-store-btn {
   transition: all 0.3s ease;
-  position: relative;
 }
 
-.credits-transfer-btn.disabled-style {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.credits-transfer-btn.disabled-style:hover {
-  transform: none !important;
-  box-shadow: none !important;
-}
-
-.credits-transfer-btn .disable-icon {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  background: white;
-  border-radius: 50%;
-  font-size: 10px !important;
+.credits-store-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 167, 38, 0.3);
 }
 
 /* 个人活动数据卡片样式 */
