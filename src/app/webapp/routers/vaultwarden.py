@@ -1,6 +1,11 @@
+from datetime import datetime
+from time import time
+
 from app.config import settings
 from app.databases import db
+from app.databases.session import get_session
 from app.log import uvicorn_logger as logger
+from app.models.models import VaultwardenRedeemRecords
 from app.modules.vaultwarden import Vaultwarden
 from app.utils.utils import get_user_name_from_tg_id
 from app.webapp.auth import get_telegram_user
@@ -150,6 +155,29 @@ async def redeem_vaultwarden_account(
             return VaultwardenRedeemResponse(
                 success=False, message="兑换成功但更新积分失败，请联系管理员"
             )
+
+        # 存储兑换记录到数据库
+        try:
+            redeem_date = datetime.now(settings.TZ).strftime("%Y-%m-%d %H:%M:%S")
+            created_at = int(time())
+
+            with get_session() as session:
+                redeem_record = VaultwardenRedeemRecords(
+                    tg_id=user_id,
+                    email=email,
+                    credits_cost=float(required_credits),
+                    redeem_date=redeem_date,
+                    created_at=created_at,
+                )
+                session.add(redeem_record)
+                session.commit()
+
+            logger.info(
+                f"成功保存 Vaultwarden 兑换记录: tg_id={user_id}, email={email}"
+            )
+        except Exception as e:
+            logger.error(f"保存 Vaultwarden 兑换记录失败: {str(e)}")
+            # 不影响兑换流程，仅记录错误
 
         logger.info(
             f"用户 {get_user_name_from_tg_id(user_id)} 成功兑换 Vaultwarden 账户，邮箱: {email}，扣除积分: {required_credits}"

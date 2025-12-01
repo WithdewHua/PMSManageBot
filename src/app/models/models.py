@@ -271,3 +271,24 @@ class CryptoDonationOrders(Base):
         Index("idx_crypto_order_user_status", "user_id", "status"),
         Index("idx_crypto_order_status_created", "status", "created_at"),
     )
+
+
+class VaultwardenRedeemRecords(Base):
+    """Vaultwarden redeem records model"""
+
+    __tablename__ = "vaultwarden_redeem_records"
+
+    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    tg_id: Mapped[int] = mapped_column(
+        BIGINT, ForeignKey("statistics.tg_id"), nullable=False, index=True
+    )
+    email: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    credits_cost: Mapped[float] = mapped_column(Float, nullable=False)
+    redeem_date: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    created_at: Mapped[int] = mapped_column(BIGINT, nullable=False, index=True)
+
+    __table_args__ = (
+        CheckConstraint("credits_cost > 0", name="ck_vw_credits_cost_positive"),
+        Index("idx_vw_redeem_tg_date", "tg_id", "redeem_date"),
+        Index("idx_vw_redeem_email_date", "email", "redeem_date"),
+    )

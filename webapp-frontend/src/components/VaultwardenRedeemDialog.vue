@@ -104,7 +104,7 @@
                   <li>系统将发送邀请邮件到您的邮箱</li>
                   <li>查收邮件并点击邀请链接</li>
                   <li>设置密码完成注册</li>
-                  <li>开始使用 Vaultwarden 密码管理器</li>
+                  <li>下载客户端/浏览器插件使用</li>
                 </ol>
               </v-expansion-panel-text>
             </v-expansion-panel>
