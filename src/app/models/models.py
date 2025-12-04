@@ -32,10 +32,16 @@ class PlexUser(Base):
     __tablename__ = "plex_user"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    plex_id: Mapped[Optional[int]] = mapped_column(BIGINT, index=True, nullable=True)
-    tg_id: Mapped[Optional[int]] = mapped_column(BIGINT, index=True, nullable=True)
+    plex_id: Mapped[Optional[int]] = mapped_column(
+        BIGINT, unique=True, index=True, nullable=True
+    )
+    tg_id: Mapped[Optional[int]] = mapped_column(
+        BIGINT, unique=True, index=True, nullable=True
+    )
     credits: Mapped[float] = mapped_column(Float, default=0, nullable=False)
-    plex_email: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
+    plex_email: Mapped[Optional[str]] = mapped_column(
+        String, unique=True, index=True, nullable=True
+    )
     plex_username: Mapped[Optional[str]] = mapped_column(
         String, index=True, nullable=True
     )
@@ -53,8 +59,12 @@ class EmbyUser(Base):
     __tablename__ = "emby_user"
 
     emby_username: Mapped[str] = mapped_column(String, primary_key=True)
-    emby_id: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
-    tg_id: Mapped[Optional[int]] = mapped_column(BIGINT, index=True, nullable=True)
+    emby_id: Mapped[Optional[str]] = mapped_column(
+        String, unique=True, index=True, nullable=True
+    )
+    tg_id: Mapped[Optional[int]] = mapped_column(
+        BIGINT, unique=True, index=True, nullable=True
+    )
     emby_is_unlock: Mapped[int] = mapped_column(SMALLINT, default=0, nullable=False)
     emby_unlock_time: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
     emby_watched_time: Mapped[float] = mapped_column(Float, default=0, nullable=False)
