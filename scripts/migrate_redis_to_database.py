@@ -18,7 +18,7 @@ def migrate_free_premium_lines():
 
         free_lines_str = redis_client.get(cache_key)
         if free_lines_str:
-            free_lines = free_lines_str.decode("utf-8").split(",")
+            free_lines = free_lines_str.split(",")
             free_lines = [line.strip() for line in free_lines if line.strip()]
 
             if free_lines:
@@ -47,11 +47,11 @@ def migrate_line_tags():
         # 扫描所有线路标签键
         count = 0
         for key in redis_client.scan_iter(match=f"{cache_prefix}*"):
-            line_name = key.decode("utf-8").removeprefix(cache_prefix)
+            line_name = key.removeprefix(cache_prefix)
             tags_str = redis_client.get(key)
 
             if tags_str:
-                tags = tags_str.decode("utf-8").split(",")
+                tags = tags_str.split(",")
                 tags = [tag.strip() for tag in tags if tag.strip()]
 
                 if tags:
@@ -77,8 +77,7 @@ def migrate_lucky_wheel_config():
         config_key = "luckywheel:config"
         config_data = redis_client.get(config_key)
         if config_data:
-            config_str = config_data.decode("utf-8")
-            success = db.set_lucky_wheel_config("config", config_str)
+            success = db.set_lucky_wheel_config("config", config_data)
             if success:
                 logger.info("成功迁移幸运大转盘主配置")
             else:
@@ -90,8 +89,7 @@ def migrate_lucky_wheel_config():
         randomness_key = "luckywheel:randomness_config"
         randomness_data = redis_client.get(randomness_key)
         if randomness_data:
-            randomness_str = randomness_data.decode("utf-8")
-            success = db.set_lucky_wheel_config("randomness_config", randomness_str)
+            success = db.set_lucky_wheel_config("randomness_config", randomness_data)
             if success:
                 logger.info("成功迁移幸运大转盘随机性配置")
             else:
