@@ -25,6 +25,7 @@ from app.models.models import (
     Overseerr,
     PlexUser,
     Statistics,
+    SystemConfig,
     WheelStats,
 )
 from sqlalchemy import delete, func, select, update
@@ -3103,6 +3104,270 @@ class DatabaseORM:
         except Exception as e:
             logger.error(f"更新过期 crypto 捐赠订单状态失败: {e}")
             return 0
+
+    # ============================================================
+    # SystemConfig 配置管理相关方法
+    # ============================================================
+
+    def get_system_config(self, config_type: str, config_key: str) -> Optional[str]:
+        """
+        获取系统配置
+
+        Args:
+            config_type: 配置类型 (free_premium_line, line_tag, lucky_wheel)
+            config_key: 配置键
+
+        Returns:
+            配置值，如果不存在返回 None
+        """
+        try:
+            with get_session() as session:
+                stmt = select(SystemConfig.config_value).where(
+                    SystemConfig.config_type == config_type,
+                    SystemConfig.config_key == config_key,
+                )
+                result = session.execute(stmt).scalar_one_or_none()
+                return result
+        except Exception as e:
+            logger.error(
+                f"获取系统配置失败 (type={config_type}, key={config_key}): {str(e)}"
+            )
+            return None
+
+    def set_system_config(
+        self, config_type: str, config_key: str, config_value: str
+    ) -> bool:
+        """
+        设置系统配置（更新或插入）
+
+        Args:
+            config_type: 配置类型
+            config_key: 配置键
+            config_value: 配置值
+
+        Returns:
+            是否成功
+        """
+        try:
+            current_time = int(time.time())
+            with get_session() as session:
+                # 尝试查找现有配置
+                stmt = select(SystemConfig).where(
+                    SystemConfig.config_type == config_type,
+                    SystemConfig.config_key == config_key,
+                )
+                existing_config = session.execute(stmt).scalar_one_or_none()
+
+                if existing_config:
+                    # 更新现有配置
+                    existing_config.config_value = config_value
+                    existing_config.updated_at = current_time
+                else:
+                    # 插入新配置
+                    new_config = SystemConfig(
+                        config_type=config_type,
+                        config_key=config_key,
+                        config_value=config_value,
+                        created_at=current_time,
+                        updated_at=current_time,
+                    )
+                    session.add(new_config)
+
+                session.commit()
+                logger.info(f"设置系统配置成功 (type={config_type}, key={config_key})")
+                return True
+        except Exception as e:
+            logger.error(
+                f"设置系统配置失败 (type={config_type}, key={config_key}): {str(e)}"
+            )
+            return False
+
+    def delete_system_config(self, config_type: str, config_key: str) -> bool:
+        """
+        删除系统配置
+
+        Args:
+            config_type: 配置类型
+            config_key: 配置键
+
+        Returns:
+            是否成功
+        """
+        try:
+            with get_session() as session:
+                stmt = select(SystemConfig).where(
+                    SystemConfig.config_type == config_type,
+                    SystemConfig.config_key == config_key,
+                )
+                config = session.execute(stmt).scalar_one_or_none()
+
+                if config:
+                    session.delete(config)
+                    session.commit()
+                    logger.info(
+                        f"删除系统配置成功 (type={config_type}, key={config_key})"
+                    )
+                    return True
+                else:
+                    logger.info(
+                        f"系统配置不存在 (type={config_type}, key={config_key})"
+                    )
+                    return True
+        except Exception as e:
+            logger.error(
+                f"删除系统配置失败 (type={config_type}, key={config_key}): {str(e)}"
+            )
+            return False
+
+    def get_all_configs_by_type(self, config_type: str) -> dict:
+        """
+        获取指定类型的所有配置
+
+        Args:
+            config_type: 配置类型
+
+        Returns:
+            配置字典 {config_key: config_value}
+        """
+        try:
+            with get_session() as session:
+                stmt = select(SystemConfig.config_key, SystemConfig.config_value).where(
+                    SystemConfig.config_type == config_type
+                )
+                results = session.execute(stmt).all()
+                return {row[0]: row[1] for row in results}
+        except Exception as e:
+            logger.error(f"获取所有配置失败 (type={config_type}): {str(e)}")
+            return {}
+
+    # ============================================================
+    # 免费高级线路相关方法
+    # ============================================================
+
+    def get_free_premium_lines(self) -> list[str]:
+        """获取所有免费高级线路列表"""
+        configs = self.get_all_configs_by_type("free_premium_line")
+        return [key for key, value in configs.items() if value == "1"]
+
+    def set_free_premium_lines(self, lines: list[str]) -> bool:
+        """
+        设置免费高级线路列表
+
+        Args:
+            lines: 线路名称列表
+
+        Returns:
+            是否成功
+        """
+        try:
+            # 获取现有的免费线路
+            existing_lines = set(self.get_free_premium_lines())
+            new_lines = set(lines)
+
+            # 删除不再免费的线路
+            for line in existing_lines - new_lines:
+                self.delete_system_config("free_premium_line", line)
+
+            # 添加新的免费线路
+            for line in new_lines:
+                self.set_system_config("free_premium_line", line, "1")
+
+            logger.info(f"设置免费高级线路成功，共 {len(lines)} 条线路")
+            return True
+        except Exception as e:
+            logger.error(f"设置免费高级线路失败: {str(e)}")
+            return False
+
+    def is_free_premium_line(self, line_name: str) -> bool:
+        """检查线路是否为免费高级线路"""
+        value = self.get_system_config("free_premium_line", line_name)
+        return value == "1"
+
+    # ============================================================
+    # 线路标签相关方法
+    # ============================================================
+
+    def get_line_tags(self, line_name: str) -> list[str]:
+        """
+        获取线路的标签列表
+
+        Args:
+            line_name: 线路名称
+
+        Returns:
+            标签列表
+        """
+        tags_str = self.get_system_config("line_tag", line_name)
+        if tags_str:
+            tags = tags_str.split(",")
+            return [tag.strip() for tag in tags if tag.strip()]
+        return []
+
+    def set_line_tags(self, line_name: str, tags: list[str]) -> bool:
+        """
+        设置线路标签
+
+        Args:
+            line_name: 线路名称
+            tags: 标签列表
+
+        Returns:
+            是否成功
+        """
+        if not tags:
+            # 如果标签为空，删除该配置
+            return self.delete_system_config("line_tag", line_name)
+
+        # 去重并转换为逗号分隔的字符串
+        tags_str = ",".join(set(tags))
+        return self.set_system_config("line_tag", line_name, tags_str)
+
+    def delete_line_tags(self, line_name: str) -> bool:
+        """删除线路的所有标签"""
+        return self.delete_system_config("line_tag", line_name)
+
+    def get_all_line_tags(self) -> dict:
+        """
+        获取所有线路的标签
+
+        Returns:
+            字典 {line_name: [tags]}
+        """
+        configs = self.get_all_configs_by_type("line_tag")
+        result = {}
+        for line_name, tags_str in configs.items():
+            tags = tags_str.split(",")
+            result[line_name] = [tag.strip() for tag in tags if tag.strip()]
+        return result
+
+    # ============================================================
+    # 幸运大转盘配置相关方法
+    # ============================================================
+
+    def get_lucky_wheel_config(self, config_key: str = "config") -> Optional[str]:
+        """
+        获取幸运大转盘配置
+
+        Args:
+            config_key: 配置键 (config 或 randomness_config)
+
+        Returns:
+            配置的 JSON 字符串
+        """
+        return self.get_system_config("lucky_wheel", config_key)
+
+    def set_lucky_wheel_config(self, config_key: str, config_json: str) -> bool:
+        """
+        设置幸运大转盘配置
+
+        Args:
+            config_key: 配置键 (config 或 randomness_config)
+            config_json: 配置的 JSON 字符串
+
+        Returns:
+            是否成功
+        """
+        return self.set_system_config("lucky_wheel", config_key, config_json)
 
 
 # 创建全局实例

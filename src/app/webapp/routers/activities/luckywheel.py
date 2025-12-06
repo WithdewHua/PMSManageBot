@@ -6,7 +6,6 @@ import traceback
 
 from app.config import settings
 from app.databases import db
-from app.databases.cache import lucky_wheel_config_cache
 from app.databases.db_func import add_redeem_code
 from app.log import logger
 from app.premium import update_premium_status
@@ -94,12 +93,12 @@ class RandomnessConfig:
 def get_wheel_config() -> LuckyWheelConfig:
     """获取转盘配置"""
     try:
-        config_str = lucky_wheel_config_cache.get("config")
+        config_str = db.get_lucky_wheel_config("config")
         if config_str:
             config_dict = json.loads(config_str)
             return LuckyWheelConfig(**config_dict)
         else:
-            # 如果没有配置，使用默认配置并保存到Redis
+            # 如果没有配置，使用默认配置并保存到数据库
             save_wheel_config(DEFAULT_WHEEL_CONFIG)
             return DEFAULT_WHEEL_CONFIG
     except Exception as e:
@@ -108,11 +107,14 @@ def get_wheel_config() -> LuckyWheelConfig:
 
 
 def save_wheel_config(config: LuckyWheelConfig):
-    """保存转盘配置到Redis"""
+    """保存转盘配置到数据库"""
     try:
         config_json = config.model_dump_json()
-        lucky_wheel_config_cache.put("config", config_json)
-        logger.info("转盘配置已保存到Redis")
+        success = db.set_lucky_wheel_config("config", config_json)
+        if success:
+            logger.info("转盘配置已保存到数据库")
+        else:
+            raise Exception("保存配置失败")
     except Exception as e:
         logger.error(f"保存转盘配置失败: {e}")
         raise HTTPException(
@@ -393,16 +395,16 @@ async def get_user_status(
 
 
 def get_randomness_config_from_redis() -> dict:
-    """从Redis获取随机性配置"""
+    """从数据库获取随机性配置"""
     try:
-        config_str = lucky_wheel_config_cache.get("randomness_config")
+        config_str = db.get_lucky_wheel_config("randomness_config")
         if config_str:
             config_dict = json.loads(config_str)
             # 更新类配置
             RandomnessConfig.from_dict(config_dict)
             return config_dict
         else:
-            # 如果没有配置，使用默认配置并保存到Redis
+            # 如果没有配置，使用默认配置并保存到数据库
             default_config = RandomnessConfig.to_dict()
             save_randomness_config(default_config)
             return default_config
@@ -412,7 +414,7 @@ def get_randomness_config_from_redis() -> dict:
 
 
 def save_randomness_config(config_dict: dict):
-    """保存随机性配置到Redis"""
+    """保存随机性配置到数据库"""
     try:
         # 验证配置参数的合理性
         if "protection_threshold" in config_dict:
@@ -428,10 +430,13 @@ def save_randomness_config(config_dict: dict):
         # 更新类配置
         RandomnessConfig.from_dict(config_dict)
 
-        # 保存到Redis
+        # 保存到数据库
         config_json = json.dumps(config_dict)
-        lucky_wheel_config_cache.put("randomness_config", config_json)
-        logger.info("随机性配置已保存到Redis")
+        success = db.set_lucky_wheel_config("randomness_config", config_json)
+        if success:
+            logger.info("随机性配置已保存到数据库")
+        else:
+            raise Exception("保存随机性配置失败")
     except Exception as e:
         logger.error(f"保存随机性配置失败: {e}")
         raise HTTPException(

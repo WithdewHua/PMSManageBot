@@ -6,7 +6,6 @@ from app.databases import db
 from app.databases.cache import (
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
-    get_line_tags,
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
 )
@@ -442,27 +441,26 @@ async def get_emby_lines(
     # 添加基础线路信息
     for line in available_lines:
         line_infos.append(
-            EmbyLineInfo(name=line, tags=get_line_tags(line), is_premium=False)
+            EmbyLineInfo(name=line, tags=db.get_line_tags(line), is_premium=False)
         )
 
     # 如果是premium用户，直接添加所有高级线路
     if is_premium:
         for line in settings.PREMIUM_STREAM_BACKEND:
             line_infos.append(
-                EmbyLineInfo(name=line, tags=get_line_tags(line), is_premium=True)
+                EmbyLineInfo(name=line, tags=db.get_line_tags(line), is_premium=True)
             )
     # 如果不是premium用户，检查免费高级线路
     elif settings.PREMIUM_FREE:
-        # 从Redis缓存获取免费高级线路列表
-        from app.databases.cache import free_premium_lines_cache
-
-        free_premium_lines = free_premium_lines_cache.get("free_lines")
-        free_premium_lines = free_premium_lines.split(",") if free_premium_lines else []
+        # 从数据库获取免费高级线路列表
+        free_premium_lines = db.get_free_premium_lines()
 
         for line in free_premium_lines:
             line_infos.append(
                 EmbyLineInfo(
-                    name=line, tags=get_line_tags(line) + ["PREMIUM"], is_premium=True
+                    name=line,
+                    tags=db.get_line_tags(line) + ["PREMIUM"],
+                    is_premium=True,
                 )
             )
 
@@ -852,7 +850,7 @@ async def get_plex_lines(
         # 添加基础线路信息
         for line in available_lines:
             line_infos.append(
-                PlexLineInfo(name=line, tags=get_line_tags(line), is_premium=False)
+                PlexLineInfo(name=line, tags=db.get_line_tags(line), is_premium=False)
             )
 
         # 根据用户权限添加高级线路信息
@@ -860,22 +858,19 @@ async def get_plex_lines(
             # 高级用户可以看到所有高级线路
             for line in premium_lines:
                 line_infos.append(
-                    PlexLineInfo(name=line, tags=get_line_tags(line), is_premium=True)
+                    PlexLineInfo(
+                        name=line, tags=db.get_line_tags(line), is_premium=True
+                    )
                 )
         elif settings.PREMIUM_FREE:
             # 普通用户在免费开放期间可以看到免费的高级线路
-            from app.databases.cache import free_premium_lines_cache
-
-            free_premium_lines = free_premium_lines_cache.get("free_lines")
-            free_premium_lines = (
-                free_premium_lines.split(",") if free_premium_lines else []
-            )
+            free_premium_lines = db.get_free_premium_lines()
 
             for line in free_premium_lines:
                 if line in premium_lines:
                     line_infos.append(
                         PlexLineInfo(
-                            name=line, tags=get_line_tags(line), is_premium=True
+                            name=line, tags=db.get_line_tags(line), is_premium=True
                         )
                     )
 
@@ -1280,30 +1275,27 @@ async def get_emby_lines_by_user(
         # 添加基础线路信息
         for line in available_lines:
             line_infos.append(
-                EmbyLineInfo(name=line, tags=get_line_tags(line), is_premium=False)
+                EmbyLineInfo(name=line, tags=db.get_line_tags(line), is_premium=False)
             )
 
-        # 如果是premium用户，直接添加所有高级线路
+        # 如果是premium用户,直接添加所有高级线路
         if is_premium:
             for line in settings.PREMIUM_STREAM_BACKEND:
                 line_infos.append(
-                    EmbyLineInfo(name=line, tags=get_line_tags(line), is_premium=True)
+                    EmbyLineInfo(
+                        name=line, tags=db.get_line_tags(line), is_premium=True
+                    )
                 )
-        # 如果不是premium用户，检查免费高级线路
+        # 如果不是premium用户,检查免费高级线路
         elif settings.PREMIUM_FREE:
-            # 从Redis缓存获取免费高级线路列表
-            from app.databases.cache import free_premium_lines_cache
-
-            free_premium_lines = free_premium_lines_cache.get("free_lines")
-            free_premium_lines = (
-                free_premium_lines.split(",") if free_premium_lines else []
-            )
+            # 从数据库获取免费高级线路列表
+            free_premium_lines = db.get_free_premium_lines()
 
             for line in free_premium_lines:
                 if line in settings.PREMIUM_STREAM_BACKEND:
                     line_infos.append(
                         EmbyLineInfo(
-                            name=line, tags=get_line_tags(line), is_premium=True
+                            name=line, tags=db.get_line_tags(line), is_premium=True
                         )
                     )
 
@@ -1351,7 +1343,7 @@ async def get_plex_lines_by_user(
         # 添加基础线路信息
         for line in available_lines:
             line_infos.append(
-                PlexLineInfo(name=line, tags=get_line_tags(line), is_premium=False)
+                PlexLineInfo(name=line, tags=db.get_line_tags(line), is_premium=False)
             )
 
         # 根据用户权限添加高级线路信息
@@ -1359,22 +1351,19 @@ async def get_plex_lines_by_user(
             # 高级用户可以看到所有高级线路
             for line in premium_lines:
                 line_infos.append(
-                    PlexLineInfo(name=line, tags=get_line_tags(line), is_premium=True)
+                    PlexLineInfo(
+                        name=line, tags=db.get_line_tags(line), is_premium=True
+                    )
                 )
         elif settings.PREMIUM_FREE:
             # 普通用户在免费开放期间可以看到免费的高级线路
-            from app.databases.cache import free_premium_lines_cache
-
-            free_premium_lines = free_premium_lines_cache.get("free_lines")
-            free_premium_lines = (
-                free_premium_lines.split(",") if free_premium_lines else []
-            )
+            free_premium_lines = db.get_free_premium_lines()
 
             for line in free_premium_lines:
                 if line in premium_lines:
                     line_infos.append(
                         PlexLineInfo(
-                            name=line, tags=get_line_tags(line), is_premium=True
+                            name=line, tags=db.get_line_tags(line), is_premium=True
                         )
                     )
 

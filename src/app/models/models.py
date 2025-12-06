@@ -302,3 +302,29 @@ class VaultwardenRedeemRecords(Base):
         Index("idx_vw_redeem_tg_date", "tg_id", "redeem_date"),
         Index("idx_vw_redeem_email_date", "email", "redeem_date"),
     )
+
+
+class SystemConfig(Base):
+    """System configuration model - unified config storage
+
+    Supports different config types:
+    - free_premium_line: Free premium lines (key=line_name, value=enabled)
+    - line_tag: Line tags (key=line_name, value=comma-separated tags)
+    - lucky_wheel: Lucky wheel config (key=config/randomness_config, value=json)
+    """
+
+    __tablename__ = "system_config"
+
+    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    config_type: Mapped[str] = mapped_column(
+        String, nullable=False, index=True
+    )  # 配置类型: free_premium_line, line_tag, lucky_wheel
+    config_key: Mapped[str] = mapped_column(String, nullable=False)  # 配置键
+    config_value: Mapped[str] = mapped_column(Text, nullable=False)  # 配置值
+    created_at: Mapped[int] = mapped_column(BIGINT, nullable=False)
+    updated_at: Mapped[int] = mapped_column(BIGINT, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("config_type", "config_key", name="uq_config_type_key"),
+        Index("idx_config_type_key", "config_type", "config_key"),
+    )

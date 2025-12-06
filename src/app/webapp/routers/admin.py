@@ -3,9 +3,6 @@ from app.databases import db
 from app.databases.cache import (
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
-    free_premium_lines_cache,
-    get_line_tags,
-    line_tags_cache,
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
 )
@@ -49,11 +46,8 @@ async def get_admin_settings(
     check_admin_permission(user)
 
     try:
-        # 从Redis缓存获取免费高级线路列表
-        from app.databases.cache import free_premium_lines_cache
-
-        free_premium_lines = free_premium_lines_cache.get("free_lines")
-        free_premium_lines = free_premium_lines.split(",") if free_premium_lines else []
+        # 从数据库获取免费高级线路列表
+        free_premium_lines = db.get_free_premium_lines()
 
         settings_data = {
             "plex_register": settings.PLEX_REGISTER,
@@ -196,10 +190,9 @@ async def set_free_premium_lines(
                     success=False, message=f"线路 {line} 不在高级线路列表中"
                 )
 
-        # 保存到 Redis 缓存
-        old_free_lines = free_premium_lines_cache.get("free_lines")
-        old_free_lines = old_free_lines.split(",") if old_free_lines else []
-        free_premium_lines_cache.put("free_lines", ",".join(free_lines))
+        # 保存到数据库
+        old_free_lines = db.get_free_premium_lines()
+        db.set_free_premium_lines(free_lines)
 
         removed_lines = set(old_free_lines) - set(free_lines)
         # 处理现有用户的线路绑定 - 如果某些原本免费的线路被移除，需要处理
@@ -533,24 +526,18 @@ async def set_line_tags(
     check_admin_permission(user)
 
     try:
-        # 将标签列表转换为逗号分隔的字符串存储到Redis
-        tags_str = ",".join(set(data.tags)) if set(data.tags) else ""
+        # 使用数据库函数设置标签
+        success = db.set_line_tags(data.line_name, data.tags)
 
-        if tags_str:
-            line_tags_cache.put(data.line_name, tags_str)
+        if success:
             logger.info(
                 f"管理员 {user.username or user.id} 设置线路 {data.line_name} 的标签: {data.tags}"
             )
-        else:
-            # 如果标签为空，删除该键
-            line_tags_cache.delete(data.line_name)
-            logger.info(
-                f"管理员 {user.username or user.id} 清空线路 {data.line_name} 的标签"
+            return BaseResponse(
+                success=True, message=f"线路 {data.line_name} 的标签设置成功"
             )
-
-        return BaseResponse(
-            success=True, message=f"线路 {data.line_name} 的标签设置成功"
-        )
+        else:
+            return BaseResponse(success=False, message="设置标签失败")
     except Exception as e:
         logger.error(f"设置线路标签失败: {str(e)}")
         return BaseResponse(success=False, message="设置标签失败")
@@ -567,7 +554,7 @@ async def get_line_tags_admin(
     check_admin_permission(user)
 
     try:
-        tags = get_line_tags(line_name)
+        tags = db.get_line_tags(line_name)
         return LineTagResponse(line_name=line_name, tags=tags)
     except Exception as e:
         logger.error(f"获取线路标签失败: {str(e)}")
@@ -592,7 +579,7 @@ async def get_all_line_tags(
         # 获取每个线路的标签
         lines_tags = {}
         for line in all_lines:
-            tags = get_line_tags(line)
+            tags = db.get_line_tags(line)
             lines_tags[line] = tags
 
         return AllLineTagsResponse(lines=lines_tags)
@@ -613,13 +600,18 @@ async def delete_line_tags(
 
     try:
         # 检查标签是否存在
-        existing_tags = get_line_tags(line_name)
+        existing_tags = db.get_line_tags(line_name)
         if existing_tags:
-            line_tags_cache.delete(line_name)
-            logger.info(
-                f"管理员 {user.username or user.id} 删除线路 {line_name} 的所有标签"
-            )
-            return BaseResponse(success=True, message=f"线路 {line_name} 的标签已清空")
+            success = db.delete_line_tags(line_name)
+            if success:
+                logger.info(
+                    f"管理员 {user.username or user.id} 删除线路 {line_name} 的所有标签"
+                )
+                return BaseResponse(
+                    success=True, message=f"线路 {line_name} 的标签已清空"
+                )
+            else:
+                return BaseResponse(success=False, message="删除标签失败")
         else:
             return BaseResponse(success=True, message=f"线路 {line_name} 没有设置标签")
     except Exception as e:
@@ -889,7 +881,7 @@ async def delete_normal_line_generic(
         settings.save_config_to_env_file({"STREAM_BACKEND": ",".join(new_lines)})
 
         # 删除该线路的标签（如果有）
-        line_tags_cache.delete(line_name)
+        db.delete_line_tags(line_name)
         # 解绑所有绑定了该线路的用户
         await unbind_specified_line_for_all_users(line_name)
 
@@ -925,17 +917,13 @@ async def delete_premium_line_generic(
         )
 
         # 从免费高级线路列表中移除（如果存在）
-        from app.databases.cache import free_premium_lines_cache
-
-        free_premium_lines = free_premium_lines_cache.get("free_lines")
-        if free_premium_lines:
-            free_lines_list = free_premium_lines.split(",")
-            if line_name in free_lines_list:
-                free_lines_list.remove(line_name)
-                free_premium_lines_cache.put("free_lines", ",".join(free_lines_list))
+        free_premium_lines = db.get_free_premium_lines()
+        if line_name in free_premium_lines:
+            free_premium_lines.remove(line_name)
+            db.set_free_premium_lines(free_premium_lines)
 
         # 删除该线路的标签（如果有）
-        line_tags_cache.delete(line_name)
+        db.delete_line_tags(line_name)
 
         # 处理绑定了该线路的用户
         await unbind_specified_line_for_all_users(line_name)
