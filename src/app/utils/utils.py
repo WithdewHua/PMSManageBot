@@ -320,9 +320,9 @@ async def refresh_tg_user_info(
             if settings.TG_USER_INFO_CACHE_PATH.exists():
                 with open(settings.TG_USER_INFO_CACHE_PATH, "rb") as f:
                     cache = pickle.load(f)
-            # 缓存保留 7 天
+            # 缓存保留 1 天
             if tg_id in cache:
-                if time() - cache.get(tg_id).get("added") <= 7 * 24 * 3600:
+                if time() - cache.get(tg_id).get("added") <= 1 * 24 * 3600:
                     logger.info(
                         f"{cache.get(tg_id).get('username')}({tg_id}) info is not expired, skip"
                     )
