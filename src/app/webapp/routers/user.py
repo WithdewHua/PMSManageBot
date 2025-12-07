@@ -1621,6 +1621,7 @@ async def check_line_schedule_unlock_status(
             "is_unlocked": result["is_unlocked"],
             "is_premium": result["is_premium"],
             "unlock_time": result["unlock_time"],
+            "unlock_credits": settings.LINE_SCHEDULE_UNLOCK_CREDITS,
         }
     except Exception as e:
         logger.error(f"检查线路调度解锁状态失败: {e}")

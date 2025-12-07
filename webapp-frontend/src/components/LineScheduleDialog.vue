@@ -25,7 +25,7 @@
               <div>
                 线路调度功能允许您为不同时间段自动切换线路，优化观看体验。
                 <br />
-                解锁需要消耗 <strong>{{ unlockCredits }}</strong> 积分
+                解锁需要消耗 <strong>{{ unlockStatus.unlock_credits }}</strong> 积分
                 <span v-if="unlockStatus.is_premium" class="ml-2 success--text">
                   （Premium 用户免费）
                 </span>
@@ -386,8 +386,8 @@ export default {
         is_unlocked: false,
         is_premium: false,
         unlock_time: null,
+        unlock_credits: 264,
       },
-      unlockCredits: 200, // 从配置获取
       schedules: [],
       availableLines: [],
       defaultLine: null,
