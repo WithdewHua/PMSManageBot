@@ -75,22 +75,6 @@
               </template>
             </v-text-field>
           </v-list-item>
-          
-          <v-divider></v-divider>
-          
-          <!-- 高级调度按钮 -->
-          <v-list-item class="schedule-button-item">
-            <v-btn
-              block
-              variant="tonal"
-              color="purple"
-              size="small"
-              @click="openScheduleDialog"
-              prepend-icon="mdi-calendar-clock"
-            >
-              高级调度
-            </v-btn>
-          </v-list-item>
         </v-list>
       </v-card>
     </v-menu>
@@ -109,26 +93,14 @@
     <v-snackbar v-model="showSnackbar" :color="snackbarColor" :timeout="3000">
       {{ snackbarMessage }}
     </v-snackbar>
-    
-    <!-- 线路调度对话框 -->
-    <LineScheduleDialog
-      v-model:show="showScheduleDialog"
-      initial-service="emby"
-      @success="onScheduleSuccess"
-      @error="onScheduleError"
-    />
   </div>
 </template>
 
 <script>
 import { bindEmbyLine, unbindEmbyLine, getAvailableEmbyLines } from '@/services/embyService';
-import LineScheduleDialog from './LineScheduleDialog.vue';
 
 export default {
   name: 'EmbyLineSelector',
-  components: {
-    LineScheduleDialog,
-  },
   props: {
     currentValue: {
       type: String,
@@ -146,8 +118,7 @@ export default {
       currentLine: this.currentValue || 'AUTO',
       availableLines: [],
       loadingLines: false,
-      scrollAnimation: null,
-      showScheduleDialog: false
+      scrollAnimation: null
     }
   },
   computed: {
@@ -297,24 +268,6 @@ export default {
       
       const colorIndex = Math.abs(hash) % contrastColors.length;
       return contrastColors[colorIndex];
-    },
-    
-    // 打开调度对话框
-    openScheduleDialog() {
-      this.menu = false; // 关闭线路选择菜单
-      this.showScheduleDialog = true;
-    },
-    
-    // 调度成功回调
-    onScheduleSuccess(message) {
-      this.showMessage(message, 'success');
-      // 可能需要刷新线路信息
-      this.$emit('schedule-updated');
-    },
-    
-    // 调度错误回调
-    onScheduleError(message) {
-      this.showMessage(message, 'error');
     },
     
     checkAndStartScrolling() {

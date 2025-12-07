@@ -103,40 +103,6 @@ export async function deleteLineSchedule(scheduleId) {
 }
 
 /**
- * 设置默认线路
- * @param {string} service - 服务类型 ('emby' 或 'plex')
- * @param {string|null} defaultLine - 默认线路名称，null 表示 AUTO
- * @returns {Promise<Object>} 设置结果
- */
-export async function setDefaultLine(service, defaultLine) {
-  try {
-    const response = await apiClient.post('/api/user/line-schedules/default', {
-      service,
-      default_line: defaultLine,
-    });
-    return response.data;
-  } catch (error) {
-    console.error('设置默认线路失败:', error);
-    throw error;
-  }
-}
-
-/**
- * 获取默认线路
- * @param {string} service - 服务类型 ('emby' 或 'plex')
- * @returns {Promise<string|null>} 默认线路名称
- */
-export async function getDefaultLine(service) {
-  try {
-    const response = await apiClient.get(`/api/user/line-schedules/default/${service}`);
-    return response.data.default_line;
-  } catch (error) {
-    console.error('获取默认线路失败:', error);
-    throw error;
-  }
-}
-
-/**
  * 获取当前生效的线路调度状态
  * @param {string} service - 服务类型 ('emby' 或 'plex')
  * @returns {Promise<Object>} 调度状态信息

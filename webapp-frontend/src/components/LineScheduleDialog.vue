@@ -2,7 +2,10 @@
   <v-dialog v-model="showDialog" max-width="900" scrollable>
     <v-card>
       <v-card-title class="headline d-flex justify-space-between align-center">
-        <span>线路调度管理</span>
+        <div class="d-flex align-center">
+          <v-icon left color="purple">mdi-calendar-clock</v-icon>
+          <span>线路调度管理</span>
+        </div>
         <v-chip :color="unlockStatus.is_unlocked ? 'success' : 'warning'" small>
           {{ unlockStatus.is_unlocked ? '已解锁' : '未解锁' }}
         </v-chip>
@@ -42,95 +45,8 @@
           </div>
         </v-alert>
 
-        <!-- 已解锁状态 -->
+        <!-- 已解锁状态 - 直接显示高级调度配置 -->
         <div v-else>
-          <!-- 默认线路设置 -->
-          <v-card outlined class="mb-4">
-            <v-card-subtitle class="pb-2">
-              <v-icon small class="mr-1">mdi-home</v-icon>
-              默认线路
-            </v-card-subtitle>
-            <v-card-text>
-              <!-- 无可用线路提示 -->
-              <v-alert
-                v-if="availableLines.length === 0"
-                type="warning"
-                dense
-                outlined
-                class="mb-3"
-              >
-                <div class="text-body-2">
-                  未获取到可用线路，请确认：
-                  <ul class="mt-2 ml-4">
-                    <li>您已绑定 {{ serviceType === 'plex' ? 'Plex' : 'Emby' }} 账户</li>
-                    <li>网络连接正常</li>
-                  </ul>
-                </div>
-              </v-alert>
-              
-              <div class="d-flex align-center">
-                <v-select
-                  v-model="defaultLine"
-                  :items="availableLines"
-                  item-text="name"
-                  item-value="name"
-                  label="选择默认线路"
-                  outlined
-                  dense
-                  clearable
-                  :disabled="availableLines.length === 0"
-                  :placeholder="availableLines.length === 0 ? '无可用线路' : '选择默认线路'"
-                  class="flex-grow-1 mr-2"
-                >
-                  <template v-slot:selection="{ item }">
-                    <v-chip small :color="item.is_premium ? 'purple' : 'blue'" dark>
-                      {{ item.name }}
-                    </v-chip>
-                  </template>
-                  <template v-slot:item="{ item }">
-                    <v-list-item-content>
-                      <v-list-item-title>
-                        {{ item.name }}
-                        <v-chip
-                          v-if="item.is_premium"
-                          x-small
-                          color="purple"
-                          dark
-                          class="ml-2"
-                        >
-                          Premium
-                        </v-chip>
-                      </v-list-item-title>
-                      <v-list-item-subtitle v-if="item.tags && item.tags.length">
-                        <v-chip
-                          v-for="tag in item.tags"
-                          :key="tag"
-                          x-small
-                          outlined
-                          class="mr-1"
-                        >
-                          {{ tag }}
-                        </v-chip>
-                      </v-list-item-subtitle>
-                    </v-list-item-content>
-                  </template>
-                </v-select>
-                <v-btn
-                  color="primary"
-                  small
-                  @click="saveDefaultLine"
-                  :loading="savingDefault"
-                  :disabled="availableLines.length === 0 && !defaultLine"
-                >
-                  保存
-                </v-btn>
-              </div>
-              <div class="text-caption grey--text mt-2">
-                当没有生效的调度时，将使用此默认线路。留空则使用 AUTO 自动选择。
-              </div>
-            </v-card-text>
-          </v-card>
-
           <!-- 当前生效的调度 -->
           <v-card v-if="activeSchedule" outlined color="success" class="mb-4">
             <v-card-subtitle class="pb-2 white--text">
@@ -154,15 +70,13 @@
           <v-card outlined class="mb-4">
             <v-card-subtitle class="pb-2 d-flex justify-space-between align-center">
               <span>
-                <v-icon small class="mr-1">mdi-calendar-clock</v-icon>
-                调度列表
+                <v-icon small class="mr-1">mdi-format-list-bulleted</v-icon>
+                调度规则列表
               </span>
               <v-btn
                 color="primary"
                 small
                 @click="openCreateDialog"
-                :disabled="availableLines.length === 0"
-                :title="availableLines.length === 0 ? '暂无可用线路' : '添加调度'"
               >
                 <v-icon left small>mdi-plus</v-icon>
                 添加调度
@@ -225,7 +139,7 @@
                 </v-list-item>
               </v-list>
               <div v-else class="pa-4 text-center grey--text">
-                暂无调度，点击"添加调度"创建新的调度规则
+                暂无调度规则，点击"添加调度"创建新的调度规则
               </div>
             </v-card-text>
           </v-card>
@@ -246,72 +160,20 @@
         <v-card-title>{{ editingSchedule ? '编辑调度' : '添加调度' }}</v-card-title>
         <v-divider></v-divider>
         <v-card-text class="pa-4">
-          <!-- 无可用线路提示 -->
-          <v-alert
-            v-if="availableLines.length === 0"
-            type="warning"
-            dense
-            outlined
-            class="mb-3"
-          >
-            <div class="text-body-2">
-              未获取到可用线路，无法创建调度。请先：
-              <ul class="mt-2 ml-4">
-                <li>确认已绑定 {{ serviceType === 'plex' ? 'Plex' : 'Emby' }} 账户</li>
-                <li>检查网络连接</li>
-                <li>刷新页面重试</li>
-              </ul>
-            </div>
-          </v-alert>
-          
           <v-form ref="scheduleForm" v-model="formValid">
-            <!-- 线路选择 -->
-            <v-select
-              v-model="scheduleForm.line"
-              :items="availableLines"
-              item-text="name"
-              item-value="name"
-              label="选择线路"
-              outlined
-              dense
-              :disabled="availableLines.length === 0"
-              :placeholder="availableLines.length === 0 ? '无可用线路' : '选择线路'"
-              :rules="[v => !!v || '请选择线路']"
-              class="mb-3"
-            >
-              <template v-slot:selection="{ item }">
-                <v-chip small :color="item.is_premium ? 'purple' : 'blue'" dark>
-                  {{ item.name }}
-                </v-chip>
-              </template>
-              <template v-slot:item="{ item }">
-                <v-list-item-content>
-                  <v-list-item-title>
-                    {{ item.name }}
-                    <v-chip
-                      v-if="item.is_premium"
-                      x-small
-                      color="purple"
-                      dark
-                      class="ml-2"
-                    >
-                      Premium
-                    </v-chip>
-                  </v-list-item-title>
-                  <v-list-item-subtitle v-if="item.tags && item.tags.length">
-                    <v-chip
-                      v-for="tag in item.tags"
-                      :key="tag"
-                      x-small
-                      outlined
-                      class="mr-1"
-                    >
-                      {{ tag }}
-                    </v-chip>
-                  </v-list-item-subtitle>
-                </v-list-item-content>
-              </template>
-            </v-select>
+            <!-- 线路选择 - 使用轻量级 LineSelector 组件 -->
+            <div class="mb-3">
+              <div class="text-subtitle-2 mb-2">选择线路</div>
+              <line-selector
+                v-model:current-value="scheduleForm.line"
+                :service="serviceType"
+                label="选择线路"
+                @line-selected="onScheduleLineChanged"
+              />
+              <div v-if="!scheduleForm.line" class="error--text text-caption mt-1">
+                请选择线路
+              </div>
+            </div>
 
             <!-- 星期选择 -->
             <div class="mb-3">
@@ -383,7 +245,7 @@
             color="primary"
             @click="saveSchedule"
             :loading="saving"
-            :disabled="!formValid || scheduleForm.days_of_week.length === 0"
+            :disabled="!formValid || scheduleForm.days_of_week.length === 0 || !scheduleForm.line"
           >
             保存
           </v-btn>
@@ -401,14 +263,15 @@ import {
   createLineSchedule,
   updateLineSchedule,
   deleteLineSchedule,
-  setDefaultLine,
-  getDefaultLine,
   getLineScheduleStatus,
 } from '@/services/lineScheduleService';
-import { getAvailableLines } from '@/services/userLineService';
+import LineSelector from './LineSelector.vue';
 
 export default {
   name: 'LineScheduleDialog',
+  components: {
+    LineSelector,
+  },
   props: {
     show: {
       type: Boolean,
@@ -430,11 +293,8 @@ export default {
         unlock_credits: 264,
       },
       schedules: [],
-      availableLines: [],
-      defaultLine: null,
       activeSchedule: null,
       unlocking: false,
-      savingDefault: false,
       showScheduleForm: false,
       formValid: false,
       saving: false,
@@ -470,24 +330,17 @@ export default {
         this.$emit('update:show', false);
       }
     },
-    availableLines(newVal) {
-      console.log('availableLines 更新:', newVal);
-    },
   },
   methods: {
     async loadData() {
       try {
-        // 先加载解锁状态和可用线路
-        await Promise.all([
-          this.loadUnlockStatus(),
-          this.loadAvailableLines(),
-        ]);
+        // 先加载解锁状态
+        await this.loadUnlockStatus();
         
         // 如果已解锁，再加载其他数据
         if (this.unlockStatus.is_unlocked) {
           await Promise.all([
             this.loadSchedules(),
-            this.loadDefaultLine(),
             this.loadScheduleStatus(),
           ]);
         }
@@ -504,47 +357,12 @@ export default {
         console.error('检查解锁状态失败:', error);
       }
     },
-    async loadAvailableLines() {
-      try {
-        console.log('正在加载线路，服务类型:', this.serviceType);
-        const lines = await getAvailableLines(this.serviceType);
-        console.log('获取到的线路数据:', lines);
-        console.log('线路数据类型:', typeof lines, 'is Array:', Array.isArray(lines));
-        console.log('线路数据长度:', lines?.length);
-        
-        this.availableLines = lines || [];
-        
-        console.log('设置后的 availableLines:', this.availableLines);
-        console.log('Vue data 中的 availableLines 长度:', this.availableLines.length);
-        
-        if (this.availableLines.length === 0) {
-          console.warn('警告: 未获取到任何可用线路，请检查是否已绑定账户');
-          // 给用户友好提示
-          const serviceName = this.serviceType === 'plex' ? 'Plex' : 'Emby';
-          this.$emit('error', `未获取到可用线路，请确认已绑定 ${serviceName} 账户`);
-        } else {
-          console.log('成功加载', this.availableLines.length, '条线路');
-        }
-      } catch (error) {
-        console.error('加载可用线路失败:', error);
-        this.$emit('error', '加载可用线路失败，请重试');
-        this.availableLines = [];
-      }
-    },
     async loadSchedules() {
       if (!this.unlockStatus.is_unlocked) return;
       try {
         this.schedules = await getLineSchedules(this.serviceType);
       } catch (error) {
         console.error('加载调度列表失败:', error);
-      }
-    },
-    async loadDefaultLine() {
-      if (!this.unlockStatus.is_unlocked) return;
-      try {
-        this.defaultLine = await getDefaultLine(this.serviceType);
-      } catch (error) {
-        console.error('加载默认线路失败:', error);
       }
     },
     async loadScheduleStatus() {
@@ -573,22 +391,6 @@ export default {
         this.unlocking = false;
       }
     },
-    async saveDefaultLine() {
-      this.savingDefault = true;
-      try {
-        const result = await setDefaultLine(this.serviceType, this.defaultLine);
-        if (result.success) {
-          this.$emit('success', result.message);
-        } else {
-          this.$emit('error', result.message);
-        }
-      } catch (error) {
-        console.error('保存默认线路失败:', error);
-        this.$emit('error', '保存默认线路失败');
-      } finally {
-        this.savingDefault = false;
-      }
-    },
     openCreateDialog() {
       this.editingSchedule = null;
       this.scheduleForm = {
@@ -611,10 +413,17 @@ export default {
       };
       this.showScheduleForm = true;
     },
+    onScheduleLineChanged(newLine) {
+      this.scheduleForm.line = newLine;
+    },
     async saveSchedule() {
       if (!this.$refs.scheduleForm.validate()) return;
       if (this.scheduleForm.days_of_week.length === 0) {
         this.$emit('error', '请至少选择一天');
+        return;
+      }
+      if (!this.scheduleForm.line) {
+        this.$emit('error', '请选择线路');
         return;
       }
 
@@ -709,5 +518,9 @@ export default {
 <style scoped>
 .v-chip-group {
   flex-wrap: wrap;
+}
+
+.gap-2 {
+  gap: 8px;
 }
 </style>

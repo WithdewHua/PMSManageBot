@@ -218,22 +218,6 @@ class LineScheduleUnlockRequest(BaseModel):
     confirm: bool = Field(default=True, description="确认解锁")
 
 
-class DefaultLineRequest(BaseModel):
-    """设置默认线路请求模型"""
-
-    service: str = Field(..., description="服务类型: plex 或 emby")
-    default_line: Optional[str] = Field(
-        None, description="默认线路，None 或空字符串表示 AUTO"
-    )
-
-
-class DefaultLineResponse(BaseResponse):
-    """默认线路响应模型"""
-
-    service: Optional[str] = None
-    default_line: Optional[str] = None
-
-
 class LineScheduleStatusResponse(BaseResponse):
     """线路调度状态响应模型"""
 
@@ -241,4 +225,3 @@ class LineScheduleStatusResponse(BaseResponse):
     is_premium: bool = False
     has_schedules: bool = False
     current_schedule: Optional[LineScheduleInfo] = None
-    default_line: Optional[str] = None

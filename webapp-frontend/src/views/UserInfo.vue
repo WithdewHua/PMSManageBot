@@ -208,12 +208,22 @@
                 <v-icon size="small" color="teal-darken-1" class="mr-2">mdi-connection</v-icon>
                 <span>绑定线路：</span>
               </div>
-              <div class="line-selector-wrapper">
+              <div class="d-flex align-center gap-2">
                 <plex-line-selector 
                   ref="plexLineSelector"
                   :current-value="userInfo.plex_info.line" 
                   @line-changed="updatePlexLine"
                 ></plex-line-selector>
+                <v-btn
+                  size="small"
+                  color="purple"
+                  variant="tonal"
+                  icon
+                  @click="openPlexScheduleDialog"
+                  title="高级调度"
+                >
+                  <v-icon size="small">mdi-calendar-clock</v-icon>
+                </v-btn>
               </div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
@@ -349,12 +359,22 @@
                 <v-icon size="small" color="teal-darken-1" class="mr-2">mdi-connection</v-icon>
                 <span>绑定线路：</span>
               </div>
-              <div class="line-selector-wrapper">
+              <div class="d-flex align-center gap-2">
                 <emby-line-selector 
                   ref="embyLineSelector"
                   :current-value="userInfo.emby_info.line" 
                   @line-changed="updateEmbyLine"
                 ></emby-line-selector>
+                <v-btn
+                  size="small"
+                  color="purple"
+                  variant="tonal"
+                  icon
+                  @click="openEmbyScheduleDialog"
+                  title="高级调度"
+                >
+                  <v-icon size="small">mdi-calendar-clock</v-icon>
+                </v-btn>
               </div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
@@ -712,6 +732,22 @@
       ref="lineManagementDialog"
       @lines-updated="handleLinesUpdated"
     />
+    
+    <!-- Plex 线路调度对话框 -->
+    <line-schedule-dialog
+      v-model:show="showPlexScheduleDialog"
+      initial-service="plex"
+      @success="handleScheduleSuccess"
+      @error="handleScheduleError"
+    />
+    
+    <!-- Emby 线路调度对话框 -->
+    <line-schedule-dialog
+      v-model:show="showEmbyScheduleDialog"
+      initial-service="emby"
+      @success="handleScheduleSuccess"
+      @error="handleScheduleError"
+    />
   </div>
 </template>
 
@@ -729,6 +765,7 @@ import VaultwardenRedeemDialog from '@/components/VaultwardenRedeemDialog.vue'
 import PremiumUnlockDialog from '@/components/PremiumUnlockDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
+import LineScheduleDialog from '@/components/LineScheduleDialog.vue'
 import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
 import { redeemInviteCodeForCredits } from '@/services/inviteCodeService.js'
 import { checkPrivilegedInviteCode, batchCheckPrivilegedInviteCodes } from '@/services/mediaServiceApi.js'
@@ -748,7 +785,8 @@ export default {
     VaultwardenRedeemDialog,
     PremiumUnlockDialog,
     TagManagementDialog,
-    LineManagementDialog
+    LineManagementDialog,
+    LineScheduleDialog
   },
   data() {
     return {
@@ -798,7 +836,9 @@ export default {
       },
       creditsTransferEnabled: true, // 积分转移功能开关状态
       currentPremiumExpiry: null,
-      currentIsPremium: false
+      currentIsPremium: false,
+      showPlexScheduleDialog: false,
+      showEmbyScheduleDialog: false
     }
   },
   mounted() {
@@ -1033,6 +1073,26 @@ export default {
       if (this.userInfo && this.userInfo.plex_info) {
         this.userInfo.plex_info.line = line;
       }
+    },
+    
+    // 打开 Plex 线路调度对话框
+    openPlexScheduleDialog() {
+      this.showPlexScheduleDialog = true;
+    },
+    
+    // 打开 Emby 线路调度对话框
+    openEmbyScheduleDialog() {
+      this.showEmbyScheduleDialog = true;
+    },
+    
+    // 处理调度成功
+    handleScheduleSuccess(message) {
+      this.$emit('show-snackbar', { message, color: 'success' });
+    },
+    
+    // 处理调度错误
+    handleScheduleError(message) {
+      this.$emit('show-snackbar', { message, color: 'error' });
     },
     
     // 打开NSFW权限管理对话框
@@ -2477,5 +2537,9 @@ export default {
 
 .premium-button:hover .v-icon {
   transform: scale(1.1);
+}
+
+.gap-2 {
+  gap: 8px;
 }
 </style>

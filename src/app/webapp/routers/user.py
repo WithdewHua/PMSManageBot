@@ -35,8 +35,6 @@ from app.webapp.schemas import (
     CreditsTransferRequest,
     CreditsTransferResponse,
     CurrentLineResponse,
-    DefaultLineRequest,
-    DefaultLineResponse,
     EmbyLineInfo,
     EmbyLineRequest,
     EmbyLinesResponse,
@@ -1834,59 +1832,6 @@ async def delete_line_schedule(
         return BaseResponse(success=False, message="删除线路调度失败")
 
 
-@router.post("/line-schedules/default", response_model=DefaultLineResponse)
-@require_telegram_auth
-async def set_default_line(
-    request: Request,
-    data: DefaultLineRequest,
-    user: TelegramUser = Depends(get_telegram_user),
-):
-    """设置默认线路"""
-    service = data.service
-    if service not in ["emby", "plex"]:
-        return DefaultLineResponse(
-            success=False, message="服务类型必须是 'emby' 或 'plex'"
-        )
-
-    try:
-        # 检查是否解锁
-        unlock_status = db.check_line_schedule_unlock(user.id, service)
-        if not unlock_status["is_unlocked"]:
-            return DefaultLineResponse(success=False, message="请先解锁线路调度功能")
-
-        if db.set_default_line(user.id, service, data.default_line):
-            return DefaultLineResponse(
-                success=True,
-                message=f"设置默认线路为 {data.default_line or 'AUTO'}",
-                default_line=data.default_line,
-            )
-        else:
-            return DefaultLineResponse(success=False, message="设置默认线路失败")
-
-    except Exception as e:
-        logger.error(f"设置默认线路失败: {e}")
-        return DefaultLineResponse(success=False, message="设置默认线路失败")
-
-
-@router.get("/line-schedules/default/{service}")
-@require_telegram_auth
-async def get_default_line(
-    service: str,
-    request: Request,
-    user: TelegramUser = Depends(get_telegram_user),
-):
-    """获取默认线路"""
-    if service not in ["emby", "plex"]:
-        raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
-
-    try:
-        default_line = db.get_default_line(user.id, service)
-        return {"success": True, "default_line": default_line}
-    except Exception as e:
-        logger.error(f"获取默认线路失败: {e}")
-        raise HTTPException(status_code=500, detail="获取默认线路失败")
-
-
 @router.get(
     "/line-schedules/status/{service}", response_model=LineScheduleStatusResponse
 )
@@ -1909,9 +1854,6 @@ async def get_line_schedule_status(
         if unlock_status["is_unlocked"]:
             active_schedule = db.get_current_active_schedule(user.id, service)
 
-        # 获取默认线路
-        default_line = db.get_default_line(user.id, service)
-
         # 检查是否有调度
         schedules = db.get_user_line_schedules(user.id, service)
         has_schedules = len(schedules) > 0
@@ -1922,7 +1864,6 @@ async def get_line_schedule_status(
             is_premium=unlock_status.get("is_premium", False),
             has_schedules=has_schedules,
             current_schedule=active_schedule,
-            default_line=default_line,
         )
 
     except Exception as e:

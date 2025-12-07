@@ -3520,7 +3520,6 @@ class DatabaseORM:
         start_time: str,
         end_time: str,
         priority: int = 0,
-        is_default: bool = False,
     ) -> Optional[int]:
         """
         创建线路调度
@@ -3533,7 +3532,6 @@ class DatabaseORM:
             start_time: 开始时间 HH:MM
             end_time: 结束时间 HH:MM
             priority: 优先级
-            is_default: 是否为默认线路
 
         Returns:
             创建的调度 ID，失败返回 None
@@ -3551,7 +3549,6 @@ class DatabaseORM:
                     end_time=end_time,
                     priority=priority,
                     is_enabled=1,
-                    is_default=1 if is_default else 0,
                     created_at=int(time.time()),
                     updated_at=int(time.time()),
                 )
@@ -3560,7 +3557,7 @@ class DatabaseORM:
 
                 logger.info(
                     f"用户 {get_user_name_from_tg_id(tg_id)} 创建 {service} 线路调度: {line} "
-                    f"({'默认' if is_default else days_of_week}, {start_time}-{end_time})"
+                    f"({days_of_week}, {start_time}-{end_time})"
                 )
                 return schedule.id
 
@@ -3573,7 +3570,6 @@ class DatabaseORM:
         tg_id: int,
         service: Optional[str] = None,
         enabled_only: bool = False,
-        exclude_default: bool = False,
     ) -> List[dict]:
         """
         获取用户的线路调度列表
@@ -3582,7 +3578,6 @@ class DatabaseORM:
             tg_id: 用户的 Telegram ID
             service: 服务类型，None 表示获取所有
             enabled_only: 是否只获取启用的调度
-            exclude_default: 是否排除默认线路
 
         Returns:
             调度列表
@@ -3596,9 +3591,6 @@ class DatabaseORM:
 
                 if enabled_only:
                     stmt = stmt.where(LineSchedule.is_enabled == 1)
-
-                if exclude_default:
-                    stmt = stmt.where(LineSchedule.is_default == 0)
 
                 stmt = stmt.order_by(LineSchedule.priority, LineSchedule.created_at)
 
@@ -3616,7 +3608,6 @@ class DatabaseORM:
                         "end_time": s.end_time,
                         "priority": s.priority,
                         "is_enabled": s.is_enabled == 1,
-                        "is_default": s.is_default == 1,
                         "created_at": s.created_at,
                         "updated_at": s.updated_at,
                     }
@@ -3785,93 +3776,6 @@ class DatabaseORM:
         except Exception as e:
             logger.error(f"检查时间冲突失败: {e}")
             return True  # 出错时保守处理，返回冲突
-
-    def set_default_line(
-        self, tg_id: int, service: str, default_line: Optional[str]
-    ) -> bool:
-        """
-        设置默认线路
-
-        Args:
-            tg_id: 用户的 Telegram ID
-            service: 服务类型
-            default_line: 默认线路名称，None 或空字符串表示 AUTO
-
-        Returns:
-            是否成功
-        """
-        try:
-            with get_session() as session:
-                # 查找现有的默认线路记录
-                existing = session.execute(
-                    select(LineSchedule).where(
-                        LineSchedule.tg_id == tg_id,
-                        LineSchedule.service == service,
-                        LineSchedule.is_default == 1,
-                    )
-                ).scalar_one_or_none()
-
-                if existing:
-                    # 更新现有记录
-                    if default_line:
-                        existing.line = default_line
-                        existing.updated_at = int(time.time())
-                    else:
-                        # 删除默认线路设置
-                        session.delete(existing)
-                else:
-                    # 创建新的默认线路记录
-                    if default_line:
-                        default_schedule = LineSchedule(
-                            tg_id=tg_id,
-                            service=service,
-                            line=default_line,
-                            days_of_week="",
-                            start_time="00:00",
-                            end_time="00:00",
-                            priority=9999,  # 最低优先级
-                            is_enabled=1,
-                            is_default=1,
-                            created_at=int(time.time()),
-                            updated_at=int(time.time()),
-                        )
-                        session.add(default_schedule)
-
-                logger.info(
-                    f"用户 {get_user_name_from_tg_id(tg_id)} 设置 {service} 默认线路: {default_line or 'AUTO'}"
-                )
-                return True
-
-        except Exception as e:
-            logger.error(f"设置默认线路失败: {e}")
-            return False
-
-    def get_default_line(self, tg_id: int, service: str) -> Optional[str]:
-        """
-        获取默认线路
-
-        Args:
-            tg_id: 用户的 Telegram ID
-            service: 服务类型
-
-        Returns:
-            默认线路名称，None 表示 AUTO
-        """
-        try:
-            with get_session() as session:
-                result = session.execute(
-                    select(LineSchedule.line).where(
-                        LineSchedule.tg_id == tg_id,
-                        LineSchedule.service == service,
-                        LineSchedule.is_default == 1,
-                    )
-                ).scalar_one_or_none()
-
-                return result
-
-        except Exception as e:
-            logger.error(f"获取默认线路失败: {e}")
-            return None
 
     def get_current_active_schedule(self, tg_id: int, service: str) -> Optional[dict]:
         """

@@ -47,8 +47,6 @@ from .user import (
     CreditsTransferRequest,
     CreditsTransferResponse,
     CurrentLineResponse,
-    DefaultLineRequest,
-    DefaultLineResponse,
     EmbyLineInfo,
     PlexLineInfo,
     PlexLineRequest,
