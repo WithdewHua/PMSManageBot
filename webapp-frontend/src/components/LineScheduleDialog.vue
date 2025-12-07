@@ -51,6 +51,23 @@
               默认线路
             </v-card-subtitle>
             <v-card-text>
+              <!-- 无可用线路提示 -->
+              <v-alert
+                v-if="availableLines.length === 0"
+                type="warning"
+                dense
+                outlined
+                class="mb-3"
+              >
+                <div class="text-body-2">
+                  未获取到可用线路，请确认：
+                  <ul class="mt-2 ml-4">
+                    <li>您已绑定 {{ serviceType === 'plex' ? 'Plex' : 'Emby' }} 账户</li>
+                    <li>网络连接正常</li>
+                  </ul>
+                </div>
+              </v-alert>
+              
               <div class="d-flex align-center">
                 <v-select
                   v-model="defaultLine"
@@ -61,7 +78,8 @@
                   outlined
                   dense
                   clearable
-                  hide-details
+                  :disabled="availableLines.length === 0"
+                  :placeholder="availableLines.length === 0 ? '无可用线路' : '选择默认线路'"
                   class="flex-grow-1 mr-2"
                 >
                   <template v-slot:selection="{ item }">
@@ -102,6 +120,7 @@
                   small
                   @click="saveDefaultLine"
                   :loading="savingDefault"
+                  :disabled="availableLines.length === 0 && !defaultLine"
                 >
                   保存
                 </v-btn>
@@ -142,6 +161,8 @@
                 color="primary"
                 small
                 @click="openCreateDialog"
+                :disabled="availableLines.length === 0"
+                :title="availableLines.length === 0 ? '暂无可用线路' : '添加调度'"
               >
                 <v-icon left small>mdi-plus</v-icon>
                 添加调度
@@ -225,6 +246,24 @@
         <v-card-title>{{ editingSchedule ? '编辑调度' : '添加调度' }}</v-card-title>
         <v-divider></v-divider>
         <v-card-text class="pa-4">
+          <!-- 无可用线路提示 -->
+          <v-alert
+            v-if="availableLines.length === 0"
+            type="warning"
+            dense
+            outlined
+            class="mb-3"
+          >
+            <div class="text-body-2">
+              未获取到可用线路，无法创建调度。请先：
+              <ul class="mt-2 ml-4">
+                <li>确认已绑定 {{ serviceType === 'plex' ? 'Plex' : 'Emby' }} 账户</li>
+                <li>检查网络连接</li>
+                <li>刷新页面重试</li>
+              </ul>
+            </div>
+          </v-alert>
+          
           <v-form ref="scheduleForm" v-model="formValid">
             <!-- 线路选择 -->
             <v-select
@@ -235,6 +274,8 @@
               label="选择线路"
               outlined
               dense
+              :disabled="availableLines.length === 0"
+              :placeholder="availableLines.length === 0 ? '无可用线路' : '选择线路'"
               :rules="[v => !!v || '请选择线路']"
               class="mb-3"
             >
@@ -420,6 +461,7 @@ export default {
     show(val) {
       this.showDialog = val;
       if (val) {
+        console.log('LineScheduleDialog 打开, serviceType:', this.serviceType);
         this.loadData();
       }
     },
@@ -427,6 +469,9 @@ export default {
       if (!val) {
         this.$emit('update:show', false);
       }
+    },
+    availableLines(newVal) {
+      console.log('availableLines 更新:', newVal);
     },
   },
   methods: {
@@ -461,9 +506,29 @@ export default {
     },
     async loadAvailableLines() {
       try {
-        this.availableLines = await getAvailableLines(this.serviceType);
+        console.log('正在加载线路，服务类型:', this.serviceType);
+        const lines = await getAvailableLines(this.serviceType);
+        console.log('获取到的线路数据:', lines);
+        console.log('线路数据类型:', typeof lines, 'is Array:', Array.isArray(lines));
+        console.log('线路数据长度:', lines?.length);
+        
+        this.availableLines = lines || [];
+        
+        console.log('设置后的 availableLines:', this.availableLines);
+        console.log('Vue data 中的 availableLines 长度:', this.availableLines.length);
+        
+        if (this.availableLines.length === 0) {
+          console.warn('警告: 未获取到任何可用线路，请检查是否已绑定账户');
+          // 给用户友好提示
+          const serviceName = this.serviceType === 'plex' ? 'Plex' : 'Emby';
+          this.$emit('error', `未获取到可用线路，请确认已绑定 ${serviceName} 账户`);
+        } else {
+          console.log('成功加载', this.availableLines.length, '条线路');
+        }
       } catch (error) {
         console.error('加载可用线路失败:', error);
+        this.$emit('error', '加载可用线路失败，请重试');
+        this.availableLines = [];
       }
     },
     async loadSchedules() {

@@ -13,6 +13,12 @@ export async function getAvailableLines(service = 'emby') {
   try {
     // 使用通用API端点
     const response = await apiClient.get(`/api/user/lines/${service}`);
+    
+    // 检查响应状态并在控制台输出警告
+    if (response.data.success === false && response.data.message) {
+      console.warn(`获取${service}线路列表警告:`, response.data.message);
+    }
+    
     return response.data.lines || [];
   } catch (error) {
     console.error(`获取${service}线路列表失败:`, error);
@@ -20,6 +26,11 @@ export async function getAvailableLines(service = 'emby') {
     try {
       const endpoint = service === 'plex' ? '/api/user/plex_lines' : '/api/user/emby_lines';
       const fallbackResponse = await apiClient.get(endpoint);
+      
+      if (fallbackResponse.data.success === false && fallbackResponse.data.message) {
+        console.warn(`获取${service}线路列表警告:`, fallbackResponse.data.message);
+      }
+      
       return fallbackResponse.data.lines || [];
     } catch (fallbackError) {
       console.error(`降级API调用也失败:`, fallbackError);
