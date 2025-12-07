@@ -11,26 +11,6 @@
       <v-divider></v-divider>
 
       <v-card-text class="pa-4">
-        <!-- 服务类型选择 -->
-        <div class="mb-4">
-          <v-btn-toggle
-            v-model="serviceType"
-            mandatory
-            rounded
-            dense
-            @change="onServiceChange"
-          >
-            <v-btn value="plex" small>
-              <v-icon left small>mdi-plex</v-icon>
-              Plex
-            </v-btn>
-            <v-btn value="emby" small>
-              <v-icon left small>mdi-filmstrip</v-icon>
-              Emby
-            </v-btn>
-          </v-btn-toggle>
-        </div>
-
         <!-- 未解锁状态 -->
         <v-alert
           v-if="!unlockStatus.is_unlocked"
@@ -504,9 +484,6 @@ export default {
       } catch (error) {
         console.error('加载调度状态失败:', error);
       }
-    },
-    async onServiceChange() {
-      await this.loadData();
     },
     async unlockFeature() {
       this.unlocking = true;

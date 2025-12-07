@@ -1015,7 +1015,7 @@ async def unbind_plex_line(
 # ==================== 通用线路管理API ====================
 
 
-@router.get("/lines/{service}", response_model=dict)
+@router.get("/lines/{service}")
 @require_telegram_auth
 async def get_lines_generic(
     service: str,
