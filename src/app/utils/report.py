@@ -235,7 +235,9 @@ def stats_report(
     emby_body_text=EMBY_BODY_TEXT,
 ):
     tautulli_server = Tautulli(
-        settings.TAUTULLI_URL.rstrip("/"), settings.TAUTULLI_APIKEY, settings.VERIFY_SSL
+        settings.TAUTULLI_URL.rstrip("/"),
+        settings.TAUTULLI_APIKEY,
+        settings.TAUTULLI_VERIFY_SSL,
     )
 
     if refresh:
