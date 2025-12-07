@@ -215,6 +215,7 @@ class LineScheduleUnlockResponse(BaseResponse):
 class LineScheduleUnlockRequest(BaseModel):
     """线路调度功能解锁请求模型"""
 
+    service: str = Field(..., description="服务类型 (emby/plex)")
     confirm: bool = Field(default=True, description="确认解锁")
 
 
