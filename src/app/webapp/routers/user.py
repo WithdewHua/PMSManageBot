@@ -1643,11 +1643,11 @@ async def unlock_line_schedule(
 
         # 检查积分是否足够
         credits_needed = settings.LINE_SCHEDULE_UNLOCK_CREDITS
-        stats = db.get_statistics(user.id)
-        if not stats:
-            return LineScheduleUnlockResponse(success=False, message="用户不存在")
-
-        current_credits = stats[1]  # credits 字段
+        current_credits = db.get_user_credits(tg_id=user.id)
+        if not current_credits:
+            return LineScheduleUnlockResponse(
+                success=False, message="您尚未绑定 Plex/Emby 账户"
+            )
         if current_credits < credits_needed:
             return LineScheduleUnlockResponse(
                 success=False,
@@ -1656,13 +1656,13 @@ async def unlock_line_schedule(
 
         # 扣除积分
         new_credits = current_credits - credits_needed
-        if not db.update_statistics(user.id, credits=new_credits):
+        if not db.update_user_credits(new_credits, tg_id=user.id):
             return LineScheduleUnlockResponse(success=False, message="更新积分失败")
 
         # 解锁线路调度功能
         if not db.unlock_line_schedule(user.id, service):
             # 回滚积分
-            db.update_statistics(user.id, credits=current_credits)
+            db.update_user_credits(current_credits, tg_id=user.id)
             return LineScheduleUnlockResponse(success=False, message="解锁失败")
 
         logger.info(
