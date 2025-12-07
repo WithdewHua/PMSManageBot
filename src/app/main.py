@@ -271,18 +271,18 @@ def add_init_scheduler_job():
     except Exception as e:
         logger.error(f"恢复竞拍定时任务失败: {e}")
 
-    # 每周日凌晨 00:05 分发送每周统计报告
+    # 每周一凌晨 00:05 分发送每周统计报告
     scheduler.add_async_job(
         func=send_weekly_report,
         trigger="cron",
         id="send_weekly_report",
         replace_existing=True,
         max_instances=1,
-        day_of_week="sun",
+        day_of_week="mon",
         hour=0,
         minute=5,
     )
-    logger.info("添加定时任务：每周日凌晨 00:05 发送每周统计报告")
+    logger.info("添加定时任务：每周一凌晨 00:05 发送每周统计报告")
 
 
 if __name__ == "__main__":
