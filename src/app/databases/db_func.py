@@ -1061,12 +1061,19 @@ def auto_switch_user_lines():
                     # 有生效的调度，使用调度指定的线路
                     target_line = active_schedule["line"]
                 else:
-                    # 没有生效的调度，使用默认线路
-                    default_line = db.get_default_line(tg_id, "plex")
-                    if default_line:
-                        target_line = default_line
+                    # 没有生效的调度，检查是否配置了线路调度规则
+                    # 只有配置了调度规则时才使用默认线路
+                    all_schedules = db.get_user_line_schedules(tg_id, "plex")
+                    if all_schedules and len(all_schedules) > 0:
+                        # 有配置调度规则，使用默认线路
+                        default_line = db.get_default_line(tg_id, "plex")
+                        if default_line:
+                            target_line = default_line
+                        else:
+                            # 没有默认线路，跳过
+                            continue
                     else:
-                        # 没有默认线路，跳过
+                        # 没有配置调度规则，跳过
                         continue
 
                 # 检查是否需要切换
@@ -1095,12 +1102,19 @@ def auto_switch_user_lines():
                     # 有生效的调度，使用调度指定的线路
                     target_line = active_schedule["line"]
                 else:
-                    # 没有生效的调度，使用默认线路
-                    default_line = db.get_default_line(tg_id, "emby")
-                    if default_line:
-                        target_line = default_line
+                    # 没有生效的调度，检查是否配置了线路调度规则
+                    # 只有配置了调度规则时才使用默认线路
+                    all_schedules = db.get_user_line_schedules(tg_id, "emby")
+                    if all_schedules and len(all_schedules) > 0:
+                        # 有配置调度规则，使用默认线路
+                        default_line = db.get_default_line(tg_id, "emby")
+                        if default_line:
+                            target_line = default_line
+                        else:
+                            # 没有默认线路，跳过
+                            continue
                     else:
-                        # 没有默认线路，跳过
+                        # 没有配置调度规则，跳过
                         continue
 
                 # 检查是否需要切换
