@@ -67,9 +67,9 @@
           </v-card>
 
           <!-- 调度列表 -->
-          <v-card outlined class="mb-4">
-            <v-card-subtitle class="pb-2 d-flex justify-space-between align-center">
-              <span>
+          <v-card outlined class="mb-4 schedule-list-card">
+            <v-card-subtitle class="pb-2 d-flex justify-space-between align-center schedule-header">
+              <span class="schedule-title">
                 <v-icon small class="mr-1">mdi-format-list-bulleted</v-icon>
                 调度规则列表
               </span>
@@ -86,62 +86,125 @@
             </v-card-subtitle>
             <v-divider></v-divider>
             <v-card-text class="pa-0">
-              <v-list v-if="schedules.length > 0" dense>
-                <v-list-item
+              <div v-if="schedules.length > 0" class="schedules-container">
+                <v-card
                   v-for="schedule in schedules"
                   :key="schedule.id"
-                  :class="{ 'grey lighten-4': !schedule.is_enabled }"
+                  class="schedule-item"
+                  :class="{ 'schedule-disabled': !schedule.is_enabled }"
+                  elevation="0"
+                  outlined
                 >
-                  <v-list-item-content>
-                    <v-list-item-title>
-                      <v-chip small :color="schedule.is_enabled ? 'primary' : 'grey'" dark class="mr-2">
-                        {{ schedule.line }}
-                      </v-chip>
-                      <span class="text-body-2">
-                        {{ formatDaysOfWeek(schedule.days_of_week) }}
-                      </span>
-                    </v-list-item-title>
-                    <v-list-item-subtitle>
-                      {{ schedule.start_time }} - {{ schedule.end_time }}
-                      <v-chip x-small outlined class="ml-2">
+                  <!-- 左侧线路标识 -->
+                  <div class="schedule-line-indicator" :style="{ backgroundColor: schedule.is_enabled ? '#9333ea' : '#9e9e9e' }"></div>
+                  
+                  <div class="schedule-content">
+                    <!-- 顶部：线路和状态 -->
+                    <div class="schedule-top">
+                      <div class="d-flex align-center flex-wrap gap-2">
+                        <v-chip 
+                          :color="schedule.is_enabled ? 'purple' : 'grey'" 
+                          dark 
+                          size="small"
+                          class="schedule-line-chip"
+                        >
+                          <v-icon left size="x-small">mdi-router-wireless</v-icon>
+                          {{ schedule.line }}
+                        </v-chip>
+                        <v-chip 
+                          size="x-small" 
+                          :color="schedule.is_enabled ? 'success' : 'grey lighten-1'"
+                          variant="flat"
+                        >
+                          <v-icon left size="x-small">
+                            {{ schedule.is_enabled ? 'mdi-check-circle' : 'mdi-pause-circle' }}
+                          </v-icon>
+                          {{ schedule.is_enabled ? '已启用' : '已禁用' }}
+                        </v-chip>
+                      </div>
+                      
+                      <!-- 操作按钮 -->
+                      <div class="schedule-actions">
+                        <v-tooltip location="top">
+                          <template v-slot:activator="{ props }">
+                            <v-btn
+                              v-bind="props"
+                              icon
+                              size="small"
+                              variant="text"
+                              @click="toggleSchedule(schedule)"
+                            >
+                              <v-icon 
+                                size="small" 
+                                :color="schedule.is_enabled ? 'success' : 'grey'"
+                              >
+                                {{ schedule.is_enabled ? 'mdi-toggle-switch' : 'mdi-toggle-switch-off' }}
+                              </v-icon>
+                            </v-btn>
+                          </template>
+                          <span>{{ schedule.is_enabled ? '禁用' : '启用' }}</span>
+                        </v-tooltip>
+                        
+                        <v-tooltip location="top">
+                          <template v-slot:activator="{ props }">
+                            <v-btn
+                              v-bind="props"
+                              icon
+                              size="small"
+                              variant="text"
+                              @click="editSchedule(schedule)"
+                            >
+                              <v-icon size="small" color="primary">mdi-pencil</v-icon>
+                            </v-btn>
+                          </template>
+                          <span>编辑</span>
+                        </v-tooltip>
+                        
+                        <v-tooltip location="top">
+                          <template v-slot:activator="{ props }">
+                            <v-btn
+                              v-bind="props"
+                              icon
+                              size="small"
+                              variant="text"
+                              @click="deleteSchedule(schedule)"
+                            >
+                              <v-icon size="small" color="error">mdi-delete</v-icon>
+                            </v-btn>
+                          </template>
+                          <span>删除</span>
+                        </v-tooltip>
+                      </div>
+                    </div>
+                    
+                    <!-- 中间：日期信息 -->
+                    <div class="schedule-days">
+                      <v-icon size="small" class="mr-2" color="grey-darken-1">mdi-calendar-range</v-icon>
+                      <span class="schedule-days-text">{{ formatDaysOfWeek(schedule.days_of_week) }}</span>
+                    </div>
+                    
+                    <!-- 底部：时间和优先级 -->
+                    <div class="schedule-bottom">
+                      <div class="schedule-time">
+                        <v-icon size="small" class="mr-1" color="grey-darken-1">mdi-clock-outline</v-icon>
+                        <span>{{ schedule.start_time }} - {{ schedule.end_time }}</span>
+                      </div>
+                      <v-chip 
+                        size="x-small" 
+                        variant="outlined"
+                        color="grey-darken-1"
+                      >
+                        <v-icon left size="x-small">mdi-priority-high</v-icon>
                         优先级: {{ schedule.priority }}
                       </v-chip>
-                    </v-list-item-subtitle>
-                  </v-list-item-content>
-                  <v-list-item-action>
-                    <div class="d-flex">
-                      <v-btn
-                        icon
-                        small
-                        @click="toggleSchedule(schedule)"
-                        :title="schedule.is_enabled ? '禁用' : '启用'"
-                      >
-                        <v-icon small :color="schedule.is_enabled ? 'success' : 'grey'">
-                          {{ schedule.is_enabled ? 'mdi-toggle-switch' : 'mdi-toggle-switch-off' }}
-                        </v-icon>
-                      </v-btn>
-                      <v-btn
-                        icon
-                        small
-                        @click="editSchedule(schedule)"
-                        title="编辑"
-                      >
-                        <v-icon small>mdi-pencil</v-icon>
-                      </v-btn>
-                      <v-btn
-                        icon
-                        small
-                        @click="deleteSchedule(schedule)"
-                        title="删除"
-                      >
-                        <v-icon small color="error">mdi-delete</v-icon>
-                      </v-btn>
                     </div>
-                  </v-list-item-action>
-                </v-list-item>
-              </v-list>
-              <div v-else class="pa-4 text-center grey--text">
-                暂无调度规则，点击"添加调度"创建新的调度规则
+                  </div>
+                </v-card>
+              </div>
+              <div v-else class="empty-state">
+                <v-icon size="64" color="grey lighten-1">mdi-calendar-clock-outline</v-icon>
+                <div class="empty-state-text mt-3">暂无调度规则</div>
+                <div class="empty-state-hint">点击"添加调度"创建新的调度规则</div>
               </div>
             </v-card-text>
           </v-card>
@@ -173,10 +236,10 @@
                     :color="scheduleForm.line ? 'primary' : 'grey'"
                     variant="outlined"
                     block
-                    class="justify-space-between text-left"
+                    class="line-selector-btn text-none"
                   >
-                    <span>{{ scheduleForm.line || 'AUTO (自动选择)' }}</span>
-                    <v-icon end size="small">mdi-chevron-down</v-icon>
+                    <span class="line-selector-text">{{ displayScheduleLine }}</span>
+                    <v-icon class="ml-auto" size="small">mdi-chevron-down</v-icon>
                   </v-btn>
                 </template>
 
@@ -184,12 +247,12 @@
                   <v-list class="line-selector-list">
                     <v-list-item 
                       @click="selectScheduleLine('AUTO')" 
-                      :active="scheduleForm.line === 'AUTO' || !scheduleForm.line"
-                      :color="(scheduleForm.line === 'AUTO' || !scheduleForm.line) ? '#9333ea' : undefined"
+                      :active="scheduleForm.line === 'auto' || !scheduleForm.line"
+                      :color="(scheduleForm.line === 'auto' || !scheduleForm.line) ? '#9333ea' : undefined"
                     >
                       <v-list-item-title>
                         自动选择
-                        <v-icon v-if="scheduleForm.line === 'AUTO' || !scheduleForm.line" color="success" size="small" end>mdi-check</v-icon>
+                        <v-icon v-if="scheduleForm.line === 'auto' || !scheduleForm.line" color="success" size="small" end>mdi-check</v-icon>
                       </v-list-item-title>
                     </v-list-item>
                     
@@ -241,9 +304,6 @@
                   </v-list>
                 </v-card>
               </v-menu>
-              <div v-if="!scheduleForm.line" class="error--text text-caption mt-1">
-                请选择线路
-              </div>
             </div>
 
             <!-- 星期选择 -->
@@ -316,7 +376,7 @@
             color="primary"
             @click="saveSchedule"
             :loading="saving"
-            :disabled="!formValid || scheduleForm.days_of_week.length === 0 || !scheduleForm.line"
+            :disabled="!formValid || scheduleForm.days_of_week.length === 0"
           >
             保存
           </v-btn>
@@ -390,6 +450,11 @@ export default {
       loadingScheduleLines: false,
       customScheduleLine: '',
     };
+  },
+  computed: {
+    displayScheduleLine() {
+      return (this.scheduleForm.line && this.scheduleForm.line !== 'auto') ? this.scheduleForm.line : 'AUTO (自动选择)';
+    }
   },
   watch: {
     show(val) {
@@ -468,7 +533,7 @@ export default {
     openCreateDialog() {
       this.editingSchedule = null;
       this.scheduleForm = {
-        line: null,
+        line: 'auto',  // 默认设置为 auto
         days_of_week: [],
         start_time: '00:00',
         end_time: '23:59',
@@ -504,7 +569,8 @@ export default {
       }
     },
     selectScheduleLine(line) {
-      this.scheduleForm.line = line === 'AUTO' ? null : line;
+      // AUTO 时保存为 'auto'，让后端自动选择
+      this.scheduleForm.line = line === 'AUTO' ? 'auto' : line;
       this.lineMenu = false;
       this.customScheduleLine = '';
     },
@@ -563,10 +629,6 @@ export default {
       if (!this.$refs.scheduleForm.validate()) return;
       if (this.scheduleForm.days_of_week.length === 0) {
         this.$emit('error', '请至少选择一天');
-        return;
-      }
-      if (!this.scheduleForm.line) {
-        this.$emit('error', '请选择线路');
         return;
       }
 
@@ -665,6 +727,189 @@ export default {
 
 .gap-2 {
   gap: 8px;
+}
+
+/* 调度列表卡片样式 */
+.schedule-list-card {
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+.schedule-header {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  padding: 12px 16px !important;
+}
+
+.schedule-title {
+  font-weight: 600;
+  font-size: 15px;
+  color: #2d3748;
+}
+
+/* 调度容器 */
+.schedules-container {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+/* 自定义滚动条 */
+.schedules-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.schedules-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.schedules-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.schedules-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 单个调度项卡片 */
+.schedule-item {
+  position: relative;
+  border-radius: 8px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  background: white;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.schedule-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  border-color: #9333ea !important;
+}
+
+.schedule-item.schedule-disabled {
+  background: #f8f9fa;
+  opacity: 0.7;
+}
+
+/* 左侧线路指示条 */
+.schedule-line-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  transition: width 0.3s ease;
+}
+
+.schedule-item:hover .schedule-line-indicator {
+  width: 6px;
+}
+
+/* 调度内容区域 */
+.schedule-content {
+  padding: 14px 16px 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 顶部区域 */
+.schedule-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.schedule-line-chip {
+  font-weight: 600 !important;
+  letter-spacing: 0.5px;
+}
+
+/* 操作按钮组 */
+.schedule-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* 日期区域 */
+.schedule-days {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border-left: 3px solid #9333ea;
+}
+
+.schedule-days-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+}
+
+.schedule-item.schedule-disabled .schedule-days {
+  background: #f1f5f9;
+  border-left-color: #9e9e9e;
+}
+
+/* 底部区域 */
+.schedule-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.schedule-time {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+/* 空状态 */
+.empty-state {
+  padding: 60px 20px;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.empty-state-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.empty-state-hint {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-top: 8px;
+}
+
+/* 线路选择按钮样式 */
+.line-selector-btn {
+  justify-content: space-between !important;
+  text-align: left !important;
+  height: 40px !important;
+  padding: 0 12px !important;
+}
+
+.line-selector-btn .line-selector-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  display: block;
 }
 
 /* 线路选择器样式 */
