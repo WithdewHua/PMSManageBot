@@ -2,6 +2,7 @@
 
 import json
 import pickle
+from datetime import datetime, timedelta
 from time import time
 from typing import Any, Optional, Union
 
@@ -478,3 +479,78 @@ class Emby:
                 num += 1
 
         return num
+
+    def get_report(
+        self,
+        types=None,
+        user_id=None,
+        days=7,
+        end_date=datetime.now(settings.TZ),
+        limit=10,
+    ):
+        item_type = {
+            "movie": "ItemName",
+            "episode": "substr(ItemName,0, instr(ItemName, ' - '))",
+        }
+        if not types:
+            types = "Movie"
+        sub_date = end_date - timedelta(days=days)
+        start_time = sub_date.strftime("%Y-%m-%d %H:%M:%S")
+        end_time = end_date.strftime("%Y-%m-%d %H:%M:%S")
+        if types.lower() != "user" and item_type.get(types.lower()):
+            sql = "SELECT UserId, ItemId, ItemType, "
+            sql += item_type.get(types.lower()) + " AS name, "
+            sql += "COUNT(1) AS play_count, "
+            sql += "SUM(PlayDuration - PauseDuration) AS total_duration "
+            sql += "FROM PlaybackActivity "
+            sql += f"WHERE ItemType = '{types.capitalize()}' "
+            sql += f"AND DateCreated >= '{start_time}' AND DateCreated <= '{end_time}' "
+            sql += "AND UserId not IN (select UserId from UserList) "
+            if user_id:
+                sql += f"AND UserId = '{user_id}' "
+            sql += "GROUP BY name "
+            sql += "ORDER BY total_duration DESC "
+            sql += "LIMIT " + str(limit)
+        elif types.lower() == "user":
+            sql = "SELECT UserId, "
+            sql += "SUM(PlayDuration - PauseDuration) AS total_duration "
+            sql += "FROM PlaybackActivity "
+            sql += (
+                f"WHERE DateCreated >= '{start_time}' AND DateCreated <= '{end_time}' "
+            )
+            sql += "AND UserId not IN (select UserId from UserList) "
+            if user_id:
+                sql += f"AND UserId = '{user_id}' "
+            sql += "GROUP BY UserId "
+            sql += "ORDER BY total_duration DESC "
+            sql += "LIMIT " + str(limit)
+        else:
+            return False, "Incorrect types"
+
+        url = (
+            self.base_url
+            + f"/user_usage_stats/submit_custom_query?api_key={self.api_token}"
+        )
+        data = {"CustomQueryString": sql, "ReplaceUserId": False}
+        try:
+            resp = requests.post(url, data=data)
+            resp.raise_for_status()
+            resp = resp.json()
+        except Exception as e:
+            logger.error(f"Error fetching Emby report: {e}")
+            return False, "请求失败"
+        if not resp:
+            return False, "请求失败"
+        if not resp["results"]:
+            return False, resp["message"]
+        ranks = []
+        if types.lower() != "user":
+            for idx, stats in enumerate(resp["results"], start=1):
+                ranks.append(f"{idx}. {stats[-3]}: {timedelta(seconds=int(stats[-1]))}")
+        else:
+            for idx, stats in enumerate(resp["results"], start=1):
+                user_name = self.get_username_by_id(stats[0])
+                if not user_name:
+                    user_name = stats[0]
+                ranks.append(f"{idx}. {user_name}: {timedelta(seconds=int(stats[1]))}")
+        return True, ranks
