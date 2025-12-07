@@ -432,14 +432,20 @@ export default {
   methods: {
     async loadData() {
       try {
-        // 并行加载所有数据
+        // 先加载解锁状态和可用线路
         await Promise.all([
           this.loadUnlockStatus(),
           this.loadAvailableLines(),
-          this.loadSchedules(),
-          this.loadDefaultLine(),
-          this.loadScheduleStatus(),
         ]);
+        
+        // 如果已解锁，再加载其他数据
+        if (this.unlockStatus.is_unlocked) {
+          await Promise.all([
+            this.loadSchedules(),
+            this.loadDefaultLine(),
+            this.loadScheduleStatus(),
+          ]);
+        }
       } catch (error) {
         console.error('加载数据失败:', error);
         this.$emit('error', '加载数据失败');
