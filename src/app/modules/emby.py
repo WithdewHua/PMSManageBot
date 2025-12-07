@@ -92,6 +92,64 @@ class Emby:
     def get_uid_from_username(self, username: str) -> Optional[str]:
         return self.get_user_info_from_username(username).get("id")
 
+    def get_username_from_uid(self, user_id: str) -> Optional[str]:
+        return self.get_user_info_from_uid(user_id).get("name")
+
+    def get_user_info_from_uid(self, user_id: str, from_emby=True) -> dict:
+        cache = {}
+        user_info = {}
+        with self.cache_lock:
+            if self.cache.exists():
+                with open(self.cache, "rb") as f:
+                    cache = pickle.load(f)
+            for _, info in cache.items():
+                if info.get("id") == user_id:
+                    user_info = info
+                    # 如果缓存中的用户信息未过期，则直接返回
+                    if time() - user_info.get("added_time", 0) < 7 * 24 * 3600:
+                        logger.debug(f"Cache hit for {user_id}: {user_info}")
+                        return user_info
+            if not from_emby:
+                # 如果不从 Emby 获取，则直接返回过期信息或者空字典
+                return user_info
+            headers = {"accept": "application/json"}
+
+            retry = 3
+            name = None
+            while retry > 0:
+                try:
+                    reponse = requests.get(
+                        url=self.base_url
+                        + f"/Users/{user_id}?api_key={self.api_token}",
+                        headers=headers,
+                    )
+                    reponse.raise_for_status()
+                    response_json = reponse.json()
+                    logger.debug(f"{response_json=}")
+                except Exception as e:
+                    logger.error(f"Error fetching user info for {user_id}: {e}")
+                    retry -= 1
+                else:
+                    name = response_json["Name"]
+                    primary_image_tag = response_json.get("PrimaryImageTag", "")
+                    date_created = response_json.get("DateCreated", "")
+
+            if name is None:
+                return {}
+            user_avatar = self.__user_avatar(user_id, primary_image_tag)
+            user_info = {
+                "id": user_id,
+                "name": name,
+                "avatar": user_avatar,
+                "date_created": date_created,
+                "added_time": time(),
+            }
+            cache[name] = user_info
+            with open(self.cache, "wb") as f:
+                pickle.dump(cache, f)
+            logger.info(f"Updated user info for {user_id}: {user_info}")
+            return user_info
+
     def get_user_info_from_username(
         self, username: str, from_emby=True, is_hidden=settings.EMBY_USER_IS_HIDDEN
     ):
@@ -155,14 +213,7 @@ class Emby:
 
             user_id = response_json["Items"][0]["Id"]
             primary_image_tag = response_json["Items"][0].get("PrimaryImageTag", "")
-            user_avatar = (
-                self.base_url
-                + "/Users/"
-                + user_id
-                + f"/Images/Primary?tag={primary_image_tag}&maxWidth=160&quality=90"
-                if primary_image_tag
-                else ""
-            )
+            user_avatar = self.__user_avatar(user_id, primary_image_tag)
             user_info = {
                 "id": user_id,
                 "name": name,
@@ -176,6 +227,16 @@ class Emby:
             logger.info(f"Updated user info for {username}: {user_info}")
 
             return user_info
+
+    def __user_avatar(self, uid: str, primary_image_tag: str) -> str:
+        if not primary_image_tag:
+            return ""
+        return (
+            self.base_url
+            + "/Users/"
+            + uid
+            + f"/Images/Primary?tag={primary_image_tag}&maxWidth=160&quality=90"
+        )
 
     def get_user_avatar_by_username(self, username: str, from_emby=True) -> str:
         """获取用户头像 URL"""
@@ -549,7 +610,8 @@ class Emby:
                 ranks.append(f"{idx}. {stats[-3]}: {timedelta(seconds=int(stats[-1]))}")
         else:
             for idx, stats in enumerate(resp["results"], start=1):
-                user_name = self.get_username_by_id(stats[0])
+                breakpoint()
+                user_name = self.get_username_from_uid(stats[0])
                 if not user_name:
                     user_name = stats[0]
                 ranks.append(f"{idx}. {user_name}: {timedelta(seconds=int(stats[1]))}")
