@@ -145,7 +145,6 @@ async def rank_24h(update: Update, context: ContextTypes.DEFAULT_TYPE):
         top=10,
         user_stats=True,
         watched_stats=True,
-        notify=0,
         body_text=body_text,
         emby_body_text=emby_body_text,
         emby=True,
