@@ -3799,9 +3799,7 @@ class DatabaseORM:
 
             current_minutes = time_to_minutes(current_time)
 
-            schedules = self.get_user_line_schedules(
-                tg_id, service, enabled_only=True, exclude_default=True
-            )
+            schedules = self.get_user_line_schedules(tg_id, service, enabled_only=True)
 
             # 按优先级排序
             schedules.sort(key=lambda x: x["priority"])

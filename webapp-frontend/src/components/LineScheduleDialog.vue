@@ -77,6 +77,8 @@
                 color="primary"
                 small
                 @click="openCreateDialog"
+                :disabled="false"
+                elevation="2"
               >
                 <v-icon left small>mdi-plus</v-icon>
                 添加调度
@@ -161,15 +163,84 @@
         <v-divider></v-divider>
         <v-card-text class="pa-4">
           <v-form ref="scheduleForm" v-model="formValid">
-            <!-- 线路选择 - 使用轻量级 LineSelector 组件 -->
+            <!-- 线路选择 -->
             <div class="mb-3">
               <div class="text-subtitle-2 mb-2">选择线路</div>
-              <line-selector
-                v-model:current-value="scheduleForm.line"
-                :service="serviceType"
-                label="选择线路"
-                @line-selected="onScheduleLineChanged"
-              />
+              <v-menu v-model="lineMenu" :close-on-content-click="false" @update:model-value="onLineMenuToggle">
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    v-bind="props"
+                    :color="scheduleForm.line ? 'primary' : 'grey'"
+                    variant="outlined"
+                    block
+                    class="justify-space-between text-left"
+                  >
+                    <span>{{ scheduleForm.line || 'AUTO (自动选择)' }}</span>
+                    <v-icon end size="small">mdi-chevron-down</v-icon>
+                  </v-btn>
+                </template>
+
+                <v-card min-width="320" max-width="500">
+                  <v-list class="line-selector-list">
+                    <v-list-item 
+                      @click="selectScheduleLine('AUTO')" 
+                      :active="scheduleForm.line === 'AUTO' || !scheduleForm.line"
+                      :color="(scheduleForm.line === 'AUTO' || !scheduleForm.line) ? '#9333ea' : undefined"
+                    >
+                      <v-list-item-title>
+                        自动选择
+                        <v-icon v-if="scheduleForm.line === 'AUTO' || !scheduleForm.line" color="success" size="small" end>mdi-check</v-icon>
+                      </v-list-item-title>
+                    </v-list-item>
+                    
+                    <v-list-item 
+                      v-for="lineInfo in availableScheduleLines" 
+                      :key="lineInfo.name" 
+                      @click="selectScheduleLine(lineInfo.name)" 
+                      :active="scheduleForm.line === lineInfo.name"
+                      :color="scheduleForm.line === lineInfo.name ? '#9333ea' : undefined"
+                      class="line-item"
+                    >
+                      <v-list-item-title class="d-flex align-center justify-space-between">
+                        <div class="line-name-container">
+                          <span class="line-name">{{ lineInfo.name }}</span>
+                          <div v-if="lineInfo.tags && lineInfo.tags.length > 0" class="tags-container mt-1">
+                            <v-chip
+                              v-for="tag in lineInfo.tags"
+                              :key="tag"
+                              size="x-small"
+                              :color="getTagColor(tag)"
+                              variant="flat"
+                              class="mr-1 mb-1 tag-chip"
+                            >
+                              {{ tag }}
+                            </v-chip>
+                          </div>
+                        </div>
+                        <v-icon v-if="scheduleForm.line === lineInfo.name" color="success" size="small">mdi-check</v-icon>
+                      </v-list-item-title>
+                    </v-list-item>
+                    
+                    <v-divider></v-divider>
+                    
+                    <v-list-item>
+                      <v-text-field
+                        v-model="customScheduleLine"
+                        label="自定义线路"
+                        variant="underlined"
+                        density="compact"
+                        hide-details
+                        class="mx-2"
+                        @keyup.enter="selectCustomScheduleLine"
+                      >
+                        <template v-slot:append>
+                          <v-icon @click="selectCustomScheduleLine" color="primary" size="small">mdi-check</v-icon>
+                        </template>
+                      </v-text-field>
+                    </v-list-item>
+                  </v-list>
+                </v-card>
+              </v-menu>
               <div v-if="!scheduleForm.line" class="error--text text-caption mt-1">
                 请选择线路
               </div>
@@ -265,13 +336,11 @@ import {
   deleteLineSchedule,
   getLineScheduleStatus,
 } from '@/services/lineScheduleService';
-import LineSelector from './LineSelector.vue';
+import { getAvailableLines } from '@/services/userLineService';
 
 export default {
   name: 'LineScheduleDialog',
-  components: {
-    LineSelector,
-  },
+  components: {},
   props: {
     show: {
       type: Boolean,
@@ -315,6 +384,11 @@ export default {
         { label: '周六', value: 5 },
         { label: '周日', value: 6 },
       ],
+      // 线路选择器相关
+      lineMenu: false,
+      availableScheduleLines: [],
+      loadingScheduleLines: false,
+      customScheduleLine: '',
     };
   },
   watch: {
@@ -412,6 +486,75 @@ export default {
         priority: schedule.priority,
       };
       this.showScheduleForm = true;
+    },
+    async onLineMenuToggle(isOpen) {
+      if (isOpen && !this.loadingScheduleLines && this.availableScheduleLines.length === 0) {
+        await this.loadAvailableScheduleLines();
+      }
+    },
+    async loadAvailableScheduleLines() {
+      this.loadingScheduleLines = true;
+      try {
+        this.availableScheduleLines = await getAvailableLines(this.serviceType);
+      } catch (error) {
+        console.error('获取线路列表失败:', error);
+        this.$emit('error', '获取线路列表失败');
+      } finally {
+        this.loadingScheduleLines = false;
+      }
+    },
+    selectScheduleLine(line) {
+      this.scheduleForm.line = line === 'AUTO' ? null : line;
+      this.lineMenu = false;
+      this.customScheduleLine = '';
+    },
+    selectCustomScheduleLine() {
+      if (!this.customScheduleLine.trim()) {
+        this.$emit('error', '请输入线路名称');
+        return;
+      }
+      this.selectScheduleLine(this.customScheduleLine.trim());
+    },
+    getTagColor(tag) {
+      // 使用更深色的背景色，确保在白色背景下有良好对比度
+      const contrastColors = [
+        'red-darken-1',
+        'pink-darken-1', 
+        'purple-darken-1',
+        'deep-purple-darken-1',
+        'indigo-darken-1',
+        'blue-darken-1',
+        'light-blue-darken-1',
+        'cyan-darken-1',
+        'teal-darken-1',
+        'green-darken-1',
+        'light-green-darken-1',
+        'lime-darken-1',
+        'amber-darken-1',
+        'orange-darken-1',
+        'deep-orange-darken-1',
+        'brown-darken-1',
+        'blue-grey-darken-1',
+        'red-darken-2',
+        'pink-darken-2',
+        'purple-darken-2',
+        'deep-purple-darken-2',
+        'indigo-darken-2',
+        'blue-darken-2',
+        'teal-darken-2',
+        'green-darken-2'
+      ];
+      
+      // 使用标签内容作为种子生成稳定的随机索引
+      let hash = 0;
+      for (let i = 0; i < tag.length; i++) {
+        const char = tag.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // 转换为32位整数
+      }
+      
+      const colorIndex = Math.abs(hash) % contrastColors.length;
+      return contrastColors[colorIndex];
     },
     onScheduleLineChanged(newLine) {
       this.scheduleForm.line = newLine;
@@ -522,5 +665,76 @@ export default {
 
 .gap-2 {
   gap: 8px;
+}
+
+/* 线路选择器样式 */
+.line-selector-list {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* 自定义滚动条样式 */
+.line-selector-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.line-selector-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.line-selector-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.line-selector-list::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* 对于Firefox浏览器 */
+.line-selector-list {
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+.line-item {
+  min-height: 56px;
+}
+
+.line-name-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.line-name {
+  font-weight: 500;
+  font-size: 14px;
+  word-break: break-all;
+  overflow-wrap: break-word;
+  line-height: 1.3;
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  max-width: 320px;
+  line-height: 1.2;
+}
+
+.tags-container .v-chip {
+  height: 18px !important;
+  font-size: 10px !important;
+  padding: 0 6px !important;
+}
+
+.tag-chip {
+  color: white !important;
+  font-weight: 500 !important;
 }
 </style>
