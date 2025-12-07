@@ -33,7 +33,7 @@ from app.utils.utils import (
     is_binded_premium_line,
     send_message_by_url,
 )
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy import update as sql_update
 
 
@@ -1047,13 +1047,15 @@ def auto_switch_user_lines():
     try:
         switched_count = 0
 
-        # 获取所有解锁了线路调度功能的 Plex 用户
+        # 获取所有解锁了线路调度功能的 Plex 用户（包括 premium 用户和解锁用户）
         with get_session() as session:
-            # 查询所有解锁了线路调度的 Plex 用户
+            # 查询所有解锁了线路调度的 Plex 用户（包括 premium 用户）
             plex_users = session.execute(
                 select(
                     PlexUser.tg_id, PlexUser.plex_line, PlexUser.plex_username
-                ).where(PlexUser.line_schedule_unlocked == 1)
+                ).where(
+                    or_(PlexUser.line_schedule_unlocked == 1, PlexUser.is_premium == 1)
+                )
             ).fetchall()
 
             for tg_id, current_line, plex_username in plex_users:
@@ -1062,12 +1064,8 @@ def auto_switch_user_lines():
 
                 if active_schedule:
                     # 有生效的调度，使用调度指定的线路
-                    # 线路可能为具体线路名，也可能为 None/空字符串（表示自动选择）
+                    # 线路可能为具体线路名，也可能为 'auto'（表示自动选择）
                     target_line = active_schedule["line"]
-
-                    # 将空字符串统一转换为 None
-                    if not target_line:
-                        target_line = None
                 else:
                     # 没有生效的调度，跳过不做修改
                     continue
@@ -1078,7 +1076,7 @@ def auto_switch_user_lines():
                     if db.set_plex_line(line=target_line, tg_id=tg_id):
                         # 更新 Redis 缓存
                         if plex_username:
-                            if target_line is None:
+                            if target_line is None or target_line == "auto":
                                 # 切换到自动选择，删除 Redis 缓存
                                 plex_user_defined_line_cache.delete(
                                     str(plex_username).lower()
@@ -1106,14 +1104,16 @@ def auto_switch_user_lines():
 
                         switched_count += 1
                         logger.info(
-                            f"自动切换 Plex 用户 {get_user_name_from_tg_id(tg_id)} 的线路: {current_line} -> {target_line or 'AUTO'}"
+                            f"自动切换 Plex 用户 {get_user_name_from_tg_id(tg_id)} 的线路: {current_line or 'AUTO'} -> {target_line if target_line != 'auto' else 'AUTO'}"
                         )
 
-            # 查询所有解锁了线路调度的 Emby 用户
+            # 查询所有解锁了线路调度的 Emby 用户（包括 premium 用户）
             emby_users = session.execute(
                 select(
                     EmbyUser.tg_id, EmbyUser.emby_line, EmbyUser.emby_username
-                ).where(EmbyUser.line_schedule_unlocked == 1)
+                ).where(
+                    or_(EmbyUser.line_schedule_unlocked == 1, EmbyUser.is_premium == 1)
+                )
             ).fetchall()
 
             for tg_id, current_line, emby_username in emby_users:
@@ -1122,12 +1122,8 @@ def auto_switch_user_lines():
 
                 if active_schedule:
                     # 有生效的调度，使用调度指定的线路
-                    # 线路可能为具体线路名，也可能为 None/空字符串（表示自动选择）
+                    # 线路可能为具体线路名，也可能为 'auto'（表示自动选择）
                     target_line = active_schedule["line"]
-
-                    # 将空字符串统一转换为 None
-                    if not target_line:
-                        target_line = None
                 else:
                     # 没有生效的调度，跳过不做修改
                     continue
@@ -1138,7 +1134,7 @@ def auto_switch_user_lines():
                     if db.set_emby_line(line=target_line, tg_id=tg_id):
                         # 更新 Redis 缓存
                         if emby_username:
-                            if target_line is None:
+                            if target_line is None or target_line == "auto":
                                 # 切换到自动选择，删除 Redis 缓存
                                 emby_user_defined_line_cache.delete(
                                     str(emby_username).lower()
@@ -1166,7 +1162,7 @@ def auto_switch_user_lines():
 
                         switched_count += 1
                         logger.info(
-                            f"自动切换 Emby 用户 {get_user_name_from_tg_id(tg_id)} 的线路: {current_line} -> {target_line or 'AUTO'}"
+                            f"自动切换 Emby 用户 {get_user_name_from_tg_id(tg_id)} 的线路: {current_line or 'AUTO'} -> {target_line if target_line != 'auto' else 'AUTO'}"
                         )
 
         if switched_count > 0:
