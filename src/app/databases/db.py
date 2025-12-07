@@ -3727,9 +3727,7 @@ class DatabaseORM:
             是否存在冲突
         """
         try:
-            schedules = self.get_user_line_schedules(
-                tg_id, service, enabled_only=True, exclude_default=True
-            )
+            schedules = self.get_user_line_schedules(tg_id, service, enabled_only=True)
 
             # 转换时间为分钟数便于比较
             def time_to_minutes(t: str) -> int:
