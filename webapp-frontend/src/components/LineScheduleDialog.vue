@@ -431,6 +431,24 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- 消息提示 (非 Telegram 环境降级使用) -->
+    <v-snackbar
+      v-model="snackbar"
+      :color="snackbarColor"
+      :timeout="3000"
+      location="top"
+    >
+      {{ snackbarMessage }}
+      <template v-slot:actions>
+        <v-btn
+          variant="text"
+          @click="snackbar = false"
+        >
+          关闭
+        </v-btn>
+      </template>
+    </v-snackbar>
   </v-dialog>
 </template>
 
@@ -497,6 +515,10 @@ export default {
       availableScheduleLines: [],
       loadingScheduleLines: false,
       customScheduleLine: '',
+      // Snackbar (用于非 Telegram 环境)
+      snackbar: false,
+      snackbarMessage: '',
+      snackbarColor: 'info',
     };
   },
   computed: {
@@ -533,6 +555,7 @@ export default {
         }
       } catch (error) {
         console.error('加载数据失败:', error);
+        this.showMessage('加载数据失败', 'error');
         this.$emit('error', '加载数据失败');
       }
     },
@@ -566,13 +589,16 @@ export default {
       try {
         const result = await unlockLineSchedule(this.serviceType);
         if (result.success) {
+          this.showMessage(result.message || '解锁成功', 'success');
           this.$emit('success', result.message);
           await this.loadData();
         } else {
+          this.showMessage(result.message || '解锁失败', 'error');
           this.$emit('error', result.message);
         }
       } catch (error) {
         console.error('解锁失败:', error);
+        this.showMessage('解锁失败', 'error');
         this.$emit('error', '解锁失败');
       } finally {
         this.unlocking = false;
@@ -611,6 +637,7 @@ export default {
         this.availableScheduleLines = await getAvailableLines(this.serviceType);
       } catch (error) {
         console.error('获取线路列表失败:', error);
+        this.showMessage('获取线路列表失败', 'error');
         this.$emit('error', '获取线路列表失败');
       } finally {
         this.loadingScheduleLines = false;
@@ -624,6 +651,7 @@ export default {
     },
     selectCustomScheduleLine() {
       if (!this.customScheduleLine.trim()) {
+        this.showMessage('请输入线路名称', 'warning');
         this.$emit('error', '请输入线路名称');
         return;
       }
@@ -676,6 +704,7 @@ export default {
     async saveSchedule() {
       if (!this.$refs.scheduleForm.validate()) return;
       if (this.scheduleForm.days_of_week.length === 0) {
+        this.showMessage('请至少选择一天', 'warning');
         this.$emit('error', '请至少选择一天');
         return;
       }
@@ -698,16 +727,21 @@ export default {
           result = await createLineSchedule(data);
         }
 
-        if (result.success) {
+        console.log('调度保存结果:', result);
+
+        if (result && result.success) {
+          this.showMessage(result.message || '保存成功', 'success');
           this.$emit('success', result.message);
           this.closeScheduleForm();
           await this.loadSchedules();
           await this.loadScheduleStatus();
         } else {
-          this.$emit('error', result.message);
+          this.showMessage(result?.message || '保存调度失败', 'error');
+          this.$emit('error', result?.message || '保存调度失败');
         }
       } catch (error) {
         console.error('保存调度失败:', error);
+        this.showMessage('保存调度失败', 'error');
         this.$emit('error', '保存调度失败');
       } finally {
         this.saving = false;
@@ -719,32 +753,51 @@ export default {
           is_enabled: !schedule.is_enabled,
         });
         if (result.success) {
+          this.showMessage(result.message || '操作成功', 'success');
           this.$emit('success', result.message);
           await this.loadSchedules();
           await this.loadScheduleStatus();
         } else {
+          this.showMessage(result.message || '操作失败', 'error');
           this.$emit('error', result.message);
         }
       } catch (error) {
         console.error('切换调度状态失败:', error);
+        this.showMessage('切换调度状态失败', 'error');
         this.$emit('error', '切换调度状态失败');
       }
     },
     async deleteSchedule(schedule) {
-      if (!confirm(`确定要删除此调度吗？`)) return;
-
-      try {
-        const result = await deleteLineSchedule(schedule.id);
-        if (result.success) {
-          this.$emit('success', result.message);
-          await this.loadSchedules();
-          await this.loadScheduleStatus();
-        } else {
-          this.$emit('error', result.message);
+      // 使用 Telegram 原生确认框
+      const doDelete = async () => {
+        try {
+          const result = await deleteLineSchedule(schedule.id);
+          if (result.success) {
+            this.showMessage(result.message || '删除成功', 'success');
+            this.$emit('success', result.message);
+            await this.loadSchedules();
+            await this.loadScheduleStatus();
+          } else {
+            this.showMessage(result.message || '删除失败', 'error');
+            this.$emit('error', result.message);
+          }
+        } catch (error) {
+          console.error('删除调度失败:', error);
+          this.showMessage('删除调度失败', 'error');
+          this.$emit('error', '删除调度失败');
         }
-      } catch (error) {
-        console.error('删除调度失败:', error);
-        this.$emit('error', '删除调度失败');
+      };
+
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.showConfirm('确定要删除此调度吗？', (confirmed) => {
+          if (confirmed) {
+            doDelete();
+          }
+        });
+      } else {
+        if (confirm('确定要删除此调度吗？')) {
+          await doDelete();
+        }
       }
     },
     closeScheduleForm() {
@@ -763,6 +816,24 @@ export default {
         .filter(l => l);
       
       return labels.join(', ');
+    },
+    showMessage(message, color = 'info') {
+      // 优先使用 Telegram 原生弹窗
+      if (window.Telegram?.WebApp) {
+        const title = color === 'error' ? '❌ 错误' : 
+                     color === 'success' ? '✅ 成功' : 
+                     color === 'warning' ? '⚠️ 提示' : 'ℹ️ 信息';
+        
+        window.Telegram.WebApp.showPopup({
+          title: title,
+          message: message
+        });
+      } else {
+        // 降级处理：使用 Vuetify Snackbar
+        this.snackbarMessage = message;
+        this.snackbarColor = color;
+        this.snackbar = true;
+      }
     },
   },
 };

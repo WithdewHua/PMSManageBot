@@ -31,6 +31,10 @@ export async function unlockLineSchedule(service) {
     return response.data;
   } catch (error) {
     console.error('解锁线路调度功能失败:', error);
+    // 如果后端返回了错误响应，将其返回而不是抛出异常
+    if (error.response && error.response.data) {
+      return error.response.data;
+    }
     throw error;
   }
 }
@@ -67,6 +71,10 @@ export async function createLineSchedule(scheduleData) {
     return response.data;
   } catch (error) {
     console.error('创建线路调度失败:', error);
+    // 如果后端返回了错误响应，将其返回而不是抛出异常
+    if (error.response && error.response.data) {
+      return error.response.data;
+    }
     throw error;
   }
 }
@@ -83,6 +91,10 @@ export async function updateLineSchedule(scheduleId, scheduleData) {
     return response.data;
   } catch (error) {
     console.error('更新线路调度失败:', error);
+    // 如果后端返回了错误响应，将其返回而不是抛出异常
+    if (error.response && error.response.data) {
+      return error.response.data;
+    }
     throw error;
   }
 }
@@ -98,6 +110,10 @@ export async function deleteLineSchedule(scheduleId) {
     return response.data;
   } catch (error) {
     console.error('删除线路调度失败:', error);
+    // 如果后端返回了错误响应，将其返回而不是抛出异常
+    if (error.response && error.response.data) {
+      return error.response.data;
+    }
     throw error;
   }
 }
