@@ -1062,7 +1062,12 @@ def auto_switch_user_lines():
 
                 if active_schedule:
                     # 有生效的调度，使用调度指定的线路
+                    # 线路可能为具体线路名，也可能为 None/空字符串（表示自动选择）
                     target_line = active_schedule["line"]
+
+                    # 将空字符串统一转换为 None
+                    if not target_line:
+                        target_line = None
                 else:
                     # 没有生效的调度，跳过不做修改
                     continue
@@ -1073,26 +1078,35 @@ def auto_switch_user_lines():
                     if db.set_plex_line(line=target_line, tg_id=tg_id):
                         # 更新 Redis 缓存
                         if plex_username:
-                            binded_line = plex_user_defined_line_cache.get(
-                                str(plex_username).lower()
-                            )
-                            if binded_line and not is_binded_premium_line(binded_line):
-                                # 满足如下条件：
-                                # 1. 缓存中存在绑定的线路，且该线路不是高级线路；
-                                # 将其记录到上一次使用的普通线路缓存中
-                                logger.debug(
-                                    f"记录用户 {plex_username} 上一次使用的普通线路 {binded_line}"
+                            if target_line is None:
+                                # 切换到自动选择，删除 Redis 缓存
+                                plex_user_defined_line_cache.delete(
+                                    str(plex_username).lower()
                                 )
-                                plex_last_user_defined_line_cache.put(
-                                    str(plex_username).lower(), binded_line
+                            else:
+                                # 切换到指定线路
+                                binded_line = plex_user_defined_line_cache.get(
+                                    str(plex_username).lower()
                                 )
-                            plex_user_defined_line_cache.put(
-                                str(plex_username).lower(), target_line
-                            )
+                                if binded_line and not is_binded_premium_line(
+                                    binded_line
+                                ):
+                                    # 满足如下条件：
+                                    # 1. 缓存中存在绑定的线路，且该线路不是高级线路；
+                                    # 将其记录到上一次使用的普通线路缓存中
+                                    logger.debug(
+                                        f"记录用户 {plex_username} 上一次使用的普通线路 {binded_line}"
+                                    )
+                                    plex_last_user_defined_line_cache.put(
+                                        str(plex_username).lower(), binded_line
+                                    )
+                                plex_user_defined_line_cache.put(
+                                    str(plex_username).lower(), target_line
+                                )
 
                         switched_count += 1
                         logger.info(
-                            f"自动切换 Plex 用户 {get_user_name_from_tg_id(tg_id)} 的线路: {current_line} -> {target_line}"
+                            f"自动切换 Plex 用户 {get_user_name_from_tg_id(tg_id)} 的线路: {current_line} -> {target_line or 'AUTO'}"
                         )
 
             # 查询所有解锁了线路调度的 Emby 用户
@@ -1108,7 +1122,12 @@ def auto_switch_user_lines():
 
                 if active_schedule:
                     # 有生效的调度，使用调度指定的线路
+                    # 线路可能为具体线路名，也可能为 None/空字符串（表示自动选择）
                     target_line = active_schedule["line"]
+
+                    # 将空字符串统一转换为 None
+                    if not target_line:
+                        target_line = None
                 else:
                     # 没有生效的调度，跳过不做修改
                     continue
@@ -1119,26 +1138,35 @@ def auto_switch_user_lines():
                     if db.set_emby_line(line=target_line, tg_id=tg_id):
                         # 更新 Redis 缓存
                         if emby_username:
-                            binded_line = emby_user_defined_line_cache.get(
-                                str(emby_username).lower()
-                            )
-                            if binded_line and not is_binded_premium_line(binded_line):
-                                # 满足如下条件：
-                                # 1. 缓存中存在绑定的线路，且该线路不是高级线路；
-                                # 将其记录到上一次使用的普通线路缓存中
-                                logger.debug(
-                                    f"记录用户 {emby_username} 上一次使用的普通线路 {binded_line}"
+                            if target_line is None:
+                                # 切换到自动选择，删除 Redis 缓存
+                                emby_user_defined_line_cache.delete(
+                                    str(emby_username).lower()
                                 )
-                                emby_last_user_defined_line_cache.put(
-                                    str(emby_username).lower(), binded_line
+                            else:
+                                # 切换到指定线路
+                                binded_line = emby_user_defined_line_cache.get(
+                                    str(emby_username).lower()
                                 )
-                            emby_user_defined_line_cache.put(
-                                str(emby_username).lower(), target_line
-                            )
+                                if binded_line and not is_binded_premium_line(
+                                    binded_line
+                                ):
+                                    # 满足如下条件：
+                                    # 1. 缓存中存在绑定的线路，且该线路不是高级线路；
+                                    # 将其记录到上一次使用的普通线路缓存中
+                                    logger.debug(
+                                        f"记录用户 {emby_username} 上一次使用的普通线路 {binded_line}"
+                                    )
+                                    emby_last_user_defined_line_cache.put(
+                                        str(emby_username).lower(), binded_line
+                                    )
+                                emby_user_defined_line_cache.put(
+                                    str(emby_username).lower(), target_line
+                                )
 
                         switched_count += 1
                         logger.info(
-                            f"自动切换 Emby 用户 {get_user_name_from_tg_id(tg_id)} 的线路: {current_line} -> {target_line}"
+                            f"自动切换 Emby 用户 {get_user_name_from_tg_id(tg_id)} 的线路: {current_line} -> {target_line or 'AUTO'}"
                         )
 
         if switched_count > 0:
