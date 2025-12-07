@@ -33,7 +33,7 @@ class BaseResponse(BaseModel):
     """通用响应模型"""
 
     success: bool
-    message: str
+    message: str = ""
 
 
 class BindPlexRequest(BaseModel):

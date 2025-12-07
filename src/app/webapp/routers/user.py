@@ -1912,10 +1912,16 @@ async def get_line_schedule_status(
         # 获取默认线路
         default_line = db.get_default_line(user.id, service)
 
+        # 检查是否有调度
+        schedules = db.get_user_line_schedules(user.id, service)
+        has_schedules = len(schedules) > 0
+
         return LineScheduleStatusResponse(
             success=True,
             is_unlocked=unlock_status["is_unlocked"],
-            active_schedule=active_schedule,
+            is_premium=unlock_status.get("is_premium", False),
+            has_schedules=has_schedules,
+            current_schedule=active_schedule,
             default_line=default_line,
         )
 
