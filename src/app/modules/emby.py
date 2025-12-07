@@ -610,7 +610,6 @@ class Emby:
                 ranks.append(f"{idx}. {stats[-3]}: {timedelta(seconds=int(stats[-1]))}")
         else:
             for idx, stats in enumerate(resp["results"], start=1):
-                breakpoint()
                 user_name = self.get_username_from_uid(stats[0])
                 if not user_name:
                     user_name = stats[0]
