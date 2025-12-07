@@ -331,7 +331,9 @@ class DatabaseORM:
     def get_emby_info_by_emby_username(self, username: str) -> Optional[Tuple]:
         """通过 Emby 用户名获取用户信息"""
         with get_session() as session:
-            stmt = select(EmbyUser).where(EmbyUser.emby_username == username)
+            stmt = select(EmbyUser).where(
+                func.lower(EmbyUser.emby_username) == username.lower()
+            )
             user = session.execute(stmt).scalar_one_or_none()
             if user:
                 return (
