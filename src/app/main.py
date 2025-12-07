@@ -27,7 +27,33 @@ from app.premium import (
 )
 from app.scheduler import Scheduler
 from app.utils.utils import refresh_emby_user_info, refresh_tg_user_info
+from telegram import BotCommand
 from telegram.ext import ApplicationBuilder
+
+
+async def set_bot_commands(application):
+    """设置机器人命令列表"""
+    commands = [
+        BotCommand("start", "开始使用机器人"),
+        BotCommand("info", "查看个人信息"),
+        BotCommand("exchange", f"生成邀请码(消耗 {settings.INVITATION_CREDITS} 积分)"),
+        BotCommand("credits_rank", "查看积分榜"),
+        BotCommand("donation_rank", "查看捐赠榜"),
+        BotCommand("play_duration_rank", "查看观看时长榜"),
+        BotCommand("device_rank", "查看设备榜"),
+        BotCommand("register_status", "查看 Plex/Emby 是否可注册"),
+        BotCommand("create_overseerr", "创建 Overseerr 账户"),
+        # 管理员命令
+        BotCommand("set_donation", "设置捐赠金额 (管理员)"),
+        BotCommand("update_database", "更新数据库 (管理员)"),
+        BotCommand("set_register", "设置可注册状态 (管理员)"),
+    ]
+
+    try:
+        await application.bot.set_my_commands(commands)
+        logger.info("机器人命令列表设置成功")
+    except Exception as e:
+        logger.error(f"设置机器人命令列表失败: {e}")
 
 
 def start_api_server():
@@ -250,6 +276,9 @@ if __name__ == "__main__":
         if var.endswith("_handler"):
             logger.info(f"Add handler: {var}")
             application.add_handler(val)
+
+    # 设置机器人命令列表(在应用启动后执行)
+    application.post_init = set_bot_commands
 
     # 根据配置决定是否启动 WebApp
     if settings.WEBAPP_ENABLE:
