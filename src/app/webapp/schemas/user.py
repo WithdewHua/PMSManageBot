@@ -146,3 +146,99 @@ class CurrentLineResponse(BaseModel):
     success: bool
     message: str
     line: Optional[str] = None
+
+
+class LineScheduleCreate(BaseModel):
+    """创建线路调度请求模型"""
+
+    service: str = Field(..., description="服务类型: plex 或 emby")
+    line: str = Field(..., min_length=1, description="线路名称")
+    days_of_week: List[int] = Field(
+        ..., min_items=1, max_items=7, description="星期几列表 (0=周一, 6=周日)"
+    )
+    start_time: str = Field(
+        ..., pattern=r"^([01]\d|2[0-3]):([0-5]\d)$", description="开始时间 HH:MM"
+    )
+    end_time: str = Field(
+        ..., pattern=r"^([01]\d|2[0-3]):([0-5]\d)$", description="结束时间 HH:MM"
+    )
+    priority: int = Field(default=0, ge=0, description="优先级 (数字越小优先级越高)")
+
+
+class LineScheduleUpdate(BaseModel):
+    """更新线路调度请求模型"""
+
+    line: Optional[str] = Field(None, min_length=1, description="线路名称")
+    days_of_week: Optional[List[int]] = Field(
+        None, min_items=1, max_items=7, description="星期几列表 (0=周一, 6=周日)"
+    )
+    start_time: Optional[str] = Field(
+        None, pattern=r"^([01]\d|2[0-3]):([0-5]\d)$", description="开始时间 HH:MM"
+    )
+    end_time: Optional[str] = Field(
+        None, pattern=r"^([01]\d|2[0-3]):([0-5]\d)$", description="结束时间 HH:MM"
+    )
+    priority: Optional[int] = Field(None, ge=0, description="优先级")
+    is_enabled: Optional[bool] = Field(None, description="是否启用")
+
+
+class LineScheduleInfo(BaseModel):
+    """线路调度信息模型"""
+
+    id: int
+    service: str
+    line: str
+    days_of_week: List[int]
+    start_time: str
+    end_time: str
+    priority: int
+    is_enabled: bool
+    created_at: int
+    updated_at: int
+
+
+class LineScheduleListResponse(BaseResponse):
+    """线路调度列表响应模型"""
+
+    schedules: List[LineScheduleInfo] = []
+
+
+class LineScheduleUnlockResponse(BaseResponse):
+    """线路调度功能解锁响应模型"""
+
+    is_unlocked: bool = False
+    is_premium: bool = False
+    unlock_time: Optional[int] = None
+    credits_cost: Optional[float] = None
+
+
+class LineScheduleUnlockRequest(BaseModel):
+    """线路调度功能解锁请求模型"""
+
+    confirm: bool = Field(default=True, description="确认解锁")
+
+
+class DefaultLineRequest(BaseModel):
+    """设置默认线路请求模型"""
+
+    service: str = Field(..., description="服务类型: plex 或 emby")
+    default_line: Optional[str] = Field(
+        None, description="默认线路，None 或空字符串表示 AUTO"
+    )
+
+
+class DefaultLineResponse(BaseResponse):
+    """默认线路响应模型"""
+
+    service: Optional[str] = None
+    default_line: Optional[str] = None
+
+
+class LineScheduleStatusResponse(BaseResponse):
+    """线路调度状态响应模型"""
+
+    is_unlocked: bool = False
+    is_premium: bool = False
+    has_schedules: bool = False
+    current_schedule: Optional[LineScheduleInfo] = None
+    default_line: Optional[str] = None

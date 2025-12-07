@@ -11,7 +11,9 @@ from uuid import NAMESPACE_URL, uuid3
 from app.config import settings
 from app.databases.cache import (
     emby_api_key_cache,
+    emby_user_defined_line_cache,
     plex_token_cache,
+    plex_user_defined_line_cache,
     stream_traffic_cache,
     user_credits_cache,
     user_info_cache,
@@ -1032,6 +1034,91 @@ async def check_expired_crypto_donation_orders():
 
     except Exception as e:
         logger.error(f"检查过期 crypto 捐赠订单失败: {e}")
+
+
+def auto_switch_user_lines():
+    """
+    自动切换用户线路调度
+    每分钟执行一次，检查所有用户的线路调度配置，自动切换到当前时间段对应的线路
+    """
+    try:
+        switched_count = 0
+
+        # 获取所有解锁了线路调度功能的 Plex 用户
+        with get_session() as session:
+            # 查询所有解锁了线路调度的 Plex 用户
+            plex_users = session.execute(
+                select(PlexUser.tg_id, PlexUser.plex_line).where(
+                    PlexUser.line_schedule_unlocked == 1
+                )
+            ).fetchall()
+
+            for tg_id, current_line in plex_users:
+                # 获取当前生效的调度
+                active_schedule = db.get_current_active_schedule(tg_id, "plex")
+
+                if active_schedule:
+                    # 有生效的调度，使用调度指定的线路
+                    target_line = active_schedule["line"]
+                else:
+                    # 没有生效的调度，使用默认线路
+                    default_line = db.get_default_line(tg_id, "plex")
+                    if default_line:
+                        target_line = default_line
+                    else:
+                        # 没有默认线路，跳过
+                        continue
+
+                # 检查是否需要切换
+                if current_line != target_line:
+                    # 执行切换
+                    if db.update_plex_user_line(tg_id, target_line):
+                        # 更新缓存
+                        plex_user_defined_line_cache[str(tg_id)] = target_line
+                        switched_count += 1
+                        logger.info(
+                            f"自动切换 Plex 用户 {get_user_name_from_tg_id(tg_id)} 的线路: {current_line} -> {target_line}"
+                        )
+
+            # 查询所有解锁了线路调度的 Emby 用户
+            emby_users = session.execute(
+                select(EmbyUser.tg_id, EmbyUser.emby_line).where(
+                    EmbyUser.line_schedule_unlocked == 1
+                )
+            ).fetchall()
+
+            for tg_id, current_line in emby_users:
+                # 获取当前生效的调度
+                active_schedule = db.get_current_active_schedule(tg_id, "emby")
+
+                if active_schedule:
+                    # 有生效的调度，使用调度指定的线路
+                    target_line = active_schedule["line"]
+                else:
+                    # 没有生效的调度，使用默认线路
+                    default_line = db.get_default_line(tg_id, "emby")
+                    if default_line:
+                        target_line = default_line
+                    else:
+                        # 没有默认线路，跳过
+                        continue
+
+                # 检查是否需要切换
+                if current_line != target_line:
+                    # 执行切换
+                    if db.update_emby_user_line(tg_id, target_line):
+                        # 更新缓存
+                        emby_user_defined_line_cache[str(tg_id)] = target_line
+                        switched_count += 1
+                        logger.info(
+                            f"自动切换 Emby 用户 {get_user_name_from_tg_id(tg_id)} 的线路: {current_line} -> {target_line}"
+                        )
+
+        if switched_count > 0:
+            logger.info(f"自动切换线路任务完成，共切换 {switched_count} 个用户的线路")
+
+    except Exception as e:
+        logger.error(f"自动切换用户线路失败: {e}")
 
 
 if __name__ == "__main__":

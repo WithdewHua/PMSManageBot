@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     INVITATION_CREDITS: int = 288
     PREMIUM_DAILY_CREDITS: int = 15
     DONATION_MULTIPLIER: int = 5  # 捐赠积分倍数
+    LINE_SCHEDULE_UNLOCK_CREDITS: int = 264  # 解锁线路调度功能所需积分
     USER_TRAFFIC_LIMIT: int = (
         30 * 1024 * 1024 * 1024
     )  # 每日用户流量限额，单位为字节（30GB）

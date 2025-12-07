@@ -268,6 +268,15 @@
         </v-form>
       </v-card-text>
       <v-card-actions>
+        <v-btn
+          text
+          color="primary"
+          @click="openScheduleDialog"
+          :disabled="loading"
+        >
+          <v-icon left small>mdi-calendar-clock</v-icon>
+          高级调度
+        </v-btn>
         <v-spacer></v-spacer>
         <v-btn 
           text 
@@ -287,17 +296,30 @@
         </v-btn>
       </v-card-actions>
     </v-card>
+
+    <!-- 线路调度对话框 -->
+    <LineScheduleDialog
+      v-model:show="showScheduleDialog"
+      :initial-service="serviceType"
+      @success="onScheduleSuccess"
+      @error="onScheduleError"
+    />
   </v-dialog>
 </template>
 
 <script>
 import { authBindLine, getAvailableEmbyLinesByUser, getAvailablePlexLinesByUser, getCurrentBoundEmbyLine, getCurrentBoundPlexLine } from '../services/userLineService';
+import LineScheduleDialog from './LineScheduleDialog.vue';
 
 export default {
   name: 'BindLineDialog',
+  components: {
+    LineScheduleDialog,
+  },
   data() {
     return {
       showDialog: false,
+      showScheduleDialog: false,
       showTokenHelp: false, // 控制 token 帮助提示的显示
       valid: false,
       loading: false,
@@ -623,6 +645,25 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+    
+    // 打开调度对话框
+    openScheduleDialog() {
+      this.showScheduleDialog = true;
+    },
+    
+    // 调度成功回调
+    onScheduleSuccess(message) {
+      this.successMessage = message;
+      // 可能需要刷新当前线路信息
+      if (this.hasValidCredentials) {
+        this.loadAvailableLines();
+      }
+    },
+    
+    // 调度错误回调
+    onScheduleError(message) {
+      this.errorMessage = message;
     }
   }
 }

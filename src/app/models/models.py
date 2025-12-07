@@ -51,6 +51,13 @@ class PlexUser(Base):
     plex_line: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     is_premium: Mapped[int] = mapped_column(SMALLINT, default=0, nullable=False)
     premium_expiry_time: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    # Line schedule feature unlock
+    line_schedule_unlocked: Mapped[int] = mapped_column(
+        SMALLINT, default=0, nullable=False
+    )  # 0=not unlocked, 1=unlocked
+    line_schedule_unlock_time: Mapped[Optional[int]] = mapped_column(
+        BIGINT, nullable=True
+    )  # Timestamp when unlocked
 
 
 class EmbyUser(Base):
@@ -72,6 +79,13 @@ class EmbyUser(Base):
     emby_line: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     is_premium: Mapped[int] = mapped_column(SMALLINT, default=0, nullable=False)
     premium_expiry_time: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    # Line schedule feature unlock
+    line_schedule_unlocked: Mapped[int] = mapped_column(
+        SMALLINT, default=0, nullable=False
+    )  # 0=not unlocked, 1=unlocked
+    line_schedule_unlock_time: Mapped[Optional[int]] = mapped_column(
+        BIGINT, nullable=True
+    )  # Timestamp when unlocked
 
 
 class Invitation(Base):
@@ -327,4 +341,53 @@ class SystemConfig(Base):
     __table_args__ = (
         UniqueConstraint("config_type", "config_key", name="uq_config_type_key"),
         Index("idx_config_type_key", "config_type", "config_key"),
+    )
+
+
+class LineSchedule(Base):
+    """Line schedule model - time-based line binding
+
+    Special records:
+    - When days_of_week is empty string and start_time='00:00', end_time='00:00',
+      this represents the DEFAULT line for fallback when no schedule matches.
+    """
+
+    __tablename__ = "line_schedule"
+
+    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    tg_id: Mapped[int] = mapped_column(
+        BIGINT, ForeignKey("statistics.tg_id"), nullable=False, index=True
+    )
+    service: Mapped[str] = mapped_column(
+        String, nullable=False
+    )  # Service type: plex or emby
+    line: Mapped[str] = mapped_column(String, nullable=False)  # Line name
+    days_of_week: Mapped[str] = mapped_column(
+        String, nullable=False, server_default=""
+    )  # Comma-separated days: 0-6 (0=Monday, 6=Sunday), empty for default
+    start_time: Mapped[str] = mapped_column(
+        String, nullable=False, server_default="00:00"
+    )  # HH:MM format
+    end_time: Mapped[str] = mapped_column(
+        String, nullable=False, server_default="00:00"
+    )  # HH:MM format
+    priority: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
+    )  # Lower number = higher priority
+    is_enabled: Mapped[int] = mapped_column(
+        SMALLINT, default=1, nullable=False
+    )  # 1=enabled, 0=disabled
+    is_default: Mapped[int] = mapped_column(
+        SMALLINT, default=0, nullable=False
+    )  # 1=default line, 0=scheduled line
+    created_at: Mapped[int] = mapped_column(BIGINT, nullable=False)
+    updated_at: Mapped[int] = mapped_column(BIGINT, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("service IN ('plex', 'emby')", name="ck_schedule_service"),
+        CheckConstraint("is_enabled IN (0, 1)", name="ck_schedule_enabled"),
+        CheckConstraint("is_default IN (0, 1)", name="ck_schedule_is_default"),
+        Index("idx_schedule_user_service", "tg_id", "service"),
+        Index("idx_schedule_user_service_enabled", "tg_id", "service", "is_enabled"),
+        Index("idx_schedule_user_service_default", "tg_id", "service", "is_default"),
     )

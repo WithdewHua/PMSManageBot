@@ -5,6 +5,7 @@ from copy import copy
 
 from app.config import settings
 from app.databases.db_func import (
+    auto_switch_user_lines,
     check_expired_crypto_donation_orders,
     finish_expired_auctions_job,
     monthly_traffic_data_migration,
@@ -250,6 +251,17 @@ def add_init_scheduler_job():
         minute="*/10",  # 每 10 分钟执行一次
     )
     logger.info("添加定时任务：每 10 分钟检查过期的 crypto 捐赠订单")
+
+    # 每 1 分钟自动切换用户线路调度 (同步任务)
+    scheduler.add_sync_job(
+        func=auto_switch_user_lines,
+        trigger="cron",
+        id="auto_switch_user_lines",
+        replace_existing=True,
+        max_instances=1,
+        minute="*/1",  # 每 1 分钟执行一次
+    )
+    logger.info("添加定时任务：每 1 分钟自动切换用户线路调度")
 
     # 恢复现有竞拍的定时任务
     try:

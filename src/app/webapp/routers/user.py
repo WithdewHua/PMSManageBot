@@ -35,9 +35,17 @@ from app.webapp.schemas import (
     CreditsTransferRequest,
     CreditsTransferResponse,
     CurrentLineResponse,
+    DefaultLineRequest,
+    DefaultLineResponse,
     EmbyLineInfo,
     EmbyLineRequest,
     EmbyLinesResponse,
+    LineScheduleCreate,
+    LineScheduleListResponse,
+    LineScheduleStatusResponse,
+    LineScheduleUnlockRequest,
+    LineScheduleUnlockResponse,
+    LineScheduleUpdate,
     PlexLineInfo,
     PlexLineRequest,
     PlexLinesResponse,
@@ -1590,3 +1598,326 @@ async def get_current_bound_line(
         return CurrentLineResponse(
             success=False, message=f"获取当前绑定线路失败: {str(e)}"
         )
+
+
+# ==================== 线路调度相关端点 ====================
+
+
+@router.get("/line-schedules/unlock-status/{service}")
+@require_telegram_auth
+async def check_line_schedule_unlock_status(
+    service: str,
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """检查用户是否解锁了线路调度功能"""
+    if service not in ["emby", "plex"]:
+        raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
+
+    try:
+        result = db.check_line_schedule_unlock(user.id, service)
+        return {
+            "success": True,
+            "is_unlocked": result["is_unlocked"],
+            "is_premium": result["is_premium"],
+            "unlock_time": result["unlock_time"],
+        }
+    except Exception as e:
+        logger.error(f"检查线路调度解锁状态失败: {e}")
+        raise HTTPException(status_code=500, detail="检查解锁状态失败")
+
+
+@router.post("/line-schedules/unlock", response_model=LineScheduleUnlockResponse)
+@require_telegram_auth
+async def unlock_line_schedule(
+    request: Request,
+    data: LineScheduleUnlockRequest,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """解锁线路调度功能（消耗积分）"""
+    service = data.service
+    if service not in ["emby", "plex"]:
+        return LineScheduleUnlockResponse(
+            success=False, message="服务类型必须是 'emby' 或 'plex'"
+        )
+
+    try:
+        # 检查是否已经解锁
+        unlock_status = db.check_line_schedule_unlock(user.id, service)
+        if unlock_status["is_unlocked"]:
+            return LineScheduleUnlockResponse(
+                success=True,
+                message="您已经解锁了线路调度功能"
+                if unlock_status["is_premium"]
+                else "线路调度功能已解锁",
+            )
+
+        # 检查积分是否足够
+        credits_needed = settings.LINE_SCHEDULE_UNLOCK_CREDITS
+        stats = db.get_statistics(user.id)
+        if not stats:
+            return LineScheduleUnlockResponse(success=False, message="用户不存在")
+
+        current_credits = stats[1]  # credits 字段
+        if current_credits < credits_needed:
+            return LineScheduleUnlockResponse(
+                success=False,
+                message=f"积分不足，需要 {credits_needed} 积分，当前仅有 {current_credits} 积分",
+            )
+
+        # 扣除积分
+        new_credits = current_credits - credits_needed
+        if not db.update_statistics(user.id, credits=new_credits):
+            return LineScheduleUnlockResponse(success=False, message="更新积分失败")
+
+        # 解锁线路调度功能
+        if not db.unlock_line_schedule(user.id, service):
+            # 回滚积分
+            db.update_statistics(user.id, credits=current_credits)
+            return LineScheduleUnlockResponse(success=False, message="解锁失败")
+
+        logger.info(
+            f"用户 {get_user_name_from_tg_id(user.id)} 消耗 {credits_needed} 积分解锁 {service} 线路调度功能"
+        )
+        return LineScheduleUnlockResponse(
+            success=True, message=f"成功解锁线路调度功能，消耗 {credits_needed} 积分"
+        )
+
+    except Exception as e:
+        logger.error(f"解锁线路调度功能失败: {e}")
+        return LineScheduleUnlockResponse(success=False, message="解锁失败")
+
+
+@router.get("/line-schedules/{service}", response_model=LineScheduleListResponse)
+@require_telegram_auth
+async def get_line_schedules(
+    service: str,
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取用户的线路调度列表"""
+    if service not in ["emby", "plex"]:
+        raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
+
+    try:
+        schedules = db.get_user_line_schedules(user.id, service)
+        return LineScheduleListResponse(success=True, schedules=schedules)
+    except Exception as e:
+        logger.error(f"获取线路调度列表失败: {e}")
+        raise HTTPException(status_code=500, detail="获取线路调度列表失败")
+
+
+@router.post("/line-schedules", response_model=BaseResponse)
+@require_telegram_auth
+async def create_line_schedule(
+    request: Request,
+    data: LineScheduleCreate,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """创建线路调度"""
+    service = data.service
+    if service not in ["emby", "plex"]:
+        return BaseResponse(success=False, message="服务类型必须是 'emby' 或 'plex'")
+
+    try:
+        # 检查是否解锁
+        unlock_status = db.check_line_schedule_unlock(user.id, service)
+        if not unlock_status["is_unlocked"]:
+            return BaseResponse(success=False, message="请先解锁线路调度功能")
+
+        # 检查时间冲突
+        if db.check_schedule_conflict(
+            user.id,
+            service,
+            data.days_of_week,
+            data.start_time,
+            data.end_time,
+        ):
+            return BaseResponse(success=False, message="时间段与现有调度冲突")
+
+        # 创建调度
+        schedule_id = db.create_line_schedule(
+            user.id,
+            service,
+            data.line,
+            data.days_of_week,
+            data.start_time,
+            data.end_time,
+            data.priority,
+        )
+
+        if schedule_id:
+            return BaseResponse(success=True, message="创建线路调度成功")
+        else:
+            return BaseResponse(success=False, message="创建线路调度失败")
+
+    except Exception as e:
+        logger.error(f"创建线路调度失败: {e}")
+        return BaseResponse(success=False, message="创建线路调度失败")
+
+
+@router.put("/line-schedules/{schedule_id}", response_model=BaseResponse)
+@require_telegram_auth
+async def update_line_schedule(
+    schedule_id: int,
+    request: Request,
+    data: LineScheduleUpdate,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """更新线路调度"""
+    try:
+        # 构建更新参数
+        update_kwargs = {}
+        if data.line is not None:
+            update_kwargs["line"] = data.line
+        if data.days_of_week is not None:
+            update_kwargs["days_of_week"] = data.days_of_week
+        if data.start_time is not None:
+            update_kwargs["start_time"] = data.start_time
+        if data.end_time is not None:
+            update_kwargs["end_time"] = data.end_time
+        if data.priority is not None:
+            update_kwargs["priority"] = data.priority
+        if data.is_enabled is not None:
+            update_kwargs["is_enabled"] = data.is_enabled
+
+        # 如果修改了时间相关字段，检查冲突
+        if any(k in update_kwargs for k in ["days_of_week", "start_time", "end_time"]):
+            # 获取原有调度信息
+            schedules = db.get_user_line_schedules(user.id)
+            schedule = next((s for s in schedules if s["id"] == schedule_id), None)
+            if not schedule:
+                return BaseResponse(success=False, message="调度不存在")
+
+            # 使用更新后的值检查冲突
+            check_days = update_kwargs.get("days_of_week", schedule["days_of_week"])
+            check_start = update_kwargs.get("start_time", schedule["start_time"])
+            check_end = update_kwargs.get("end_time", schedule["end_time"])
+
+            if db.check_schedule_conflict(
+                user.id,
+                schedule["service"],
+                check_days,
+                check_start,
+                check_end,
+                exclude_id=schedule_id,
+            ):
+                return BaseResponse(success=False, message="时间段与现有调度冲突")
+
+        # 执行更新
+        if db.update_line_schedule(schedule_id, user.id, **update_kwargs):
+            return BaseResponse(success=True, message="更新线路调度成功")
+        else:
+            return BaseResponse(success=False, message="更新线路调度失败")
+
+    except Exception as e:
+        logger.error(f"更新线路调度失败: {e}")
+        return BaseResponse(success=False, message="更新线路调度失败")
+
+
+@router.delete("/line-schedules/{schedule_id}", response_model=BaseResponse)
+@require_telegram_auth
+async def delete_line_schedule(
+    schedule_id: int,
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """删除线路调度"""
+    try:
+        if db.delete_line_schedule(schedule_id, user.id):
+            return BaseResponse(success=True, message="删除线路调度成功")
+        else:
+            return BaseResponse(success=False, message="删除线路调度失败或无权限")
+    except Exception as e:
+        logger.error(f"删除线路调度失败: {e}")
+        return BaseResponse(success=False, message="删除线路调度失败")
+
+
+@router.post("/line-schedules/default", response_model=DefaultLineResponse)
+@require_telegram_auth
+async def set_default_line(
+    request: Request,
+    data: DefaultLineRequest,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """设置默认线路"""
+    service = data.service
+    if service not in ["emby", "plex"]:
+        return DefaultLineResponse(
+            success=False, message="服务类型必须是 'emby' 或 'plex'"
+        )
+
+    try:
+        # 检查是否解锁
+        unlock_status = db.check_line_schedule_unlock(user.id, service)
+        if not unlock_status["is_unlocked"]:
+            return DefaultLineResponse(success=False, message="请先解锁线路调度功能")
+
+        if db.set_default_line(user.id, service, data.default_line):
+            return DefaultLineResponse(
+                success=True,
+                message=f"设置默认线路为 {data.default_line or 'AUTO'}",
+                default_line=data.default_line,
+            )
+        else:
+            return DefaultLineResponse(success=False, message="设置默认线路失败")
+
+    except Exception as e:
+        logger.error(f"设置默认线路失败: {e}")
+        return DefaultLineResponse(success=False, message="设置默认线路失败")
+
+
+@router.get("/line-schedules/default/{service}")
+@require_telegram_auth
+async def get_default_line(
+    service: str,
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取默认线路"""
+    if service not in ["emby", "plex"]:
+        raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
+
+    try:
+        default_line = db.get_default_line(user.id, service)
+        return {"success": True, "default_line": default_line}
+    except Exception as e:
+        logger.error(f"获取默认线路失败: {e}")
+        raise HTTPException(status_code=500, detail="获取默认线路失败")
+
+
+@router.get(
+    "/line-schedules/status/{service}", response_model=LineScheduleStatusResponse
+)
+@require_telegram_auth
+async def get_line_schedule_status(
+    service: str,
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取当前生效的线路调度状态"""
+    if service not in ["emby", "plex"]:
+        raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
+
+    try:
+        # 检查是否解锁
+        unlock_status = db.check_line_schedule_unlock(user.id, service)
+
+        # 获取当前生效的调度
+        active_schedule = None
+        if unlock_status["is_unlocked"]:
+            active_schedule = db.get_current_active_schedule(user.id, service)
+
+        # 获取默认线路
+        default_line = db.get_default_line(user.id, service)
+
+        return LineScheduleStatusResponse(
+            success=True,
+            is_unlocked=unlock_status["is_unlocked"],
+            active_schedule=active_schedule,
+            default_line=default_line,
+        )
+
+    except Exception as e:
+        logger.error(f"获取线路调度状态失败: {e}")
+        raise HTTPException(status_code=500, detail="获取线路调度状态失败")
