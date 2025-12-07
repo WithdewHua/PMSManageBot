@@ -502,12 +502,7 @@ async def bind_emby_line(
             if is_premium_line_flag:
                 # 检查该高级线路是否在免费列表中
                 if settings.PREMIUM_FREE:
-                    from app.databases.cache import free_premium_lines_cache
-
-                    free_premium_lines = free_premium_lines_cache.get("free_lines")
-                    free_premium_lines = (
-                        free_premium_lines.split(",") if free_premium_lines else []
-                    )
+                    free_premium_lines = db.get_free_premium_lines()
                     if line not in free_premium_lines:
                         return BaseResponse(
                             success=False, message="该高级线路暂未开放免费使用"
@@ -931,12 +926,7 @@ async def bind_plex_line(
             if is_premium_line_flag:
                 # 检查该高级线路是否在免费列表中
                 if settings.PREMIUM_FREE:
-                    from app.databases.cache import free_premium_lines_cache
-
-                    free_premium_lines = free_premium_lines_cache.get("free_lines")
-                    free_premium_lines = (
-                        free_premium_lines.split(",") if free_premium_lines else []
-                    )
+                    free_premium_lines = db.get_free_premium_lines()
                     if line not in free_premium_lines:
                         return BaseResponse(
                             success=False, message="该高级线路暂未开放免费使用"
@@ -1140,12 +1130,7 @@ async def _auth_bind_emby_line(
         is_premium_line_flag = is_binded_premium_line(line)
         if is_premium_line_flag:
             if settings.PREMIUM_FREE:
-                from app.databases.cache import free_premium_lines_cache
-
-                free_premium_lines = free_premium_lines_cache.get("free_lines")
-                free_premium_lines = (
-                    free_premium_lines.split(",") if free_premium_lines else []
-                )
+                free_premium_lines = db.get_free_premium_lines()
                 if line not in free_premium_lines:
                     return BaseResponse(
                         success=False, message="该高级线路暂未开放免费使用"
@@ -1207,12 +1192,7 @@ async def _auth_bind_plex_line(
         is_premium_line_flag = is_binded_premium_line(line)
         if is_premium_line_flag:
             if settings.PREMIUM_FREE:
-                from app.databases.cache import free_premium_lines_cache
-
-                free_premium_lines = free_premium_lines_cache.get("free_lines")
-                free_premium_lines = (
-                    free_premium_lines.split(",") if free_premium_lines else []
-                )
+                free_premium_lines = db.get_free_premium_lines()
                 if line not in free_premium_lines:
                     return BaseResponse(
                         success=False, message="该高级线路暂未开放免费使用"
