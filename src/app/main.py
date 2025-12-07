@@ -26,6 +26,7 @@ from app.premium import (
     get_and_send_premium_statistics,
 )
 from app.scheduler import Scheduler
+from app.utils.report import send_weekly_report
 from app.utils.utils import refresh_emby_user_info, refresh_tg_user_info
 from telegram import BotCommand
 from telegram.ext import ApplicationBuilder
@@ -36,6 +37,8 @@ async def set_bot_commands(application):
     commands = [
         BotCommand("start", "开始使用机器人"),
         BotCommand("info", "查看个人信息"),
+        BotCommand("server_status", "查看服务器在线人数/状态"),
+        BotCommand("rank_24h", "查看24小时观看时长榜"),
         BotCommand("exchange", f"生成邀请码(消耗 {settings.INVITATION_CREDITS} 积分)"),
         BotCommand("credits_rank", "查看积分榜"),
         BotCommand("donation_rank", "查看捐赠榜"),
@@ -255,6 +258,19 @@ def add_init_scheduler_job():
         restore_auction_schedules()
     except Exception as e:
         logger.error(f"恢复竞拍定时任务失败: {e}")
+
+    # 每周日凌晨 00:05 分发送每周统计报告
+    scheduler.add_async_job(
+        func=send_weekly_report,
+        trigger="cron",
+        id="send_weekly_report",
+        replace_existing=True,
+        max_instances=1,
+        day_of_week="sun",
+        hour=0,
+        minute=5,
+    )
+    logger.info("添加定时任务：每周日凌晨 00:05 发送每周统计报告")
 
 
 if __name__ == "__main__":

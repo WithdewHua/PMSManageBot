@@ -125,6 +125,16 @@ class Tautulli(object):
             print("Tautulli API cmd '{}' failed: {}".format(cmd, error_msg))
             return
 
+    def get_plex_current_playing_user_num(self) -> int:
+        """Get user number of playing"""
+        sessions: list[dict] = self.get_activity().get("sessions", [])
+        num = 0
+        for session in sessions:
+            if session.get("state", "") == "playing":
+                num += 1
+
+        return num
+
 
 class Notification(object):
     def __init__(self, notifier_id, subject, body, tautulli, stats=None):

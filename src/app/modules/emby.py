@@ -462,3 +462,19 @@ class Emby:
         except Exception as e:
             logger.error(f"Error fetching Emby username: {e}")
         return None
+
+    def get_emby_current_playing_user_num(self):
+        url = self.base_url + f"/Sessions?IsPlaying=True&api_key={self.api_token}"
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            rslts = response.json()
+        except Exception as e:
+            logger.error(f"Error fetching Emby current playing user num: {e}")
+            return 0
+        num = 0
+        for rslt in rslts:
+            if not rslt["PlayState"]["IsPaused"]:
+                num += 1
+
+        return num

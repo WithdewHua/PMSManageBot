@@ -1,4 +1,6 @@
 from app.config import settings
+from app.modules.emby import Emby
+from app.modules.tautulli import Tautulli
 from app.utils.utils import send_message
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
@@ -46,7 +48,28 @@ async def set_register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     )
 
 
+async def get_server_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    current_plex_user_num = Tautulli().get_plex_current_playing_user_num()
+    current_emby_user_num = Emby().get_emby_current_playing_user_num()
+    body_text = f"""
+======================
+<strong>当前观看人数</strong>
+- <strong>Plex</strong>: {current_plex_user_num}
+- <strong>Emby</strong>: {current_emby_user_num}
+======================
+        """
+
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id, text=body_text, parse_mode="HTML"
+    )
+
+
 get_register_status_handler = CommandHandler("register_status", get_register_status)
 set_register_handler = CommandHandler("set_register", set_register)
+get_server_status_handler = CommandHandler("server_status", get_server_status)
 
-__all__ = ["get_register_status_handler", "set_register_handler"]
+__all__ = [
+    "get_register_status_handler",
+    "set_register_handler",
+    "get_server_status_handler",
+]

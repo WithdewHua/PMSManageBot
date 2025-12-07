@@ -2,6 +2,7 @@ from app.config import settings
 from app.databases import db
 from app.log import logger
 from app.modules.emby import Emby
+from app.utils.report import stats_report
 from app.utils.utils import get_user_name_from_tg_id, send_message
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
@@ -110,14 +111,60 @@ async def device_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     )
 
 
+async def rank_24h(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    body_text = """
+======================
+<strong>🔥Ranking 24h🔥</strong>
+======================
+
+-----------<strong>Plex</strong>-----------
+<strong>👤用户榜</strong>
+{user_stats}
+
+<strong>🎥电影榜</strong>
+{watched_movie_stats}
+
+<strong>📺剧集榜</strong>
+{watched_tv_stats}
+    """
+
+    emby_body_text = """
+-----------<strong>Emby</strong>-----------
+<strong>👤用户榜</strong>
+{emby_user_stats}
+
+<strong>🎥电影榜</strong>
+{emby_watched_movie_stats}
+
+<strong>📺剧集榜</strong>
+{emby_watched_tv_stats}
+    """
+
+    body_text = stats_report(
+        days=1,
+        top=10,
+        user_stats=True,
+        watched_stats=True,
+        notify=0,
+        body_text=body_text,
+        emby_body_text=emby_body_text,
+        emby=True,
+    )
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id, text=body_text, parse_mode="HTML"
+    )
+
+
 credits_rank_handler = CommandHandler("credits_rank", credits_rank)
 donation_rank_handler = CommandHandler("donation_rank", donation_rank)
 watched_time_rank_handler = CommandHandler("play_duration_rank", watched_time_rank)
 device_rank_handler = CommandHandler("device_rank", device_rank)
+rank_24h_handler = CommandHandler("rank_24h", rank_24h)
 
 __all__ = [
     "credits_rank_handler",
     "donation_rank_handler",
     "watched_time_rank_handler",
     "device_rank_handler",
+    "rank_24h_handler",
 ]
