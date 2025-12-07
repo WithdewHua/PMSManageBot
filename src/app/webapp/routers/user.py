@@ -56,6 +56,42 @@ from sqlalchemy import select
 router = APIRouter(prefix="/api/user", tags=["user"])
 
 
+# ==================== 辅助函数 ====================
+
+
+def check_line_permission(is_premium: bool, line: str) -> tuple[bool, str]:
+    """
+    检查用户是否有权使用指定线路
+
+    Args:
+        is_premium: 是否为 premium 用户
+        line: 线路名称
+
+    Returns:
+        tuple[bool, str]: (是否有权限, 错误消息)
+    """
+    # Premium 用户拥有所有线路权限
+    if is_premium:
+        return True, ""
+
+    # 检查是否为高级线路
+    is_premium_line_flag = is_binded_premium_line(line)
+    if not is_premium_line_flag:
+        # 普通线路，所有用户都可以使用
+        return True, ""
+
+    # 高级线路需要进一步检查
+    if settings.PREMIUM_FREE:
+        # 检查该高级线路是否在免费列表中
+        free_premium_lines = db.get_free_premium_lines()
+        if line in free_premium_lines:
+            return True, ""
+        else:
+            return False, "该高级线路暂未开放免费使用"
+    else:
+        return False, "您不是 premium 用户，无法使用该线路"
+
+
 @router.get("/info")
 @require_telegram_auth
 async def get_user_info(
@@ -495,28 +531,17 @@ async def bind_emby_line(
             logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定 Emby 账户")
             return BaseResponse(success=False, message="您尚未绑定Emby账户，请先绑定")
         emby_username, emby_line = emby_info[0], emby_info[7]
+        is_premium = emby_info[8] == 1
+
         if emby_line == line:
             logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 已绑定该线路")
             return BaseResponse(success=False, message="该线路已绑定，请勿重复操作")
 
-        # 更新用户线路设置
-        is_premium = emby_info[8] == 1
+        # 检查线路权限
+        has_permission, error_msg = check_line_permission(is_premium, line)
+        if not has_permission:
+            return BaseResponse(success=False, message=error_msg)
 
-        # 如果不是premium用户，需要检查线路权限
-        if not is_premium:
-            is_premium_line_flag = is_binded_premium_line(line)
-            if is_premium_line_flag:
-                # 检查该高级线路是否在免费列表中
-                if settings.PREMIUM_FREE:
-                    free_premium_lines = db.get_free_premium_lines()
-                    if line not in free_premium_lines:
-                        return BaseResponse(
-                            success=False, message="该高级线路暂未开放免费使用"
-                        )
-                else:
-                    return BaseResponse(
-                        success=False, message="您不是 premium 用户，无法绑定该线路"
-                    )
         success = db.set_emby_line(line, tg_id=tg_id)
 
         if not success:
@@ -906,6 +931,8 @@ async def bind_plex_line(
             return BaseResponse(success=False, message="您尚未绑定Plex账户，请先绑定")
 
         plex_username, plex_line = plex_info[4], plex_info[8]
+        is_premium = plex_info[9] == 1
+
         # 可能存在 plex 用户信息还没更新的情况
         if not plex_username:
             logger.error(f"用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 用户名为空")
@@ -916,31 +943,10 @@ async def bind_plex_line(
             logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 已绑定该线路")
             return BaseResponse(success=False, message="该线路已绑定，请勿重复操作")
 
-        # 检查线路是否存在于可用线路中
-        # if (
-        #     line not in settings.STREAM_BACKEND
-        #     and line not in settings.PREMIUM_STREAM_BACKEND
-        # ):
-        #     return BaseResponse(success=False, message="该线路不存在或不可用")
-
-        # 更新用户线路设置
-        is_premium = plex_info[9] == 1
-
-        # 如果不是premium用户，需要检查线路权限
-        if not is_premium:
-            is_premium_line_flag = is_binded_premium_line(line)
-            if is_premium_line_flag:
-                # 检查该高级线路是否在免费列表中
-                if settings.PREMIUM_FREE:
-                    free_premium_lines = db.get_free_premium_lines()
-                    if line not in free_premium_lines:
-                        return BaseResponse(
-                            success=False, message="该高级线路暂未开放免费使用"
-                        )
-                else:
-                    return BaseResponse(
-                        success=False, message="您不是 premium 用户，无法绑定该线路"
-                    )
+        # 检查线路权限
+        has_permission, error_msg = check_line_permission(is_premium, line)
+        if not has_permission:
+            return BaseResponse(success=False, message=error_msg)
 
         success = db.set_plex_line(line, tg_id=tg_id)
         if not success:
@@ -1128,23 +1134,15 @@ async def _auth_bind_emby_line(
         logger.warning(f"Emby用户 {username} 认证失败")
         return BaseResponse(success=False, message="用户名或密码错误")
 
-    # 检查线路权限 - 获取用户信息以确定是否为premium用户
+    # 获取用户信息以检查线路权限
     existing_emby_info = db.get_emby_info_by_emby_username(username)
-    is_premium = existing_emby_info[8] == 1 if existing_emby_info else False
 
-    if not is_premium:
-        is_premium_line_flag = is_binded_premium_line(line)
-        if is_premium_line_flag:
-            if settings.PREMIUM_FREE:
-                free_premium_lines = db.get_free_premium_lines()
-                if line not in free_premium_lines:
-                    return BaseResponse(
-                        success=False, message="该高级线路暂未开放免费使用"
-                    )
-            else:
-                return BaseResponse(
-                    success=False, message="您不是 premium 用户，无法绑定该线路"
-                )
+    # 检查线路权限
+    # 如果用户不存在于数据库，视为普通用户；否则使用数据库中的 premium 状态
+    is_premium = existing_emby_info[8] == 1 if existing_emby_info else False
+    has_permission, error_msg = check_line_permission(is_premium, line)
+    if not has_permission:
+        return BaseResponse(success=False, message=error_msg)
 
     # 设置线路到数据库（如果用户存在于数据库中）
     if existing_emby_info:
@@ -1190,23 +1188,15 @@ async def _auth_bind_plex_line(
         logger.warning(f"Plex 用户 {username} 认证失败")
         return BaseResponse(success=False, message="用户名或密码错误")
 
-    # 检查线路权限 - 获取用户信息以确定是否为premium用户
+    # 获取 Plex 用户信息
     existing_plex_info = db.get_plex_info_by_plex_id(plex_id)
-    is_premium = existing_plex_info[9] == 1 if existing_plex_info else False
 
-    if not is_premium:
-        is_premium_line_flag = is_binded_premium_line(line)
-        if is_premium_line_flag:
-            if settings.PREMIUM_FREE:
-                free_premium_lines = db.get_free_premium_lines()
-                if line not in free_premium_lines:
-                    return BaseResponse(
-                        success=False, message="该高级线路暂未开放免费使用"
-                    )
-            else:
-                return BaseResponse(
-                    success=False, message="您不是 premium 用户，无法绑定该线路"
-                )
+    # 检查线路权限
+    # 如果用户不存在于数据库，视为普通用户；否则使用数据库中的 premium 状态
+    is_premium = existing_plex_info[9] == 1 if existing_plex_info else False
+    has_permission, error_msg = check_line_permission(is_premium, line)
+    if not has_permission:
+        return BaseResponse(success=False, message=error_msg)
 
     # 如果用户已存在，更新数据库中的线路设置
     if existing_plex_info:
@@ -1724,6 +1714,22 @@ async def create_line_schedule(
         if not unlock_status["is_unlocked"]:
             return BaseResponse(success=False, message="请先解锁线路调度功能")
 
+        # 获取用户信息并检查线路权限
+        if service == "emby":
+            user_info = db.get_emby_info_by_tg_id(user.id)
+            if not user_info:
+                return BaseResponse(success=False, message="您尚未绑定 Emby 账户")
+            is_premium = user_info[8] == 1
+        else:  # plex
+            user_info = db.get_plex_info_by_tg_id(user.id)
+            if not user_info:
+                return BaseResponse(success=False, message="您尚未绑定 Plex 账户")
+            is_premium = user_info[9] == 1
+
+        has_permission, error_msg = check_line_permission(is_premium, data.line)
+        if not has_permission:
+            return BaseResponse(success=False, message=f"{error_msg}，无法创建调度")
+
         # 检查时间冲突
         if db.check_schedule_conflict(
             user.id,
@@ -1765,10 +1771,36 @@ async def update_line_schedule(
 ):
     """更新线路调度"""
     try:
+        # 获取原有调度信息
+        schedules = db.get_user_line_schedules(user.id)
+        schedule = next((s for s in schedules if s["id"] == schedule_id), None)
+        if not schedule:
+            return BaseResponse(success=False, message="调度不存在")
+
         # 构建更新参数
         update_kwargs = {}
         if data.line is not None:
             update_kwargs["line"] = data.line
+
+            # 如果修改了线路，检查用户是否有权使用该线路
+            service = schedule["service"]
+
+            # 获取用户信息并检查线路权限
+            if service == "emby":
+                user_info = db.get_emby_info_by_tg_id(user.id)
+                if not user_info:
+                    return BaseResponse(success=False, message="您尚未绑定 Emby 账户")
+                is_premium = user_info[8] == 1
+            else:  # plex
+                user_info = db.get_plex_info_by_tg_id(user.id)
+                if not user_info:
+                    return BaseResponse(success=False, message="您尚未绑定 Plex 账户")
+                is_premium = user_info[9] == 1
+
+            has_permission, error_msg = check_line_permission(is_premium, data.line)
+            if not has_permission:
+                return BaseResponse(success=False, message=f"{error_msg}，无法更新调度")
+
         if data.days_of_week is not None:
             update_kwargs["days_of_week"] = data.days_of_week
         if data.start_time is not None:
@@ -1782,12 +1814,6 @@ async def update_line_schedule(
 
         # 如果修改了时间相关字段，检查冲突
         if any(k in update_kwargs for k in ["days_of_week", "start_time", "end_time"]):
-            # 获取原有调度信息
-            schedules = db.get_user_line_schedules(user.id)
-            schedule = next((s for s in schedules if s["id"] == schedule_id), None)
-            if not schedule:
-                return BaseResponse(success=False, message="调度不存在")
-
             # 使用更新后的值检查冲突
             check_days = update_kwargs.get("days_of_week", schedule["days_of_week"])
             check_start = update_kwargs.get("start_time", schedule["start_time"])
