@@ -354,10 +354,15 @@ class Plex:
                 return 0
 
             # 获取用户的观看历史
-            # 使用 PlexServer 的 history 方法获取最近的观看记录
-            history = self.plex_server.history(
-                maxresults=1, accountID=user_id, mindate=None
-            )
+            # 管理员账户和普通用户需要不同的处理方式
+            if user_id == self.my_plex_account.id:
+                # 对于管理员账户，不传入 accountID 参数
+                history = self.plex_server.history(maxresults=1, mindate=None)
+            else:
+                # 对于普通用户，使用 accountID 参数
+                history = self.plex_server.history(
+                    maxresults=1, accountID=user_id, mindate=None
+                )
 
             if history:
                 # 获取最近一次观看记录的时间
