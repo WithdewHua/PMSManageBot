@@ -624,22 +624,36 @@
                 </v-card-title>
                 <v-card-text>
                   <v-row>
-                    <v-col cols="12" sm="4">
+                    <v-col cols="12" sm="6" md="3">
                       <div class="stat-item">
                         <div class="stat-value text-orange-darken-2">{{ systemStats.plex_users }}</div>
                         <div class="stat-label">Plex 用户</div>
                       </div>
                     </v-col>
-                    <v-col cols="12" sm="4">
+                    <v-col cols="12" sm="6" md="3">
                       <div class="stat-item">
                         <div class="stat-value text-green-darken-2">{{ systemStats.emby_users }}</div>
                         <div class="stat-label">Emby 用户</div>
                       </div>
                     </v-col>
-                    <v-col cols="12" sm="4">
+                    <v-col cols="12" sm="6" md="3">
                       <div class="stat-item">
                         <div class="stat-value text-primary">{{ systemStats.total_users }}</div>
                         <div class="stat-label">总用户数</div>
+                      </div>
+                    </v-col>
+                    <v-col cols="12" sm="6" md="3">
+                      <div class="stat-item">
+                        <div class="stat-value text-red-darken-2">{{ systemStats.nsfw_unlocked_users || 0 }}</div>
+                        <div class="stat-label">NSFW 解锁</div>
+                      </div>
+                    </v-col>
+                  </v-row>
+                  <v-row class="mt-2">
+                    <v-col cols="12" sm="6" md="3" offset-md="3">
+                      <div class="stat-item">
+                        <div class="stat-value text-indigo-darken-2">{{ systemStats.line_schedule_unlocked_users || 0 }}</div>
+                        <div class="stat-label">线路调度解锁</div>
                       </div>
                     </v-col>
                   </v-row>
@@ -2081,7 +2095,9 @@ export default {
       systemStats: {
         plex_users: 0,
         emby_users: 0,
-        total_users: 0
+        total_users: 0,
+        nsfw_unlocked_users: 0,
+        line_schedule_unlocked_users: 0
       },
       systemStatsLoading: false,
       systemStatsError: null,
@@ -2129,22 +2145,26 @@ export default {
     // 监听tab切换
     currentTab(newTab) {
       console.log('标签页切换到:', newTab, '是否为管理员:', this.isAdmin)
-      // 如果切换到概览tab，则获取系统统计数据
+      // 如果切换到概览tab，则并发获取系统统计数据
       if (newTab === 'overview') {
-        this.fetchSystemStats()
-        this.fetchPremiumStats()
-        this.fetchTrafficStats()
-        this.fetchTrafficOverview()
+        Promise.all([
+          this.fetchSystemStats(),
+          this.fetchPremiumStats(),
+          this.fetchTrafficStats(),
+          this.fetchTrafficOverview()
+        ])
       }
       // 如果切换到设置项tab且是管理员，则获取管理员设置
       if (newTab === 'settings' && this.isAdmin && !this.adminSettings.loaded) {
         this.fetchAdminSettings()
       }
-      // 如果切换到活动管理tab且是管理员，则加载活动统计数据
+      // 如果切换到活动管理tab且是管理员，则并发加载活动统计数据
       if (newTab === 'wheel' && this.isAdmin) {
         console.log('切换到活动管理标签页，开始加载活动数据...')
-        this.loadWheelStats()
-        this.loadAuctionStats()
+        Promise.all([
+          this.loadWheelStats(),
+          this.loadAuctionStats()
+        ])
       }
     }
   },
@@ -2156,21 +2176,25 @@ export default {
         const response = await getUserInfo()
         this.isAdmin = response.data.is_admin
         
-        // 如果当前在概览tab，则获取系统统计数据
+        // 如果当前在概览tab，则并发获取系统统计数据
         if (this.currentTab === 'overview') {
-          await this.fetchSystemStats()
-          await this.fetchPremiumStats()
-          await this.fetchTrafficStats()
-          await this.fetchTrafficOverview()
+          await Promise.all([
+            this.fetchSystemStats(),
+            this.fetchPremiumStats(),
+            this.fetchTrafficStats(),
+            this.fetchTrafficOverview()
+          ])
         }
         // 如果是管理员且当前在设置项tab，则获取管理员设置
         if (this.isAdmin && this.currentTab === 'settings') {
           await this.fetchAdminSettings()
         }
-        // 如果是管理员且当前在活动管理tab，则加载活动统计数据
+        // 如果是管理员且当前在活动管理tab，则并发加载活动统计数据
         if (this.isAdmin && this.currentTab === 'wheel') {
-          await this.loadWheelStats()
-          await this.loadAuctionStats()
+          await Promise.all([
+            this.loadWheelStats(),
+            this.loadAuctionStats()
+          ])
         }
         this.loading = false
       } catch (err) {
@@ -2223,10 +2247,12 @@ export default {
     },
     
     async refreshOverviewStats() {
-      await this.fetchSystemStats()
-      await this.fetchPremiumStats()
-      await this.fetchTrafficStats()
-      await this.fetchTrafficOverview()
+      await Promise.all([
+        this.fetchSystemStats(),
+        this.fetchPremiumStats(),
+        this.fetchTrafficStats(),
+        this.fetchTrafficOverview()
+      ])
     },
     
     async updatePlexRegister() {
