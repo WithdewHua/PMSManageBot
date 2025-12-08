@@ -3830,6 +3830,96 @@ class DatabaseORM:
             logger.error(f"获取当前生效的调度失败: {e}")
             return None
 
+    def disable_schedules_by_line(self, line_name: str) -> tuple[bool, int, List[dict]]:
+        """
+        禁用指定线路的所有调度，并返回受影响的用户信息
+
+        Args:
+            line_name: 线路名称
+
+        Returns:
+            (是否成功, 禁用的调度数量, 受影响的用户列表)
+            用户列表格式: [{"tg_id": int, "service": str, "schedule_count": int}, ...]
+        """
+        try:
+            with get_session() as session:
+                # 查找所有使用该线路且已启用的调度
+                stmt = select(LineSchedule).where(
+                    LineSchedule.line == line_name, LineSchedule.is_enabled == 1
+                )
+                schedules = session.execute(stmt).scalars().all()
+
+                if not schedules:
+                    logger.info(f"没有找到使用线路 {line_name} 的已启用调度")
+                    return True, 0, []
+
+                # 统计受影响的用户（在禁用前）
+                user_service_map = {}
+                for schedule in schedules:
+                    key = (schedule.tg_id, schedule.service)
+                    if key not in user_service_map:
+                        user_service_map[key] = {
+                            "tg_id": schedule.tg_id,
+                            "service": schedule.service,
+                            "schedule_count": 0,
+                        }
+                    user_service_map[key]["schedule_count"] += 1
+
+                # 禁用所有调度
+                count = 0
+                current_time = int(time.time())
+                for schedule in schedules:
+                    schedule.is_enabled = 0
+                    schedule.updated_at = current_time
+                    count += 1
+
+                affected_users = list(user_service_map.values())
+                logger.info(
+                    f"已禁用 {count} 个使用线路 {line_name} 的调度，"
+                    f"影响 {len(affected_users)} 位用户"
+                )
+                return True, count, affected_users
+
+        except Exception as e:
+            logger.error(f"禁用线路 {line_name} 的调度失败: {e}")
+            return False, 0, []
+
+    def get_users_with_line_schedule(self, line_name: str) -> List[dict]:
+        """
+        获取所有使用指定线路调度的用户信息
+
+        Args:
+            line_name: 线路名称
+
+        Returns:
+            用户信息列表 [{"tg_id": int, "service": str, "schedule_count": int}, ...]
+        """
+        try:
+            with get_session() as session:
+                # 查找所有使用该线路且已启用的调度
+                stmt = select(LineSchedule).where(
+                    LineSchedule.line == line_name, LineSchedule.is_enabled == 1
+                )
+                schedules = session.execute(stmt).scalars().all()
+
+                # 按用户和服务分组统计
+                user_service_map = {}
+                for schedule in schedules:
+                    key = (schedule.tg_id, schedule.service)
+                    if key not in user_service_map:
+                        user_service_map[key] = {
+                            "tg_id": schedule.tg_id,
+                            "service": schedule.service,
+                            "schedule_count": 0,
+                        }
+                    user_service_map[key]["schedule_count"] += 1
+
+                return list(user_service_map.values())
+
+        except Exception as e:
+            logger.error(f"获取使用线路 {line_name} 的用户失败: {e}")
+            return []
+
 
 # 创建全局实例
 db = DatabaseORM()

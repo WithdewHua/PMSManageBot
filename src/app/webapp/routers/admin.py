@@ -389,6 +389,10 @@ async def handle_free_premium_lines_change(removed_lines: list | set):
                     parse_mode="markdownv2",
                 )
 
+        # 禁用被移除线路的所有调度并通知用户
+        for removed_line in removed_lines:
+            await disable_line_schedules_and_notify(removed_line, "线路已不再免费开放")
+
         return True, None
     except Exception as e:
         logger.error(f"处理免费高级线路变更时发生错误: {str(e)}")
@@ -438,6 +442,69 @@ async def unbind_specified_line_for_all_users(line: str):
     except Exception as e:
         logger.error(f"解绑所有用户的 {line} 线路时发生错误: {str(e)}")
         return False, f"解绑所有用户的 {line} 线路时发生错误: {str(e)}"
+
+
+async def disable_line_schedules_and_notify(line_name: str, reason: str = "线路已下线"):
+    """
+    禁用指定线路的所有调度并通知相关用户
+
+    Args:
+        line_name: 线路名称
+        reason: 禁用原因，用于通知用户
+    """
+    try:
+        # 禁用调度并获取受影响的用户
+        success, disabled_count, affected_users = db.disable_schedules_by_line(
+            line_name
+        )
+
+        if not success:
+            logger.error(f"禁用线路 {line_name} 的调度失败")
+            return False, f"禁用线路 {line_name} 的调度失败"
+
+        if disabled_count == 0:
+            logger.info(f"没有需要禁用的调度（线路: {line_name}）")
+            return True, "没有受影响的调度"
+
+        logger.info(f"已禁用 {disabled_count} 个使用线路 {line_name} 的调度")
+
+        # 通知所有受影响的用户
+        for user_info in affected_users:
+            tg_id = user_info["tg_id"]
+            service = user_info["service"]
+            schedule_count = user_info["schedule_count"]
+
+            service_name = "Emby" if service == "emby" else "Plex"
+
+            try:
+                await send_message_by_url(
+                    chat_id=tg_id,
+                    text=f"""
+⚠️ 线路调度变更通知
+
+线路：`{line_name}`
+原因：{reason}
+
+您的 {schedule_count} 个 {service_name} 线路调度已被自动禁用。
+
+如需继续使用该线路，请在管理面板中重新启用调度或选择其他线路。
+""",
+                    parse_mode="markdownv2",
+                )
+                logger.info(
+                    f"已向用户 {get_user_name_from_tg_id(tg_id)} 发送线路调度禁用通知"
+                )
+            except Exception as e:
+                logger.warning(f"发送线路调度禁用通知给用户 {tg_id} 失败: {str(e)}")
+
+        return (
+            True,
+            f"成功禁用 {disabled_count} 个调度并通知 {len(affected_users)} 位用户",
+        )
+
+    except Exception as e:
+        logger.error(f"禁用线路 {line_name} 的调度并通知用户时发生错误: {str(e)}")
+        return False, f"禁用线路调度并通知用户时发生错误: {str(e)}"
 
 
 @router.post("/donation")
@@ -884,6 +951,8 @@ async def delete_normal_line_generic(
         db.delete_line_tags(line_name)
         # 解绑所有绑定了该线路的用户
         await unbind_specified_line_for_all_users(line_name)
+        # 禁用该线路的所有调度并通知用户
+        await disable_line_schedules_and_notify(line_name, "线路已被管理员下线")
 
         logger.info(f"管理员 {user.username or user.id} 删除普通线路: {line_name}")
         return BaseResponse(success=True, message=f"普通线路 '{line_name}' 删除成功")
@@ -927,6 +996,8 @@ async def delete_premium_line_generic(
 
         # 处理绑定了该线路的用户
         await unbind_specified_line_for_all_users(line_name)
+        # 禁用该线路的所有调度并通知用户
+        await disable_line_schedules_and_notify(line_name, "高级线路已被管理员下线")
 
         logger.info(f"管理员 {user.username or user.id} 删除高级线路: {line_name}")
         return BaseResponse(success=True, message=f"高级线路 '{line_name}' 删除成功")
