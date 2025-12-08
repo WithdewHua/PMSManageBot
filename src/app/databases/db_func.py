@@ -1081,12 +1081,10 @@ async def auto_switch_user_lines(
             else:
                 plex_users = []
 
-            for tg_id, current_line, plex_username in plex_users:
-                logger.info(
-                    f"开始处理 Plex 用户 {get_user_name_from_tg_id(tg_id)} 的线路调度任务"
-                )
+            for user_tg_id, current_line, plex_username in plex_users:
+                logger.info(f"开始处理 Plex 用户 {plex_username} 的线路调度任务")
                 # 获取当前生效的调度
-                active_schedule = db.get_current_active_schedule(tg_id, "plex")
+                active_schedule = db.get_current_active_schedule(user_tg_id, "plex")
 
                 if active_schedule:
                     # 有生效的调度，使用调度指定的线路
@@ -1094,15 +1092,13 @@ async def auto_switch_user_lines(
                     target_line = active_schedule["line"]
                 else:
                     # 没有生效的调度，跳过不做修改
-                    logger.info(
-                        f"Plex 用户 {get_user_name_from_tg_id(tg_id)} 无生效调度，跳过线路切换。"
-                    )
+                    logger.info(f"Plex 用户 {plex_username} 无生效调度，跳过线路切换。")
                     continue
 
                 # 检查是否需要切换
                 if current_line != target_line:
                     # 执行切换
-                    if db.set_plex_line(line=target_line, tg_id=tg_id):
+                    if db.set_plex_line(line=target_line, tg_id=user_tg_id):
                         # 更新 Redis 缓存
                         if plex_username:
                             if target_line is None or target_line == "auto":
@@ -1133,11 +1129,11 @@ async def auto_switch_user_lines(
 
                         switched_count += 1
                         logger.info(
-                            f"自动切换 Plex 用户 {get_user_name_from_tg_id(tg_id)} 的线路: {current_line or 'AUTO'} -> {target_line if target_line != 'auto' else 'AUTO'}"
+                            f"自动切换 Plex 用户 {plex_username} 的线路: {current_line or 'AUTO'} -> {target_line if target_line != 'auto' else 'AUTO'}"
                         )
                 else:
                     logger.info(
-                        f"Plex 用户 {get_user_name_from_tg_id(tg_id)} 的线路无需切换，"
+                        f"Plex 用户 {plex_username} 的线路无需切换，"
                         f"当前线路: {current_line or 'AUTO'}, "
                         f"当前匹配调度：{active_schedule}"
                     )
@@ -1159,12 +1155,10 @@ async def auto_switch_user_lines(
             else:
                 emby_users = []
 
-            for tg_id, current_line, emby_username in emby_users:
-                logger.info(
-                    f"开始处理 Emby 用户 {get_user_name_from_tg_id(tg_id)} 的线路调度任务"
-                )
+            for user_tg_id, current_line, emby_username in emby_users:
+                logger.info(f"开始处理 Emby 用户 {emby_username} 的线路调度任务")
                 # 获取当前生效的调度
-                active_schedule = db.get_current_active_schedule(tg_id, "emby")
+                active_schedule = db.get_current_active_schedule(user_tg_id, "emby")
 
                 if active_schedule:
                     # 有生效的调度，使用调度指定的线路
@@ -1172,15 +1166,13 @@ async def auto_switch_user_lines(
                     target_line = active_schedule["line"]
                 else:
                     # 没有生效的调度，跳过不做修改
-                    logger.info(
-                        f"Emby 用户 {get_user_name_from_tg_id(tg_id)} 无生效调度，跳过线路切换。"
-                    )
+                    logger.info(f"Emby 用户 {emby_username} 无生效调度，跳过线路切换。")
                     continue
 
                 # 检查是否需要切换
                 if current_line != target_line:
                     # 执行切换
-                    if db.set_emby_line(line=target_line, tg_id=tg_id):
+                    if db.set_emby_line(line=target_line, tg_id=user_tg_id):
                         # 更新 Redis 缓存
                         if emby_username:
                             if target_line is None or target_line == "auto":
@@ -1211,11 +1203,11 @@ async def auto_switch_user_lines(
 
                         switched_count += 1
                         logger.info(
-                            f"自动切换 Emby 用户 {get_user_name_from_tg_id(tg_id)} 的线路: {current_line or 'AUTO'} -> {target_line if target_line != 'auto' else 'AUTO'}"
+                            f"自动切换 Emby 用户 {emby_username} 的线路: {current_line or 'AUTO'} -> {target_line if target_line != 'auto' else 'AUTO'}"
                         )
                 else:
                     logger.info(
-                        f"Emby 用户 {get_user_name_from_tg_id(tg_id)} 的线路无需切换，"
+                        f"Emby 用户 {emby_username} 的线路无需切换，"
                         f"当前线路: {current_line or 'AUTO'}, "
                         f"当前匹配调度：{active_schedule}"
                     )
