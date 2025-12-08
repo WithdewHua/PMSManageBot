@@ -252,8 +252,8 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每 10 分钟检查过期的 crypto 捐赠订单")
 
-    # 每 1 分钟自动切换用户线路调度 (同步任务)
-    scheduler.add_sync_job(
+    # 每 1 分钟自动切换用户线路调度 (异步任务)
+    scheduler.add_async_job(
         func=auto_switch_user_lines,
         trigger="cron",
         id="auto_switch_user_lines",

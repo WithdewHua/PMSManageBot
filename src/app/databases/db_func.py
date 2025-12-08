@@ -1039,7 +1039,9 @@ async def check_expired_crypto_donation_orders():
         logger.error(f"检查过期 crypto 捐赠订单失败: {e}")
 
 
-def auto_switch_user_lines(tg_id: Optional[int] = None, service: Optional[str] = None):
+async def auto_switch_user_lines(
+    tg_id: Optional[int] = None, service: Optional[str] = None
+):
     """
     自动切换用户线路调度
 
