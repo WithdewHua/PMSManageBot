@@ -204,6 +204,7 @@ class DatabaseORM:
                     user.plex_line,
                     user.is_premium,
                     user.premium_expiry_time,
+                    user.last_viewed_at,
                 )
             return None
 
@@ -225,6 +226,7 @@ class DatabaseORM:
                     user.plex_line,
                     user.is_premium,
                     user.premium_expiry_time,
+                    user.last_viewed_at,
                 )
             return None
 
@@ -248,6 +250,7 @@ class DatabaseORM:
                     user.plex_line,
                     user.is_premium,
                     user.premium_expiry_time,
+                    user.last_viewed_at,
                 )
             return None
 
@@ -271,6 +274,7 @@ class DatabaseORM:
                     user.plex_line,
                     user.is_premium,
                     user.premium_expiry_time,
+                    user.last_viewed_at,
                 )
             return None
 

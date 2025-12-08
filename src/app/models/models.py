@@ -58,6 +58,10 @@ class PlexUser(Base):
     line_schedule_unlock_time: Mapped[Optional[int]] = mapped_column(
         BIGINT, nullable=True
     )  # Timestamp when unlocked
+    # Last viewed time
+    last_viewed_at: Mapped[Optional[int]] = mapped_column(
+        BIGINT, nullable=True
+    )  # Timestamp of last viewing activity
 
 
 class EmbyUser(Base):
@@ -86,6 +90,10 @@ class EmbyUser(Base):
     line_schedule_unlock_time: Mapped[Optional[int]] = mapped_column(
         BIGINT, nullable=True
     )  # Timestamp when unlocked
+    # Last viewed time
+    last_viewed_at: Mapped[Optional[int]] = mapped_column(
+        BIGINT, nullable=True
+    )  # Timestamp of last viewing activity
 
 
 class Invitation(Base):

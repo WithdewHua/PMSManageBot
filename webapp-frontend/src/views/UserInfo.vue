@@ -270,6 +270,15 @@
                 {{ formatPremiumExpiry(userInfo.plex_info.premium_expiry) }}
               </div>
             </div>
+            <div class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="cyan-darken-1" class="mr-2">mdi-clock-time-eight-outline</v-icon>
+                <span>最后观看时间：</span>
+              </div>
+              <div class="text-caption">
+                {{ formatLastViewedAt(userInfo.plex_info.last_viewed_at) }}
+              </div>
+            </div>
           </v-card-text>
         </v-card>
 
@@ -1302,6 +1311,51 @@ export default {
         return diffDays <= 3 && diffDays > 0;
       } catch (error) {
         return false;
+      }
+    },
+
+    // 格式化最后观看时间
+    formatLastViewedAt(timestamp) {
+      if (!timestamp || timestamp === 0) return '暂无观看记录';
+      try {
+        const date = new Date(timestamp * 1000); // 时间戳转换为毫秒
+        const now = new Date();
+        const diffMs = now - date;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        
+        // 如果是今天
+        if (diffDays === 0) {
+          const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+          if (diffHours === 0) {
+            const diffMinutes = Math.floor(diffMs / (1000 * 60));
+            if (diffMinutes === 0) {
+              return '刚刚';
+            }
+            return `${diffMinutes} 分钟前`;
+          }
+          return `${diffHours} 小时前`;
+        }
+        
+        // 如果是昨天
+        if (diffDays === 1) {
+          return '昨天 ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        }
+        
+        // 如果在7天内
+        if (diffDays < 7) {
+          return `${diffDays} 天前`;
+        }
+        
+        // 其他情况显示完整日期
+        return date.toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      } catch (error) {
+        return '无效时间';
       }
     },
 

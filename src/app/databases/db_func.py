@@ -1236,6 +1236,34 @@ async def auto_switch_user_lines(
         logger.error(f"自动切换用户线路失败: {e}")
 
 
+def update_plex_users_last_viewed_at():
+    """更新所有 Plex 用户的最后观看时间"""
+    logger.info("开始更新 Plex 用户的最后观看时间")
+    try:
+        _plex = Plex()
+
+        # 获取所有用户的最后观看时间
+        last_viewed_dict = _plex.get_all_users_last_viewed_at()
+
+        updated_count = 0
+        with get_session() as session:
+            for plex_id, last_viewed_at in last_viewed_dict.items():
+                if last_viewed_at > 0:
+                    stmt = (
+                        sql_update(PlexUser)
+                        .where(PlexUser.plex_id == plex_id)
+                        .values(last_viewed_at=last_viewed_at)
+                    )
+                    result = session.execute(stmt)
+                    if result.rowcount > 0:
+                        updated_count += 1
+
+        logger.info(f"成功更新 {updated_count} 个 Plex 用户的最后观看时间")
+
+    except Exception as e:
+        logger.error(f"更新 Plex 用户最后观看时间失败: {e}")
+
+
 if __name__ == "__main__":
     update_plex_credits()
     update_plex_info()

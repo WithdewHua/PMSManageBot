@@ -139,6 +139,7 @@ async def get_user_info(
                     "premium_expiry": plex_info[10],
                     "daily_traffic": daily_traffic,
                     "daily_premium_traffic": daily_premium_traffic,
+                    "last_viewed_at": plex_info[11],
                 }
                 logger.debug(
                     f"用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 信息获取成功，今日流量: {daily_traffic} bytes, Premium流量: {daily_premium_traffic} bytes"

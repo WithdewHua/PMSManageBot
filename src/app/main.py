@@ -13,6 +13,7 @@ from app.databases.db_func import (
     update_credits,
     update_line_traffic_stats,
     update_plex_info,
+    update_plex_users_last_viewed_at,
     write_user_info_cache,
 )
 from app.databases.session import init_db
@@ -214,6 +215,19 @@ def add_init_scheduler_job():
         + datetime.timedelta(seconds=30),  # 启动后执行一次
     )
     logger.info("添加定时任务：每 1 小时更新用户信息")
+
+    # 每 6 小时更新一次 Plex 用户最后观看时间
+    scheduler.add_sync_job(
+        func=update_plex_users_last_viewed_at,
+        trigger="cron",
+        id="update_plex_users_last_viewed_at",
+        replace_existing=True,
+        max_instances=1,
+        hour="*/6",  # 每 6 小时执行一次
+        next_run_time=datetime.datetime.now(settings.TZ)
+        + datetime.timedelta(minutes=1),  # 启动后 1 分钟执行一次
+    )
+    logger.info("添加定时任务：每 6 小时更新 Plex 用户最后观看时间")
 
     # 每月 1 号凌晨 1:00 执行月度流量数据迁移聚合
     scheduler.add_async_job(
