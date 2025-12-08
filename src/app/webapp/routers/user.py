@@ -1,3 +1,4 @@
+import asyncio
 from time import time
 from typing import Optional
 
@@ -10,6 +11,7 @@ from app.databases.cache import (
     plex_user_defined_line_cache,
 )
 from app.databases.db import DatabaseORM
+from app.databases.db_func import auto_switch_user_lines
 from app.databases.session import get_session
 from app.log import uvicorn_logger as logger
 from app.models.models import Statistics
@@ -1752,6 +1754,8 @@ async def create_line_schedule(
         )
 
         if schedule_id:
+            # 创建成功后立即执行一次调度检查
+            asyncio.create_task(auto_switch_user_lines(tg_id=user.id, service=service))
             return BaseResponse(success=True, message="创建线路调度成功")
         else:
             return BaseResponse(success=False, message="创建线路调度失败")
@@ -1831,6 +1835,10 @@ async def update_line_schedule(
 
         # 执行更新
         if db.update_line_schedule(schedule_id, user.id, **update_kwargs):
+            # 更新成功后立即执行一次调度检查
+            asyncio.create_task(
+                auto_switch_user_lines(tg_id=user.id, service=schedule["service"])
+            )
             return BaseResponse(success=True, message="更新线路调度成功")
         else:
             return BaseResponse(success=False, message="更新线路调度失败")

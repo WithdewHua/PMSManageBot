@@ -1039,24 +1039,45 @@ async def check_expired_crypto_donation_orders():
         logger.error(f"检查过期 crypto 捐赠订单失败: {e}")
 
 
-def auto_switch_user_lines():
+def auto_switch_user_lines(tg_id: Optional[int] = None, service: Optional[str] = None):
     """
     自动切换用户线路调度
-    每分钟执行一次，检查所有用户的线路调度配置，自动切换到当前时间段对应的线路
+
+    Args:
+        tg_id: 可选，指定用户 ID，如果不指定则处理所有用户
+        service: 可选，指定服务类型 ('plex' 或 'emby')，如果不指定则处理两种服务
     """
     try:
         switched_count = 0
 
+        # 确定要处理的服务类型
+        services_to_process = []
+        if service:
+            if service.lower() not in ["plex", "emby"]:
+                logger.error(f"不支持的服务类型: {service}")
+                return
+            services_to_process = [service.lower()]
+        else:
+            services_to_process = ["plex", "emby"]
+
         # 获取所有解锁了线路调度功能的 Plex 用户（包括 premium 用户和解锁用户）
         with get_session() as session:
-            # 查询所有解锁了线路调度的 Plex 用户（包括 premium 用户）
-            plex_users = session.execute(
-                select(
+            # 处理 Plex 用户
+            if "plex" in services_to_process:
+                # 查询所有解锁了线路调度的 Plex 用户（包括 premium 用户）
+                plex_query = select(
                     PlexUser.tg_id, PlexUser.plex_line, PlexUser.plex_username
                 ).where(
                     or_(PlexUser.line_schedule_unlocked == 1, PlexUser.is_premium == 1)
                 )
-            ).fetchall()
+
+                # 如果指定了用户 ID，添加过滤条件
+                if tg_id is not None:
+                    plex_query = plex_query.where(PlexUser.tg_id == tg_id)
+
+                plex_users = session.execute(plex_query).fetchall()
+            else:
+                plex_users = []
 
             for tg_id, current_line, plex_username in plex_users:
                 # 获取当前生效的调度
@@ -1107,14 +1128,22 @@ def auto_switch_user_lines():
                             f"自动切换 Plex 用户 {get_user_name_from_tg_id(tg_id)} 的线路: {current_line or 'AUTO'} -> {target_line if target_line != 'auto' else 'AUTO'}"
                         )
 
-            # 查询所有解锁了线路调度的 Emby 用户（包括 premium 用户）
-            emby_users = session.execute(
-                select(
+            # 处理 Emby 用户
+            if "emby" in services_to_process:
+                # 查询所有解锁了线路调度的 Emby 用户（包括 premium 用户）
+                emby_query = select(
                     EmbyUser.tg_id, EmbyUser.emby_line, EmbyUser.emby_username
                 ).where(
                     or_(EmbyUser.line_schedule_unlocked == 1, EmbyUser.is_premium == 1)
                 )
-            ).fetchall()
+
+                # 如果指定了用户 ID，添加过滤条件
+                if tg_id is not None:
+                    emby_query = emby_query.where(EmbyUser.tg_id == tg_id)
+
+                emby_users = session.execute(emby_query).fetchall()
+            else:
+                emby_users = []
 
             for tg_id, current_line, emby_username in emby_users:
                 # 获取当前生效的调度
@@ -1165,8 +1194,26 @@ def auto_switch_user_lines():
                             f"自动切换 Emby 用户 {get_user_name_from_tg_id(tg_id)} 的线路: {current_line or 'AUTO'} -> {target_line if target_line != 'auto' else 'AUTO'}"
                         )
 
+        # 生成详细的日志信息
+        if tg_id is not None:
+            user_info = f"用户 {get_user_name_from_tg_id(tg_id)} (ID: {tg_id})"
+        else:
+            user_info = "所有符合条件的用户"
+
+        if service:
+            service_info = f"{service.upper()} 服务"
+        else:
+            service_info = "Plex 和 Emby 服务"
+
         if switched_count > 0:
-            logger.info(f"自动切换线路任务完成，共切换 {switched_count} 个用户的线路")
+            logger.info(
+                f"自动切换线路任务完成 - "
+                f"处理范围: {user_info} | "
+                f"服务类型: {service_info} | "
+                f"成功切换: {switched_count} 条线路"
+            )
+        else:
+            logger.info("自动切换线路任务完成，没有需要切换的线路")
 
     except Exception as e:
         logger.error(f"自动切换用户线路失败: {e}")
