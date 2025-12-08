@@ -2,6 +2,7 @@
 
 import logging
 import pickle
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, Union
 
 import filelock
@@ -386,16 +387,45 @@ class Plex:
             dict[int, int]: 字典，键为用户ID，值为最后观看时间的 Unix 时间戳
         """
         result = {}
+        users = self.get_users()
 
-        try:
-            for user in self.get_users():
+        def fetch_user_last_viewed(user):
+            """获取单个用户的最后观看时间"""
+            try:
                 user_id = user.id
                 last_viewed = self.get_user_last_viewed_at(user_id=user_id)
-                result[user_id] = last_viewed
+                return user_id, last_viewed
+            except Exception as e:
+                logger.warning(f"获取用户 {user.id} 最后观看时间失败: {str(e)}")
+                return user.id, 0
+
+        try:
+            # 使用线程池并发查询，最多同时进行10个请求
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                # 提交所有任务
+                future_to_user = {
+                    executor.submit(fetch_user_last_viewed, user): user
+                    for user in users
+                }
+
+                # 收集结果
+                for future in as_completed(future_to_user):
+                    user_id, last_viewed = future.result()
+                    result[user_id] = last_viewed
 
             logger.info(f"成功获取 {len(result)} 个用户的最后观看时间")
             return result
 
         except Exception as e:
             logger.error(f"批量获取用户最后观看时间时发生错误: {str(e)}")
+            # 如果并发失败，回退到串行查询
+            logger.info("并发查询失败，回退到串行查询")
+            for user in users:
+                try:
+                    result[user.id] = self.get_user_last_viewed_at(user_id=user.id)
+                except Exception as user_error:
+                    logger.warning(
+                        f"获取用户 {user.id} 最后观看时间失败: {str(user_error)}"
+                    )
+                    result[user.id] = 0
             return result

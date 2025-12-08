@@ -430,6 +430,15 @@
                 {{ formatPremiumExpiry(userInfo.emby_info.premium_expiry) }}
               </div>
             </div>
+            <div class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="cyan-darken-1" class="mr-2">mdi-clock-time-eight-outline</v-icon>
+                <span>最后观看时间：</span>
+              </div>
+              <div class="text-caption">
+                {{ formatLastViewedAt(userInfo.emby_info.last_viewed_at) }}
+              </div>
+            </div>
           </v-card-text>
         </v-card>
 

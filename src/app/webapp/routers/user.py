@@ -174,6 +174,7 @@ async def get_user_info(
                     "premium_expiry": emby_info[9],
                     "daily_traffic": daily_traffic,
                     "daily_premium_traffic": daily_premium_traffic,
+                    "last_viewed_at": emby_info[10],
                 }
                 created_at = (
                     Emby().get_user_info_from_username(emby_info[0]).get("date_created")

@@ -615,3 +615,131 @@ class Emby:
                     user_name = stats[0]
                 ranks.append(f"{idx}. {user_name}: {timedelta(seconds=int(stats[1]))}")
         return True, ranks
+
+    def get_user_last_activity(self, user_id: str) -> Optional[int]:
+        """
+        获取用户最后活动时间（最后观看时间）
+        从 PlaybackActivity 表中获取用户最后一次播放记录的时间
+
+        Args:
+            user_id: Emby用户ID
+
+        Returns:
+            Unix时间戳(秒)，如果没有记录则返回None
+        """
+        headers = {"accept": "application/json", "Content-Type": "application/json"}
+        params = {"api_key": self.api_token}
+
+        # 查询用户最后一次播放活动的时间
+        sql = f"""
+        SELECT MAX(DateCreated) as LastActivity
+        FROM PlaybackActivity
+        WHERE UserId = '{user_id}'
+        """
+
+        data = {
+            "CustomQueryString": sql,
+            "ReplaceUserId": False,
+        }
+
+        try:
+            response = requests.post(
+                url=self.base_url + "/user_usage_stats/submit_custom_query",
+                params=params,
+                headers=headers,
+                data=json.dumps(data),
+            )
+            response.raise_for_status()
+            response_json = response.json()
+
+            if response_json.get("results") and len(response_json["results"]) > 0:
+                last_activity_str = response_json["results"][0][0]
+                if last_activity_str:
+                    # 将ISO格式的时间转换为Unix时间戳
+                    # Emby返回的时间格式可能是: "2024-12-08 10:30:00" 或 "2024-12-08 10:30:00.123456"
+                    try:
+                        # 先尝试移除小数部分(如果存在)
+                        if "." in last_activity_str:
+                            last_activity_str = last_activity_str.split(".")[0]
+                        dt = datetime.strptime(last_activity_str, "%Y-%m-%d %H:%M:%S")
+                        # 转换为UTC时间戳
+                        timestamp = int(dt.timestamp())
+                        logger.debug(
+                            f"User {user_id} last activity: {last_activity_str} ({timestamp})"
+                        )
+                        return timestamp
+                    except Exception as e:
+                        logger.error(
+                            f"Error parsing timestamp for user {user_id}: {last_activity_str}, {e}"
+                        )
+                        return None
+
+            logger.debug(f"No activity found for user {user_id}")
+            return None
+
+        except Exception as e:
+            logger.error(f"Error fetching last activity for user {user_id}: {e}")
+            return None
+
+    def get_all_users_last_activity(self) -> dict[str, Optional[int]]:
+        """
+        获取所有用户的最后活动时间
+
+        Returns:
+            字典 {user_id: timestamp}，timestamp为Unix时间戳(秒)，无记录则为None
+        """
+        headers = {"accept": "application/json", "Content-Type": "application/json"}
+        params = {"api_key": self.api_token}
+
+        # 查询所有用户的最后一次播放活动时间
+        sql = """
+        SELECT UserId, MAX(DateCreated) as LastActivity
+        FROM PlaybackActivity
+        GROUP BY UserId
+        """
+
+        data = {
+            "CustomQueryString": sql,
+            "ReplaceUserId": False,
+        }
+
+        try:
+            response = requests.post(
+                url=self.base_url + "/user_usage_stats/submit_custom_query",
+                params=params,
+                headers=headers,
+                data=json.dumps(data),
+            )
+            response.raise_for_status()
+            response_json = response.json()
+
+            user_activities = {}
+
+            if response_json.get("results"):
+                for result in response_json["results"]:
+                    user_id, last_activity_str = result
+                    if last_activity_str:
+                        try:
+                            # 将ISO格式的时间转换为Unix时间戳
+                            # 先尝试移除小数部分(如果存在)
+                            if "." in last_activity_str:
+                                last_activity_str = last_activity_str.split(".")[0]
+                            dt = datetime.strptime(
+                                last_activity_str, "%Y-%m-%d %H:%M:%S"
+                            )
+                            timestamp = int(dt.timestamp())
+                            user_activities[user_id] = timestamp
+                        except Exception:
+                            logger.error(
+                                f"Error parsing timestamp for user {user_id}: {last_activity_str}"
+                            )
+                            user_activities[user_id] = None
+                    else:
+                        user_activities[user_id] = None
+
+            logger.info(f"Fetched last activity for {len(user_activities)} users")
+            return user_activities
+
+        except Exception as e:
+            logger.error(f"Error fetching all users last activity: {e}")
+            return {}

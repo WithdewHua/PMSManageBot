@@ -1236,6 +1236,38 @@ async def auto_switch_user_lines(
         logger.error(f"自动切换用户线路失败: {e}")
 
 
+def update_emby_users_last_viewed():
+    """更新所有Emby用户的最后观看时间"""
+    logger.info("开始更新 Emby 用户最后观看时间")
+    try:
+        emby = Emby()
+        # 获取所有用户的最后活动时间
+        user_activities = emby.get_all_users_last_activity()
+
+        if not user_activities:
+            logger.warning("未获取到任何用户的最后活动时间")
+            return
+
+        # 批量更新数据库
+        updated_count = 0
+        with get_session() as session:
+            for user_id, last_activity in user_activities.items():
+                if last_activity is not None:
+                    stmt = (
+                        sql_update(EmbyUser)
+                        .where(EmbyUser.emby_id == user_id)
+                        .values(last_viewed_at=last_activity)
+                    )
+                    result = session.execute(stmt)
+                    if result.rowcount > 0:
+                        updated_count += 1
+
+        logger.info(f"Emby 用户最后观看时间更新完成，共更新 {updated_count} 个用户")
+
+    except Exception as e:
+        logger.error(f"更新 Emby 用户最后观看时间失败: {e}")
+
+
 def update_plex_users_last_viewed_at():
     """更新所有 Plex 用户的最后观看时间"""
     logger.info("开始更新 Plex 用户的最后观看时间")
@@ -1262,6 +1294,20 @@ def update_plex_users_last_viewed_at():
 
     except Exception as e:
         logger.error(f"更新 Plex 用户最后观看时间失败: {e}")
+
+
+def update_users_last_viewed():
+    """更新所有用户的最后观看时间"""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    with ThreadPoolExecutor() as executor:
+        executor.submit(update_plex_users_last_viewed_at)
+        executor.submit(update_emby_users_last_viewed)
+        for future in as_completed(executor._threads):
+            try:
+                future.result()
+            except Exception as e:
+                logger.error(f"更新用户最后观看时间时发生错误: {e}")
 
 
 if __name__ == "__main__":

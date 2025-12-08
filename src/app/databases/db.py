@@ -30,7 +30,6 @@ from app.models.models import (
     VaultwardenRedeemRecords,
     WheelStats,
 )
-from app.utils.utils import get_user_name_from_tg_id
 from sqlalchemy import delete, func, select, update
 
 
@@ -391,6 +390,7 @@ class DatabaseORM:
                     user.emby_line,
                     user.is_premium,
                     user.premium_expiry_time,
+                    user.last_viewed_at,
                 )
             return None
 
@@ -411,6 +411,7 @@ class DatabaseORM:
                     user.emby_line,
                     user.is_premium,
                     user.premium_expiry_time,
+                    user.last_viewed_at,
                 )
             return None
 
@@ -431,6 +432,7 @@ class DatabaseORM:
                     user.emby_line,
                     user.is_premium,
                     user.premium_expiry_time,
+                    user.last_viewed_at,
                 )
             return None
 
@@ -3436,6 +3438,8 @@ class DatabaseORM:
                 'unlock_time': int,   # 解锁时间戳
             }
         """
+        from app.utils.utils import get_user_name_from_tg_id
+
         try:
             with get_session() as session:
                 is_premium = False
@@ -3519,6 +3523,8 @@ class DatabaseORM:
         Returns:
             是否成功
         """
+        from app.utils.utils import get_user_name_from_tg_id
+
         try:
             with get_session() as session:
                 unlock_time = int(time.time())
@@ -3580,6 +3586,8 @@ class DatabaseORM:
         Returns:
             创建的调度 ID，失败返回 None
         """
+        from app.utils.utils import get_user_name_from_tg_id
+
         try:
             with get_session() as session:
                 schedule = LineSchedule(
@@ -3674,6 +3682,8 @@ class DatabaseORM:
         Returns:
             是否成功
         """
+        from app.utils.utils import get_user_name_from_tg_id
+
         try:
             with get_session() as session:
                 schedule = session.execute(
@@ -3723,6 +3733,8 @@ class DatabaseORM:
         Returns:
             是否成功
         """
+        from app.utils.utils import get_user_name_from_tg_id
+
         try:
             with get_session() as session:
                 # 先查询以获取调度信息
