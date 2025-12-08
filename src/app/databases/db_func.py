@@ -1092,7 +1092,6 @@ async def auto_switch_user_lines(
                     target_line = active_schedule["line"]
                 else:
                     # 没有生效的调度，跳过不做修改
-                    logger.info(f"Plex 用户 {plex_username} 无生效调度，跳过线路切换。")
                     continue
 
                 # 检查是否需要切换
@@ -1131,12 +1130,6 @@ async def auto_switch_user_lines(
                         logger.info(
                             f"自动切换 Plex 用户 {plex_username} 的线路: {current_line or 'AUTO'} -> {target_line if target_line != 'auto' else 'AUTO'}"
                         )
-                else:
-                    logger.info(
-                        f"Plex 用户 {plex_username} 的线路无需切换，"
-                        f"当前线路: {current_line or 'AUTO'}, "
-                        f"当前匹配调度：{active_schedule}"
-                    )
 
             # 处理 Emby 用户
             if "emby" in services_to_process:
@@ -1166,7 +1159,6 @@ async def auto_switch_user_lines(
                     target_line = active_schedule["line"]
                 else:
                     # 没有生效的调度，跳过不做修改
-                    logger.info(f"Emby 用户 {emby_username} 无生效调度，跳过线路切换。")
                     continue
 
                 # 检查是否需要切换
@@ -1205,12 +1197,6 @@ async def auto_switch_user_lines(
                         logger.info(
                             f"自动切换 Emby 用户 {emby_username} 的线路: {current_line or 'AUTO'} -> {target_line if target_line != 'auto' else 'AUTO'}"
                         )
-                else:
-                    logger.info(
-                        f"Emby 用户 {emby_username} 的线路无需切换，"
-                        f"当前线路: {current_line or 'AUTO'}, "
-                        f"当前匹配调度：{active_schedule}"
-                    )
         # 生成详细的日志信息
         if tg_id is not None:
             user_info = f"用户 {get_user_name_from_tg_id(tg_id)} (ID: {tg_id})"
