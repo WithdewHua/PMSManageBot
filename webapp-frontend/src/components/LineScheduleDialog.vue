@@ -730,7 +730,6 @@ export default {
         console.log('调度保存结果:', result);
 
         if (result && result.success) {
-          this.showMessage(result.message || '保存成功', 'success');
           this.$emit('success', result.message);
           this.closeScheduleForm();
           await this.loadSchedules();
