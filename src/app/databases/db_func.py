@@ -1236,7 +1236,7 @@ async def auto_switch_user_lines(
         logger.error(f"自动切换用户线路失败: {e}")
 
 
-def update_emby_users_last_viewed():
+def update_emby_users_last_viewed_at():
     """更新所有Emby用户的最后观看时间"""
     logger.info("开始更新 Emby 用户最后观看时间")
     try:
@@ -1298,16 +1298,12 @@ def update_plex_users_last_viewed_at():
 
 def update_users_last_viewed():
     """更新所有用户的最后观看时间"""
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from concurrent.futures import ThreadPoolExecutor, wait
 
     with ThreadPoolExecutor() as executor:
-        executor.submit(update_plex_users_last_viewed_at)
-        executor.submit(update_emby_users_last_viewed)
-        for future in as_completed(executor._threads):
-            try:
-                future.result()
-            except Exception as e:
-                logger.error(f"更新用户最后观看时间时发生错误: {e}")
+        future1 = executor.submit(update_plex_users_last_viewed_at)
+        future2 = executor.submit(update_emby_users_last_viewed_at)
+        wait([future1, future2])
 
 
 if __name__ == "__main__":
