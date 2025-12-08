@@ -232,7 +232,7 @@ class Emby:
         if not primary_image_tag:
             return ""
         return (
-            self.base_url
+            settings.EMBY_ENTRY_URL
             + "/Users/"
             + uid
             + f"/Images/Primary?tag={primary_image_tag}&maxWidth=160&quality=90"
