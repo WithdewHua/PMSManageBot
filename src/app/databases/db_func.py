@@ -1082,6 +1082,9 @@ async def auto_switch_user_lines(
                 plex_users = []
 
             for tg_id, current_line, plex_username in plex_users:
+                logger.info(
+                    f"开始处理 Plex 用户 {get_user_name_from_tg_id(tg_id)} 的线路调度任务"
+                )
                 # 获取当前生效的调度
                 active_schedule = db.get_current_active_schedule(tg_id, "plex")
 
@@ -1157,6 +1160,9 @@ async def auto_switch_user_lines(
                 emby_users = []
 
             for tg_id, current_line, emby_username in emby_users:
+                logger.info(
+                    f"开始处理 Emby 用户 {get_user_name_from_tg_id(tg_id)} 的线路调度任务"
+                )
                 # 获取当前生效的调度
                 active_schedule = db.get_current_active_schedule(tg_id, "emby")
 
