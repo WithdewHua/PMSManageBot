@@ -27,6 +27,7 @@ from app.models.models import (
     PlexUser,
     Statistics,
     SystemConfig,
+    VaultwardenRedeemRecords,
     WheelStats,
 )
 from app.utils.utils import get_user_name_from_tg_id
@@ -359,6 +360,13 @@ class DatabaseORM:
             emby_count = session.execute(emby_stmt).scalar() or 0
 
             return plex_count + emby_count
+
+    def get_vaultwarden_redeemed_users_num(self) -> int:
+        """获取 Vaultwarden 兑换次数"""
+        with get_session() as session:
+            # 统计总兑换次数
+            stmt = select(func.count(VaultwardenRedeemRecords.id))
+            return session.execute(stmt).scalar() or 0
 
     def get_emby_info_by_emby_username(self, username: str) -> Optional[Tuple]:
         """通过 Emby 用户名获取用户信息"""

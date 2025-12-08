@@ -33,6 +33,9 @@ async def get_system_stats(
         # 获取线路调度解锁用户数量
         line_schedule_unlocked_users_count = db.get_line_schedule_unlocked_users_num()
 
+        # 获取 Vaultwarden 兑换次数
+        vaultwarden_redeemed_count = db.get_vaultwarden_redeemed_users_num()
+
         # 获取总用户数量（去重，避免同时绑定两个服务的用户被重复计算）
         with get_session() as session:
             # 1. 统计有 tg_id 的唯一用户（通过 UNION 去重）
@@ -65,6 +68,7 @@ async def get_system_stats(
             "total_users": total_users_count,
             "nsfw_unlocked_users": nsfw_unlocked_users_count,
             "line_schedule_unlocked_users": line_schedule_unlocked_users_count,
+            "vaultwarden_redeemed_count": vaultwarden_redeemed_count,
         }
 
         logger.info(f"系统统计信息: {stats}")

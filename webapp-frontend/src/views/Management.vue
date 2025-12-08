@@ -650,10 +650,16 @@
                     </v-col>
                   </v-row>
                   <v-row class="mt-2">
-                    <v-col cols="12" sm="6" md="3" offset-md="3">
+                    <v-col cols="12" sm="6" md="4">
                       <div class="stat-item">
                         <div class="stat-value text-indigo-darken-2">{{ systemStats.line_schedule_unlocked_users || 0 }}</div>
                         <div class="stat-label">线路调度解锁</div>
+                      </div>
+                    </v-col>
+                    <v-col cols="12" sm="6" md="4">
+                      <div class="stat-item">
+                        <div class="stat-value text-purple-darken-2">{{ systemStats.vaultwarden_redeemed_count || 0 }}</div>
+                        <div class="stat-label">Bitwarden 兑换数</div>
                       </div>
                     </v-col>
                   </v-row>
@@ -2097,7 +2103,8 @@ export default {
         emby_users: 0,
         total_users: 0,
         nsfw_unlocked_users: 0,
-        line_schedule_unlocked_users: 0
+        line_schedule_unlocked_users: 0,
+        vaultwarden_redeemed_count: 0
       },
       systemStatsLoading: false,
       systemStatsError: null,
