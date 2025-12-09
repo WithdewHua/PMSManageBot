@@ -160,11 +160,13 @@ def add_init_scheduler_job():
     # 每 5 分钟检查 Premium 会员过期状态 (异步任务)
     scheduler.add_async_job(
         func=check_premium_expiry,
-        trigger="cron",
+        trigger="interval",
         id="check_premium_expiry",
         replace_existing=True,
         max_instances=1,
-        minute="*/5",  # 每 5 分钟执行一次
+        minutes=5,  # 每 5 分钟执行一次
+        next_run_time=datetime.datetime.now(settings.TZ)
+        + datetime.timedelta(seconds=30),  # 启动后 30 秒执行一次
     )
     logger.info("添加定时任务：每 5 分钟检查 Premium 会员过期状态")
 
@@ -219,11 +221,11 @@ def add_init_scheduler_job():
     # 每 10min 更新一次用户最后观看时间
     scheduler.add_sync_job(
         func=update_users_last_viewed,
-        trigger="cron",
+        trigger="interval",
         id="update_users_last_viewed",
         replace_existing=True,
         max_instances=1,
-        minute="*/10",  # 每 10 分钟执行一次
+        minutes=10,  # 每 10 分钟执行一次
         next_run_time=datetime.datetime.now(settings.TZ)
         + datetime.timedelta(minutes=1),  # 启动后 1 分钟执行一次
     )
@@ -258,11 +260,13 @@ def add_init_scheduler_job():
     # 每 10 分钟检查并更新过期的 crypto 捐赠订单状态 (异步任务)
     scheduler.add_async_job(
         func=check_expired_crypto_donation_orders,
-        trigger="cron",
+        trigger="interval",
         id="check_expired_crypto_donation_orders",
         replace_existing=True,
         max_instances=1,
-        minute="*/10",  # 每 10 分钟执行一次
+        minutes=10,  # 每 10 分钟执行一次
+        next_run_time=datetime.datetime.now(settings.TZ)
+        + datetime.timedelta(seconds=45),  # 启动后 45 秒执行一次
     )
     logger.info("添加定时任务：每 10 分钟检查过期的 crypto 捐赠订单")
 
