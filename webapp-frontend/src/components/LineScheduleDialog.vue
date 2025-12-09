@@ -201,20 +201,21 @@
                       <span class="schedule-days-text">{{ formatDaysOfWeek(schedule.days_of_week) }}</span>
                     </div>
                     
-                    <!-- 底部：时间和优先级 -->
+                    <!-- 底部：时间 -->
                     <div class="schedule-bottom">
                       <div class="schedule-time">
                         <v-icon size="small" class="mr-1">mdi-clock-outline</v-icon>
                         <span>{{ schedule.start_time }} - {{ schedule.end_time }}</span>
                       </div>
-                      <v-chip 
+                      <!-- 优先级暂时隐藏，因为不允许调度时间重叠 -->
+                      <!-- <v-chip 
                         size="x-small" 
                         variant="outlined"
                         color="purple-darken-1"
                       >
                         <v-icon start size="x-small">mdi-priority-high</v-icon>
                         优先级 {{ schedule.priority }}
-                      </v-chip>
+                      </v-chip> -->
                     </div>
                   </div>
                 </v-card>
@@ -395,8 +396,8 @@
               </v-row>
             </div>
 
-            <!-- 优先级 -->
-            <div class="form-section">
+            <!-- 优先级 (暂时隐藏，因为不允许调度时间重叠) -->
+            <!-- <div class="form-section">
               <div class="form-label mb-2">
                 <v-icon size="small" class="mr-1">mdi-priority-high</v-icon>
                 优先级
@@ -411,7 +412,7 @@
                 persistent-hint
                 :rules="[v => v >= 0 || '优先级不能为负数']"
               ></v-text-field>
-            </div>
+            </div> -->
           </v-form>
         </v-card-text>
         <v-divider></v-divider>
