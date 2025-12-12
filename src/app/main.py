@@ -218,18 +218,18 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每 1 小时更新用户信息")
 
-    # 每 10min 更新一次用户最后观看时间
+    # 每 30min 更新一次用户最后观看时间
     scheduler.add_sync_job(
         func=update_users_last_viewed,
         trigger="interval",
         id="update_users_last_viewed",
         replace_existing=True,
         max_instances=1,
-        minutes=10,  # 每 10 分钟执行一次
+        minutes=30,  # 每 30 分钟执行一次
         next_run_time=datetime.datetime.now(settings.TZ)
         + datetime.timedelta(minutes=1),  # 启动后 1 分钟执行一次
     )
-    logger.info("添加定时任务：每 10 分钟更新用户最后观看时间")
+    logger.info("添加定时任务：每 30 分钟更新用户最后观看时间")
 
     # 每月 1 号凌晨 1:00 执行月度流量数据迁移聚合
     scheduler.add_async_job(
