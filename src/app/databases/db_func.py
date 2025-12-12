@@ -1149,7 +1149,7 @@ async def auto_switch_user_lines(
                 emby_users = []
 
             for user_tg_id, current_line, emby_username in emby_users:
-                logger.info(f"开始处理 Emby 用户 {emby_username} 的线路调度任务")
+                logger.debug(f"开始处理 Emby 用户 {emby_username} 的线路调度任务")
                 # 获取当前生效的调度
                 active_schedule = db.get_current_active_schedule(user_tg_id, "emby")
 
