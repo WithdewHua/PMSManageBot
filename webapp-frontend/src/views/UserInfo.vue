@@ -83,6 +83,51 @@
               </div>
               <div class="value-display invitee-value">{{ userInfo.invitee_count || 0 }}</div>
             </div>
+
+            <!-- 用户勋章展示 -->
+            <div v-if="!badgesLoading && userBadges.length > 0" class="d-flex justify-space-between mb-3 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-medal</v-icon>
+                <span>我的勋章：</span>
+              </div>
+              <div class="d-flex align-center gap-1">
+                <v-tooltip
+                  v-for="badge in userBadges"
+                  :key="badge.badge_id"
+                  location="top"
+                  open-on-click
+                  open-on-hover
+                >
+                  <template v-slot:activator="{ props }">
+                    <v-avatar
+                      v-bind="props"
+                      size="28"
+                      class="badge-icon"
+                      :class="{ 'badge-expired': !badge.bonus_active }"
+                    >
+                      <v-img :src="badge.badge.icon_url" :alt="badge.badge.name" />
+                    </v-avatar>
+                  </template>
+                  <div class="badge-tooltip">
+                    <div class="font-weight-bold mb-1">{{ badge.badge.name }}</div>
+                    <div class="text-caption">加成: +{{ (badge.badge.bonus_percentage * 100).toFixed(0) }}%</div>
+                    <div class="text-caption" :class="badge.bonus_active ? '' : 'text-warning'">
+                      加成{{ badge.bonus_active ? '有效至' : '已过期' }}: {{ new Date(badge.expires_at * 1000).toLocaleDateString() }}
+                    </div>
+                  </div>
+                </v-tooltip>
+              </div>
+            </div>
+            <div v-else-if="badgesLoading" class="d-flex justify-space-between mb-3 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-medal</v-icon>
+                <span>我的勋章：</span>
+              </div>
+              <div class="d-flex align-center">
+                <v-progress-circular indeterminate size="20" width="2" color="amber"></v-progress-circular>
+              </div>
+            </div>
+
             <v-divider class="my-3"></v-divider>
 
             <div v-if="userInfo.invitation_codes && userInfo.invitation_codes.length > 0">
@@ -730,6 +775,13 @@
       @redeem-success="handleVaultwardenRedeemSuccess"
     />
     
+    <!-- 使用勋章中心对话框组件 -->
+    <badge-center-dialog
+      ref="badgeCenterDialog"
+      :user-credits="userInfo.credits"
+      @redeem-success="handleBadgeRedeemSuccess"
+    />
+    
     <!-- 使用Premium解锁对话框组件 -->
     <premium-unlock-dialog
       ref="premiumUnlockDialog"
@@ -780,6 +832,7 @@ import DonationManagementDialog from '@/components/DonationManagementDialog.vue'
 import CreditsTransferDialog from '@/components/CreditsTransferDialog.vue'
 import CreditsStoreDialog from '@/components/CreditsStoreDialog.vue'
 import VaultwardenRedeemDialog from '@/components/VaultwardenRedeemDialog.vue'
+import BadgeCenterDialog from '@/components/BadgeCenterDialog.vue'
 import PremiumUnlockDialog from '@/components/PremiumUnlockDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
@@ -789,6 +842,7 @@ import { redeemInviteCodeForCredits } from '@/services/inviteCodeService.js'
 import { checkPrivilegedInviteCode, batchCheckPrivilegedInviteCodes } from '@/services/mediaServiceApi.js'
 import { getUserActivityStats } from '@/services/wheelService.js'
 import { formatTraffic } from '@/utils/format.js'
+import { getMyBadges } from '@/services/badgeService.js'
 
 export default {
   name: 'UserInfo',
@@ -801,6 +855,7 @@ export default {
     CreditsTransferDialog,
     CreditsStoreDialog,
     VaultwardenRedeemDialog,
+    BadgeCenterDialog,
     PremiumUnlockDialog,
     TagManagementDialog,
     LineManagementDialog,
@@ -856,13 +911,16 @@ export default {
       currentPremiumExpiry: null,
       currentIsPremium: false,
       showPlexScheduleDialog: false,
-      showEmbyScheduleDialog: false
+      showEmbyScheduleDialog: false,
+      userBadges: [], // 用户拥有的勋章列表
+      badgesLoading: false
     }
   },
   mounted() {
     this.fetchUserInfo()
     this.fetchActivityStats()
     this.fetchSystemStatus() // 这里会同时获取系统状态和积分转移开关状态
+    this.fetchUserBadges()
   },
   methods: {
     // 格式化流量显示
@@ -917,6 +975,21 @@ export default {
         console.error('获取系统状态失败:', err)
         // 使用默认值，不影响用户体验
         this.creditsTransferEnabled = true
+      }
+    },
+
+    // 获取用户勋章
+    async fetchUserBadges() {
+      try {
+        this.badgesLoading = true
+        const response = await getMyBadges()
+        this.userBadges = response.data || []
+      } catch (err) {
+        console.error('获取用户勋章失败:', err)
+        // 不显示错误，使用默认值
+        this.userBadges = []
+      } finally {
+        this.badgesLoading = false
       }
     },
 
@@ -1183,6 +1256,10 @@ export default {
           // 打开 Vaultwarden 兑换对话框
           this.openVaultwardenRedeemDialog();
           break;
+        case 'badges':
+          // 打开勋章中心对话框
+          this.openBadgeCenterDialog();
+          break;
         // 可以在这里添加其他菜单项的处理
         // case 'exchange':
         //   this.openCreditsExchangeDialog();
@@ -1237,6 +1314,25 @@ export default {
       
       // 显示成功消息
       this.showMessage(`成功兑换 Vaultwarden 账户，扣除 ${credits_deducted} 积分`, 'success');
+    },
+    
+    // 打开勋章中心对话框
+    openBadgeCenterDialog() {
+      this.$refs.badgeCenterDialog.open();
+    },
+    
+    // 处理勋章兑换成功事件
+    handleBadgeRedeemSuccess(result) {
+      const { badge_name, credits_cost, remaining_credits } = result;
+      
+      // 更新用户积分
+      this.userInfo.credits = remaining_credits;
+      
+      // 重新加载勋章数据
+      this.fetchUserBadges();
+      
+      // 显示成功消息
+      this.showMessage(`成功兑换勋章「${badge_name}」，消耗 ${credits_cost} 积分`, 'success');
     },
     
     // 处理捐赠提交事件
@@ -1587,6 +1683,32 @@ export default {
   backdrop-filter: blur(10px);
   border: none !important;
   max-width: 500px;
+}
+
+/* 勋章样式 */
+.badge-icon {
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: 2px solid #FFA000;
+}
+
+.badge-icon:hover {
+  transform: translateY(-2px) scale(1.1);
+  box-shadow: 0 4px 12px rgba(255, 160, 0, 0.4) !important;
+}
+
+.badge-expired {
+  opacity: 0.5;
+  border-color: #9E9E9E !important;
+}
+
+.badge-tooltip {
+  text-align: center;
+  padding: 4px;
+}
+
+.gap-2 {
+  gap: 8px;
 }
 
 .user-info-card {

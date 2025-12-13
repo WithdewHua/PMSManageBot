@@ -24,7 +24,15 @@ class Plex:
         base_url: str = settings.PLEX_BASE_URL,
         token: str = settings.PLEX_API_TOKEN,
     ):
-        self.plex_server = PlexServer(baseurl=base_url, token=token)
+        # 创建自定义 session
+        session = requests.Session()
+        session.headers.update(
+            {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+        )
+
+        self.plex_server = PlexServer(baseurl=base_url, token=token, session=session)
         self.my_plex_account = self.plex_server.myPlexAccount()
         self.plex_server_name = self.plex_server.friendlyName
         self.users = []

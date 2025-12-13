@@ -59,6 +59,7 @@ def update_plex_credits():
                 continue
             # 最大记 8h
             credits_inc = min(play_duration, 8)
+
             with get_session() as session:
                 stmt = select(
                     PlexUser.credits,
@@ -94,6 +95,23 @@ def update_plex_credits():
                     gb_tiers * settings.CREDITS_COST_PER_10GB,
                     2,
                 )
+            # 计算勋章加成
+            badge_bonus = 0
+            badge_bonus_details = []
+            if tg_id:
+                active_badges = db.get_user_active_badges_with_bonus(tg_id)
+                for badge_info in active_badges:
+                    bonus_percentage = badge_info["bonus_percentage"]
+                    bonus_credits = credits_inc * bonus_percentage
+                    badge_bonus += bonus_credits
+                    badge_bonus_details.append(
+                        {
+                            "name": badge_info["badge"]["name"],
+                            "percentage": bonus_percentage * 100,
+                            "credits": round(bonus_credits, 2),
+                        }
+                    )
+
             if not tg_id:
                 credits_init = res[0]
                 credits = credits_init + credits_inc - traffic_cost_credits
@@ -109,7 +127,10 @@ def update_plex_credits():
                 with get_session() as session:
                     stmt = select(Statistics.credits).where(Statistics.tg_id == tg_id)
                     credits_init = session.execute(stmt).scalar()
-                credits = credits_init + credits_inc - traffic_cost_credits
+                # 加上勋章加成
+                credits = (
+                    credits_init + credits_inc + badge_bonus - traffic_cost_credits
+                )
                 watched_time = watched_time_init + play_duration
                 with get_session() as session:
                     stmt1 = (
@@ -125,6 +146,11 @@ def update_plex_credits():
                     session.execute(stmt1)
                     session.execute(stmt2)
                 if play_duration > 0:
+                    # 构建勋章加成信息 - 只显示总加成积分
+                    badge_bonus_text = ""
+                    if badge_bonus > 0:
+                        badge_bonus_text = f"\n勋章加成: +{round(badge_bonus, 2)}"
+
                     # 需要发送通知
                     notification_tasks.append(
                         (
@@ -134,17 +160,17 @@ Plex 观看积分更新通知
 ====================
 
 新增观看时长: {round(play_duration, 2)} 小时
-新增观看积分：{round(credits_inc, 2)}
-Premium 流量使用情况：{round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
-超出每日流量限额：{max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
-流量消耗积分：{round(traffic_cost_credits, 2)}
+基础观看积分: {round(credits_inc, 2)}{badge_bonus_text}
+Premium 流量使用情况: {round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
+超出每日流量限额: {max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
+流量消耗积分: {round(traffic_cost_credits, 2)}
 
-积分变化：{round(credits_inc - traffic_cost_credits, 2)}
+积分变化: {round(credits_inc + badge_bonus - traffic_cost_credits, 2):+.2f}
 
 --------------------
 
-当前总积分：{round(credits, 2)}
-当前总观看时长：{round(watched_time, 2)} 小时
+当前总积分: {round(credits, 2)}
+当前总观看时长: {round(watched_time, 2)} 小时
 
 ====================""",
                         )
@@ -217,6 +243,23 @@ def update_emby_credits():
                     2,
                 )
 
+            # 计算勋章加成
+            badge_bonus = 0
+            badge_bonus_details = []
+            if user[1]:
+                active_badges = db.get_user_active_badges_with_bonus(user[1])
+                for badge_info in active_badges:
+                    bonus_percentage = badge_info["bonus_percentage"]
+                    bonus_credits = credits_inc * bonus_percentage
+                    badge_bonus += bonus_credits
+                    badge_bonus_details.append(
+                        {
+                            "name": badge_info["badge"]["name"],
+                            "percentage": bonus_percentage * 100,
+                            "credits": round(bonus_credits, 2),
+                        }
+                    )
+
             if not user[1]:
                 _credits = user[3] + credits_inc - traffic_cost_credits
                 with get_session() as session:
@@ -231,13 +274,18 @@ def update_emby_credits():
                 # statistics 表中有数据
                 if stats_info:
                     credits_init = stats_info[2]
-                    _credits = credits_init + credits_inc - traffic_cost_credits
+                    # 加上勋章加成
+                    _credits = (
+                        credits_init + credits_inc + badge_bonus - traffic_cost_credits
+                    )
                     db.update_user_credits(_credits, tg_id=user[1])
                 else:
                     # 清空 emby_user 表中积分信息
                     db.update_user_credits(0, emby_id=user[0])
                     # 在 statistic 表中增加用户数据
-                    _credits = user[3] + credits_inc - traffic_cost_credits
+                    _credits = (
+                        user[3] + credits_inc + badge_bonus - traffic_cost_credits
+                    )
                     db.add_user_data(user[1], credits=_credits)
                 # 更新 emby_user 表中观看时间
                 with get_session() as session:
@@ -248,6 +296,11 @@ def update_emby_credits():
                     )
                     session.execute(stmt)
                 if (playduration - user[2]) > 0:
+                    # 构建勋章加成信息 - 只显示总加成积分
+                    badge_bonus_text = ""
+                    if badge_bonus > 0:
+                        badge_bonus_text = f"\n勋章加成: +{round(badge_bonus, 2)}"
+
                     # 需要发送消息通知
                     notification_tasks.append(
                         (
@@ -257,17 +310,17 @@ Emby 观看积分更新通知
 ====================
 
 新增观看时长: {round(playduration - user[2], 2)} 小时
-新增观看积分：{round(credits_inc, 2)}
-Premium 流量使用情况：{round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
-超出每日流量限额：{max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
-流量消耗积分：{round(traffic_cost_credits, 2)}
+基础观看积分: {round(credits_inc, 2)}{badge_bonus_text}
+Premium 流量使用情况: {round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
+超出每日流量限额: {max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
+流量消耗积分: {round(traffic_cost_credits, 2)}
 
-积分变化：{round(credits_inc - traffic_cost_credits, 2)}
+积分变化: {round(credits_inc + badge_bonus - traffic_cost_credits, 2):+.2f}
 
 --------------------
 
-当前总积分：{round(_credits, 2)}
-当前总观看时长：{round(playduration, 2)} 小时
+当前总积分: {round(_credits, 2)}
+当前总观看时长: {round(playduration, 2)} 小时
 
 ====================""",
                         )

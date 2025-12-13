@@ -61,11 +61,14 @@
 </template>
 
 <script>
+import { getBadgeCenterConfig } from '@/services/badgeService.js'
+
 export default {
   name: 'CreditsStoreDialog',
   data() {
     return {
       dialog: false,
+      badgeCenterEnabled: true, // 勋章中心是否启用
       menuItems: [
         {
           value: 'transfer',
@@ -82,6 +85,15 @@ export default {
           subtitle: '使用积分兑换密码管理器账户',
           icon: 'mdi-shield-key',
           color: 'blue-darken-2',
+          iconColor: 'white',
+          disabled: false
+        },
+        {
+          value: 'badges',
+          title: '勋章中心',
+          subtitle: '兑换周年勋章获得积分加成',
+          icon: 'mdi-medal',
+          color: 'deep-orange-darken-1',
           iconColor: 'white',
           disabled: false
         },
@@ -109,12 +121,45 @@ export default {
       ]
     }
   },
+  async mounted() {
+    // 加载勋章中心配置
+    await this.loadBadgeCenterConfig()
+  },
   methods: {
-    open() {
+    async open() {
       this.dialog = true
+      // 每次打开时重新加载配置，确保状态最新
+      await this.loadBadgeCenterConfig()
     },
     close() {
       this.dialog = false
+    },
+    async loadBadgeCenterConfig() {
+      try {
+        const response = await getBadgeCenterConfig()
+        if (response.data) {
+          this.badgeCenterEnabled = response.data.enabled
+          // 更新勋章中心菜单项的禁用状态
+          const badgeMenuItem = this.menuItems.find(item => item.value === 'badges')
+          if (badgeMenuItem) {
+            badgeMenuItem.disabled = !this.badgeCenterEnabled
+            // 如果功能关闭，显示提示badge
+            if (!this.badgeCenterEnabled) {
+              badgeMenuItem.badge = '暂未开放'
+              badgeMenuItem.badgeColor = 'grey'
+            } else {
+              badgeMenuItem.badge = null
+            }
+          }
+        }
+      } catch (error) {
+        console.error('加载勋章中心配置失败:', error)
+        // 加载失败时默认禁用
+        const badgeMenuItem = this.menuItems.find(item => item.value === 'badges')
+        if (badgeMenuItem) {
+          badgeMenuItem.disabled = true
+        }
+      }
     },
     handleMenuClick(item) {
       if (item.disabled) {

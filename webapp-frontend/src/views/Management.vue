@@ -405,6 +405,135 @@
                 </div>
               </v-card-text>
             </v-card>
+
+            <!-- 勋章管理 -->
+            <v-card class="admin-card-enhanced mb-4">
+              <v-card-title class="text-center">
+                <v-icon start color="amber-darken-2">mdi-medal</v-icon> 勋章管理
+              </v-card-title>
+              <v-card-text>
+                <div v-if="badgesLoading" class="text-center my-4">
+                  <v-progress-circular indeterminate size="small" color="primary"></v-progress-circular>
+                  <span class="ml-2">加载勋章数据中...</span>
+                </div>
+                
+                <div v-else-if="badgesError" class="mb-4">
+                  <v-alert type="error" density="compact">{{ badgesError }}</v-alert>
+                </div>
+                
+                <div v-else>
+                  <!-- 勋章中心功能开关 -->
+                  <div class="d-flex justify-space-between align-center mb-3">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-toggle-switch</v-icon>
+                      <span>勋章中心开放：</span>
+                    </div>
+                    <v-switch
+                      v-model="badgeConfig.enabled"
+                      color="success"
+                      density="compact"
+                      hide-details
+                      @change="updateBadgeConfig"
+                    ></v-switch>
+                  </div>
+                  
+                  <!-- 勋章中心提示消息 -->
+                  <div v-if="badgeConfig.enabled" class="mb-3">
+                    <div class="d-flex align-center mb-2">
+                      <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-message-text</v-icon>
+                      <span>勋章中心提示消息：</span>
+                    </div>
+                    <v-textarea
+                      v-model="badgeConfig.message"
+                      density="compact"
+                      variant="outlined"
+                      rows="2"
+                      placeholder="在勋章中心顶部显示的提示消息"
+                      hide-details
+                      @blur="updateBadgeConfig"
+                    ></v-textarea>
+                  </div>
+                  
+                  <v-divider class="my-3"></v-divider>
+                  
+                  <!-- 勋章列表 -->
+                  <div class="mb-3">
+                    <div class="d-flex justify-space-between align-center mb-2">
+                      <div class="d-flex align-center">
+                        <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-medal-outline</v-icon>
+                        <span>已创建的勋章：</span>
+                      </div>
+                      <v-btn
+                        color="amber-darken-2"
+                        variant="outlined"
+                        size="small"
+                        @click="openBadgeCreateDialog"
+                      >
+                        <v-icon start size="small">mdi-plus</v-icon>
+                        创建勋章
+                      </v-btn>
+                    </div>
+                    
+                    <!-- 勋章列表 -->
+                    <v-list v-if="badges.length > 0" class="badge-list">
+                      <v-list-item
+                        v-for="badge in badges"
+                        :key="badge.id"
+                        class="badge-list-item"
+                        rounded="lg"
+                      >
+                        <template v-slot:prepend>
+                          <v-avatar size="40">
+                            <v-img :src="badge.icon_url" :alt="badge.name" />
+                          </v-avatar>
+                        </template>
+                        
+                        <v-list-item-title>
+                          {{ badge.name }}
+                          <v-chip
+                            v-if="!badge.is_enabled"
+                            size="x-small"
+                            color="grey"
+                            variant="flat"
+                            class="ml-2"
+                          >
+                            已禁用
+                          </v-chip>
+                        </v-list-item-title>
+                        <v-list-item-subtitle>
+                          成本: {{ badge.credits_cost }} 积分 | 加成: +{{ (badge.bonus_percentage * 100).toFixed(0) }}% | 有效期: {{ badge.valid_days }} 天
+                        </v-list-item-subtitle>
+                        
+                        <template v-slot:append>
+                          <v-btn
+                            icon
+                            size="small"
+                            variant="text"
+                            @click="editBadge(badge)"
+                          >
+                            <v-icon size="small">mdi-pencil</v-icon>
+                          </v-btn>
+                          <v-btn
+                            icon
+                            size="small"
+                            variant="text"
+                            color="error"
+                            @click="deleteBadge(badge)"
+                          >
+                            <v-icon size="small">mdi-delete</v-icon>
+                          </v-btn>
+                        </template>
+                      </v-list-item>
+                    </v-list>
+                    
+                    <div v-else class="text-center text-medium-emphasis py-4">
+                      <v-icon size="48" color="grey-lighten-1">mdi-medal-outline</v-icon>
+                      <p class="mt-2">暂无勋章，点击上方按钮创建</p>
+                    </div>
+                  </div>
+                </div>
+              </v-card-text>
+            </v-card>
             </div>
           </v-window-item>
 
@@ -1997,6 +2126,13 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <!-- 勋章编辑对话框 -->
+    <badge-editor-dialog
+      v-model="showBadgeEditorDialog"
+      :badge="editingBadge"
+      @badge-saved="handleBadgeSaved"
+    />
   </div>
 </template>
 
@@ -2008,11 +2144,13 @@ import AdminInviteCodeDialog from '@/components/AdminInviteCodeDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import WheelAdminPanel from '@/components/WheelAdminPanel.vue'
+import BadgeEditorDialog from '@/components/BadgeEditorDialog.vue'
 import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits, setPremiumDailyCredits, setPremiumUnlockEnabled, setCreditsTransferEnabled } from '@/services/adminService.js'
 import { getWheelStats } from '@/services/wheelService.js'
 import { getAuctionStats, getAllAuctions, finishExpiredAuctions, finishAuction, deleteAuction, createAuction, getAuctionBids, updateAuction } from '@/services/auctionService.js'
 import { getPremiumLineTrafficStats, formatTrafficSize, formatUsername, getTrafficOverview } from '@/services/trafficService.js'
 import { getAllCryptoDonationOrdersAdmin, ORDER_STATUS } from '@/services/cryptoDonationService.js'
+import { getBadgeCenterConfig, updateBadgeConfig, adminGetAllBadges, adminDeleteBadge } from '@/services/badgeService.js'
 
 export default {
   name: 'Management',
@@ -2022,7 +2160,8 @@ export default {
     AdminInviteCodeDialog,
     TagManagementDialog,
     LineManagementDialog,
-    WheelAdminPanel
+    WheelAdminPanel,
+    BadgeEditorDialog
   },
   data() {
     return {
@@ -2142,7 +2281,17 @@ export default {
       cryptoDonationPerPage: 20,
       cryptoDonationTotal: 0,
       cryptoDonationStatusFilter: null,
-      ORDER_STATUS
+      ORDER_STATUS,
+      // 勋章管理相关数据
+      badgeConfig: {
+        enabled: false,
+        message: ''
+      },
+      badges: [],
+      badgesLoading: false,
+      badgesError: null,
+      showBadgeEditorDialog: false,
+      editingBadge: null
     }
   },
   mounted() {
@@ -2164,6 +2313,7 @@ export default {
       // 如果切换到设置项tab且是管理员，则获取管理员设置
       if (newTab === 'settings' && this.isAdmin && !this.adminSettings.loaded) {
         this.fetchAdminSettings()
+        this.fetchBadgeData()
       }
       // 如果切换到活动管理tab且是管理员，则并发加载活动统计数据
       if (newTab === 'wheel' && this.isAdmin) {
@@ -2195,6 +2345,7 @@ export default {
         // 如果是管理员且当前在设置项tab，则获取管理员设置
         if (this.isAdmin && this.currentTab === 'settings') {
           await this.fetchAdminSettings()
+          await this.fetchBadgeData()
         }
         // 如果是管理员且当前在活动管理tab，则并发加载活动统计数据
         if (this.isAdmin && this.currentTab === 'wheel') {
@@ -2454,6 +2605,100 @@ export default {
     handleTagsUpdated() {
       // 可以在这里刷新数据或显示成功提示
       this.showMessage('标签设置已更新');
+    },
+
+    // ========== 勋章管理相关方法 ==========
+    
+    // 获取勋章数据
+    async fetchBadgeData() {
+      try {
+        this.badgesLoading = true
+        this.badgesError = null
+        
+        // 并发获取勋章配置和勋章列表
+        const [configResponse, badgesResponse] = await Promise.all([
+          getBadgeCenterConfig(),
+          adminGetAllBadges()
+        ])
+        
+        this.badgeConfig = configResponse.data
+        // 后端返回的是数组,不是 {badges: []}
+        this.badges = Array.isArray(badgesResponse.data) ? badgesResponse.data : []
+        
+        this.badgesLoading = false
+      } catch (error) {
+        console.error('获取勋章数据失败:', error)
+        this.badgesError = error.response?.data?.detail || '获取勋章数据失败'
+        this.badgesLoading = false
+      }
+    },
+    
+    // 更新勋章配置
+    async updateBadgeConfig() {
+      try {
+        await updateBadgeConfig({
+          enabled: this.badgeConfig.enabled,
+          message: this.badgeConfig.message
+        })
+        this.showMessage('勋章配置已更新')
+      } catch (error) {
+        console.error('更新勋章配置失败:', error)
+        this.showMessage('更新勋章配置失败', 'error')
+        // 重新获取配置
+        await this.fetchBadgeData()
+      }
+    },
+    
+    // 打开创建勋章对话框
+    openBadgeCreateDialog() {
+      this.editingBadge = null
+      this.showBadgeEditorDialog = true
+    },
+    
+    // 编辑勋章
+    editBadge(badge) {
+      this.editingBadge = badge
+      this.showBadgeEditorDialog = true
+    },
+    
+    // 删除勋章
+    async deleteBadge(badge) {
+      const confirmed = await this.showConfirmDialog(
+        '确认删除',
+        `确定要删除勋章"${badge.name}"吗？\n\n注意：已经兑换的用户勋章不会被删除，但无法再次兑换此勋章。`
+      )
+      
+      if (!confirmed) return
+      
+      try {
+        await adminDeleteBadge(badge.id)
+        this.showMessage('勋章已删除')
+        // 重新加载勋章列表
+        await this.fetchBadgeData()
+      } catch (error) {
+        console.error('删除勋章失败:', error)
+        this.showMessage(error.response?.data?.detail || '删除勋章失败', 'error')
+      }
+    },
+    
+    // 勋章保存完成
+    async handleBadgeSaved() {
+      // 重新加载勋章列表
+      await this.fetchBadgeData()
+    },
+    
+    // 显示确认对话框
+    showConfirmDialog(title, message) {
+      return new Promise((resolve) => {
+        if (window.Telegram?.WebApp) {
+          window.Telegram.WebApp.showConfirm(message, (confirmed) => {
+            resolve(confirmed)
+          })
+        } else {
+          const confirmed = confirm(`${title}\n\n${message}`)
+          resolve(confirmed)
+        }
+      })
     },
     
     // 处理捐赠提交完成事件

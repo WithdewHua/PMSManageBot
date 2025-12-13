@@ -99,7 +99,24 @@
                       <v-icon v-else size="24" color="grey-lighten-1">mdi-account-circle</v-icon>
                     </v-avatar>
                     <div class="user-info flex-grow-1">
-                      <v-list-item-title class="user-name">{{ item.name }}</v-list-item-title>
+                      <v-list-item-title class="user-name">
+                        {{ item.name }}
+                        <!-- 显示用户勋章 -->
+                        <span v-if="getUserBadgesList(item.tg_id).length > 0" class="user-badges ml-2">
+                          <v-tooltip
+                            v-for="badge in getUserBadgesList(item.tg_id).slice(0, 3)"
+                            :key="badge.badge_id"
+                            location="top"
+                          >
+                            <template v-slot:activator="{ props }">
+                              <v-avatar v-bind="props" size="20" class="badge-avatar">
+                                <v-img :src="badge.badge.icon_url" :alt="badge.badge.name" />
+                              </v-avatar>
+                            </template>
+                            <div>{{ badge.badge.name }}</div>
+                          </v-tooltip>
+                        </span>
+                      </v-list-item-title>
                       <v-list-item-subtitle class="user-score">
                         <v-icon size="16" color="amber" class="mr-1">mdi-star</v-icon>
                         {{ item.credits.toFixed(2) }} 积分
@@ -147,7 +164,24 @@
                       <v-icon v-else size="24" color="grey-lighten-1">mdi-account-circle</v-icon>
                     </v-avatar>
                     <div class="user-info flex-grow-1">
-                      <v-list-item-title class="user-name">{{ item.name }}</v-list-item-title>
+                      <v-list-item-title class="user-name">
+                        {{ item.name }}
+                        <!-- 显示用户勋章 -->
+                        <span v-if="getUserBadgesList(item.tg_id).length > 0" class="user-badges ml-2">
+                          <v-tooltip
+                            v-for="badge in getUserBadgesList(item.tg_id).slice(0, 3)"
+                            :key="badge.badge_id"
+                            location="top"
+                          >
+                            <template v-slot:activator="{ props }">
+                              <v-avatar v-bind="props" size="20" class="badge-avatar">
+                                <v-img :src="badge.badge.icon_url" :alt="badge.badge.name" />
+                              </v-avatar>
+                            </template>
+                            <div>{{ badge.badge.name }}</div>
+                          </v-tooltip>
+                        </span>
+                      </v-list-item-title>
                       <v-list-item-subtitle class="user-score">
                         <v-icon size="16" color="pink" class="mr-1">mdi-heart</v-icon>
                         {{ item.donation.toFixed(2) }} 元
@@ -875,6 +909,7 @@
 <script>
 import { getCreditsRankings, getDonationRankings, getPlexWatchedTimeRankings, getEmbyWatchedTimeRankings, getPlexTrafficRankings, getEmbyTrafficRankings, getInvitationRankings } from '@/api'
 import { getWatchLevelIcons } from '@/utils/watchLevel.js'
+import { getUserBadges } from '@/services/badgeService.js'
 
 export default {
   name: "Rankings",
@@ -920,7 +955,8 @@ export default {
         'traffic-plex': false,
         'traffic-emby': false
       },
-      error: null
+      error: null,
+      userBadgesMap: {} // 用户ID到勋章列表的映射
     }
   },
   watch: {
@@ -1011,12 +1047,16 @@ export default {
             response = await getCreditsRankings()
             this.rankings.credits_rank = response.data.credits_rank || []
             console.log('积分排行数据:', this.rankings.credits_rank)
+            // 加载积分榜用户的勋章
+            await this.loadBadgesForRankings(this.rankings.credits_rank)
             break
           case 'donation':
             console.log('调用捐赠排行API...')
             response = await getDonationRankings()
             this.rankings.donation_rank = response.data.donation_rank || []
             console.log('捐赠排行数据:', this.rankings.donation_rank)
+            // 加载捐赠榜用户的勋章
+            await this.loadBadgesForRankings(this.rankings.donation_rank)
             break
           case 'watched':
             // 观看时长tab被激活时，加载当前选中的数据源
@@ -1193,6 +1233,38 @@ export default {
     handleImageError(event) {
       // 头像加载失败时，隐藏图片，显示默认图标
       event.target.style.display = 'none';
+    },
+
+    // 获取用户的勋章列表
+    async loadUserBadges(tgId) {
+      if (!tgId || this.userBadgesMap[tgId]) {
+        return // 已经加载过或无需加载
+      }
+      
+      try {
+        const response = await getUserBadges(tgId)
+        this.userBadgesMap[tgId] = response.data.badges || []
+      } catch (err) {
+        console.error(`获取用户 ${tgId} 的勋章失败:`, err)
+        this.userBadgesMap[tgId] = []
+      }
+    },
+
+    // 批量加载排行榜用户的勋章
+    async loadBadgesForRankings(rankings) {
+      const tgIds = rankings
+        .map(item => item.tg_id)
+        .filter(tgId => tgId && !this.userBadgesMap[tgId])
+      
+      if (tgIds.length === 0) return
+      
+      // 并发加载所有用户的勋章
+      await Promise.all(tgIds.map(tgId => this.loadUserBadges(tgId)))
+    },
+
+    // 获取用户的勋章列表（用于模板）
+    getUserBadgesList(tgId) {
+      return this.userBadgesMap[tgId] || []
     },
 
     // 根据日期范围设置开始和结束日期
@@ -1798,6 +1870,25 @@ export default {
 .info-btn:hover {
   opacity: 1;
   transform: scale(1.1);
+}
+
+/* 用户勋章样式 */
+.user-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: middle;
+}
+
+.badge-avatar {
+  border: 2px solid #FFA000;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.badge-avatar:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(255, 160, 0, 0.4);
 }
 
 .watched-time-container {
