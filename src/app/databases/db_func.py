@@ -89,9 +89,8 @@ def update_plex_credits():
                 date=datetime.now(settings.TZ) - timedelta(days=1),
                 premium_only=False,
             )
-            # 计算非 premium 流量
-            traffic_usage_non_premium = traffic_usage_total - traffic_usage_premium
 
+            # 计算 premium 流量积分消耗
             traffic_usage_exceed = traffic_usage_premium - (
                 settings.USER_TRAFFIC_LIMIT
                 if not is_premium
@@ -111,12 +110,12 @@ def update_plex_credits():
             if play_duration > 8 * 1.2:
                 time_penalty = (play_duration - 8 * 1.2) * 0.5
 
-            # 计算超额流量惩罚 (DataPenalty) - 使用非premium流量
+            # 计算超额流量惩罚 (DataPenalty)
             data_penalty = 0
             data_ratio = 0
             expected_data = play_duration * 10 * 1024 * 1024 * 1024  # 10 GB/小时
-            if traffic_usage_non_premium > 0 and expected_data > 0:
-                data_ratio = float(traffic_usage_non_premium) / float(expected_data)
+            if traffic_usage_total > 0 and expected_data > 0:
+                data_ratio = float(traffic_usage_total) / float(expected_data)
                 if data_ratio > 1.2:
                     data_penalty = float(credits_inc) * (data_ratio - 1.2) * 0.5
 
@@ -275,9 +274,8 @@ def update_emby_credits():
                 date=datetime.now(settings.TZ) - timedelta(days=1),
                 premium_only=False,
             )
-            # 计算非 premium 流量
-            traffic_usage_non_premium = traffic_usage_total - traffic_usage_premium
 
+            # 计算 premium 流量积分消耗
             traffic_usage_exceed = traffic_usage_premium - (
                 settings.USER_TRAFFIC_LIMIT
                 if not is_premium
@@ -301,8 +299,8 @@ def update_emby_credits():
             data_penalty = 0
             data_ratio = 0
             expected_data = daily_play_duration * 10 * 1024 * 1024 * 1024  # 10 GB/小时
-            if traffic_usage_non_premium > 0 and expected_data > 0:
-                data_ratio = float(traffic_usage_non_premium) / float(expected_data)
+            if traffic_usage_total > 0 and expected_data > 0:
+                data_ratio = float(traffic_usage_total) / float(expected_data)
                 if data_ratio > 1.2:
                     data_penalty = float(credits_inc) * (data_ratio - 1.2) * 0.5
 
