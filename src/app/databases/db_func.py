@@ -116,9 +116,9 @@ def update_plex_credits():
             data_ratio = 0
             expected_data = play_duration * 10 * 1024 * 1024 * 1024  # 10 GB/小时
             if traffic_usage_non_premium > 0 and expected_data > 0:
-                data_ratio = traffic_usage_non_premium / expected_data
+                data_ratio = float(traffic_usage_non_premium) / float(expected_data)
                 if data_ratio > 1.2:
-                    data_penalty = credits_inc * (data_ratio - 1.2) * 0.5
+                    data_penalty = float(credits_inc) * (data_ratio - 1.2) * 0.5
 
             # 应用惩罚到基础积分
             final_daily_score = max(
@@ -133,8 +133,8 @@ def update_plex_credits():
             if tg_id:
                 active_badges = db.get_user_active_badges_with_bonus(tg_id)
                 for badge_info in active_badges:
-                    bonus_percentage = badge_info["bonus_percentage"]
-                    bonus_credits = credits_inc * bonus_percentage
+                    bonus_percentage = float(badge_info["bonus_percentage"])
+                    bonus_credits = float(credits_inc) * bonus_percentage
                     badge_bonus += bonus_credits
                     badge_bonus_details.append(
                         {
@@ -302,9 +302,9 @@ def update_emby_credits():
             data_ratio = 0
             expected_data = daily_play_duration * 10 * 1024 * 1024 * 1024  # 10 GB/小时
             if traffic_usage_non_premium > 0 and expected_data > 0:
-                data_ratio = traffic_usage_non_premium / expected_data
+                data_ratio = float(traffic_usage_non_premium) / float(expected_data)
                 if data_ratio > 1.2:
-                    data_penalty = credits_inc * (data_ratio - 1.2) * 0.5
+                    data_penalty = float(credits_inc) * (data_ratio - 1.2) * 0.5
 
             # 应用惩罚到基础积分
             final_daily_score = max(
@@ -320,8 +320,8 @@ def update_emby_credits():
             if user[1]:
                 active_badges = db.get_user_active_badges_with_bonus(user[1])
                 for badge_info in active_badges:
-                    bonus_percentage = badge_info["bonus_percentage"]
-                    bonus_credits = credits_inc * bonus_percentage
+                    bonus_percentage = float(badge_info["bonus_percentage"])
+                    bonus_credits = float(credits_inc) * bonus_percentage
                     badge_bonus += bonus_credits
                     badge_bonus_details.append(
                         {
