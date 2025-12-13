@@ -75,14 +75,24 @@ def update_plex_credits():
             tg_id = res[2]
             plex_username = res[3]
             is_premium = res[4]
-            # 获取用户昨日的流量使用情况
-            traffic_usage = db.get_user_daily_traffic(
+            # 获取用户昨日的 premium 流量使用情况（用于流量费用计算）
+            traffic_usage_premium = db.get_user_daily_traffic(
                 plex_username,
                 "plex",
                 date=datetime.now(settings.TZ) - timedelta(days=1),
                 premium_only=True,
             )
-            traffic_usage_exceed = traffic_usage - (
+            # 获取用户昨日的总流量（用于流量惩罚计算）
+            traffic_usage_total = db.get_user_daily_traffic(
+                plex_username,
+                "plex",
+                date=datetime.now(settings.TZ) - timedelta(days=1),
+                premium_only=False,
+            )
+            # 计算非 premium 流量
+            traffic_usage_non_premium = traffic_usage_total - traffic_usage_premium
+
+            traffic_usage_exceed = traffic_usage_premium - (
                 settings.USER_TRAFFIC_LIMIT
                 if not is_premium
                 else settings.PREMIUM_USER_TRAFFIC_LIMIT
@@ -95,6 +105,28 @@ def update_plex_credits():
                     gb_tiers * settings.CREDITS_COST_PER_10GB,
                     2,
                 )
+
+            # 计算超长观看惩罚 (TimePenalty)
+            time_penalty = 0
+            if play_duration > 8 * 1.2:
+                time_penalty = (play_duration - 8 * 1.2) * 0.5
+
+            # 计算超额流量惩罚 (DataPenalty) - 使用非premium流量
+            data_penalty = 0
+            data_ratio = 0
+            expected_data = play_duration * 10 * 1024 * 1024 * 1024  # 10 GB/小时
+            if traffic_usage_non_premium > 0 and expected_data > 0:
+                data_ratio = traffic_usage_non_premium / expected_data
+                if data_ratio > 1.2:
+                    data_penalty = credits_inc * (data_ratio - 1.2) * 0.5
+
+            # 应用惩罚到基础积分
+            final_daily_score = max(
+                0, min(credits_inc - time_penalty - data_penalty, 8)
+            )
+            # 保存原始 credits_inc 用于显示
+            original_credits_inc = credits_inc
+            credits_inc = final_daily_score
             # 计算勋章加成
             badge_bonus = 0
             badge_bonus_details = []
@@ -151,6 +183,12 @@ def update_plex_credits():
                     if badge_bonus > 0:
                         badge_bonus_text = f"\n勋章加成: +{round(badge_bonus, 2)}"
 
+                    # 构建惩罚信息 - 只显示总惩罚分数
+                    total_penalty = time_penalty + data_penalty
+                    penalty_text = ""
+                    if total_penalty > 0:
+                        penalty_text = f"\n积分惩罚: -{round(total_penalty, 2)}"
+
                     # 需要发送通知
                     notification_tasks.append(
                         (
@@ -160,8 +198,8 @@ Plex 观看积分更新通知
 ====================
 
 新增观看时长: {round(play_duration, 2)} 小时
-基础观看积分: {round(credits_inc, 2)}{badge_bonus_text}
-Premium 流量使用情况: {round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
+基础观看积分: {round(original_credits_inc, 2)}{penalty_text}{badge_bonus_text}
+Premium 流量使用情况: {round(traffic_usage_premium / (1024 * 1024 * 1024), 2)} GB
 超出每日流量限额: {max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
 流量消耗积分: {round(traffic_cost_credits, 2)}
 
@@ -178,7 +216,7 @@ Premium 流量使用情况: {round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
 
             logger.info(
                 f"更新 Plex 用户 {plex_username} ({plex_id}) 的积分和观看时长: "
-                f"新增观看时长 {round(play_duration, 2)} 小时，新增观看积分 {round(credits_inc, 2)}, 流量消耗积分 {round(traffic_cost_credits, 2)}"
+                f"新增观看时长 {round(play_duration, 2)} 小时，新增观看积分 {round(credits_inc, 2)} (原始: {round(original_credits_inc, 2)}, 时长惩罚: {round(time_penalty, 2)}, 流量惩罚: {round(data_penalty, 2)}), 流量消耗积分 {round(traffic_cost_credits, 2)}"
             )
 
     except Exception as e:
@@ -220,16 +258,27 @@ def update_emby_credits():
             if playduration == 0:
                 continue
             # 最大记 8
-            credits_inc = min(playduration - user[2], 8)
+            daily_play_duration = playduration - user[2]
+            credits_inc = min(daily_play_duration, 8)
             emby_username, is_premium = user[4], user[5]
-            # 获取用户昨日的流量使用情况
-            traffic_usage = db.get_user_daily_traffic(
+            # 获取用户昨日的 premium 流量使用情况（用于流量费用计算）
+            traffic_usage_premium = db.get_user_daily_traffic(
                 emby_username,
                 "emby",
                 date=datetime.now(settings.TZ) - timedelta(days=1),
                 premium_only=True,
             )
-            traffic_usage_exceed = traffic_usage - (
+            # 获取用户昨日的总流量（用于流量惩罚计算）
+            traffic_usage_total = db.get_user_daily_traffic(
+                emby_username,
+                "emby",
+                date=datetime.now(settings.TZ) - timedelta(days=1),
+                premium_only=False,
+            )
+            # 计算非 premium 流量
+            traffic_usage_non_premium = traffic_usage_total - traffic_usage_premium
+
+            traffic_usage_exceed = traffic_usage_premium - (
                 settings.USER_TRAFFIC_LIMIT
                 if not is_premium
                 else settings.PREMIUM_USER_TRAFFIC_LIMIT
@@ -242,6 +291,28 @@ def update_emby_credits():
                     gb_tiers * settings.CREDITS_COST_PER_10GB,
                     2,
                 )
+
+            # 计算超长观看惩罚 (TimePenalty)
+            time_penalty = 0
+            if daily_play_duration > 8 * 1.2:
+                time_penalty = (daily_play_duration - 8 * 1.2) * 0.5
+
+            # 计算超额流量惩罚 (DataPenalty) - 使用非premium流量
+            data_penalty = 0
+            data_ratio = 0
+            expected_data = daily_play_duration * 10 * 1024 * 1024 * 1024  # 10 GB/小时
+            if traffic_usage_non_premium > 0 and expected_data > 0:
+                data_ratio = traffic_usage_non_premium / expected_data
+                if data_ratio > 1.2:
+                    data_penalty = credits_inc * (data_ratio - 1.2) * 0.5
+
+            # 应用惩罚到基础积分
+            final_daily_score = max(
+                0, min(credits_inc - time_penalty - data_penalty, 8)
+            )
+            # 保存原始 credits_inc 用于显示
+            original_credits_inc = credits_inc
+            credits_inc = final_daily_score
 
             # 计算勋章加成
             badge_bonus = 0
@@ -301,6 +372,12 @@ def update_emby_credits():
                     if badge_bonus > 0:
                         badge_bonus_text = f"\n勋章加成: +{round(badge_bonus, 2)}"
 
+                    # 构建惩罚信息 - 只显示总惩罚分数
+                    total_penalty = time_penalty + data_penalty
+                    penalty_text = ""
+                    if total_penalty > 0:
+                        penalty_text = f"\n积分惩罚: -{round(total_penalty, 2)}"
+
                     # 需要发送消息通知
                     notification_tasks.append(
                         (
@@ -310,8 +387,8 @@ Emby 观看积分更新通知
 ====================
 
 新增观看时长: {round(playduration - user[2], 2)} 小时
-基础观看积分: {round(credits_inc, 2)}{badge_bonus_text}
-Premium 流量使用情况: {round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
+基础观看积分: {round(original_credits_inc, 2)}{penalty_text}{badge_bonus_text}
+Premium 流量使用情况: {round(traffic_usage_premium / (1024 * 1024 * 1024), 2)} GB
 超出每日流量限额: {max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
 流量消耗积分: {round(traffic_cost_credits, 2)}
 
@@ -328,7 +405,7 @@ Premium 流量使用情况: {round(traffic_usage / (1024 * 1024 * 1024), 2)} GB
 
             logger.info(
                 f"更新 Emby 用户 {emby_username} ({user[0]}) 的积分和观看时长: "
-                f"新增观看时长 {round(playduration - user[2], 2)} 小时，新增观看积分 {round(credits_inc, 2)}, 流量消耗积分 {round(traffic_cost_credits, 2)}"
+                f"新增观看时长 {round(playduration - user[2], 2)} 小时，新增观看积分 {round(credits_inc, 2)} (原始: {round(original_credits_inc, 2)}, 时长惩罚: {round(time_penalty, 2)}, 流量惩罚: {round(data_penalty, 2)}), 流量消耗积分 {round(traffic_cost_credits, 2)}"
             )
     except Exception as e:
         logger.error(f"更新 Emby 用户积分及观看时长失败: {e}")
