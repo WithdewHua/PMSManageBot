@@ -65,9 +65,7 @@ class RedisCache:
             self.redis_client.scan_iter(match=f"{self._cache_key_prefix}*"), results
         ):
             if value is not None:
-                key_values[key.removeprefix(self._cache_key_prefix)] = value.decode(
-                    "utf-8"
-                )
+                key_values[key.removeprefix(self._cache_key_prefix)] = value
 
         return key_values
 

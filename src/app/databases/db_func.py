@@ -438,16 +438,41 @@ def update_plex_info(
     try:
         if plex_name:
             users = _plex.users_by_id
+            cache_clear_users = []
             for uid, user in users.items():
                 email = user[1].email
                 username = user[0]
                 with get_session() as session:
+                    existing_user = session.execute(
+                        select(PlexUser).where(PlexUser.plex_id == uid)
+                    ).fetchone()
+                    if (
+                        existing_user
+                        and existing_user[0].plex_username == username
+                        and existing_user[0].plex_email == email
+                    ):
+                        logger.info(
+                            f"Plex 用户 {username}({uid}) 的用户名和邮箱未发生变化，跳过更新"
+                        )
+                        continue
+                    cache_clear_users.append(existing_user[0].plex_username)
                     stmt = (
                         sql_update(PlexUser)
                         .where(PlexUser.plex_id == uid)
                         .values(plex_username=username, plex_email=email)
                     )
                     session.execute(stmt)
+                logger.info(
+                    f"成功更新 Plex 用户 {uid} 的用户名: {username}, 邮箱: {email}"
+                )
+            # 清除缓存中的用户信息
+            if cache_clear_users:
+                plex_token_dict = plex_token_cache.get_all_key_values()
+                for token, plex_username in plex_token_dict.items():
+                    if plex_username in cache_clear_users:
+                        plex_token_cache.delete(token)
+                        logger.info(f"已清除 Plex 用户 {plex_username} 的 Token 缓存")
+
         if plex_id:
             # 检查是否存在 plex_id 为空的用户
             with get_session() as session:
