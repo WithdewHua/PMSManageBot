@@ -180,13 +180,13 @@ def update_plex_credits():
                     # 构建勋章加成信息 - 只显示总加成积分
                     badge_bonus_text = ""
                     if badge_bonus > 0:
-                        badge_bonus_text = f"\n勋章加成: +{round(badge_bonus, 2)}"
+                        badge_bonus_text = f"\n勋章加成积分: +{round(badge_bonus, 2)}"
 
                     # 构建惩罚信息 - 只显示总惩罚分数
                     total_penalty = time_penalty + data_penalty
                     penalty_text = ""
                     if total_penalty > 0:
-                        penalty_text = f"\n积分惩罚: -{round(total_penalty, 2)}"
+                        penalty_text = f"\n观看消耗积分: -{round(total_penalty, 2)}"
 
                     # 需要发送通知
                     notification_tasks.append(
@@ -199,8 +199,8 @@ Plex 观看积分更新通知
 新增观看时长: {round(play_duration, 2)} 小时
 基础观看积分: {round(original_credits_inc, 2)}{penalty_text}{badge_bonus_text}
 Premium 流量使用情况: {round(traffic_usage_premium / (1024 * 1024 * 1024), 2)} GB
-超出每日流量限额: {max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
-流量消耗积分: {round(traffic_cost_credits, 2)}
+Premium 每日流量超额: {max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
+Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
 
 积分变化: {round(credits_inc + badge_bonus - traffic_cost_credits, 2):+.2f}
 
@@ -368,13 +368,13 @@ def update_emby_credits():
                     # 构建勋章加成信息 - 只显示总加成积分
                     badge_bonus_text = ""
                     if badge_bonus > 0:
-                        badge_bonus_text = f"\n勋章加成: +{round(badge_bonus, 2)}"
+                        badge_bonus_text = f"\n勋章加成积分: +{round(badge_bonus, 2)}"
 
                     # 构建惩罚信息 - 只显示总惩罚分数
                     total_penalty = time_penalty + data_penalty
                     penalty_text = ""
                     if total_penalty > 0:
-                        penalty_text = f"\n积分惩罚: -{round(total_penalty, 2)}"
+                        penalty_text = f"\n观看消耗积分: -{round(total_penalty, 2)}"
 
                     # 需要发送消息通知
                     notification_tasks.append(
@@ -387,8 +387,8 @@ Emby 观看积分更新通知
 新增观看时长: {round(playduration - user[2], 2)} 小时
 基础观看积分: {round(original_credits_inc, 2)}{penalty_text}{badge_bonus_text}
 Premium 流量使用情况: {round(traffic_usage_premium / (1024 * 1024 * 1024), 2)} GB
-超出每日流量限额: {max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
-流量消耗积分: {round(traffic_cost_credits, 2)}
+Premium 每日流量超额: {max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
+Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
 
 积分变化: {round(credits_inc + badge_bonus - traffic_cost_credits, 2):+.2f}
 
