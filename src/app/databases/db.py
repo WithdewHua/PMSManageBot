@@ -2550,6 +2550,32 @@ class DatabaseORM:
             logger.error(f"清理月度流量数据失败: {e}")
             return False, f"清理月度流量数据失败: {str(e)}"
 
+    def update_traffic_username(self, old_username: str, new_username: str) -> bool:
+        """更新流量统计中的用户名"""
+        try:
+            with get_session() as session:
+                # 更新 line_traffic_stats 表
+                session.execute(
+                    update(LineTrafficStats)
+                    .where(
+                        func.lower(LineTrafficStats.username) == old_username.lower()
+                    )
+                    .values(username=new_username)
+                )
+                # 更新 line_traffic_monthly_stats 表
+                session.execute(
+                    update(LineTrafficMonthlyStats)
+                    .where(
+                        func.lower(LineTrafficMonthlyStats.username)
+                        == old_username.lower()
+                    )
+                    .values(username=new_username)
+                )
+                return True
+        except Exception as e:
+            logger.error(f"更新流量统计用户名失败: {e}")
+            return False
+
     # ==================== Donation Management Operations ====================
 
     def create_donation_registration(

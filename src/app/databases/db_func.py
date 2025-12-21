@@ -42,6 +42,9 @@ def update_plex_credits():
     logger.info("开始更新 Plex 用户积分及观看时长")
     notification_tasks = []
     try:
+        # 先更新下 plex 信息，以防用户名变更导致流量统计错误
+        update_plex_info(plex_name=True, plex_id=False, plex_avatar=False)
+
         # 获取一天内的观看时长
         duration = get_user_total_duration(
             Tautulli().get_home_stats(
@@ -465,6 +468,14 @@ def update_plex_info(
                 logger.info(
                     f"成功更新 Plex 用户 {uid} 的用户名: {username}, 邮箱: {email}"
                 )
+                # 更新流量表中的用户名
+                if not db.update_traffic_username(
+                    old_username=existing_user[0].plex_username,
+                    new_username=username,
+                ):
+                    logger.error(
+                        f"更新流量表中的用户名失败: {existing_user[0].plex_username} -> {username}"
+                    )
             # 清除缓存中的用户信息
             if cache_clear_users:
                 plex_token_dict = plex_token_cache.get_all_key_values()
