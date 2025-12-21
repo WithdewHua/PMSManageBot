@@ -42,9 +42,6 @@ def update_plex_credits():
     logger.info("开始更新 Plex 用户积分及观看时长")
     notification_tasks = []
     try:
-        # 先更新下 plex 信息，以防用户名变更导致流量统计错误
-        update_plex_info(plex_name=True, plex_id=False, plex_avatar=False)
-
         # 获取一天内的观看时长
         duration = get_user_total_duration(
             Tautulli().get_home_stats(
@@ -80,15 +77,15 @@ def update_plex_credits():
             is_premium = res[4]
             # 获取用户昨日的 premium 流量使用情况（用于流量费用计算）
             traffic_usage_premium = db.get_user_daily_traffic(
-                plex_username,
-                "plex",
+                user_id=plex_id,
+                service="plex",
                 date=datetime.now(settings.TZ) - timedelta(days=1),
                 premium_only=True,
             )
             # 获取用户昨日的总流量（用于流量惩罚计算）
             traffic_usage_total = db.get_user_daily_traffic(
-                plex_username,
-                "plex",
+                user_id=plex_id,
+                service="plex",
                 date=datetime.now(settings.TZ) - timedelta(days=1),
                 premium_only=False,
             )
@@ -265,15 +262,15 @@ def update_emby_credits():
             emby_username, is_premium = user[4], user[5]
             # 获取用户昨日的 premium 流量使用情况（用于流量费用计算）
             traffic_usage_premium = db.get_user_daily_traffic(
-                emby_username,
-                "emby",
+                username=emby_username,
+                service="emby",
                 date=datetime.now(settings.TZ) - timedelta(days=1),
                 premium_only=True,
             )
             # 获取用户昨日的总流量（用于流量惩罚计算）
             traffic_usage_total = db.get_user_daily_traffic(
-                emby_username,
-                "emby",
+                username=emby_username,
+                service="emby",
                 date=datetime.now(settings.TZ) - timedelta(days=1),
                 premium_only=False,
             )

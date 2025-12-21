@@ -123,10 +123,12 @@ async def get_user_info(
             plex_info = db.get_plex_info_by_tg_id(tg_id)
             if plex_info:
                 # 获取今日流量消耗
-                daily_traffic = db.get_user_daily_traffic(plex_info[4], "plex")
+                daily_traffic = db.get_user_daily_traffic(
+                    user_id=plex_info[0], service="plex"
+                )
                 # 获取今日 Premium 线路流量消耗
                 daily_premium_traffic = db.get_user_daily_traffic(
-                    plex_info[4], "plex", premium_only=True
+                    user_id=plex_info[0], service="plex", premium_only=True
                 )
 
                 user_info.plex_info = {
@@ -159,10 +161,12 @@ async def get_user_info(
             emby_info = db.get_emby_info_by_tg_id(tg_id)
             if emby_info:
                 # 获取今日流量消耗
-                daily_traffic = db.get_user_daily_traffic(emby_info[0], "emby")
+                daily_traffic = db.get_user_daily_traffic(
+                    username=emby_info[0], service="emby"
+                )
                 # 获取今日 Premium 线路流量消耗
                 daily_premium_traffic = db.get_user_daily_traffic(
-                    emby_info[0], "emby", premium_only=True
+                    username=emby_info[0], service="emby", premium_only=True
                 )
 
                 user_info.emby_info = {

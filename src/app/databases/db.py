@@ -2022,12 +2022,18 @@ class DatabaseORM:
 
     def get_user_daily_traffic(
         self,
-        username: str,
+        username: Optional[str] = None,
+        user_id: Optional[str] = None,
         service: str = None,
         date: datetime = None,
         premium_only: bool = False,
     ) -> int:
         """获取用户指定日期的流量消耗，默认为今日"""
+        if not username and not user_id:
+            logger.error(
+                "Username or user_id must be provided to get user daily traffic"
+            )
+            return 0
         try:
             # 如果未指定日期，使用今日
             if date is None:
@@ -2053,12 +2059,20 @@ class DatabaseORM:
                 # 当月数据，从 line_traffic_stats 表查询
                 with get_session() as session:
                     # 构建基本查询条件
-                    conditions = [
-                        func.lower(LineTrafficStats.username) == username.lower(),
-                        LineTrafficStats.service == service,
-                        LineTrafficStats.timestamp >= day_start.isoformat(),
-                        LineTrafficStats.timestamp <= day_end.isoformat(),
-                    ]
+                    if user_id:
+                        conditions = [
+                            LineTrafficStats.user_id == user_id,
+                            LineTrafficStats.service == service,
+                            LineTrafficStats.timestamp >= day_start.isoformat(),
+                            LineTrafficStats.timestamp <= day_end.isoformat(),
+                        ]
+                    else:
+                        conditions = [
+                            func.lower(LineTrafficStats.username) == username.lower(),
+                            LineTrafficStats.service == service,
+                            LineTrafficStats.timestamp >= day_start.isoformat(),
+                            LineTrafficStats.timestamp <= day_end.isoformat(),
+                        ]
 
                     # 如果只统计 premium 线路
                     if premium_only:
@@ -2085,7 +2099,9 @@ class DatabaseORM:
                 return 0
 
         except Exception as e:
-            logger.error(f"Error getting user daily traffic for {username}: {e}")
+            logger.error(
+                f"Error getting user daily traffic for {username or user_id}: {e}"
+            )
             return 0
 
     def get_traffic_statistics(self) -> dict:
