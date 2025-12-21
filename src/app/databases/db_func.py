@@ -80,14 +80,14 @@ def update_plex_credits():
             is_premium = res[4]
             # 获取用户昨日的 premium 流量使用情况（用于流量费用计算）
             traffic_usage_premium = db.get_user_daily_traffic(
-                user_id=plex_id,
+                user_id=str(plex_id),
                 service="plex",
                 date=datetime.now(settings.TZ) - timedelta(days=1),
                 premium_only=True,
             )
             # 获取用户昨日的总流量（用于流量惩罚计算）
             traffic_usage_total = db.get_user_daily_traffic(
-                user_id=plex_id,
+                user_id=str(plex_id),
                 service="plex",
                 date=datetime.now(settings.TZ) - timedelta(days=1),
                 premium_only=False,
@@ -458,7 +458,8 @@ def update_plex_info(
                             f"Plex 用户 {username}({uid}) 的用户名和邮箱未发生变化，跳过更新"
                         )
                         continue
-                    cache_clear_users.append(existing_user[0].plex_username)
+                    plex_username = existing_user[0].plex_username
+                    cache_clear_users.append(plex_username)
                     stmt = (
                         sql_update(PlexUser)
                         .where(PlexUser.plex_id == uid)
@@ -470,19 +471,19 @@ def update_plex_info(
                 )
                 # 更新流量表中的用户名
                 if not db.update_traffic_username(
-                    old_username=existing_user[0].plex_username,
+                    old_username=plex_username,
                     new_username=username,
                 ):
                     logger.error(
-                        f"更新流量表中的用户名失败: {existing_user[0].plex_username} -> {username}"
+                        f"更新流量表中的用户名失败: {plex_username} -> {username}"
                     )
             # 清除缓存中的用户信息
             if cache_clear_users:
                 plex_token_dict = plex_token_cache.get_all_key_values()
-                for token, plex_username in plex_token_dict.items():
-                    if plex_username in cache_clear_users:
+                for token, _plex_username in plex_token_dict.items():
+                    if _plex_username in cache_clear_users:
                         plex_token_cache.delete(token)
-                        logger.info(f"已清除 Plex 用户 {plex_username} 的 Token 缓存")
+                        logger.info(f"已清除 Plex 用户 {_plex_username} 的 Token 缓存")
 
         if plex_id:
             # 检查是否存在 plex_id 为空的用户
