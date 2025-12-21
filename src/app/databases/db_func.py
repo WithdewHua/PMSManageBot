@@ -42,6 +42,9 @@ def update_plex_credits():
     logger.info("开始更新 Plex 用户积分及观看时长")
     notification_tasks = []
     try:
+        # 先更新用户信息
+        update_plex_info(plex_name=True, plex_id=False, plex_avatar=False)
+
         # 获取一天内的观看时长
         duration = get_user_total_duration(
             Tautulli().get_home_stats(
