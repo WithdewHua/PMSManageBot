@@ -122,6 +122,8 @@ def get_user_stats(home_stats, stats_type):
     for stats in home_stats:
         if stats["stat_id"] == "top_users":
             for row in stats["rows"]:
+                if row["friendly_name"] in USER_IGNORE:
+                    continue
                 if stats_type == "duration":
                     add_to_dictval(
                         user_stats_dict, row["friendly_name"], row["total_duration"]
@@ -134,13 +136,12 @@ def get_user_stats(home_stats, stats_type):
     idx = 0
     for user, stat in sorted(user_stats_dict.items(), key=itemgetter(1), reverse=True):
         idx += 1
-        if user not in USER_IGNORE:
-            if stats_type == "duration":
-                user_total = timedelta(seconds=stat)
-                USER_STATS = USER_STAT.format(user, user_total, idx)
-            else:
-                USER_STATS = USER_STAT.format(user, stat, idx)
-            user_stats_lst += ["{}".format(USER_STATS)]
+        if stats_type == "duration":
+            user_total = timedelta(seconds=stat)
+            USER_STATS = USER_STAT.format(user, user_total, idx)
+        else:
+            USER_STATS = USER_STAT.format(user, stat, idx)
+        user_stats_lst += ["{}".format(USER_STATS)]
 
     return user_stats_lst
 

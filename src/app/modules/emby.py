@@ -609,11 +609,17 @@ class Emby:
             for idx, stats in enumerate(resp["results"], start=1):
                 ranks.append(f"{idx}. {stats[-3]}: {timedelta(seconds=int(stats[-1]))}")
         else:
-            for idx, stats in enumerate(resp["results"], start=1):
+            rank_idx = 0
+            for stats in resp["results"]:
                 user_name = self.get_username_from_uid(stats[0])
                 if not user_name:
                     user_name = stats[0]
-                ranks.append(f"{idx}. {user_name}: {timedelta(seconds=int(stats[1]))}")
+                if user_name.lower() in [settings.EMBY_ADMIN_USER.lower()]:
+                    continue
+                rank_idx += 1
+                ranks.append(
+                    f"{rank_idx}. {user_name}: {timedelta(seconds=int(stats[1]))}"
+                )
         return True, ranks
 
     def get_user_last_activity(self, user_id: str) -> Optional[int]:
