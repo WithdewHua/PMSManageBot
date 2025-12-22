@@ -53,7 +53,7 @@
             md="6"
           >
             <v-card
-              :class="['badge-card', isOwned(badge.id) ? 'owned' : '']"
+              :class="['badge-card', isOwned(badge.id) ? 'owned' : '', !badge.is_enabled ? 'disabled' : '']"
               elevation="2"
             >
               <v-card-text class="pa-4">
@@ -73,6 +73,14 @@
                       class="owned-badge"
                     >
                       已拥有
+                    </v-chip>
+                    <v-chip
+                      v-else-if="!badge.is_enabled"
+                      color="warning"
+                      size="x-small"
+                      class="owned-badge"
+                    >
+                      未启用
                     </v-chip>
                   </div>
 
@@ -118,16 +126,19 @@
                     <!-- 兑换按钮 -->
                     <div v-if="!isOwned(badge.id)" class="mt-3">
                       <v-btn
-                        :disabled="userCredits < badge.credits_cost || redeeming"
+                        :disabled="!badge.is_enabled || userCredits < badge.credits_cost || redeeming"
                         color="primary"
                         size="small"
                         @click="handleRedeem(badge)"
                       >
                         <v-icon start size="18">mdi-gift</v-icon>
-                        {{ userCredits < badge.credits_cost ? '积分不足' : '兑换' }}
+                        {{ !badge.is_enabled ? '未启用' : (userCredits < badge.credits_cost ? '积分不足' : '兑换') }}
                       </v-btn>
-                      <div v-if="userCredits < badge.credits_cost" class="text-caption text-error mt-1">
+                      <div v-if="userCredits < badge.credits_cost && badge.is_enabled" class="text-caption text-error mt-1">
                         还需 {{ (badge.credits_cost - userCredits).toFixed(2) }} 积分
+                      </div>
+                      <div v-if="!badge.is_enabled" class="text-caption text-warning mt-1">
+                        该勋章暂未启用，无法兑换
                       </div>
                     </div>
                   </div>
@@ -257,7 +268,12 @@ export default {
       console.log('- 需要积分:', badge.credits_cost)
       console.log('- 积分是否足够:', this.userCredits >= badge.credits_cost)
       console.log('- 是否已拥有:', this.isOwned(badge.id))
+      console.log('- 是否启用:', badge.is_enabled)
       
+      if (!badge.is_enabled) {
+        this.$emit('error', '该勋章暂未启用，无法兑换')
+        return
+      }
       if (this.isOwned(badge.id)) {
         this.$emit('error', '您已拥有该勋章')
         return
@@ -351,6 +367,12 @@ export default {
 .badge-card.owned {
   opacity: 0.7;
   background-color: #f5f5f5;
+}
+
+.badge-card.disabled {
+  opacity: 0.6;
+  background-color: #fafafa;
+  border: 1px solid #e0e0e0;
 }
 
 .badge-icon-container {

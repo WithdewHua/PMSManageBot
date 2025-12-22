@@ -101,8 +101,8 @@ async def get_badges_list(
                 detail=message or "勋章中心功能未启用",
             )
 
-        # 获取所有启用的勋章
-        badges = db.get_all_badges(only_enabled=True)
+        # 获取所有勋章（包括未启用的）
+        badges = db.get_all_badges(only_enabled=False)
 
         # 获取用户积分
         stats_info = db.get_stats_by_tg_id(user_id)
