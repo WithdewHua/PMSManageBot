@@ -112,7 +112,7 @@
                     <div class="font-weight-bold mb-1">{{ badge.badge.name }}</div>
                     <div class="text-caption">加成: +{{ (badge.badge.bonus_percentage * 100).toFixed(0) }}%</div>
                     <div class="text-caption" :class="badge.bonus_active ? '' : 'text-warning'">
-                      加成{{ badge.bonus_active ? '有效至' : '已过期' }}: {{ new Date(badge.expires_at * 1000).toLocaleDateString() }}
+                      加成{{ badge.bonus_active ? '有效至' : '已过期' }}: {{ formatBadgeExpireDate(badge.expires_at) }}
                     </div>
                   </div>
                 </v-tooltip>
@@ -926,6 +926,37 @@ export default {
     // 格式化流量显示
     formatTraffic(bytes) {
       return formatTraffic(bytes)
+    },
+
+    // 格式化勋章过期时间
+    formatBadgeExpireDate(timestamp) {
+      try {
+        // 检查时间戳是否有效
+        if (!timestamp || timestamp <= 0) {
+          return '未知'
+        }
+        
+        // 后端返回的是秒级时间戳，转换为毫秒
+        const milliseconds = timestamp * 1000
+        
+        // 检查是否超过合理范围（当前时间 + 100 年）
+        const maxReasonableDate = new Date().getTime() + (100 * 365 * 24 * 60 * 60 * 1000)
+        if (milliseconds > maxReasonableDate) {
+          return '永久'
+        }
+        
+        const date = new Date(milliseconds)
+        
+        // 检查日期是否有效
+        if (isNaN(date.getTime())) {
+          return '永久'
+        }
+        
+        return date.toLocaleDateString()
+      } catch (error) {
+        console.error('格式化勋章过期时间失败:', error, 'timestamp:', timestamp)
+        return '永久'
+      }
     },
 
     async fetchUserInfo() {
