@@ -30,6 +30,7 @@ async def get_credits_rankings(
             if credits_data:
                 credits_rankings = [
                     {
+                        "tg_id": info[0],  # 添加 tg_id 字段用于加载勋章
                         "name": get_user_name_from_tg_id(info[0]),
                         "credits": info[1],
                         "avatar": get_user_avatar_from_tg_id(info[0]),
@@ -66,6 +67,7 @@ async def get_donation_rankings(
             if donation_data:
                 donation_rankings = [
                     {
+                        "tg_id": info[0],  # 添加 tg_id 字段用于加载勋章
                         "name": get_user_name_from_tg_id(info[0]),
                         "donation": info[1],
                         "avatar": get_user_avatar_from_tg_id(info[0]),
