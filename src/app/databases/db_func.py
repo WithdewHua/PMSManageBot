@@ -28,6 +28,7 @@ from app.modules.emby import Emby
 from app.modules.plex import Plex
 from app.modules.tautulli import Tautulli
 from app.utils.utils import (
+    format_traffic_size,
     get_user_name_from_tg_id,
     get_user_total_duration,
     is_binded_premium_line,
@@ -999,11 +1000,17 @@ async def update_line_traffic_stats(
                 )
 
                 if success:
-                    log_msg = f"成功处理日志: line={backend}, service={service}, user={username}, bytes={bytes_sent}, time={formatted_timestamp}"
+                    log_msg = f"""成功处理流量日志
+    线路: {backend}
+    服务: {service}
+    用户: {username}
+    流量: {format_traffic_size(bytes_sent)}
+    时间: {formatted_timestamp}
+    URI: {decoded_uri}"""
                     if upstream:
-                        log_msg += f", upstream={upstream}"
+                        log_msg += f"\n    上游: {upstream}"
                     if upstream_response_time:
-                        log_msg += f", ups_resp_time={upstream_response_time}"
+                        log_msg += f"\n    上游响应时间: {upstream_response_time}s"
                     logger.info(log_msg)
                     processed_count += 1
 
