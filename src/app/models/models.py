@@ -192,6 +192,9 @@ class LineTrafficStats(Base):
     username: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     user_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     timestamp: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    request_uri: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    upstream: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    upstream_response_time: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
         Index("idx_line_traffic_service_user_time", "service", "username", "timestamp"),

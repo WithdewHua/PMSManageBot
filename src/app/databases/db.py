@@ -1920,6 +1920,9 @@ class DatabaseORM:
         username: str,
         user_id: str,
         timestamp: str,
+        request_uri: Optional[str] = None,
+        upstream: Optional[str] = None,
+        upstream_response_time: Optional[str] = None,
     ) -> bool:
         """创建流量统计记录"""
         try:
@@ -1931,6 +1934,9 @@ class DatabaseORM:
                     username=username,
                     user_id=user_id,
                     timestamp=timestamp,
+                    request_uri=request_uri,
+                    upstream=upstream,
+                    upstream_response_time=upstream_response_time,
                 )
                 session.add(traffic_entry)
                 return True

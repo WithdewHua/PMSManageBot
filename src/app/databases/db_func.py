@@ -5,7 +5,7 @@ import re
 from datetime import datetime, timedelta
 from time import time
 from typing import Optional
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 from uuid import NAMESPACE_URL, uuid3
 
 from app.config import settings
@@ -870,8 +870,10 @@ async def update_line_traffic_stats(
                 message = log_data.get("message", "")
 
                 # 使用正则表达式解析 nginx 访问日志格式
-                # 格式: IP - - [时间] "方法 URL 协议" 状态码 字节数 "引用"
-                log_pattern = r"(\S+) - \S+? \[([^\]]+)\] \"(\S+) ([^\"]+) ([^\"]+)\" (\d+) (\d+) \"([^\"]*)\""
+                # 旧格式：'$remote_addr - $remote_user [$time_local] "$request" ' '$status $body_bytes_sent "$http_referer" ' '"$http_user_agent" "$http_x_forwarded_for"'
+                # 新格式：'$remote_addr - $remote_user [$time_local] "$request" ' '$status $body_bytes_sent "$http_referer" ' '"$http_user_agent" "$http_x_forwarded_for" ' '"upstream: $upstream_addr" ' '"ups_resp_time: $upstream_response_time"'
+
+                log_pattern = r'(\S+) - \S+? \[([^\]]+)\] "(\S+) ([^"]+) ([^"]+)" (\d+) (\d+) "([^"]*)"(?: "[^"]*" "[^"]*" "upstream: ([^"]*)" "ups_resp_time: ([^"]*)")?'
                 match = re.match(log_pattern, message)
 
                 if not match:
@@ -883,6 +885,9 @@ async def update_line_traffic_stats(
                 url = match.group(4)
                 status_code = int(match.group(6))
                 bytes_sent = int(match.group(7))
+                # 新格式的可选字段（旧格式时为 None）
+                upstream = match.group(9)
+                upstream_response_time = match.group(10)
 
                 # 只处理成功的请求 (2xx 状态码)
                 if status_code < 200 or status_code >= 300:
@@ -899,6 +904,9 @@ async def update_line_traffic_stats(
                 # 解析 URL 获取服务信息
                 parsed_url = urlparse(url)
                 query_params = parse_qs(parsed_url.query)
+
+                # URL 解码请求 URI（只保留路径部分，不包含查询参数）
+                decoded_uri = unquote(parsed_url.path)
 
                 # 检查服务和 token
                 service_list = query_params.get("service")
@@ -985,12 +993,18 @@ async def update_line_traffic_stats(
                     username=username,
                     user_id=user_id,
                     timestamp=formatted_timestamp,
+                    request_uri=decoded_uri,
+                    upstream=upstream,
+                    upstream_response_time=upstream_response_time,
                 )
 
                 if success:
-                    logger.info(
-                        f"成功处理日志: line={backend}, service={service}, user={username}, bytes={bytes_sent}, time={formatted_timestamp}"
-                    )
+                    log_msg = f"成功处理日志: line={backend}, service={service}, user={username}, bytes={bytes_sent}, time={formatted_timestamp}"
+                    if upstream:
+                        log_msg += f", upstream={upstream}"
+                    if upstream_response_time:
+                        log_msg += f", ups_resp_time={upstream_response_time}"
+                    logger.info(log_msg)
                     processed_count += 1
 
             except json.JSONDecodeError as e:
