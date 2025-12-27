@@ -133,6 +133,7 @@ class Emby:
                     name = response_json["Name"]
                     primary_image_tag = response_json.get("PrimaryImageTag", "")
                     date_created = response_json.get("DateCreated", "")
+                    break
 
             if name is None:
                 return {}
