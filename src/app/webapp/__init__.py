@@ -4,12 +4,20 @@ from pathlib import Path
 from app.config import settings
 from app.log import logger
 from app.webapp.middlewares import TelegramAuthMiddleware
-from app.webapp.routers import rankings_router, system_router, user_router
+from app.webapp.routers import (
+    donation_router,
+    rankings_router,
+    system_router,
+    user_router,
+)
 from app.webapp.routers.activities.auction import router as auction_router
 from app.webapp.routers.activities.luckywheel import router as luckywheel_router
 from app.webapp.routers.admin import router as admin_router
+from app.webapp.routers.badge import router as badge_router
+from app.webapp.routers.crypto_donation import router as crypto_donation_router
 from app.webapp.routers.invitation import router as invitation_router
 from app.webapp.routers.premium import router as premium_router
+from app.webapp.routers.vaultwarden import router as vaultwarden_router
 from app.webapp.startup.lifespan import lifespan
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -60,8 +68,12 @@ app.include_router(system_router)  # 添加系统统计路由
 app.include_router(invitation_router)  # 添加邀请码路由
 app.include_router(premium_router)  # 添加 Premium 路由
 app.include_router(admin_router)  # 添加管理员路由
+app.include_router(donation_router)  # 添加捐赠路由
+app.include_router(crypto_donation_router)  # 添加 Crypto 捐赠路由
 app.include_router(luckywheel_router, prefix="/api")  # 添加幸运大转盘路由
 app.include_router(auction_router, prefix="/api")  # 添加竞拍活动路由
+app.include_router(vaultwarden_router)  # 添加 Vaultwarden 路由
+app.include_router(badge_router)  # 添加勋章路由
 
 
 def setup_static_files():

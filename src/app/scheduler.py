@@ -15,8 +15,17 @@ class Scheduler(metaclass=SingletonMeta):
             "default": AsyncIOExecutor(),
             "threadpool": ThreadPoolExecutor(100),
         }
+        # 配置调度器参数
+        job_defaults = {
+            "coalesce": True,  # 合并错过的任务
+            "max_instances": 1,  # 每个任务最多同时运行1个实例
+            "misfire_grace_time": 60,  # 任务最多可以延迟60秒执行
+        }
         self.scheduler = AsyncIOScheduler(
-            jobstores=self.jobstores, executors=self.executors, timezone=settings.TZ
+            jobstores=self.jobstores,
+            executors=self.executors,
+            job_defaults=job_defaults,
+            timezone=settings.TZ,
         )
 
         self.start()

@@ -295,6 +295,8 @@ import { authBindLine, getAvailableEmbyLinesByUser, getAvailablePlexLinesByUser,
 
 export default {
   name: 'BindLineDialog',
+  components: {
+  },
   data() {
     return {
       showDialog: false,
@@ -619,7 +621,7 @@ export default {
         }
       } catch (error) {
         console.error('认证绑定线路失败:', error);
-        this.errorMessage = error.response?.data?.detail || error.response?.data?.message || '认证绑定失败，请稍后再试';
+        this.errorMessage = error.response?.data?.detail || error.response?.data?.message || '认证绑定失败,请稍后再试';
       } finally {
         this.loading = false;
       }

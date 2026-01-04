@@ -2,13 +2,14 @@ import json
 import re
 import secrets
 import time
+import traceback
 
-from app.cache import lucky_wheel_config_cache
-from app.db import DB
+from app.config import settings
+from app.databases import db
+from app.databases.db_func import add_redeem_code
 from app.log import logger
 from app.premium import update_premium_status
-from app.update_db import add_redeem_code
-from app.utils.utils import get_user_name_from_tg_id
+from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.routers.admin import check_admin_permission
@@ -92,12 +93,12 @@ class RandomnessConfig:
 def get_wheel_config() -> LuckyWheelConfig:
     """获取转盘配置"""
     try:
-        config_str = lucky_wheel_config_cache.get("config")
+        config_str = db.get_lucky_wheel_config("config")
         if config_str:
             config_dict = json.loads(config_str)
             return LuckyWheelConfig(**config_dict)
         else:
-            # 如果没有配置，使用默认配置并保存到Redis
+            # 如果没有配置，使用默认配置并保存到数据库
             save_wheel_config(DEFAULT_WHEEL_CONFIG)
             return DEFAULT_WHEEL_CONFIG
     except Exception as e:
@@ -106,11 +107,14 @@ def get_wheel_config() -> LuckyWheelConfig:
 
 
 def save_wheel_config(config: LuckyWheelConfig):
-    """保存转盘配置到Redis"""
+    """保存转盘配置到数据库"""
     try:
         config_json = config.model_dump_json()
-        lucky_wheel_config_cache.put("config", config_json)
-        logger.info("转盘配置已保存到Redis")
+        success = db.set_lucky_wheel_config("config", config_json)
+        if success:
+            logger.info("转盘配置已保存到数据库")
+        else:
+            raise Exception("保存配置失败")
     except Exception as e:
         logger.error(f"保存转盘配置失败: {e}")
         raise HTTPException(
@@ -174,7 +178,7 @@ def _handle_premium_reward(tg_id: int, name: str) -> float:
         days_match = re.search(r"(\d+)", name)
         if days_match:
             days = int(days_match.group(1))
-            db = DB()
+
             try:
                 new_expiry = update_premium_status(db, tg_id, "plex", days)
                 logger.info(
@@ -191,10 +195,6 @@ def _handle_premium_reward(tg_id: int, name: str) -> float:
                 pass
     except Exception as e:
         logger.error(f"更新 Premium 状态失败: {e}")
-    else:
-        db.con.commit()
-    finally:
-        db.close()
     return 0  # Premium 奖品不涉及积分变化
 
 
@@ -280,17 +280,16 @@ async def spin_wheel(
 ):
     """转动转盘"""
     try:
-        db = DB()
         user_id = current_user.id
 
         # 获取转盘配置
         config = get_wheel_config()
 
         # 获取用户当前积分
-        flag, current_credits = db.get_user_credits(user_id)
-        if not flag:
+        current_credits = db.get_user_credits(user_id)
+        if not current_credits:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=current_credits
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"未找到用户 {user_id}"
             )
 
         # 检查积分是否足够
@@ -309,11 +308,13 @@ async def spin_wheel(
 
         # 如果中奖奖品是邀请码，判断是否需要生成特权邀请码
         gen_privileged_code = False
+        generated_privileged_code = False
         if "邀请码" in winner.name and config.gen_privileged_code:
             gen_privileged_code = True
             # 生成后立马关闭生成特权邀请码
             config.gen_privileged_code = False
             save_wheel_config(config)
+            generated_privileged_code = True
 
         # 更新奖励，计算积分变化
         credits_change = calculate_credits_change(
@@ -336,6 +337,13 @@ async def spin_wheel(
         logger.info(
             f"用户 {get_user_name_from_tg_id(user_id)} 转盘结果: {winner.name}, 积分变化: {credits_change}, 最终积分: {final_credits}"
         )
+        if generated_privileged_code:
+            for chat_id in settings.TG_ADMIN_CHAT_ID:
+                await send_message_by_url(
+                    chat_id=chat_id,
+                    text=f"用户 {get_user_name_from_tg_id(user_id)} 在转盘中获得了特权邀请码",
+                    token=settings.TG_API_TOKEN,
+                )
 
         return LuckyWheelSpinResult(
             item=winner, credits_change=credits_change, current_credits=final_credits
@@ -348,8 +356,6 @@ async def spin_wheel(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="转盘操作失败"
         )
-    finally:
-        db.close()
 
 
 @router.get("/user-status")
@@ -359,17 +365,16 @@ async def get_user_status(
 ):
     """获取用户转盘参与状态"""
     try:
-        db = DB()
         user_id = current_user.id
 
         # 获取转盘配置
         config = get_wheel_config()
 
         # 获取用户当前积分
-        flag, current_credits = db.get_user_credits(user_id)
-        if not flag:
+        current_credits = db.get_user_credits(user_id)
+        if current_credits is None:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=current_credits
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"未找到用户 {user_id}"
             )
 
         can_participate = current_credits >= config.min_credits_required
@@ -383,24 +388,23 @@ async def get_user_status(
 
     except Exception as e:
         logger.error(f"获取用户转盘状态失败: {e}")
+        logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取用户状态失败"
         )
-    finally:
-        db.close()
 
 
 def get_randomness_config_from_redis() -> dict:
-    """从Redis获取随机性配置"""
+    """从数据库获取随机性配置"""
     try:
-        config_str = lucky_wheel_config_cache.get("randomness_config")
+        config_str = db.get_lucky_wheel_config("randomness_config")
         if config_str:
             config_dict = json.loads(config_str)
             # 更新类配置
             RandomnessConfig.from_dict(config_dict)
             return config_dict
         else:
-            # 如果没有配置，使用默认配置并保存到Redis
+            # 如果没有配置，使用默认配置并保存到数据库
             default_config = RandomnessConfig.to_dict()
             save_randomness_config(default_config)
             return default_config
@@ -410,7 +414,7 @@ def get_randomness_config_from_redis() -> dict:
 
 
 def save_randomness_config(config_dict: dict):
-    """保存随机性配置到Redis"""
+    """保存随机性配置到数据库"""
     try:
         # 验证配置参数的合理性
         if "protection_threshold" in config_dict:
@@ -426,10 +430,13 @@ def save_randomness_config(config_dict: dict):
         # 更新类配置
         RandomnessConfig.from_dict(config_dict)
 
-        # 保存到Redis
+        # 保存到数据库
         config_json = json.dumps(config_dict)
-        lucky_wheel_config_cache.put("randomness_config", config_json)
-        logger.info("随机性配置已保存到Redis")
+        success = db.set_lucky_wheel_config("randomness_config", config_json)
+        if success:
+            logger.info("随机性配置已保存到数据库")
+        else:
+            raise Exception("保存随机性配置失败")
     except Exception as e:
         logger.error(f"保存随机性配置失败: {e}")
         raise HTTPException(
@@ -507,8 +514,9 @@ def random_select_winner(
         if random_value < accumulated_probability:
             return item
 
-    # 保护措施
-    return adjusted_items[-1][0]
+    # 保护措施：返回概率最高的奖品
+    highest_prob_item = max(adjusted_items, key=lambda x: x[1])
+    return highest_prob_item[0]
 
 
 def get_randomness_stats(items: list[LuckyWheelItem], iterations: int = 10000) -> dict:
@@ -679,7 +687,6 @@ async def get_wheel_statistics(
         # 检查管理员权限
         check_admin_permission(current_user)
 
-        db = DB()
         stats = db.get_wheel_stats()
 
         return stats
@@ -691,9 +698,6 @@ async def get_wheel_statistics(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="获取统计数据失败"
         )
-    finally:
-        if "db" in locals():
-            db.close()
 
 
 @router.get("/user-activity-stats")
@@ -703,7 +707,6 @@ async def get_user_activity_stats(
 ):
     """获取用户个人活动统计数据"""
     try:
-        db = DB()
         user_id = current_user.id
 
         # 获取用户转盘统计数据
@@ -717,5 +720,3 @@ async def get_user_activity_stats(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取用户活动统计失败",
         )
-    finally:
-        db.close()

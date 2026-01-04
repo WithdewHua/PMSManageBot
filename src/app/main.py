@@ -4,24 +4,61 @@ import threading
 from copy import copy
 
 from app.config import settings
-from app.handlers.rank import *
-from app.handlers.start import *
-from app.handlers.status import *
-from app.handlers.user import *
-from app.log import logger
-from app.premium import check_premium_expiring_soon, check_premium_expiry
-from app.scheduler import Scheduler
-from app.update_db import (
+from app.databases.db_func import (
+    auto_switch_user_lines,
+    check_expired_crypto_donation_orders,
     finish_expired_auctions_job,
     monthly_traffic_data_migration,
     rewrite_users_credits_to_redis,
     update_credits,
     update_line_traffic_stats,
     update_plex_info,
+    update_users_last_viewed,
     write_user_info_cache,
 )
+from app.databases.session import init_db
+from app.handlers.rank import *
+from app.handlers.start import *
+from app.handlers.status import *
+from app.handlers.user import *
+from app.log import logger
+from app.premium import (
+    check_premium_expiring_soon,
+    check_premium_expiry,
+    get_and_send_premium_statistics,
+)
+from app.scheduler import Scheduler
+from app.utils.report import send_weekly_report
 from app.utils.utils import refresh_emby_user_info, refresh_tg_user_info
+from telegram import BotCommand
 from telegram.ext import ApplicationBuilder
+
+
+async def set_bot_commands(application):
+    """设置机器人命令列表"""
+    commands = [
+        BotCommand("start", "开始使用机器人"),
+        BotCommand("info", "查看个人信息"),
+        BotCommand("server_status", "查看服务器在线人数/状态"),
+        BotCommand("rank_24h", "查看24小时观看时长榜"),
+        BotCommand("exchange", f"生成邀请码(消耗 {settings.INVITATION_CREDITS} 积分)"),
+        BotCommand("credits_rank", "查看积分榜"),
+        BotCommand("donation_rank", "查看捐赠榜"),
+        BotCommand("play_duration_rank", "查看观看时长榜"),
+        BotCommand("device_rank", "查看设备榜"),
+        BotCommand("register_status", "查看 Plex/Emby 是否可注册"),
+        BotCommand("create_overseerr", "创建 Overseerr 账户"),
+        # 管理员命令
+        BotCommand("set_donation", "设置捐赠金额 (管理员)"),
+        BotCommand("update_database", "更新数据库 (管理员)"),
+        BotCommand("set_register", "设置可注册状态 (管理员)"),
+    ]
+
+    try:
+        await application.bot.set_my_commands(commands)
+        logger.info("机器人命令列表设置成功")
+    except Exception as e:
+        logger.error(f"设置机器人命令列表失败: {e}")
 
 
 def start_api_server():
@@ -108,25 +145,28 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每天早上 07:00 更新 Emby 用户信息")
 
-    # 每小时检查并结束过期的竞拍活动 (同步任务)
+    # 每 24 小时检查并结束过期的竞拍活动（兜底机制）
     scheduler.add_async_job(
         func=finish_expired_auctions_job,
         trigger="cron",
-        id="finish_expired_auctions",
+        id="finish_expired_auctions_fallback",
         replace_existing=True,
         max_instances=1,
-        minute=0,  # 每小时的第0分钟执行
+        hour=2,  # 每天凌晨2点执行一次作为兜底
+        minute=0,
     )
-    logger.info("添加定时任务：每小时自动结束过期竞拍活动")
+    logger.info("添加定时任务：每天凌晨 2 点检查过期竞拍活动（兜底机制）")
 
     # 每 5 分钟检查 Premium 会员过期状态 (异步任务)
     scheduler.add_async_job(
         func=check_premium_expiry,
-        trigger="cron",
+        trigger="interval",
         id="check_premium_expiry",
         replace_existing=True,
         max_instances=1,
-        minute="*/5",  # 每 5 分钟执行一次
+        minutes=5,  # 每 5 分钟执行一次
+        next_run_time=datetime.datetime.now(settings.TZ)
+        + datetime.timedelta(seconds=30),  # 启动后 30 秒执行一次
     )
     logger.info("添加定时任务：每 5 分钟检查 Premium 会员过期状态")
 
@@ -178,6 +218,19 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每 1 小时更新用户信息")
 
+    # 每 30min 更新一次用户最后观看时间
+    scheduler.add_sync_job(
+        func=update_users_last_viewed,
+        trigger="interval",
+        id="update_users_last_viewed",
+        replace_existing=True,
+        max_instances=1,
+        minutes=30,  # 每 30 分钟执行一次
+        next_run_time=datetime.datetime.now(settings.TZ)
+        + datetime.timedelta(minutes=1),  # 启动后 1 分钟执行一次
+    )
+    logger.info("添加定时任务：每 30 分钟更新用户最后观看时间")
+
     # 每月 1 号凌晨 1:00 执行月度流量数据迁移聚合
     scheduler.add_async_job(
         func=monthly_traffic_data_migration,
@@ -191,9 +244,70 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每月 1 号凌晨 1:00 执行月度流量数据迁移聚合")
 
+    # 每天 23:59 获取并发送Premium线路统计信息给管理员 (异步任务)
+    scheduler.add_async_job(
+        func=get_and_send_premium_statistics,
+        trigger="cron",
+        id="send_premium_statistics",
+        replace_existing=True,
+        max_instances=1,
+        day_of_week="*",
+        hour=23,
+        minute=59,
+    )
+    logger.info("添加定时任务：每天 23:59 发送 Premium 线路统计信息给管理员")
+
+    # 每 10 分钟检查并更新过期的 crypto 捐赠订单状态 (异步任务)
+    scheduler.add_async_job(
+        func=check_expired_crypto_donation_orders,
+        trigger="interval",
+        id="check_expired_crypto_donation_orders",
+        replace_existing=True,
+        max_instances=1,
+        minutes=10,  # 每 10 分钟执行一次
+        next_run_time=datetime.datetime.now(settings.TZ)
+        + datetime.timedelta(seconds=45),  # 启动后 45 秒执行一次
+    )
+    logger.info("添加定时任务：每 10 分钟检查过期的 crypto 捐赠订单")
+
+    # 每 1 分钟自动切换用户线路调度 (异步任务)
+    scheduler.add_async_job(
+        func=auto_switch_user_lines,
+        trigger="cron",
+        id="auto_switch_user_lines",
+        replace_existing=True,
+        max_instances=1,
+        minute="*/1",  # 每 1 分钟执行一次
+    )
+    logger.info("添加定时任务：每 1 分钟自动切换用户线路调度")
+
+    # 恢复现有竞拍的定时任务
+    try:
+        from app.webapp.routers.activities.auction import restore_auction_schedules
+
+        restore_auction_schedules()
+    except Exception as e:
+        logger.error(f"恢复竞拍定时任务失败: {e}")
+
+    # 每周一凌晨 00:05 分发送每周统计报告
+    scheduler.add_async_job(
+        func=send_weekly_report,
+        trigger="cron",
+        id="send_weekly_report",
+        replace_existing=True,
+        max_instances=1,
+        day_of_week="mon",
+        hour=0,
+        minute=5,
+    )
+    logger.info("添加定时任务：每周一凌晨 00:05 发送每周统计报告")
+
 
 if __name__ == "__main__":
     logger.info("启动 PMSManageBot 服务...")
+
+    # 初始化数据库
+    init_db()
 
     # 启动定时任务
     logger.info("启动调度器...")
@@ -208,6 +322,9 @@ if __name__ == "__main__":
         if var.endswith("_handler"):
             logger.info(f"Add handler: {var}")
             application.add_handler(val)
+
+    # 设置机器人命令列表(在应用启动后执行)
+    application.post_init = set_bot_commands
 
     # 根据配置决定是否启动 WebApp
     if settings.WEBAPP_ENABLE:

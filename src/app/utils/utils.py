@@ -4,15 +4,40 @@ import asyncio
 import pickle
 import threading
 from time import time
-from typing import Optional
+from typing import Optional, Union
 
 import aiohttp
 import filelock
 from app.config import settings
-from app.db import DB
-from app.emby import Emby
+from app.databases.session import get_session as get_db_session
 from app.log import logger
+from app.models.models import EmbyUser, Statistics
+from app.modules.emby import Emby
+from sqlalchemy import select
 from telegram.ext import ContextTypes
+
+
+def format_traffic_size(bytes_size: int) -> str:
+    """
+    格式化流量大小为可读格式
+    :param bytes_size: 字节大小
+    :return: 格式化后的字符串
+    """
+    if bytes_size == 0:
+        return "0 B"
+
+    units = ["B", "KB", "MB", "GB", "TB"]
+    unit_index = 0
+    size = float(bytes_size)
+
+    while size >= 1024 and unit_index < len(units) - 1:
+        size /= 1024
+        unit_index += 1
+
+    if unit_index == 0:
+        return f"{int(size)} {units[unit_index]}"
+    else:
+        return f"{size:.2f} {units[unit_index]}"
 
 
 # Global session manager to avoid SSL connection issues
@@ -95,7 +120,7 @@ async def send_message(chat_id, text: str, context: ContextTypes.DEFAULT_TYPE, *
 
 
 async def send_message_by_url(
-    chat_id,
+    chat_id: Union[int, str],
     text: str,
     token: str = settings.TG_API_TOKEN,
     max_retries: int = 10,
@@ -131,13 +156,13 @@ async def send_message_by_url(
     # Use global session manager to avoid connection pool issues
     session = await get_thread_safe_session()
 
-    for attempt in range(max_retries):
-        try:
-            logger.debug(
-                f"Attempt {attempt + 1}/{max_retries}: Sending message to {chat_id}"
-            )
+    async with session.post(url, data=data) as response:
+        for attempt in range(max_retries):
+            try:
+                logger.debug(
+                    f"Attempt {attempt + 1}/{max_retries}: Sending message to {chat_id}"
+                )
 
-            async with session.post(url, data=data) as response:
                 response.raise_for_status()
                 result = await response.json()
 
@@ -150,37 +175,37 @@ async def send_message_by_url(
                     logger.warning(f"Telegram API returned error: {result}")
                     return False
 
-        except (
-            aiohttp.ClientError,
-            aiohttp.ServerTimeoutError,
-            asyncio.TimeoutError,
-        ) as e:
-            # Network-related errors, worth retrying
-            logger.warning(
-                f"Network error on attempt {attempt + 1}: {type(e).__name__}: {e}"
-            )
-            if attempt == max_retries - 1:
-                logger.error(
-                    f"Failed to send message to {chat_id} after {max_retries} attempts: {e}"
+            except (
+                aiohttp.ClientError,
+                aiohttp.ServerTimeoutError,
+                asyncio.TimeoutError,
+            ) as e:
+                # Network-related errors, worth retrying
+                logger.warning(
+                    f"Network error on attempt {attempt + 1}: {type(e).__name__}: {e}"
                 )
-                return False
+                if attempt == max_retries - 1:
+                    logger.error(
+                        f"Failed to send message to {chat_id} after {max_retries} attempts: {e}"
+                    )
+                    return False
 
-        except Exception as e:
-            # Other errors, may not be worth retrying
-            logger.error(
-                f"Unexpected error on attempt {attempt + 1}: {type(e).__name__}: {e}"
-            )
-            if attempt == max_retries - 1:
+            except Exception as e:
+                # Other errors, may not be worth retrying
                 logger.error(
-                    f"Failed to send message to {chat_id} after {max_retries} attempts: {e}"
+                    f"Unexpected error on attempt {attempt + 1}: {type(e).__name__}: {e}"
                 )
-                return False
+                if attempt == max_retries - 1:
+                    logger.error(
+                        f"Failed to send message to {chat_id} after {max_retries} attempts: {e}"
+                    )
+                    return False
 
-        # Exponential backoff for retries
-        if attempt < max_retries - 1:
-            wait_time = min(2**attempt, 10)  # Cap at 10 seconds
-            logger.debug(f"Waiting {wait_time} seconds before retry...")
-            await asyncio.sleep(wait_time)
+            # Exponential backoff for retries
+            if attempt < max_retries - 1:
+                wait_time = min(2**attempt, 10)  # Cap at 10 seconds
+                logger.debug(f"Waiting {wait_time} seconds before retry...")
+                await asyncio.sleep(wait_time)
 
     return False
 
@@ -270,27 +295,34 @@ def get_user_avatar_from_tg_id(chat_id: int, token=settings.TG_API_TOKEN):
     return user_info.get("photo_url")
 
 
-async def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
+async def refresh_tg_user_info(
+    tg_id: Optional[int] = None, token: str = settings.TG_API_TOKEN
+):
     """刷新用户信息"""
     try:
         cache_file_lock = filelock.FileLock(
             str(settings.TG_USER_INFO_CACHE_PATH) + ".lock"
         )
         cache = {}
-        db = DB()
+
         session = await get_thread_safe_session()
 
-        # 从 statistics 表获取所有用户
-        stats_users = db.cur.execute("SELECT tg_id FROM statistics").fetchall()
-        stats_users = [user[0] for user in stats_users]
-
+        if not tg_id:
+            # 从 statistics 表获取所有用户
+            with get_db_session() as db_session:
+                stmt = select(Statistics.tg_id)
+                stats_users = [
+                    tg_id for tg_id in db_session.execute(stmt).scalars().all()
+                ]
+        else:
+            stats_users = [tg_id]
         for tg_id in stats_users:
             if settings.TG_USER_INFO_CACHE_PATH.exists():
                 with open(settings.TG_USER_INFO_CACHE_PATH, "rb") as f:
                     cache = pickle.load(f)
-            # 缓存保留 7 天
+            # 缓存保留 1 天
             if tg_id in cache:
-                if time() - cache.get(tg_id).get("added") <= 7 * 24 * 3600:
+                if time() - cache.get(tg_id).get("added") <= 1 * 24 * 3600:
                     logger.info(
                         f"{cache.get(tg_id).get('username')}({tg_id}) info is not expired, skip"
                     )
@@ -347,25 +379,26 @@ async def refresh_tg_user_info(token: str = settings.TG_API_TOKEN):
                     pickle.dump(cache, f)
     except Exception as e:
         logger.error(f"Refresh user tg info failed: {e}")
-    finally:
-        db.close()
 
 
-def refresh_emby_user_info():
+def refresh_emby_user_info(emby_username: Optional[str] = None):
     """刷新 emby user info"""
     emby = Emby()
     # 获取所有的 emby 用户名
     try:
-        db = DB()
+        if not emby_username:
+            with get_db_session() as session:
+                stmt = select(EmbyUser.emby_username)
+                emby_users = [
+                    username for username in session.execute(stmt).scalars().all()
+                ]
+        else:
+            emby_users = [emby_username]
 
-        emby_users = db.cur.execute("SELECT emby_username from emby_user").fetchall()
-        emby_users = [user[0] for user in emby_users]
         for user in emby_users:
             emby.get_user_info_from_username(user)
     except Exception as e:
         logger.error(f"Refresh emby user info failed: {e}")
-    finally:
-        db.close()
 
 
 class SingletonMeta(type):

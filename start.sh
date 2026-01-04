@@ -13,6 +13,17 @@ if [ -d "/app/webapp-frontend/dist" ]; then
     echo "前端配置更新完成"
 fi
 
+# 运行数据库迁移
+echo "运行数据库迁移..."
+alembic upgrade head
+
+if [ $? -eq 0 ]; then
+    echo "数据库迁移完成"
+else
+    echo "数据库迁移失败，但继续启动应用..."
+fi
+
 # 启动 Python 应用
 echo "启动应用..."
 exec python3 -m app.main
+

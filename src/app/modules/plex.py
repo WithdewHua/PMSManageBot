@@ -2,6 +2,7 @@
 
 import logging
 import pickle
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, Union
 
 import filelock
@@ -23,7 +24,15 @@ class Plex:
         base_url: str = settings.PLEX_BASE_URL,
         token: str = settings.PLEX_API_TOKEN,
     ):
-        self.plex_server = PlexServer(baseurl=base_url, token=token)
+        # 创建自定义 session
+        session = requests.Session()
+        session.headers.update(
+            {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+        )
+
+        self.plex_server = PlexServer(baseurl=base_url, token=token, session=session)
         self.my_plex_account = self.plex_server.myPlexAccount()
         self.plex_server_name = self.plex_server.friendlyName
         self.users = []
@@ -34,7 +43,31 @@ class Plex:
     def get_users(self):
         if self.users:
             return self.users
-        self.users = [user for user in self.my_plex_account.users()]
+
+        # 获取所有用户并过滤掉没有媒体库权限的用户
+        all_users = [user for user in self.my_plex_account.users()]
+
+        # 过滤出有媒体库权限的用户
+        users_with_access = []
+        for user in all_users:
+            try:
+                # 检查用户是否有访问当前服务器的权限
+                user_server = user.server(self.plex_server_name)
+                if (
+                    user_server
+                    and hasattr(user_server, "numLibraries")
+                    and user_server.numLibraries > 0
+                ):
+                    users_with_access.append(user)
+            except Exception as e:
+                # 如果用户没有访问此服务器的权限,会抛出异常,跳过该用户
+                logger.info(
+                    f"用户 {user.username if hasattr(user, 'username') else user.email} 没有访问服务器的权限: {str(e)}"
+                )
+                continue
+
+        self.users = users_with_access
+        # 管理员账户始终添加
         self.users.append(self.my_plex_account)
         return self.users
 
@@ -71,6 +104,23 @@ class Plex:
         if not _user:
             return ""
         return _user[0]
+
+    def get_user_id_by_username(self, username: str) -> int:
+        """
+        通过用户名获取用户 ID
+
+        Args:
+            username: Plex 用户名
+
+        Returns:
+            int: 用户 ID，如果未找到则返回 0
+        """
+        for user in self.get_users():
+            if hasattr(user, "username") and user.username == username:
+                return user.id
+            elif hasattr(user, "title") and user.title == username:
+                return user.id
+        return 0
 
     @classmethod
     def get_user_avatar_by_username(cls, username: str) -> str:
@@ -131,6 +181,7 @@ class Plex:
 
     def update_user_shared_libs(self, user_id, libs: list):
         """update shared libraries with specified user by id"""
+        logger.info(f"Updating shared libraries for user {user_id}: {libs}")
         self.my_plex_account.updateFriend(
             self.my_plex_account.user(user_id), self.plex_server, sections=libs
         )
@@ -171,6 +222,30 @@ class Plex:
                         f"Failed to update libraries({', '.join(new_libs)}) for {user_info[1].username}"
                     )
                     continue
+
+    def add_shared_libs_for_user(self, email: str, add_sections: Union[str, list]):
+        """更新指定用户的资料库权限"""
+
+        if isinstance(add_sections, str):
+            add_sections = [add_sections]
+
+        user_info = self.users_by_email.get(email)
+        if not user_info:
+            logger.error(f"无法找到 Plex 用户 {email}")
+            return
+
+        try:
+            cur_libs = self.get_user_shared_libs_by_id(user_info[0])
+            cur_libs.extend(add_sections)
+            new_libs = list(set(cur_libs))
+            logger.info(
+                f"为 Plex 用户 {user_info[1].username} 更新资料库权限: {', '.join(new_libs)}"
+            )
+            self.update_user_shared_libs(user_info[0], libs=new_libs)
+        except Exception:
+            logger.error(
+                f"无法为 Plex 用户 {user_info[1].username} 更新资料库权限({', '.join(new_libs)})"
+            )
 
     def _authenticate_user_by_username(
         self, username: str, password: str
@@ -266,3 +341,96 @@ class Plex:
         else:
             logger.error("必须提供用户名和密码或 API Token 进行验证")
             return False, None
+
+    def get_user_last_viewed_at(self, user_id: int = None, username: str = None) -> int:
+        """
+        获取用户最后观看时间
+
+        Args:
+            user_id: Plex 用户 ID
+            username: Plex 用户名 (如果未提供 user_id)
+
+        Returns:
+            int: Unix 时间戳，表示最后观看时间；如果没有观看记录则返回 0
+        """
+        try:
+            # 如果提供了用户名，先获取用户ID
+            if username and not user_id:
+                user_id = self.get_user_id_by_username(username)
+
+            if not user_id:
+                logger.warning(f"无法找到用户: {username or user_id}")
+                return 0
+
+            # 获取用户的观看历史
+            if user_id == self.my_plex_account.id:
+                history = self.my_plex_account.history(maxresults=1, mindate=None)
+            else:
+                history = self.plex_server.history(
+                    maxresults=1, accountID=user_id, mindate=None
+                )
+
+            if history:
+                # 获取最近一次观看记录的时间
+                last_item = history[0]
+                if hasattr(last_item, "viewedAt") and last_item.viewedAt:
+                    # viewedAt 是 datetime 对象，需要转换为 Unix 时间戳
+                    return int(last_item.viewedAt.timestamp())
+
+            logger.info(f"用户 {self.get_username_by_user_id(user_id)} 没有观看记录")
+            return 0
+
+        except Exception as e:
+            logger.error(f"获取用户最后观看时间时发生错误: {str(e)}")
+            return 0
+
+    def get_all_users_last_viewed_at(self) -> dict[int, int]:
+        """
+        批量获取所有用户的最后观看时间
+
+        Returns:
+            dict[int, int]: 字典，键为用户ID，值为最后观看时间的 Unix 时间戳
+        """
+        result = {}
+        users = self.get_users()
+
+        def fetch_user_last_viewed(user):
+            """获取单个用户的最后观看时间"""
+            try:
+                user_id = user.id
+                last_viewed = self.get_user_last_viewed_at(user_id=user_id)
+                return user_id, last_viewed
+            except Exception as e:
+                logger.warning(f"获取用户 {user.id} 最后观看时间失败: {str(e)}")
+                return user.id, 0
+
+        try:
+            # 使用线程池并发查询，最多同时进行10个请求
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                # 提交所有任务
+                future_to_user = {
+                    executor.submit(fetch_user_last_viewed, user): user
+                    for user in users
+                }
+
+                # 收集结果
+                for future in as_completed(future_to_user):
+                    user_id, last_viewed = future.result()
+                    result[user_id] = last_viewed
+
+            logger.info(f"成功获取 {len(result)} 个用户的最后观看时间")
+            return result
+
+        except Exception as e:
+            logger.error(f"批量获取用户最后观看时间时发生错误: {str(e)}")
+            # 如果并发失败，回退到串行查询
+            logger.info("并发查询失败，回退到串行查询")
+            for user in users:
+                try:
+                    result[user.id] = self.get_user_last_viewed_at(user_id=user.id)
+                except Exception as user_error:
+                    logger.warning(
+                        f"获取用户 {user.id} 最后观看时间失败: {str(user_error)}"
+                    )
+                    result[user.id] = 0
+            return result

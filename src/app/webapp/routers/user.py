@@ -1,25 +1,30 @@
+import asyncio
 from time import time
 from typing import Optional
 
-from app.cache import (
+from app.config import settings
+from app.databases import db
+from app.databases.cache import (
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
-    get_line_tags,
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
 )
-from app.config import settings
-from app.db import DB
-from app.emby import Emby
+from app.databases.db import DatabaseORM
+from app.databases.db_func import auto_switch_user_lines
+from app.databases.session import get_session
 from app.log import uvicorn_logger as logger
-from app.plex import Plex
-from app.tautulli import Tautulli
+from app.models.models import Statistics
+from app.modules.emby import Emby
+from app.modules.plex import Plex
+from app.modules.tautulli import Tautulli
 from app.utils.utils import (
     caculate_credits_fund,
     get_user_info_from_tg_id,
     get_user_name_from_tg_id,
     get_user_total_duration,
     is_binded_premium_line,
+    refresh_tg_user_info,
     send_message_by_url,
 )
 from app.webapp.auth import get_telegram_user
@@ -35,29 +40,76 @@ from app.webapp.schemas import (
     EmbyLineInfo,
     EmbyLineRequest,
     EmbyLinesResponse,
+    LineScheduleCreate,
+    LineScheduleListResponse,
+    LineScheduleStatusResponse,
+    LineScheduleUnlockRequest,
+    LineScheduleUnlockResponse,
+    LineScheduleUpdate,
     PlexLineInfo,
     PlexLineRequest,
     PlexLinesResponse,
     TelegramUser,
     UserInfo,
 )
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
+from sqlalchemy import select
 
 router = APIRouter(prefix="/api/user", tags=["user"])
+
+
+# ==================== 辅助函数 ====================
+
+
+def check_line_permission(is_premium: bool, line: str) -> tuple[bool, str]:
+    """
+    检查用户是否有权使用指定线路
+
+    Args:
+        is_premium: 是否为 premium 用户
+        line: 线路名称
+
+    Returns:
+        tuple[bool, str]: (是否有权限, 错误消息)
+    """
+    # Premium 用户拥有所有线路权限
+    if is_premium:
+        return True, ""
+
+    # 检查是否为高级线路
+    is_premium_line_flag = is_binded_premium_line(line)
+    if not is_premium_line_flag:
+        # 普通线路，所有用户都可以使用
+        return True, ""
+
+    # 高级线路需要进一步检查
+    if settings.PREMIUM_FREE:
+        # 检查该高级线路是否在免费列表中
+        free_premium_lines = db.get_free_premium_lines()
+        if line in free_premium_lines:
+            return True, ""
+        else:
+            return False, "该高级线路暂未开放免费使用"
+    else:
+        return False, "您不是 premium 用户，无法使用该线路"
 
 
 @router.get("/info")
 @require_telegram_auth
 async def get_user_info(
-    request: Request, user: TelegramUser = Depends(get_telegram_user)
+    request: Request,
+    background_tasks: BackgroundTasks,
+    user: TelegramUser = Depends(get_telegram_user),
 ):
     """获取用户信息"""
     user_id = user.id
     user_name = user.username or user.first_name
+    # 刷新 TG 用户信息
+    background_tasks.add_task(refresh_tg_user_info, tg_id=user_id)
     # 从数据库获取更多用户信息
     logger.info(f"开始获取用户 {user_name or user_id} 的详细信息")
     # 连接数据库
-    db = DB()
+
     try:
         tg_id = user_id
         is_admin = False
@@ -71,10 +123,12 @@ async def get_user_info(
             plex_info = db.get_plex_info_by_tg_id(tg_id)
             if plex_info:
                 # 获取今日流量消耗
-                daily_traffic = db.get_user_daily_traffic(plex_info[4], "plex")
+                daily_traffic = db.get_user_daily_traffic(
+                    user_id=str(plex_info[0]), service="plex"
+                )
                 # 获取今日 Premium 线路流量消耗
                 daily_premium_traffic = db.get_user_daily_traffic(
-                    plex_info[4], "plex", premium_only=True
+                    user_id=str(plex_info[0]), service="plex", premium_only=True
                 )
 
                 user_info.plex_info = {
@@ -87,6 +141,7 @@ async def get_user_info(
                     "premium_expiry": plex_info[10],
                     "daily_traffic": daily_traffic,
                     "daily_premium_traffic": daily_premium_traffic,
+                    "last_viewed_at": plex_info[11],
                 }
                 logger.debug(
                     f"用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 信息获取成功，今日流量: {daily_traffic} bytes, Premium流量: {daily_premium_traffic} bytes"
@@ -106,10 +161,12 @@ async def get_user_info(
             emby_info = db.get_emby_info_by_tg_id(tg_id)
             if emby_info:
                 # 获取今日流量消耗
-                daily_traffic = db.get_user_daily_traffic(emby_info[0], "emby")
+                daily_traffic = db.get_user_daily_traffic(
+                    username=emby_info[0], service="emby"
+                )
                 # 获取今日 Premium 线路流量消耗
                 daily_premium_traffic = db.get_user_daily_traffic(
-                    emby_info[0], "emby", premium_only=True
+                    username=emby_info[0], service="emby", premium_only=True
                 )
 
                 user_info.emby_info = {
@@ -121,6 +178,7 @@ async def get_user_info(
                     "premium_expiry": emby_info[9],
                     "daily_traffic": daily_traffic,
                     "daily_premium_traffic": daily_premium_traffic,
+                    "last_viewed_at": emby_info[10],
                 }
                 created_at = (
                     Emby().get_user_info_from_username(emby_info[0]).get("date_created")
@@ -155,6 +213,19 @@ async def get_user_info(
         except Exception as e:
             logger.error(
                 f"获取用户 {get_user_name_from_tg_id(tg_id)} 的统计信息失败: {str(e)}"
+            )
+
+        # 获取邀请人数
+        try:
+            logger.debug(f"正在查询用户 {get_user_name_from_tg_id(tg_id)} 的邀请人数")
+            invitee_count = db.get_invitee_count_by_owner(tg_id)
+            user_info.invitee_count = invitee_count
+            logger.debug(
+                f"用户 {get_user_name_from_tg_id(tg_id)} 的邀请人数获取成功: {invitee_count}"
+            )
+        except Exception as e:
+            logger.error(
+                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的邀请人数失败: {str(e)}"
             )
 
         # 获取Overseerr信息
@@ -201,9 +272,6 @@ async def get_user_info(
     except Exception as e:
         logger.error(f"获取用户信息时发生未预期的错误: {str(e)}")
         raise HTTPException(status_code=500, detail="获取用户信息失败")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.post("/bind/plex", response_model=BaseResponse)
@@ -219,10 +287,9 @@ async def bind_plex_account(
 
     logger.info(f"用户 {get_user_name_from_tg_id(tg_id)} 尝试绑定 Plex 账户 {email}")
 
-    _db = DB()
     try:
         # 检查用户是否已绑定Plex
-        _info = _db.get_plex_info_by_tg_id(tg_id)
+        _info = db.get_plex_info_by_tg_id(tg_id)
         if _info:
             logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 已绑定 Plex 账户")
             return BaseResponse(
@@ -239,8 +306,13 @@ async def bind_plex_account(
                 success=False, message="该邮箱无 Plex 权限，请检查输入的邮箱"
             )
 
-        # 检查该plex_id是否已绑定其他TG账户
-        plex_info = _db.get_plex_info_by_plex_id(plex_id)
+        # 检查该用户是否已绑定其他TG账户
+        # 邮箱可能修改，所以用 plex_id 来判断
+        # 但如果是刚接受邀请且兑换邀请码选择了绑定，则可能数据库中没有该 plex_id 的记录
+        # 所以使用 email 再检查一次
+        plex_info = db.get_plex_info_by_plex_id(
+            plex_id
+        ) or db.get_plex_info_by_plex_email(email)
         if plex_info:
             tg_id_bound = plex_info[1]
             if tg_id_bound:
@@ -251,9 +323,8 @@ async def bind_plex_account(
                     success=False,
                     message=f"该 Plex 账户已经绑定 Telegram 账户 {tg_id_bound}",
                 )
-
             # 更新已存在用户的tg_id
-            rslt = _db.update_user_tg_id(tg_id, plex_id=plex_id)
+            rslt = db.update_user_tg_id(tg_id, plex_id=plex_id)
             if not rslt:
                 logger.error(
                     f"更新用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 绑定失败"
@@ -261,7 +332,7 @@ async def bind_plex_account(
                 return BaseResponse(success=False, message="数据库更新失败，请稍后再试")
 
             # 清空 plex 用户表中积分信息
-            _db.update_user_credits(0, plex_id=plex_info[0])
+            db.update_user_credits(0, plex_id=plex_info[0])
             plex_credits = plex_info[2]
         else:
             # 添加新用户
@@ -288,7 +359,7 @@ async def bind_plex_account(
                 )
 
             # 写入数据库
-            rslt = _db.add_plex_user(
+            rslt = db.add_plex_user(
                 plex_id=plex_id,
                 tg_id=tg_id,
                 plex_email=email,
@@ -305,14 +376,13 @@ async def bind_plex_account(
                 return BaseResponse(success=False, message="数据库更新失败，请稍后再试")
 
         # 获取用户数据表信息并更新积分
-        stats_info = _db.get_stats_by_tg_id(tg_id)
+        stats_info = db.get_stats_by_tg_id(tg_id)
         if stats_info:
             tg_user_credits = stats_info[2] + plex_credits
-            _db.update_user_credits(tg_user_credits, tg_id=tg_id)
+            db.update_user_credits(tg_user_credits, tg_id=tg_id)
         else:
-            _db.add_user_data(tg_id, credits=plex_credits)
+            db.add_user_data(tg_id, credits=plex_credits)
 
-        _db.con.commit()
         logger.info(
             f"用户 {get_user_name_from_tg_id(tg_id)} 成功绑定 Plex 账户 {email}"
         )
@@ -321,9 +391,6 @@ async def bind_plex_account(
     except Exception as e:
         logger.error(f"绑定Plex账户时发生错误: {str(e)}")
         return BaseResponse(success=False, message="绑定失败，发生未知错误")
-    finally:
-        _db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.post("/bind/emby", response_model=BaseResponse)
@@ -341,7 +408,6 @@ async def bind_emby_account(
         f"用户 {get_user_name_from_tg_id(tg_id)} 尝试绑定 Emby 账户 {emby_username}"
     )
 
-    db = DB()
     try:
         # 检查用户是否已绑定Emby
         info = db.get_emby_info_by_tg_id(tg_id)
@@ -387,7 +453,6 @@ async def bind_emby_account(
         else:
             db.add_user_data(tg_id, credits=emby_credits)
 
-        db.con.commit()
         logger.info(
             f"用户 {get_user_name_from_tg_id(tg_id)} 成功绑定Emby账户 {emby_username}"
         )
@@ -398,9 +463,6 @@ async def bind_emby_account(
     except Exception as e:
         logger.error(f"绑定Emby账户时发生错误: {str(e)}")
         return BaseResponse(success=False, message="绑定失败，发生未知错误")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.get("/emby_lines", response_model=EmbyLinesResponse)
@@ -410,7 +472,7 @@ async def get_emby_lines(
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
     """获取可用的Emby线路列表"""
-    db = DB()
+
     # 获取 emby 用户信息，确认是否是 premium 用户
     emby_info = db.get_emby_info_by_tg_id(telegram_user.id)
     if not emby_info:
@@ -429,27 +491,26 @@ async def get_emby_lines(
     # 添加基础线路信息
     for line in available_lines:
         line_infos.append(
-            EmbyLineInfo(name=line, tags=get_line_tags(line), is_premium=False)
+            EmbyLineInfo(name=line, tags=db.get_line_tags(line), is_premium=False)
         )
 
     # 如果是premium用户，直接添加所有高级线路
     if is_premium:
         for line in settings.PREMIUM_STREAM_BACKEND:
             line_infos.append(
-                EmbyLineInfo(name=line, tags=get_line_tags(line), is_premium=True)
+                EmbyLineInfo(name=line, tags=db.get_line_tags(line), is_premium=True)
             )
     # 如果不是premium用户，检查免费高级线路
     elif settings.PREMIUM_FREE:
-        # 从Redis缓存获取免费高级线路列表
-        from app.cache import free_premium_lines_cache
-
-        free_premium_lines = free_premium_lines_cache.get("free_lines")
-        free_premium_lines = free_premium_lines.split(",") if free_premium_lines else []
+        # 从数据库获取免费高级线路列表
+        free_premium_lines = db.get_free_premium_lines()
 
         for line in free_premium_lines:
             line_infos.append(
                 EmbyLineInfo(
-                    name=line, tags=get_line_tags(line) + ["PREMIUM"], is_premium=True
+                    name=line,
+                    tags=db.get_line_tags(line) + ["PREMIUM"],
+                    is_premium=True,
                 )
             )
 
@@ -471,7 +532,6 @@ async def bind_emby_line(
 
     logger.info(f"用户 {get_user_name_from_tg_id(tg_id)} 尝试绑定 Emby 线路 {line}")
 
-    db = DB()
     try:
         # 检查用户是否绑定了Emby账户
         emby_info = db.get_emby_info_by_tg_id(tg_id)
@@ -479,33 +539,17 @@ async def bind_emby_line(
             logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定 Emby 账户")
             return BaseResponse(success=False, message="您尚未绑定Emby账户，请先绑定")
         emby_username, emby_line = emby_info[0], emby_info[7]
+        is_premium = emby_info[8] == 1
+
         if emby_line == line:
             logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 已绑定该线路")
             return BaseResponse(success=False, message="该线路已绑定，请勿重复操作")
 
-        # 更新用户线路设置
-        is_premium = emby_info[8] == 1
+        # 检查线路权限
+        has_permission, error_msg = check_line_permission(is_premium, line)
+        if not has_permission:
+            return BaseResponse(success=False, message=error_msg)
 
-        # 如果不是premium用户，需要检查线路权限
-        if not is_premium:
-            is_premium_line_flag = is_binded_premium_line(line)
-            if is_premium_line_flag:
-                # 检查该高级线路是否在免费列表中
-                if settings.PREMIUM_FREE:
-                    from app.cache import free_premium_lines_cache
-
-                    free_premium_lines = free_premium_lines_cache.get("free_lines")
-                    free_premium_lines = (
-                        free_premium_lines.split(",") if free_premium_lines else []
-                    )
-                    if line not in free_premium_lines:
-                        return BaseResponse(
-                            success=False, message="该高级线路暂未开放免费使用"
-                        )
-                else:
-                    return BaseResponse(
-                        success=False, message="您不是 premium 用户，无法绑定该线路"
-                    )
         success = db.set_emby_line(line, tg_id=tg_id)
 
         if not success:
@@ -532,9 +576,6 @@ async def bind_emby_line(
     except Exception as e:
         logger.error(f"绑定Emby线路时发生错误: {str(e)}")
         return BaseResponse(success=False, message=f"绑定失败: {str(e)}")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.post("/unbind/emby_line", response_model=BaseResponse)
@@ -548,7 +589,6 @@ async def unbind_emby_line(
 
     logger.info(f"用户 {get_user_name_from_tg_id(tg_id)} 尝试解绑 Emby 线路")
 
-    db = DB()
     try:
         # 检查用户是否绑定了Emby账户
         emby_info = db.get_emby_info_by_tg_id(tg_id)
@@ -566,7 +606,7 @@ async def unbind_emby_line(
         if not success:
             logger.error(f"重置用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 线路失败")
             return BaseResponse(success=False, message="重置线路失败")
-        from app.cache import emby_user_defined_line_cache
+        from app.databases.cache import emby_user_defined_line_cache
 
         # 删除 redis 缓存
         emby_user_defined_line_cache.delete(str(emby_username).lower())
@@ -577,9 +617,6 @@ async def unbind_emby_line(
     except Exception as e:
         logger.error(f"解绑 Emby 线路时发生错误: {str(e)}")
         return BaseResponse(success=False, message=f"解绑失败: {str(e)}")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.get("/nsfw-info")
@@ -599,7 +636,6 @@ async def get_nsfw_info(
     if operation not in ["unlock", "lock"]:
         raise HTTPException(status_code=400, detail="不支持的操作类型")
 
-    _db = DB()
     try:
         if operation == "unlock":
             # 解锁操作返回所需积分
@@ -607,12 +643,12 @@ async def get_nsfw_info(
         else:
             # 锁定操作计算可返还积分
             if service == "plex":
-                info = _db.get_plex_info_by_tg_id(tg_id)
+                info = db.get_plex_info_by_tg_id(tg_id)
                 if not info or info[5] != 1:
                     raise HTTPException(status_code=400, detail="您尚未解锁 NSFW 内容")
                 unlock_time = info[6]
             else:
-                info = _db.get_emby_info_by_tg_id(tg_id)
+                info = db.get_emby_info_by_tg_id(tg_id)
                 if not info or info[3] != 1:
                     raise HTTPException(status_code=400, detail="您尚未解锁 NSFW 内容")
                 unlock_time = info[4]
@@ -623,8 +659,6 @@ async def get_nsfw_info(
     except Exception as e:
         logger.error(f"获取 NSFW 信息时发生错误: {str(e)}")
         raise HTTPException(status_code=500, detail="获取NSFW信息失败")
-    finally:
-        _db.close()
 
 
 @router.post("/nsfw/{operation}")
@@ -644,11 +678,10 @@ async def nsfw_operation(
         raise HTTPException(status_code=400, detail="不支持的服务类型")
 
     tg_id = user.id
-    _db = DB()
 
     try:
         # 获取用户统计信息
-        stats_info = _db.get_stats_by_tg_id(tg_id)
+        stats_info = db.get_stats_by_tg_id(tg_id)
         if not stats_info:
             raise HTTPException(status_code=404, detail="用户不存在")
 
@@ -658,7 +691,7 @@ async def nsfw_operation(
             # 解锁操作
             if service == "plex":
                 # 获取Plex信息
-                plex_info = _db.get_plex_info_by_tg_id(tg_id)
+                plex_info = db.get_plex_info_by_tg_id(tg_id)
                 if not plex_info:
                     raise HTTPException(status_code=404, detail="Plex账户未绑定")
 
@@ -678,24 +711,25 @@ async def nsfw_operation(
                 _plex = Plex()
                 try:
                     _plex.update_user_shared_libs(plex_id, _plex.get_libraries())
-                except Exception:
+                except Exception as e:
+                    logger.error(f"更新权限失败: {str(e)}")
                     raise HTTPException(status_code=500, detail="更新权限失败")
 
                 # 解锁时间
                 unlock_time = time()
 
                 # 更新数据库
-                if not _db.update_user_credits(credits, tg_id=tg_id):
+                if not db.update_user_credits(credits, tg_id=tg_id):
                     raise HTTPException(status_code=500, detail="更新积分失败")
 
-                if not _db.update_all_lib_flag(
+                if not db.update_all_lib_flag(
                     all_lib=1, unlock_time=unlock_time, plex_id=plex_id
                 ):
                     raise HTTPException(status_code=500, detail="更新权限状态失败")
 
             else:
                 # 获取Emby信息
-                emby_info = _db.get_emby_info_by_tg_id(tg_id)
+                emby_info = db.get_emby_info_by_tg_id(tg_id)
                 if not emby_info:
                     raise HTTPException(status_code=404, detail="Emby账户未绑定")
 
@@ -721,10 +755,10 @@ async def nsfw_operation(
                 unlock_time = time()
 
                 # 更新数据库
-                if not _db.update_user_credits(credits, tg_id=tg_id):
+                if not db.update_user_credits(credits, tg_id=tg_id):
                     raise HTTPException(status_code=500, detail="更新积分失败")
 
-                if not _db.update_all_lib_flag(
+                if not db.update_all_lib_flag(
                     all_lib=1, unlock_time=unlock_time, tg_id=tg_id, media_server="emby"
                 ):
                     raise HTTPException(status_code=500, detail="更新权限状态失败")
@@ -733,7 +767,7 @@ async def nsfw_operation(
             # 锁定操作
             if service == "plex":
                 # 获取Plex信息
-                plex_info = _db.get_plex_info_by_tg_id(tg_id)
+                plex_info = db.get_plex_info_by_tg_id(tg_id)
                 if not plex_info:
                     raise HTTPException(status_code=404, detail="Plex账户未绑定")
 
@@ -759,21 +793,22 @@ async def nsfw_operation(
 
                 try:
                     _plex.update_user_shared_libs(plex_id, sections)
-                except Exception:
+                except Exception as e:
+                    logger.error(f"更新权限失败: {str(e)}")
                     raise HTTPException(status_code=500, detail="更新权限失败")
 
                 # 更新数据库
-                if not _db.update_user_credits(credits, tg_id=tg_id):
+                if not db.update_user_credits(credits, tg_id=tg_id):
                     raise HTTPException(status_code=500, detail="更新积分失败")
 
-                if not _db.update_all_lib_flag(
+                if not db.update_all_lib_flag(
                     all_lib=0, unlock_time=None, plex_id=plex_id
                 ):
                     raise HTTPException(status_code=500, detail="更新权限状态失败")
 
             else:
                 # 获取Emby信息
-                emby_info = _db.get_emby_info_by_tg_id(tg_id)
+                emby_info = db.get_emby_info_by_tg_id(tg_id)
                 if not emby_info:
                     raise HTTPException(status_code=404, detail="Emby账户未绑定")
 
@@ -797,10 +832,10 @@ async def nsfw_operation(
                     raise HTTPException(status_code=500, detail=f"更新权限失败: {msg}")
 
                 # 更新数据库
-                if not _db.update_user_credits(credits, tg_id=tg_id):
+                if not db.update_user_credits(credits, tg_id=tg_id):
                     raise HTTPException(status_code=500, detail="更新积分失败")
 
-                if not _db.update_all_lib_flag(
+                if not db.update_all_lib_flag(
                     all_lib=0, unlock_time=None, tg_id=tg_id, media_server="emby"
                 ):
                     raise HTTPException(status_code=500, detail="更新权限状态失败")
@@ -817,8 +852,6 @@ async def nsfw_operation(
     except Exception as e:
         logger.error(f"执行 NSFW 操作时发生错误: {str(e)}")
         raise HTTPException(status_code=500, detail="操作失败，请稍后再试")
-    finally:
-        _db.close()
 
 
 @router.get("/plex_lines", response_model=PlexLinesResponse)
@@ -828,7 +861,7 @@ async def get_plex_lines(
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
     """获取可用的Plex线路列表"""
-    db = DB()
+
     try:
         # 获取 plex 用户信息，确认是否绑定
         plex_info = db.get_plex_info_by_tg_id(telegram_user.id)
@@ -851,7 +884,7 @@ async def get_plex_lines(
         # 添加基础线路信息
         for line in available_lines:
             line_infos.append(
-                PlexLineInfo(name=line, tags=get_line_tags(line), is_premium=False)
+                PlexLineInfo(name=line, tags=db.get_line_tags(line), is_premium=False)
             )
 
         # 根据用户权限添加高级线路信息
@@ -859,30 +892,30 @@ async def get_plex_lines(
             # 高级用户可以看到所有高级线路
             for line in premium_lines:
                 line_infos.append(
-                    PlexLineInfo(name=line, tags=get_line_tags(line), is_premium=True)
+                    PlexLineInfo(
+                        name=line, tags=db.get_line_tags(line), is_premium=True
+                    )
                 )
         elif settings.PREMIUM_FREE:
             # 普通用户在免费开放期间可以看到免费的高级线路
-            from app.cache import free_premium_lines_cache
-
-            free_premium_lines = free_premium_lines_cache.get("free_lines")
-            free_premium_lines = (
-                free_premium_lines.split(",") if free_premium_lines else []
-            )
+            free_premium_lines = db.get_free_premium_lines()
 
             for line in free_premium_lines:
                 if line in premium_lines:
                     line_infos.append(
                         PlexLineInfo(
-                            name=line, tags=get_line_tags(line), is_premium=True
+                            name=line, tags=db.get_line_tags(line), is_premium=True
                         )
                     )
 
         return PlexLinesResponse(
             lines=line_infos, success=True, message="获取 Plex 线路列表成功"
         )
-    finally:
-        db.close()
+    except Exception as e:
+        logger.error(f"获取 Plex 线路列表时发生错误: {str(e)}")
+        return PlexLinesResponse(
+            success=False, message="获取 Plex 线路列表失败", lines=[]
+        )
 
 
 @router.post("/bind/plex_line", response_model=BaseResponse)
@@ -898,7 +931,6 @@ async def bind_plex_line(
 
     logger.info(f"用户 {get_user_name_from_tg_id(tg_id)} 尝试绑定 Plex 线路 {line}")
 
-    db = DB()
     try:
         # 检查用户是否绑定了Plex账户
         plex_info = db.get_plex_info_by_tg_id(tg_id)
@@ -907,6 +939,8 @@ async def bind_plex_line(
             return BaseResponse(success=False, message="您尚未绑定Plex账户，请先绑定")
 
         plex_username, plex_line = plex_info[4], plex_info[8]
+        is_premium = plex_info[9] == 1
+
         # 可能存在 plex 用户信息还没更新的情况
         if not plex_username:
             logger.error(f"用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 用户名为空")
@@ -917,36 +951,10 @@ async def bind_plex_line(
             logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 已绑定该线路")
             return BaseResponse(success=False, message="该线路已绑定，请勿重复操作")
 
-        # 检查线路是否存在于可用线路中
-        # if (
-        #     line not in settings.STREAM_BACKEND
-        #     and line not in settings.PREMIUM_STREAM_BACKEND
-        # ):
-        #     return BaseResponse(success=False, message="该线路不存在或不可用")
-
-        # 更新用户线路设置
-        is_premium = plex_info[9] == 1
-
-        # 如果不是premium用户，需要检查线路权限
-        if not is_premium:
-            is_premium_line_flag = is_binded_premium_line(line)
-            if is_premium_line_flag:
-                # 检查该高级线路是否在免费列表中
-                if settings.PREMIUM_FREE:
-                    from app.cache import free_premium_lines_cache
-
-                    free_premium_lines = free_premium_lines_cache.get("free_lines")
-                    free_premium_lines = (
-                        free_premium_lines.split(",") if free_premium_lines else []
-                    )
-                    if line not in free_premium_lines:
-                        return BaseResponse(
-                            success=False, message="该高级线路暂未开放免费使用"
-                        )
-                else:
-                    return BaseResponse(
-                        success=False, message="您不是 premium 用户，无法绑定该线路"
-                    )
+        # 检查线路权限
+        has_permission, error_msg = check_line_permission(is_premium, line)
+        if not has_permission:
+            return BaseResponse(success=False, message=error_msg)
 
         success = db.set_plex_line(line, tg_id=tg_id)
         if not success:
@@ -973,9 +981,6 @@ async def bind_plex_line(
     except Exception as e:
         logger.error(f"绑定 Plex 线路时发生错误: {str(e)}")
         return BaseResponse(success=False, message=f"绑定失败: {str(e)}")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.post("/unbind/plex_line", response_model=BaseResponse)
@@ -989,7 +994,6 @@ async def unbind_plex_line(
 
     logger.info(f"用户 {get_user_name_from_tg_id(tg_id)} 尝试解绑 Plex 线路")
 
-    db = DB()
     try:
         # 检查用户是否绑定了Plex账户
         plex_info = db.get_plex_info_by_tg_id(tg_id)
@@ -1018,15 +1022,12 @@ async def unbind_plex_line(
     except Exception as e:
         logger.error(f"解绑 Plex 线路时发生错误: {str(e)}")
         return BaseResponse(success=False, message=f"解绑失败: {str(e)}")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 # ==================== 通用线路管理API ====================
 
 
-@router.get("/lines/{service}", response_model=dict)
+@router.get("/lines/{service}")
 @require_telegram_auth
 async def get_lines_generic(
     service: str,
@@ -1106,7 +1107,6 @@ async def auth_bind_line(
         f"用户 {get_user_name_from_tg_id(tg_id)} 尝试认证并绑定 {service} 线路 {line}"
     )
 
-    db = DB()
     try:
         if service == "emby":
             return await _auth_bind_emby_line(
@@ -1119,13 +1119,10 @@ async def auth_bind_line(
     except Exception as e:
         logger.error(f"认证绑定{service}线路时发生错误: {str(e)}")
         return BaseResponse(success=False, message=f"认证绑定失败: {str(e)}")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 async def _auth_bind_emby_line(
-    db: DB,
+    db: DatabaseORM,
     tg_id: int,
     telegram_user: TelegramUser,
     username: str,
@@ -1133,7 +1130,7 @@ async def _auth_bind_emby_line(
     line: str,
 ) -> BaseResponse:
     """认证并绑定Emby线路的内部方法"""
-    from app.cache import (
+    from app.databases.cache import (
         emby_last_user_defined_line_cache,
         emby_user_defined_line_cache,
     )
@@ -1145,28 +1142,15 @@ async def _auth_bind_emby_line(
         logger.warning(f"Emby用户 {username} 认证失败")
         return BaseResponse(success=False, message="用户名或密码错误")
 
-    # 检查线路权限 - 获取用户信息以确定是否为premium用户
+    # 获取用户信息以检查线路权限
     existing_emby_info = db.get_emby_info_by_emby_username(username)
+
+    # 检查线路权限
+    # 如果用户不存在于数据库，视为普通用户；否则使用数据库中的 premium 状态
     is_premium = existing_emby_info[8] == 1 if existing_emby_info else False
-
-    if not is_premium:
-        is_premium_line_flag = is_binded_premium_line(line)
-        if is_premium_line_flag:
-            if settings.PREMIUM_FREE:
-                from app.cache import free_premium_lines_cache
-
-                free_premium_lines = free_premium_lines_cache.get("free_lines")
-                free_premium_lines = (
-                    free_premium_lines.split(",") if free_premium_lines else []
-                )
-                if line not in free_premium_lines:
-                    return BaseResponse(
-                        success=False, message="该高级线路暂未开放免费使用"
-                    )
-            else:
-                return BaseResponse(
-                    success=False, message="您不是 premium 用户，无法绑定该线路"
-                )
+    has_permission, error_msg = check_line_permission(is_premium, line)
+    if not has_permission:
+        return BaseResponse(success=False, message=error_msg)
 
     # 设置线路到数据库（如果用户存在于数据库中）
     if existing_emby_info:
@@ -1189,7 +1173,7 @@ async def _auth_bind_emby_line(
 
 
 async def _auth_bind_plex_line(
-    db: DB,
+    db: DatabaseORM,
     tg_id: int,
     telegram_user: TelegramUser,
     username: str,
@@ -1198,7 +1182,7 @@ async def _auth_bind_plex_line(
     token: Optional[str] = None,
 ) -> BaseResponse:
     """认证并绑定Plex线路的内部方法"""
-    from app.cache import (
+    from app.databases.cache import (
         plex_last_user_defined_line_cache,
         plex_user_defined_line_cache,
     )
@@ -1212,28 +1196,15 @@ async def _auth_bind_plex_line(
         logger.warning(f"Plex 用户 {username} 认证失败")
         return BaseResponse(success=False, message="用户名或密码错误")
 
-    # 检查线路权限 - 获取用户信息以确定是否为premium用户
+    # 获取 Plex 用户信息
     existing_plex_info = db.get_plex_info_by_plex_id(plex_id)
+
+    # 检查线路权限
+    # 如果用户不存在于数据库，视为普通用户；否则使用数据库中的 premium 状态
     is_premium = existing_plex_info[9] == 1 if existing_plex_info else False
-
-    if not is_premium:
-        is_premium_line_flag = is_binded_premium_line(line)
-        if is_premium_line_flag:
-            if settings.PREMIUM_FREE:
-                from app.cache import free_premium_lines_cache
-
-                free_premium_lines = free_premium_lines_cache.get("free_lines")
-                free_premium_lines = (
-                    free_premium_lines.split(",") if free_premium_lines else []
-                )
-                if line not in free_premium_lines:
-                    return BaseResponse(
-                        success=False, message="该高级线路暂未开放免费使用"
-                    )
-            else:
-                return BaseResponse(
-                    success=False, message="您不是 premium 用户，无法绑定该线路"
-                )
+    has_permission, error_msg = check_line_permission(is_premium, line)
+    if not has_permission:
+        return BaseResponse(success=False, message=error_msg)
 
     # 如果用户已存在，更新数据库中的线路设置
     if existing_plex_info:
@@ -1270,7 +1241,6 @@ async def get_emby_lines_by_user(
     if not username:
         return EmbyLinesResponse(success=False, message="用户名不能为空", lines=[])
 
-    db = DB()
     try:
         # 直接从数据库查询用户信息，无需进行Emby服务器认证
         emby_info = db.get_emby_info_by_emby_username(username)
@@ -1289,30 +1259,27 @@ async def get_emby_lines_by_user(
         # 添加基础线路信息
         for line in available_lines:
             line_infos.append(
-                EmbyLineInfo(name=line, tags=get_line_tags(line), is_premium=False)
+                EmbyLineInfo(name=line, tags=db.get_line_tags(line), is_premium=False)
             )
 
-        # 如果是premium用户，直接添加所有高级线路
+        # 如果是premium用户,直接添加所有高级线路
         if is_premium:
             for line in settings.PREMIUM_STREAM_BACKEND:
                 line_infos.append(
-                    EmbyLineInfo(name=line, tags=get_line_tags(line), is_premium=True)
+                    EmbyLineInfo(
+                        name=line, tags=db.get_line_tags(line), is_premium=True
+                    )
                 )
-        # 如果不是premium用户，检查免费高级线路
+        # 如果不是premium用户,检查免费高级线路
         elif settings.PREMIUM_FREE:
-            # 从Redis缓存获取免费高级线路列表
-            from app.cache import free_premium_lines_cache
-
-            free_premium_lines = free_premium_lines_cache.get("free_lines")
-            free_premium_lines = (
-                free_premium_lines.split(",") if free_premium_lines else []
-            )
+            # 从数据库获取免费高级线路列表
+            free_premium_lines = db.get_free_premium_lines()
 
             for line in free_premium_lines:
                 if line in settings.PREMIUM_STREAM_BACKEND:
                     line_infos.append(
                         EmbyLineInfo(
-                            name=line, tags=get_line_tags(line), is_premium=True
+                            name=line, tags=db.get_line_tags(line), is_premium=True
                         )
                     )
 
@@ -1326,8 +1293,6 @@ async def get_emby_lines_by_user(
         return EmbyLinesResponse(
             success=False, message=f"获取线路列表失败: {str(e)}", lines=[]
         )
-    finally:
-        db.close()
 
 
 @router.post("/lines/plex/available", response_model=PlexLinesResponse)
@@ -1342,7 +1307,6 @@ async def get_plex_lines_by_user(
     if not email:
         return PlexLinesResponse(success=False, message="邮箱不能为空", lines=[])
 
-    db = DB()
     try:
         # 直接从数据库查询用户信息，无需进行Plex服务器认证
         plex_info = db.get_plex_info_by_plex_email(email)
@@ -1363,7 +1327,7 @@ async def get_plex_lines_by_user(
         # 添加基础线路信息
         for line in available_lines:
             line_infos.append(
-                PlexLineInfo(name=line, tags=get_line_tags(line), is_premium=False)
+                PlexLineInfo(name=line, tags=db.get_line_tags(line), is_premium=False)
             )
 
         # 根据用户权限添加高级线路信息
@@ -1371,22 +1335,19 @@ async def get_plex_lines_by_user(
             # 高级用户可以看到所有高级线路
             for line in premium_lines:
                 line_infos.append(
-                    PlexLineInfo(name=line, tags=get_line_tags(line), is_premium=True)
+                    PlexLineInfo(
+                        name=line, tags=db.get_line_tags(line), is_premium=True
+                    )
                 )
         elif settings.PREMIUM_FREE:
             # 普通用户在免费开放期间可以看到免费的高级线路
-            from app.cache import free_premium_lines_cache
-
-            free_premium_lines = free_premium_lines_cache.get("free_lines")
-            free_premium_lines = (
-                free_premium_lines.split(",") if free_premium_lines else []
-            )
+            free_premium_lines = db.get_free_premium_lines()
 
             for line in free_premium_lines:
                 if line in premium_lines:
                     line_infos.append(
                         PlexLineInfo(
-                            name=line, tags=get_line_tags(line), is_premium=True
+                            name=line, tags=db.get_line_tags(line), is_premium=True
                         )
                     )
 
@@ -1400,8 +1361,6 @@ async def get_plex_lines_by_user(
         return PlexLinesResponse(
             success=False, message=f"获取线路列表失败: {str(e)}", lines=[]
         )
-    finally:
-        db.close()
 
 
 @router.post("/transfer-credits", response_model=CreditsTransferResponse)
@@ -1441,97 +1400,87 @@ async def transfer_credits(
                 success=False, message="单次转移积分不能超过10000"
             )
 
-        _db = DB()
+        # 获取发送方当前积分
+        sender_stats = db.get_stats_by_tg_id(sender_id)
+        if not sender_stats:
+            return CreditsTransferResponse(
+                success=False, message="您尚未绑定 Plex/Emby 账户"
+            )
 
+        sender_credits = sender_stats[2]
+
+        # 计算手续费 (5%)
+        fee_amount = amount * 0.05
+        total_deduction = amount + fee_amount
+
+        # 检查余额是否足够
+        if sender_credits < total_deduction:
+            return CreditsTransferResponse(
+                success=False,
+                message=f"积分不足，需要 {total_deduction:.2f} 积分（包含 {fee_amount:.2f} 手续费）",
+            )
+
+        # 获取接收方信息
+        target_stats = db.get_stats_by_tg_id(target_tg_id)
+        if not target_stats:
+            return CreditsTransferResponse(
+                success=False, message="目标用户不存在或未绑定账户"
+            )
+
+        target_credits = target_stats[2]
+
+        # 执行转移
+        new_sender_credits = sender_credits - total_deduction
+        new_target_credits = target_credits + amount
+
+        # 更新发送方积分
+        sender_success = db.update_user_credits(new_sender_credits, tg_id=sender_id)
+        if not sender_success:
+            return CreditsTransferResponse(
+                success=False, message="更新发送方积分失败，请稍后再试"
+            )
+
+        # 更新接收方积分
+        target_success = db.update_user_credits(new_target_credits, tg_id=target_tg_id)
+        if not target_success:
+            # 如果接收方更新失败，回滚发送方积分
+            db.update_user_credits(sender_credits, tg_id=sender_id)
+            return CreditsTransferResponse(
+                success=False, message="更新接收方积分失败，操作已回滚"
+            )
+
+        # 记录转移日志
+        from app.utils.utils import get_user_name_from_tg_id
+
+        sender_name = get_user_name_from_tg_id(sender_id)
+        target_name = get_user_name_from_tg_id(target_tg_id)
+
+        logger.info(
+            f"积分转移成功: {sender_name}({sender_id}) -> {target_name}({target_tg_id}), "
+            f"金额: {amount}, 手续费: {fee_amount:.2f}"
+            + (f", 备注: {note}" if note else "")
+        )
+
+        # 可以在这里发送通知给接收方用户
         try:
-            # 获取发送方当前积分
-            sender_stats = _db.get_stats_by_tg_id(sender_id)
-            if not sender_stats:
-                return CreditsTransferResponse(
-                    success=False, message="您尚未绑定 Plex/Emby 账户"
-                )
-
-            sender_credits = sender_stats[2]
-
-            # 计算手续费 (5%)
-            fee_amount = amount * 0.05
-            total_deduction = amount + fee_amount
-
-            # 检查余额是否足够
-            if sender_credits < total_deduction:
-                return CreditsTransferResponse(
-                    success=False,
-                    message=f"积分不足，需要 {total_deduction:.2f} 积分（包含 {fee_amount:.2f} 手续费）",
-                )
-
-            # 获取接收方信息
-            target_stats = _db.get_stats_by_tg_id(target_tg_id)
-            if not target_stats:
-                return CreditsTransferResponse(
-                    success=False, message="目标用户不存在或未绑定账户"
-                )
-
-            target_credits = target_stats[2]
-
-            # 执行转移
-            new_sender_credits = sender_credits - total_deduction
-            new_target_credits = target_credits + amount
-
-            # 更新发送方积分
-            sender_success = _db.update_user_credits(
-                new_sender_credits, tg_id=sender_id
-            )
-            if not sender_success:
-                return CreditsTransferResponse(
-                    success=False, message="更新发送方积分失败，请稍后再试"
-                )
-
-            # 更新接收方积分
-            target_success = _db.update_user_credits(
-                new_target_credits, tg_id=target_tg_id
-            )
-            if not target_success:
-                # 如果接收方更新失败，回滚发送方积分
-                _db.update_user_credits(sender_credits, tg_id=sender_id)
-                return CreditsTransferResponse(
-                    success=False, message="更新接收方积分失败，操作已回滚"
-                )
-
-            # 记录转移日志
-            from app.utils.utils import get_user_name_from_tg_id
-
-            sender_name = get_user_name_from_tg_id(sender_id)
-            target_name = get_user_name_from_tg_id(target_tg_id)
-
-            logger.info(
-                f"积分转移成功: {sender_name}({sender_id}) -> {target_name}({target_tg_id}), "
-                f"金额: {amount}, 手续费: {fee_amount:.2f}"
-                + (f", 备注: {note}" if note else "")
-            )
-
-            # 可以在这里发送通知给接收方用户
-            try:
-                await send_message_by_url(
-                    chat_id=target_tg_id,
-                    text=f"""
+            await send_message_by_url(
+                chat_id=target_tg_id,
+                text=f"""
 您收到了来自 {sender_name} 的积分转移: {amount} 积分
 """
-                    + (f"""备注: {note}""" if note else ""),
-                    parse_mode="HTML",
-                )
-            except Exception as e:
-                logger.warning(f"发送积分转移通知失败: {str(e)}")
-
-            return CreditsTransferResponse(
-                success=True,
-                message=f"成功转移 {amount} 积分给用户 {target_name}",
-                transferred_amount=amount,
-                fee_amount=fee_amount,
-                current_credits=new_sender_credits,
+                + (f"""备注: {note}""" if note else ""),
+                parse_mode="HTML",
             )
+        except Exception as e:
+            logger.warning(f"发送积分转移通知失败: {str(e)}")
 
-        finally:
-            _db.close()
+        return CreditsTransferResponse(
+            success=True,
+            message=f"成功转移 {amount} 积分给用户 {target_name}",
+            transferred_amount=amount,
+            fee_amount=fee_amount,
+            current_credits=new_sender_credits,
+        )
 
     except Exception as e:
         logger.error(f"积分转移失败: {str(e)}")
@@ -1547,12 +1496,10 @@ async def get_all_users(
 ):
     """获取所有用户信息（用于用户选择）"""
 
-    db = DB()
     try:
-        # 从 statistics 表获取所有用户
-        stats_users = db.cur.execute(
-            "SELECT tg_id, donation, credits FROM statistics"
-        ).fetchall()
+        with get_session() as session:
+            stmt = select(Statistics.tg_id, Statistics.donation, Statistics.credits)
+            stats_users = session.execute(stmt).all()
 
         user_list = []
         for tg_id, donation, credits in stats_users:
@@ -1580,8 +1527,6 @@ async def get_all_users(
     except Exception as e:
         logger.error(f"获取用户列表失败: {str(e)}")
         raise HTTPException(status_code=500, detail="获取用户列表失败")
-    finally:
-        db.close()
 
 
 @router.post("/lines/{service}/current", response_model=CurrentLineResponse)
@@ -1595,7 +1540,6 @@ async def get_current_bound_line(
     if service not in ["emby", "plex"]:
         raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
 
-    db = DB()
     try:
         if service == "emby":
             username = data.get("username")
@@ -1650,5 +1594,318 @@ async def get_current_bound_line(
         return CurrentLineResponse(
             success=False, message=f"获取当前绑定线路失败: {str(e)}"
         )
-    finally:
-        db.close()
+
+
+# ==================== 线路调度相关端点 ====================
+
+
+@router.get("/line-schedules/unlock-status/{service}")
+@require_telegram_auth
+async def check_line_schedule_unlock_status(
+    service: str,
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """检查用户是否解锁了线路调度功能"""
+    if service not in ["emby", "plex"]:
+        raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
+
+    try:
+        result = db.check_line_schedule_unlock(user.id, service)
+        return {
+            "success": True,
+            "is_unlocked": result["is_unlocked"],
+            "is_premium": result["is_premium"],
+            "unlock_time": result["unlock_time"],
+            "unlock_credits": settings.LINE_SCHEDULE_UNLOCK_CREDITS,
+        }
+    except Exception as e:
+        logger.error(f"检查线路调度解锁状态失败: {e}")
+        raise HTTPException(status_code=500, detail="检查解锁状态失败")
+
+
+@router.post("/line-schedules/unlock", response_model=LineScheduleUnlockResponse)
+@require_telegram_auth
+async def unlock_line_schedule(
+    request: Request,
+    data: LineScheduleUnlockRequest,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """解锁线路调度功能（消耗积分）"""
+    service = data.service
+    if service not in ["emby", "plex"]:
+        return LineScheduleUnlockResponse(
+            success=False, message="服务类型必须是 'emby' 或 'plex'"
+        )
+
+    try:
+        # 检查是否已经解锁
+        unlock_status = db.check_line_schedule_unlock(user.id, service)
+        if unlock_status["is_unlocked"]:
+            return LineScheduleUnlockResponse(
+                success=True,
+                message="您已经解锁了线路调度功能"
+                if unlock_status["is_premium"]
+                else "线路调度功能已解锁",
+            )
+
+        # 检查积分是否足够
+        credits_needed = settings.LINE_SCHEDULE_UNLOCK_CREDITS
+        current_credits = db.get_user_credits(tg_id=user.id)
+        if not current_credits:
+            return LineScheduleUnlockResponse(
+                success=False, message="您尚未绑定 Plex/Emby 账户"
+            )
+        if current_credits < credits_needed:
+            return LineScheduleUnlockResponse(
+                success=False,
+                message=f"积分不足，需要 {credits_needed} 积分，当前仅有 {current_credits} 积分",
+            )
+
+        # 扣除积分
+        new_credits = current_credits - credits_needed
+        if not db.update_user_credits(new_credits, tg_id=user.id):
+            return LineScheduleUnlockResponse(success=False, message="更新积分失败")
+
+        # 解锁线路调度功能
+        if not db.unlock_line_schedule(user.id, service):
+            # 回滚积分
+            db.update_user_credits(current_credits, tg_id=user.id)
+            return LineScheduleUnlockResponse(success=False, message="解锁失败")
+
+        logger.info(
+            f"用户 {get_user_name_from_tg_id(user.id)} 消耗 {credits_needed} 积分解锁 {service} 线路调度功能"
+        )
+        return LineScheduleUnlockResponse(
+            success=True, message=f"成功解锁线路调度功能，消耗 {credits_needed} 积分"
+        )
+
+    except Exception as e:
+        logger.error(f"解锁线路调度功能失败: {e}")
+        return LineScheduleUnlockResponse(success=False, message="解锁失败")
+
+
+@router.get("/line-schedules/{service}", response_model=LineScheduleListResponse)
+@require_telegram_auth
+async def get_line_schedules(
+    service: str,
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取用户的线路调度列表"""
+    if service not in ["emby", "plex"]:
+        raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
+
+    try:
+        schedules = db.get_user_line_schedules(user.id, service)
+        return LineScheduleListResponse(success=True, schedules=schedules)
+    except Exception as e:
+        logger.error(f"获取线路调度列表失败: {e}")
+        raise HTTPException(status_code=500, detail="获取线路调度列表失败")
+
+
+@router.post("/line-schedules", response_model=BaseResponse)
+@require_telegram_auth
+async def create_line_schedule(
+    request: Request,
+    data: LineScheduleCreate,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """创建线路调度"""
+    service = data.service
+    if service not in ["emby", "plex"]:
+        return BaseResponse(success=False, message="服务类型必须是 'emby' 或 'plex'")
+
+    try:
+        # 检查是否解锁
+        unlock_status = db.check_line_schedule_unlock(user.id, service)
+        if not unlock_status["is_unlocked"]:
+            return BaseResponse(success=False, message="请先解锁线路调度功能")
+
+        # 获取用户信息并检查线路权限
+        if service == "emby":
+            user_info = db.get_emby_info_by_tg_id(user.id)
+            if not user_info:
+                return BaseResponse(success=False, message="您尚未绑定 Emby 账户")
+            is_premium = user_info[8] == 1
+        else:  # plex
+            user_info = db.get_plex_info_by_tg_id(user.id)
+            if not user_info:
+                return BaseResponse(success=False, message="您尚未绑定 Plex 账户")
+            is_premium = user_info[9] == 1
+
+        has_permission, error_msg = check_line_permission(is_premium, data.line)
+        if not has_permission:
+            return BaseResponse(success=False, message=f"{error_msg}，无法创建调度")
+
+        # 检查时间冲突
+        if db.check_schedule_conflict(
+            user.id,
+            service,
+            data.days_of_week,
+            data.start_time,
+            data.end_time,
+        ):
+            return BaseResponse(success=False, message="时间段与现有调度冲突")
+
+        # 创建调度
+        schedule_id = db.create_line_schedule(
+            user.id,
+            service,
+            data.line,
+            data.days_of_week,
+            data.start_time,
+            data.end_time,
+            data.priority,
+        )
+
+        if schedule_id:
+            # 创建成功后立即执行一次调度检查
+            asyncio.create_task(auto_switch_user_lines(tg_id=user.id, service=service))
+            return BaseResponse(success=True, message="创建线路调度成功")
+        else:
+            return BaseResponse(success=False, message="创建线路调度失败")
+
+    except Exception as e:
+        logger.error(f"创建线路调度失败: {e}")
+        return BaseResponse(success=False, message="创建线路调度失败")
+
+
+@router.put("/line-schedules/{schedule_id}", response_model=BaseResponse)
+@require_telegram_auth
+async def update_line_schedule(
+    schedule_id: int,
+    request: Request,
+    data: LineScheduleUpdate,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """更新线路调度"""
+    try:
+        # 获取原有调度信息
+        schedules = db.get_user_line_schedules(user.id)
+        schedule = next((s for s in schedules if s["id"] == schedule_id), None)
+        if not schedule:
+            return BaseResponse(success=False, message="调度不存在")
+
+        # 构建更新参数
+        update_kwargs = {}
+        if data.line is not None:
+            update_kwargs["line"] = data.line
+
+            # 如果修改了线路，检查用户是否有权使用该线路
+            service = schedule["service"]
+
+            # 获取用户信息并检查线路权限
+            if service == "emby":
+                user_info = db.get_emby_info_by_tg_id(user.id)
+                if not user_info:
+                    return BaseResponse(success=False, message="您尚未绑定 Emby 账户")
+                is_premium = user_info[8] == 1
+            else:  # plex
+                user_info = db.get_plex_info_by_tg_id(user.id)
+                if not user_info:
+                    return BaseResponse(success=False, message="您尚未绑定 Plex 账户")
+                is_premium = user_info[9] == 1
+
+            has_permission, error_msg = check_line_permission(is_premium, data.line)
+            if not has_permission:
+                return BaseResponse(success=False, message=f"{error_msg}，无法更新调度")
+
+        if data.days_of_week is not None:
+            update_kwargs["days_of_week"] = data.days_of_week
+        if data.start_time is not None:
+            update_kwargs["start_time"] = data.start_time
+        if data.end_time is not None:
+            update_kwargs["end_time"] = data.end_time
+        if data.priority is not None:
+            update_kwargs["priority"] = data.priority
+        if data.is_enabled is not None:
+            update_kwargs["is_enabled"] = data.is_enabled
+
+        # 如果修改了时间相关字段，检查冲突
+        if any(k in update_kwargs for k in ["days_of_week", "start_time", "end_time"]):
+            # 使用更新后的值检查冲突
+            check_days = update_kwargs.get("days_of_week", schedule["days_of_week"])
+            check_start = update_kwargs.get("start_time", schedule["start_time"])
+            check_end = update_kwargs.get("end_time", schedule["end_time"])
+
+            if db.check_schedule_conflict(
+                user.id,
+                schedule["service"],
+                check_days,
+                check_start,
+                check_end,
+                exclude_id=schedule_id,
+            ):
+                return BaseResponse(success=False, message="时间段与现有调度冲突")
+
+        # 执行更新
+        if db.update_line_schedule(schedule_id, user.id, **update_kwargs):
+            # 更新成功后立即执行一次调度检查
+            asyncio.create_task(
+                auto_switch_user_lines(tg_id=user.id, service=schedule["service"])
+            )
+            return BaseResponse(success=True, message="更新线路调度成功")
+        else:
+            return BaseResponse(success=False, message="更新线路调度失败")
+
+    except Exception as e:
+        logger.error(f"更新线路调度失败: {e}")
+        return BaseResponse(success=False, message="更新线路调度失败")
+
+
+@router.delete("/line-schedules/{schedule_id}", response_model=BaseResponse)
+@require_telegram_auth
+async def delete_line_schedule(
+    schedule_id: int,
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """删除线路调度"""
+    try:
+        if db.delete_line_schedule(schedule_id, user.id):
+            return BaseResponse(success=True, message="删除线路调度成功")
+        else:
+            return BaseResponse(success=False, message="删除线路调度失败或无权限")
+    except Exception as e:
+        logger.error(f"删除线路调度失败: {e}")
+        return BaseResponse(success=False, message="删除线路调度失败")
+
+
+@router.get(
+    "/line-schedules/status/{service}", response_model=LineScheduleStatusResponse
+)
+@require_telegram_auth
+async def get_line_schedule_status(
+    service: str,
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取当前生效的线路调度状态"""
+    if service not in ["emby", "plex"]:
+        raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
+
+    try:
+        # 检查是否解锁
+        unlock_status = db.check_line_schedule_unlock(user.id, service)
+
+        # 获取当前生效的调度
+        active_schedule = None
+        if unlock_status["is_unlocked"]:
+            active_schedule = db.get_current_active_schedule(user.id, service)
+
+        # 检查是否有调度
+        schedules = db.get_user_line_schedules(user.id, service)
+        has_schedules = len(schedules) > 0
+
+        return LineScheduleStatusResponse(
+            success=True,
+            is_unlocked=unlock_status["is_unlocked"],
+            is_premium=unlock_status.get("is_premium", False),
+            has_schedules=has_schedules,
+            current_schedule=active_schedule,
+        )
+
+    except Exception as e:
+        logger.error(f"获取线路调度状态失败: {e}")
+        raise HTTPException(status_code=500, detail="获取线路调度状态失败")

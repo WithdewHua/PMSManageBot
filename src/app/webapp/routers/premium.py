@@ -5,7 +5,7 @@ Premium 会员相关路由
 from typing import Optional
 
 from app.config import settings
-from app.db import DB
+from app.databases import db
 from app.log import uvicorn_logger as logger
 from app.premium import update_premium_status
 from app.utils.utils import get_user_name_from_tg_id
@@ -106,7 +106,6 @@ async def unlock_premium(
     if total_cost != expected_cost:
         raise HTTPException(status_code=400, detail="费用计算错误")
 
-    db = DB()
     try:
         # 检查用户积分
         stats_info = db.get_stats_by_tg_id(tg_id)
@@ -129,8 +128,6 @@ async def unlock_premium(
         new_credits = current_credits - total_cost
         db.update_user_credits(new_credits, tg_id=tg_id)
 
-        db.con.commit()
-
         logger.info(
             f"用户 {get_user_name_from_tg_id(tg_id)} 成功解锁 {service} Premium {days} 天"
         )
@@ -147,8 +144,6 @@ async def unlock_premium(
     except Exception as e:
         logger.error(f"解锁 Premium 失败: {str(e)}")
         raise HTTPException(status_code=500, detail="解锁失败，请稍后再试")
-    finally:
-        db.close()
 
 
 @router.get("/statistics", response_model=PremiumStatisticsResponse)
@@ -159,15 +154,9 @@ async def get_premium_statistics(
 ):
     """获取Premium用户统计信息"""
     try:
-        db = DB()
-        try:
-            stats = db.get_premium_statistics()
-            logger.info(
-                f"用户 {get_user_name_from_tg_id(user.id)} 获取 Premium 统计信息"
-            )
-            return PremiumStatisticsResponse(**stats)
-        finally:
-            db.close()
+        stats = db.get_premium_statistics()
+        logger.info(f"用户 {get_user_name_from_tg_id(user.id)} 获取 Premium 统计信息")
+        return PremiumStatisticsResponse(**stats)
 
     except HTTPException:
         raise
@@ -184,15 +173,11 @@ async def get_premium_line_traffic_stats(
 ):
     """获取Premium线路流量统计信息"""
     try:
-        db = DB()
-        try:
-            stats = db.get_premium_line_traffic_statistics()
-            logger.info(
-                f"用户 {get_user_name_from_tg_id(user.id)} 获取 Premium 线路流量统计信息"
-            )
-            return {"success": True, "data": stats}
-        finally:
-            db.close()
+        stats = db.get_premium_line_traffic_statistics()
+        logger.info(
+            f"用户 {get_user_name_from_tg_id(user.id)} 获取 Premium 线路流量统计信息"
+        )
+        return {"success": True, "data": stats}
 
     except HTTPException:
         raise

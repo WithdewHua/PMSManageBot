@@ -9,8 +9,8 @@ import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import { aliases, mdi } from 'vuetify/iconsets/mdi'
 import '@mdi/font/css/materialdesignicons.css'
-// 引入 Service Worker 注册
-import registerServiceWorker from './registerServiceWorker'
+// 引入 Service Worker 管理器
+import { swUpdater } from './utils/sw-update'
 
 // 获取正确的环境变量
 const apiBaseUrl = process.env.WEBAPP_URL || 'http://localhost:6000'
@@ -93,8 +93,34 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// 注册 Service Worker
-registerServiceWorker();
+// 初始化 Service Worker 管理器
+swUpdater.init();
+
+// 监听版本更新
+swUpdater.onUpdateAvailable((version) => {
+  console.log('发现新版本:', version);
+  
+  // 如果是 Telegram WebApp 环境，显示更新提示
+  if (window.Telegram?.WebApp) {
+    window.Telegram.WebApp.showPopup({
+      title: '应用更新',
+      message: '发现新版本，是否立即更新？',
+      buttons: [
+        { type: 'default', text: '立即更新', id: 'update' },
+        { type: 'cancel', text: '稍后' }
+      ]
+    }, (buttonId) => {
+      if (buttonId === 'update') {
+        swUpdater.applyUpdate();
+      }
+    });
+  } else {
+    // 普通浏览器环境
+    if (confirm('发现新版本，是否立即更新？')) {
+      swUpdater.applyUpdate();
+    }
+  }
+});
 
 const vuetify = createVuetify({
   components,

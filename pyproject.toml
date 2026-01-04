@@ -1,6 +1,6 @@
 [project]
 name = "pmsmanagebot"
-version = "0.4.1"
+version = "0.6.0"
 description = "Telegram bot for managing Plex/Emby media servers with WebApp support"
 authors = [
     { name = "WithdewHua", email = "i@10101.io" }
@@ -19,9 +19,19 @@ dependencies = [
     "pydantic[email]>=2.10.4",
     "aiohttp>=3.11.18",
     "filelock>=3.18.0",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.13.0",
 ]
 readme = "README.md"
 requires-python = ">= 3.11"
+
+[project.optional-dependencies]
+postgres = [
+    "psycopg2-binary>=2.9.11",
+]
+mysql = [
+    "pymysql>=1.1.2",
+]
 
 [build-system]
 requires = ["hatchling"]

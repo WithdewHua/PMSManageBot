@@ -29,13 +29,14 @@ class Settings(BaseSettings):
     OVERSEERR_API_TOKEN: str = ""
 
     # library
-    NSFW_LIBS: list = ["NSFW", "NC17 Movies"]
+    NSFW_LIBS: list = ["NSFW", "NC17 Movies", "Hentai"]
 
     # credits
     UNLOCK_CREDITS: int = 100
     INVITATION_CREDITS: int = 288
     PREMIUM_DAILY_CREDITS: int = 15
     DONATION_MULTIPLIER: int = 5  # 捐赠积分倍数
+    LINE_SCHEDULE_UNLOCK_CREDITS: int = 264  # 解锁线路调度功能所需积分
     USER_TRAFFIC_LIMIT: int = (
         30 * 1024 * 1024 * 1024
     )  # 每日用户流量限额，单位为字节（30GB）
@@ -53,6 +54,7 @@ class Settings(BaseSettings):
     TG_ADMIN_CHAT_ID: list[str] = []
     TG_GROUP: str = ""
     TG_CHANNEL: str = ""  # 可选的通知频道链接，如果不设置将使用群组链接
+    TG_CHANNEL_ID: str = ""  # Telegram 频道 ID，用于发送统计报告等消息
 
     # WebApp
     WEBAPP_ENABLE: bool = True  # 是否启用 WebApp
@@ -95,6 +97,50 @@ class Settings(BaseSettings):
     # redeem code
     PRIVILEGED_CODES: list[str] = []
 
+    # UPAY 支付配置
+    UPAY_BASE_URL: str = "http://localhost:8090"  # UPAY 服务地址
+    UPAY_SECRET_KEY: str = ""  # UPAY 签名密钥
+    UPAY_NOTIFY_URL: str = ""  # 支付完成异步通知地址
+    UPAY_REDIRECT_URL: str = ""  # 支付完成后跳转地址
+    # 支持的加密货币类型配置
+    UPAY_CRYPTO_TYPES: list[str] = [
+        "USDC-Polygon",
+        "USDC-ArbitrumOne",
+        "USDC-BSC",
+        "USDC-ERC20",
+        "USDT-Polygon",
+        "USDT-ArbitrumOne",
+        "USDT-BSC",
+        "USDT-ERC20",
+    ]
+
+    # Vaultwarden 配置
+    VAULTWARDEN_ENABLED: bool = False  # 是否启用 Vaultwarden 兑换功能
+    VAULTWARDEN_BASE_URL: str = ""  # Vaultwarden 服务地址
+    VAULTWARDEN_ADMIN_TOKEN: str = ""  # Vaultwarden 管理员 Token
+    VAULTWARDEN_REDEEM_CREDITS: int = 500  # 兑换 Vaultwarden 账户所需积分
+
+    # 数据库配置
+    DATABASE_TYPE: str = "sqlite"  # 数据库类型: sqlite, postgresql, mysql
+    DATABASE_URL: str = ""  # 完整数据库连接 URL（优先级高于单独配置）
+    # PostgreSQL 配置
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_USER: str = "pmsmanagebot"
+    POSTGRES_PASSWORD: str = ""
+    POSTGRES_DB: str = "pmsmanagebot"
+    # MySQL 配置
+    MYSQL_HOST: str = "localhost"
+    MYSQL_PORT: int = 3306
+    MYSQL_USER: str = "pmsmanagebot"
+    MYSQL_PASSWORD: str = ""
+    MYSQL_DB: str = "pmsmanagebot"
+    # 数据库连接池配置
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 10
+    DB_POOL_RECYCLE: int = 3600  # 连接回收时间（秒）
+    DB_ECHO: bool = False  # 是否打印 SQL 语句
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if not self.DATA_PATH.exists():
@@ -128,6 +174,48 @@ class Settings(BaseSettings):
             if not path.exists():
                 path.mkdir(parents=True, exist_ok=True)
         return path
+
+    @property
+    def DB_URL(self):
+        """
+        获取数据库连接 URL
+
+        优先级：
+        1. DATABASE_URL 环境变量（如果已设置）
+        2. 根据 DATABASE_TYPE 构建 URL
+        """
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
+
+        db_type = self.DATABASE_TYPE.lower()
+
+        if db_type == "postgresql":
+            return (
+                f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
+                f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            )
+        elif db_type == "mysql":
+            return (
+                f"mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}@"
+                f"{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DB}"
+            )
+        else:
+            # 默认使用 SQLite
+            db_path = self.DATA_PATH / "data.db"
+            return f"sqlite:///{db_path}"
+
+    @property
+    def DB_CONNECT_ARGS(self):
+        """
+        获取数据库连接参数
+
+        """
+        db_type = self.DATABASE_TYPE.lower()
+
+        if db_type == "sqlite":
+            return {"check_same_thread": False}
+        else:
+            return {}
 
     @property
     def ENV_FILE_PATH(self):
@@ -253,6 +341,7 @@ class Settings(BaseSettings):
             "TAUTULLI_APIKEY",
             "REDIS_PASSWORD",
             "WEBAPP_SESSION_SECRET_KEY",
+            "UPAY_SECRET_KEY",
         }
 
         config = {}

@@ -1,7 +1,8 @@
 from app.config import settings
-from app.db import DB
-from app.emby import Emby
+from app.databases import db
 from app.log import logger
+from app.modules.emby import Emby
+from app.utils.report import stats_report
 from app.utils.utils import get_user_name_from_tg_id, send_message
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
@@ -10,8 +11,7 @@ from telegram.ext import CommandHandler, ContextTypes
 # 积分榜
 async def credits_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
-    _db = DB()
-    res = _db.get_credits_rank()
+    res = db.get_credits_rank()
     rank = [
         f"{i}. {get_user_name_from_tg_id(info[0])}: {info[1]:.2f}"
         for i, info in enumerate(res, 1)
@@ -35,8 +35,7 @@ async def credits_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 # 捐赠榜
 async def donation_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
-    _db = DB()
-    res = _db.get_donation_rank()
+    res = db.get_donation_rank()
     rank = [
         f"{i}. {get_user_name_from_tg_id(info[0])}: {info[1]:.2f}"
         for i, info in enumerate(res, 1)
@@ -60,12 +59,11 @@ async def donation_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 # 观看时长榜
 async def watched_time_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
-    _db = DB()
-    res = _db.get_plex_watched_time_rank()
+    res = db.get_plex_watched_time_rank()
     rank = [
         f"{i}. {info[2]}: {info[3]:.2f}" for i, info in enumerate(res, 1) if i <= 15
     ]
-    emby_res = _db.get_emby_watched_time_rank()
+    emby_res = db.get_emby_watched_time_rank()
     emby_rank = [
         f"{i}. {info[1]}: {info[2]:.2f}"
         for i, info in enumerate(emby_res, 1)
@@ -113,14 +111,59 @@ async def device_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     )
 
 
+async def rank_24h(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    body_text = """
+======================
+<strong>🔥Ranking 24h🔥</strong>
+======================
+
+-----------<strong>Plex</strong>-----------
+<strong>👤用户榜</strong>
+{user_stats}
+
+<strong>🎥电影榜</strong>
+{watched_movie_stats}
+
+<strong>📺剧集榜</strong>
+{watched_tv_stats}
+    """
+
+    emby_body_text = """
+-----------<strong>Emby</strong>-----------
+<strong>👤用户榜</strong>
+{emby_user_stats}
+
+<strong>🎥电影榜</strong>
+{emby_watched_movie_stats}
+
+<strong>📺剧集榜</strong>
+{emby_watched_tv_stats}
+    """
+
+    body_text = stats_report(
+        days=1,
+        top=10,
+        user_stats=True,
+        watched_stats=True,
+        body_text=body_text,
+        emby_body_text=emby_body_text,
+        emby=True,
+    )
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id, text=body_text, parse_mode="HTML"
+    )
+
+
 credits_rank_handler = CommandHandler("credits_rank", credits_rank)
 donation_rank_handler = CommandHandler("donation_rank", donation_rank)
 watched_time_rank_handler = CommandHandler("play_duration_rank", watched_time_rank)
 device_rank_handler = CommandHandler("device_rank", device_rank)
+rank_24h_handler = CommandHandler("rank_24h", rank_24h)
 
 __all__ = [
     "credits_rank_handler",
     "donation_rank_handler",
     "watched_time_rank_handler",
     "device_rank_handler",
+    "rank_24h_handler",
 ]

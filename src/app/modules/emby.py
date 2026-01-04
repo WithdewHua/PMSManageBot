@@ -2,14 +2,15 @@
 
 import json
 import pickle
+from datetime import datetime, timedelta
 from time import time
 from typing import Any, Optional, Union
 
 import aiohttp
 import filelock
 import requests
-from app.cache import emby_api_key_cache
 from app.config import settings
+from app.databases.cache import emby_api_key_cache
 from app.log import logger
 
 
@@ -38,6 +39,9 @@ class Emby:
             "CopyFromUserId": self.get_uid_from_username(user_template),
             "UserCopyOptions": ["UserPolicy"],
         }
+        logger.info(
+            f"Adding Emby user {username} with data: {data}, coping from {user_template}"
+        )
 
         try:
             response = requests.post(
@@ -65,7 +69,7 @@ class Emby:
         """修改用户密码"""
         header = {"accept": "application/json", "Content-Type": "application/json"}
 
-        data = {"Id": emby_id, "NewPw": new_password, "ResetPassword": False}
+        data = {"Id": emby_id, "NewPw": new_password.strip(), "ResetPassword": False}
         try:
             response = requests.post(
                 url=self.base_url
@@ -87,6 +91,65 @@ class Emby:
 
     def get_uid_from_username(self, username: str) -> Optional[str]:
         return self.get_user_info_from_username(username).get("id")
+
+    def get_username_from_uid(self, user_id: str) -> Optional[str]:
+        return self.get_user_info_from_uid(user_id).get("name")
+
+    def get_user_info_from_uid(self, user_id: str, from_emby=True) -> dict:
+        cache = {}
+        user_info = {}
+        with self.cache_lock:
+            if self.cache.exists():
+                with open(self.cache, "rb") as f:
+                    cache = pickle.load(f)
+            for _, info in cache.items():
+                if info.get("id") == user_id:
+                    user_info = info
+                    # 如果缓存中的用户信息未过期，则直接返回
+                    if time() - user_info.get("added_time", 0) < 7 * 24 * 3600:
+                        logger.debug(f"Cache hit for {user_id}: {user_info}")
+                        return user_info
+            if not from_emby:
+                # 如果不从 Emby 获取，则直接返回过期信息或者空字典
+                return user_info
+            headers = {"accept": "application/json"}
+
+            retry = 3
+            name = None
+            while retry > 0:
+                try:
+                    reponse = requests.get(
+                        url=self.base_url
+                        + f"/Users/{user_id}?api_key={self.api_token}",
+                        headers=headers,
+                    )
+                    reponse.raise_for_status()
+                    response_json = reponse.json()
+                    logger.debug(f"{response_json=}")
+                except Exception as e:
+                    logger.error(f"Error fetching user info for {user_id}: {e}")
+                    retry -= 1
+                else:
+                    name = response_json["Name"]
+                    primary_image_tag = response_json.get("PrimaryImageTag", "")
+                    date_created = response_json.get("DateCreated", "")
+                    break
+
+            if name is None:
+                return {}
+            user_avatar = self.__user_avatar(user_id, primary_image_tag)
+            user_info = {
+                "id": user_id,
+                "name": name,
+                "avatar": user_avatar,
+                "date_created": date_created,
+                "added_time": time(),
+            }
+            cache[name] = user_info
+            with open(self.cache, "wb") as f:
+                pickle.dump(cache, f)
+            logger.info(f"Updated user info for {user_id}: {user_info}")
+            return user_info
 
     def get_user_info_from_username(
         self, username: str, from_emby=True, is_hidden=settings.EMBY_USER_IS_HIDDEN
@@ -151,14 +214,7 @@ class Emby:
 
             user_id = response_json["Items"][0]["Id"]
             primary_image_tag = response_json["Items"][0].get("PrimaryImageTag", "")
-            user_avatar = (
-                self.base_url
-                + "/Users/"
-                + user_id
-                + f"/Images/Primary?tag={primary_image_tag}&maxWidth=160&quality=90"
-                if primary_image_tag
-                else ""
-            )
+            user_avatar = self.__user_avatar(user_id, primary_image_tag)
             user_info = {
                 "id": user_id,
                 "name": name,
@@ -172,6 +228,16 @@ class Emby:
             logger.info(f"Updated user info for {username}: {user_info}")
 
             return user_info
+
+    def __user_avatar(self, uid: str, primary_image_tag: str) -> str:
+        if not primary_image_tag:
+            return ""
+        return (
+            settings.EMBY_ENTRY_URL
+            + "/Users/"
+            + uid
+            + f"/Images/Primary?tag={primary_image_tag}&maxWidth=160&quality=90"
+        )
 
     def get_user_avatar_by_username(self, username: str, from_emby=True) -> str:
         """获取用户头像 URL"""
@@ -225,7 +291,12 @@ class Emby:
 
         return libraries
 
-    def add_user_library(self, user_id, library=settings.NSFW_LIBS):
+    def add_user_library(
+        self, user_id, library: Union[str, list[str]] = settings.NSFW_LIBS
+    ):
+        if isinstance(library, str):
+            library = [library]
+
         headers = {"accept": "application/json", "Content-Type": "application/json"}
         params = {"api_key": self.api_token}
 
@@ -239,6 +310,8 @@ class Emby:
 
         for lib_name in library:
             lib = libraries.get(lib_name)
+            if not lib:
+                return False, f"Library {lib_name} not found"
             guid = lib.get("guid")
             subfolders_id = lib.get("subfolders_id")
             enabled_folders = policy.get("EnabledFolders")
@@ -452,3 +525,228 @@ class Emby:
         except Exception as e:
             logger.error(f"Error fetching Emby username: {e}")
         return None
+
+    def get_emby_current_playing_user_num(self):
+        url = self.base_url + f"/Sessions?IsPlaying=True&api_key={self.api_token}"
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            rslts = response.json()
+        except Exception as e:
+            logger.error(f"Error fetching Emby current playing user num: {e}")
+            return 0
+        num = 0
+        for rslt in rslts:
+            if not rslt["PlayState"]["IsPaused"]:
+                num += 1
+
+        return num
+
+    def get_report(
+        self,
+        types=None,
+        user_id=None,
+        days=7,
+        end_date=datetime.now(settings.TZ),
+        limit=10,
+    ):
+        item_type = {
+            "movie": "ItemName",
+            "episode": "substr(ItemName,0, instr(ItemName, ' - '))",
+        }
+        if not types:
+            types = "Movie"
+        sub_date = end_date - timedelta(days=days)
+        start_time = sub_date.strftime("%Y-%m-%d %H:%M:%S")
+        end_time = end_date.strftime("%Y-%m-%d %H:%M:%S")
+        if types.lower() != "user" and item_type.get(types.lower()):
+            sql = "SELECT UserId, ItemId, ItemType, "
+            sql += item_type.get(types.lower()) + " AS name, "
+            sql += "COUNT(1) AS play_count, "
+            sql += "SUM(PlayDuration - PauseDuration) AS total_duration "
+            sql += "FROM PlaybackActivity "
+            sql += f"WHERE ItemType = '{types.capitalize()}' "
+            sql += f"AND DateCreated >= '{start_time}' AND DateCreated <= '{end_time}' "
+            sql += "AND UserId not IN (select UserId from UserList) "
+            if user_id:
+                sql += f"AND UserId = '{user_id}' "
+            sql += "GROUP BY name "
+            sql += "ORDER BY total_duration DESC "
+            sql += "LIMIT " + str(limit)
+        elif types.lower() == "user":
+            sql = "SELECT UserId, "
+            sql += "SUM(PlayDuration - PauseDuration) AS total_duration "
+            sql += "FROM PlaybackActivity "
+            sql += (
+                f"WHERE DateCreated >= '{start_time}' AND DateCreated <= '{end_time}' "
+            )
+            sql += "AND UserId not IN (select UserId from UserList) "
+            if user_id:
+                sql += f"AND UserId = '{user_id}' "
+            sql += "GROUP BY UserId "
+            sql += "ORDER BY total_duration DESC "
+            sql += "LIMIT " + str(limit)
+        else:
+            return False, "Incorrect types"
+
+        url = (
+            self.base_url
+            + f"/user_usage_stats/submit_custom_query?api_key={self.api_token}"
+        )
+        data = {"CustomQueryString": sql, "ReplaceUserId": False}
+        try:
+            resp = requests.post(url, data=data)
+            resp.raise_for_status()
+            resp = resp.json()
+        except Exception as e:
+            logger.error(f"Error fetching Emby report: {e}")
+            return False, "请求失败"
+        if not resp:
+            return False, "请求失败"
+        if not resp["results"]:
+            return False, resp["message"]
+        ranks = []
+        if types.lower() != "user":
+            for idx, stats in enumerate(resp["results"], start=1):
+                ranks.append(f"{idx}. {stats[-3]}: {timedelta(seconds=int(stats[-1]))}")
+        else:
+            rank_idx = 0
+            for stats in resp["results"]:
+                user_name = self.get_username_from_uid(stats[0])
+                if not user_name:
+                    user_name = stats[0]
+                if user_name.lower() in [settings.EMBY_ADMIN_USER.lower()]:
+                    continue
+                rank_idx += 1
+                ranks.append(
+                    f"{rank_idx}. {user_name}: {timedelta(seconds=int(stats[1]))}"
+                )
+        return True, ranks
+
+    def get_user_last_activity(self, user_id: str) -> Optional[int]:
+        """
+        获取用户最后活动时间（最后观看时间）
+        从 PlaybackActivity 表中获取用户最后一次播放记录的时间
+
+        Args:
+            user_id: Emby用户ID
+
+        Returns:
+            Unix时间戳(秒)，如果没有记录则返回None
+        """
+        headers = {"accept": "application/json", "Content-Type": "application/json"}
+        params = {"api_key": self.api_token}
+
+        # 查询用户最后一次播放活动的时间
+        sql = f"""
+        SELECT MAX(DateCreated) as LastActivity
+        FROM PlaybackActivity
+        WHERE UserId = '{user_id}'
+        """
+
+        data = {
+            "CustomQueryString": sql,
+            "ReplaceUserId": False,
+        }
+
+        try:
+            response = requests.post(
+                url=self.base_url + "/user_usage_stats/submit_custom_query",
+                params=params,
+                headers=headers,
+                data=json.dumps(data),
+            )
+            response.raise_for_status()
+            response_json = response.json()
+
+            if response_json.get("results") and len(response_json["results"]) > 0:
+                last_activity_str = response_json["results"][0][0]
+                if last_activity_str:
+                    # 将ISO格式的时间转换为Unix时间戳
+                    # Emby返回的时间格式可能是: "2024-12-08 10:30:00" 或 "2024-12-08 10:30:00.123456"
+                    try:
+                        # 先尝试移除小数部分(如果存在)
+                        if "." in last_activity_str:
+                            last_activity_str = last_activity_str.split(".")[0]
+                        dt = datetime.strptime(last_activity_str, "%Y-%m-%d %H:%M:%S")
+                        # 转换为UTC时间戳
+                        timestamp = int(dt.timestamp())
+                        logger.debug(
+                            f"User {user_id} last activity: {last_activity_str} ({timestamp})"
+                        )
+                        return timestamp
+                    except Exception as e:
+                        logger.error(
+                            f"Error parsing timestamp for user {user_id}: {last_activity_str}, {e}"
+                        )
+                        return None
+
+            logger.debug(f"No activity found for user {user_id}")
+            return None
+
+        except Exception as e:
+            logger.error(f"Error fetching last activity for user {user_id}: {e}")
+            return None
+
+    def get_all_users_last_activity(self) -> dict[str, Optional[int]]:
+        """
+        获取所有用户的最后活动时间
+
+        Returns:
+            字典 {user_id: timestamp}，timestamp为Unix时间戳(秒)，无记录则为None
+        """
+        headers = {"accept": "application/json", "Content-Type": "application/json"}
+        params = {"api_key": self.api_token}
+
+        # 查询所有用户的最后一次播放活动时间
+        sql = """
+        SELECT UserId, MAX(DateCreated) as LastActivity
+        FROM PlaybackActivity
+        GROUP BY UserId
+        """
+
+        data = {
+            "CustomQueryString": sql,
+            "ReplaceUserId": False,
+        }
+
+        try:
+            response = requests.post(
+                url=self.base_url + "/user_usage_stats/submit_custom_query",
+                params=params,
+                headers=headers,
+                data=json.dumps(data),
+            )
+            response.raise_for_status()
+            response_json = response.json()
+
+            user_activities = {}
+
+            if response_json.get("results"):
+                for result in response_json["results"]:
+                    user_id, last_activity_str = result
+                    if last_activity_str:
+                        try:
+                            # 将ISO格式的时间转换为Unix时间戳
+                            # 先尝试移除小数部分(如果存在)
+                            if "." in last_activity_str:
+                                last_activity_str = last_activity_str.split(".")[0]
+                            dt = datetime.strptime(
+                                last_activity_str, "%Y-%m-%d %H:%M:%S"
+                            )
+                            timestamp = int(dt.timestamp())
+                            user_activities[user_id] = timestamp
+                        except Exception:
+                            logger.error(
+                                f"Error parsing timestamp for user {user_id}: {last_activity_str}"
+                            )
+                            user_activities[user_id] = None
+                    else:
+                        user_activities[user_id] = None
+
+            logger.info(f"Fetched last activity for {len(user_activities)} users")
+            return user_activities
+
+        except Exception as e:
+            logger.error(f"Error fetching all users last activity: {e}")
+            return {}

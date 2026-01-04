@@ -1,10 +1,10 @@
 from datetime import datetime
 
 from app.config import settings
-from app.db import DB
-from app.emby import Emby
+from app.databases import db
 from app.log import uvicorn_logger as logger
-from app.plex import Plex
+from app.modules.emby import Emby
+from app.modules.plex import Plex
 from app.utils.utils import get_user_avatar_from_tg_id, get_user_name_from_tg_id
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
@@ -22,7 +22,6 @@ async def get_credits_rankings(
     """获取积分排行榜数据"""
     logger.info(f"{user.username or user.first_name or user.id} 开始获取积分排行榜数据")
 
-    db = DB()
     try:
         credits_rankings = []
         try:
@@ -31,6 +30,7 @@ async def get_credits_rankings(
             if credits_data:
                 credits_rankings = [
                     {
+                        "tg_id": info[0],  # 添加 tg_id 字段用于加载勋章
                         "name": get_user_name_from_tg_id(info[0]),
                         "credits": info[1],
                         "avatar": get_user_avatar_from_tg_id(info[0]),
@@ -49,9 +49,6 @@ async def get_credits_rankings(
     except Exception as e:
         logger.error(f"获取积分排行榜数据时发生未预期的错误: {str(e)}")
         raise HTTPException(status_code=500, detail="获取积分排行榜数据失败")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.get("/rankings/donation")
@@ -62,7 +59,6 @@ async def get_donation_rankings(
     """获取捐赠排行榜数据"""
     logger.info(f"{user.username or user.first_name or user.id} 开始获取捐赠排行榜数据")
 
-    db = DB()
     try:
         donation_rankings = []
         try:
@@ -71,6 +67,7 @@ async def get_donation_rankings(
             if donation_data:
                 donation_rankings = [
                     {
+                        "tg_id": info[0],  # 添加 tg_id 字段用于加载勋章
                         "name": get_user_name_from_tg_id(info[0]),
                         "donation": info[1],
                         "avatar": get_user_avatar_from_tg_id(info[0]),
@@ -89,9 +86,6 @@ async def get_donation_rankings(
     except Exception as e:
         logger.error(f"获取捐赠排行榜数据时发生未预期的错误: {str(e)}")
         raise HTTPException(status_code=500, detail="获取捐赠排行榜数据失败")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.get("/rankings/watched-time/plex")
@@ -104,7 +98,6 @@ async def get_plex_watched_time_rankings(
         f"{user.username or user.first_name or user.id} 开始获取Plex观看时长排行榜数据"
     )
 
-    db = DB()
     try:
         watched_time_rank_plex = []
         try:
@@ -134,9 +127,6 @@ async def get_plex_watched_time_rankings(
     except Exception as e:
         logger.error(f"获取Plex观看时长排行榜数据时发生未预期的错误: {str(e)}")
         raise HTTPException(status_code=500, detail="获取Plex观看时长排行榜数据失败")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.get("/rankings/watched-time/emby")
@@ -149,7 +139,6 @@ async def get_emby_watched_time_rankings(
         f"{user.username or user.first_name or user.id} 开始获取Emby观看时长排行榜数据"
     )
 
-    db = DB()
     try:
         watched_time_rank_emby = []
         emby = Emby()
@@ -184,9 +173,42 @@ async def get_emby_watched_time_rankings(
     except Exception as e:
         logger.error(f"获取Emby观看时长排行榜数据时发生未预期的错误: {str(e)}")
         raise HTTPException(status_code=500, detail="获取Emby观看时长排行榜数据失败")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
+
+
+@router.get("/rankings/invitation")
+@require_telegram_auth
+async def get_invitation_rankings(
+    request: Request, user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取邀请排行榜数据"""
+    logger.info(f"{user.username or user.first_name or user.id} 开始获取邀请排行榜数据")
+
+    try:
+        invitation_rankings = []
+        try:
+            logger.debug("正在查询邀请排行")
+            invitation_data = db.get_invitation_rank()
+            if invitation_data:
+                invitation_rankings = [
+                    {
+                        "name": get_user_name_from_tg_id(info[0]),
+                        "invite_count": info[1],
+                        "avatar": get_user_avatar_from_tg_id(info[0]),
+                        "is_self": info[0] == user.id,  # tg_id 比较
+                    }
+                    for info in invitation_data
+                    if info[0] not in settings.TG_ADMIN_CHAT_ID and info[1] > 0
+                ]
+        except Exception as e:
+            logger.error(f"获取邀请排行失败: {str(e)}")
+
+        logger.info(
+            f"{user.username or user.first_name or user.id} 获取邀请排行榜数据成功"
+        )
+        return {"invitation_rank": invitation_rankings}
+    except Exception as e:
+        logger.error(f"获取邀请排行榜数据时发生未预期的错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取邀请排行榜数据失败")
 
 
 @router.get("/rankings/traffic/plex")
@@ -207,7 +229,6 @@ async def get_plex_traffic_rankings(
         f"{user.username or user.first_name or user.id} 开始获取 Plex 流量排行榜数据 (日期范围: {start_date} - {end_date})"
     )
 
-    db = DB()
     try:
         # 解析日期参数
         parsed_start_date = None
@@ -267,9 +288,6 @@ async def get_plex_traffic_rankings(
     except Exception as e:
         logger.error(f"获取 Plex 流量排行榜数据时发生未预期的错误: {str(e)}")
         raise HTTPException(status_code=500, detail="获取 Plex 流量排行榜数据失败")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 @router.get("/rankings/traffic/emby")
@@ -290,7 +308,6 @@ async def get_emby_traffic_rankings(
         f"{user.username or user.first_name or user.id} 开始获取 Emby 流量排行榜数据 (日期范围: {start_date} - {end_date})"
     )
 
-    db = DB()
     try:
         # 解析日期参数
         parsed_start_date = None
@@ -353,6 +370,3 @@ async def get_emby_traffic_rankings(
     except Exception as e:
         logger.error(f"获取 Emby 流量排行榜数据时发生未预期的错误: {str(e)}")
         raise HTTPException(status_code=500, detail="获取 Emby 流量排行榜数据失败")
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")

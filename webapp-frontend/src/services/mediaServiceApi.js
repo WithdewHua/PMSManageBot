@@ -128,6 +128,47 @@ export function checkPrivilegedInviteCode(code) {
 }
 
 /**
+ * 批量检查邀请码是否为特权邀请码
+ * @param {string[]} codes - 邀请码数组
+ * @returns {Promise} 包含特权状态映射的Promise对象
+ */
+export function batchCheckPrivilegedInviteCodes(codes) {
+  return new Promise((resolve) => {
+    if (!codes || codes.length === 0) {
+      return resolve({ results: {} });
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+      apiClient.post('/api/invite/batch-check-privileged', { codes })
+        .then(response => {
+          resolve({
+            results: response.data.results
+          });
+        })
+        .catch(error => {
+          console.error('批量检查特权邀请码失败:', error);
+          // 出错时默认为非特权码
+          const errorResults = {};
+          codes.forEach(code => {
+            errorResults[code] = false;
+          });
+          resolve({ results: errorResults });
+        });
+    } else {
+      // 开发环境模拟
+      setTimeout(() => {
+        const privilegedCodes = ['ADMIN123', 'VIP999', 'SUPER888'];
+        const results = {};
+        codes.forEach(code => {
+          results[code] = privilegedCodes.includes(code.toUpperCase());
+        });
+        resolve({ results });
+      }, 200);
+    }
+  });
+}
+
+/**
  * 绑定媒体服务账户
  * @param {string} serviceType - 服务类型 ('plex' 或 'emby')
  * @param {Object} data - 请求数据对象

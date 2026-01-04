@@ -1,8 +1,11 @@
 from datetime import datetime, timedelta
 
 from app.config import settings
-from app.db import DB
+from app.databases import db
+from app.databases.session import get_session
 from app.log import logger
+from app.models.models import LineTrafficStats
+from sqlalchemy import select
 
 
 def migrate_historical_traffic_data(
@@ -24,7 +27,6 @@ def migrate_historical_traffic_data(
         dict: 包含处理结果的详细信息
     """
     try:
-        _db = DB()
         results = {
             "total_months": 0,
             "success_months": [],
@@ -46,9 +48,11 @@ def migrate_historical_traffic_data(
 
         # 如果没有指定开始月份，自动检测数据库中最早的月份
         if start_month is None:
-            earliest_record = _db.cur.execute(
-                "SELECT MIN(timestamp) FROM line_traffic_stats"
-            ).fetchone()[0]
+            with get_session() as session:
+                from sqlalchemy import func
+
+                stmt = select(func.min(LineTrafficStats.timestamp))
+                earliest_record = session.execute(stmt).scalar()
 
             if not earliest_record:
                 logger.warning("未找到任何流量数据")
@@ -129,13 +133,18 @@ def migrate_historical_traffic_data(
                 month_start_str = month_start.isoformat()
                 next_month_start_str = next_month_start.isoformat()
 
-                original_count = _db.cur.execute(
-                    """
-                    SELECT COUNT(*) FROM line_traffic_stats 
-                    WHERE timestamp >= ? AND timestamp < ?
-                """,
-                    (month_start_str, next_month_start_str),
-                ).fetchone()[0]
+                with get_session() as session:
+                    from sqlalchemy import func
+
+                    stmt = (
+                        select(func.count())
+                        .select_from(LineTrafficStats)
+                        .where(
+                            LineTrafficStats.timestamp >= month_start_str,
+                            LineTrafficStats.timestamp < next_month_start_str,
+                        )
+                    )
+                    original_count = session.execute(stmt).scalar()
 
                 if original_count == 0:
                     logger.info(f"月份 {month} 没有原始数据，跳过处理")
@@ -145,7 +154,7 @@ def migrate_historical_traffic_data(
                 logger.info(f"月份 {month} 包含 {original_count:,} 条原始记录")
 
                 # 第一步：数据聚合
-                success, message = _db.aggregate_monthly_traffic_data(month)
+                success, message = db.aggregate_monthly_traffic_data(month)
 
                 if success:
                     logger.info(f"✅ 月份 {month} 聚合成功: {message}")
@@ -166,7 +175,7 @@ def migrate_historical_traffic_data(
 
                     if should_cleanup:
                         cleanup_success, cleanup_message = (
-                            _db.cleanup_monthly_traffic_data(month)
+                            db.cleanup_monthly_traffic_data(month)
                         )
                         if cleanup_success:
                             logger.info(f"🗑️ 月份 {month} 清理成功: {cleanup_message}")
@@ -230,8 +239,6 @@ def migrate_historical_traffic_data(
         logger.error(error_msg)
         results["error"] = error_msg
         return results
-    finally:
-        _db.close()
 
 
 if __name__ == "__main__":

@@ -45,27 +45,13 @@
                 <v-btn
                   icon
                   size="x-small"
-                  :color="creditsTransferEnabled ? 'amber-darken-2' : 'grey'"
+                  color="amber-darken-2"
                   variant="outlined"
-                  @click="handleCreditsTransferClick"
-                  :title="creditsTransferEnabled ? '积分转移' : '积分转移功能暂时关闭'"
-                  class="mr-2 credits-transfer-btn"
-                  :class="{ 'disabled-style': !creditsTransferEnabled }"
+                  @click="openCreditsStoreDialog"
+                  title="积分商城"
+                  class="mr-2 credits-store-btn"
                 >
-                  <v-icon 
-                    size="small" 
-                    :class="{ 'text-grey-darken-2': !creditsTransferEnabled }"
-                  >
-                    {{ creditsTransferEnabled ? 'mdi-bank-transfer' : 'mdi-bank-transfer-out' }}
-                  </v-icon>
-                  <v-icon 
-                    v-if="!creditsTransferEnabled" 
-                    size="x-small" 
-                    class="disable-icon"
-                    color="error"
-                  >
-                    mdi-cancel
-                  </v-icon>
+                  <v-icon size="small">mdi-store</v-icon>
                 </v-btn>
                 <div class="value-display credits-value">{{ userInfo.credits.toFixed(2) }}</div>
               </div>
@@ -75,8 +61,73 @@
                 <v-icon size="small" color="success" class="mr-2">mdi-currency-usd</v-icon>
                 <span>捐赠金额：</span>
               </div>
-              <div class="value-display donation-value">{{ userInfo.donation.toFixed(2) }}</div>
+              <div class="d-flex align-center">
+                <v-btn
+                  icon
+                  size="x-small"
+                  color="amber-darken-2"
+                  variant="outlined"
+                  @click="openDonationManagementDialog"
+                  title="捐赠管理"
+                  class="mr-2 donation-manage-btn"
+                >
+                  <v-icon size="small">mdi-cog</v-icon>
+                </v-btn>
+                <div class="value-display donation-value">{{ userInfo.donation.toFixed(2) }}</div>
+              </div>
             </div>
+            <div class="d-flex justify-space-between mb-3 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="purple-darken-1" class="mr-2">mdi-account-multiple</v-icon>
+                <span>邀请人数：</span>
+              </div>
+              <div class="value-display invitee-value">{{ userInfo.invitee_count || 0 }}</div>
+            </div>
+
+            <!-- 用户勋章展示 -->
+            <div v-if="!badgesLoading && userBadges.length > 0" class="d-flex justify-space-between mb-3 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-medal</v-icon>
+                <span>我的勋章：</span>
+              </div>
+              <div class="d-flex align-center gap-1">
+                <v-tooltip
+                  v-for="badge in userBadges"
+                  :key="badge.badge_id"
+                  location="top"
+                  open-on-click
+                  open-on-hover
+                >
+                  <template v-slot:activator="{ props }">
+                    <v-avatar
+                      v-bind="props"
+                      size="28"
+                      class="badge-icon"
+                      :class="{ 'badge-expired': !badge.bonus_active }"
+                    >
+                      <v-img :src="badge.badge.icon_url" :alt="badge.badge.name" />
+                    </v-avatar>
+                  </template>
+                  <div class="badge-tooltip">
+                    <div class="font-weight-bold mb-1">{{ badge.badge.name }}</div>
+                    <div class="text-caption">加成: +{{ (badge.badge.bonus_percentage * 100).toFixed(0) }}%</div>
+                    <div class="text-caption" :class="badge.bonus_active ? '' : 'text-warning'">
+                      加成{{ badge.bonus_active ? '有效至' : '已过期' }}: {{ formatBadgeExpireDate(badge.expires_at) }}
+                    </div>
+                  </div>
+                </v-tooltip>
+              </div>
+            </div>
+            <div v-else-if="badgesLoading" class="d-flex justify-space-between mb-3 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-medal</v-icon>
+                <span>我的勋章：</span>
+              </div>
+              <div class="d-flex align-center">
+                <v-progress-circular indeterminate size="20" width="2" color="amber"></v-progress-circular>
+              </div>
+            </div>
+
             <v-divider class="my-3"></v-divider>
 
             <div v-if="userInfo.invitation_codes && userInfo.invitation_codes.length > 0">
@@ -202,12 +253,22 @@
                 <v-icon size="small" color="teal-darken-1" class="mr-2">mdi-connection</v-icon>
                 <span>绑定线路：</span>
               </div>
-              <div class="line-selector-wrapper">
+              <div class="d-flex align-center gap-2">
                 <plex-line-selector 
                   ref="plexLineSelector"
                   :current-value="userInfo.plex_info.line" 
                   @line-changed="updatePlexLine"
                 ></plex-line-selector>
+                <v-btn
+                  size="small"
+                  color="purple"
+                  variant="tonal"
+                  icon
+                  @click="openPlexScheduleDialog"
+                  title="高级调度"
+                >
+                  <v-icon size="small">mdi-calendar-clock</v-icon>
+                </v-btn>
               </div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
@@ -252,6 +313,15 @@
               </div>
               <div class="text-caption" :class="isPremiumExpiringSoon(userInfo.plex_info.premium_expiry) ? 'text-warning' : ''">
                 {{ formatPremiumExpiry(userInfo.plex_info.premium_expiry) }}
+              </div>
+            </div>
+            <div class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="cyan-darken-1" class="mr-2">mdi-clock-time-eight-outline</v-icon>
+                <span>最后观看时间：</span>
+              </div>
+              <div class="text-caption">
+                {{ formatLastViewedAt(userInfo.plex_info.last_viewed_at) }}
               </div>
             </div>
           </v-card-text>
@@ -343,12 +413,22 @@
                 <v-icon size="small" color="teal-darken-1" class="mr-2">mdi-connection</v-icon>
                 <span>绑定线路：</span>
               </div>
-              <div class="line-selector-wrapper">
+              <div class="d-flex align-center gap-2">
                 <emby-line-selector 
                   ref="embyLineSelector"
                   :current-value="userInfo.emby_info.line" 
                   @line-changed="updateEmbyLine"
                 ></emby-line-selector>
+                <v-btn
+                  size="small"
+                  color="purple"
+                  variant="tonal"
+                  icon
+                  @click="openEmbyScheduleDialog"
+                  title="高级调度"
+                >
+                  <v-icon size="small">mdi-calendar-clock</v-icon>
+                </v-btn>
               </div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
@@ -393,6 +473,15 @@
               </div>
               <div class="text-caption" :class="isPremiumExpiringSoon(userInfo.emby_info.premium_expiry) ? 'text-warning' : ''">
                 {{ formatPremiumExpiry(userInfo.emby_info.premium_expiry) }}
+              </div>
+            </div>
+            <div class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="cyan-darken-1" class="mr-2">mdi-clock-time-eight-outline</v-icon>
+                <span>最后观看时间：</span>
+              </div>
+              <div class="text-caption">
+                {{ formatLastViewedAt(userInfo.emby_info.last_viewed_at) }}
               </div>
             </div>
           </v-card-text>
@@ -661,11 +750,36 @@
       @donation-submitted="handleDonationSubmitted"
     />
     
+    <!-- 使用捐赠管理对话框组件 -->
+    <donation-management-dialog
+      ref="donationManagementDialog"
+      @registration-submitted="handleDonationRegistrationSubmitted"
+    />
+    
+    <!-- 使用积分商城对话框组件 -->
+    <credits-store-dialog
+      ref="creditsStoreDialog"
+      @menu-selected="handleCreditsStoreMenuSelected"
+    />
+    
     <!-- 使用积分转移对话框组件 -->
     <credits-transfer-dialog
       ref="creditsTransferDialog"
       :current-credits="userInfo.credits"
       @transfer-completed="handleCreditsTransferCompleted"
+    />
+    
+    <!-- 使用 Vaultwarden 兑换对话框组件 -->
+    <vaultwarden-redeem-dialog
+      ref="vaultwardenRedeemDialog"
+      @redeem-success="handleVaultwardenRedeemSuccess"
+    />
+    
+    <!-- 使用勋章中心对话框组件 -->
+    <badge-center-dialog
+      ref="badgeCenterDialog"
+      :user-credits="userInfo.credits"
+      @redeem-success="handleBadgeRedeemSuccess"
     />
     
     <!-- 使用Premium解锁对话框组件 -->
@@ -688,6 +802,22 @@
       ref="lineManagementDialog"
       @lines-updated="handleLinesUpdated"
     />
+    
+    <!-- Plex 线路调度对话框 -->
+    <line-schedule-dialog
+      v-model:show="showPlexScheduleDialog"
+      initial-service="plex"
+      @success="handleScheduleSuccess"
+      @error="handleScheduleError"
+    />
+    
+    <!-- Emby 线路调度对话框 -->
+    <line-schedule-dialog
+      v-model:show="showEmbyScheduleDialog"
+      initial-service="emby"
+      @success="handleScheduleSuccess"
+      @error="handleScheduleError"
+    />
   </div>
 </template>
 
@@ -698,15 +828,21 @@ import EmbyLineSelector from '@/components/EmbyLineSelector.vue'
 import PlexLineSelector from '@/components/PlexLineSelector.vue'
 import NsfwDialog from '@/components/NsfwDialog.vue'
 import DonationDialog from '@/components/DonationDialog.vue'
+import DonationManagementDialog from '@/components/DonationManagementDialog.vue'
 import CreditsTransferDialog from '@/components/CreditsTransferDialog.vue'
+import CreditsStoreDialog from '@/components/CreditsStoreDialog.vue'
+import VaultwardenRedeemDialog from '@/components/VaultwardenRedeemDialog.vue'
+import BadgeCenterDialog from '@/components/BadgeCenterDialog.vue'
 import PremiumUnlockDialog from '@/components/PremiumUnlockDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
+import LineScheduleDialog from '@/components/LineScheduleDialog.vue'
 import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
 import { redeemInviteCodeForCredits } from '@/services/inviteCodeService.js'
-import { checkPrivilegedInviteCode } from '@/services/mediaServiceApi.js'
+import { checkPrivilegedInviteCode, batchCheckPrivilegedInviteCodes } from '@/services/mediaServiceApi.js'
 import { getUserActivityStats } from '@/services/wheelService.js'
 import { formatTraffic } from '@/utils/format.js'
+import { getMyBadges } from '@/services/badgeService.js'
 
 export default {
   name: 'UserInfo',
@@ -715,16 +851,22 @@ export default {
     PlexLineSelector,
     NsfwDialog,
     DonationDialog,
+    DonationManagementDialog,
     CreditsTransferDialog,
+    CreditsStoreDialog,
+    VaultwardenRedeemDialog,
+    BadgeCenterDialog,
     PremiumUnlockDialog,
     TagManagementDialog,
-    LineManagementDialog
+    LineManagementDialog,
+    LineScheduleDialog
   },
   data() {
     return {
       userInfo: {
         credits: 0,
         donation: 0,
+        invitee_count: 0,
         invitation_codes: [],
         plex_info: {
           line: null,
@@ -767,18 +909,54 @@ export default {
       },
       creditsTransferEnabled: true, // 积分转移功能开关状态
       currentPremiumExpiry: null,
-      currentIsPremium: false
+      currentIsPremium: false,
+      showPlexScheduleDialog: false,
+      showEmbyScheduleDialog: false,
+      userBadges: [], // 用户拥有的勋章列表
+      badgesLoading: false
     }
   },
   mounted() {
     this.fetchUserInfo()
     this.fetchActivityStats()
     this.fetchSystemStatus() // 这里会同时获取系统状态和积分转移开关状态
+    this.fetchUserBadges()
   },
   methods: {
     // 格式化流量显示
     formatTraffic(bytes) {
       return formatTraffic(bytes)
+    },
+
+    // 格式化勋章过期时间
+    formatBadgeExpireDate(timestamp) {
+      try {
+        // 检查时间戳是否有效
+        if (!timestamp || timestamp <= 0) {
+          return '未知'
+        }
+        
+        // 后端返回的是秒级时间戳，转换为毫秒
+        const milliseconds = timestamp * 1000
+        
+        // 检查是否超过合理范围（当前时间 + 100 年）
+        const maxReasonableDate = new Date().getTime() + (100 * 365 * 24 * 60 * 60 * 1000)
+        if (milliseconds > maxReasonableDate) {
+          return '永久'
+        }
+        
+        const date = new Date(milliseconds)
+        
+        // 检查日期是否有效
+        if (isNaN(date.getTime())) {
+          return '永久'
+        }
+        
+        return date.toLocaleDateString()
+      } catch (error) {
+        console.error('格式化勋章过期时间失败:', error, 'timestamp:', timestamp)
+        return '永久'
+      }
     },
 
     async fetchUserInfo() {
@@ -831,9 +1009,50 @@ export default {
       }
     },
 
+    // 获取用户勋章
+    async fetchUserBadges() {
+      try {
+        this.badgesLoading = true
+        const response = await getMyBadges()
+        this.userBadges = response.data || []
+      } catch (err) {
+        console.error('获取用户勋章失败:', err)
+        // 不显示错误，使用默认值
+        this.userBadges = []
+      } finally {
+        this.badgesLoading = false
+      }
+    },
+
     // 检查特权邀请码
     async checkPrivilegedCodes() {
       // 重置特权码状态映射
+      this.privilegedCodes = {};
+      
+      if (!this.userInfo.invitation_codes || this.userInfo.invitation_codes.length === 0) {
+        return;
+      }
+      
+      try {
+        // 使用批量检查API，一次性检查所有邀请码
+        const result = await batchCheckPrivilegedInviteCodes(this.userInfo.invitation_codes);
+        
+        // 将结果映射到索引
+        this.userInfo.invitation_codes.forEach((code, index) => {
+          this.privilegedCodes[index] = result.results[code] || false;
+        });
+        
+        console.log(`批量检查 ${this.userInfo.invitation_codes.length} 个邀请码完成`);
+      } catch (error) {
+        console.error('批量检查邀请码特权状态失败:', error);
+        // 出错时使用回退方案：逐个检查
+        console.log('使用回退方案：逐个检查邀请码');
+        await this.checkPrivilegedCodesLegacy();
+      }
+    },
+
+    // 回退方案：逐个检查邀请码（保留原有逻辑作为备用）
+    async checkPrivilegedCodesLegacy() {
       this.privilegedCodes = {};
       
       for (let i = 0; i < this.userInfo.invitation_codes.length; i++) {
@@ -978,6 +1197,26 @@ export default {
       }
     },
     
+    // 打开 Plex 线路调度对话框
+    openPlexScheduleDialog() {
+      this.showPlexScheduleDialog = true;
+    },
+    
+    // 打开 Emby 线路调度对话框
+    openEmbyScheduleDialog() {
+      this.showEmbyScheduleDialog = true;
+    },
+    
+    // 处理调度成功
+    handleScheduleSuccess(message) {
+      this.$emit('show-snackbar', { message, color: 'success' });
+    },
+    
+    // 处理调度错误
+    handleScheduleError(message) {
+      this.$emit('show-snackbar', { message, color: 'error' });
+    },
+    
     // 打开NSFW权限管理对话框
     openNsfwDialog(service, isAllLib) {
       // 通过引用调用子组件方法
@@ -1027,6 +1266,43 @@ export default {
       this.$refs.donationDialog.open();
     },
     
+    // 打开捐赠管理对话框
+    openDonationManagementDialog() {
+      this.$refs.donationManagementDialog.open();
+    },
+    
+    // 打开积分商城对话框
+    openCreditsStoreDialog() {
+      this.$refs.creditsStoreDialog.open();
+    },
+    
+    // 处理积分商城菜单选择
+    handleCreditsStoreMenuSelected(menuValue) {
+      switch (menuValue) {
+        case 'transfer':
+          // 打开积分转移对话框
+          this.openCreditsTransferDialog();
+          break;
+        case 'vaultwarden':
+          // 打开 Vaultwarden 兑换对话框
+          this.openVaultwardenRedeemDialog();
+          break;
+        case 'badges':
+          // 打开勋章中心对话框
+          this.openBadgeCenterDialog();
+          break;
+        // 可以在这里添加其他菜单项的处理
+        // case 'exchange':
+        //   this.openCreditsExchangeDialog();
+        //   break;
+        // case 'history':
+        //   this.openCreditsHistoryDialog();
+        //   break;
+        default:
+          break;
+      }
+    },
+    
     // 处理积分转移按钮点击事件
     handleCreditsTransferClick() {
       if (!this.creditsTransferEnabled) {
@@ -1055,10 +1331,53 @@ export default {
       this.showMessage(`成功转移 ${amount} 积分给用户 ${target_user}`, 'success');
     },
     
+    // 打开 Vaultwarden 兑换对话框
+    openVaultwardenRedeemDialog() {
+      this.$refs.vaultwardenRedeemDialog.open();
+    },
+    
+    // 处理 Vaultwarden 兑换成功事件
+    handleVaultwardenRedeemSuccess(result) {
+      const { credits_deducted, remaining_credits } = result;
+      
+      // 更新用户积分
+      this.userInfo.credits = remaining_credits;
+      
+      // 显示成功消息
+      this.showMessage(`成功兑换 Vaultwarden 账户，扣除 ${credits_deducted} 积分`, 'success');
+    },
+    
+    // 打开勋章中心对话框
+    openBadgeCenterDialog() {
+      this.$refs.badgeCenterDialog.open();
+    },
+    
+    // 处理勋章兑换成功事件
+    handleBadgeRedeemSuccess(result) {
+      const { badge_name, credits_cost, remaining_credits } = result;
+      
+      // 更新用户积分
+      this.userInfo.credits = remaining_credits;
+      
+      // 重新加载勋章数据
+      this.fetchUserBadges();
+      
+      // 显示成功消息
+      this.showMessage(`成功兑换勋章「${badge_name}」，消耗 ${credits_cost} 积分`, 'success');
+    },
+    
     // 处理捐赠提交事件
     handleDonationSubmitted() {
       // 重新获取用户信息以更新捐赠金额
       this.fetchUserInfo();
+    },
+    
+    // 处理捐赠登记提交事件
+    handleDonationRegistrationSubmitted() {
+      // 显示成功消息
+      this.showMessage('捐赠登记提交成功！管理员将在24小时内处理。', 'success');
+      // 可以选择是否重新获取用户信息，因为登记尚未被确认
+      // this.fetchUserInfo();
     },
     
     // 打开标签管理对话框
@@ -1128,6 +1447,51 @@ export default {
         return diffDays <= 3 && diffDays > 0;
       } catch (error) {
         return false;
+      }
+    },
+
+    // 格式化最后观看时间
+    formatLastViewedAt(timestamp) {
+      if (!timestamp || timestamp === 0) return '暂无观看记录';
+      try {
+        const date = new Date(timestamp * 1000); // 时间戳转换为毫秒
+        const now = new Date();
+        const diffMs = now - date;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        
+        // 如果是今天
+        if (diffDays === 0) {
+          const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+          if (diffHours === 0) {
+            const diffMinutes = Math.floor(diffMs / (1000 * 60));
+            if (diffMinutes === 0) {
+              return '刚刚';
+            }
+            return `${diffMinutes} 分钟前`;
+          }
+          return `${diffHours} 小时前`;
+        }
+        
+        // 如果是昨天
+        if (diffDays === 1) {
+          return '昨天 ' + date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        }
+        
+        // 如果在7天内
+        if (diffDays < 7) {
+          return `${diffDays} 天前`;
+        }
+        
+        // 其他情况显示完整日期
+        return date.toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      } catch (error) {
+        return '无效时间';
       }
     },
 
@@ -1352,6 +1716,32 @@ export default {
   max-width: 500px;
 }
 
+/* 勋章样式 */
+.badge-icon {
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: 2px solid #FFA000;
+}
+
+.badge-icon:hover {
+  transform: translateY(-2px) scale(1.1);
+  box-shadow: 0 4px 12px rgba(255, 160, 0, 0.4) !important;
+}
+
+.badge-expired {
+  opacity: 0.5;
+  border-color: #9E9E9E !important;
+}
+
+.badge-tooltip {
+  text-align: center;
+  padding: 4px;
+}
+
+.gap-2 {
+  gap: 8px;
+}
+
 .user-info-card {
   background: rgba(255, 255, 255, 0.95);
   border-radius: 16px;
@@ -1527,6 +1917,12 @@ export default {
   background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%);
   color: #388E3C;
   border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+.invitee-value {
+  background: linear-gradient(135deg, rgba(156, 39, 176, 0.1) 0%, rgba(156, 39, 176, 0.05) 100%);
+  color: #7B1FA2;
+  border: 1px solid rgba(156, 39, 176, 0.2);
 }
 
 .traffic-value {
@@ -1744,29 +2140,24 @@ export default {
   opacity: 0.6;
 }
 
-/* 积分转移按钮样式 */
-.credits-transfer-btn {
+/* 捐赠管理按钮样式 */
+.donation-manage-btn {
   transition: all 0.3s ease;
-  position: relative;
 }
 
-.credits-transfer-btn.disabled-style {
-  opacity: 0.6;
-  cursor: not-allowed;
+.donation-manage-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
 }
 
-.credits-transfer-btn.disabled-style:hover {
-  transform: none !important;
-  box-shadow: none !important;
+/* 积分商城按钮样式 */
+.credits-store-btn {
+  transition: all 0.3s ease;
 }
 
-.credits-transfer-btn .disable-icon {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  background: white;
-  border-radius: 50%;
-  font-size: 10px !important;
+.credits-store-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 167, 38, 0.3);
 }
 
 /* 个人活动数据卡片样式 */
@@ -2362,5 +2753,9 @@ export default {
 
 .premium-button:hover .v-icon {
   transform: scale(1.1);
+}
+
+.gap-2 {
+  gap: 8px;
 }
 </style>

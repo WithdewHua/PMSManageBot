@@ -13,6 +13,18 @@ from .auction import (
     PlaceBidResponse,
     AuctionStatsResponse,
 )
+from .crypto_donation import (
+    CryptoType,
+    CryptoDonationOrderStatus,
+    CryptoDonationOrderCreate,
+    CryptoDonationOrderResponse,
+    CryptoDonationOrderCreateResponse,
+    CryptoDonationOrderListResponse,
+    UPayCreateOrderRequest,
+    UPayCreateOrderResponse,
+    UPayCallbackData,
+    CryptoTypesResponse,
+)
 from .invitation import (
     GenerateInviteCodeResponse,
     InvitePointsResponse,
@@ -20,6 +32,8 @@ from .invitation import (
     RedeemResponse,
     CheckPrivilegedCodeRequest,
     CheckPrivilegedCodeResponse,
+    BatchCheckPrivilegedCodesRequest,
+    BatchCheckPrivilegedCodesResponse,
     RedeemForCreditsRequest,
     RedeemForCreditsResponse,
 )
@@ -39,8 +53,20 @@ from .user import (
     PlexLinesResponse,
     EmbyLineRequest,
     EmbyLinesResponse,
+    LineScheduleCreate,
+    LineScheduleInfo,
+    LineScheduleListResponse,
+    LineScheduleStatusResponse,
+    LineScheduleUnlockRequest,
+    LineScheduleUnlockResponse,
+    LineScheduleUpdate,
     LineTagRequest,
     LineTagResponse,
     TelegramUser,
     UserInfo,
+)
+from .vaultwarden import (
+    VaultwardenRedeemInfoResponse,
+    VaultwardenRedeemRequest,
+    VaultwardenRedeemResponse,
 )

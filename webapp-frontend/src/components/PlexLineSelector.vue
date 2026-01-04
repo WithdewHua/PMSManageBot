@@ -426,6 +426,18 @@ export default {
   font-weight: 500 !important;
 }
 
+/* 高级调度按钮项样式 */
+.schedule-button-item {
+  padding: 8px 12px !important;
+  background: linear-gradient(to bottom, transparent, rgba(156, 39, 176, 0.02));
+}
+
+.schedule-button-item .v-btn {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0.5px;
+}
+
 /* 自定义滚动条样式 */
 .line-selector-list::-webkit-scrollbar {
   width: 4px;

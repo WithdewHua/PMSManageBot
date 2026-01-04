@@ -18,17 +18,20 @@ RUN npm run build && \
 # Python 依赖构建
 FROM python:3.11-slim AS deps-builder
 
-# 设置环境变量优化 pip
-ENV PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_DEFAULT_TIMEOUT=100
+# 设置环境变量
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never
 
-# 安装编译依赖和构建工具
+# 安装编译依赖和 uv
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libc6-dev \
-    && rm -rf /var/lib/apt/lists/* && \
-    pip install --no-cache-dir hatchling
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /app
 
@@ -38,8 +41,8 @@ COPY README.md ./
 # 复制源码目录
 COPY src/ ./src/
 
-# 安装 Python 依赖到根目录
-RUN pip install --no-warn-script-location .
+# 使用 uv 安装依赖（包括所有可选依赖）
+RUN uv pip install --system --no-cache ".[postgres,mysql]"
 
 # 最终运行镜像
 FROM python:3.11-slim AS runtime
@@ -67,6 +70,10 @@ COPY --from=frontend-builder /app/webapp-frontend/dist ./webapp-frontend/dist
 # 复制应用程序源代码
 COPY src/ ./src/
 COPY scripts ./scripts
+
+# 复制 Alembic 配置和迁移文件
+COPY alembic.ini ./alembic.ini
+COPY alembic/ ./alembic/
 
 # 复制启动脚本
 COPY start.sh ./start.sh

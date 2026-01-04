@@ -1,14 +1,11 @@
-from app.cache import (
+from app.config import settings
+from app.databases import db
+from app.databases.cache import (
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
-    free_premium_lines_cache,
-    get_line_tags,
-    line_tags_cache,
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
 )
-from app.config import settings
-from app.db import DB
 from app.log import uvicorn_logger as logger
 from app.utils.utils import (
     get_user_name_from_tg_id,
@@ -49,11 +46,8 @@ async def get_admin_settings(
     check_admin_permission(user)
 
     try:
-        # 从Redis缓存获取免费高级线路列表
-        from app.cache import free_premium_lines_cache
-
-        free_premium_lines = free_premium_lines_cache.get("free_lines")
-        free_premium_lines = free_premium_lines.split(",") if free_premium_lines else []
+        # 从数据库获取免费高级线路列表
+        free_premium_lines = db.get_free_premium_lines()
 
         settings_data = {
             "plex_register": settings.PLEX_REGISTER,
@@ -196,10 +190,9 @@ async def set_free_premium_lines(
                     success=False, message=f"线路 {line} 不在高级线路列表中"
                 )
 
-        # 保存到 Redis 缓存
-        old_free_lines = free_premium_lines_cache.get("free_lines")
-        old_free_lines = old_free_lines.split(",") if old_free_lines else []
-        free_premium_lines_cache.put("free_lines", ",".join(free_lines))
+        # 保存到数据库
+        old_free_lines = db.get_free_premium_lines()
+        db.set_free_premium_lines(free_lines)
 
         removed_lines = set(old_free_lines) - set(free_lines)
         # 处理现有用户的线路绑定 - 如果某些原本免费的线路被移除，需要处理
@@ -234,7 +227,7 @@ async def unbind_emby_premium_free():
     if settings.PREMIUM_FREE:
         logger.info("Emby Premium Free 功能未启用，跳过解绑操作")
         return True, None
-    db = DB()
+
     try:
         # 获取所有绑定了 Emby 线路的用户
         users = db.get_emby_user_with_binded_line()
@@ -271,9 +264,6 @@ async def unbind_emby_premium_free():
     except Exception as e:
         logger.error(f"解绑所有普通用户的 premium 线路时发生错误: {str(e)}")
         return False, f"解绑所有普通用户的 premium 线路时发生错误: {str(e)}"
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 async def unbind_plex_premium_free():
@@ -282,7 +272,7 @@ async def unbind_plex_premium_free():
     if settings.PREMIUM_FREE:
         logger.info("Plex Premium Free 功能未启用，跳过解绑操作")
         return True, None
-    db = DB()
+
     try:
         # 获取所有绑定了 Plex 线路的用户
         users = db.get_plex_user_with_binded_line()
@@ -319,14 +309,11 @@ async def unbind_plex_premium_free():
     except Exception as e:
         logger.error(f"解绑所有普通用户的 premium 线路时发生错误: {str(e)}")
         return False, f"解绑所有普通用户的 premium 线路时发生错误: {str(e)}"
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 async def handle_free_premium_lines_change(removed_lines: list | set):
     """处理免费高级线路变更，检查并处理不再免费的线路"""
-    db = DB()
+
     try:
         if not removed_lines:
             return True, None
@@ -402,18 +389,19 @@ async def handle_free_premium_lines_change(removed_lines: list | set):
                     parse_mode="markdownv2",
                 )
 
+        # 禁用被移除线路的所有调度并通知用户
+        for removed_line in removed_lines:
+            await disable_line_schedules_and_notify(removed_line, "线路已不再免费开放")
+
         return True, None
     except Exception as e:
         logger.error(f"处理免费高级线路变更时发生错误: {str(e)}")
         return False, f"处理免费高级线路变更时发生错误: {str(e)}"
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
 
 
 async def unbind_specified_line_for_all_users(line: str):
     """解绑所有用户的指定线路（通用，同时支持Plex和Emby）"""
-    db = DB()
+
     try:
         # 获取所有绑定了 Emby 线路的用户
         emby_users = db.get_emby_user_with_binded_line()
@@ -454,9 +442,69 @@ async def unbind_specified_line_for_all_users(line: str):
     except Exception as e:
         logger.error(f"解绑所有用户的 {line} 线路时发生错误: {str(e)}")
         return False, f"解绑所有用户的 {line} 线路时发生错误: {str(e)}"
-    finally:
-        db.close()
-        logger.debug("数据库连接已关闭")
+
+
+async def disable_line_schedules_and_notify(line_name: str, reason: str = "线路已下线"):
+    """
+    禁用指定线路的所有调度并通知相关用户
+
+    Args:
+        line_name: 线路名称
+        reason: 禁用原因，用于通知用户
+    """
+    try:
+        # 禁用调度并获取受影响的用户
+        success, disabled_count, affected_users = db.disable_schedules_by_line(
+            line_name
+        )
+
+        if not success:
+            logger.error(f"禁用线路 {line_name} 的调度失败")
+            return False, f"禁用线路 {line_name} 的调度失败"
+
+        if disabled_count == 0:
+            logger.info(f"没有需要禁用的调度（线路: {line_name}）")
+            return True, "没有受影响的调度"
+
+        logger.info(f"已禁用 {disabled_count} 个使用线路 {line_name} 的调度")
+
+        # 通知所有受影响的用户
+        for user_info in affected_users:
+            tg_id = user_info["tg_id"]
+            service = user_info["service"]
+            schedule_count = user_info["schedule_count"]
+
+            service_name = "Emby" if service == "emby" else "Plex"
+
+            try:
+                await send_message_by_url(
+                    chat_id=tg_id,
+                    text=f"""
+⚠️ 线路调度变更通知
+
+线路：`{line_name}`
+原因：{reason}
+
+您的 {schedule_count} 个 {service_name} 线路调度已被自动禁用。
+
+如需继续使用该线路，请在管理面板中重新启用调度或选择其他线路。
+""",
+                    parse_mode="markdownv2",
+                )
+                logger.info(
+                    f"已向用户 {get_user_name_from_tg_id(tg_id)} 发送线路调度禁用通知"
+                )
+            except Exception as e:
+                logger.warning(f"发送线路调度禁用通知给用户 {tg_id} 失败: {str(e)}")
+
+        return (
+            True,
+            f"成功禁用 {disabled_count} 个调度并通知 {len(affected_users)} 位用户",
+        )
+
+    except Exception as e:
+        logger.error(f"禁用线路 {line_name} 的调度并通知用户时发生错误: {str(e)}")
+        return False, f"禁用线路调度并通知用户时发生错误: {str(e)}"
 
 
 @router.post("/donation")
@@ -476,8 +524,6 @@ async def submit_donation_record(
 
         if not tg_id or amount <= 0:
             return BaseResponse(success=False, message="参数错误")
-
-        db = DB()
 
         # 获取当前捐赠金额
         stats_info = db.get_stats_by_tg_id(tg_id)
@@ -531,8 +577,6 @@ async def submit_donation_record(
     except Exception as e:
         logger.error(f"提交捐赠记录失败: {str(e)}")
         return BaseResponse(success=False, message="提交失败")
-    finally:
-        db.close()
 
 
 # ==================== 线路标签管理 API ==================== #
@@ -549,24 +593,18 @@ async def set_line_tags(
     check_admin_permission(user)
 
     try:
-        # 将标签列表转换为逗号分隔的字符串存储到Redis
-        tags_str = ",".join(set(data.tags)) if set(data.tags) else ""
+        # 使用数据库函数设置标签
+        success = db.set_line_tags(data.line_name, data.tags)
 
-        if tags_str:
-            line_tags_cache.put(data.line_name, tags_str)
+        if success:
             logger.info(
                 f"管理员 {user.username or user.id} 设置线路 {data.line_name} 的标签: {data.tags}"
             )
-        else:
-            # 如果标签为空，删除该键
-            line_tags_cache.delete(data.line_name)
-            logger.info(
-                f"管理员 {user.username or user.id} 清空线路 {data.line_name} 的标签"
+            return BaseResponse(
+                success=True, message=f"线路 {data.line_name} 的标签设置成功"
             )
-
-        return BaseResponse(
-            success=True, message=f"线路 {data.line_name} 的标签设置成功"
-        )
+        else:
+            return BaseResponse(success=False, message="设置标签失败")
     except Exception as e:
         logger.error(f"设置线路标签失败: {str(e)}")
         return BaseResponse(success=False, message="设置标签失败")
@@ -583,7 +621,7 @@ async def get_line_tags_admin(
     check_admin_permission(user)
 
     try:
-        tags = get_line_tags(line_name)
+        tags = db.get_line_tags(line_name)
         return LineTagResponse(line_name=line_name, tags=tags)
     except Exception as e:
         logger.error(f"获取线路标签失败: {str(e)}")
@@ -608,7 +646,7 @@ async def get_all_line_tags(
         # 获取每个线路的标签
         lines_tags = {}
         for line in all_lines:
-            tags = get_line_tags(line)
+            tags = db.get_line_tags(line)
             lines_tags[line] = tags
 
         return AllLineTagsResponse(lines=lines_tags)
@@ -629,13 +667,18 @@ async def delete_line_tags(
 
     try:
         # 检查标签是否存在
-        existing_tags = get_line_tags(line_name)
+        existing_tags = db.get_line_tags(line_name)
         if existing_tags:
-            line_tags_cache.delete(line_name)
-            logger.info(
-                f"管理员 {user.username or user.id} 删除线路 {line_name} 的所有标签"
-            )
-            return BaseResponse(success=True, message=f"线路 {line_name} 的标签已清空")
+            success = db.delete_line_tags(line_name)
+            if success:
+                logger.info(
+                    f"管理员 {user.username or user.id} 删除线路 {line_name} 的所有标签"
+                )
+                return BaseResponse(
+                    success=True, message=f"线路 {line_name} 的标签已清空"
+                )
+            else:
+                return BaseResponse(success=False, message="删除标签失败")
         else:
             return BaseResponse(success=True, message=f"线路 {line_name} 没有设置标签")
     except Exception as e:
@@ -905,9 +948,11 @@ async def delete_normal_line_generic(
         settings.save_config_to_env_file({"STREAM_BACKEND": ",".join(new_lines)})
 
         # 删除该线路的标签（如果有）
-        line_tags_cache.delete(line_name)
+        db.delete_line_tags(line_name)
         # 解绑所有绑定了该线路的用户
         await unbind_specified_line_for_all_users(line_name)
+        # 禁用该线路的所有调度并通知用户
+        await disable_line_schedules_and_notify(line_name, "线路已被管理员下线")
 
         logger.info(f"管理员 {user.username or user.id} 删除普通线路: {line_name}")
         return BaseResponse(success=True, message=f"普通线路 '{line_name}' 删除成功")
@@ -941,20 +986,18 @@ async def delete_premium_line_generic(
         )
 
         # 从免费高级线路列表中移除（如果存在）
-        from app.cache import free_premium_lines_cache
-
-        free_premium_lines = free_premium_lines_cache.get("free_lines")
-        if free_premium_lines:
-            free_lines_list = free_premium_lines.split(",")
-            if line_name in free_lines_list:
-                free_lines_list.remove(line_name)
-                free_premium_lines_cache.put("free_lines", ",".join(free_lines_list))
+        free_premium_lines = db.get_free_premium_lines()
+        if line_name in free_premium_lines:
+            free_premium_lines.remove(line_name)
+            db.set_free_premium_lines(free_premium_lines)
 
         # 删除该线路的标签（如果有）
-        line_tags_cache.delete(line_name)
+        db.delete_line_tags(line_name)
 
         # 处理绑定了该线路的用户
         await unbind_specified_line_for_all_users(line_name)
+        # 禁用该线路的所有调度并通知用户
+        await disable_line_schedules_and_notify(line_name, "高级线路已被管理员下线")
 
         logger.info(f"管理员 {user.username or user.id} 删除高级线路: {line_name}")
         return BaseResponse(success=True, message=f"高级线路 '{line_name}' 删除成功")
@@ -1029,8 +1072,6 @@ async def generate_admin_invite_codes(
     check_admin_permission(user)
 
     try:
-        db = DB()
-
         tg_id = data.get("tg_id")
         count = data.get("count", 1)
         is_premium = data.get("is_premium", False)
@@ -1040,7 +1081,7 @@ async def generate_admin_invite_codes(
             return BaseResponse(success=False, message="参数错误")
 
         # 导入生成邀请码的函数
-        from app.update_db import add_redeem_code
+        from app.databases.db_func import add_redeem_code
 
         # 检查目标用户是否存在
         stats_info = db.get_stats_by_tg_id(tg_id)
@@ -1087,5 +1128,3 @@ async def generate_admin_invite_codes(
     except Exception as e:
         logger.error(f"管理员生成邀请码失败: {str(e)}")
         return BaseResponse(success=False, message=f"生成邀请码失败: {str(e)}")
-    finally:
-        db.close()
