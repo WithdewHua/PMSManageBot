@@ -562,6 +562,254 @@ class DatabaseORM:
             logger.error(f"Error updating user tg_id: {e}")
             return False
 
+    def rebind_user_tg_id(
+        self,
+        new_tg_id: int,
+        plex_email: Optional[str] = None,
+        emby_username: Optional[str] = None,
+    ) -> bool:
+        """
+        换绑用户 Telegram ID
+        通过 plex_email 或 emby_username 查找用户并更新其 tg_id
+        会同时更新所有相关表（PlexUser/EmbyUser, Statistics, Overseerr, WheelStats,
+        VaultwardenRedeemRecords, LineSchedule, UserBadge）
+
+        Args:
+            new_tg_id: 新的 Telegram ID
+            plex_email: Plex 用户邮箱（可选）
+            emby_username: Emby 用户名（可选）
+
+        Returns:
+            bool: 操作是否成功
+        """
+        if plex_email is None and emby_username is None:
+            logger.error("Error: plex_email and emby_username cannot both be None")
+            return False
+
+        try:
+            with get_session() as session:
+                old_tg_ids = set()
+                updated = False
+
+                # 处理 Plex 用户
+                if plex_email is not None:
+                    # 先获取旧的 tg_id
+                    stmt = select(PlexUser.tg_id).where(
+                        func.lower(PlexUser.plex_email) == plex_email.lower()
+                    )
+                    old_tg_id = session.execute(stmt).scalar_one_or_none()
+
+                    # 更新 PlexUser 表
+                    result = session.execute(
+                        update(PlexUser)
+                        .where(func.lower(PlexUser.plex_email) == plex_email.lower())
+                        .values(tg_id=new_tg_id)
+                    )
+                    if result.rowcount > 0:
+                        updated = True
+                        if old_tg_id is not None:
+                            old_tg_ids.add(old_tg_id)
+                        logger.info(
+                            f"Updated tg_id for Plex user '{plex_email}' to {new_tg_id}"
+                        )
+                    else:
+                        logger.warning(f"No Plex user found with email '{plex_email}'")
+
+                # 处理 Emby 用户
+                if emby_username is not None:
+                    # 先获取旧的 tg_id
+                    stmt = select(EmbyUser.tg_id).where(
+                        EmbyUser.emby_username == emby_username
+                    )
+                    old_tg_id = session.execute(stmt).scalar_one_or_none()
+
+                    # 更新 EmbyUser 表
+                    result = session.execute(
+                        update(EmbyUser)
+                        .where(EmbyUser.emby_username == emby_username)
+                        .values(tg_id=new_tg_id)
+                    )
+                    if result.rowcount > 0:
+                        updated = True
+                        if old_tg_id is not None:
+                            old_tg_ids.add(old_tg_id)
+                        logger.info(
+                            f"Updated tg_id for Emby user '{emby_username}' to {new_tg_id}"
+                        )
+                    else:
+                        logger.warning(
+                            f"No Emby user found with username '{emby_username}'"
+                        )
+
+                # 更新所有其他相关表的 tg_id
+                if updated and old_tg_ids:
+                    for old_tg_id in old_tg_ids:
+                        # 更新 Statistics 表（主键是 tg_id，需要特殊处理）
+                        stmt = select(Statistics).where(Statistics.tg_id == old_tg_id)
+                        stat = session.execute(stmt).scalar_one_or_none()
+                        if stat:
+                            # 删除旧记录
+                            session.delete(stat)
+                            session.flush()
+                            # 创建新记录或更新已存在的记录
+                            stmt = select(Statistics).where(
+                                Statistics.tg_id == new_tg_id
+                            )
+                            new_stat = session.execute(stmt).scalar_one_or_none()
+                            if new_stat:
+                                # 合并数据
+                                new_stat.donation += stat.donation
+                                new_stat.credits += stat.credits
+                            else:
+                                # 创建新记录
+                                new_stat = Statistics(
+                                    tg_id=new_tg_id,
+                                    donation=stat.donation,
+                                    credits=stat.credits,
+                                )
+                                session.add(new_stat)
+                            logger.info(
+                                f"Updated Statistics table: {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 Overseerr 表
+                        result = session.execute(
+                            update(Overseerr)
+                            .where(Overseerr.tg_id == old_tg_id)
+                            .values(tg_id=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} Overseerr records: {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 WheelStats 表
+                        result = session.execute(
+                            update(WheelStats)
+                            .where(WheelStats.tg_id == old_tg_id)
+                            .values(tg_id=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} WheelStats records: {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 VaultwardenRedeemRecords 表
+                        result = session.execute(
+                            update(VaultwardenRedeemRecords)
+                            .where(VaultwardenRedeemRecords.tg_id == old_tg_id)
+                            .values(tg_id=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} VaultwardenRedeemRecords: {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 LineSchedule 表
+                        result = session.execute(
+                            update(LineSchedule)
+                            .where(LineSchedule.tg_id == old_tg_id)
+                            .values(tg_id=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} LineSchedule records: {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 UserBadge 表
+                        result = session.execute(
+                            update(UserBadge)
+                            .where(UserBadge.tg_id == old_tg_id)
+                            .values(tg_id=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} UserBadge records: {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 Invitation 表的 owner 列
+                        result = session.execute(
+                            update(Invitation)
+                            .where(Invitation.owner == old_tg_id)
+                            .values(owner=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} Invitation records (owner): {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 Auctions 表的 created_by 列
+                        result = session.execute(
+                            update(Auctions)
+                            .where(Auctions.created_by == old_tg_id)
+                            .values(created_by=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} Auctions records (created_by): {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 Auctions 表的 winner_id 列
+                        result = session.execute(
+                            update(Auctions)
+                            .where(Auctions.winner_id == old_tg_id)
+                            .values(winner_id=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} Auctions records (winner_id): {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 AuctionBids 表的 bidder_id 列
+                        result = session.execute(
+                            update(AuctionBids)
+                            .where(AuctionBids.bidder_id == old_tg_id)
+                            .values(bidder_id=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} AuctionBids records (bidder_id): {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 DonationRegistrations 表的 user_id 列
+                        result = session.execute(
+                            update(DonationRegistrations)
+                            .where(DonationRegistrations.user_id == old_tg_id)
+                            .values(user_id=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} DonationRegistrations records (user_id): {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 DonationRegistrations 表的 processed_by 列
+                        result = session.execute(
+                            update(DonationRegistrations)
+                            .where(DonationRegistrations.processed_by == old_tg_id)
+                            .values(processed_by=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} DonationRegistrations records (processed_by): {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 CryptoDonationOrders 表的 user_id 列
+                        result = session.execute(
+                            update(CryptoDonationOrders)
+                            .where(CryptoDonationOrders.user_id == old_tg_id)
+                            .values(user_id=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} CryptoDonationOrders records (user_id): {old_tg_id} -> {new_tg_id}"
+                            )
+
+                return updated
+        except Exception as e:
+            logger.error(f"Error rebinding user tg_id: {e}")
+            traceback.print_exc()
+            return False
+
     def update_user_credits(
         self,
         credits: float,
@@ -3935,12 +4183,15 @@ class DatabaseORM:
             logger.error(f"获取当前生效的调度失败: {e}")
             return None
 
-    def disable_schedules_by_line(self, line_name: str) -> tuple[bool, int, List[dict]]:
+    def disable_schedules_by_line(
+        self, line_name: str, only_non_premium: bool = False
+    ) -> tuple[bool, int, List[dict]]:
         """
         禁用指定线路的所有调度，并返回受影响的用户信息
 
         Args:
             line_name: 线路名称
+            only_non_premium: 是否只禁用非 premium 用户的调度
 
         Returns:
             (是否成功, 禁用的调度数量, 受影响的用户列表)
@@ -3958,9 +4209,35 @@ class DatabaseORM:
                     logger.info(f"没有找到使用线路 {line_name} 的已启用调度")
                     return True, 0, []
 
+                # 如果需要过滤 premium 用户，先查询用户的 premium 状态
+                premium_users = set()
+                if only_non_premium:
+                    # 获取所有相关用户的 tg_id
+                    tg_ids = list(set(schedule.tg_id for schedule in schedules))
+
+                    # 查询 Plex 用户的 premium 状态
+                    plex_stmt = select(PlexUser.tg_id).where(
+                        PlexUser.tg_id.in_(tg_ids), PlexUser.is_premium == 1
+                    )
+                    plex_premium = session.execute(plex_stmt).scalars().all()
+                    premium_users.update(plex_premium)
+
+                    # 查询 Emby 用户的 premium 状态
+                    emby_stmt = select(EmbyUser.tg_id).where(
+                        EmbyUser.tg_id.in_(tg_ids), EmbyUser.is_premium == 1
+                    )
+                    emby_premium = session.execute(emby_stmt).scalars().all()
+                    premium_users.update(emby_premium)
+
                 # 统计受影响的用户（在禁用前）
                 user_service_map = {}
+                schedules_to_disable = []
                 for schedule in schedules:
+                    # 如果只禁用非 premium 用户，跳过 premium 用户
+                    if only_non_premium and schedule.tg_id in premium_users:
+                        continue
+
+                    schedules_to_disable.append(schedule)
                     key = (schedule.tg_id, schedule.service)
                     if key not in user_service_map:
                         user_service_map[key] = {
@@ -3970,10 +4247,14 @@ class DatabaseORM:
                         }
                     user_service_map[key]["schedule_count"] += 1
 
+                if not schedules_to_disable:
+                    logger.info(f"没有需要禁用的调度（线路: {line_name}）")
+                    return True, 0, []
+
                 # 禁用所有调度
                 count = 0
                 current_time = int(time.time())
-                for schedule in schedules:
+                for schedule in schedules_to_disable:
                     schedule.is_enabled = 0
                     schedule.updated_at = current_time
                     count += 1
@@ -3982,6 +4263,7 @@ class DatabaseORM:
                 logger.info(
                     f"已禁用 {count} 个使用线路 {line_name} 的调度，"
                     f"影响 {len(affected_users)} 位用户"
+                    + (" (仅非 premium 用户)" if only_non_premium else "")
                 )
                 return True, count, affected_users
 

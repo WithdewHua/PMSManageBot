@@ -389,9 +389,11 @@ async def handle_free_premium_lines_change(removed_lines: list | set):
                     parse_mode="markdownv2",
                 )
 
-        # 禁用被移除线路的所有调度并通知用户
+        # 禁用被移除线路的所有调度并通知用户（只影响非 premium 用户）
         for removed_line in removed_lines:
-            await disable_line_schedules_and_notify(removed_line, "线路已不再免费开放")
+            await disable_line_schedules_and_notify(
+                removed_line, "线路已不再免费开放", only_non_premium=True
+            )
 
         return True, None
     except Exception as e:
@@ -444,18 +446,21 @@ async def unbind_specified_line_for_all_users(line: str):
         return False, f"解绑所有用户的 {line} 线路时发生错误: {str(e)}"
 
 
-async def disable_line_schedules_and_notify(line_name: str, reason: str = "线路已下线"):
+async def disable_line_schedules_and_notify(
+    line_name: str, reason: str = "线路已下线", only_non_premium: bool = False
+):
     """
     禁用指定线路的所有调度并通知相关用户
 
     Args:
         line_name: 线路名称
         reason: 禁用原因，用于通知用户
+        only_non_premium: 是否只禁用非 premium 用户的调度
     """
     try:
         # 禁用调度并获取受影响的用户
         success, disabled_count, affected_users = db.disable_schedules_by_line(
-            line_name
+            line_name, only_non_premium=only_non_premium
         )
 
         if not success:
