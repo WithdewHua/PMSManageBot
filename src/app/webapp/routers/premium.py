@@ -25,12 +25,6 @@ class PremiumStatisticsResponse(BaseModel):
     premium_emby_users: int
 
 
-class PremiumPriceInfoResponse(BaseModel):
-    """Premium价格信息响应模型"""
-
-    daily_price: int
-
-
 class PremiumUnlockRequest(BaseModel):
     """Premium解锁请求模型"""
 
@@ -47,29 +41,6 @@ class PremiumUnlockResponse(BaseResponse):
 
 
 router = APIRouter(prefix="/api/premium", tags=["premium"])
-
-
-@router.get("/price-info", response_model=PremiumPriceInfoResponse)
-@require_telegram_auth
-async def get_premium_price_info(
-    request: Request,
-    user: TelegramUser = Depends(get_telegram_user),
-):
-    """获取Premium解锁价格信息"""
-    try:
-        # 检查 Premium 解锁功能是否开放
-        if not getattr(settings, "PREMIUM_UNLOCK_ENABLED", True):
-            raise HTTPException(status_code=403, detail="Premium 解锁功能暂未开放")
-
-        # 从设置中获取Premium解锁每日所需积分，默认为15
-        daily_price = getattr(settings, "PREMIUM_DAILY_CREDITS", 15)
-
-        logger.info(f"用户 {get_user_name_from_tg_id(user.id)} 获取Premium价格信息")
-        return PremiumPriceInfoResponse(daily_price=daily_price)
-
-    except Exception as e:
-        logger.error(f"获取Premium价格信息失败: {str(e)}")
-        raise HTTPException(status_code=500, detail="获取价格信息失败")
 
 
 @router.post("/unlock", response_model=PremiumUnlockResponse)
@@ -90,7 +61,7 @@ async def unlock_premium(
     )
 
     # 检查 Premium 解锁功能是否开放
-    if not getattr(settings, "PREMIUM_UNLOCK_ENABLED", True):
+    if not settings.PREMIUM_UNLOCK_ENABLED:
         raise HTTPException(status_code=403, detail="Premium 解锁功能暂未开放")
 
     # 验证参数
@@ -101,7 +72,7 @@ async def unlock_premium(
         raise HTTPException(status_code=400, detail="解锁天数必须在 1-365 天之间")
 
     # 验证费用计算
-    daily_price = getattr(settings, "PREMIUM_DAILY_CREDITS", 15)
+    daily_price = settings.PREMIUM_DAILY_CREDITS
     expected_cost = days * daily_price
     if total_cost != expected_cost:
         raise HTTPException(status_code=400, detail="费用计算错误")

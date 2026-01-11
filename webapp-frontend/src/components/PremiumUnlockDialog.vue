@@ -10,12 +10,12 @@
           </div>
           <div class="header-text">
             <div class="header-title">解锁 Premium 会员</div>
-            <div class="header-subtitle">享受更多线路</div>
+            <div class="header-subtitle">享受更多权益</div>
           </div>
         </div>
       </div>
       
-      <v-card-text class="pa-4">
+      <v-card-text class="px-4 pt-6 pb-4">
         <div v-if="loading" class="text-center py-6">
           <div class="loading-container">
             <v-progress-circular 
@@ -267,7 +267,8 @@
  *   @unlock-completed="handleUnlockCompleted"
  * />
  */
-import { getPremiumPriceInfo, unlockPremium } from '@/services/premiumService'
+import { unlockPremium } from '@/services/premiumService'
+import { getSystemStatus } from '@/services/systemService'
 
 export default {
   name: 'PremiumUnlockDialog',
@@ -374,8 +375,18 @@ export default {
     async loadPriceInfo() {
       this.loading = true
       try {
-        const priceInfo = await getPremiumPriceInfo()
-        this.dailyPrice = priceInfo.daily_price || 15
+        const systemStatus = await getSystemStatus()
+        console.log('系统状态响应:', systemStatus)
+        
+        // 后端返回格式: {premium_daily_credits: 15, ...}
+        if (systemStatus && typeof systemStatus.premium_daily_credits === 'number') {
+          this.dailyPrice = systemStatus.premium_daily_credits
+        } else {
+          console.warn('未找到有效的premium_daily_credits字段，使用默认值15')
+          this.dailyPrice = 15
+        }
+        
+        console.log('最终设置的每日价格:', this.dailyPrice)
       } catch (error) {
         this.errorMessage = '获取价格信息失败'
         console.error('获取Premium价格信息失败:', error)
