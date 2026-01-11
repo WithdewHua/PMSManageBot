@@ -1399,7 +1399,8 @@ export default {
       this.currentPremiumExpiry = serviceInfo?.premium_expiry || null;
       this.currentIsPremium = serviceInfo?.is_premium || false;
       
-      this.$refs.premiumUnlockDialog.open(serviceType);
+      // 直接传入服务信息，避免使用 props 导致的跨服务状态混淆
+      this.$refs.premiumUnlockDialog.open(serviceType, serviceInfo);
     },
 
     // 处理Premium解锁完成事件

@@ -106,16 +106,16 @@
                 <div class="day-option-content">
                   <div class="day-number">{{ option.days }}</div>
                   <div class="day-unit">天</div>
-                  <v-chip
-                    v-if="option.discount"
-                    class="discount-badge"
-                    color="error"
-                    size="x-small"
-                    label
-                  >
-                    {{ option.discountLabel }}
-                  </v-chip>
                 </div>
+                <v-chip
+                  v-if="option.discount"
+                  class="discount-badge"
+                  color="error"
+                  size="x-small"
+                  label
+                >
+                  {{ option.discountLabel }}
+                </v-chip>
               </v-btn>
             </div>
           </div>
@@ -336,6 +336,9 @@ export default {
       dailyPrice: 15,
       errorMessage: '',
       successMessage: '',
+      // 本地存储当前服务的 premium 状态，避免使用 props 导致的跨服务状态混淆
+      localPremiumExpiry: null,
+      localIsPremium: false,
       dayOptions: [
         { days: 1, label: '1天', discount: null },
         { days: 3, label: '3天', discount: null },
@@ -381,35 +384,49 @@ export default {
     isPermanent() {
       // 检查是否为永久会员的逻辑：
       // 1. 通过 isPermanentPremium prop 直接传入
-      // 2. 当用户是Premium会员(isPremium=true)但到期时间为空时，表示永久会员
+      // 2. 当用户是Premium会员(localIsPremium=true)但到期时间为空时，表示永久会员
       // 3. 通过特殊值判断：包含 '9999' 或 'permanent' 的字符串
       // 
       // 注意：只有当用户已经是Premium会员时，到期时间为空才表示永久会员
       // 如果用户不是Premium会员，到期时间为空是正常的（表示还未购买）
+      // 使用 localPremiumExpiry 和 localIsPremium 而不是 props，避免跨服务状态混淆
       return this.isPermanentPremium || 
-             (this.isPremium && 
-              (this.currentPremiumExpiry === null || 
-               this.currentPremiumExpiry === '' ||
-               this.currentPremiumExpiry === undefined)) ||
-             (this.currentPremiumExpiry && 
-              (this.currentPremiumExpiry.includes('9999') || 
-               this.currentPremiumExpiry.toLowerCase().includes('permanent')))
+             (this.localIsPremium && 
+              (this.localPremiumExpiry === null || 
+               this.localPremiumExpiry === '' ||
+               this.localPremiumExpiry === undefined)) ||
+             (this.localPremiumExpiry && 
+              (this.localPremiumExpiry.includes('9999') || 
+               this.localPremiumExpiry.toLowerCase().includes('permanent')))
     }
   },
   methods: {
-    async open(serviceType) {
+    async open(serviceType, serviceInfo = null) {
       this.resetForm()
       this.serviceType = serviceType
+      
+      // 设置当前服务的 premium 状态
+      // 这样可以确保使用的是正确服务的状态，而不是上一个服务的状态
+      if (serviceInfo) {
+        this.localPremiumExpiry = serviceInfo.premium_expiry || null
+        this.localIsPremium = serviceInfo.is_premium || false
+      } else {
+        // 如果没有传入 serviceInfo，使用 props（向后兼容）
+        this.localPremiumExpiry = this.currentPremiumExpiry
+        this.localIsPremium = this.isPremium
+      }
+      
       this.showDialog = true
       
-      // 如果是永久会员，显示提示并禁用功能
+      // 每次打开都重新加载价格信息，不管是否是永久会员
+      // 因为可能是切换服务（如从Plex切换到Emby），需要获取最新价格
+      await this.loadPriceInfo()
+      
+      // 如果是永久会员，清除错误和成功消息
       if (this.isPermanent) {
         this.errorMessage = ''
         this.successMessage = ''
-        return
       }
-      
-      await this.loadPriceInfo()
     },
     
     closeDialog() {
@@ -500,13 +517,13 @@ export default {
     },
 
     getNewExpiryTime() {
-      if (!this.currentPremiumExpiry) {
+      if (!this.localPremiumExpiry) {
         // 如果当前没有Premium，从现在开始计算
         const now = new Date()
         return new Date(now.getTime() + this.selectedDays * 24 * 60 * 60 * 1000)
       } else {
         // 如果已有Premium，从到期时间开始计算
-        const expiryDate = new Date(this.currentPremiumExpiry)
+        const expiryDate = new Date(this.localPremiumExpiry)
         const now = new Date()
         const startDate = expiryDate > now ? expiryDate : now
         return new Date(startDate.getTime() + this.selectedDays * 24 * 60 * 60 * 1000)
@@ -745,6 +762,7 @@ export default {
 }
 
 .days-btn {
+  position: relative;
   height: 60px !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -759,7 +777,6 @@ export default {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  position: relative;
   width: 100%;
 }
 
@@ -777,17 +794,22 @@ export default {
 
 /* 折扣徽章 */
 .discount-badge {
-  position: absolute;
-  top: -8px;
-  right: -8px;
+  position: absolute !important;
+  top: 4px !important;
+  right: 4px !important;
   font-size: 0.65rem !important;
-  font-weight: 700;
+  font-weight: 800 !important;
+  height: auto !important;
+  min-height: 16px !important;
+  padding: 2px 5px !important;
   animation: discountPulse 2s ease-in-out infinite;
+  z-index: 1 !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
 }
 
 @keyframes discountPulse {
   0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+  50% { transform: scale(1.06); }
 }
 
 /* 费用计算卡片 */
