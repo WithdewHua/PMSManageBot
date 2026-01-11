@@ -77,12 +77,12 @@ async def unlock_premium(
 
     # 计算折扣
     discount = 1.0
-    if days >= 360:  # 年付 75 折
-        discount = 0.75
-    elif days >= 180:  # 半年付 8 折
+    if days >= 360:  # 年付 6 折
+        discount = 0.6
+    elif days >= 180:  # 半年付 7 折
+        discount = 0.7
+    elif days >= 30:  # 30 天以上 8 折
         discount = 0.8
-    elif days >= 90:  # 季付 85 折
-        discount = 0.85
 
     expected_cost = int(base_cost * discount)
     if total_cost != expected_cost:

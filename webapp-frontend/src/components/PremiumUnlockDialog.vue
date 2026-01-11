@@ -345,19 +345,19 @@ export default {
         { days: 5, label: '5天', discount: null },
         { days: 10, label: '10天', discount: null },
         { days: 15, label: '15天', discount: null },
-        { days: 30, label: '30天', discount: null },
-        { days: 90, label: '90天 (季付)', discount: 0.85, discountLabel: '85折' },
-        { days: 180, label: '180天 (半年)', discount: 0.8, discountLabel: '8折' },
-        { days: 360, label: '360天 (年付)', discount: 0.75, discountLabel: '75折' }
+        { days: 30, label: '30天', discount: 0.8, discountLabel: '8折' },
+        { days: 90, label: '90天', discount: 0.8, discountLabel: '8折' },
+        { days: 180, label: '180天 (半年)', discount: 0.7, discountLabel: '7折' },
+        { days: 360, label: '360天 (年付)', discount: 0.6, discountLabel: '6折' }
       ]
     }
   },
   computed: {
     // 计算折扣比例
     discountRate() {
-      if (this.selectedDays >= 360) return 0.75  // 年付 75 折
-      if (this.selectedDays >= 180) return 0.8   // 半年付 8 折
-      if (this.selectedDays >= 90) return 0.85   // 季付 85 折
+      if (this.selectedDays >= 360) return 0.6   // 年付 6 折
+      if (this.selectedDays >= 180) return 0.7   // 半年付 7 折
+      if (this.selectedDays >= 30) return 0.8    // 30 天以上 8 折
       return 1.0  // 无折扣
     },
     // 原价
