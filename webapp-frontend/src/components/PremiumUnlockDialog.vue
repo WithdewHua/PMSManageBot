@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="showDialog" max-width="480" persistent>
+  <v-dialog v-model="showDialog" max-width="480" persistent scrollable>
     <v-card class="premium-dialog" elevation="12">
       <!-- 头部渐变背景 -->
       <div class="premium-header">
