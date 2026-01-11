@@ -71,9 +71,20 @@ async def unlock_premium(
     if days <= 0 or days > 365:
         raise HTTPException(status_code=400, detail="解锁天数必须在 1-365 天之间")
 
-    # 验证费用计算
+    # 验证费用计算（含折扣）
     daily_price = settings.PREMIUM_DAILY_CREDITS
-    expected_cost = days * daily_price
+    base_cost = days * daily_price
+
+    # 计算折扣
+    discount = 1.0
+    if days >= 360:  # 年付 75 折
+        discount = 0.75
+    elif days >= 180:  # 半年付 8 折
+        discount = 0.8
+    elif days >= 90:  # 季付 85 折
+        discount = 0.85
+
+    expected_cost = int(base_cost * discount)
     if total_cost != expected_cost:
         raise HTTPException(status_code=400, detail="费用计算错误")
 

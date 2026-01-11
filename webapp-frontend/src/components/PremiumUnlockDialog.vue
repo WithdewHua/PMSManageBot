@@ -106,6 +106,15 @@
                 <div class="day-option-content">
                   <div class="day-number">{{ option.days }}</div>
                   <div class="day-unit">天</div>
+                  <v-chip
+                    v-if="option.discount"
+                    class="discount-badge"
+                    color="error"
+                    size="x-small"
+                    label
+                  >
+                    {{ option.discountLabel }}
+                  </v-chip>
                 </div>
               </v-btn>
             </div>
@@ -132,12 +141,38 @@
                   <span class="cost-label">单日价格</span>
                   <span class="cost-value">{{ dailyPrice }} 积分</span>
                 </div>
+                <div class="cost-item" v-if="!hasDiscount">
+                  <span class="cost-label">原价</span>
+                  <span class="cost-value">{{ baseCost }} 积分</span>
+                </div>
+                <div class="cost-item" v-if="hasDiscount">
+                  <span class="cost-label">原价</span>
+                  <span class="cost-value text-decoration-line-through text-medium-emphasis">{{ baseCost }} 积分</span>
+                </div>
+                <div class="cost-item discount-item" v-if="hasDiscount">
+                  <span class="cost-label">
+                    <v-icon color="error" size="16" class="mr-1">mdi-tag</v-icon>
+                    折扣优惠
+                  </span>
+                  <span class="cost-value text-error font-weight-bold">-{{ discountAmount }} 积分</span>
+                </div>
                 <v-divider class="my-2"></v-divider>
                 <div class="total-cost">
-                  <span class="total-label">总费用</span>
+                  <span class="total-label">
+                    {{ hasDiscount ? '折后价格' : '总费用' }}
+                  </span>
                   <div class="total-value">
                     <span class="total-number">{{ totalCost }}</span>
                     <span class="total-unit">积分</span>
+                    <v-chip
+                      v-if="hasDiscount"
+                      class="ml-2"
+                      color="error"
+                      size="x-small"
+                      label
+                    >
+                      省{{ discountAmount }}积分
+                    </v-chip>
                   </div>
                 </div>
               </div>
@@ -302,21 +337,41 @@ export default {
       errorMessage: '',
       successMessage: '',
       dayOptions: [
-        { days: 1, label: '1天' },
-        { days: 3, label: '3天' },
-        { days: 5, label: '5天' },
-        { days: 10, label: '10天' },
-        { days: 15, label: '15天' },
-        { days: 30, label: '30天' },
-        { days: 90, label: '90天'},
-        { days: 180, label: '180天'},
-        { days: 360, label: '360天'}
+        { days: 1, label: '1天', discount: null },
+        { days: 3, label: '3天', discount: null },
+        { days: 5, label: '5天', discount: null },
+        { days: 10, label: '10天', discount: null },
+        { days: 15, label: '15天', discount: null },
+        { days: 30, label: '30天', discount: null },
+        { days: 90, label: '90天 (季付)', discount: 0.85, discountLabel: '85折' },
+        { days: 180, label: '180天 (半年)', discount: 0.8, discountLabel: '8折' },
+        { days: 360, label: '360天 (年付)', discount: 0.75, discountLabel: '75折' }
       ]
     }
   },
   computed: {
-    totalCost() {
+    // 计算折扣比例
+    discountRate() {
+      if (this.selectedDays >= 360) return 0.75  // 年付 75 折
+      if (this.selectedDays >= 180) return 0.8   // 半年付 8 折
+      if (this.selectedDays >= 90) return 0.85   // 季付 85 折
+      return 1.0  // 无折扣
+    },
+    // 原价
+    baseCost() {
       return this.selectedDays * this.dailyPrice
+    },
+    // 折后价格
+    totalCost() {
+      return Math.floor(this.baseCost * this.discountRate)
+    },
+    // 优惠金额
+    discountAmount() {
+      return this.baseCost - this.totalCost
+    },
+    // 是否有折扣
+    hasDiscount() {
+      return this.discountRate < 1.0
     },
     canUnlock() {
       return this.selectedDays && 
@@ -704,6 +759,8 @@ export default {
   flex-direction: column;
   align-items: center;
   gap: 2px;
+  position: relative;
+  width: 100%;
 }
 
 .day-number {
@@ -716,6 +773,21 @@ export default {
   font-size: 0.75rem;
   font-weight: 500;
   opacity: 0.8;
+}
+
+/* 折扣徽章 */
+.discount-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 0.65rem !important;
+  font-weight: 700;
+  animation: discountPulse 2s ease-in-out infinite;
+}
+
+@keyframes discountPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 
 /* 费用计算卡片 */
@@ -755,6 +827,25 @@ export default {
   color: #2e7d32;
 }
 
+/* 折扣项样式 */
+.discount-item {
+  background: linear-gradient(90deg, rgba(244, 67, 54, 0.05) 0%, rgba(244, 67, 54, 0.15) 100%);
+  padding: 8px 12px !important;
+  border-radius: 8px;
+  margin: 4px 0;
+}
+
+.discount-item .cost-label {
+  display: flex;
+  align-items: center;
+  color: #d32f2f;
+}
+
+.discount-item .cost-value {
+  color: #d32f2f;
+  font-size: 1.1rem;
+}
+
 .total-cost {
   display: flex;
   justify-content: space-between;
@@ -772,6 +863,7 @@ export default {
   display: flex;
   align-items: baseline;
   gap: 4px;
+  flex-wrap: wrap;
 }
 
 .total-number {
