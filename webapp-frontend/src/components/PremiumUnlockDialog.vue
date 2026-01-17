@@ -332,7 +332,7 @@ export default {
       loading: false,
       processing: false,
       serviceType: '',
-      selectedDays: 1,
+      selectedDays: 3,
       dailyPrice: 15,
       errorMessage: '',
       successMessage: '',
@@ -340,7 +340,6 @@ export default {
       localPremiumExpiry: null,
       localIsPremium: false,
       dayOptions: [
-        { days: 1, label: '1天', discount: null },
         { days: 3, label: '3天', discount: null },
         { days: 5, label: '5天', discount: null },
         { days: 10, label: '10天', discount: null },
@@ -434,7 +433,7 @@ export default {
     },
     
     resetForm() {
-      this.selectedDays = 1
+      this.selectedDays = 3
       this.errorMessage = ''
       this.successMessage = ''
       this.dailyPrice = 15
@@ -1083,18 +1082,4 @@ export default {
   animation: slideInUp 0.4s ease-out;
 }
 
-/* 深色模式适配 */
-@media (prefers-color-scheme: dark) {
-  .premium-dialog {
-    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
-  }
-  
-  .cost-label {
-    color: #b0bec5;
-  }
-  
-  .expiry-time {
-    color: #81c784;
-  }
-}
 </style>
