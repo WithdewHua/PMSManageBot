@@ -929,7 +929,7 @@ async def update_line_traffic_stats(
                 ):
                     # 只处理 /stream 路径的请求
                     # 或者包含 "Original." 的请求（兼容下 emby 反代）
-                    logger.debug(f"跳过非流媒体请求: {url}")
+                    logger.info(f"跳过非流媒体请求: {url}")
                     continue
 
                 # 解析 URL 获取服务信息
@@ -1033,7 +1033,7 @@ async def update_line_traffic_stats(
                         log_msg += f"\n    上游: {upstream}"
                     if upstream_response_time:
                         log_msg += f"\n    上游响应时间: {upstream_response_time}s"
-                    logger.info(log_msg)
+                    logger.debug(log_msg)
                     processed_count += 1
 
             except json.JSONDecodeError as e:
