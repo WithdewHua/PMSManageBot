@@ -8,11 +8,11 @@ from app.config import settings
 from app.databases import db
 from app.log import uvicorn_logger as logger
 from app.premium import update_premium_status
-from app.utils.utils import get_user_name_from_tg_id
+from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import BaseResponse, TelegramUser
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
 from pydantic import BaseModel
 
 
@@ -47,6 +47,7 @@ router = APIRouter(prefix="/api/premium", tags=["premium"])
 @require_telegram_auth
 async def unlock_premium(
     request: Request,
+    background_tasks: BackgroundTasks,
     data: PremiumUnlockRequest = Body(...),
     user: TelegramUser = Depends(get_telegram_user),
 ):
@@ -112,6 +113,29 @@ async def unlock_premium(
 
         logger.info(
             f"用户 {get_user_name_from_tg_id(tg_id)} 成功解锁 {service} Premium {days} 天"
+        )
+
+        # 发送通知消息
+        service_emoji = "🎬" if service == "plex" else "📺"
+        service_name = service.upper()
+
+        notification_text = f"""✨ Premium 解锁成功
+
+👤 用户: {get_user_name_from_tg_id(tg_id)}
+{service_emoji} 服务: {service_name}
+⏰ 天数: {days} 天
+💎 花费: {total_cost} 积分
+💰 剩余: {new_credits} 积分
+📅 到期: {new_expiry.strftime('%Y-%m-%d %H:%M:%S')}"""
+
+        if discount < 1.0:
+            discount_percent = int((1 - discount) * 100)
+            notification_text += f"\n🎉 享受了 {discount_percent}折 优惠！"
+
+        background_tasks.add_task(
+            send_message_by_url,
+            chat_id=settings.TG_ADMIN_CHAT_ID,
+            text=notification_text,
         )
 
         return PremiumUnlockResponse(
