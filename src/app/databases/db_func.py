@@ -34,7 +34,7 @@ from app.utils.utils import (
     is_binded_premium_line,
     send_message_by_url,
 )
-from sqlalchemy import func, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy import update as sql_update
 
 
@@ -852,6 +852,36 @@ async def update_line_traffic_stats(
 
     processed_count = 0
 
+    plex_username_to_id = {}
+    emby_username_to_id = {}
+
+    try:
+        with get_session() as session:
+            # 加载所有 Plex 用户名到 ID 的映射
+            stmt = select(PlexUser.plex_username, PlexUser.plex_id).where(
+                PlexUser.plex_username.isnot(None), PlexUser.plex_id.isnot(None)
+            )
+            plex_users = session.execute(stmt).fetchall()
+            plex_username_to_id = {
+                username.lower(): plex_id
+                for username, plex_id in plex_users
+                if username
+            }
+
+            # 加载所有 Emby 用户名到 ID 的映射
+            stmt = select(EmbyUser.emby_username, EmbyUser.emby_id).where(
+                EmbyUser.emby_username.isnot(None), EmbyUser.emby_id.isnot(None)
+            )
+            emby_users = session.execute(stmt).fetchall()
+            emby_username_to_id = {
+                username.lower(): emby_id
+                for username, emby_id in emby_users
+                if username
+            }
+    except Exception as e:
+        logger.error(f"加载用户ID映射失败: {e}")
+        return
+
     try:
         for raw_log in values:
             try:
@@ -941,27 +971,19 @@ async def update_line_traffic_stats(
                 if service == "plex":
                     username = plex_token_cache.get(token)
                     if username:
-                        with get_session() as session:
-                            stmt = select(PlexUser.plex_id).where(
-                                func.lower(PlexUser.plex_username) == username.lower()
-                            )
-                            user_result = session.execute(stmt).fetchone()
-                        if user_result:
-                            user_id = user_result[0]
+                        # 使用内存缓存查询 user_id，避免数据库查询
+                        user_id = plex_username_to_id.get(username.lower())
                 elif service == "emby":
                     username = emby_api_key_cache.get(token)
                     if username:
-                        with get_session() as session:
-                            stmt = select(EmbyUser.emby_id).where(
-                                func.lower(EmbyUser.emby_username) == username.lower()
-                            )
-                            user_result = session.execute(stmt).fetchone()
-                        if user_result:
-                            user_id = user_result[0]
+                        # 使用内存缓存查询 user_id，避免数据库查询
+                        user_id = emby_username_to_id.get(username.lower())
                     else:
                         # 尝试通过 api key 获取用户名
                         emby = Emby()
                         username = await emby.get_emby_username_from_api_key(token)
+                        if username:
+                            user_id = emby_username_to_id.get(username.lower())
 
                 # 如果无法获取到用户信息，跳过此条记录
                 if not username:
