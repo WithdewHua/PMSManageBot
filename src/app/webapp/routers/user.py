@@ -2006,6 +2006,24 @@ async def unlock_download_permission(
             f"消耗 {settings.DOWNLOAD_UNLOCK_CREDITS} 积分"
         )
 
+        # 发送管理员通知
+        service_emoji = "🎬" if service == "plex" else "📺"
+        service_name = service.upper()
+        user_name = get_user_name_from_tg_id(tg_id)
+
+        admin_notification = f"""📥 下载权限解锁通知
+
+👤 用户: {user_name}
+{service_emoji} 服务: {service_name}
+💎 花费: {settings.DOWNLOAD_UNLOCK_CREDITS} 积分
+💰 剩余: {remaining_credits:.2f} 积分"""
+
+        background_tasks.add_task(
+            send_message_by_url,
+            chat_id=settings.TG_ADMIN_CHAT_ID,
+            text=admin_notification,
+        )
+
         return BaseResponse(
             success=True,
             message=f"解锁成功！消耗 {settings.DOWNLOAD_UNLOCK_CREDITS} 积分，剩余 {remaining_credits:.2f} 积分",
