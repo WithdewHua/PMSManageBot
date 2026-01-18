@@ -388,6 +388,50 @@
                     </div>
                   </div>
                   
+                  <!-- 解锁线路调度功能积分设置 -->
+                  <div class="d-flex justify-space-between align-center mb-3">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="teal-darken-1" class="mr-2">mdi-calendar-clock</v-icon>
+                      <span>解锁线路调度所需积分：</span>
+                    </div>
+                    <div class="d-flex align-center">
+                      <v-text-field
+                        v-model.number="adminSettings.line_schedule_unlock_credits"
+                        type="number"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        style="width: 100px"
+                        min="0"
+                        max="10000"
+                        @blur="updateLineScheduleUnlockCredits"
+                        @keyup.enter="updateLineScheduleUnlockCredits"
+                      ></v-text-field>
+                    </div>
+                  </div>
+                  
+                  <!-- 解锁下载/同步功能积分设置 -->
+                  <div class="d-flex justify-space-between align-center mb-3">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="deep-purple-darken-1" class="mr-2">mdi-download</v-icon>
+                      <span>解锁下载/同步所需积分：</span>
+                    </div>
+                    <div class="d-flex align-center">
+                      <v-text-field
+                        v-model.number="adminSettings.download_unlock_credits"
+                        type="number"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        style="width: 100px"
+                        min="0"
+                        max="10000"
+                        @blur="updateDownloadUnlockCredits"
+                        @keyup.enter="updateDownloadUnlockCredits"
+                      ></v-text-field>
+                    </div>
+                  </div>
+                  
                   <!-- 积分转移功能开关 -->
                   <div class="d-flex justify-space-between align-center">
                     <div class="d-flex align-center">
@@ -789,6 +833,12 @@
                       <div class="stat-item">
                         <div class="stat-value text-purple-darken-2">{{ systemStats.vaultwarden_redeemed_count || 0 }}</div>
                         <div class="stat-label">Bitwarden 兑换数</div>
+                      </div>
+                    </v-col>
+                    <v-col cols="12" sm="6" md="4">
+                      <div class="stat-item">
+                        <div class="stat-value text-teal-darken-2">{{ systemStats.download_unlocked_users || 0 }}</div>
+                        <div class="stat-label">下载权限解锁</div>
                       </div>
                     </v-col>
                   </v-row>
@@ -2145,7 +2195,7 @@ import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import WheelAdminPanel from '@/components/WheelAdminPanel.vue'
 import BadgeEditorDialog from '@/components/BadgeEditorDialog.vue'
-import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits, setPremiumDailyCredits, setPremiumUnlockEnabled, setCreditsTransferEnabled } from '@/services/adminService.js'
+import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits, setPremiumDailyCredits, setPremiumUnlockEnabled, setCreditsTransferEnabled, setLineScheduleUnlockCredits, setDownloadUnlockCredits } from '@/services/adminService.js'
 import { getWheelStats } from '@/services/wheelService.js'
 import { getAuctionStats, getAllAuctions, finishExpiredAuctions, finishAuction, deleteAuction, createAuction, getAuctionBids, updateAuction } from '@/services/auctionService.js'
 import { getPremiumLineTrafficStats, formatTrafficSize, formatUsername, getTrafficOverview } from '@/services/trafficService.js'
@@ -2181,6 +2231,8 @@ export default {
         invitation_credits: 288,
         unlock_credits: 100,
         premium_daily_credits: 15,
+        line_schedule_unlock_credits: 264,
+        download_unlock_credits: 368,
         loaded: false // 添加标记，避免重复加载
       },
       adminLoading: false,
@@ -2243,7 +2295,8 @@ export default {
         total_users: 0,
         nsfw_unlocked_users: 0,
         line_schedule_unlocked_users: 0,
-        vaultwarden_redeemed_count: 0
+        vaultwarden_redeemed_count: 0,
+        download_unlocked_users: 0
       },
       systemStatsLoading: false,
       systemStatsError: null,
@@ -2537,6 +2590,44 @@ export default {
       } catch (err) {
         this.showMessage('更新 Premium 每日积分设置失败', 'error')
         console.error('更新 Premium 每日积分设置失败:', err)
+        // 重新获取设置以恢复状态
+        await this.fetchAdminSettings()
+      }
+    },
+    
+    async updateLineScheduleUnlockCredits() {
+      try {
+        const credits = parseInt(this.adminSettings.line_schedule_unlock_credits)
+        if (isNaN(credits) || credits < 0) {
+          this.showMessage('积分值必须是正整数', 'error')
+          // 重新获取设置以恢复状态
+          await this.fetchAdminSettings()
+          return
+        }
+        await setLineScheduleUnlockCredits(credits)
+        this.showMessage(`解锁线路调度所需积分已设置为 ${credits}`)
+      } catch (err) {
+        this.showMessage('更新线路调度解锁积分设置失败', 'error')
+        console.error('更新线路调度解锁积分设置失败:', err)
+        // 重新获取设置以恢复状态
+        await this.fetchAdminSettings()
+      }
+    },
+    
+    async updateDownloadUnlockCredits() {
+      try {
+        const credits = parseInt(this.adminSettings.download_unlock_credits)
+        if (isNaN(credits) || credits < 0) {
+          this.showMessage('积分值必须是正整数', 'error')
+          // 重新获取设置以恢复状态
+          await this.fetchAdminSettings()
+          return
+        }
+        await setDownloadUnlockCredits(credits)
+        this.showMessage(`解锁下载/同步所需积分已设置为 ${credits}`)
+      } catch (err) {
+        this.showMessage('更新下载解锁积分设置失败', 'error')
+        console.error('更新下载解锁积分设置失败:', err)
         // 重新获取设置以恢复状态
         await this.fetchAdminSettings()
       }

@@ -234,3 +234,37 @@ export async function setCreditsTransferEnabled(enabled) {
     throw error;
   }
 }
+
+/**
+ * 设置解锁线路调度功能所需积分
+ * @param {number} credits - 积分数量
+ * @returns {Promise} 设置结果
+ */
+export async function setLineScheduleUnlockCredits(credits) {
+  try {
+    const response = await apiClient.post('/api/admin/settings/line-schedule-unlock-credits', {
+      credits: credits
+    });
+    return response;
+  } catch (error) {
+    console.error('设置线路调度解锁积分失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 设置解锁下载/同步功能所需积分
+ * @param {number} credits - 积分数量
+ * @returns {Promise} 设置结果
+ */
+export async function setDownloadUnlockCredits(credits) {
+  try {
+    const response = await apiClient.post('/api/admin/settings/download-unlock-credits', {
+      credits: credits
+    });
+    return response;
+  } catch (error) {
+    console.error('设置下载解锁积分失败:', error);
+    throw error;
+  }
+}

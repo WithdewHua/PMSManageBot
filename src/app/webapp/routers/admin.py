@@ -61,6 +61,8 @@ async def get_admin_settings(
             "unlock_credits": settings.UNLOCK_CREDITS,
             "premium_daily_credits": settings.PREMIUM_DAILY_CREDITS,
             "credits_transfer_enabled": settings.CREDITS_TRANSFER_ENABLED,  # 添加积分转移开关
+            "line_schedule_unlock_credits": settings.LINE_SCHEDULE_UNLOCK_CREDITS,  # 解锁线路调度功能所需积分
+            "download_unlock_credits": settings.DOWNLOAD_UNLOCK_CREDITS,  # 解锁下载/同步功能所需积分
         }
 
         logger.info(f"管理员 {user.username or user.id} 获取系统设置")
@@ -837,6 +839,68 @@ async def set_credits_transfer_enabled(
         )
     except Exception as e:
         logger.error(f"设置积分转移功能状态失败: {str(e)}")
+        return BaseResponse(success=False, message="设置失败")
+
+
+@router.post("/settings/line-schedule-unlock-credits")
+@require_telegram_auth
+async def set_line_schedule_unlock_credits(
+    request: Request,
+    data: dict = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """设置解锁线路调度功能所需积分"""
+    check_admin_permission(user)
+
+    try:
+        credits = data.get("credits", settings.LINE_SCHEDULE_UNLOCK_CREDITS)
+
+        # 验证积分值的合理性
+        if not isinstance(credits, int) or credits < 0:
+            return BaseResponse(success=False, message="积分值必须是非负整数")
+
+        settings.LINE_SCHEDULE_UNLOCK_CREDITS = credits
+        settings.save_config_to_env_file({"LINE_SCHEDULE_UNLOCK_CREDITS": str(credits)})
+
+        logger.info(
+            f"管理员 {user.username or user.id} 设置解锁线路调度功能所需积分为: {credits}"
+        )
+        return BaseResponse(
+            success=True, message=f"解锁线路调度功能所需积分已设置为 {credits}"
+        )
+    except Exception as e:
+        logger.error(f"设置解锁线路调度功能积分失败: {str(e)}")
+        return BaseResponse(success=False, message="设置失败")
+
+
+@router.post("/settings/download-unlock-credits")
+@require_telegram_auth
+async def set_download_unlock_credits(
+    request: Request,
+    data: dict = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """设置解锁下载/同步功能所需积分"""
+    check_admin_permission(user)
+
+    try:
+        credits = data.get("credits", settings.DOWNLOAD_UNLOCK_CREDITS)
+
+        # 验证积分值的合理性
+        if not isinstance(credits, int) or credits < 0:
+            return BaseResponse(success=False, message="积分值必须是非负整数")
+
+        settings.DOWNLOAD_UNLOCK_CREDITS = credits
+        settings.save_config_to_env_file({"DOWNLOAD_UNLOCK_CREDITS": str(credits)})
+
+        logger.info(
+            f"管理员 {user.username or user.id} 设置解锁下载/同步功能所需积分为: {credits}"
+        )
+        return BaseResponse(
+            success=True, message=f"解锁下载/同步功能所需积分已设置为 {credits}"
+        )
+    except Exception as e:
+        logger.error(f"设置解锁下载/同步功能积分失败: {str(e)}")
         return BaseResponse(success=False, message="设置失败")
 
 
