@@ -250,6 +250,23 @@
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
+                <v-icon size="small" color="light-blue-darken-1" class="mr-2">mdi-download</v-icon>
+                <span>下载权限：</span>
+              </div>
+              <v-chip 
+                :color="userInfo.plex_info.download_unlocked ? 'success' : 'grey'" 
+                size="small"
+                @click="openDownloadUnlockDialog('plex')"
+                class="clickable-chip"
+                elevation="1"
+              >
+                <v-icon start size="x-small">{{ userInfo.plex_info.download_unlocked ? 'mdi-check' : 'mdi-lock' }}</v-icon>
+                {{ userInfo.plex_info.download_unlocked ? '已解锁' : '未解锁' }}
+                <v-icon v-if="!userInfo.plex_info.download_unlocked" end size="x-small" class="ml-1">mdi-pencil</v-icon>
+              </v-chip>
+            </div>
+            <div class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
                 <v-icon size="small" color="teal-darken-1" class="mr-2">mdi-connection</v-icon>
                 <span>绑定线路：</span>
               </div>
@@ -392,6 +409,23 @@
               >
                 {{ userInfo.emby_info.all_lib ? '全部' : '部分' }}
                 <v-icon end size="x-small" class="ml-1">mdi-pencil</v-icon>
+              </v-chip>
+            </div>
+            <div class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="light-blue-darken-1" class="mr-2">mdi-download</v-icon>
+                <span>下载权限：</span>
+              </div>
+              <v-chip 
+                :color="userInfo.emby_info.download_unlocked ? 'success' : 'grey'" 
+                size="small"
+                @click="openDownloadUnlockDialog('emby')"
+                class="clickable-chip"
+                elevation="1"
+              >
+                <v-icon start size="x-small">{{ userInfo.emby_info.download_unlocked ? 'mdi-check' : 'mdi-lock' }}</v-icon>
+                {{ userInfo.emby_info.download_unlocked ? '已解锁' : '未解锁' }}
+                <v-icon v-if="!userInfo.emby_info.download_unlocked" end size="x-small" class="ml-1">mdi-pencil</v-icon>
               </v-chip>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center entrance-url-row">
@@ -818,6 +852,13 @@
       @success="handleScheduleSuccess"
       @error="handleScheduleError"
     />
+    
+    <!-- 下载权限解锁对话框 -->
+    <download-unlock-dialog
+      ref="downloadUnlockDialog"
+      :current-credits="userInfo.credits"
+      @unlocked="handleDownloadUnlocked"
+    />
   </div>
 </template>
 
@@ -834,6 +875,7 @@ import CreditsStoreDialog from '@/components/CreditsStoreDialog.vue'
 import VaultwardenRedeemDialog from '@/components/VaultwardenRedeemDialog.vue'
 import BadgeCenterDialog from '@/components/BadgeCenterDialog.vue'
 import PremiumUnlockDialog from '@/components/PremiumUnlockDialog.vue'
+import DownloadUnlockDialog from '@/components/DownloadUnlockDialog.vue'
 import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import LineScheduleDialog from '@/components/LineScheduleDialog.vue'
@@ -859,7 +901,8 @@ export default {
     PremiumUnlockDialog,
     TagManagementDialog,
     LineManagementDialog,
-    LineScheduleDialog
+    LineScheduleDialog,
+    DownloadUnlockDialog
   },
   data() {
     return {
@@ -1401,6 +1444,30 @@ export default {
       
       // 直接传入服务信息，避免使用 props 导致的跨服务状态混淆
       this.$refs.premiumUnlockDialog.open(serviceType, serviceInfo);
+    },
+    
+    // 打开下载权限解锁对话框
+    openDownloadUnlockDialog(serviceType) {
+      this.$refs.downloadUnlockDialog.open(serviceType);
+    },
+    
+    // 处理下载权限解锁完成事件
+    handleDownloadUnlocked(result) {
+      const { service, remaining_credits } = result;
+      
+      // 更新用户积分
+      this.userInfo.credits = remaining_credits;
+      
+      // 更新下载权限状态
+      if (service === 'plex' && this.userInfo.plex_info) {
+        this.userInfo.plex_info.download_unlocked = true;
+        this.userInfo.plex_info.download_unlock_time = Date.now();
+      } else if (service === 'emby' && this.userInfo.emby_info) {
+        this.userInfo.emby_info.download_unlocked = true;
+        this.userInfo.emby_info.download_unlock_time = Date.now();
+      }
+      
+      this.showMessage(`成功解锁 ${service.toUpperCase()} 下载权限`);
     },
 
     // 处理Premium解锁完成事件

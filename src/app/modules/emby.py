@@ -750,3 +750,74 @@ class Emby:
         except Exception as e:
             logger.error(f"Error fetching all users last activity: {e}")
             return {}
+
+    def update_download_permission_for_user(
+        self, user_id: str, allow_download: bool = True
+    ) -> tuple[bool, str]:
+        """
+        更新指定用户的下载权限
+
+        Args:
+            user_id: Emby 用户 ID
+            allow_download: 是否允许下载
+
+        Returns:
+            (是否成功, 消息)
+        """
+        headers = {"accept": "application/json", "Content-Type": "application/json"}
+        params = {"api_key": self.api_token}
+
+        try:
+            # 先获取该用户的 policy
+            response = requests.get(
+                url=self.base_url + f"/Users/{user_id}", params=params, headers=headers
+            )
+            response.raise_for_status()
+            policy = response.json().get("Policy")
+
+            if not policy:
+                return False, "无法获取用户策略"
+
+            # 更新下载权限
+            policy["EnableContentDownloading"] = allow_download
+
+            # 更新权限设置
+            response = requests.post(
+                url=self.base_url + f"/Users/{user_id}/Policy",
+                data=json.dumps(policy),
+                params=params,
+                headers=headers,
+            )
+
+            if response.status_code in [200, 204]:
+                username = self.get_username_from_uid(user_id)
+                logger.info(
+                    f"为 Emby 用户 {username} ({user_id}) 更新下载权限: {'允许' if allow_download else '禁止'}"
+                )
+                return True, "ok"
+            else:
+                return False, response.text
+
+        except Exception as e:
+            logger.error(f"更新 Emby 用户 {user_id} 下载权限失败: {str(e)}")
+            return False, str(e)
+
+    def update_download_permission_by_username(
+        self, username: str, allow_download: bool = True
+    ) -> tuple[bool, str]:
+        """
+        通过用户名更新下载权限
+
+        Args:
+            username: Emby 用户名
+            allow_download: 是否允许下载
+
+        Returns:
+            (是否成功, 消息)
+        """
+        user_id = self.get_uid_from_username(username)
+        if not user_id:
+            logger.error(f"无法找到 Emby 用户 {username}")
+            return False, f"无法找到用户 {username}"
+
+        return self.update_download_permission_for_user(user_id, allow_download)

@@ -434,3 +434,23 @@ class Plex:
                     )
                     result[user.id] = 0
             return result
+
+    def update_sync_for_user(self, email: str, allow_sync: bool = True):
+        """更新指定用户的同步（下载）权限"""
+
+        user_info = self.users_by_email.get(email)
+        if not user_info:
+            logger.error(f"无法找到 Plex 用户 {email}")
+            return
+
+        try:
+            logger.info(
+                f"为 Plex 用户 {user_info[1].username} 更新同步权限: {'允许' if allow_sync else '禁止'}"
+            )
+            self.my_plex_account.updateFriend(
+                email,
+                self.plex_server,
+                allowSync=allow_sync,
+            )
+        except Exception:
+            logger.error(f"无法为 Plex 用户 {user_info[1].username} 更新同步权限")

@@ -130,6 +130,8 @@ async def get_user_info(
                 daily_premium_traffic = db.get_user_daily_traffic(
                     user_id=str(plex_info[0]), service="plex", premium_only=True
                 )
+                # 获取下载权限状态
+                download_status = db.check_download_unlock(tg_id, "plex")
 
                 user_info.plex_info = {
                     "username": plex_info[4],
@@ -142,6 +144,8 @@ async def get_user_info(
                     "daily_traffic": daily_traffic,
                     "daily_premium_traffic": daily_premium_traffic,
                     "last_viewed_at": plex_info[11],
+                    "download_unlocked": download_status["is_unlocked"],
+                    "download_unlock_time": download_status["unlock_time"],
                 }
                 logger.debug(
                     f"用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 信息获取成功，今日流量: {daily_traffic} bytes, Premium流量: {daily_premium_traffic} bytes"
@@ -168,6 +172,8 @@ async def get_user_info(
                 daily_premium_traffic = db.get_user_daily_traffic(
                     username=emby_info[0], service="emby", premium_only=True
                 )
+                # 获取下载权限状态
+                download_status = db.check_download_unlock(tg_id, "emby")
 
                 user_info.emby_info = {
                     "username": emby_info[0],
@@ -179,6 +185,8 @@ async def get_user_info(
                     "daily_traffic": daily_traffic,
                     "daily_premium_traffic": daily_premium_traffic,
                     "last_viewed_at": emby_info[10],
+                    "download_unlocked": download_status["is_unlocked"],
+                    "download_unlock_time": download_status["unlock_time"],
                 }
                 created_at = (
                     Emby().get_user_info_from_username(emby_info[0]).get("date_created")
@@ -1909,3 +1917,100 @@ async def get_line_schedule_status(
     except Exception as e:
         logger.error(f"获取线路调度状态失败: {e}")
         raise HTTPException(status_code=500, detail="获取线路调度状态失败")
+
+
+# ==================== 下载权限解锁相关路由 ====================
+
+
+@router.get("/download-permission/status/{service}")
+@require_telegram_auth
+async def get_download_permission_status(
+    service: str,
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取下载权限状态"""
+    if service not in ["plex", "emby"]:
+        raise HTTPException(status_code=400, detail="服务类型必须是 'plex' 或 'emby'")
+
+    try:
+        unlock_status = db.check_download_unlock(user.id, service)
+        return {
+            "success": True,
+            "is_unlocked": unlock_status["is_unlocked"],
+            "is_premium": unlock_status["is_premium"],
+            "unlock_time": unlock_status["unlock_time"],
+            "unlock_cost": settings.DOWNLOAD_UNLOCK_CREDITS,
+        }
+    except Exception as e:
+        logger.error(f"获取下载权限状态失败: {e}")
+        raise HTTPException(status_code=500, detail="获取下载权限状态失败")
+
+
+@router.post("/download-permission/unlock/{service}")
+@require_telegram_auth
+async def unlock_download_permission(
+    service: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """解锁下载权限"""
+    if service not in ["plex", "emby"]:
+        raise HTTPException(status_code=400, detail="服务类型必须是 'plex' 或 'emby'")
+
+    tg_id = user.id
+
+    try:
+        # 检查是否已解锁
+        unlock_status = db.check_download_unlock(tg_id, service)
+        if unlock_status["is_unlocked"]:
+            if unlock_status["is_premium"]:
+                return BaseResponse(
+                    success=False, message="Premium 用户已自动拥有下载权限，无需解锁"
+                )
+            else:
+                return BaseResponse(
+                    success=False, message="下载权限已解锁，无需重复解锁"
+                )
+
+        # 扣除积分
+        success, msg, remaining_credits = db.deduct_credits_for_download_unlock(tg_id)
+        if not success:
+            return BaseResponse(success=False, message=msg)
+
+        # 更新数据库解锁状态
+        if not db.set_download_unlocked(tg_id, service):
+            logger.error(f"用户 {tg_id} 下载权限数据库更新失败")
+            return BaseResponse(success=False, message="解锁失败，请联系管理员")
+
+        # 应用到媒体服务器
+        try:
+            if service == "plex":
+                plex_info = db.get_plex_info_by_tg_id(tg_id)
+                if plex_info and plex_info[3]:  # plex_email
+                    plex = Plex()
+                    plex.update_sync_for_user(plex_info[3], allow_sync=True)
+            elif service == "emby":
+                emby_info = db.get_emby_info_by_tg_id(tg_id)
+                if emby_info and emby_info[1]:  # emby_id
+                    emby = Emby()
+                    emby.update_download_permission_for_user(
+                        emby_info[1], allow_download=True
+                    )
+        except Exception as e:
+            logger.warning(f"应用下载权限到媒体服务器失败: {e}，但数据库已更新")
+
+        logger.info(
+            f"用户 {get_user_name_from_tg_id(tg_id)} 解锁 {service} 下载权限，"
+            f"消耗 {settings.DOWNLOAD_UNLOCK_CREDITS} 积分"
+        )
+
+        return BaseResponse(
+            success=True,
+            message=f"解锁成功！消耗 {settings.DOWNLOAD_UNLOCK_CREDITS} 积分，剩余 {remaining_credits:.2f} 积分",
+        )
+
+    except Exception as e:
+        logger.error(f"解锁下载权限失败: {e}")
+        return BaseResponse(success=False, message=f"解锁失败: {str(e)}，请联系管理员")

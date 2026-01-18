@@ -62,6 +62,13 @@ class PlexUser(Base):
     last_viewed_at: Mapped[Optional[int]] = mapped_column(
         BIGINT, nullable=True
     )  # Timestamp of last viewing activity
+    # Download/Sync permission unlock
+    sync_unlocked: Mapped[int] = mapped_column(
+        SMALLINT, default=0, nullable=False
+    )  # 0=not unlocked, 1=unlocked
+    sync_unlock_time: Mapped[Optional[int]] = mapped_column(
+        BIGINT, nullable=True
+    )  # Timestamp when unlocked
 
 
 class EmbyUser(Base):
@@ -94,6 +101,13 @@ class EmbyUser(Base):
     last_viewed_at: Mapped[Optional[int]] = mapped_column(
         BIGINT, nullable=True
     )  # Timestamp of last viewing activity
+    # Download permission unlock
+    download_unlocked: Mapped[int] = mapped_column(
+        SMALLINT, default=0, nullable=False
+    )  # 0=not unlocked, 1=unlocked
+    download_unlock_time: Mapped[Optional[int]] = mapped_column(
+        BIGINT, nullable=True
+    )  # Timestamp when unlocked
 
 
 class Invitation(Base):

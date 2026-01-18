@@ -45,6 +45,35 @@ async def check_premium_expiry():
                 logger.info(
                     f"用户 {user_name} ({user['username']}) 的 {user['service']} Premium 已过期 (原到期时间: {user['expiry_time']})"
                 )
+
+                # 检查用户是否单独解锁了下载权限，如果没有则撤销
+                download_status = db.check_download_unlock(
+                    user["tg_id"], user["service"]
+                )
+                if not download_status.get("unlock_time"):
+                    # 用户没有单独解锁下载权限，撤销媒体服务器的下载权限
+                    try:
+                        if user["service"] == "plex":
+                            from app.modules.plex import Plex
+
+                            plex = Plex()
+                            plex_email = user.get("email")
+                            if plex_email:
+                                plex.update_sync_for_user(plex_email, allow_sync=False)
+                                logger.info(f"已撤销用户 {user_name} 的 Plex 同步权限")
+                        elif user["service"] == "emby":
+                            from app.modules.emby import Emby
+
+                            emby = Emby()
+                            emby_id = user.get("emby_id")
+                            if emby_id:
+                                emby.update_download_permission_for_user(
+                                    emby_id, allow_download=False
+                                )
+                                logger.info(f"已撤销用户 {user_name} 的 Emby 下载权限")
+                    except Exception as e:
+                        logger.warning(f"撤销用户 {user_name} 的下载权限失败: {e}")
+
                 # 更新线路绑定
                 line = user.get("line", "")
                 # 绑定的非 Premium 线路不需要更新
@@ -140,6 +169,23 @@ def update_premium_status(db, tg_id: int, service: str, days: int = 30) -> datet
             )
             session.execute(stmt)
 
+        # 检查用户是否已经用积分单独解锁了下载权限
+        download_status = db.check_download_unlock(tg_id, "plex")
+        if not download_status.get("unlock_time"):
+            # 用户未单独解锁，Premium 用户自动拥有下载权限，更新媒体服务器
+            try:
+                from app.modules.plex import Plex
+
+                plex_email = user_info[3]  # plex_email
+                if plex_email:
+                    plex = Plex()
+                    plex.update_sync_for_user(plex_email, allow_sync=True)
+                    logger.info(f"已为 Premium 用户 {tg_id} 启用 Plex 同步权限")
+            except Exception as e:
+                logger.warning(f"为 Premium 用户 {tg_id} 启用 Plex 同步权限失败: {e}")
+        else:
+            logger.info(f"用户 {tg_id} 已用积分解锁 Plex 下载权限，跳过 Premium 授权")
+
     elif service == "emby":
         user_info = db.get_emby_info_by_tg_id(tg_id)
         if not user_info:
@@ -169,6 +215,25 @@ def update_premium_status(db, tg_id: int, service: str, days: int = 30) -> datet
                 .values(is_premium=1, premium_expiry_time=new_expiry.isoformat())
             )
             session.execute(stmt)
+
+        # 检查用户是否已经用积分单独解锁了下载权限
+        download_status = db.check_download_unlock(tg_id, "emby")
+        if not download_status.get("unlock_time"):
+            # 用户未单独解锁，Premium 用户自动拥有下载权限，更新媒体服务器
+            try:
+                from app.modules.emby import Emby
+
+                emby_id = user_info[1]  # emby_id
+                if emby_id:
+                    emby = Emby()
+                    emby.update_download_permission_for_user(
+                        emby_id, allow_download=True
+                    )
+                    logger.info(f"已为 Premium 用户 {tg_id} 启用 Emby 下载权限")
+            except Exception as e:
+                logger.warning(f"为 Premium 用户 {tg_id} 启用 Emby 下载权限失败: {e}")
+        else:
+            logger.info(f"用户 {tg_id} 已用积分解锁 Emby 下载权限，跳过 Premium 授权")
 
     return new_expiry
 

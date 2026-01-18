@@ -1,6 +1,6 @@
 [project]
 name = "pmsmanagebot"
-version = "0.6.0"
+version = "0.7.0"
 description = "Telegram bot for managing Plex/Emby media servers with WebApp support"
 authors = [
     { name = "WithdewHua", email = "i@10101.io" }
