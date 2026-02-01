@@ -966,6 +966,56 @@ class DatabaseORM:
             results = session.execute(stmt).fetchall()
             return [(r[0], r[1]) for r in results]
 
+    def get_badge_rank(self) -> List[dict]:
+        """
+        获取勋章排行榜数据（按用户拥有的勋章数量排序）
+
+        Returns:
+            用户勋章排行数据列表，包含 tg_id, badge_count, badges 信息
+        """
+        try:
+            with get_session() as session:
+                # 查询每个用户拥有的勋章数量，并获取勋章详情
+                stmt = (
+                    select(
+                        UserBadge.tg_id,
+                        func.count(UserBadge.id).label("badge_count"),
+                    )
+                    .where(UserBadge.is_active == 1)
+                    .group_by(UserBadge.tg_id)
+                    .order_by(func.count(UserBadge.id).desc())
+                )
+                results = session.execute(stmt).fetchall()
+
+                rank_data = []
+                for row in results:
+                    tg_id = row[0]
+                    badge_count = row[1]
+
+                    # 获取该用户的所有勋章详情
+                    badges_stmt = (
+                        select(UserBadge)
+                        .options(joinedload(UserBadge.badge))
+                        .where(UserBadge.tg_id == tg_id, UserBadge.is_active == 1)
+                        .order_by(UserBadge.redeemed_at.desc())
+                    )
+                    user_badges = session.execute(badges_stmt).scalars().unique().all()
+
+                    rank_data.append(
+                        {
+                            "tg_id": tg_id,
+                            "badge_count": badge_count,
+                            "badges": [
+                                self._user_badge_to_dict(ub) for ub in user_badges
+                            ],
+                        }
+                    )
+
+                return rank_data
+        except Exception as e:
+            logger.error(f"获取勋章排行榜失败: {e}")
+            return []
+
     # ==================== Invitation Query Operations ====================
 
     def verify_invitation_code_is_used(self, code: str) -> Optional[Tuple]:

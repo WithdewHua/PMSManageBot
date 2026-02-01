@@ -48,6 +48,10 @@ export const getInvitationRankings = () => {
   return apiClient.get('/api/rankings/invitation')
 }
 
+export const getBadgeRankings = () => {
+  return apiClient.get('/api/rankings/badge')
+}
+
 export const getPlexTrafficRankings = (startDate = null, endDate = null) => {
   const params = new URLSearchParams()
   if (startDate) params.append('start_date', startDate)

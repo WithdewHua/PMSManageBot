@@ -57,6 +57,10 @@
               <v-icon start size="18">mdi-download</v-icon>
               <span class="tab-text">流量榜</span>
             </v-tab>
+            <v-tab value="badge" class="tab-item">
+              <v-icon start size="18">mdi-shield-star</v-icon>
+              <span class="tab-text">勋章榜</span>
+            </v-tab>
             <v-tab value="invitation" class="tab-item">
               <v-icon start size="18">mdi-account-plus</v-icon>
               <span class="tab-text">邀请榜</span>
@@ -692,6 +696,103 @@
             </v-row>
           </v-window-item>
 
+          <!-- 勋章榜 -->
+          <v-window-item value="badge">
+            <v-list lines="two" class="px-2">
+              <v-list-item
+                v-for="(item, index) in rankings.badge_rank"
+                :key="`badge-${index}`"
+                :class="{ 'bg-primary-subtle': item.is_self }"
+                class="ranking-item mb-2"
+                rounded="lg"
+                elevation="1"
+              >
+                <template v-slot:prepend>
+                  <div class="rank-container">
+                    <div class="rank-number" :class="`rank-${index + 1}`">
+                      <span v-if="index < 3" class="rank-icon">{{ ['🥇', '🥈', '🥉'][index] }}</span>
+                      <span v-else>{{ index + 1 }}</span>
+                    </div>
+                  </div>
+                </template>
+                
+                <template v-slot:default>
+                  <div class="d-flex align-center">
+                    <v-avatar class="user-avatar" size="44" style="margin-right: 16px;">
+                      <v-img 
+                        v-if="item.avatar" 
+                        :src="item.avatar" 
+                        :alt="item.name"
+                        @error="handleImageError"
+                        class="avatar-img"
+                      />
+                      <v-icon v-else size="24" color="grey-lighten-1">mdi-account-circle</v-icon>
+                    </v-avatar>
+                    <div class="user-info flex-grow-1">
+                      <v-list-item-title class="user-name">
+                        {{ item.name }}
+                        <v-chip
+                          size="x-small"
+                          color="amber"
+                          variant="tonal"
+                          class="ml-2"
+                        >
+                          <v-icon size="12" start>mdi-shield-star</v-icon>
+                          {{ item.badge_count }} 枚
+                        </v-chip>
+                      </v-list-item-title>
+                      <v-list-item-subtitle class="user-score">
+                        <div class="badge-list-container d-flex flex-wrap align-center gap-1">
+                          <v-tooltip
+                            v-for="userBadge in item.badges.slice(0, 6)"
+                            :key="userBadge.badge_id"
+                            location="top"
+                            :open-on-click="isMobile"
+                            :open-on-hover="!isMobile"
+                          >
+                            <template v-slot:activator="{ props }">
+                              <v-avatar v-bind="props" size="24" class="badge-avatar-item">
+                                <v-img :src="userBadge.badge.icon_url" :alt="userBadge.badge.name" />
+                              </v-avatar>
+                            </template>
+                            <div class="text-center">
+                              <div class="font-weight-medium">{{ userBadge.badge.name }}</div>
+                              <div class="text-caption">{{ userBadge.badge.description }}</div>
+                              <div v-if="userBadge.bonus_active" class="text-caption text-success">
+                                <v-icon size="12">mdi-lightning-bolt</v-icon>
+                                加成生效中
+                              </div>
+                            </div>
+                          </v-tooltip>
+                          <v-tooltip 
+                            v-if="item.badges.length > 6" 
+                            location="top"
+                            :open-on-click="isMobile"
+                            :open-on-hover="!isMobile"
+                          >
+                            <template v-slot:activator="{ props }">
+                              <span 
+                                v-bind="props" 
+                                class="more-badges-indicator"
+                                @click="isMobile && showBadgeRankBadges(item.tg_id, item.name, item.badges)"
+                              >
+                                +{{ item.badges.length - 6 }}
+                              </span>
+                            </template>
+                            <div>还有 {{ item.badges.length - 6 }} 个勋章</div>
+                          </v-tooltip>
+                        </div>
+                      </v-list-item-subtitle>
+                    </div>
+                  </div>
+                </template>
+              </v-list-item>
+              <v-list-item v-if="rankings.badge_rank.length === 0" class="text-center">
+                <v-list-item-title class="text-grey">暂无数据</v-list-item-title>
+              </v-list-item>
+            </v-list>
+          </v-window-item>
+
           <!-- 邀请榜 -->
           <v-window-item value="invitation">
             <v-list lines="two" class="px-2">
@@ -1011,7 +1112,7 @@
 </template>
 
 <script>
-import { getCreditsRankings, getDonationRankings, getPlexWatchedTimeRankings, getEmbyWatchedTimeRankings, getPlexTrafficRankings, getEmbyTrafficRankings, getInvitationRankings } from '@/api'
+import { getCreditsRankings, getDonationRankings, getPlexWatchedTimeRankings, getEmbyWatchedTimeRankings, getPlexTrafficRankings, getEmbyTrafficRankings, getInvitationRankings, getBadgeRankings } from '@/api'
 import { getWatchLevelIcons } from '@/utils/watchLevel.js'
 import { getUserBadges } from '@/services/badgeService.js'
 
@@ -1035,6 +1136,7 @@ export default {
         watched_time_rank_emby: [],
         traffic_rank_plex: [],
         traffic_rank_emby: [],
+        badge_rank: [],
         invitation_rank: []
       },
       loading: {
@@ -1042,6 +1144,7 @@ export default {
         donation: false,
         watched: false,
         traffic: false,
+        badge: false,
         invitation: false,
         'watched-plex': false,
         'watched-emby': false,
@@ -1053,6 +1156,7 @@ export default {
         donation: false,
         watched: false,
         traffic: false,
+        badge: false,
         invitation: false,
         'watched-plex': false,
         'watched-emby': false,
@@ -1211,6 +1315,12 @@ export default {
             console.log(`加载流量数据 - ${this.trafficSource}`)
             await this.loadTrafficData(this.trafficSource)
             break
+          case 'badge':
+            console.log('调用勋章排行API...')
+            response = await getBadgeRankings()
+            this.rankings.badge_rank = response.data.badge_rank || []
+            console.log('勋章排行数据:', this.rankings.badge_rank)
+            break
           case 'invitation':
             console.log('调用邀请排行API...')
             response = await getInvitationRankings()
@@ -1306,6 +1416,7 @@ export default {
         donation: '捐赠排行榜',
         watched: '观看时长排行榜',
         traffic: '流量排行榜',
+        badge: '勋章排行榜',
         invitation: '邀请排行榜'
       }
       return names[tab] || '排行榜'
@@ -1434,6 +1545,13 @@ export default {
     showAllBadges(tgId, userName) {
       this.selectedUserName = userName
       this.selectedUserBadges = this.getUserBadgesList(tgId)
+      this.showAllBadgesDialog = true
+    },
+
+    // 显示勋章榜中用户的所有勋章（移动端点击时）
+    showBadgeRankBadges(tgId, userName, badges) {
+      this.selectedUserName = userName
+      this.selectedUserBadges = badges
       this.showAllBadgesDialog = true
     },
 
@@ -2060,6 +2178,23 @@ export default {
 }
 
 .badge-avatar:hover {
+  transform: scale(1.15);
+  box-shadow: 0 2px 8px rgba(255, 160, 0, 0.4);
+}
+
+/* 勋章榜中的勋章列表样式 */
+.badge-list-container {
+  margin-top: 4px;
+}
+
+.badge-avatar-item {
+  border: 2px solid #FFA000;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.badge-avatar-item:hover {
   transform: scale(1.15);
   box-shadow: 0 2px 8px rgba(255, 160, 0, 0.4);
 }

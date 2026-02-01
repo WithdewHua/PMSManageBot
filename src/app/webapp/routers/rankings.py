@@ -14,6 +14,44 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 router = APIRouter(prefix="/api", tags=["rankings"])
 
 
+@router.get("/rankings/badge")
+@require_telegram_auth
+async def get_badge_rankings(
+    request: Request, user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取勋章排行榜数据"""
+    logger.info(f"{user.username or user.first_name or user.id} 开始获取勋章排行榜数据")
+
+    try:
+        badge_rankings = []
+        try:
+            logger.debug("正在查询勋章排行")
+            badge_data = db.get_badge_rank()
+            if badge_data:
+                badge_rankings = [
+                    {
+                        "tg_id": info["tg_id"],
+                        "name": get_user_name_from_tg_id(info["tg_id"]),
+                        "badge_count": info["badge_count"],
+                        "badges": info["badges"],
+                        "avatar": get_user_avatar_from_tg_id(info["tg_id"]),
+                        "is_self": info["tg_id"] == user.id,
+                    }
+                    for info in badge_data
+                    if info["tg_id"] not in settings.TG_ADMIN_CHAT_ID
+                ]
+        except Exception as e:
+            logger.error(f"获取勋章排行失败: {str(e)}")
+
+        logger.info(
+            f"{user.username or user.first_name or user.id} 获取勋章排行榜数据成功"
+        )
+        return {"badge_rank": badge_rankings}
+    except Exception as e:
+        logger.error(f"获取勋章排行榜数据时发生未预期的错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取勋章排行榜数据失败")
+
+
 @router.get("/rankings/credits")
 @require_telegram_auth
 async def get_credits_rankings(
