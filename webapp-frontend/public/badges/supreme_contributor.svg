@@ -1,0 +1,187 @@
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 皇家紫金渐变 - 主背景 -->
+    <radialGradient id="royalGradient" cx="50%" cy="40%">
+      <stop offset="0%" style="stop-color:#FFF4E6;stop-opacity:1" />
+      <stop offset="25%" style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#9B59B6;stop-opacity:1" />
+      <stop offset="75%" style="stop-color:#8E44AD;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6C3483;stop-opacity:1" />
+    </radialGradient>
+    
+    <!-- 金色边框渐变 -->
+    <linearGradient id="borderGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#FFA500;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#DAA520;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 钻石高光渐变 -->
+    <linearGradient id="diamondShine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#E6E6FA;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#D8BFD8;stop-opacity:0.6" />
+    </linearGradient>
+    
+    <!-- 高光效果 -->
+    <radialGradient id="highlight" cx="40%" cy="30%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.9" />
+      <stop offset="50%" style="stop-color:#FFFFFF;stop-opacity:0.4" />
+      <stop offset="100%" style="stop-color:#FFFFFF;stop-opacity:0" />
+    </radialGradient>
+    
+    <!-- 内阴影效果 -->
+    <radialGradient id="innerShadow" cx="50%" cy="50%">
+      <stop offset="65%" style="stop-color:#9B59B6;stop-opacity:0" />
+      <stop offset="100%" style="stop-color:#4A235A;stop-opacity:0.4" />
+    </radialGradient>
+    
+    <!-- 金色文字渐变 -->
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#FFA500;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#DAA520;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 皇冠金色渐变 -->
+    <linearGradient id="crownGold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFF8DC;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#FFA500;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#DAA520;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 宝石红渐变 -->
+    <radialGradient id="rubyGem" cx="50%" cy="40%">
+      <stop offset="0%" style="stop-color:#FF6B6B;stop-opacity:1" />
+      <stop offset="60%" style="stop-color:#E74C3C;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#C0392B;stop-opacity:1" />
+    </radialGradient>
+    
+    <!-- 阴影滤镜 -->
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="0" dy="3" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.4"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- 发光效果 -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- 金色发光 -->
+    <filter id="goldGlow">
+      <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+      <feFlood flood-color="#FFD700" flood-opacity="0.5"/>
+      <feComposite in2="coloredBlur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- 闪烁动画 -->
+    <radialGradient id="sparkle" cx="50%" cy="50%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1">
+        <animate attributeName="stop-opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="100%" style="stop-color:#FFFFFF;stop-opacity:0" />
+    </radialGradient>
+  </defs>
+  
+  <!-- 外层阴影 -->
+  <circle cx="60" cy="62" r="54" fill="#000000" opacity="0.2" filter="url(#shadow)"/>
+  
+  <!-- 主圆形背景 -->
+  <circle cx="60" cy="60" r="54" fill="url(#royalGradient)" stroke="url(#borderGradient)" stroke-width="4"/>
+  
+  <!-- 内阴影层 -->
+  <circle cx="60" cy="60" r="50" fill="url(#innerShadow)" opacity="0.6"/>
+  
+  <!-- 高光层 -->
+  <ellipse cx="48" cy="42" rx="30" ry="25" fill="url(#highlight)" opacity="0.6"/>
+  
+  <!-- 装饰金色圆环 -->
+  <circle cx="60" cy="60" r="48" fill="none" stroke="#FFD700" stroke-width="1" opacity="0.7"/>
+  <circle cx="60" cy="60" r="44" fill="none" stroke="#FFA500" stroke-width="0.5" opacity="0.5"/>
+  
+  <!-- 皇冠图标 -->
+  <g transform="translate(60, 38)" filter="url(#goldGlow)">
+    <!-- 皇冠主体 -->
+    <path d="M -22,8 L -18,-5 L -11,3 L 0,-10 L 11,3 L 18,-5 L 22,8 L 20,12 L -20,12 Z" 
+          fill="url(#crownGold)" stroke="#B8860B" stroke-width="1"/>
+    <!-- 皇冠底座 -->
+    <rect x="-20" y="12" width="40" height="5" rx="1" fill="url(#crownGold)" stroke="#B8860B" stroke-width="0.5"/>
+    <!-- 皇冠宝石 - 中央红宝石 -->
+    <circle cx="0" cy="0" r="4" fill="url(#rubyGem)" stroke="#B8860B" stroke-width="0.5"/>
+    <!-- 皇冠宝石 - 左右小宝石 -->
+    <circle cx="-12" cy="5" r="2.5" fill="url(#diamondShine)" stroke="#DAA520" stroke-width="0.5"/>
+    <circle cx="12" cy="5" r="2.5" fill="url(#diamondShine)" stroke="#DAA520" stroke-width="0.5"/>
+    <!-- 皇冠顶部小珠子 -->
+    <circle cx="-18" cy="-3" r="2" fill="#FFD700" stroke="#B8860B" stroke-width="0.3"/>
+    <circle cx="0" cy="-8" r="2.5" fill="#FFD700" stroke="#B8860B" stroke-width="0.3"/>
+    <circle cx="18" cy="-3" r="2" fill="#FFD700" stroke="#B8860B" stroke-width="0.3"/>
+  </g>
+  
+  <!-- 1688 数字 -->
+  <g filter="url(#glow)">
+    <text x="60" y="78" font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="bold" 
+          fill="url(#textGradient)" text-anchor="middle" stroke="#B8860B" stroke-width="0.5"
+          letter-spacing="1">
+      1688
+    </text>
+  </g>
+  
+  <!-- 至尊贡献者文字 -->
+  <text x="60" y="96" font-family="SimHei, 'Microsoft YaHei', sans-serif" font-size="10" 
+        fill="#FFE4B5" text-anchor="middle" font-weight="bold" letter-spacing="1">
+    至尊贡献者
+  </text>
+  
+  <!-- 四角星星装饰 -->
+  <g opacity="0.9" filter="url(#glow)">
+    <!-- 顶部星星 -->
+    <g transform="translate(60, 12)">
+      <polygon points="0,-5 1.5,-1.5 5,0 1.5,1.5 0,5 -1.5,1.5 -5,0 -1.5,-1.5" 
+               fill="#FFD700" stroke="#FFA500" stroke-width="0.6"/>
+    </g>
+    
+    <!-- 右侧星星 -->
+    <g transform="translate(108, 60)">
+      <polygon points="0,-4 1.2,-1.2 4,0 1.2,1.2 0,4 -1.2,1.2 -4,0 -1.2,-1.2" 
+               fill="#FFD700" stroke="#FFA500" stroke-width="0.6"/>
+    </g>
+    
+    <!-- 底部星星 -->
+    <g transform="translate(60, 108)">
+      <polygon points="0,-4 1.2,-1.2 4,0 1.2,1.2 0,4 -1.2,1.2 -4,0 -1.2,-1.2" 
+               fill="#FFD700" stroke="#FFA500" stroke-width="0.6"/>
+    </g>
+    
+    <!-- 左侧星星 -->
+    <g transform="translate(12, 60)">
+      <polygon points="0,-4 1.2,-1.2 4,0 1.2,1.2 0,4 -1.2,1.2 -4,0 -1.2,-1.2" 
+               fill="#FFD700" stroke="#FFA500" stroke-width="0.6"/>
+    </g>
+  </g>
+  
+  <!-- 闪烁光点 -->
+  <g fill="url(#sparkle)">
+    <circle cx="25" cy="35" r="2"/>
+    <circle cx="95" cy="40" r="1.5"/>
+    <circle cx="30" cy="85" r="1.5"/>
+    <circle cx="90" cy="80" r="2"/>
+  </g>
+</svg>

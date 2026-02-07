@@ -6,6 +6,7 @@ from copy import copy
 from app.config import settings
 from app.databases.db_func import (
     auto_switch_user_lines,
+    check_and_award_supreme_contributor_badge,
     check_expired_crypto_donation_orders,
     finish_expired_auctions_job,
     monthly_traffic_data_migration,
@@ -301,6 +302,21 @@ def add_init_scheduler_job():
         minute=5,
     )
     logger.info("添加定时任务：每周一凌晨 00:05 发送每周统计报告")
+
+    # 每天凌晨 3:00 检查并授予至尊贡献者勋章 (同步任务)
+    scheduler.add_sync_job(
+        func=check_and_award_supreme_contributor_badge,
+        trigger="cron",
+        id="check_and_award_supreme_contributor_badge",
+        replace_existing=True,
+        max_instances=1,
+        day_of_week="*",
+        hour=3,
+        minute=0,
+        next_run_time=datetime.datetime.now(settings.TZ)
+        + datetime.timedelta(minutes=2),  # 启动后 2 分钟执行一次
+    )
+    logger.info("添加定时任务：每天凌晨 03:00 检查并授予至尊贡献者勋章")
 
 
 if __name__ == "__main__":

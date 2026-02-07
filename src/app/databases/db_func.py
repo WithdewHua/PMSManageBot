@@ -23,7 +23,7 @@ from app.databases.cache import (
 from app.databases.db import db
 from app.databases.session import get_session
 from app.log import logger
-from app.models.models import EmbyUser, PlexUser, Statistics
+from app.models.models import EmbyUser, PlexUser, Statistics, UserBadge
 from app.modules.emby import Emby
 from app.modules.plex import Plex
 from app.modules.tautulli import Tautulli
@@ -1498,6 +1498,100 @@ def update_users_last_viewed():
         future1 = executor.submit(update_plex_users_last_viewed_at)
         future2 = executor.submit(update_emby_users_last_viewed_at)
         wait([future1, future2])
+
+
+def check_and_award_supreme_contributor_badge():
+    """
+    检查并授予至尊贡献者勋章
+    自动检查捐赠金额超过 1688 的用户，并授予至尊贡献者勋章
+    """
+
+    DONATION_THRESHOLD = 1688
+    BADGE_TYPE = "supreme_contributor"
+
+    logger.info("开始检查并授予至尊贡献者勋章...")
+
+    try:
+        # 1. 检查勋章是否存在，不存在则创建
+        badge_info = db.get_badge_by_type(BADGE_TYPE)
+        if not badge_info:
+            logger.info(f"勋章 '{BADGE_TYPE}' 不存在，正在创建...")
+            badge_info = db.create_badge(
+                badge_type=BADGE_TYPE,
+                name="至尊贡献者勋章",
+                description="此勋章授予捐赠金额超过 1688 的用户，以表彰其特殊贡献。",
+                icon_url="/badges/supreme_contributor.svg",
+                credits_cost=0,  # 由系统自动授予，不需要积分
+                bonus_percentage=0.18,  # 18% 每日积分加成
+                valid_days=36500,  # 约 100 年有效期
+                is_enabled=0,  # 禁用兑换，仅由系统授予
+            )
+            if not badge_info:
+                logger.error("创建至尊贡献者勋章失败")
+                return
+            logger.info(f"成功创建至尊贡献者勋章，ID: {badge_info['id']}")
+
+        badge_id = badge_info["id"]
+        valid_days = badge_info.get("valid_days", 36500)
+
+        # 2. 查询所有捐赠金额超过门槛的用户
+        with get_session() as session:
+            stmt = select(Statistics.tg_id, Statistics.donation).where(
+                Statistics.donation > DONATION_THRESHOLD
+            )
+            eligible_users = session.execute(stmt).fetchall()
+
+        if not eligible_users:
+            logger.info(f"没有找到捐赠金额超过 {DONATION_THRESHOLD} 的用户")
+            return
+
+        logger.info(f"找到 {len(eligible_users)} 位符合条件的用户")
+
+        # 3. 为符合条件的用户授予勋章
+        awarded_count = 0
+        for tg_id, donation in eligible_users:
+            try:
+                with get_session() as session:
+                    # 检查用户是否已拥有该勋章
+                    existing = session.execute(
+                        select(UserBadge).where(
+                            UserBadge.tg_id == tg_id, UserBadge.badge_id == badge_id
+                        )
+                    ).scalar_one_or_none()
+
+                    if existing:
+                        continue  # 已拥有，跳过
+
+                    # 创建用户勋章记录
+                    current_time = int(time())
+                    expires_at = current_time + (valid_days * 24 * 3600)
+
+                    user_badge = UserBadge(
+                        tg_id=tg_id,
+                        badge_id=badge_id,
+                        credits_cost=0,  # 系统授予不花费积分
+                        redeemed_at=current_time,
+                        expires_at=expires_at,
+                        is_active=1,
+                    )
+                    session.add(user_badge)
+
+                    awarded_count += 1
+                    logger.info(
+                        f"已授予用户 {tg_id} (捐赠: {donation:.2f}) 至尊贡献者勋章"
+                    )
+
+            except Exception as e:
+                logger.error(f"授予用户 {tg_id} 勋章失败: {e}")
+                continue
+
+        if awarded_count > 0:
+            logger.info(f"本次共授予 {awarded_count} 位用户至尊贡献者勋章")
+        else:
+            logger.info("所有符合条件的用户都已拥有至尊贡献者勋章")
+
+    except Exception as e:
+        logger.error(f"检查并授予至尊贡献者勋章失败: {e}")
 
 
 if __name__ == "__main__":
