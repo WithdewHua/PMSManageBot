@@ -1503,7 +1503,6 @@ def update_users_last_viewed():
 def check_and_award_supreme_contributor_badge():
     """
     检查并授予至尊贡献者勋章
-    自动检查捐赠金额超过 1688 的用户，并授予至尊贡献者勋章
     """
 
     DONATION_THRESHOLD = 1688
@@ -1519,7 +1518,7 @@ def check_and_award_supreme_contributor_badge():
             badge_info = db.create_badge(
                 badge_type=BADGE_TYPE,
                 name="至尊贡献者勋章",
-                description="此勋章授予捐赠金额超过 1688 的用户，以表彰其特殊贡献。",
+                description="此勋章授予对平台有特殊贡献的用户",
                 icon_url="/badges/supreme_contributor.svg",
                 credits_cost=0,  # 由系统自动授予，不需要积分
                 bonus_percentage=0.18,  # 18% 每日积分加成
