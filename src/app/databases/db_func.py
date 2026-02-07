@@ -1500,7 +1500,7 @@ def update_users_last_viewed():
         wait([future1, future2])
 
 
-def check_and_award_supreme_contributor_badge():
+async def check_and_award_supreme_contributor_badge():
     """
     检查并授予至尊贡献者勋章
     """
@@ -1509,6 +1509,8 @@ def check_and_award_supreme_contributor_badge():
     BADGE_TYPE = "supreme_contributor"
 
     logger.info("开始检查并授予至尊贡献者勋章...")
+
+    notification_tasks = []
 
     try:
         # 1. 检查勋章是否存在，不存在则创建
@@ -1531,6 +1533,8 @@ def check_and_award_supreme_contributor_badge():
             logger.info(f"成功创建至尊贡献者勋章，ID: {badge_info['id']}")
 
         badge_id = badge_info["id"]
+        badge_name = badge_info.get("name", "至尊贡献者勋章")
+        bonus_percentage = badge_info.get("bonus_percentage", 0.18)
         valid_days = badge_info.get("valid_days", 36500)
 
         # 2. 查询所有捐赠金额超过门槛的用户
@@ -1580,6 +1584,24 @@ def check_and_award_supreme_contributor_badge():
                         f"已授予用户 {tg_id} (捐赠: {donation:.2f}) 至尊贡献者勋章"
                     )
 
+                    # 添加用户通知任务
+                    notification_tasks.append(
+                        (
+                            tg_id,
+                            f"""
+🏆 恭喜获得勋章！
+====================
+
+勋章名称：{badge_name}
+勋章权益：每日观看积分 +{bonus_percentage * 100:.0f}%
+有效期限：永久
+
+感谢您的支持与贡献！
+
+====================""",
+                        )
+                    )
+
             except Exception as e:
                 logger.error(f"授予用户 {tg_id} 勋章失败: {e}")
                 continue
@@ -1588,6 +1610,16 @@ def check_and_award_supreme_contributor_badge():
             logger.info(f"本次共授予 {awarded_count} 位用户至尊贡献者勋章")
         else:
             logger.info("所有符合条件的用户都已拥有至尊贡献者勋章")
+
+        # 发送用户通知
+        for tg_id, text in notification_tasks:
+            try:
+                await send_message_by_url(
+                    chat_id=tg_id, text=text, disable_notification=False
+                )
+                await asyncio.sleep(0.5)  # 避免发送过于频繁
+            except Exception as e:
+                logger.warning(f"向用户 {tg_id} 发送勋章授予通知失败: {e}")
 
     except Exception as e:
         logger.error(f"检查并授予至尊贡献者勋章失败: {e}")

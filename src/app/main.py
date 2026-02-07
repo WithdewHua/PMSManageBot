@@ -303,8 +303,8 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每周一凌晨 00:05 发送每周统计报告")
 
-    # 每天凌晨 3:00 检查并授予至尊贡献者勋章 (同步任务)
-    scheduler.add_sync_job(
+    # 每天凌晨 3:00 检查并授予至尊贡献者勋章 (异步任务)
+    scheduler.add_async_job(
         func=check_and_award_supreme_contributor_badge,
         trigger="cron",
         id="check_and_award_supreme_contributor_badge",
