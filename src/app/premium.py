@@ -268,19 +268,20 @@ def unbind_premium_line(db, service: str, username: str, tg_id: int):
     return last_line or "AUTO"
 
 
-def format_premium_statistics_message(stats) -> str:
+def format_premium_statistics_message(stats, premium_users=None) -> str:
     """
     格式化 Premium 线路统计信息为 Telegram 消息格式
     :param stats: 统计数据列表
+    :param premium_users: Premium 用户列表（可选）
     :return: 格式化后的消息字符串
     """
-    if not stats:
-        return "📊 Premium 线路统计信息\n\n❌ 暂无统计数据"
+    if not stats and not premium_users:
+        return "📊 Premium 统计信息\n\n❌ 暂无统计数据"
 
     current_time = datetime.now(settings.TZ).strftime("%Y-%m-%d %H:%M:%S")
 
     message_parts = [
-        "📊 Premium 线路统计信息",
+        "📊 Premium 统计信息",
         f"⏰ 统计时间: {current_time}",
         "─" * 40,
     ]
@@ -289,45 +290,120 @@ def format_premium_statistics_message(stats) -> str:
     total_week = 0
     total_month = 0
 
-    for line_stat in stats:
-        line = line_stat["line"]
-        today_traffic = line_stat["today_traffic"]
-        week_traffic = line_stat["week_traffic"]
-        month_traffic = line_stat["month_traffic"]
-        top_users = line_stat["top_users"]
+    if stats:
+        for line_stat in stats:
+            line = line_stat["line"]
+            today_traffic = line_stat["today_traffic"]
+            week_traffic = line_stat["week_traffic"]
+            month_traffic = line_stat["month_traffic"]
+            top_users = line_stat["top_users"]
 
-        total_today += today_traffic
-        total_week += week_traffic
-        total_month += month_traffic
+            total_today += today_traffic
+            total_week += week_traffic
+            total_month += month_traffic
 
-        # 清理线路名称中的多余字符
-        clean_line = line.strip("[]'\"")
-        message_parts.append(f"🔗 线路: {clean_line}")
-        message_parts.append(f"📈 今日流量: {format_traffic_size(today_traffic)}")
-        message_parts.append(f"📊 本周流量: {format_traffic_size(week_traffic)}")
-        message_parts.append(f"📉 本月流量: {format_traffic_size(month_traffic)}")
+            # 清理线路名称中的多余字符
+            clean_line = line.strip("[]'\"")
+            message_parts.append(f"🔗 线路: {clean_line}")
+            message_parts.append(f"📈 今日流量: {format_traffic_size(today_traffic)}")
+            message_parts.append(f"📊 本周流量: {format_traffic_size(week_traffic)}")
+            message_parts.append(f"📉 本月流量: {format_traffic_size(month_traffic)}")
 
-        if top_users:
-            message_parts.append("👥 今日TOP用户:")
-            for i, user in enumerate(top_users, 1):
+            if top_users:
+                message_parts.append("👥 今日TOP用户:")
+                for i, user in enumerate(top_users, 1):
+                    username = user["username"]
+                    traffic = format_traffic_size(user["traffic"])
+                    message_parts.append(f"  {i}. {username}: {traffic}")
+            else:
+                message_parts.append("👥 今日暂无用户使用")
+
+            message_parts.append("")  # 空行分隔
+
+        # 添加总计信息
+        message_parts.extend(
+            [
+                "📋 流量总计:",
+                f"📈 今日总流量: {format_traffic_size(total_today)}",
+                f"📊 本周总流量: {format_traffic_size(total_week)}",
+                f"📉 本月总流量: {format_traffic_size(total_month)}",
+            ]
+        )
+
+    # 添加 Premium 用户信息
+    if premium_users:
+        message_parts.extend(
+            [
+                "",
+                "─" * 40,
+                f"👑 Premium 用户统计 (共 {len(premium_users)} 人)",
+                "─" * 40,
+            ]
+        )
+
+        # 按服务类型分组显示
+        plex_users = [u for u in premium_users if u["service"] == "Plex"]
+        emby_users = [u for u in premium_users if u["service"] == "Emby"]
+
+        if plex_users:
+            message_parts.append(f"\n🎬 Plex Premium ({len(plex_users)} 人):")
+            for user in plex_users:
                 username = user["username"]
-                traffic = format_traffic_size(user["traffic"])
-                message_parts.append(f"  {i}. {username}: {traffic}")
-        else:
-            message_parts.append("👥 今日暂无用户使用")
+                expiry = user["expiry_time"]
+                line = user.get("line", "未知")
+                if expiry:
+                    try:
+                        expiry_dt = datetime.fromisoformat(str(expiry)).astimezone(
+                            settings.TZ
+                        )
+                        days_left = (expiry_dt - datetime.now(settings.TZ)).days
+                        expiry_str = expiry_dt.strftime("%Y-%m-%d")
+                        if days_left <= 3:
+                            status = f"⚠️ {days_left}天后到期"
+                        else:
+                            status = f"{days_left}天后到期"
+                        message_parts.append(
+                            f"  • {username} | {expiry_str} ({status}) | 线路: {line or 'AUTO'}"
+                        )
+                    except Exception:
+                        message_parts.append(
+                            f"  • {username} | 到期时间: {expiry} | 线路: {line or 'AUTO'}"
+                        )
+                else:
+                    message_parts.append(
+                        f"  • {username} | 永久会员 | 线路: {line or 'AUTO'}"
+                    )
 
-        message_parts.append("")  # 空行分隔
+        if emby_users:
+            message_parts.append(f"\n📺 Emby Premium ({len(emby_users)} 人):")
+            for user in emby_users:
+                username = user["username"]
+                expiry = user["expiry_time"]
+                line = user.get("line", "未知")
+                if expiry:
+                    try:
+                        expiry_dt = datetime.fromisoformat(str(expiry)).astimezone(
+                            settings.TZ
+                        )
+                        days_left = (expiry_dt - datetime.now(settings.TZ)).days
+                        expiry_str = expiry_dt.strftime("%Y-%m-%d")
+                        if days_left <= 3:
+                            status = f"⚠️ {days_left}天后到期"
+                        else:
+                            status = f"{days_left}天后到期"
+                        message_parts.append(
+                            f"  • {username} | {expiry_str} ({status}) | 线路: {line or 'AUTO'}"
+                        )
+                    except Exception:
+                        message_parts.append(
+                            f"  • {username} | 到期时间: {expiry} | 线路: {line or 'AUTO'}"
+                        )
+                else:
+                    message_parts.append(
+                        f"  • {username} | 永久会员 | 线路: {line or 'AUTO'}"
+                    )
 
-    # 添加总计信息
-    message_parts.extend(
-        [
-            "📋 总计统计:",
-            f"📈 今日总流量: {format_traffic_size(total_today)}",
-            f"📊 本周总流量: {format_traffic_size(total_week)}",
-            f"📉 本月总流量: {format_traffic_size(total_month)}",
-            "─" * 40,
-        ]
-    )
+    message_parts.extend(["", "─" * 40])
 
     return "\n".join(message_parts)
 
@@ -340,15 +416,18 @@ async def get_and_send_premium_statistics():
     try:
         logger.info("开始获取Premium线路统计信息")
 
-        # 获取统计数据
+        # 获取线路流量统计数据
         stats = db.get_premium_line_traffic_statistics()
 
-        if not stats:
-            logger.warning("未获取到 Premium 线路统计数据")
+        # 获取 Premium 用户列表
+        premium_users = db.get_all_active_premium_users()
+
+        if not stats and not premium_users:
+            logger.warning("未获取到 Premium 线路统计数据和用户数据")
             return
 
         # 格式化消息
-        message = format_premium_statistics_message(stats)
+        message = format_premium_statistics_message(stats, premium_users)
 
         # 发送给所有管理员
         admin_chat_ids = settings.TG_ADMIN_CHAT_ID

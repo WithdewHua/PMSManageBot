@@ -1588,6 +1588,75 @@ class DatabaseORM:
                 "premium_emby_users": 0,
             }
 
+    def get_all_active_premium_users(self) -> list:
+        """获取所有活跃的 Premium 用户及其到期时间"""
+        premium_users = []
+        current_time = datetime.now(settings.TZ).isoformat()
+
+        try:
+            with get_session() as session:
+                # 获取 Plex Premium 用户
+                plex_stmt = select(
+                    PlexUser.tg_id,
+                    PlexUser.plex_username,
+                    PlexUser.premium_expiry_time,
+                    PlexUser.plex_line,
+                ).where(
+                    PlexUser.is_premium == 1,
+                    (PlexUser.premium_expiry_time.is_(None))
+                    | (PlexUser.premium_expiry_time > current_time),
+                )
+                plex_users = session.execute(plex_stmt).fetchall()
+
+                for user in plex_users:
+                    premium_users.append(
+                        {
+                            "tg_id": user[0],
+                            "username": user[1],
+                            "service": "Plex",
+                            "expiry_time": user[2],
+                            "line": user[3],
+                        }
+                    )
+
+                # 获取 Emby Premium 用户
+                emby_stmt = select(
+                    EmbyUser.tg_id,
+                    EmbyUser.emby_username,
+                    EmbyUser.premium_expiry_time,
+                    EmbyUser.emby_line,
+                ).where(
+                    EmbyUser.is_premium == 1,
+                    (EmbyUser.premium_expiry_time.is_(None))
+                    | (EmbyUser.premium_expiry_time > current_time),
+                )
+                emby_users = session.execute(emby_stmt).fetchall()
+
+                for user in emby_users:
+                    premium_users.append(
+                        {
+                            "tg_id": user[0],
+                            "username": user[1],
+                            "service": "Emby",
+                            "expiry_time": user[2],
+                            "line": user[3],
+                        }
+                    )
+
+            # 按服务类型和到期时间排序
+            premium_users.sort(
+                key=lambda x: (
+                    x["service"],
+                    x["expiry_time"] if x["expiry_time"] else "9999-12-31",
+                )
+            )
+
+            return premium_users
+
+        except Exception as e:
+            logger.error(f"Error getting all active premium users: {e}")
+            return []
+
     # ==================== Auction Operations ====================
 
     def create_auction(
