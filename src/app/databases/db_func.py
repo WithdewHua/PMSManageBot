@@ -1500,17 +1500,23 @@ def update_users_last_viewed():
         wait([future1, future2])
 
 
-async def check_and_award_supreme_contributor_badge():
+async def check_and_award_supreme_contributor_badge(user_id: int = None):
     """
     检查并授予至尊贡献者勋章
-    """
 
+    Args:
+        user_id: 可选，指定用户的 Telegram ID。如果提供，只检查该用户；否则检查所有符合条件的用户。
+
+    Returns:
+        bool: 当指定 user_id 时，返回是否成功授予勋章；批量检查时返回 None
+    """
     DONATION_THRESHOLD = 1688
     BADGE_TYPE = "supreme_contributor"
 
-    logger.info("开始检查并授予至尊贡献者勋章...")
-
-    notification_tasks = []
+    if user_id:
+        logger.debug(f"检查用户 {user_id} 的至尊贡献者勋章资格...")
+    else:
+        logger.info("开始检查并授予至尊贡献者勋章...")
 
     try:
         # 1. 检查勋章是否存在，不存在则创建
@@ -1529,7 +1535,7 @@ async def check_and_award_supreme_contributor_badge():
             )
             if not badge_info:
                 logger.error("创建至尊贡献者勋章失败")
-                return
+                return False if user_id else None
             logger.info(f"成功创建至尊贡献者勋章，ID: {badge_info['id']}")
 
         badge_id = badge_info["id"]
@@ -1537,21 +1543,40 @@ async def check_and_award_supreme_contributor_badge():
         bonus_percentage = badge_info.get("bonus_percentage", 0.18)
         valid_days = badge_info.get("valid_days", 36500)
 
-        # 2. 查询所有捐赠金额超过门槛的用户
+        # 2. 查询符合条件的用户
         with get_session() as session:
-            stmt = select(Statistics.tg_id, Statistics.donation).where(
-                Statistics.donation > DONATION_THRESHOLD
-            )
-            eligible_users = session.execute(stmt).fetchall()
+            if user_id:
+                # 单用户模式：只查询指定用户
+                user_donation = session.execute(
+                    select(Statistics.donation).where(Statistics.tg_id == user_id)
+                ).scalar_one_or_none()
+
+                if user_donation is None or user_donation <= DONATION_THRESHOLD:
+                    logger.debug(
+                        f"用户 {user_id} 捐赠金额 {user_donation} 未达到至尊贡献者门槛 {DONATION_THRESHOLD}"
+                    )
+                    return False
+
+                eligible_users = [(user_id, user_donation)]
+            else:
+                # 批量模式：查询所有符合条件的用户
+                stmt = select(Statistics.tg_id, Statistics.donation).where(
+                    Statistics.donation > DONATION_THRESHOLD
+                )
+                eligible_users = session.execute(stmt).fetchall()
 
         if not eligible_users:
-            logger.info(f"没有找到捐赠金额超过 {DONATION_THRESHOLD} 的用户")
-            return
+            if not user_id:
+                logger.info(f"没有找到捐赠金额超过 {DONATION_THRESHOLD} 的用户")
+            return False if user_id else None
 
-        logger.info(f"找到 {len(eligible_users)} 位符合条件的用户")
+        if not user_id:
+            logger.info(f"找到 {len(eligible_users)} 位符合条件的用户")
 
         # 3. 为符合条件的用户授予勋章
+        notification_tasks = []
         awarded_count = 0
+
         for tg_id, donation in eligible_users:
             try:
                 with get_session() as session:
@@ -1563,21 +1588,24 @@ async def check_and_award_supreme_contributor_badge():
                     ).scalar_one_or_none()
 
                     if existing:
-                        continue  # 已拥有，跳过
+                        if user_id:
+                            logger.debug(f"用户 {tg_id} 已拥有至尊贡献者勋章")
+                            return False
+                        continue
 
                     # 创建用户勋章记录
                     current_time = int(time())
                     expires_at = current_time + (valid_days * 24 * 3600)
 
-                    user_badge = UserBadge(
+                    user_badge_record = UserBadge(
                         tg_id=tg_id,
                         badge_id=badge_id,
-                        credits_cost=0,  # 系统授予不花费积分
+                        credits_cost=0,
                         redeemed_at=current_time,
                         expires_at=expires_at,
                         is_active=1,
                     )
-                    session.add(user_badge)
+                    session.add(user_badge_record)
 
                     awarded_count += 1
                     logger.info(
@@ -1588,8 +1616,7 @@ async def check_and_award_supreme_contributor_badge():
                     notification_tasks.append(
                         (
                             tg_id,
-                            f"""
-🏆 恭喜获得勋章！
+                            f"""🏆 恭喜获得勋章！
 ====================
 
 勋章名称：{badge_name}
@@ -1604,12 +1631,15 @@ async def check_and_award_supreme_contributor_badge():
 
             except Exception as e:
                 logger.error(f"授予用户 {tg_id} 勋章失败: {e}")
+                if user_id:
+                    return False
                 continue
 
-        if awarded_count > 0:
-            logger.info(f"本次共授予 {awarded_count} 位用户至尊贡献者勋章")
-        else:
-            logger.info("所有符合条件的用户都已拥有至尊贡献者勋章")
+        if not user_id:
+            if awarded_count > 0:
+                logger.info(f"本次共授予 {awarded_count} 位用户至尊贡献者勋章")
+            else:
+                logger.info("所有符合条件的用户都已拥有至尊贡献者勋章")
 
         # 发送用户通知
         for tg_id, text in notification_tasks:
@@ -1617,12 +1647,16 @@ async def check_and_award_supreme_contributor_badge():
                 await send_message_by_url(
                     chat_id=tg_id, text=text, disable_notification=False
                 )
-                await asyncio.sleep(0.5)  # 避免发送过于频繁
+                if not user_id:
+                    await asyncio.sleep(0.5)  # 批量模式下避免发送过于频繁
             except Exception as e:
                 logger.warning(f"向用户 {tg_id} 发送勋章授予通知失败: {e}")
 
+        return awarded_count > 0 if user_id else None
+
     except Exception as e:
         logger.error(f"检查并授予至尊贡献者勋章失败: {e}")
+        return False if user_id else None
 
 
 if __name__ == "__main__":

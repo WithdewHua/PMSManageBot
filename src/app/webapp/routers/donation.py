@@ -229,6 +229,7 @@ async def get_donation_registration_detail(
 async def confirm_donation_registration(
     registration_id: int,
     request: Request,
+    background_tasks: BackgroundTasks,
     confirm_data: DonationRegistrationUpdate,
     user: TelegramUser = Depends(get_telegram_user),
 ):
@@ -321,6 +322,15 @@ async def confirm_donation_registration(
                     logger.info(f"为捐赠开号用户 {user_id} 生成邀请码成功")
                 except Exception as e:
                     logger.error(f"为捐赠开号用户 {user_id} 生成邀请码失败: {e}")
+
+            # 检查并授予至尊贡献者勋章（异步后台任务）
+            from app.databases.db_func import (
+                check_and_award_supreme_contributor_badge,
+            )
+
+            background_tasks.add_task(
+                check_and_award_supreme_contributor_badge, user_id
+            )
 
         # 获取更新后的记录
         updated_registration = db.get_donation_registration_by_id(registration_id)

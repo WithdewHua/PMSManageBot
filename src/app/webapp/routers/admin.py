@@ -1,3 +1,5 @@
+import asyncio
+
 from app.config import settings
 from app.databases import db
 from app.databases.cache import (
@@ -574,6 +576,13 @@ async def submit_donation_record(
                 )
             except Exception as e:
                 logger.warning(f"发送捐赠通知失败: {str(e)}")
+
+            # 检查并授予至尊贡献者勋章（异步后台任务）
+            from app.databases.db_func import (
+                check_and_award_supreme_contributor_badge,
+            )
+
+            asyncio.create_task(check_and_award_supreme_contributor_badge(tg_id))
 
             return BaseResponse(
                 success=True, message=f"成功为 {user_name} 添加 {amount}元 捐赠记录"

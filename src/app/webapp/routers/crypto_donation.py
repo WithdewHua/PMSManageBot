@@ -2,6 +2,8 @@
 Crypto 捐赠相关 API 路由
 """
 
+import asyncio
+
 from app.config import settings
 from app.databases import db
 from app.databases.session import get_session
@@ -460,6 +462,13 @@ async def upay_payment_callback(request: Request):
 
                 except Exception as e:
                     logger.warning(f"发送 Crypto 捐赠订单完成通知失败: {e}")
+
+                # 检查并授予至尊贡献者勋章（异步后台任务）
+                from app.databases.db_func import (
+                    check_and_award_supreme_contributor_badge,
+                )
+
+                asyncio.create_task(check_and_award_supreme_contributor_badge(user_id))
 
             else:
                 logger.error(f"更新用户 {user_id} 捐赠金额或积分失败")
