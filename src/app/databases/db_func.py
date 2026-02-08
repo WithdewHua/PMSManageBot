@@ -1514,7 +1514,7 @@ async def check_and_award_supreme_contributor_badge(user_id: int = None):
     BADGE_TYPE = "supreme_contributor"
 
     if user_id:
-        logger.debug(f"检查用户 {user_id} 的至尊贡献者勋章资格...")
+        logger.info(f"检查用户 {user_id} 的至尊贡献者勋章资格...")
     else:
         logger.info("开始检查并授予至尊贡献者勋章...")
 
@@ -1552,7 +1552,7 @@ async def check_and_award_supreme_contributor_badge(user_id: int = None):
                 ).scalar_one_or_none()
 
                 if user_donation is None or user_donation <= DONATION_THRESHOLD:
-                    logger.debug(
+                    logger.info(
                         f"用户 {user_id} 捐赠金额 {user_donation} 未达到至尊贡献者门槛 {DONATION_THRESHOLD}"
                     )
                     return False
@@ -1589,7 +1589,7 @@ async def check_and_award_supreme_contributor_badge(user_id: int = None):
 
                     if existing:
                         if user_id:
-                            logger.debug(f"用户 {tg_id} 已拥有至尊贡献者勋章")
+                            logger.info(f"用户 {tg_id} 已拥有至尊贡献者勋章")
                             return False
                         continue
 
