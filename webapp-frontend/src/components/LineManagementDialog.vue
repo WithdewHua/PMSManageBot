@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="dialog" max-width="800" scrollable class="line-management-dialog">
+  <v-dialog v-model="dialog" max-width="900" scrollable class="line-management-dialog">
     <v-card>
       <v-card-title class="text-center">
         <v-icon start color="blue-darken-2">mdi-server-network</v-icon>
@@ -17,6 +17,11 @@
         </div>
         
         <div v-else>
+          <!-- 说明 -->
+          <v-alert type="info" density="compact" class="mb-4">
+            点击线路卡片可以编辑标签，点击删除按钮可删除线路
+          </v-alert>
+          
           <!-- 普通线路管理 -->
           <div class="mb-6">
             <div class="section-header mb-3">
@@ -43,17 +48,53 @@
               <div v-if="normalLines.length === 0" class="text-center text-grey py-4">
                 暂无普通线路
               </div>
-              <div v-else class="line-chips-container">
-                <v-chip
+              <div v-else class="line-cards-container">
+                <v-card
                   v-for="line in normalLines"
                   :key="line"
-                  size="small"
-                  class="line-chip normal-line mr-2 mb-2"
-                  closable
-                  @click:close="confirmDeleteLine('normal', line)"
+                  class="line-card normal-line-card"
+                  variant="outlined"
+                  @click="openEditTagsDialog(line, 'normal')"
                 >
-                  <span class="line-text" :title="line">{{ line }}</span>
-                </v-chip>
+                  <div class="line-card-header">
+                    <v-icon size="small" color="blue-darken-1" class="mr-2">mdi-server</v-icon>
+                    <span class="line-name" :title="line">{{ line }}</span>
+                    <v-btn
+                      icon
+                      size="x-small"
+                      variant="text"
+                      color="red"
+                      class="delete-btn"
+                      @click.stop="confirmDeleteLine('normal', line)"
+                    >
+                      <v-icon size="small">mdi-close</v-icon>
+                    </v-btn>
+                  </div>
+                  <div class="line-card-tags">
+                    <template v-if="lineTags[line] && lineTags[line].length > 0">
+                      <v-chip
+                        v-for="tag in lineTags[line].slice(0, 3)"
+                        :key="tag"
+                        size="x-small"
+                        color="blue-darken-1"
+                        variant="flat"
+                        class="mr-1 mb-1 tag-chip"
+                      >
+                        {{ tag }}
+                      </v-chip>
+                      <v-chip
+                        v-if="lineTags[line].length > 3"
+                        size="x-small"
+                        color="grey"
+                        variant="outlined"
+                        class="mr-1 mb-1"
+                      >
+                        +{{ lineTags[line].length - 3 }}
+                      </v-chip>
+                    </template>
+                    <span v-else class="text-caption text-grey">无标签</span>
+                  </div>
+                </v-card>
               </div>
             </v-card>
           </div>
@@ -84,17 +125,53 @@
               <div v-if="premiumLines.length === 0" class="text-center text-grey py-4">
                 暂无高级线路
               </div>
-              <div v-else class="line-chips-container">
-                <v-chip
+              <div v-else class="line-cards-container">
+                <v-card
                   v-for="line in premiumLines"
                   :key="line"
-                  size="small"
-                  class="line-chip premium-line mr-2 mb-2"
-                  closable
-                  @click:close="confirmDeleteLine('premium', line)"
+                  class="line-card premium-line-card"
+                  variant="outlined"
+                  @click="openEditTagsDialog(line, 'premium')"
                 >
-                  <span class="line-text" :title="line">{{ line }}</span>
-                </v-chip>
+                  <div class="line-card-header">
+                    <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-crown</v-icon>
+                    <span class="line-name" :title="line">{{ line }}</span>
+                    <v-btn
+                      icon
+                      size="x-small"
+                      variant="text"
+                      color="red"
+                      class="delete-btn"
+                      @click.stop="confirmDeleteLine('premium', line)"
+                    >
+                      <v-icon size="small">mdi-close</v-icon>
+                    </v-btn>
+                  </div>
+                  <div class="line-card-tags">
+                    <template v-if="lineTags[line] && lineTags[line].length > 0">
+                      <v-chip
+                        v-for="tag in lineTags[line].slice(0, 3)"
+                        :key="tag"
+                        size="x-small"
+                        color="amber-darken-2"
+                        variant="flat"
+                        class="mr-1 mb-1 tag-chip"
+                      >
+                        {{ tag }}
+                      </v-chip>
+                      <v-chip
+                        v-if="lineTags[line].length > 3"
+                        size="x-small"
+                        color="grey"
+                        variant="outlined"
+                        class="mr-1 mb-1"
+                      >
+                        +{{ lineTags[line].length - 3 }}
+                      </v-chip>
+                    </template>
+                    <span v-else class="text-caption text-grey">无标签</span>
+                  </div>
+                </v-card>
               </div>
             </v-card>
           </div>
@@ -108,7 +185,7 @@
     </v-card>
     
     <!-- 添加线路对话框 -->
-    <v-dialog v-model="addDialog" max-width="400">
+    <v-dialog v-model="addDialog" max-width="500">
       <v-card>
         <v-card-title class="text-center">
           <v-icon 
@@ -128,9 +205,75 @@
             density="compact"
             hide-details="auto"
             :error-messages="lineNameError"
-            @keyup.enter="addLine"
+            class="mb-4"
             autofocus
           ></v-text-field>
+          
+          <!-- 标签设置 -->
+          <div class="mb-3">
+            <div class="text-subtitle-2 mb-2">
+              <v-icon size="small" class="mr-1">mdi-tag-multiple</v-icon>
+              设置标签（可选）
+            </div>
+            
+            <!-- 已添加的标签 -->
+            <div v-if="newLineTags.length > 0" class="mb-2">
+              <v-chip
+                v-for="(tag, index) in newLineTags"
+                :key="index"
+                size="small"
+                :color="addLineType === 'premium' ? 'amber-darken-2' : 'blue-darken-1'"
+                variant="flat"
+                closable
+                @click:close="removeNewLineTag(index)"
+                class="mr-1 mb-1"
+              >
+                {{ tag }}
+              </v-chip>
+            </div>
+            
+            <!-- 添加新标签 -->
+            <div class="d-flex gap-2">
+              <v-text-field
+                v-model="newTagInput"
+                label="添加标签"
+                placeholder="输入标签名称"
+                variant="outlined"
+                density="compact"
+                hide-details
+                @keyup.enter="addNewLineTag"
+                class="flex-grow-1"
+              ></v-text-field>
+              <v-btn
+                :color="addLineType === 'premium' ? 'amber-darken-2' : 'blue-darken-1'"
+                variant="outlined"
+                size="small"
+                @click="addNewLineTag"
+                :disabled="!newTagInput.trim()"
+              >
+                <v-icon size="small">mdi-plus</v-icon>
+              </v-btn>
+            </div>
+            
+            <!-- 常用标签 -->
+            <div class="mt-3">
+              <div class="text-caption text-grey mb-2">常用标签：</div>
+              <div class="d-flex flex-wrap gap-1">
+                <v-chip
+                  v-for="tag in commonTags"
+                  :key="tag"
+                  size="x-small"
+                  color="green-darken-1"
+                  variant="flat"
+                  @click="addCommonTagToNewLine(tag)"
+                  :disabled="newLineTags.includes(tag)"
+                  class="cursor-pointer tag-chip-common"
+                >
+                  {{ tag }}
+                </v-chip>
+              </div>
+            </div>
+          </div>
         </v-card-text>
         
         <v-card-actions>
@@ -148,6 +291,102 @@
       </v-card>
     </v-dialog>
     
+    <!-- 编辑标签对话框 -->
+    <v-dialog v-model="editTagsDialog" max-width="500">
+      <v-card>
+        <v-card-title class="text-center">
+          <v-icon 
+            start 
+            :color="editLineType === 'premium' ? 'amber-darken-2' : 'blue-darken-1'"
+          >
+            {{ editLineType === 'premium' ? 'mdi-crown' : 'mdi-server' }}
+          </v-icon>
+          编辑标签 - {{ editLineName }}
+        </v-card-title>
+        
+        <v-card-text>
+          <!-- 当前标签 -->
+          <div class="mb-3">
+            <div class="text-subtitle-2 mb-2">当前标签：</div>
+            <div v-if="editingTags.length > 0" class="d-flex flex-wrap gap-1">
+              <v-chip
+                v-for="(tag, index) in editingTags"
+                :key="index"
+                size="small"
+                :color="editLineType === 'premium' ? 'amber-darken-2' : 'blue-darken-1'"
+                variant="flat"
+                closable
+                @click:close="removeEditingTag(index)"
+                class="mr-1 mb-1"
+              >
+                {{ tag }}
+              </v-chip>
+            </div>
+            <div v-else class="text-grey text-caption">暂无标签</div>
+          </div>
+          
+          <!-- 添加新标签 -->
+          <div class="d-flex gap-2 mb-3">
+            <v-text-field
+              v-model="editTagInput"
+              label="添加新标签"
+              placeholder="输入标签名称，按回车添加"
+              variant="outlined"
+              density="compact"
+              hide-details
+              @keyup.enter="addEditingTag"
+              class="flex-grow-1"
+            ></v-text-field>
+            <v-btn
+              :color="editLineType === 'premium' ? 'amber-darken-2' : 'blue-darken-1'"
+              variant="outlined"
+              size="small"
+              @click="addEditingTag"
+              :disabled="!editTagInput.trim()"
+            >
+              <v-icon size="small">mdi-plus</v-icon>
+            </v-btn>
+          </div>
+          
+          <!-- 常用标签 -->
+          <div>
+            <div class="text-caption text-grey mb-2">常用标签：</div>
+            <div class="d-flex flex-wrap gap-1">
+              <v-chip
+                v-for="tag in commonTags"
+                :key="tag"
+                size="x-small"
+                color="green-darken-1"
+                variant="flat"
+                @click="addCommonTagToEditing(tag)"
+                :disabled="editingTags.includes(tag)"
+                class="cursor-pointer tag-chip-common"
+              >
+                {{ tag }}
+              </v-chip>
+            </div>
+          </div>
+        </v-card-text>
+        
+        <v-card-actions>
+          <v-btn color="red" variant="text" @click="clearEditingTags">
+            <v-icon start size="small">mdi-delete</v-icon>
+            清空标签
+          </v-btn>
+          <v-spacer></v-spacer>
+          <v-btn color="grey" variant="text" @click="closeEditTagsDialog">取消</v-btn>
+          <v-btn 
+            :color="editLineType === 'premium' ? 'amber-darken-2' : 'blue-darken-1'"
+            variant="flat"
+            @click="saveEditingTags"
+            :loading="savingTags"
+          >
+            保存
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+    
     <!-- 删除确认对话框 -->
     <v-dialog v-model="deleteDialog" max-width="400">
       <v-card>
@@ -159,7 +398,7 @@
         <v-card-text class="text-center">
           <p>确定要删除{{ deleteLineType === 'premium' ? '高级' : '普通' }}线路</p>
           <p class="font-weight-bold">「{{ deleteLineName }}」</p>
-          <p class="text-caption text-grey">吗？此操作不可撤销。</p>
+          <p class="text-caption text-grey">吗？此操作不可撤销，相关标签也会被删除。</p>
         </v-card-text>
         
         <v-card-actions>
@@ -187,6 +426,7 @@ import {
   deleteNormalLine, 
   deletePremiumLine 
 } from '@/services/lineService';
+import { getAllLineTags, setLineTags, deleteLineTags } from '@/services/adminTagService.js';
 
 export default {
   name: 'LineManagementDialog',
@@ -197,6 +437,12 @@ export default {
       error: null,
       normalLines: [],
       premiumLines: [],
+      lineTags: {}, // 存储所有线路的标签
+      
+      // 常用标签
+      commonTags: [
+        '香港', '台湾', '日本', '新加坡', '美国', '韩国', '4837', 'CMI', 'GIA', '移动', '联通', '电信', '三网优化'
+      ],
       
       // 添加线路相关
       addDialog: false,
@@ -204,6 +450,16 @@ export default {
       newLineName: '',
       lineNameError: '',
       addingLine: false,
+      newLineTags: [], // 新线路的标签
+      newTagInput: '', // 标签输入
+      
+      // 编辑标签相关
+      editTagsDialog: false,
+      editLineName: '',
+      editLineType: 'normal',
+      editingTags: [],
+      editTagInput: '',
+      savingTags: false,
       
       // 删除线路相关
       deleteDialog: false,
@@ -215,7 +471,7 @@ export default {
   methods: {
     async open() {
       this.dialog = true;
-      await this.fetchLinesConfig();
+      await this.fetchData();
     },
     
     close() {
@@ -223,30 +479,44 @@ export default {
       this.error = null;
     },
     
-    async fetchLinesConfig() {
+    async fetchData() {
       this.loading = true;
       this.error = null;
       
       try {
-        const response = await getLinesConfig();
-        if (response) {
-          this.normalLines = response.normal_lines || [];
-          this.premiumLines = response.premium_lines || [];
+        // 并行获取线路配置和标签
+        const [linesResponse, tagsResponse] = await Promise.all([
+          getLinesConfig(),
+          getAllLineTags()
+        ]);
+        
+        if (linesResponse) {
+          this.normalLines = linesResponse.normal_lines || [];
+          this.premiumLines = linesResponse.premium_lines || [];
         } else {
-          this.error = response.message || '获取线路配置失败';
+          this.error = '获取线路配置失败';
         }
+        
+        // 处理标签数据
+        if (tagsResponse) {
+          this.lineTags = tagsResponse.lines || tagsResponse || {};
+        }
+        
       } catch (error) {
-        this.error = error.response?.data?.message || '获取线路配置失败，请稍后再试';
-        console.error('获取线路配置失败:', error);
+        this.error = error.response?.data?.message || '获取数据失败，请稍后再试';
+        console.error('获取数据失败:', error);
       } finally {
         this.loading = false;
       }
     },
     
+    // === 添加线路相关方法 ===
     openAddLineDialog(type) {
       this.addLineType = type;
       this.newLineName = '';
       this.lineNameError = '';
+      this.newLineTags = [];
+      this.newTagInput = '';
       this.addDialog = true;
     },
     
@@ -254,6 +524,26 @@ export default {
       this.addDialog = false;
       this.newLineName = '';
       this.lineNameError = '';
+      this.newLineTags = [];
+      this.newTagInput = '';
+    },
+    
+    addNewLineTag() {
+      const tag = this.newTagInput.trim();
+      if (tag && !this.newLineTags.includes(tag)) {
+        this.newLineTags.push(tag);
+        this.newTagInput = '';
+      }
+    },
+    
+    removeNewLineTag(index) {
+      this.newLineTags.splice(index, 1);
+    },
+    
+    addCommonTagToNewLine(tag) {
+      if (!this.newLineTags.includes(tag)) {
+        this.newLineTags.push(tag);
+      }
     },
     
     validateLineName() {
@@ -292,9 +582,19 @@ export default {
         }
         
         if (response.success) {
+          // 如果有标签，则设置标签
+          if (this.newLineTags.length > 0) {
+            try {
+              await setLineTags(lineName, this.newLineTags);
+            } catch (tagError) {
+              console.error('设置标签失败:', tagError);
+              // 线路添加成功但标签设置失败，仍然继续
+            }
+          }
+          
           this.showMessage(response.message || '线路添加成功');
           this.closeAddDialog();
-          await this.fetchLinesConfig();
+          await this.fetchData();
           this.$emit('lines-updated');
         } else {
           this.lineNameError = response.message || '添加线路失败';
@@ -307,6 +607,65 @@ export default {
       }
     },
     
+    // === 编辑标签相关方法 ===
+    openEditTagsDialog(lineName, lineType) {
+      this.editLineName = lineName;
+      this.editLineType = lineType;
+      this.editingTags = [...(this.lineTags[lineName] || [])];
+      this.editTagInput = '';
+      this.editTagsDialog = true;
+    },
+    
+    closeEditTagsDialog() {
+      this.editTagsDialog = false;
+      this.editLineName = '';
+      this.editingTags = [];
+      this.editTagInput = '';
+    },
+    
+    addEditingTag() {
+      const tag = this.editTagInput.trim();
+      if (tag && !this.editingTags.includes(tag)) {
+        this.editingTags.push(tag);
+        this.editTagInput = '';
+      }
+    },
+    
+    removeEditingTag(index) {
+      this.editingTags.splice(index, 1);
+    },
+    
+    addCommonTagToEditing(tag) {
+      if (!this.editingTags.includes(tag)) {
+        this.editingTags.push(tag);
+      }
+    },
+    
+    clearEditingTags() {
+      this.editingTags = [];
+    },
+    
+    async saveEditingTags() {
+      this.savingTags = true;
+      
+      try {
+        await setLineTags(this.editLineName, this.editingTags);
+        this.showMessage('标签保存成功');
+        
+        // 更新本地数据
+        this.lineTags[this.editLineName] = [...this.editingTags];
+        
+        this.closeEditTagsDialog();
+        this.$emit('tags-updated');
+      } catch (error) {
+        this.showMessage(error.response?.data?.message || '保存标签失败', 'error');
+        console.error('保存标签失败:', error);
+      } finally {
+        this.savingTags = false;
+      }
+    },
+    
+    // === 删除线路相关方法 ===
     confirmDeleteLine(type, lineName) {
       this.deleteLineType = type;
       this.deleteLineName = lineName;
@@ -331,9 +690,17 @@ export default {
         }
         
         if (response.success) {
+          // 同时删除相关标签
+          try {
+            await deleteLineTags(this.deleteLineName);
+          } catch (tagError) {
+            console.error('删除标签失败:', tagError);
+            // 忽略标签删除失败
+          }
+          
           this.showMessage(response.message || '线路删除成功');
           this.closeDeleteDialog();
-          await this.fetchLinesConfig();
+          await this.fetchData();
           this.$emit('lines-updated');
         } else {
           this.showMessage(response.message || '删除线路失败', 'error');
@@ -364,7 +731,7 @@ export default {
 /* 线路管理对话框响应式设计 */
 .line-management-dialog {
   width: 100%;
-  max-width: 800px;
+  max-width: 900px;
 }
 
 /* 章节头部样式 */
@@ -393,82 +760,105 @@ export default {
   background-color: #fafafa;
 }
 
-.line-chips-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: flex-start;
+/* 线路卡片容器 */
+.line-cards-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
 }
 
-/* 线路芯片样式 */
-.line-chip {
+/* 线路卡片样式 */
+.line-card {
   cursor: pointer;
   transition: all 0.2s ease;
-  max-width: 100%;
-  min-width: 120px;
-  height: auto !important;
-  padding: 4px 8px !important;
-  border-radius: 6px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 12px;
+  border-radius: 8px;
+  position: relative;
+}
+
+.line-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.line-card-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.line-card .line-name {
+  flex: 1;
+  font-weight: 500;
+  word-break: break-all;
+  overflow-wrap: break-word;
+  font-size: 0.875rem;
+}
+
+.line-card .delete-btn {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.line-card:hover .delete-btn {
+  opacity: 1;
+}
+
+.line-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  min-height: 24px;
+}
+
+/* 普通线路卡片样式 */
+.normal-line-card {
+  border-left: 3px solid #1565c0 !important;
+  background-color: rgba(21, 101, 192, 0.05);
+}
+
+.normal-line-card:hover {
+  background-color: rgba(21, 101, 192, 0.1);
+}
+
+/* 高级线路卡片样式 */
+.premium-line-card {
+  border-left: 3px solid #ff8f00 !important;
+  background-color: rgba(255, 143, 0, 0.05);
+}
+
+.premium-line-card:hover {
+  background-color: rgba(255, 143, 0, 0.1);
+}
+
+/* 标签样式 */
+.tag-chip {
+  color: white !important;
   font-weight: 500 !important;
 }
 
-.line-chip:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-}
-
-/* 普通线路样式 */
-.normal-line {
-  background-color: #1565c0 !important;
+.tag-chip-common {
   color: white !important;
-  border: 1px solid #0d47a1 !important;
+  font-weight: 500 !important;
+  cursor: pointer;
 }
 
-.normal-line:hover {
-  background-color: #0d47a1 !important;
+.tag-chip-common:disabled {
+  opacity: 0.6 !important;
+  background-color: grey !important;
+  cursor: not-allowed;
 }
 
-.normal-line .v-chip__close {
-  color: white !important;
-  opacity: 0.8;
+.cursor-pointer {
+  cursor: pointer;
 }
 
-.normal-line .v-chip__close:hover {
-  opacity: 1 !important;
+.gap-1 > * {
+  margin-right: 4px;
+  margin-bottom: 4px;
 }
 
-/* 高级线路样式 */
-.premium-line {
-  background-color: #ff8f00 !important;
-  color: white !important;
-  border: 1px solid #e65100 !important;
-}
-
-.premium-line:hover {
-  background-color: #e65100 !important;
-}
-
-.premium-line .v-chip__close {
-  color: white !important;
-  opacity: 0.8;
-}
-
-.premium-line .v-chip__close:hover {
-  opacity: 1 !important;
-}
-
-/* 线路文本样式 */
-.line-text {
-  display: block;
-  width: 100%;
-  word-break: break-all;
-  overflow-wrap: break-word;
-  line-height: 1.3;
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-align: left;
-  max-width: 300px;
+.gap-2 {
+  gap: 8px;
 }
 
 /* 响应式设计 */
@@ -491,36 +881,18 @@ export default {
     width: 100%;
   }
   
-  .line-chip {
-    min-width: 100px;
-    max-width: calc(50% - 4px);
-    font-size: 0.75rem;
+  .line-cards-container {
+    grid-template-columns: 1fr;
   }
   
-  .line-text {
-    font-size: 0.75rem;
-    max-width: 200px;
+  .line-card .delete-btn {
+    opacity: 1;
   }
 }
 
 @media (max-width: 400px) {
   .btn-text {
     display: none;
-  }
-  
-  .line-chip {
-    min-width: 80px;
-    max-width: 100%;
-    margin-bottom: 6px;
-  }
-  
-  .line-text {
-    font-size: 0.7rem;
-    max-width: 150px;
-  }
-  
-  .line-chips-container {
-    gap: 6px;
   }
   
   .add-btn {
@@ -533,6 +905,22 @@ export default {
 @media (prefers-color-scheme: dark) {
   .line-container {
     background-color: #303030;
+  }
+  
+  .normal-line-card {
+    background-color: rgba(21, 101, 192, 0.15);
+  }
+  
+  .normal-line-card:hover {
+    background-color: rgba(21, 101, 192, 0.25);
+  }
+  
+  .premium-line-card {
+    background-color: rgba(255, 143, 0, 0.15);
+  }
+  
+  .premium-line-card:hover {
+    background-color: rgba(255, 143, 0, 0.25);
   }
 }
 </style>

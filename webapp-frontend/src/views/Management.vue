@@ -276,25 +276,7 @@
                     </v-btn>
                   </div>
                   
-                  <!-- 线路标签管理 -->
-                  <v-divider class="my-3"></v-divider>
-                  <div class="d-flex justify-space-between align-center mb-3">
-                    <div class="d-flex align-center">
-                      <v-icon size="small" color="blue-darken-2" class="mr-2">mdi-tag-multiple</v-icon>
-                      <span>线路标签管理：</span>
-                    </div>
-                    <v-btn
-                      color="blue-darken-2"
-                      variant="outlined"
-                      size="small"
-                      @click="openTagManagementDialog"
-                    >
-                      <v-icon start size="small">mdi-cog</v-icon>
-                      管理标签
-                    </v-btn>
-                  </div>
-                  
-                  <!-- 线路管理 -->
+                  <!-- 线路管理（包含标签管理） -->
                   <v-divider class="my-3"></v-divider>
                   <div class="d-flex justify-space-between align-center mb-3">
                     <div class="d-flex align-center">
@@ -307,7 +289,7 @@
                       size="small"
                       @click="openLineManagementDialog"
                     >
-                      <v-icon start size="small">mdi-plus-circle</v-icon>
+                      <v-icon start size="small">mdi-cog</v-icon>
                       管理线路
                     </v-btn>
                   </div>
@@ -1239,14 +1221,10 @@
       @invite-codes-generated="handleInviteCodesGenerated"
     />
     
-    <tag-management-dialog
-      ref="tagManagementDialog"
-      @tags-updated="handleTagsUpdated"
-    />
-    
     <line-management-dialog
       ref="lineManagementDialog"
       @lines-updated="handleLinesUpdated"
+      @tags-updated="handleTagsUpdated"
     />
 
     <!-- Crypto 捐赠管理对话框 -->
@@ -2191,7 +2169,6 @@ import { getUserInfo, getSystemStats, getPremiumStatistics } from '@/api'
 import DonationDialog from '@/components/DonationDialog.vue'
 import DonationRegistrationManagementDialog from '@/components/DonationRegistrationManagementDialog.vue'
 import AdminInviteCodeDialog from '@/components/AdminInviteCodeDialog.vue'
-import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import WheelAdminPanel from '@/components/WheelAdminPanel.vue'
 import BadgeEditorDialog from '@/components/BadgeEditorDialog.vue'
@@ -2208,7 +2185,6 @@ export default {
     DonationDialog,
     DonationRegistrationManagementDialog,
     AdminInviteCodeDialog,
-    TagManagementDialog,
     LineManagementDialog,
     WheelAdminPanel,
     BadgeEditorDialog
@@ -2671,11 +2647,6 @@ export default {
     handleInviteCodesGenerated(data) {
       console.log('邀请码生成完成:', data);
       // 可以在这里添加额外的处理逻辑，比如刷新统计数据等
-    },
-    
-    // 打开标签管理对话框
-    openTagManagementDialog() {
-      this.$refs.tagManagementDialog.open();
     },
     
     // 打开线路管理对话框

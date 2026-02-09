@@ -824,17 +824,12 @@
       :is-premium="currentIsPremium"
       @unlock-completed="handlePremiumUnlockCompleted"
     />
-
-    <!-- 使用标签管理对话框组件 -->
-    <tag-management-dialog
-      ref="tagManagementDialog"
-      @tags-updated="handleTagsUpdated"
-    />
     
     <!-- 使用线路管理对话框组件 -->
     <line-management-dialog
       ref="lineManagementDialog"
       @lines-updated="handleLinesUpdated"
+      @tags-updated="handleTagsUpdated"
     />
     
     <!-- Plex 线路调度对话框 -->
@@ -876,7 +871,6 @@ import VaultwardenRedeemDialog from '@/components/VaultwardenRedeemDialog.vue'
 import BadgeCenterDialog from '@/components/BadgeCenterDialog.vue'
 import PremiumUnlockDialog from '@/components/PremiumUnlockDialog.vue'
 import DownloadUnlockDialog from '@/components/DownloadUnlockDialog.vue'
-import TagManagementDialog from '@/components/TagManagementDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import LineScheduleDialog from '@/components/LineScheduleDialog.vue'
 import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
@@ -899,7 +893,6 @@ export default {
     VaultwardenRedeemDialog,
     BadgeCenterDialog,
     PremiumUnlockDialog,
-    TagManagementDialog,
     LineManagementDialog,
     LineScheduleDialog,
     DownloadUnlockDialog
@@ -1421,11 +1414,6 @@ export default {
       this.showMessage('捐赠登记提交成功！管理员将在24小时内处理。', 'success');
       // 可以选择是否重新获取用户信息，因为登记尚未被确认
       // this.fetchUserInfo();
-    },
-    
-    // 打开标签管理对话框
-    openTagManagementDialog() {
-      this.$refs.tagManagementDialog.open();
     },
     
     // 打开线路管理对话框
