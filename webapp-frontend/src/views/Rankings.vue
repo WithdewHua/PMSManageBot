@@ -104,7 +104,9 @@
                     </v-avatar>
                     <div class="user-info flex-grow-1">
                       <v-list-item-title class="user-name">
-                        {{ item.name }}
+                        <div class="user-name-text-wrapper">
+                          <span class="user-name-text">{{ item.name }}</span>
+                        </div>
                         <!-- 显示用户勋章 -->
                         <span v-if="getUserBadgesList(item.tg_id).length > 0" class="user-badges ml-2">
                           <v-tooltip
@@ -190,7 +192,9 @@
                     </v-avatar>
                     <div class="user-info flex-grow-1">
                       <v-list-item-title class="user-name">
-                        {{ item.name }}
+                        <div class="user-name-text-wrapper">
+                          <span class="user-name-text">{{ item.name }}</span>
+                        </div>
                         <!-- 显示用户勋章 -->
                         <span v-if="getUserBadgesList(item.tg_id).length > 0" class="user-badges ml-2">
                           <v-tooltip
@@ -336,7 +340,9 @@
                           </v-avatar>
                           <div class="user-info flex-grow-1">
                             <v-list-item-title class="user-name">
-                              {{ item.name }}
+                              <div class="user-name-text-wrapper">
+                                <span class="user-name-text">{{ item.name }}</span>
+                              </div>
                               <v-chip
                                 v-if="item.is_premium"
                                 size="x-small"
@@ -416,7 +422,9 @@
                           </v-avatar>
                           <div class="user-info flex-grow-1">
                             <v-list-item-title class="user-name">
-                              {{ item.name }}
+                              <div class="user-name-text-wrapper">
+                                <span class="user-name-text">{{ item.name }}</span>
+                              </div>
                               <v-chip
                                 v-if="item.is_premium"
                                 size="x-small"
@@ -591,7 +599,9 @@
                           </v-avatar>
                           <div class="user-info flex-grow-1">
                             <v-list-item-title class="user-name">
-                              {{ item.name }}
+                              <div class="user-name-text-wrapper">
+                                <span class="user-name-text">{{ item.name }}</span>
+                              </div>
                               <v-chip
                                 v-if="item.is_premium"
                                 size="x-small"
@@ -659,7 +669,9 @@
                           </v-avatar>
                           <div class="user-info flex-grow-1">
                             <v-list-item-title class="user-name">
-                              {{ item.name }}
+                              <div class="user-name-text-wrapper">
+                                <span class="user-name-text">{{ item.name }}</span>
+                              </div>
                               <v-chip
                                 v-if="item.is_premium"
                                 size="x-small"
@@ -730,7 +742,9 @@
                     </v-avatar>
                     <div class="user-info flex-grow-1">
                       <v-list-item-title class="user-name">
-                        {{ item.name }}
+                        <div class="user-name-text-wrapper">
+                          <span class="user-name-text">{{ item.name }}</span>
+                        </div>
                         <v-chip
                           size="x-small"
                           color="amber"
@@ -826,7 +840,11 @@
                       <v-icon v-else size="24" color="grey-lighten-1">mdi-account-circle</v-icon>
                     </v-avatar>
                     <div class="user-info flex-grow-1">
-                      <v-list-item-title class="user-name">{{ item.name }}</v-list-item-title>
+                      <v-list-item-title class="user-name">
+                        <div class="user-name-text-wrapper">
+                          <span class="user-name-text">{{ item.name }}</span>
+                        </div>
+                      </v-list-item-title>
                       <v-list-item-subtitle class="user-score">
                         <v-icon size="16" color="green" class="mr-1">mdi-account-plus</v-icon>
                         {{ item.invite_count }} 人
@@ -1243,10 +1261,16 @@ export default {
       if (!this.rankings.credits_rank.length) {
         this.loadTabData('credits')
       }
+      this.checkMarqueeOverflows()
     })
     
     // 监听窗口大小变化，用于响应式调整勋章显示数量
     window.addEventListener('resize', this.handleResize)
+  },
+  updated() {
+    this.$nextTick(() => {
+      this.checkMarqueeOverflows()
+    })
   },
   beforeUnmount() {
     // 清理事件监听
@@ -1256,6 +1280,29 @@ export default {
     // 处理窗口大小变化
     handleResize() {
       this.windowWidth = window.innerWidth
+      this.$nextTick(() => {
+        this.checkMarqueeOverflows()
+      })
+    },
+    
+    // 检测所有用户名文本是否溢出，如果溢出则添加跑马灯效果
+    checkMarqueeOverflows() {
+      const wrappers = this.$el?.querySelectorAll('.user-name-text-wrapper')
+      if (!wrappers) return
+      wrappers.forEach((wrapper) => {
+        const textEl = wrapper.querySelector('.user-name-text')
+        if (!textEl) return
+        const isOverflowing = textEl.scrollWidth > wrapper.clientWidth
+        if (isOverflowing) {
+          wrapper.classList.add('is-overflowing')
+          // Calculate how far to scroll: the excess amount
+          const distance = -(textEl.scrollWidth - wrapper.clientWidth)
+          wrapper.style.setProperty('--marquee-distance', `${distance}px`)
+        } else {
+          wrapper.classList.remove('is-overflowing')
+          wrapper.style.removeProperty('--marquee-distance')
+        }
+      })
     },
     
     // 根据屏幕宽度返回勋章显示数量限制
@@ -1874,6 +1921,12 @@ export default {
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
 }
 
+/* Ensure the default slot content area constrains child widths */
+.ranking-item :deep(.v-list-item__content) {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .ranking-item:hover {
   transform: translateY(-4px);
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2) !important;
@@ -1975,6 +2028,7 @@ export default {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  min-width: 0; /* Allow flex children to shrink below content size */
 }
 
 .user-name {
@@ -1982,6 +2036,81 @@ export default {
   font-size: 16px;
   color: rgba(0, 0, 0, 0.87);
   margin-bottom: 4px;
+  display: flex !important;
+  align-items: center;
+  flex-wrap: nowrap;
+  min-width: 0; /* Critical for flex child truncation */
+}
+
+/* Wrapper for the user name text - takes remaining space, allows overflow scroll */
+.user-name-text-wrapper {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Only apply fade mask when text is overflowing */
+.user-name-text-wrapper.is-overflowing {
+  mask-image: linear-gradient(to right, black calc(100% - 16px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 16px), transparent 100%);
+}
+
+.user-name-text {
+  display: inline-block;
+  white-space: nowrap;
+  padding-right: 12px;
+}
+
+/* When the text overflows, animate it as a marquee */
+.user-name-text-wrapper:hover .user-name-text,
+.user-name-text-wrapper.is-overflowing .user-name-text {
+  animation: marquee-scroll 5s linear infinite;
+}
+
+/* Remove fade mask during animation so scrolling text is fully visible */
+.user-name-text-wrapper.is-overflowing:hover {
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+/* On non-hover (mobile), only animate if overflowing - always remove mask during animation */
+@media (hover: none) {
+  .user-name-text-wrapper .user-name-text {
+    animation: none;
+  }
+  .user-name-text-wrapper.is-overflowing .user-name-text {
+    animation: marquee-scroll 5s linear infinite;
+  }
+  .user-name-text-wrapper.is-overflowing {
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+}
+
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  /* Pause at the start for readability */
+  15% {
+    transform: translateX(0);
+  }
+  /* Scroll to the end */
+  85% {
+    transform: translateX(var(--marquee-distance, -30%));
+  }
+  /* Pause at the end */
+  100% {
+    transform: translateX(var(--marquee-distance, -30%));
+  }
+}
+
+/* Ensure all chips / badges inside user-name row don't shrink */
+.user-name > .v-chip,
+.user-name > .user-badges,
+.user-name > .more-badges-indicator {
+  flex-shrink: 0;
 }
 
 .user-score {
@@ -2167,7 +2296,7 @@ export default {
   gap: 4px;
   vertical-align: middle;
   flex-wrap: nowrap;
-  max-width: 200px; /* 限制最大宽度，避免挤压用户名 */
+  flex-shrink: 0; /* 不允许勋章区域被压缩 */
 }
 
 .badge-avatar {
@@ -2938,6 +3067,7 @@ export default {
   transition: all 0.3s ease;
   min-height: 20px !important;
   height: auto !important;
+  flex-shrink: 0; /* 不允许被压缩 */
 }
 
 .premium-badge:hover {
