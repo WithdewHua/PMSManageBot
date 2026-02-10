@@ -8,6 +8,7 @@ from app.databases.db_func import (
     auto_switch_user_lines,
     check_and_award_supreme_contributor_badge,
     check_expired_crypto_donation_orders,
+    check_expired_custom_lines,
     finish_expired_auctions_job,
     monthly_traffic_data_migration,
     rewrite_users_credits_to_redis,
@@ -317,6 +318,19 @@ def add_init_scheduler_job():
         + datetime.timedelta(minutes=2),  # 启动后 2 分钟执行一次
     )
     logger.info("添加定时任务：每天上午 09:00 检查并授予至尊贡献者勋章")
+
+    # 每 5 分钟检查并下线过期的自定义线路 (异步任务)
+    scheduler.add_async_job(
+        func=check_expired_custom_lines,
+        trigger="interval",
+        id="check_expired_custom_lines",
+        replace_existing=True,
+        max_instances=1,
+        minutes=5,  # 每 5 分钟执行一次
+        next_run_time=datetime.datetime.now(settings.TZ)
+        + datetime.timedelta(minutes=3),  # 启动后 3 分钟执行一次
+    )
+    logger.info("添加定时任务：每 5 分钟检查并下线过期的自定义线路")
 
 
 if __name__ == "__main__":

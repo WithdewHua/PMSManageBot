@@ -14,7 +14,7 @@ from app.databases.db import DatabaseORM
 from app.databases.db_func import auto_switch_user_lines
 from app.databases.session import get_session
 from app.log import uvicorn_logger as logger
-from app.models.models import Statistics
+from app.models.models import CustomLine, Statistics
 from app.modules.emby import Emby
 from app.modules.plex import Plex
 from app.modules.tautulli import Tautulli
@@ -37,6 +37,12 @@ from app.webapp.schemas import (
     CreditsTransferRequest,
     CreditsTransferResponse,
     CurrentLineResponse,
+    CustomLineDetailResponse,
+    CustomLineInfo,
+    CustomLineListResponse,
+    CustomLineRenewRequest,
+    CustomLineSubmitRequest,
+    CustomLineUpdateRequest,
     EmbyLineInfo,
     EmbyLineRequest,
     EmbyLinesResponse,
@@ -2032,3 +2038,511 @@ async def unlock_download_permission(
     except Exception as e:
         logger.error(f"解锁下载权限失败: {e}")
         return BaseResponse(success=False, message=f"解锁失败: {str(e)}，请联系管理员")
+
+
+# ==================== 自定义线路相关接口 ====================
+
+
+@router.post("/custom-lines/submit")
+@require_telegram_auth
+async def submit_custom_line(
+    request: Request,
+    data: CustomLineSubmitRequest,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """用户提交自定义线路"""
+    try:
+        tg_id = user.id
+        current_time = int(time())
+
+        # 验证流量类型
+        if data.traffic_type not in ["one_way", "two_way"]:
+            return BaseResponse(success=False, message="无效的流量类型")
+
+        # 检查域名是否已存在
+        with get_session() as session:
+            # 检查是否已有相同域名的线路（pending 或 approved 状态）
+            stmt = select(CustomLine).where(
+                CustomLine.domain == data.domain,
+                CustomLine.status.in_(["pending", "approved"]),
+            )
+            result = session.execute(stmt)
+            existing_line = result.scalar_one_or_none()
+
+            if existing_line:
+                return BaseResponse(
+                    success=False,
+                    message=f"域名 '{data.domain}' 已存在，请使用其他域名",
+                )
+
+            # 计算过期时间
+            expires_at = None
+            if not data.is_permanent and data.valid_days:
+                expires_at = current_time + (data.valid_days * 24 * 60 * 60)
+
+            # 创建新的自定义线路
+            new_line = CustomLine(
+                tg_id=tg_id,
+                domain=data.domain,
+                network_info=data.network_info,
+                price_monthly=data.price_monthly,
+                price_yearly=data.price_yearly,
+                traffic_limit=data.traffic_limit,
+                traffic_type=data.traffic_type,
+                valid_days=data.valid_days,
+                is_permanent=1 if data.is_permanent else 0,
+                status="pending",
+                user_note=data.user_note,
+                expires_at=expires_at,
+                created_at=current_time,
+                updated_at=current_time,
+            )
+
+            session.add(new_line)
+            session.commit()
+            session.refresh(new_line)
+
+            logger.info(
+                f"用户 {get_user_name_from_tg_id(tg_id)} 提交自定义线路: {data.domain}"
+            )
+
+            # 发送管理员通知
+            user_name = get_user_name_from_tg_id(tg_id)
+            price_info = []
+            if data.price_monthly:
+                price_info.append(f"月付: ¥{data.price_monthly}")
+            if data.price_yearly:
+                price_info.append(f"年付: ¥{data.price_yearly}")
+            price_str = " / ".join(price_info) if price_info else "未提供"
+
+            traffic_info = (
+                f"{data.traffic_limit}GB ({data.traffic_type})"
+                if data.traffic_limit
+                else "未提供"
+            )
+            valid_info = "长期可用" if data.is_permanent else f"{data.valid_days}天"
+
+            admin_notification = f"""🛣️ 新的自定义线路提交
+
+👤 提交用户: {user_name} (ID: {tg_id})
+🌐 域名: {data.domain}
+📡 网络情况: {data.network_info}
+💰 价格: {price_str}
+📊 流量: {traffic_info}
+⏰ 有效期: {valid_info}
+📝 备注: {data.user_note or "无"}
+
+"""
+
+            # 异步发送通知
+            await send_message_by_url(
+                chat_id=settings.TG_ADMIN_CHAT_ID,
+                text=admin_notification,
+            )
+
+            return BaseResponse(
+                success=True,
+                message=f"自定义线路 '{data.domain}' 提交成功，请等待管理员审核",
+            )
+
+    except Exception as e:
+        logger.error(f"提交自定义线路失败: {e}")
+        return BaseResponse(success=False, message=f"提交失败: {str(e)}")
+
+
+@router.get("/custom-lines/my-lines")
+@require_telegram_auth
+async def get_my_custom_lines(
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取当前用户提交的自定义线路列表"""
+    try:
+        tg_id = user.id
+
+        with get_session() as session:
+            stmt = (
+                select(CustomLine)
+                .where(CustomLine.tg_id == tg_id)
+                .order_by(CustomLine.created_at.desc())
+            )
+            result = session.execute(stmt)
+            lines = result.scalars().all()
+
+            lines_data = [
+                CustomLineInfo(
+                    id=line.id,
+                    tg_id=line.tg_id,
+                    domain=line.domain,
+                    network_info=line.network_info,
+                    price_monthly=line.price_monthly,
+                    price_yearly=line.price_yearly,
+                    traffic_limit=line.traffic_limit,
+                    traffic_type=line.traffic_type,
+                    valid_days=line.valid_days,
+                    is_permanent=bool(line.is_permanent),
+                    status=line.status,
+                    admin_note=line.admin_note,
+                    user_note=line.user_note,
+                    approved_at=line.approved_at,
+                    approved_by=line.approved_by,
+                    expires_at=line.expires_at,
+                    created_at=line.created_at,
+                    updated_at=line.updated_at,
+                )
+                for line in lines
+            ]
+
+            return CustomLineListResponse(
+                success=True,
+                message="获取成功",
+                lines=lines_data,
+                total=len(lines_data),
+            )
+
+    except Exception as e:
+        logger.error(f"获取用户自定义线路失败: {e}")
+        return CustomLineListResponse(
+            success=False, message=f"获取失败: {str(e)}", lines=[], total=0
+        )
+
+
+@router.get("/custom-lines/approved")
+@require_telegram_auth
+async def get_approved_custom_lines(
+    request: Request,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取所有已批准的自定义线路（供所有用户使用）"""
+    try:
+        with get_session() as session:
+            # 获取所有已批准的自定义线路
+            stmt = (
+                select(CustomLine)
+                .where(CustomLine.status == "approved")
+                .order_by(CustomLine.domain.asc())
+            )
+            result = session.execute(stmt)
+            lines = result.scalars().all()
+
+            # 返回简化的线路信息（仅 domain 和 tags）
+            lines_data = []
+            for line in lines:
+                tags = ["用户分享"]
+                # 如果有管理员设置的标签，也添加进来
+                if line.tags:
+                    try:
+                        import json
+
+                        line_tags = (
+                            json.loads(line.tags)
+                            if isinstance(line.tags, str)
+                            else line.tags
+                        )
+                        if isinstance(line_tags, list):
+                            tags.extend(line_tags)
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+
+                lines_data.append({"name": line.domain, "tags": tags})
+
+            return {
+                "success": True,
+                "message": "获取成功",
+                "lines": lines_data,
+                "total": len(lines_data),
+            }
+
+    except Exception as e:
+        logger.error(f"获取已批准自定义线路失败: {e}")
+        return {
+            "success": False,
+            "message": f"获取失败: {str(e)}",
+            "lines": [],
+            "total": 0,
+        }
+
+
+@router.get("/custom-lines/{line_id}")
+@require_telegram_auth
+async def get_custom_line_detail(
+    request: Request,
+    line_id: int,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """获取自定义线路详情（仅限线路所有者）"""
+    try:
+        tg_id = user.id
+
+        with get_session() as session:
+            stmt = select(CustomLine).where(CustomLine.id == line_id)
+            result = session.execute(stmt)
+            line = result.scalar_one_or_none()
+
+            if not line:
+                return CustomLineDetailResponse(
+                    success=False, message="线路不存在", line=None
+                )
+
+            # 检查权限：只有线路所有者可以查看
+            if line.tg_id != tg_id:
+                return CustomLineDetailResponse(
+                    success=False, message="无权查看此线路", line=None
+                )
+
+            line_data = CustomLineInfo(
+                id=line.id,
+                tg_id=line.tg_id,
+                domain=line.domain,
+                network_info=line.network_info,
+                price_monthly=line.price_monthly,
+                price_yearly=line.price_yearly,
+                traffic_limit=line.traffic_limit,
+                traffic_type=line.traffic_type,
+                valid_days=line.valid_days,
+                is_permanent=bool(line.is_permanent),
+                status=line.status,
+                admin_note=line.admin_note,
+                user_note=line.user_note,
+                approved_at=line.approved_at,
+                approved_by=line.approved_by,
+                expires_at=line.expires_at,
+                created_at=line.created_at,
+                updated_at=line.updated_at,
+            )
+
+            return CustomLineDetailResponse(
+                success=True, message="获取成功", line=line_data
+            )
+
+    except Exception as e:
+        logger.error(f"获取自定义线路详情失败: {e}")
+        return CustomLineDetailResponse(
+            success=False, message=f"获取失败: {str(e)}", line=None
+        )
+
+
+@router.put("/custom-lines/{line_id}")
+@require_telegram_auth
+async def update_custom_line(
+    request: Request,
+    line_id: int,
+    data: CustomLineUpdateRequest,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """更新自定义线路（仅限pending状态且为线路所有者）"""
+    try:
+        tg_id = user.id
+        current_time = int(time())
+
+        with get_session() as session:
+            stmt = select(CustomLine).where(CustomLine.id == line_id)
+            result = session.execute(stmt)
+            line = result.scalar_one_or_none()
+
+            if not line:
+                return BaseResponse(success=False, message="线路不存在")
+
+            # 检查权限
+            if line.tg_id != tg_id:
+                return BaseResponse(success=False, message="无权修改此线路")
+
+            # 只能修改 pending 状态的线路
+            if line.status != "pending":
+                return BaseResponse(
+                    success=False,
+                    message=f"只能修改待审核的线路，当前状态: {line.status}",
+                )
+
+            # 更新字段
+            if data.domain is not None:
+                # 检查新域名是否已被使用
+                stmt_check = select(CustomLine).where(
+                    CustomLine.domain == data.domain,
+                    CustomLine.id != line_id,
+                    CustomLine.status.in_(["pending", "approved"]),
+                )
+                result_check = session.execute(stmt_check)
+                if result_check.scalar_one_or_none():
+                    return BaseResponse(
+                        success=False, message=f"域名 '{data.domain}' 已被使用"
+                    )
+                line.domain = data.domain
+            if data.network_info is not None:
+                line.network_info = data.network_info
+            if data.price_monthly is not None:
+                line.price_monthly = data.price_monthly
+            if data.price_yearly is not None:
+                line.price_yearly = data.price_yearly
+            if data.traffic_limit is not None:
+                line.traffic_limit = data.traffic_limit
+            if data.traffic_type is not None:
+                if data.traffic_type not in ["one_way", "two_way"]:
+                    return BaseResponse(success=False, message="无效的流量类型")
+                line.traffic_type = data.traffic_type
+            if data.valid_days is not None:
+                line.valid_days = data.valid_days
+            if data.is_permanent is not None:
+                line.is_permanent = 1 if data.is_permanent else 0
+            if data.user_note is not None:
+                line.user_note = data.user_note
+
+            # 重新计算过期时间
+            if data.is_permanent is not None or data.valid_days is not None:
+                if line.is_permanent:
+                    line.expires_at = None
+                elif line.valid_days:
+                    line.expires_at = current_time + (line.valid_days * 24 * 60 * 60)
+
+            line.updated_at = current_time
+
+            session.commit()
+
+            logger.info(
+                f"用户 {get_user_name_from_tg_id(tg_id)} 更新自定义线路: {line.domain}"
+            )
+
+            return BaseResponse(success=True, message="更新成功")
+
+    except Exception as e:
+        logger.error(f"更新自定义线路失败: {e}")
+        return BaseResponse(success=False, message=f"更新失败: {str(e)}")
+
+
+@router.delete("/custom-lines/{line_id}")
+@require_telegram_auth
+async def delete_custom_line(
+    request: Request,
+    line_id: int,
+    background_tasks: BackgroundTasks,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """删除/下线自定义线路（从数据库中删除）"""
+    try:
+        tg_id = user.id
+
+        with get_session() as session:
+            stmt = select(CustomLine).where(CustomLine.id == line_id)
+            result = session.execute(stmt)
+            line = result.scalar_one_or_none()
+
+            if not line:
+                return BaseResponse(success=False, message="线路不存在")
+
+            # 检查权限
+            if line.tg_id != tg_id:
+                return BaseResponse(success=False, message="无权删除此线路")
+
+            domain = line.domain
+            line_status = line.status
+
+            # 如果是已批准的线路，需要先解绑所有用户
+            if line_status == "approved":
+                logger.info(f"用户下线已批准的线路 {domain}，开始解绑所有用户")
+                try:
+                    from app.webapp.routers.admin import (
+                        unbind_specified_line_for_all_users,
+                    )
+
+                    success, unbind_count = await unbind_specified_line_for_all_users(
+                        domain, "已被所有者下线"
+                    )
+                    if success and unbind_count > 0:
+                        logger.info(f"已解绑 {unbind_count} 个用户的线路 {domain}")
+                except Exception as e:
+                    logger.error(f"解绑用户失败: {e}")
+
+            session.delete(line)
+            session.commit()
+
+            logger.info(
+                f"用户 {get_user_name_from_tg_id(tg_id)} 删除自定义线路: {domain} (原状态: {line_status})"
+            )
+
+            return BaseResponse(success=True, message="删除成功")
+
+    except Exception as e:
+        logger.error(f"删除自定义线路失败: {e}")
+        return BaseResponse(success=False, message=f"删除失败: {str(e)}")
+
+
+@router.post("/custom-lines/{line_id}/renew")
+@require_telegram_auth
+async def renew_custom_line(
+    request: Request,
+    line_id: int,
+    data: CustomLineRenewRequest,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """续期自定义线路（仅限已批准的线路且为线路所有者）"""
+    try:
+        tg_id = user.id
+        current_time = int(time())
+
+        with get_session() as session:
+            stmt = select(CustomLine).where(CustomLine.id == line_id)
+            result = session.execute(stmt)
+            line = result.scalar_one_or_none()
+
+            if not line:
+                return BaseResponse(success=False, message="线路不存在")
+
+            # 检查权限
+            if line.tg_id != tg_id:
+                return BaseResponse(success=False, message="无权续期此线路")
+
+            # 只能续期已批准的线路
+            if line.status != "approved":
+                return BaseResponse(
+                    success=False,
+                    message=f"只能续期已批准的线路，当前状态: {line.status}",
+                )
+
+            # 不能续期永久线路
+            if line.is_permanent:
+                return BaseResponse(success=False, message="永久线路无需续期")
+
+            # 计算新的过期时间
+            if line.expires_at and line.expires_at > current_time:
+                # 如果还没过期，在当前过期时间基础上延长
+                new_expires_at = line.expires_at + (data.valid_days * 24 * 60 * 60)
+            else:
+                # 如果已过期或没有过期时间，从当前时间开始计算
+                new_expires_at = current_time + (data.valid_days * 24 * 60 * 60)
+
+            old_expires_at = line.expires_at
+            line.expires_at = new_expires_at
+            line.updated_at = current_time
+
+            session.commit()
+
+            logger.info(
+                f"用户 {get_user_name_from_tg_id(tg_id)} 续期自定义线路 {line.domain}: "
+                f"延长 {data.valid_days} 天，新过期时间: {new_expires_at}"
+            )
+
+            from datetime import datetime
+
+            import app.config as config
+
+            old_expires_str = (
+                datetime.fromtimestamp(old_expires_at, tz=config.settings.TZ).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+                if old_expires_at
+                else "未设置"
+            )
+            new_expires_str = datetime.fromtimestamp(
+                new_expires_at, tz=config.settings.TZ
+            ).strftime("%Y-%m-%d %H:%M:%S")
+
+            return BaseResponse(
+                success=True,
+                message=f"续期成功！延长 {data.valid_days} 天\n"
+                f"原过期时间: {old_expires_str}\n"
+                f"新过期时间: {new_expires_str}",
+            )
+
+    except Exception as e:
+        logger.error(f"续期自定义线路失败: {e}")
+        return BaseResponse(success=False, message=f"续期失败: {str(e)}")

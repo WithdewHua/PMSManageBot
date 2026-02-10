@@ -114,9 +114,9 @@ def migrate_historical_traffic_data(
 
         # 逐月处理
         for month in months_to_process:
-            print(f"\n{'='*50}")
+            print(f"\n{'=' * 50}")
             print(f"处理月份: {month}")
-            print(f"{'='*50}")
+            print(f"{'=' * 50}")
 
             try:
                 # 检查原始数据是否存在
@@ -212,9 +212,9 @@ def migrate_historical_traffic_data(
             else 0,
         }
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("历史数据迁移处理完成")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"总处理月份: {results['total_months']}")
         print(f"聚合成功: {len(results['success_months'])} 个月")
         print(f"聚合失败: {len(results['failed_months'])} 个月")

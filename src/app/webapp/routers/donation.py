@@ -354,14 +354,14 @@ async def confirm_donation_registration(
                 )
 
                 # 批准通知
-                notification_text = f"""✅ 您的{'捐赠开号' if is_donation_registration else '捐赠'}登记已批准
+                notification_text = f"""✅ 您的{"捐赠开号" if is_donation_registration else "捐赠"}登记已批准
 
 📝 登记编号: #{registration_id}
-💰 捐赠金额: {registration['amount']}元
-💳 支付方式: {registration['payment_method']}
-📋 登记类型: {'捐赠开号' if is_donation_registration else '普通捐赠'}
+💰 捐赠金额: {registration["amount"]}元
+💳 支付方式: {registration["payment_method"]}
+📋 登记类型: {"捐赠开号" if is_donation_registration else "普通捐赠"}
 👨‍💼 处理管理员: {admin_name}
-⏰ 处理时间: {updated_registration['processed_at']}"""
+⏰ 处理时间: {updated_registration["processed_at"]}"""
 
                 if confirm_data.admin_note:
                     notification_text += f"\n📋 管理员备注: {confirm_data.admin_note}"
@@ -380,14 +380,14 @@ async def confirm_donation_registration(
                 )
 
                 # 拒绝通知
-                notification_text = f"""❌ 您的{'捐赠开号' if is_donation_registration else '捐赠'}登记被拒绝
+                notification_text = f"""❌ 您的{"捐赠开号" if is_donation_registration else "捐赠"}登记被拒绝
 
 📝 登记编号: #{registration_id}
-💰 捐赠金额: {registration['amount']}元
-💳 支付方式: {registration['payment_method']}
-📋 登记类型: {'捐赠开号' if is_donation_registration else '普通捐赠'}
+💰 捐赠金额: {registration["amount"]}元
+💳 支付方式: {registration["payment_method"]}
+📋 登记类型: {"捐赠开号" if is_donation_registration else "普通捐赠"}
 👨‍💼 处理管理员: {admin_name}
-⏰ 处理时间: {updated_registration['processed_at']}"""
+⏰ 处理时间: {updated_registration["processed_at"]}"""
 
                 if confirm_data.admin_note:
                     notification_text += f"\n📋 拒绝原因: {confirm_data.admin_note}"

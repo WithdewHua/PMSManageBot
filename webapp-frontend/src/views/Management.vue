@@ -297,6 +297,9 @@
               </v-card-text>
             </v-card>
 
+            <!-- 自定义线路管理 -->
+            <CustomLineManagement />
+
             <!-- 积分设置 -->
             <v-card class="admin-card-enhanced mb-4">
               <v-card-title class="text-center">
@@ -2172,6 +2175,7 @@ import AdminInviteCodeDialog from '@/components/AdminInviteCodeDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import WheelAdminPanel from '@/components/WheelAdminPanel.vue'
 import BadgeEditorDialog from '@/components/BadgeEditorDialog.vue'
+import CustomLineManagement from '@/components/CustomLineManagement.vue'
 import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits, setPremiumDailyCredits, setPremiumUnlockEnabled, setCreditsTransferEnabled, setLineScheduleUnlockCredits, setDownloadUnlockCredits } from '@/services/adminService.js'
 import { getWheelStats } from '@/services/wheelService.js'
 import { getAuctionStats, getAllAuctions, finishExpiredAuctions, finishAuction, deleteAuction, createAuction, getAuctionBids, updateAuction } from '@/services/auctionService.js'
@@ -2187,7 +2191,8 @@ export default {
     AdminInviteCodeDialog,
     LineManagementDialog,
     WheelAdminPanel,
-    BadgeEditorDialog
+    BadgeEditorDialog,
+    CustomLineManagement
   },
   data() {
     return {

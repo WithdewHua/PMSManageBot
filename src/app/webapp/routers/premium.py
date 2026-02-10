@@ -126,7 +126,7 @@ async def unlock_premium(
 ⏰ 天数: {days} 天
 💎 花费: {total_cost} 积分
 💰 剩余: {new_credits} 积分
-📅 到期: {new_expiry.strftime('%Y-%m-%d %H:%M:%S')}"""
+📅 到期: {new_expiry.strftime("%Y-%m-%d %H:%M:%S")}"""
 
         if discount < 1.0:
             discount_percent = int((1 - discount) * 100)

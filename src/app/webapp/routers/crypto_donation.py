@@ -155,11 +155,11 @@ async def create_crypto_donation_order(
 🆔 订单号: {order_id}
 💳 加密货币: {order_data.crypto_type}
 💵 金额: {order_data.amount:.2f} CNY
-📝 备注: {order_data.note or '无'}
+📝 备注: {order_data.note or "无"}
 
-💰 支付地址: <code>{upay_result.get('token', '未获取')}</code>
-🔗 支付链接: {upay_result.get('payment_url', '未获取')}
-⏰ 创建时间: {updated_order.get('created_at', '未知')}
+💰 支付地址: <code>{upay_result.get("token", "未获取")}</code>
+🔗 支付链接: {upay_result.get("payment_url", "未获取")}
+⏰ 创建时间: {updated_order.get("created_at", "未知")}
 """
 
             for admin_chat_id in settings.TG_ADMIN_CHAT_ID:
@@ -406,7 +406,7 @@ async def upay_payment_callback(request: Request):
 感谢您的捐赠！
 
 🆔 订单号: {callback.order_id}
-💳 加密货币: {order['crypto_type']}
+💳 加密货币: {order["crypto_type"]}
 💵 支付金额: {donation_amount_cny:.2f} CNY
 🏆 获得积分: {credits_reward}
 💰 累计捐赠: {new_donation:.2f} CNY
@@ -434,14 +434,14 @@ async def upay_payment_callback(request: Request):
 
 👤 用户: {user_name} ({user_id})
 🆔 订单号: {callback.order_id}
-💳 加密货币: {order['crypto_type']}
+💳 加密货币: {order["crypto_type"]}
 💵 支付金额: {donation_amount_cny:.2f} CNY
 🏆 积分奖励: {credits_reward}
 💰 用户累计捐赠: {new_donation:.2f} CNY
 ⭐ 用户当前积分: {new_credits:.2f}
 
-🔗 区块链交易: <code>{callback.block_transaction_id or '未提供'}</code>
-⏰ 完成时间: {callback.time or '未知'}
+🔗 区块链交易: <code>{callback.block_transaction_id or "未提供"}</code>
+⏰ 完成时间: {callback.time or "未知"}
 """
 
                     for admin_chat_id in settings.TG_ADMIN_CHAT_ID:

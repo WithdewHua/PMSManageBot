@@ -292,6 +292,7 @@
 
 <script>
 import { authBindLine, getAvailableEmbyLinesByUser, getAvailablePlexLinesByUser, getCurrentBoundEmbyLine, getCurrentBoundPlexLine } from '../services/userLineService';
+import { getApprovedCustomLines } from '../services/customLineService';
 
 export default {
   name: 'BindLineDialog',
@@ -466,18 +467,26 @@ export default {
       this.loadingLines = true;
       this.errorMessage = '';
       try {
-        // 并行获取可用线路和当前绑定线路
-        const [linesResult, currentLineResult] = await Promise.all([
+        // 并行获取系统线路、自定义线路和当前绑定线路
+        const [systemLinesResult, customLinesResult, currentLineResult] = await Promise.all([
           this.serviceType === 'emby' 
             ? getAvailableEmbyLinesByUser(this.username)
             : getAvailablePlexLinesByUser(this.email),
+          getApprovedCustomLines(),
           this.serviceType === 'emby'
             ? getCurrentBoundEmbyLine(this.username)
             : getCurrentBoundPlexLine(this.email)
         ]);
         
-        // 保留完整的线路信息（包括标签）
-        this.availableLines = linesResult;
+        // 合并系统线路和自定义线路
+        const allLines = [...systemLinesResult];
+        
+        // 添加自定义线路（API 已返回 name 和 tags 格式）
+        if (customLinesResult && customLinesResult.length > 0) {
+          allLines.push(...customLinesResult);
+        }
+        
+        this.availableLines = allLines;
         
         // 处理当前绑定线路信息
         if (currentLineResult.success && currentLineResult.data?.line) {

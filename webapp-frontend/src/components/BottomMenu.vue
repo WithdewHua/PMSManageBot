@@ -68,6 +68,13 @@
               </div>
               <span>绑定线路</span>
             </div>
+            
+            <div class="menu-item" @click="openSubmitCustomLineDialog()">
+              <div class="menu-icon-wrapper">
+                <v-icon color="white" size="18">mdi-road-variant</v-icon>
+              </div>
+              <span>分享自定义线路</span>
+            </div>
           </div>
         </div>
       </transition>
@@ -84,6 +91,9 @@
     
     <!-- 绑定线路对话框组件 -->
     <bind-line-dialog ref="bindLineDialog" @line-bound="handleLineBound" />
+    
+    <!-- 提交自定义线路对话框组件 -->
+    <submit-custom-line-dialog ref="submitCustomLineDialog" @submitted="handleCustomLineSubmitted" />
   </div>
 </template>
 
@@ -96,6 +106,8 @@ import RedeemCodeDialog from './RedeemCodeDialog.vue';
 import BindAccountDialog from './BindAccountDialog.vue';
 // 导入绑定线路对话框组件
 import BindLineDialog from './BindLineDialog.vue';
+// 导入提交自定义线路对话框组件
+import SubmitCustomLineDialog from './SubmitCustomLineDialog.vue';
 
 export default {
   name: 'BottomMenu',
@@ -103,7 +115,8 @@ export default {
     InviteCodeDialog,
     RedeemCodeDialog,
     BindAccountDialog,
-    BindLineDialog
+    BindLineDialog,
+    SubmitCustomLineDialog
   },
   props: {
     // 当前激活的标签，从父组件传入
@@ -180,6 +193,18 @@ export default {
     openBindLineDialog(type = null) {
       this.showActionMenu = false;
       this.$refs.bindLineDialog.open(type);
+    },
+    
+    // 打开提交自定义线路对话框
+    openSubmitCustomLineDialog() {
+      this.showActionMenu = false;
+      this.$refs.submitCustomLineDialog.open();
+    },
+    
+    // 处理自定义线路提交完成事件
+    handleCustomLineSubmitted() {
+      // 可以在这里刷新相关数据或显示提示
+      console.log('自定义线路已提交');
     },
     
     // 处理线路绑定完成事件
