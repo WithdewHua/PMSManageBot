@@ -8,7 +8,6 @@ from app.databases.db_func import (
     auto_switch_user_lines,
     check_and_award_supreme_contributor_badge,
     check_expired_crypto_donation_orders,
-    check_expired_custom_lines,
     finish_expired_auctions_job,
     monthly_traffic_data_migration,
     rewrite_users_credits_to_redis,
@@ -24,6 +23,7 @@ from app.handlers.start import *
 from app.handlers.status import *
 from app.handlers.user import *
 from app.log import logger
+from app.modules.custom_line import check_expired_custom_lines
 from app.premium import (
     check_premium_expiring_soon,
     check_premium_expiry,
