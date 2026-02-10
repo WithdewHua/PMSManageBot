@@ -40,6 +40,7 @@ from app.webapp.schemas import (
     CustomLineDetailResponse,
     CustomLineInfo,
     CustomLineListResponse,
+    CustomLineOnlineRequest,
     CustomLineRenewRequest,
     CustomLineSubmitRequest,
     CustomLineUpdateRequest,
@@ -2061,10 +2062,10 @@ async def submit_custom_line(
 
         # 检查域名是否已存在
         with get_session() as session:
-            # 检查是否已有相同域名的线路（pending 或 approved 状态）
+            # 检查是否已有相同域名的线路（pending、approved 或 offline 状态）
             stmt = select(CustomLine).where(
                 CustomLine.domain == data.domain,
-                CustomLine.status.in_(["pending", "approved"]),
+                CustomLine.status.in_(["pending", "approved", "offline"]),
             )
             result = session.execute(stmt)
             existing_line = result.scalar_one_or_none()
@@ -2356,11 +2357,11 @@ async def update_custom_line(
 
             # 更新字段
             if data.domain is not None:
-                # 检查新域名是否已被使用
+                # 检查新域名是否已被使用（pending、approved 或 offline 状态）
                 stmt_check = select(CustomLine).where(
                     CustomLine.domain == data.domain,
                     CustomLine.id != line_id,
-                    CustomLine.status.in_(["pending", "approved"]),
+                    CustomLine.status.in_(["pending", "approved", "offline"]),
                 )
                 result_check = session.execute(stmt_check)
                 if result_check.scalar_one_or_none():
@@ -2417,7 +2418,7 @@ async def delete_custom_line(
     background_tasks: BackgroundTasks,
     user: TelegramUser = Depends(get_telegram_user),
 ):
-    """删除/下线自定义线路（从数据库中删除）"""
+    """删除自定义线路（只能删除非 approved 状态的线路，approved 状态需先下线）"""
     try:
         tg_id = user.id
 
@@ -2436,21 +2437,12 @@ async def delete_custom_line(
             domain = line.domain
             line_status = line.status
 
-            # 如果是已批准的线路，需要先解绑所有用户
+            # 不能直接删除已批准的线路，需要先下线
             if line_status == "approved":
-                logger.info(f"用户下线已批准的线路 {domain}，开始解绑所有用户")
-                try:
-                    from app.webapp.routers.admin import (
-                        unbind_specified_line_for_all_users,
-                    )
-
-                    success, unbind_count = await unbind_specified_line_for_all_users(
-                        domain, "已被所有者下线"
-                    )
-                    if success and unbind_count > 0:
-                        logger.info(f"已解绑 {unbind_count} 个用户的线路 {domain}")
-                except Exception as e:
-                    logger.error(f"解绑用户失败: {e}")
+                return BaseResponse(
+                    success=False,
+                    message="不能直接删除已上线的线路，请先下线后再删除",
+                )
 
             session.delete(line)
             session.commit()
@@ -2464,6 +2456,164 @@ async def delete_custom_line(
     except Exception as e:
         logger.error(f"删除自定义线路失败: {e}")
         return BaseResponse(success=False, message=f"删除失败: {str(e)}")
+
+
+@router.post("/custom-lines/{line_id}/offline")
+@require_telegram_auth
+async def offline_custom_line(
+    request: Request,
+    line_id: int,
+    background_tasks: BackgroundTasks,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """下线自定义线路（仅限已批准的线路且为线路所有者）"""
+    try:
+        tg_id = user.id
+        current_time = int(time())
+
+        with get_session() as session:
+            stmt = select(CustomLine).where(CustomLine.id == line_id)
+            result = session.execute(stmt)
+            line = result.scalar_one_or_none()
+
+            if not line:
+                return BaseResponse(success=False, message="线路不存在")
+
+            # 检查权限
+            if line.tg_id != tg_id:
+                return BaseResponse(success=False, message="无权下线此线路")
+
+            # 只能下线已批准的线路
+            if line.status != "approved":
+                return BaseResponse(
+                    success=False,
+                    message=f"只能下线已批准的线路，当前状态: {line.status}",
+                )
+
+            domain = line.domain
+
+            # 解绑所有使用该线路的用户
+            logger.info(f"用户下线线路 {domain}，开始解绑所有用户")
+            try:
+                from app.webapp.routers.admin import unbind_specified_line_for_all_users
+
+                success, unbind_count = await unbind_specified_line_for_all_users(
+                    domain, "已被所有者下线"
+                )
+                if success and unbind_count > 0:
+                    logger.info(f"已解绑 {unbind_count} 个用户的线路 {domain}")
+            except Exception as e:
+                logger.error(f"解绑用户失败: {e}")
+
+            # 更新状态为 offline
+            line.status = "offline"
+            line.updated_at = current_time
+
+            session.commit()
+
+            logger.info(
+                f"用户 {get_user_name_from_tg_id(tg_id)} 下线自定义线路: {domain}"
+            )
+
+            return BaseResponse(success=True, message=f"线路 {domain} 已下线")
+
+    except Exception as e:
+        logger.error(f"下线自定义线路失败: {e}")
+        return BaseResponse(success=False, message=f"下线失败: {str(e)}")
+
+
+@router.post("/custom-lines/{line_id}/online")
+@require_telegram_auth
+async def online_custom_line(
+    request: Request,
+    line_id: int,
+    data: CustomLineOnlineRequest,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """上线自定义线路（仅限已下线的线路且为线路所有者，可修改流量和有效期）"""
+    try:
+        tg_id = user.id
+        current_time = int(time())
+
+        with get_session() as session:
+            stmt = select(CustomLine).where(CustomLine.id == line_id)
+            result = session.execute(stmt)
+            line = result.scalar_one_or_none()
+
+            if not line:
+                return BaseResponse(success=False, message="线路不存在")
+
+            # 检查权限
+            if line.tg_id != tg_id:
+                return BaseResponse(success=False, message="无权上线此线路")
+
+            # 只能上线已下线的线路
+            if line.status != "offline":
+                return BaseResponse(
+                    success=False,
+                    message=f"只能上线已下线的线路，当前状态: {line.status}",
+                )
+
+            # 更新流量限制（如果提供）
+            if data.traffic_limit is not None:
+                line.traffic_limit = data.traffic_limit
+
+            # 更新有效期（如果提供）
+            if data.valid_days is not None:
+                if data.valid_days > 0:
+                    line.valid_days = data.valid_days
+                    line.is_permanent = 0
+                    line.expires_at = current_time + (data.valid_days * 24 * 60 * 60)
+                else:
+                    return BaseResponse(success=False, message="有效天数必须大于0")
+            elif data.is_permanent is not None:
+                if data.is_permanent:
+                    line.is_permanent = 1
+                    line.expires_at = None
+                else:
+                    # 如果设为非永久但未提供天数，保持原有设置
+                    if not line.is_permanent and line.valid_days:
+                        # 重新计算过期时间
+                        line.expires_at = current_time + (
+                            line.valid_days * 24 * 60 * 60
+                        )
+
+            # 更新状态为 approved
+            line.status = "approved"
+            line.updated_at = current_time
+
+            session.commit()
+
+            logger.info(
+                f"用户 {get_user_name_from_tg_id(tg_id)} 上线自定义线路: {line.domain}"
+            )
+
+            from datetime import datetime
+
+            import app.config as config
+
+            expire_info = (
+                "长期可用"
+                if line.is_permanent
+                else (
+                    datetime.fromtimestamp(
+                        line.expires_at, tz=config.settings.TZ
+                    ).strftime("%Y-%m-%d %H:%M:%S")
+                    if line.expires_at
+                    else "未设置"
+                )
+            )
+
+            return BaseResponse(
+                success=True,
+                message=f"线路 {line.domain} 已上线\n"
+                f"流量限制: {line.traffic_limit if line.traffic_limit else '无限制'} GB\n"
+                f"过期时间: {expire_info}",
+            )
+
+    except Exception as e:
+        logger.error(f"上线自定义线路失败: {e}")
+        return BaseResponse(success=False, message=f"上线失败: {str(e)}")
 
 
 @router.post("/custom-lines/{line_id}/renew")
@@ -2491,11 +2641,11 @@ async def renew_custom_line(
             if line.tg_id != tg_id:
                 return BaseResponse(success=False, message="无权续期此线路")
 
-            # 只能续期已批准的线路
-            if line.status != "approved":
+            # 只能续期已批准或已过期的线路
+            if line.status not in ["approved", "expired"]:
                 return BaseResponse(
                     success=False,
-                    message=f"只能续期已批准的线路，当前状态: {line.status}",
+                    message=f"只能续期已批准或已过期的线路，当前状态: {line.status}",
                 )
 
             # 不能续期永久线路
@@ -2513,6 +2663,10 @@ async def renew_custom_line(
             old_expires_at = line.expires_at
             line.expires_at = new_expires_at
             line.updated_at = current_time
+
+            # 如果线路是过期状态，续期后恢复为已批准状态
+            if line.status == "expired":
+                line.status = "approved"
 
             session.commit()
 

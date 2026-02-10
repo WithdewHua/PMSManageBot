@@ -115,6 +115,37 @@ export async function renewCustomLine(lineId, validDays) {
 }
 
 /**
+ * 下线自定义线路（用户）
+ * @param {number} lineId 线路ID
+ * @returns {Promise} 返回下线结果
+ */
+export async function offlineCustomLine(lineId) {
+  try {
+    const response = await apiClient.post(`/api/user/custom-lines/${lineId}/offline`)
+    return response.data
+  } catch (error) {
+    console.error('下线自定义线路失败:', error)
+    throw error
+  }
+}
+
+/**
+ * 上线自定义线路（用户）
+ * @param {number} lineId 线路ID
+ * @param {Object} onlineData 上线数据（可选的流量限制和有效期）
+ * @returns {Promise} 返回上线结果
+ */
+export async function onlineCustomLine(lineId, onlineData = {}) {
+  try {
+    const response = await apiClient.post(`/api/user/custom-lines/${lineId}/online`, onlineData)
+    return response.data
+  } catch (error) {
+    console.error('上线自定义线路失败:', error)
+    throw error
+  }
+}
+
+/**
  * 管理员获取所有自定义线路
  * @param {string} status 状态筛选（可选）
  * @returns {Promise} 返回线路列表
@@ -189,6 +220,21 @@ export async function adminSetCustomLineTags(lineId, tags) {
     return response.data
   } catch (error) {
     console.error('管理员设置自定义线路标签失败:', error)
+    throw error
+  }
+}
+
+/**
+ * 管理员下线自定义线路
+ * @param {number} lineId 线路ID
+ * @returns {Promise} 返回下线结果
+ */
+export async function adminOfflineCustomLine(lineId) {
+  try {
+    const response = await apiClient.post(`/api/admin/custom-lines/${lineId}/offline`)
+    return response.data
+  } catch (error) {
+    console.error('管理员下线自定义线路失败:', error)
     throw error
   }
 }

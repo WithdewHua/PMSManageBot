@@ -338,7 +338,8 @@ class AdminCustomLineUpdateRequest(BaseModel):
     is_permanent: Optional[bool] = Field(None, description="是否长期可用")
     admin_note: Optional[str] = Field(None, max_length=500, description="管理员备注")
     status: Optional[str] = Field(
-        None, description="状态: pending/approved/rejected/expired"
+        None,
+        description="状态: pending=待审批/approved=已批准/rejected=已拒绝/offline=已下线/expired=已过期",
     )
 
 
@@ -346,3 +347,11 @@ class CustomLineRenewRequest(BaseModel):
     """续期自定义线路请求模型"""
 
     valid_days: int = Field(..., ge=1, le=365 * 3, description="续期天数（1-1095天）")
+
+
+class CustomLineOnlineRequest(BaseModel):
+    """上线自定义线路请求模型"""
+
+    traffic_limit: Optional[float] = Field(None, ge=0, description="每月流量限制 (GB)")
+    valid_days: Optional[int] = Field(None, ge=1, description="可使用天数")
+    is_permanent: Optional[bool] = Field(None, description="是否长期可用")

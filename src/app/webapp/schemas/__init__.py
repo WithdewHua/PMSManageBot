@@ -52,6 +52,7 @@ from .user import (
     CustomLineDetailResponse,
     CustomLineInfo,
     CustomLineListResponse,
+    CustomLineOnlineRequest,
     CustomLineRenewRequest,
     CustomLineSubmitRequest,
     CustomLineUpdateRequest,

@@ -524,7 +524,7 @@ class CustomLine(Base):
     )  # 1=长期可用, 0=有期限
     status: Mapped[str] = mapped_column(
         String, nullable=False, default="pending", index=True
-    )  # 状态: pending=待审批, approved=已批准, rejected=已拒绝, expired=已过期
+    )  # 状态: pending=待审批, approved=已批准, rejected=已拒绝, expired=已过期, offline=已下线
     admin_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # 管理员备注
     user_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # 用户备注
     tags: Mapped[Optional[list]] = mapped_column(
@@ -546,7 +546,7 @@ class CustomLine(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "status IN ('pending', 'approved', 'rejected', 'expired')",
+            "status IN ('pending', 'approved', 'rejected', 'expired', 'offline')",
             name="ck_custom_line_status",
         ),
         CheckConstraint(

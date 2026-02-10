@@ -54,7 +54,7 @@
                       </div>
                       <div class="mt-1 text-caption">
                         ⏰ {{ formatValidity(line) }}
-                        <span v-if="line.expires_at && line.status === 'approved'">
+                        <span v-if="line.expires_at && (line.status === 'approved' || line.status === 'expired')">
                           （到期：{{ formatTimestamp(line.expires_at) }}）
                         </span>
                       </div>
@@ -65,24 +65,81 @@
 
                     <template v-slot:append>
                       <div class="d-flex flex-column">
-                        <v-btn
-                          v-if="line.status === 'approved' && !line.is_permanent"
-                          size="small"
-                          color="primary"
-                          variant="tonal"
-                          class="mb-2"
-                          @click="showRenewDialog(line)"
-                        >
-                          续期
-                        </v-btn>
-                        <v-btn
-                          size="small"
-                          color="error"
-                          variant="tonal"
-                          @click="showOfflineDialog(line)"
-                        >
-                          {{ line.status === 'approved' ? '下线' : '删除' }}
-                        </v-btn>
+                        <!-- 已上线状态：显示续期和下线按钮 -->
+                        <template v-if="line.status === 'approved'">
+                          <v-btn
+                            v-if="!line.is_permanent"
+                            size="small"
+                            color="primary"
+                            variant="tonal"
+                            class="mb-2"
+                            @click="showRenewDialog(line)"
+                          >
+                            续期
+                          </v-btn>
+                          <v-btn
+                            size="small"
+                            color="warning"
+                            variant="tonal"
+                            @click="showOfflineDialog(line)"
+                          >
+                            下线
+                          </v-btn>
+                        </template>
+                        
+                        <!-- 已过期状态：显示续期和删除按钮 -->
+                        <template v-else-if="line.status === 'expired'">
+                          <v-btn
+                            size="small"
+                            color="primary"
+                            variant="tonal"
+                            class="mb-2"
+                            @click="showRenewDialog(line)"
+                          >
+                            续期
+                          </v-btn>
+                          <v-btn
+                            size="small"
+                            color="error"
+                            variant="tonal"
+                            @click="showDeleteDialog(line)"
+                          >
+                            删除
+                          </v-btn>
+                        </template>
+                        
+                        <!-- 已下线状态：显示上线和删除按钮 -->
+                        <template v-else-if="line.status === 'offline'">
+                          <v-btn
+                            size="small"
+                            color="success"
+                            variant="tonal"
+                            class="mb-2"
+                            @click="showOnlineDialog(line)"
+                          >
+                            上线
+                          </v-btn>
+                          <v-btn
+                            size="small"
+                            color="error"
+                            variant="tonal"
+                            @click="showDeleteDialog(line)"
+                          >
+                            删除
+                          </v-btn>
+                        </template>
+                        
+                        <!-- 其他状态：只显示删除按钮 -->
+                        <template v-else>
+                          <v-btn
+                            size="small"
+                            color="error"
+                            variant="tonal"
+                            @click="showDeleteDialog(line)"
+                          >
+                            删除
+                          </v-btn>
+                        </template>
                       </div>
                     </template>
                   </v-list-item>
@@ -101,7 +158,7 @@
             <div class="pa-4">
               <v-alert type="info" variant="tonal" density="compact" class="mb-4">
                 <div>1. 请确保域名中包含 <strong>funmedia</strong>，以便匹配分流规则</div>
-                <div class="mt-1">2. 提交后需等待管理员审核，结果将通过 Telegram 通知您</div>
+                <div class="mt-1">2. 提交后需等待管理员审核</div>
               </v-alert>
               <v-form ref="form" v-model="valid" lazy-validation>
           <!-- 域名 -->
@@ -317,17 +374,53 @@
       </v-card>
     </v-dialog>
 
-    <!-- 下线/删除确认对话框 -->
+    <!-- 下线确认对话框 -->
     <v-dialog v-model="showOfflineDialogVisible" max-width="400" persistent>
       <v-card>
-        <v-card-title class="bg-error">
-          <v-icon class="mr-2">mdi-alert</v-icon>
-          {{ currentLine?.status === 'approved' ? '下线线路' : '删除线路' }}
+        <v-card-title class="bg-warning">
+          <v-icon class="mr-2">mdi-pause-circle</v-icon>
+          下线线路
         </v-card-title>
 
         <v-card-text class="pt-4">
-          <v-alert v-if="currentLine?.status === 'approved'" type="warning" variant="tonal" class="mb-3">
-            下线后将解除所有用户对该线路的绑定，且线路将从系统中删除！
+          <v-alert type="warning" variant="tonal" class="mb-3">
+            下线后将解除所有用户对该线路的绑定！
+          </v-alert>
+          
+          <div class="mb-3">
+            <strong>线路域名：</strong>{{ currentLine?.domain }}
+          </div>
+          
+          <p class="text-body-2">确定要下线此线路吗？下线后您可以随时重新上线。</p>
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn text @click="showOfflineDialogVisible = false" :disabled="offlineLoading">
+            取消
+          </v-btn>
+          <v-btn
+            color="warning"
+            @click="submitOffline"
+            :loading="offlineLoading"
+          >
+            确认下线
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- 删除确认对话框 -->
+    <v-dialog v-model="showDeleteDialogVisible" max-width="400" persistent>
+      <v-card>
+        <v-card-title class="bg-error">
+          <v-icon class="mr-2">mdi-delete</v-icon>
+          删除线路
+        </v-card-title>
+
+        <v-card-text class="pt-4">
+          <v-alert type="error" variant="tonal" class="mb-3">
+            删除操作不可撤销！
           </v-alert>
           
           <div class="mb-3">
@@ -337,20 +430,88 @@
             <strong>当前状态：</strong>{{ getStatusText(currentLine?.status) }}
           </div>
           
-          <p class="text-body-2">确定要{{ currentLine?.status === 'approved' ? '下线' : '删除' }}此线路吗？此操作不可撤销！</p>
+          <p class="text-body-2">确定要删除此线路吗？此操作不可撤销！</p>
         </v-card-text>
 
         <v-card-actions>
           <v-spacer></v-spacer>
-          <v-btn text @click="showOfflineDialogVisible = false" :disabled="offlineLoading">
+          <v-btn text @click="showDeleteDialogVisible = false" :disabled="deleteLoading">
             取消
           </v-btn>
           <v-btn
             color="error"
-            @click="submitOffline"
-            :loading="offlineLoading"
+            @click="submitDelete"
+            :loading="deleteLoading"
           >
-            确认{{ currentLine?.status === 'approved' ? '下线' : '删除' }}
+            确认删除
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- 上线对话框 -->
+    <v-dialog v-model="showOnlineDialogVisible" max-width="500" persistent>
+      <v-card>
+        <v-card-title class="bg-success">
+          <v-icon class="mr-2">mdi-play-circle</v-icon>
+          上线线路
+        </v-card-title>
+
+        <v-card-text class="pt-4">
+          <div class="mb-3">
+            <strong>线路域名：</strong>{{ currentLine?.domain }}
+          </div>
+          
+          <v-divider class="my-3"></v-divider>
+          
+          <div class="text-subtitle-2 mb-2">可选：修改线路配置</div>
+          
+          <v-text-field
+            v-model.number="onlineData.traffic_limit"
+            label="流量限制 (GB)"
+            type="number"
+            min="0"
+            outlined
+            dense
+            clearable
+            hint="留空表示不限制"
+            persistent-hint
+            class="mb-3"
+          ></v-text-field>
+
+          <v-checkbox
+            v-model="onlineData.is_permanent"
+            label="长期可用"
+            dense
+            hide-details
+            class="mb-2"
+          ></v-checkbox>
+
+          <v-text-field
+            v-if="!onlineData.is_permanent"
+            v-model.number="onlineData.valid_days"
+            label="有效天数"
+            type="number"
+            min="1"
+            outlined
+            dense
+            suffix="天"
+            hint="从上线时间开始计算"
+            persistent-hint
+          ></v-text-field>
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn text @click="closeOnlineDialog" :disabled="onlineLoading">
+            取消
+          </v-btn>
+          <v-btn
+            color="success"
+            @click="submitOnline"
+            :loading="onlineLoading"
+          >
+            确认上线
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -359,7 +520,7 @@
 </template>
 
 <script>
-import { getMyCustomLines, deleteCustomLine, renewCustomLine, submitCustomLine } from '../services/customLineService'
+import { getMyCustomLines, deleteCustomLine, offlineCustomLine, onlineCustomLine, renewCustomLine, submitCustomLine } from '../services/customLineService'
 
 export default {
   name: 'SubmitCustomLineDialog',
@@ -381,6 +542,17 @@ export default {
       // 下线相关
       showOfflineDialogVisible: false,
       offlineLoading: false,
+      // 删除相关
+      showDeleteDialogVisible: false,
+      deleteLoading: false,
+      // 上线相关
+      showOnlineDialogVisible: false,
+      onlineLoading: false,
+      onlineData: {
+        traffic_limit: null,
+        valid_days: null,
+        is_permanent: false
+      },
       // 表单数据
       formData: {
         domain: '',
@@ -491,7 +663,7 @@ export default {
         this.renewLoading = false
       }
     },
-    // 下线/删除相关
+    // 下线相关
     showOfflineDialog(line) {
       this.currentLine = line
       this.showOfflineDialogVisible = true
@@ -499,27 +671,27 @@ export default {
     async submitOffline() {
       this.offlineLoading = true
       try {
-        const response = await deleteCustomLine(this.currentLine.id)
+        const response = await offlineCustomLine(this.currentLine.id)
         
         if (response.success) {
           if (window.Telegram?.WebApp) {
-            window.Telegram.WebApp.showAlert(response.message || '操作成功')
+            window.Telegram.WebApp.showAlert(response.message || '下线成功')
           } else {
-            alert(response.message || '操作成功')
+            alert(response.message || '下线成功')
           }
           this.showOfflineDialogVisible = false
           this.$emit('submitted')
           await this.loadMyLines()
         } else {
           if (window.Telegram?.WebApp) {
-            window.Telegram.WebApp.showAlert(response.message || '操作失败')
+            window.Telegram.WebApp.showAlert(response.message || '下线失败')
           } else {
-            alert(response.message || '操作失败')
+            alert(response.message || '下线失败')
           }
         }
       } catch (error) {
-        console.error('下线/删除失败:', error)
-        const errorMsg = error.response?.data?.detail || error.response?.data?.message || '操作失败'
+        console.error('下线失败:', error)
+        const errorMsg = error.response?.data?.detail || error.response?.data?.message || '下线失败'
         if (window.Telegram?.WebApp) {
           window.Telegram.WebApp.showAlert(errorMsg)
         } else {
@@ -529,13 +701,115 @@ export default {
         this.offlineLoading = false
       }
     },
+    // 删除相关
+    showDeleteDialog(line) {
+      this.currentLine = line
+      this.showDeleteDialogVisible = true
+    },
+    async submitDelete() {
+      this.deleteLoading = true
+      try {
+        const response = await deleteCustomLine(this.currentLine.id)
+        
+        if (response.success) {
+          if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.showAlert(response.message || '删除成功')
+          } else {
+            alert(response.message || '删除成功')
+          }
+          this.showDeleteDialogVisible = false
+          this.$emit('submitted')
+          await this.loadMyLines()
+        } else {
+          if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.showAlert(response.message || '删除失败')
+          } else {
+            alert(response.message || '删除失败')
+          }
+        }
+      } catch (error) {
+        console.error('删除失败:', error)
+        const errorMsg = error.response?.data?.detail || error.response?.data?.message || '删除失败'
+        if (window.Telegram?.WebApp) {
+          window.Telegram.WebApp.showAlert(errorMsg)
+        } else {
+          alert(errorMsg)
+        }
+      } finally {
+        this.deleteLoading = false
+      }
+    },
+    // 上线相关
+    showOnlineDialog(line) {
+      this.currentLine = line
+      // 预填充当前线路的配置
+      this.onlineData = {
+        traffic_limit: line.traffic_limit,
+        valid_days: line.valid_days,
+        is_permanent: line.is_permanent
+      }
+      this.showOnlineDialogVisible = true
+    },
+    closeOnlineDialog() {
+      this.showOnlineDialogVisible = false
+      this.onlineData = {
+        traffic_limit: null,
+        valid_days: null,
+        is_permanent: false
+      }
+    },
+    async submitOnline() {
+      this.onlineLoading = true
+      try {
+        // 构造上线数据，只发送用户修改的字段
+        const payload = {}
+        if (this.onlineData.traffic_limit !== null && this.onlineData.traffic_limit !== undefined) {
+          payload.traffic_limit = this.onlineData.traffic_limit
+        }
+        if (this.onlineData.is_permanent) {
+          payload.is_permanent = true
+        } else if (this.onlineData.valid_days) {
+          payload.valid_days = this.onlineData.valid_days
+        }
+        
+        const response = await onlineCustomLine(this.currentLine.id, payload)
+        
+        if (response.success) {
+          if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.showAlert(response.message || '上线成功')
+          } else {
+            alert(response.message || '上线成功')
+          }
+          this.closeOnlineDialog()
+          this.$emit('submitted')
+          await this.loadMyLines()
+        } else {
+          if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.showAlert(response.message || '上线失败')
+          } else {
+            alert(response.message || '上线失败')
+          }
+        }
+      } catch (error) {
+        console.error('上线失败:', error)
+        const errorMsg = error.response?.data?.detail || error.response?.data?.message || '上线失败'
+        if (window.Telegram?.WebApp) {
+          window.Telegram.WebApp.showAlert(errorMsg)
+        } else {
+          alert(errorMsg)
+        }
+      } finally {
+        this.onlineLoading = false
+      }
+    },
     // 辅助方法
     getStatusColor(status) {
       const colors = {
         pending: 'orange',
         approved: 'success',
         rejected: 'error',
-        expired: 'grey'
+        expired: 'grey',
+        offline: 'grey-darken-1'
       }
       return colors[status] || 'grey'
     },
@@ -544,7 +818,8 @@ export default {
         pending: '待审核',
         approved: '已批准',
         rejected: '已拒绝',
-        expired: '已过期'
+        expired: '已过期',
+        offline: '已下线'
       }
       return texts[status] || status
     },

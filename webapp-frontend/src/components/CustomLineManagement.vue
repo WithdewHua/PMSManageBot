@@ -12,6 +12,7 @@
           <v-chip value="pending" filter color="orange">待审核</v-chip>
           <v-chip value="approved" filter color="success">已批准</v-chip>
           <v-chip value="rejected" filter color="error">已拒绝</v-chip>
+          <v-chip value="offline" filter color="grey-darken-1">已下线</v-chip>
           <v-chip value="expired" filter color="grey">已过期</v-chip>
         </v-chip-group>
 
@@ -63,34 +64,67 @@
 
               <template v-slot:append>
                 <div class="d-flex flex-column">
-                  <v-btn
-                    v-if="line.status === 'pending'"
-                    size="small"
-                    color="success"
-                    variant="tonal"
-                    class="mb-2"
-                    @click.stop="approveDialog(line)"
-                  >
-                    批准
-                  </v-btn>
-                  <v-btn
-                    v-if="line.status === 'pending'"
-                    size="small"
-                    color="error"
-                    variant="tonal"
-                    @click.stop="rejectDialog(line)"
-                  >
-                    拒绝
-                  </v-btn>
-                  <v-btn
-                    v-else
-                    size="small"
-                    color="primary"
-                    variant="tonal"
-                    @click.stop="viewLineDetail(line)"
-                  >
-                    详情
-                  </v-btn>
+                  <!-- 待审核状态 -->
+                  <template v-if="line.status === 'pending'">
+                    <v-btn
+                      size="small"
+                      color="success"
+                      variant="tonal"
+                      class="mb-2"
+                      @click.stop="approveDialog(line)"
+                    >
+                      批准
+                    </v-btn>
+                    <v-btn
+                      size="small"
+                      color="error"
+                      variant="tonal"
+                      @click.stop="rejectDialog(line)"
+                    >
+                      拒绝
+                    </v-btn>
+                  </template>
+                  <!-- 已批准状态 -->
+                  <template v-else-if="line.status === 'approved'">
+                    <v-btn
+                      size="small"
+                      color="warning"
+                      variant="tonal"
+                      class="mb-2"
+                      @click.stop="offlineDialog(line)"
+                    >
+                      下线
+                    </v-btn>
+                    <v-btn
+                      size="small"
+                      color="primary"
+                      variant="tonal"
+                      @click.stop="viewLineDetail(line)"
+                    >
+                      详情
+                    </v-btn>
+                  </template>
+                  <!-- 其他状态 -->
+                  <template v-else>
+                    <v-btn
+                      size="small"
+                      color="primary"
+                      variant="tonal"
+                      class="mb-2"
+                      @click.stop="viewLineDetail(line)"
+                    >
+                      详情
+                    </v-btn>
+                    <v-btn
+                      v-if="line.status !== 'offline'"
+                      size="small"
+                      color="error"
+                      variant="tonal"
+                      @click.stop="deleteDialog(line)"
+                    >
+                      删除
+                    </v-btn>
+                  </template>
                 </div>
               </template>
             </v-list-item>
@@ -268,16 +302,29 @@
         </v-card-text>
 
         <v-card-actions>
+          <!-- 已批准状态：显示下线按钮 -->
           <v-btn
             v-if="currentLine.status === 'approved'"
             size="small"
+            color="warning"
+            variant="tonal"
+            @click="offlineDialog(currentLine)"
+          >
+            <v-icon start size="small">mdi-pause-circle</v-icon>
+            下线
+          </v-btn>
+          <!-- 其他状态（除了 offline）：显示删除按钮 -->
+          <v-btn
+            v-if="currentLine.status !== 'approved' && currentLine.status !== 'offline'"
+            size="small"
             color="error"
             variant="tonal"
-            @click="offlineLineDialog(currentLine)"
+            @click="deleteDialog(currentLine)"
           >
             <v-icon start size="small">mdi-delete</v-icon>
-            下线并删除
+            删除
           </v-btn>
+          <!-- 所有状态都可以管理标签 -->
           <v-btn
             size="small"
             color="primary"
@@ -348,14 +395,14 @@
     <!-- 下线确认对话框 -->
     <v-dialog v-model="showOfflineDialog" max-width="500" persistent>
       <v-card>
-        <v-card-title class="bg-error">
-          <v-icon class="mr-2">mdi-alert</v-icon>
-          确认下线并删除
+        <v-card-title class="bg-warning">
+          <v-icon class="mr-2">mdi-pause-circle</v-icon>
+          下线线路
         </v-card-title>
 
         <v-card-text class="pt-4">
-          <v-alert type="error" variant="tonal" class="mb-3">
-            下线后将自动解除所有用户对该线路的绑定，并从数据库中删除此线路！此操作不可撤销！
+          <v-alert type="warning" variant="tonal" class="mb-3">
+            下线后将自动解除所有用户对该线路的绑定！
           </v-alert>
           
           <div class="mb-3">
@@ -365,7 +412,7 @@
             <strong>网络情况：</strong>{{ currentLine?.network_info }}
           </div>
           
-          <p class="text-body-2">确定要下线并删除此线路吗？</p>
+          <p class="text-body-2">确定要下线此线路吗？下线后线路所有者可以重新上线。</p>
         </v-card-text>
 
         <v-card-actions>
@@ -374,9 +421,48 @@
             取消
           </v-btn>
           <v-btn
-            color="error"
+            color="warning"
             @click="submitOffline"
             :loading="submittingOffline"
+          >
+            确认下线
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- 删除确认对话框 -->
+    <v-dialog v-model="showDeleteDialog" max-width="500" persistent>
+      <v-card>
+        <v-card-title class="bg-error">
+          <v-icon class="mr-2">mdi-delete</v-icon>
+          删除线路
+        </v-card-title>
+
+        <v-card-text class="pt-4">
+          <v-alert type="error" variant="tonal" class="mb-3">
+            删除操作不可撤销！
+          </v-alert>
+          
+          <div class="mb-3">
+            <strong>线路域名：</strong>{{ currentLine?.domain }}
+          </div>
+          <div class="mb-3">
+            <strong>网络情况：</strong>{{ currentLine?.network_info }}
+          </div>
+          
+          <p class="text-body-2">确定要从数据库中删除此线路吗？此操作不可撤销！</p>
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn text @click="showDeleteDialog = false" :disabled="submittingDelete">
+            取消
+          </v-btn>
+          <v-btn
+            color="error"
+            @click="submitDelete"
+            :loading="submittingDelete"
           >
             确认删除
           </v-btn>
@@ -387,7 +473,7 @@
 </template>
 
 <script>
-import { adminGetAllCustomLines, adminApproveCustomLine, adminDeleteCustomLine, adminSetCustomLineTags } from '../services/customLineService'
+import { adminGetAllCustomLines, adminApproveCustomLine, adminOfflineCustomLine, adminDeleteCustomLine, adminSetCustomLineTags } from '../services/customLineService'
 
 export default {
   name: 'CustomLineManagement',
@@ -401,6 +487,7 @@ export default {
       showDetailDialog: false,
       showTagsDialog: false,
       showOfflineDialog: false,
+      showDeleteDialog: false,
       currentLine: null,
       approvalAction: 'approve',
       approvalNote: '',
@@ -410,7 +497,8 @@ export default {
       submitting: false,
       editingTags: [],
       submittingTags: false,
-      submittingOffline: false
+      submittingOffline: false,
+      submittingDelete: false
     }
   },
   computed: {
@@ -546,13 +634,48 @@ export default {
       }
     },
     
-    offlineLineDialog(line) {
+    offlineDialog(line) {
       this.currentLine = line
       this.showOfflineDialog = true
     },
     
+    deleteDialog(line) {
+      this.currentLine = line
+      this.showDeleteDialog = true
+    },
+    
     async submitOffline() {
       this.submittingOffline = true
+      
+      try {
+        const response = await adminOfflineCustomLine(this.currentLine.id)
+        
+        if (response.success) {
+          if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.showAlert(response.message || '线路已下线')
+          }
+          
+          this.showOfflineDialog = false
+          this.showDetailDialog = false
+          await this.loadLines()
+        } else {
+          if (window.Telegram?.WebApp) {
+            window.Telegram.WebApp.showAlert(response.message || '下线失败')
+          }
+        }
+      } catch (error) {
+        console.error('下线失败:', error)
+        const errorMsg = error.response?.data?.detail || error.response?.data?.message || '下线失败'
+        if (window.Telegram?.WebApp) {
+          window.Telegram.WebApp.showAlert(errorMsg)
+        }
+      } finally {
+        this.submittingOffline = false
+      }
+    },
+    
+    async submitDelete() {
+      this.submittingDelete = true
       
       try {
         const response = await adminDeleteCustomLine(this.currentLine.id)
@@ -562,7 +685,7 @@ export default {
             window.Telegram.WebApp.showAlert(response.message || '线路已删除')
           }
           
-          this.showOfflineDialog = false
+          this.showDeleteDialog = false
           this.showDetailDialog = false
           await this.loadLines()
         } else {
@@ -577,7 +700,7 @@ export default {
           window.Telegram.WebApp.showAlert(errorMsg)
         }
       } finally {
-        this.submittingOffline = false
+        this.submittingDelete = false
       }
     },
     
@@ -586,7 +709,8 @@ export default {
         pending: 'orange',
         approved: 'success',
         rejected: 'error',
-        expired: 'grey'
+        expired: 'grey',
+        offline: 'grey-darken-1'
       }
       return colors[status] || 'grey'
     },
@@ -596,7 +720,8 @@ export default {
         pending: '待审核',
         approved: '已批准',
         rejected: '已拒绝',
-        expired: '已过期'
+        expired: '已过期',
+        offline: '已下线'
       }
       return texts[status] || status
     },

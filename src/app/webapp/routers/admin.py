@@ -1529,11 +1529,11 @@ async def admin_update_custom_line(
 
             # 更新字段
             if update_req.domain is not None:
-                # 检查新域名是否已被使用
+                # 检查新域名是否已被使用（pending、approved 或 offline 状态）
                 stmt_check = select(CustomLine).where(
                     CustomLine.domain == update_req.domain,
                     CustomLine.id != line_id,
-                    CustomLine.status.in_(["pending", "approved"]),
+                    CustomLine.status.in_(["pending", "approved", "offline"]),
                 )
                 result_check = session.execute(stmt_check)
                 if result_check.scalar_one_or_none():
@@ -1595,6 +1595,90 @@ async def admin_update_custom_line(
         return BaseResponse(success=False, message=f"更新失败: {str(e)}")
 
 
+@router.post("/custom-lines/{line_id}/offline")
+@require_telegram_auth
+async def admin_offline_custom_line(
+    request: Request,
+    line_id: int,
+    background_tasks: BackgroundTasks,
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """管理员下线自定义线路"""
+    check_admin_permission(user)
+
+    try:
+        from time import time
+
+        from app.databases.session import get_session
+        from app.models.models import CustomLine
+        from app.webapp.schemas import BaseResponse
+        from sqlalchemy import select
+
+        current_time = int(time())
+
+        with get_session() as session:
+            stmt = select(CustomLine).where(CustomLine.id == line_id)
+            result = session.execute(stmt)
+            line = result.scalar_one_or_none()
+
+            if not line:
+                return BaseResponse(success=False, message="线路不存在")
+
+            # 只能下线已批准的线路
+            if line.status != "approved":
+                return BaseResponse(
+                    success=False,
+                    message=f"只能下线已批准的线路，当前状态: {line.status}",
+                )
+
+            domain = line.domain
+            submitter_id = line.tg_id
+            submitter_name = get_user_name_from_tg_id(submitter_id)
+
+            # 解绑所有使用该线路的用户
+            logger.info(f"管理员下线线路 {domain}，开始解绑所有用户")
+            try:
+                success, unbind_count = await unbind_specified_line_for_all_users(
+                    domain, "已被管理员下线"
+                )
+                if success and unbind_count > 0:
+                    logger.info(f"已解绑 {unbind_count} 个用户的线路 {domain}")
+            except Exception as e:
+                logger.error(f"解绑用户失败: {e}")
+
+            # 更新状态为 offline
+            line.status = "offline"
+            line.updated_at = current_time
+
+            session.commit()
+
+            logger.info(
+                f"管理员 {user.username or user.id} 下线了用户 {submitter_name} 的自定义线路: {domain}"
+            )
+
+            # 通知用户
+            user_notification = f"""📢 您的自定义线路已被管理员下线
+
+🌐 域名: {line.domain}
+
+您可以随时重新上线该线路。
+如有疑问，请联系管理员。"""
+
+            background_tasks.add_task(
+                send_message_by_url,
+                chat_id=submitter_id,
+                text=user_notification,
+            )
+
+            return BaseResponse(success=True, message=f"已下线线路: {domain}")
+
+    except Exception as e:
+        logger.error(f"管理员下线自定义线路失败: {e}")
+        from app.webapp.schemas import BaseResponse
+
+        return BaseResponse(success=False, message=f"下线失败: {str(e)}")
+
+
 @router.delete("/custom-lines/{line_id}")
 @require_telegram_auth
 async def admin_delete_custom_line(
@@ -1603,7 +1687,7 @@ async def admin_delete_custom_line(
     background_tasks: BackgroundTasks,
     user: TelegramUser = Depends(get_telegram_user),
 ):
-    """管理员删除自定义线路（从数据库中删除）"""
+    """管理员删除自定义线路（从数据库中删除，可删除任何状态的线路）"""
     check_admin_permission(user)
 
     try:
