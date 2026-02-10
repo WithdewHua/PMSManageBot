@@ -18,6 +18,7 @@ from app.models.models import (
     Auctions,
     Badge,
     CryptoDonationOrders,
+    CustomLine,
     DonationRegistrations,
     EmbyUser,
     Invitation,
@@ -2494,6 +2495,15 @@ class DatabaseORM:
             result = {}
 
             with get_session() as session:
+                # 获取所有已批准的自定义线路域名
+                approved_custom_lines = (
+                    session.execute(
+                        select(CustomLine.domain).where(CustomLine.status == "approved")
+                    )
+                    .scalars()
+                    .all()
+                )
+
                 for period_name, start_time in periods:
                     # 查询按服务类型分组的流量统计
                     service_results = session.execute(
@@ -2533,6 +2543,7 @@ class DatabaseORM:
                         "emby": 0,
                         "plex": 0,
                         "lines": [],
+                        "custom_lines": [],  # 新增：自定义线路统计
                     }
 
                     for service, traffic in service_results:
@@ -2543,7 +2554,8 @@ class DatabaseORM:
 
                     # 添加线路数据
                     for line, traffic in line_results:
-                        # 排除自定义线路，只统计已知的线路
+                        is_known_line = False
+                        # 检查是否是已知线路
                         for _line in (
                             settings.STREAM_BACKEND + settings.PREMIUM_STREAM_BACKEND
                         ):
@@ -2551,7 +2563,14 @@ class DatabaseORM:
                                 period_data["lines"].append(
                                     {"line": line, "traffic": traffic}
                                 )
+                                is_known_line = True
                                 break
+
+                        # 如果不是已知线路，检查是否是已批准的自定义线路
+                        if not is_known_line and line in approved_custom_lines:
+                            period_data["custom_lines"].append(
+                                {"line": line, "traffic": traffic, "is_custom": True}
+                            )
 
                     result[period_name] = period_data
 
@@ -2560,9 +2579,27 @@ class DatabaseORM:
         except Exception as e:
             logger.error(f"Error getting comprehensive traffic statistics: {e}")
             return {
-                "today": {"total": 0, "emby": 0, "plex": 0, "lines": []},
-                "week": {"total": 0, "emby": 0, "plex": 0, "lines": []},
-                "month": {"total": 0, "emby": 0, "plex": 0, "lines": []},
+                "today": {
+                    "total": 0,
+                    "emby": 0,
+                    "plex": 0,
+                    "lines": [],
+                    "custom_lines": [],
+                },
+                "week": {
+                    "total": 0,
+                    "emby": 0,
+                    "plex": 0,
+                    "lines": [],
+                    "custom_lines": [],
+                },
+                "month": {
+                    "total": 0,
+                    "emby": 0,
+                    "plex": 0,
+                    "lines": [],
+                    "custom_lines": [],
+                },
             }
 
     def get_plex_traffic_rank(self, start_date=None, end_date=None) -> list:

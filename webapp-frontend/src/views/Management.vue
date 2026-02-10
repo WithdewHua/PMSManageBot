@@ -2083,68 +2083,161 @@
           <v-window v-model="lineTrafficTab">
             <!-- 今日流量 -->
             <v-window-item value="today">
-              <div v-if="trafficOverview.today.lines.length === 0" class="text-center py-8">
+              <div v-if="trafficOverview.today.lines.length === 0 && trafficOverview.today.custom_lines.length === 0" class="text-center py-8">
                 <v-icon size="64" color="grey-lighten-1">mdi-database-off</v-icon>
                 <div class="text-grey-darken-1 mt-2">暂无今日线路流量数据</div>
               </div>
-              <v-row v-else>
-                <v-col cols="12" md="6" lg="4" v-for="(line, index) in trafficOverview.today.lines" :key="'today-' + index">
-                  <v-card class="line-traffic-card" variant="outlined">
-                    <v-card-title class="text-center bg-success text-white py-2">
-                      <v-icon start>mdi-server</v-icon>
-                      {{ line.line }}
-                    </v-card-title>
-                    <v-card-text class="text-center py-4">
-                      <div class="text-h6 text-success">{{ formatTrafficSize(line.traffic) }}</div>
-                      <div class="text-caption text-grey-darken-1">今日流量</div>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-              </v-row>
+              <div v-else>
+                <!-- 常规线路 -->
+                <div v-if="trafficOverview.today.lines.length > 0">
+                  <div class="text-subtitle-1 mb-3 font-weight-medium">
+                    <v-icon size="20" class="mr-1">mdi-server-network</v-icon>
+                    常规线路
+                  </div>
+                  <v-row>
+                    <v-col cols="12" md="6" lg="4" v-for="(line, index) in trafficOverview.today.lines" :key="'today-' + index">
+                      <v-card class="line-traffic-card" variant="outlined">
+                        <v-card-title class="text-center bg-success text-white py-2">
+                          <v-icon start>mdi-server</v-icon>
+                          {{ line.line }}
+                        </v-card-title>
+                        <v-card-text class="text-center py-4">
+                          <div class="text-h6 text-success">{{ formatTrafficSize(line.traffic) }}</div>
+                          <div class="text-caption text-grey-darken-1">今日流量</div>
+                        </v-card-text>
+                      </v-card>
+                    </v-col>
+                  </v-row>
+                </div>
+                
+                <!-- 自定义线路 -->
+                <div v-if="trafficOverview.today.custom_lines.length > 0" :class="trafficOverview.today.lines.length > 0 ? 'mt-6' : ''">
+                  <div class="text-subtitle-1 mb-3 font-weight-medium">
+                    <v-icon size="20" class="mr-1" color="purple">mdi-share-variant</v-icon>
+                    自定义分享线路
+                  </div>
+                  <v-row>
+                    <v-col cols="12" md="6" lg="4" v-for="(line, index) in trafficOverview.today.custom_lines" :key="'today-custom-' + index">
+                      <v-card class="line-traffic-card" variant="outlined">
+                        <v-card-title class="text-center bg-purple text-white py-2">
+                          <v-icon start>mdi-share-variant</v-icon>
+                          {{ line.line }}
+                        </v-card-title>
+                        <v-card-text class="text-center py-4">
+                          <div class="text-h6 text-purple">{{ formatTrafficSize(line.traffic) }}</div>
+                          <div class="text-caption text-grey-darken-1">今日流量</div>
+                        </v-card-text>
+                      </v-card>
+                    </v-col>
+                  </v-row>
+                </div>
+              </div>
             </v-window-item>
 
             <!-- 本周流量 -->
             <v-window-item value="week">
-              <div v-if="trafficOverview.week.lines.length === 0" class="text-center py-8">
+              <div v-if="trafficOverview.week.lines.length === 0 && trafficOverview.week.custom_lines.length === 0" class="text-center py-8">
                 <v-icon size="64" color="grey-lighten-1">mdi-database-off</v-icon>
                 <div class="text-grey-darken-1 mt-2">暂无本周线路流量数据</div>
               </div>
-              <v-row v-else>
-                <v-col cols="12" md="6" lg="4" v-for="(line, index) in trafficOverview.week.lines" :key="'week-' + index">
-                  <v-card class="line-traffic-card" variant="outlined">
-                    <v-card-title class="text-center bg-info text-white py-2">
-                      <v-icon start>mdi-server</v-icon>
-                      {{ line.line }}
-                    </v-card-title>
-                    <v-card-text class="text-center py-4">
-                      <div class="text-h6 text-info">{{ formatTrafficSize(line.traffic) }}</div>
-                      <div class="text-caption text-grey-darken-1">本周流量</div>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-              </v-row>
+              <div v-else>
+                <!-- 常规线路 -->
+                <div v-if="trafficOverview.week.lines.length > 0">
+                  <div class="text-subtitle-1 mb-3 font-weight-medium">
+                    <v-icon size="20" class="mr-1">mdi-server-network</v-icon>
+                    常规线路
+                  </div>
+                  <v-row>
+                    <v-col cols="12" md="6" lg="4" v-for="(line, index) in trafficOverview.week.lines" :key="'week-' + index">
+                      <v-card class="line-traffic-card" variant="outlined">
+                        <v-card-title class="text-center bg-info text-white py-2">
+                          <v-icon start>mdi-server</v-icon>
+                          {{ line.line }}
+                        </v-card-title>
+                        <v-card-text class="text-center py-4">
+                          <div class="text-h6 text-info">{{ formatTrafficSize(line.traffic) }}</div>
+                          <div class="text-caption text-grey-darken-1">本周流量</div>
+                        </v-card-text>
+                      </v-card>
+                    </v-col>
+                  </v-row>
+                </div>
+                
+                <!-- 自定义线路 -->
+                <div v-if="trafficOverview.week.custom_lines.length > 0" :class="trafficOverview.week.lines.length > 0 ? 'mt-6' : ''">
+                  <div class="text-subtitle-1 mb-3 font-weight-medium">
+                    <v-icon size="20" class="mr-1" color="purple">mdi-share-variant</v-icon>
+                    自定义分享线路
+                  </div>
+                  <v-row>
+                    <v-col cols="12" md="6" lg="4" v-for="(line, index) in trafficOverview.week.custom_lines" :key="'week-custom-' + index">
+                      <v-card class="line-traffic-card" variant="outlined">
+                        <v-card-title class="text-center bg-purple text-white py-2">
+                          <v-icon start>mdi-share-variant</v-icon>
+                          {{ line.line }}
+                        </v-card-title>
+                        <v-card-text class="text-center py-4">
+                          <div class="text-h6 text-purple">{{ formatTrafficSize(line.traffic) }}</div>
+                          <div class="text-caption text-grey-darken-1">本周流量</div>
+                        </v-card-text>
+                      </v-card>
+                    </v-col>
+                  </v-row>
+                </div>
+              </div>
             </v-window-item>
 
             <!-- 本月流量 -->
             <v-window-item value="month">
-              <div v-if="trafficOverview.month.lines.length === 0" class="text-center py-8">
+              <div v-if="trafficOverview.month.lines.length === 0 && trafficOverview.month.custom_lines.length === 0" class="text-center py-8">
                 <v-icon size="64" color="grey-lighten-1">mdi-database-off</v-icon>
                 <div class="text-grey-darken-1 mt-2">暂无本月线路流量数据</div>
               </div>
-              <v-row v-else>
-                <v-col cols="12" md="6" lg="4" v-for="(line, index) in trafficOverview.month.lines" :key="'month-' + index">
-                  <v-card class="line-traffic-card" variant="outlined">
-                    <v-card-title class="text-center bg-deep-purple text-white py-2">
-                      <v-icon start>mdi-server</v-icon>
-                      {{ line.line }}
-                    </v-card-title>
-                    <v-card-text class="text-center py-4">
-                      <div class="text-h6 text-deep-purple">{{ formatTrafficSize(line.traffic) }}</div>
-                      <div class="text-caption text-grey-darken-1">本月流量</div>
-                    </v-card-text>
-                  </v-card>
-                </v-col>
-              </v-row>
+              <div v-else>
+                <!-- 常规线路 -->
+                <div v-if="trafficOverview.month.lines.length > 0">
+                  <div class="text-subtitle-1 mb-3 font-weight-medium">
+                    <v-icon size="20" class="mr-1">mdi-server-network</v-icon>
+                    常规线路
+                  </div>
+                  <v-row>
+                    <v-col cols="12" md="6" lg="4" v-for="(line, index) in trafficOverview.month.lines" :key="'month-' + index">
+                      <v-card class="line-traffic-card" variant="outlined">
+                        <v-card-title class="text-center bg-deep-purple text-white py-2">
+                          <v-icon start>mdi-server</v-icon>
+                          {{ line.line }}
+                        </v-card-title>
+                        <v-card-text class="text-center py-4">
+                          <div class="text-h6 text-deep-purple">{{ formatTrafficSize(line.traffic) }}</div>
+                          <div class="text-caption text-grey-darken-1">本月流量</div>
+                        </v-card-text>
+                      </v-card>
+                    </v-col>
+                  </v-row>
+                </div>
+                
+                <!-- 自定义线路 -->
+                <div v-if="trafficOverview.month.custom_lines.length > 0" :class="trafficOverview.month.lines.length > 0 ? 'mt-6' : ''">
+                  <div class="text-subtitle-1 mb-3 font-weight-medium">
+                    <v-icon size="20" class="mr-1" color="purple">mdi-share-variant</v-icon>
+                    自定义分享线路
+                  </div>
+                  <v-row>
+                    <v-col cols="12" md="6" lg="4" v-for="(line, index) in trafficOverview.month.custom_lines" :key="'month-custom-' + index">
+                      <v-card class="line-traffic-card" variant="outlined">
+                        <v-card-title class="text-center bg-purple text-white py-2">
+                          <v-icon start>mdi-share-variant</v-icon>
+                          {{ line.line }}
+                        </v-card-title>
+                        <v-card-text class="text-center py-4">
+                          <div class="text-h6 text-purple">{{ formatTrafficSize(line.traffic) }}</div>
+                          <div class="text-caption text-grey-darken-1">本月流量</div>
+                        </v-card-text>
+                      </v-card>
+                    </v-col>
+                  </v-row>
+                </div>
+              </div>
             </v-window-item>
           </v-window>
         </v-card-text>
@@ -2297,9 +2390,9 @@ export default {
       selectedLineStat: null,
       // 流量概览统计数据
       trafficOverview: {
-        today: { total: 0, emby: 0, plex: 0, lines: [] },
-        week: { total: 0, emby: 0, plex: 0, lines: [] },
-        month: { total: 0, emby: 0, plex: 0, lines: [] }
+        today: { total: 0, emby: 0, plex: 0, lines: [], custom_lines: [] },
+        week: { total: 0, emby: 0, plex: 0, lines: [], custom_lines: [] },
+        month: { total: 0, emby: 0, plex: 0, lines: [], custom_lines: [] }
       },
       trafficOverviewLoading: false,
       trafficOverviewError: null,
@@ -3148,9 +3241,9 @@ export default {
         this.trafficOverviewError = null
         const response = await getTrafficOverview()
         this.trafficOverview = response.data || {
-          today: { total: 0, emby: 0, plex: 0, lines: [] },
-          week: { total: 0, emby: 0, plex: 0, lines: [] },
-          month: { total: 0, emby: 0, plex: 0, lines: [] }
+          today: { total: 0, emby: 0, plex: 0, lines: [], custom_lines: [] },
+          week: { total: 0, emby: 0, plex: 0, lines: [], custom_lines: [] },
+          month: { total: 0, emby: 0, plex: 0, lines: [], custom_lines: [] }
         }
         this.trafficOverviewLoading = false
       } catch (err) {
