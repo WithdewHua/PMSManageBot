@@ -2060,6 +2060,14 @@ async def submit_custom_line(
         if data.traffic_type not in ["one_way", "two_way"]:
             return BaseResponse(success=False, message="无效的流量类型")
 
+        # 验证分享限制不能大于总流量
+        if data.traffic_limit is not None and data.total_traffic is not None:
+            if data.traffic_limit > data.total_traffic:
+                return BaseResponse(
+                    success=False,
+                    message=f"分享限制 ({data.traffic_limit}GB) 不能大于总流量 ({data.total_traffic}GB)",
+                )
+
         # 检查域名是否已存在
         with get_session() as session:
             # 检查是否已有相同域名的线路（pending、approved 或 offline 状态）
@@ -2090,6 +2098,7 @@ async def submit_custom_line(
                 price_yearly=data.price_yearly,
                 traffic_limit=data.traffic_limit,
                 traffic_type=data.traffic_type,
+                total_traffic=data.total_traffic,
                 valid_days=data.valid_days,
                 is_permanent=1 if data.is_permanent else 0,
                 status="pending",
@@ -2116,9 +2125,14 @@ async def submit_custom_line(
                 price_info.append(f"年付: ¥{data.price_yearly}")
             price_str = " / ".join(price_info) if price_info else "未提供"
 
+            traffic_parts = []
+            if data.traffic_limit:
+                traffic_parts.append(f"月限 {data.traffic_limit}GB")
+            if data.total_traffic:
+                traffic_parts.append(f"总量 {data.total_traffic}GB")
             traffic_info = (
-                f"{data.traffic_limit}GB ({data.traffic_type})"
-                if data.traffic_limit
+                f"{' | '.join(traffic_parts)} ({data.traffic_type})"
+                if traffic_parts
                 else "未提供"
             )
             valid_info = "长期可用" if data.is_permanent else f"{data.valid_days}天"
@@ -2190,6 +2204,7 @@ async def get_my_custom_lines(
                     expires_at=line.expires_at,
                     created_at=line.created_at,
                     updated_at=line.updated_at,
+                    total_traffic=line.total_traffic,
                 )
                 for line in lines
             ]
@@ -2310,6 +2325,7 @@ async def get_custom_line_detail(
                 expires_at=line.expires_at,
                 created_at=line.created_at,
                 updated_at=line.updated_at,
+                total_traffic=line.total_traffic,
             )
 
             return CustomLineDetailResponse(
@@ -2381,12 +2397,22 @@ async def update_custom_line(
                 if data.traffic_type not in ["one_way", "two_way"]:
                     return BaseResponse(success=False, message="无效的流量类型")
                 line.traffic_type = data.traffic_type
+            if data.total_traffic is not None:
+                line.total_traffic = data.total_traffic
             if data.valid_days is not None:
                 line.valid_days = data.valid_days
             if data.is_permanent is not None:
                 line.is_permanent = 1 if data.is_permanent else 0
             if data.user_note is not None:
                 line.user_note = data.user_note
+
+            # 验证分享限制不能大于总流量
+            if line.traffic_limit is not None and line.total_traffic is not None:
+                if line.traffic_limit > line.total_traffic:
+                    return BaseResponse(
+                        success=False,
+                        message=f"分享限制 ({line.traffic_limit}GB) 不能大于总流量 ({line.total_traffic}GB)",
+                    )
 
             # 重新计算过期时间
             if data.is_permanent is not None or data.valid_days is not None:
@@ -2443,6 +2469,19 @@ async def delete_custom_line(
                     success=False,
                     message="不能直接删除已上线的线路，请先下线后再删除",
                 )
+
+            # 立即结算当月流量积分（如果线路配置了流量价格）
+            if line_status in ["offline", "expired"]:
+                logger.info(f"开始为删除的线路 {domain} 结算当月流量积分")
+                try:
+                    from app.modules.custom_line import settle_custom_line_traffic
+
+                    await settle_custom_line_traffic(
+                        line_domain=domain, force_current_month=True
+                    )
+                    logger.info(f"线路 {domain} 当月流量结算完成")
+                except Exception as e:
+                    logger.error(f"结算线路 {domain} 流量失败: {e}")
 
             session.delete(line)
             session.commit()
@@ -2554,9 +2593,33 @@ async def online_custom_line(
                     message=f"只能上线已下线的线路，当前状态: {line.status}",
                 )
 
+            # 获取最终的流量限制和总流量值（用于验证）
+            final_traffic_limit = (
+                data.traffic_limit
+                if data.traffic_limit is not None
+                else line.traffic_limit
+            )
+            final_total_traffic = (
+                data.total_traffic
+                if data.total_traffic is not None
+                else line.total_traffic
+            )
+
+            # 验证分享限制不能大于总流量
+            if final_traffic_limit is not None and final_total_traffic is not None:
+                if final_traffic_limit > final_total_traffic:
+                    return BaseResponse(
+                        success=False,
+                        message=f"分享限制 ({final_traffic_limit}GB) 不能大于总流量 ({final_total_traffic}GB)",
+                    )
+
             # 更新流量限制（如果提供）
             if data.traffic_limit is not None:
                 line.traffic_limit = data.traffic_limit
+
+            # 更新总流量包（如果提供）
+            if data.total_traffic is not None:
+                line.total_traffic = data.total_traffic
 
             # 更新有效期（如果提供）
             if data.valid_days is not None:

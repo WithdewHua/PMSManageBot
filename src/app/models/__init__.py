@@ -7,6 +7,7 @@ from app.models.models import (
     Auctions,
     Base,
     CryptoDonationOrders,
+    CustomLine,
     DonationRegistrations,
     EmbyUser,
     Invitation,
@@ -32,4 +33,5 @@ __all__ = [
     "LineTrafficMonthlyStats",
     "DonationRegistrations",
     "CryptoDonationOrders",
+    "CustomLine",
 ]

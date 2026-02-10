@@ -23,7 +23,11 @@ from app.handlers.start import *
 from app.handlers.status import *
 from app.handlers.user import *
 from app.log import logger
-from app.modules.custom_line import check_expired_custom_lines
+from app.modules.custom_line import (
+    check_custom_line_traffic,
+    check_expired_custom_lines,
+    settle_custom_line_traffic,
+)
 from app.premium import (
     check_premium_expiring_soon,
     check_premium_expiry,
@@ -331,6 +335,34 @@ def add_init_scheduler_job():
         + datetime.timedelta(minutes=3),  # 启动后 3 分钟执行一次
     )
     logger.info("添加定时任务：每 5 分钟检查并下线过期的自定义线路")
+
+    # 每 10 分钟检查自定义线路流量使用情况 (异步任务)
+    scheduler.add_async_job(
+        func=check_custom_line_traffic,
+        trigger="interval",
+        id="check_custom_line_traffic",
+        replace_existing=True,
+        max_instances=1,
+        minutes=10,  # 每 10 分钟执行一次
+        next_run_time=datetime.datetime.now(settings.TZ)
+        + datetime.timedelta(minutes=4),  # 启动后 4 分钟执行一次
+    )
+    logger.info("添加定时任务：每 10 分钟检查自定义线路流量使用情况")
+
+    # 每月1号凌晨 2:00 结算上月自定义线路流量积分 (在流量聚合任务1:00之后执行)
+    scheduler.add_async_job(
+        func=settle_custom_line_traffic,
+        trigger="cron",
+        id="settle_custom_line_traffic",
+        replace_existing=True,
+        max_instances=1,
+        day=1,  # 每月1号
+        hour=2,  # 凌晨2点，确保在1点的流量聚合任务之后
+        minute=0,
+    )
+    logger.info(
+        "添加定时任务：每月1号凌晨 2:00 结算上月自定义线路流量积分（在流量聚合后）"
+    )
 
 
 if __name__ == "__main__":

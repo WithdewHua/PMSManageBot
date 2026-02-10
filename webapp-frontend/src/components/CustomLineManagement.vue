@@ -738,9 +738,18 @@ export default {
     },
     
     formatTraffic(line) {
-      if (!line.traffic_limit) return '未提供'
+      const parts = []
       const type = line.traffic_type === 'one_way' ? '单向' : '双向'
-      return `${line.traffic_limit}GB (${type})`
+      
+      if (line.traffic_limit) {
+        parts.push(`月限 ${line.traffic_limit}GB`)
+      }
+      if (line.total_traffic) {
+        parts.push(`总量 ${line.total_traffic}GB`)
+      }
+      
+      if (parts.length === 0) return '未提供'
+      return `${parts.join(' | ')} (${type})`
     },
     
     formatValidity(line) {

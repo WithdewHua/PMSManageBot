@@ -1331,6 +1331,7 @@ async def get_all_custom_lines(
                     expires_at=line.expires_at,
                     created_at=line.created_at,
                     updated_at=line.updated_at,
+                    total_traffic=line.total_traffic,
                 )
                 for line in lines
             ]
@@ -1553,6 +1554,8 @@ async def admin_update_custom_line(
                 if update_req.traffic_type not in ["one_way", "two_way"]:
                     return BaseResponse(success=False, message="无效的流量类型")
                 line.traffic_type = update_req.traffic_type
+            if update_req.total_traffic is not None:
+                line.total_traffic = update_req.total_traffic
             if update_req.valid_days is not None:
                 line.valid_days = update_req.valid_days
             if update_req.is_permanent is not None:
@@ -1693,6 +1696,7 @@ async def admin_delete_custom_line(
     try:
         from app.databases.session import get_session
         from app.models.models import CustomLine
+        from app.modules.custom_line import settle_custom_line_traffic
         from app.webapp.schemas import BaseResponse
         from sqlalchemy import select
 
@@ -1720,6 +1724,16 @@ async def admin_delete_custom_line(
                         logger.info(f"已解绑 {unbind_count} 个用户的线路 {domain}")
                 except Exception as e:
                     logger.error(f"解绑用户失败: {e}")
+
+            # 立即结算当月流量积分
+            logger.info(f"开始为删除的线路 {domain} 结算当月流量积分")
+            try:
+                await settle_custom_line_traffic(
+                    line_domain=domain, force_current_month=True
+                )
+                logger.info(f"线路 {domain} 当月流量结算完成")
+            except Exception as e:
+                logger.error(f"结算线路 {domain} 流量失败: {e}")
 
             session.delete(line)
             session.commit()

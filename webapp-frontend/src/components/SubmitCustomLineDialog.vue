@@ -158,7 +158,9 @@
             <div class="pa-4">
               <v-alert type="info" variant="tonal" density="compact" class="mb-4">
                 <div>1. 请确保域名中包含 <strong>funmedia</strong>，以便匹配分流规则</div>
-                <div class="mt-1">2. 提交后需等待管理员审核</div>
+                <div class="mt-1">2. 月总流量：服务器每月可用的总流量包大小</div>
+                <div class="mt-1">3. 月分享限制：分享的线路每自然月可以使用的流量上限，超出将自动下线，下月自动恢复</div>
+                <div class="mt-1">4. 提交后需等待管理员审核</div>
               </v-alert>
               <v-form ref="form" v-model="valid" lazy-validation>
           <!-- 域名 -->
@@ -225,12 +227,27 @@
 
           <!-- 流量信息 -->
           <div class="mb-3">
-            <div class="text-subtitle-2 mb-2">每月流量</div>
+            <div class="text-subtitle-2 mb-2">流量信息</div>
             <v-row>
               <v-col cols="6">
                 <v-text-field
+                  v-model.number="formData.total_traffic"
+                  label="月总流量 (GB) *"
+                  type="number"
+                  min="0"
+                  step="1"
+                  outlined
+                  dense
+                  :rules="[v => !!v || '请填写总流量包', v => v > 0 || '总流量必须大于0']"
+                  suffix="GB"
+                  placeholder="2000"
+                  required
+                ></v-text-field>
+              </v-col>
+              <v-col cols="6">
+                <v-text-field
                   v-model.number="formData.traffic_limit"
-                  label="流量限制 (GB)"
+                  label="月分享限制 (GB)"
                   type="number"
                   min="0"
                   step="1"
@@ -241,7 +258,9 @@
                   placeholder="1000"
                 ></v-text-field>
               </v-col>
-              <v-col cols="6">
+            </v-row>
+            <v-row class="mt-2">
+              <v-col cols="12">
                 <v-select
                   v-model="formData.traffic_type"
                   label="流量计算方式"
@@ -465,16 +484,29 @@
           <v-divider class="my-3"></v-divider>
           
           <div class="text-subtitle-2 mb-2">可选：修改线路配置</div>
-          
+
           <v-text-field
-            v-model.number="onlineData.traffic_limit"
-            label="流量限制 (GB)"
+            v-model.number="onlineData.total_traffic"
+            label="月总流量 (GB)"
             type="number"
             min="0"
             outlined
             dense
             clearable
-            hint="留空表示不限制"
+            hint="服务器每月总流量"
+            persistent-hint
+            class="mb-3"
+          ></v-text-field>
+
+          <v-text-field
+            v-model.number="onlineData.traffic_limit"
+            label="月分享限制 (GB)"
+            type="number"
+            min="0"
+            outlined
+            dense
+            clearable
+            hint="月分享流量限制"
             persistent-hint
             class="mb-3"
           ></v-text-field>
@@ -550,6 +582,7 @@ export default {
       onlineLoading: false,
       onlineData: {
         traffic_limit: null,
+        total_traffic: null,
         valid_days: null,
         is_permanent: false
       },
@@ -561,6 +594,7 @@ export default {
         price_yearly: null,
         traffic_limit: null,
         traffic_type: 'one_way',
+        total_traffic: null,
         valid_days: null,
         is_permanent: false,
         user_note: ''
@@ -599,6 +633,7 @@ export default {
         price_yearly: null,
         traffic_limit: null,
         traffic_type: 'one_way',
+        total_traffic: null,
         valid_days: null,
         is_permanent: false,
         user_note: ''
@@ -745,6 +780,7 @@ export default {
       // 预填充当前线路的配置
       this.onlineData = {
         traffic_limit: line.traffic_limit,
+        total_traffic: line.total_traffic,
         valid_days: line.valid_days,
         is_permanent: line.is_permanent
       }
@@ -754,6 +790,7 @@ export default {
       this.showOnlineDialogVisible = false
       this.onlineData = {
         traffic_limit: null,
+        total_traffic: null,
         valid_days: null,
         is_permanent: false
       }
@@ -765,6 +802,9 @@ export default {
         const payload = {}
         if (this.onlineData.traffic_limit !== null && this.onlineData.traffic_limit !== undefined) {
           payload.traffic_limit = this.onlineData.traffic_limit
+        }
+        if (this.onlineData.total_traffic !== null && this.onlineData.total_traffic !== undefined) {
+          payload.total_traffic = this.onlineData.total_traffic
         }
         if (this.onlineData.is_permanent) {
           payload.is_permanent = true
@@ -834,9 +874,18 @@ export default {
       return prices.length > 0 ? prices.join(' / ') : '未提供'
     },
     formatTraffic(line) {
-      if (!line.traffic_limit) return '未提供'
+      const parts = []
       const type = line.traffic_type === 'one_way' ? '单向' : '双向'
-      return `${line.traffic_limit}GB (${type})`
+      
+      if (line.traffic_limit) {
+        parts.push(`月限 ${line.traffic_limit}GB`)
+      }
+      if (line.total_traffic) {
+        parts.push(`总量 ${line.total_traffic}GB`)
+      }
+      
+      if (parts.length === 0) return '未提供'
+      return `${parts.join(' | ')} (${type})`
     },
     formatValidity(line) {
       if (line.is_permanent) return '长期可用'
@@ -850,6 +899,12 @@ export default {
     },
     async submitCustomLine() {
       if (!this.$refs.form.validate()) {
+        return
+      }
+
+      // 验证总流量包：必填
+      if (!this.formData.total_traffic || this.formData.total_traffic <= 0) {
+        this.errorMessage = '请填写总流量包且必须大于0'
         return
       }
 

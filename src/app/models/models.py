@@ -516,6 +516,9 @@ class CustomLine(Base):
     traffic_type: Mapped[str] = mapped_column(
         String, nullable=False, default="one_way"
     )  # 流量计算类型: one_way=单向, two_way=双向
+    total_traffic: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True
+    )  # 总流量包 (GB)，用于计算流量单价
     valid_days: Mapped[Optional[int]] = mapped_column(
         Integer, nullable=True
     )  # 可使用天数，NULL 表示长期
@@ -525,6 +528,9 @@ class CustomLine(Base):
     status: Mapped[str] = mapped_column(
         String, nullable=False, default="pending", index=True
     )  # 状态: pending=待审批, approved=已批准, rejected=已拒绝, expired=已过期, offline=已下线
+    auto_offline_reason: Mapped[Optional[str]] = mapped_column(
+        String, nullable=True
+    )  # 自动下线原因: traffic_exceeded=流量超限, None=用户主动下线或其他
     admin_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # 管理员备注
     user_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # 用户备注
     tags: Mapped[Optional[list]] = mapped_column(

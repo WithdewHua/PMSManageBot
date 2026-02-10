@@ -248,6 +248,7 @@ class CustomLineSubmitRequest(BaseModel):
         default="one_way",
         description="流量计算类型: one_way=单向, two_way=双向",
     )
+    total_traffic: float = Field(..., gt=0, description="总流量包 (GB)")
     valid_days: Optional[int] = Field(None, ge=1, description="可使用天数")
     is_permanent: bool = Field(default=False, description="是否长期可用")
     user_note: Optional[str] = Field(None, max_length=500, description="用户备注")
@@ -275,6 +276,7 @@ class CustomLineInfo(BaseModel):
     expires_at: Optional[int] = None
     created_at: int
     updated_at: int
+    total_traffic: Optional[float] = None
 
 
 class CustomLineListResponse(BaseResponse):
@@ -316,6 +318,7 @@ class CustomLineUpdateRequest(BaseModel):
     price_yearly: Optional[float] = Field(None, ge=0, description="年付价格")
     traffic_limit: Optional[float] = Field(None, ge=0, description="每月流量限制 (GB)")
     traffic_type: Optional[str] = Field(None, description="流量计算类型")
+    total_traffic: Optional[float] = Field(None, ge=0, description="总流量包 (GB)")
     valid_days: Optional[int] = Field(None, ge=1, description="可使用天数")
     is_permanent: Optional[bool] = Field(None, description="是否长期可用")
     user_note: Optional[str] = Field(None, max_length=500, description="用户备注")
@@ -334,6 +337,7 @@ class AdminCustomLineUpdateRequest(BaseModel):
     price_yearly: Optional[float] = Field(None, ge=0, description="年付价格")
     traffic_limit: Optional[float] = Field(None, ge=0, description="每月流量限制 (GB)")
     traffic_type: Optional[str] = Field(None, description="流量计算类型")
+    total_traffic: Optional[float] = Field(None, ge=0, description="总流量包 (GB)")
     valid_days: Optional[int] = Field(None, ge=1, description="可使用天数")
     is_permanent: Optional[bool] = Field(None, description="是否长期可用")
     admin_note: Optional[str] = Field(None, max_length=500, description="管理员备注")
@@ -353,5 +357,6 @@ class CustomLineOnlineRequest(BaseModel):
     """上线自定义线路请求模型"""
 
     traffic_limit: Optional[float] = Field(None, ge=0, description="每月流量限制 (GB)")
+    total_traffic: Optional[float] = Field(None, ge=0, description="总流量包 (GB)")
     valid_days: Optional[int] = Field(None, ge=1, description="可使用天数")
     is_permanent: Optional[bool] = Field(None, description="是否长期可用")
