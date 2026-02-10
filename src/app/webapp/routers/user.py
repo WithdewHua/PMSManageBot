@@ -2533,6 +2533,7 @@ async def offline_custom_line(
 
             # 解绑所有使用该线路的用户
             logger.info(f"用户下线线路 {domain}，开始解绑所有用户")
+            unbind_count = 0
             try:
                 from app.webapp.routers.admin import unbind_specified_line_for_all_users
 
@@ -2554,6 +2555,26 @@ async def offline_custom_line(
                 f"用户 {get_user_name_from_tg_id(tg_id)} 下线自定义线路: {domain}"
             )
 
+            # 发送管理员通知
+            from datetime import datetime
+
+            user_name = get_user_name_from_tg_id(tg_id)
+            offline_time = datetime.fromtimestamp(current_time).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            admin_notification = f"""📴 自定义线路下线通知
+
+👤 用户: {user_name}
+🌐 线路: {domain}
+📊 解绑用户数: {unbind_count}
+⏰ 下线时间: {offline_time}"""
+
+            background_tasks.add_task(
+                send_message_by_url,
+                chat_id=settings.TG_ADMIN_CHAT_ID,
+                text=admin_notification,
+            )
+
             return BaseResponse(success=True, message=f"线路 {domain} 已下线")
 
     except Exception as e:
@@ -2567,6 +2588,7 @@ async def online_custom_line(
     request: Request,
     line_id: int,
     data: CustomLineOnlineRequest,
+    background_tasks: BackgroundTasks,
     user: TelegramUser = Depends(get_telegram_user),
 ):
     """上线自定义线路（仅限已下线的线路且为线路所有者，可修改流量和有效期）"""
@@ -2666,6 +2688,28 @@ async def online_custom_line(
                     else "未设置"
                 )
             )
+
+            # 发送频道通知
+            if settings.TG_CHANNEL_ID:
+                user_name = get_user_name_from_tg_id(tg_id)
+                traffic_info = (
+                    f"{line.traffic_limit} GB" if line.traffic_limit else "无限制"
+                )
+
+                channel_notification = f"""🎉 线路重新上线通知
+
+🌐 线路: {line.domain}
+🌍 网络信息: {line.network_info or "未提供"}
+📊 流量限制: {traffic_info}
+⏰ 有效期: {expire_info}
+
+线路由 {user_name} 重新上线！感谢分享！"""
+
+                background_tasks.add_task(
+                    send_message_by_url,
+                    chat_id=settings.TG_CHANNEL_ID,
+                    text=channel_notification,
+                )
 
             return BaseResponse(
                 success=True,

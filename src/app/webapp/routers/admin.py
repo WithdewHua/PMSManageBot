@@ -1429,9 +1429,14 @@ async def approve_custom_line(
                 )
 
                 # 通知用户
+                traffic_info = (
+                    f"{line.traffic_limit} GB" if line.traffic_limit else "无限制"
+                )
+
                 user_notification = f"""✅ 您的自定义线路已通过审核
 
 🌐 域名: {line.domain}
+📊 流量限制: {traffic_info}
 ⏰ 有效期: {"长期可用" if line.is_permanent else f"{line.valid_days}天"}
 """
                 if approve_req.admin_note:
@@ -1449,6 +1454,7 @@ async def approve_custom_line(
 
 🌐 线路: {line.domain}
 🌍 网络信息: {line.network_info or "未提供"}
+📊 流量限制: {traffic_info}
 ⏰ 有效期: {"长期可用" if line.is_permanent else f"{line.valid_days} 天"}
 
 感谢 {submitter_name} 分享线路！"""

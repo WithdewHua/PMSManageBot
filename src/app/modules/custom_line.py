@@ -292,13 +292,13 @@ async def check_custom_line_traffic():
                             line.updated_at = current_time
                             online_count += 1
 
-                            # 发送恢复通知
+                            # 发送恢复通知给线路所有者
                             try:
                                 message = (
                                     f"✅ 自定义线路已恢复上线\n\n"
-                                    f"域名：{line.domain}\n"
-                                    f"当月流量：{actual_traffic:.2f}GB\n"
-                                    f"流量限制：{line.traffic_limit}GB\n\n"
+                                    f"域名: {line.domain}\n"
+                                    f"当月流量: {actual_traffic:.2f}GB\n"
+                                    f"流量限制: {line.traffic_limit}GB\n\n"
                                     f"用户现在可以重新绑定此线路"
                                 )
 
@@ -311,6 +311,44 @@ async def check_custom_line_traffic():
                                 logger.error(
                                     f"发送线路恢复通知失败 (用户 {line.tg_id}，线路 {line.domain}): {e}"
                                 )
+
+                            # 发送频道通知
+                            if settings.TG_CHANNEL_ID:
+                                try:
+                                    traffic_info = (
+                                        f"{line.traffic_limit} GB"
+                                        if line.traffic_limit
+                                        else "无限制"
+                                    )
+
+                                    # 判断有效期信息
+                                    if line.is_permanent:
+                                        expire_info = "长期可用"
+                                    elif line.expires_at:
+                                        expire_info = datetime.fromtimestamp(
+                                            line.expires_at, tz=settings.TZ
+                                        ).strftime("%Y-%m-%d %H:%M:%S")
+                                    else:
+                                        expire_info = "未设置"
+
+                                    channel_notification = f"""🎉 线路恢复上线通知
+
+🌐 线路: {line.domain}
+🌍 网络信息: {line.network_info or "未提供"}
+📊 流量限制: {traffic_info}
+⏰ 有效期: {expire_info}
+
+线路流量已重置，现已恢复上线！"""
+
+                                    await send_message_by_url(
+                                        chat_id=settings.TG_CHANNEL_ID,
+                                        text=channel_notification,
+                                        disable_notification=False,
+                                    )
+                                except Exception as e:
+                                    logger.error(
+                                        f"发送频道恢复通知失败 (线路 {line.domain}): {e}"
+                                    )
 
             if offline_count > 0 or online_count > 0:
                 session.commit()
