@@ -182,72 +182,45 @@
               <v-card-title class="text-center">
                 <v-icon start color="red-darken-2">mdi-gift</v-icon> 捐赠管理
               </v-card-title>
-              <v-card-text>
+              <v-card-text class="py-4">
                 <div v-if="!adminLoading && !adminError">
-                  <v-row>
-                    <!-- 添加捐赠 -->
-                    <v-col cols="12" sm="6" md="4">
-                      <v-card variant="outlined" class="donation-feature-card">
-                        <v-card-text class="text-center pa-4">
-                          <v-icon size="32" color="red-darken-2" class="mb-2">mdi-plus-circle</v-icon>
-                          <div class="text-subtitle2 mb-2">添加捐赠</div>
-                          <div class="text-caption text-medium-emphasis mb-3">手动添加用户捐赠记录</div>
-                          <v-btn
-                            color="red-darken-2"
-                            variant="flat"
-                            size="small"
-                            block
-                            prepend-icon="mdi-plus"
-                            @click="openDonationDialog"
-                          >
-                            添加捐赠
-                          </v-btn>
-                        </v-card-text>
-                      </v-card>
-                    </v-col>
+                  <div class="donation-button-group">
+                    <!-- 添加捐赠按钮 -->
+                    <v-btn
+                      color="red-darken-2"
+                      variant="flat"
+                      prepend-icon="mdi-plus"
+                      @click="openDonationDialog"
+                      class="donation-btn"
+                      elevation="2"
+                    >
+                      添加捐赠
+                    </v-btn>
                     
-                    <!-- 登记管理 -->
-                    <v-col cols="12" sm="6" md="4">
-                      <v-card variant="outlined" class="donation-feature-card">
-                        <v-card-text class="text-center pa-4">
-                          <v-icon size="32" color="orange-darken-2" class="mb-2">mdi-clipboard-list</v-icon>
-                          <div class="text-subtitle2 mb-2">登记管理</div>
-                          <div class="text-caption text-medium-emphasis mb-3">管理用户自助捐赠登记</div>
-                          <v-btn
-                            color="orange-darken-2"
-                            variant="flat"
-                            size="small"
-                            block
-                            prepend-icon="mdi-clipboard-list"
-                            @click="openDonationRegistrationDialog"
-                          >
-                            管理登记
-                          </v-btn>
-                        </v-card-text>
-                      </v-card>
-                    </v-col>
+                    <!-- 登记管理按钮 -->
+                    <v-btn
+                      color="orange-darken-2"
+                      variant="flat"
+                      prepend-icon="mdi-clipboard-list"
+                      @click="openDonationRegistrationDialog"
+                      class="donation-btn"
+                      elevation="2"
+                    >
+                      管理登记
+                    </v-btn>
                     
-                    <!-- Crypto 捐赠记录 -->
-                    <v-col cols="12" sm="12" md="4">
-                      <v-card variant="outlined" class="donation-feature-card">
-                        <v-card-text class="text-center pa-4">
-                          <v-icon size="32" color="purple-darken-2" class="mb-2">mdi-bitcoin</v-icon>
-                          <div class="text-subtitle2 mb-2">Crypto 捐赠</div>
-                          <div class="text-caption text-medium-emphasis mb-3">查看加密货币捐赠记录</div>
-                          <v-btn
-                            color="purple-darken-2"
-                            variant="flat"
-                            size="small"
-                            block
-                            prepend-icon="mdi-eye"
-                            @click="openCryptoDonationDialog"
-                          >
-                            查看记录
-                          </v-btn>
-                        </v-card-text>
-                      </v-card>
-                    </v-col>
-                  </v-row>
+                    <!-- Crypto 捐赠记录按钮 -->
+                    <v-btn
+                      color="purple-darken-2"
+                      variant="flat"
+                      prepend-icon="mdi-bitcoin"
+                      @click="openCryptoDonationDialog"
+                      class="donation-btn"
+                      elevation="2"
+                    >
+                      查看记录
+                    </v-btn>
+                  </div>
                 </div>
               </v-card-text>
             </v-card>
@@ -4259,54 +4232,41 @@ export default {
   font-size: 18px;
 }
 
-/* 捐赠管理功能卡片样式 */
-.donation-feature-card {
-  transition: all 0.3s ease;
-  border-radius: 12px;
-  border: 2px solid transparent;
-  background: linear-gradient(145deg, #f8f9fa, #ffffff);
+/* 捐赠管理按钮组样式 */
+.donation-button-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  padding: 4px 0;
 }
 
-.donation-feature-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
-  border-color: rgba(var(--v-theme-primary), 0.2);
+.donation-btn {
+  height: 44px !important;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0.3px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.donation-feature-card .v-icon {
-  transition: transform 0.3s ease;
+.donation-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2) !important;
 }
 
-.donation-feature-card:hover .v-icon {
-  transform: scale(1.1);
+.donation-btn:active {
+  transform: translateY(0);
 }
 
-.donation-feature-card .v-btn {
-  transition: all 0.3s ease;
-}
-
-.donation-feature-card:hover .v-btn {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-/* 响应式优化 */
+/* 响应式优化 - 小屏幕下按钮堆叠显示 */
 @media (max-width: 600px) {
-  .donation-feature-card .v-card-text {
-    padding: 16px 12px !important;
+  .donation-button-group {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
   
-  .donation-feature-card .v-icon {
-    margin-bottom: 8px !important;
-  }
-  
-  .donation-feature-card .text-subtitle2 {
-    font-size: 14px;
-  }
-  
-  .donation-feature-card .text-caption {
-    font-size: 12px;
-    margin-bottom: 12px !important;
+  .donation-btn {
+    width: 100%;
+    height: 48px !important;
   }
 }
 
