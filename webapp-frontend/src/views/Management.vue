@@ -859,25 +859,19 @@
                   <!-- Premium统计数据 -->
                   <div v-else>
                     <v-row>
-                      <v-col cols="12" sm="6" md="3">
-                        <div class="stat-item">
-                          <div class="stat-value text-purple-darken-2">{{ premiumStats.total_premium_users }}</div>
-                          <div class="stat-label">总 Premium 用户</div>
-                        </div>
-                      </v-col>
-                      <v-col cols="12" sm="6" md="3">
+                      <v-col cols="12" sm="4">
                         <div class="stat-item">
                           <div class="stat-value text-purple">{{ premiumStats.active_premium_users }}</div>
                           <div class="stat-label">活跃 Premium 用户</div>
                         </div>
                       </v-col>
-                      <v-col cols="12" sm="6" md="3">
+                      <v-col cols="12" sm="4">
                         <div class="stat-item">
                           <div class="stat-value text-orange-darken-2">{{ premiumStats.premium_plex_users }}</div>
                           <div class="stat-label">Plex Premium 用户</div>
                         </div>
                       </v-col>
-                      <v-col cols="12" sm="6" md="3">
+                      <v-col cols="12" sm="4">
                         <div class="stat-item">
                           <div class="stat-value text-green-darken-2">{{ premiumStats.premium_emby_users }}</div>
                           <div class="stat-label">Emby Premium 用户</div>
