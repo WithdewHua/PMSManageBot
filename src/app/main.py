@@ -85,6 +85,8 @@ def start_api_server():
         log_level="info",
         access_log=True,
         use_colors=True,
+        proxy_headers=True,  # 启用代理头解析，默认 True
+        forwarded_allow_ips="*",  # 允许所有代理 IP 或指定 IP，以保证在使用反向代理（如 Nginx）时能正确获取客户端 IP 地址
     )
 
 
