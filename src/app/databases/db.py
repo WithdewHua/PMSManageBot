@@ -1682,6 +1682,8 @@ class DatabaseORM:
                     created_at=created_at,
                 )
                 session.add(auction)
+                # flush, 拿到 id
+                session.flush()
                 return auction.id
         except Exception as e:
             logger.error(f"Error creating auction: {e}")
