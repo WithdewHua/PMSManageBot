@@ -419,6 +419,8 @@ async def settle_custom_line_traffic(
 
             settled_count = 0
             total_credits = 0
+            # 用于管理员汇总通知的结算详情列表
+            settlement_details = []
 
             for line in lines:
                 # 获取该月流量（排除线路所有者）
@@ -467,6 +469,17 @@ async def settle_custom_line_traffic(
                     settled_count += 1
                     total_credits += credits_to_reward
 
+                    # 记录结算详情用于管理员汇总
+                    settlement_details.append(
+                        {
+                            "domain": line.domain,
+                            "tg_id": line.tg_id,
+                            "traffic_gb": monthly_traffic_gb,
+                            "price_per_gb": price_per_gb,
+                            "credits": credits_to_reward,
+                        }
+                    )
+
                     logger.info(
                         f"线路 {line.domain} 结算完成: "
                         f"月份={settle_month}, "
@@ -500,6 +513,12 @@ async def settle_custom_line_traffic(
             logger.info(
                 f"流量结算完成: 结算 {settled_count} 条线路, 总计赠送 {total_credits:.2f} 积分"
             )
+
+            # 发送管理员汇总通知（仅在有成功结算且非单条线路结算时发送）
+            if settlement_details and not line_domain and settings.TG_ADMIN_CHAT_ID:
+                await _send_admin_settlement_summary(
+                    settle_month, settlement_details, settled_count, total_credits
+                )
 
     except Exception as e:
         logger.error(f"结算自定义线路流量失败: {e}", exc_info=True)
@@ -626,3 +645,63 @@ def _is_line_valid(line: CustomLine, current_time: int) -> bool:
         return True
 
     return False
+
+
+async def _send_admin_settlement_summary(
+    settle_month: str,
+    settlement_details: List[dict],
+    settled_count: int,
+    total_credits: float,
+):
+    """
+    发送管理员结算汇总通知
+
+    Args:
+        settle_month: 结算月份
+        settlement_details: 结算详情列表
+        settled_count: 结算线路数量
+        total_credits: 总赠送积分
+    """
+    try:
+        # 计算汇总数据
+        total_traffic = sum(d["traffic_gb"] for d in settlement_details)
+
+        # 构建汇总消息
+        message_lines = [
+            "📊 自定义线路流量结算汇总报告",
+            "",
+            f"📅 结算月份：{settle_month}",
+            f"📈 结算线路数：{settled_count} 条",
+            f"💾 总消耗流量：{total_traffic:.2f} GB",
+            f"💰 总赠送积分：{total_credits:.2f}",
+            "",
+            "━━━━━━━ 明细列表 ━━━━━━━",
+        ]
+
+        # 添加每条线路的结算详情
+        for idx, detail in enumerate(settlement_details, 1):
+            message_lines.append(
+                f"{idx}. {detail['domain']}\n"
+                f"   用户ID: {detail['tg_id']}\n"
+                f"   流量: {detail['traffic_gb']:.2f}GB | 积分: {detail['credits']:.2f}"
+            )
+
+        message_lines.append("")
+        message_lines.append(
+            f"✅ 结算完成时间：{datetime.now(settings.TZ).strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+
+        message = "\n".join(message_lines)
+
+        # 发送给所有管理员
+        for admin_id in settings.TG_ADMIN_CHAT_ID:
+            try:
+                await send_message_by_url(
+                    chat_id=admin_id, text=message, disable_notification=False
+                )
+                logger.info(f"已发送结算汇总通知给管理员 {admin_id}")
+            except Exception as e:
+                logger.error(f"发送结算汇总通知给管理员 {admin_id} 失败: {e}")
+
+    except Exception as e:
+        logger.error(f"发送管理员结算汇总通知失败: {e}", exc_info=True)
