@@ -467,7 +467,10 @@ async def settle_custom_line_traffic(
 
                 # 赠送积分给线路所有者
                 try:
-                    db.add_credits(line.tg_id, credits_to_reward)
+                    # 获取当前积分
+                    current_credits = db.get_user_credits(line.tg_id)
+                    new_credits = round(current_credits + credits_to_reward, 2)
+                    db.update_user_credits(new_credits, tg_id=line.tg_id)
                     settled_count += 1
                     total_credits += credits_to_reward
 
