@@ -383,7 +383,7 @@ async def settle_custom_line_traffic(
         )
 
         with get_session() as session:
-            now = datetime.now()
+            now = datetime.now(tz=settings.TZ)
 
             # 确定要结算的月份
             if force_current_month:
@@ -391,7 +391,9 @@ async def settle_custom_line_traffic(
                 settle_month = now.strftime("%Y-%m")
             else:
                 # 每月1号结算上个月（在凌晨1:00流量聚合完成后）
-                last_month = datetime(now.year, now.month, 1) - timedelta(days=1)
+                last_month = datetime(
+                    now.year, now.month, 1, tzinfo=settings.TZ
+                ) - timedelta(days=1)
                 settle_month = last_month.strftime("%Y-%m")
 
             logger.info(f"结算月份: {settle_month}")
@@ -458,10 +460,10 @@ async def settle_custom_line_traffic(
                     # 单向流量：直接使用
                     effective_traffic = line.total_traffic
 
-                price_per_gb = monthly_price / effective_traffic
+                price_per_gb = float(monthly_price) / float(effective_traffic)
 
                 # 计算应赠送的积分（使用单向流量），按照 7 折奖励
-                credits_to_reward = monthly_traffic_gb * price_per_gb * 0.7
+                credits_to_reward = float(monthly_traffic_gb) * price_per_gb * 0.7
 
                 # 赠送积分给线路所有者
                 try:
