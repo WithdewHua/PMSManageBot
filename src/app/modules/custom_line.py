@@ -462,8 +462,13 @@ async def settle_custom_line_traffic(
 
                 price_per_gb = float(monthly_price) / float(effective_traffic)
 
-                # 计算应赠送的积分（使用单向流量），按照 7 折奖励
-                credits_to_reward = float(monthly_traffic_gb) * price_per_gb * 0.7
+                # 计算应赠送的积分（使用单向流量，计算对应的价格，通过人民币和积分的倍率计算积分），按照 8 折奖励
+                credits_to_reward = (
+                    float(monthly_traffic_gb)
+                    * price_per_gb
+                    * settings.DONATION_MULTIPLIER
+                    * 0.8
+                )
 
                 # 赠送积分给线路所有者
                 try:
