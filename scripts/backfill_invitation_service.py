@@ -25,16 +25,19 @@ def backfill_invitation_service():
     ambiguous = []  # 两个表都能匹配到
     unmatched = []  # 两个表都无法匹配
 
-    # 获取所有已使用的邀请码
+    # 获取所有已使用的邀请码，在 session 关闭前提取所需字段，避免 DetachedInstanceError
     with get_session() as session:
         stmt = select(Invitation).where(Invitation.is_used == 1)
-        invitations = session.execute(stmt).scalars().all()
+        invitations = [
+            {"code": inv.code, "used_by": inv.used_by, "service": inv.service}
+            for inv in session.execute(stmt).scalars().all()
+        ]
 
     print(f"共找到 {len(invitations)} 条已使用的邀请码，开始处理...\n")
 
     for inv in invitations:
-        code = inv.code
-        used_by = inv.used_by or ""
+        code = inv["code"]
+        used_by = inv["used_by"] or ""
 
         # 跳过积分兑换的记录
         if used_by.startswith("credits_by_"):
@@ -42,7 +45,7 @@ def backfill_invitation_service():
             continue
 
         # 跳过已有 service 的记录
-        if inv.service:
+        if inv["service"]:
             skipped_already_set += 1
             continue
 
