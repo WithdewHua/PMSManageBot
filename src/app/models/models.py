@@ -123,6 +123,12 @@ class Invitation(Base):
     service: Mapped[Optional[str]] = mapped_column(
         String, nullable=True
     )  # Service used for redemption: plex, emby; NULL if not yet used
+    plex_id: Mapped[Optional[int]] = mapped_column(
+        BIGINT, nullable=True
+    )  # Plex user ID after redemption
+    emby_id: Mapped[Optional[str]] = mapped_column(
+        String, nullable=True
+    )  # Emby user ID after redemption
 
 
 class Statistics(Base):

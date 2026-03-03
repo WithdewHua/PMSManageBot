@@ -503,7 +503,12 @@ class DatabaseORM:
             return False
 
     def update_invitation_status(
-        self, code: str, used_by: str, service: Optional[str] = None
+        self,
+        code: str,
+        used_by: str,
+        service: Optional[str] = None,
+        plex_id: Optional[int] = None,
+        emby_id: Optional[str] = None,
     ) -> bool:
         """更新邀请码状态"""
         try:
@@ -511,11 +516,35 @@ class DatabaseORM:
                 session.execute(
                     update(Invitation)
                     .where(Invitation.code == code)
-                    .values(is_used=1, used_by=used_by, service=service)
+                    .values(
+                        is_used=1,
+                        used_by=used_by,
+                        service=service,
+                        plex_id=plex_id,
+                        emby_id=emby_id,
+                    )
                 )
                 return True
         except Exception as e:
             logger.error(f"Error updating invitation status: {e}")
+            return False
+
+    def update_invitation_plex_id(self, plex_email: str, plex_id: int) -> bool:
+        """通过 plex_email（used_by）更新对应邀请码的 plex_id 字段"""
+        try:
+            with get_session() as session:
+                session.execute(
+                    update(Invitation)
+                    .where(
+                        Invitation.used_by == plex_email,
+                        Invitation.service == "plex",
+                        Invitation.plex_id.is_(None),
+                    )
+                    .values(plex_id=plex_id)
+                )
+                return True
+        except Exception as e:
+            logger.error(f"Error updating invitation plex_id: {e}")
             return False
 
     # ==================== Overseerr Operations ====================

@@ -516,6 +516,16 @@ def update_plex_info(
                         session.execute(stmt)
                     logger.info(f"成功更新 Plex 用户 {email} 的 plex_id: {plex_id}")
 
+                    # 同步更新 invitation 表中对应邀请码的 plex_id
+                    if db.update_invitation_plex_id(plex_email=email, plex_id=plex_id):
+                        logger.info(
+                            f"成功更新邀请码记录中 Plex 用户 {email} 的 plex_id: {plex_id}"
+                        )
+                    else:
+                        logger.warning(
+                            f"更新邀请码记录中 Plex 用户 {email} 的 plex_id 失败或无需更新"
+                        )
+
                     # 如果是针对特定邮箱的调度任务，且成功获取到 plex_id，则标记任务待删除
                     if target_email and email.lower() == target_email.lower():
                         # 使用延迟删除，避免在任务执行过程中删除自己

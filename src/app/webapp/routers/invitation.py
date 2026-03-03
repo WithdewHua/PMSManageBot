@@ -237,7 +237,12 @@ async def redeem_plex_code(
             )
 
         # 更新邀请码状态
-        res = db.update_invitation_status(code=code, used_by=email, service="plex")
+        res = db.update_invitation_status(
+            code=code,
+            used_by=email,
+            service="plex",
+            plex_id=_plex.get_user_id_by_email(email) or None,
+        )
         if not res:
             return RedeemResponse(
                 success=False, message="更新邀请码状态失败，请联系管理员"
@@ -380,15 +385,17 @@ async def redeem_emby_code(
         if not flag:
             return RedeemResponse(success=False, message=f"创建用户失败: {msg}")
 
+        telegram_bound = False
+        emby_id = msg  # msg 是创建成功时返回的 emby_id
+
         # 更新邀请码状态
-        res = db.update_invitation_status(code=code, used_by=username, service="emby")
+        res = db.update_invitation_status(
+            code=code, used_by=username, service="emby", emby_id=emby_id or None
+        )
         if not res:
             return RedeemResponse(
                 success=False, message="更新邀请码状态失败，请联系管理员"
             )
-
-        telegram_bound = False
-        emby_id = msg  # msg 是创建成功时返回的 emby_id
 
         # 如果用户选择绑定到 Telegram
         if bind_to_telegram:
