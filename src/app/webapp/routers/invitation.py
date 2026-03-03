@@ -237,7 +237,7 @@ async def redeem_plex_code(
             )
 
         # 更新邀请码状态
-        res = db.update_invitation_status(code=code, used_by=email)
+        res = db.update_invitation_status(code=code, used_by=email, service="plex")
         if not res:
             return RedeemResponse(
                 success=False, message="更新邀请码状态失败，请联系管理员"
@@ -381,7 +381,7 @@ async def redeem_emby_code(
             return RedeemResponse(success=False, message=f"创建用户失败: {msg}")
 
         # 更新邀请码状态
-        res = db.update_invitation_status(code=code, used_by=username)
+        res = db.update_invitation_status(code=code, used_by=username, service="emby")
         if not res:
             return RedeemResponse(
                 success=False, message="更新邀请码状态失败，请联系管理员"

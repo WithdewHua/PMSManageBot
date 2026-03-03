@@ -120,6 +120,9 @@ class Invitation(Base):
     owner: Mapped[int] = mapped_column(BIGINT, index=True, nullable=False)
     is_used: Mapped[int] = mapped_column(SMALLINT, default=0, nullable=False)
     used_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    service: Mapped[Optional[str]] = mapped_column(
+        String, nullable=True
+    )  # Service used for redemption: plex, emby; NULL if not yet used
 
 
 class Statistics(Base):

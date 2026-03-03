@@ -502,14 +502,16 @@ class DatabaseORM:
             logger.error(f"Error adding invitation code: {e}")
             return False
 
-    def update_invitation_status(self, code: str, used_by: int) -> bool:
+    def update_invitation_status(
+        self, code: str, used_by: str, service: Optional[str] = None
+    ) -> bool:
         """更新邀请码状态"""
         try:
             with get_session() as session:
                 session.execute(
                     update(Invitation)
                     .where(Invitation.code == code)
-                    .values(is_used=1, used_by=used_by)
+                    .values(is_used=1, used_by=used_by, service=service)
                 )
                 return True
         except Exception as e:
