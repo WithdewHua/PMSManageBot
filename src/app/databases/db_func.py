@@ -42,6 +42,8 @@ def update_plex_credits():
     """更新积分及观看时长"""
     logger.info("开始更新 Plex 用户积分及观看时长")
     notification_tasks = []
+    # 邀请人奖励累积字典: {inviter_tg_id: {"total_bonus": float, "details": [{"username": str, "base_credits": float, "bonus": float}]}}
+    inviter_rewards: dict = {}
     try:
         # 先更新用户信息
         update_plex_info(plex_name=True, plex_id=False, plex_avatar=False)
@@ -180,28 +182,58 @@ def update_plex_credits():
                     )
                     session.execute(stmt1)
                     session.execute(stmt2)
-                if play_duration > 0:
-                    # 构建勋章加成信息 - 只显示总加成积分
-                    badge_bonus_text = ""
-                    if badge_bonus > 0:
-                        badge_bonus_text = f"\n勋章加成积分: +{round(badge_bonus, 2)}"
 
-                    # 构建惩罚信息 - 只显示总惩罚分数
-                    total_penalty = time_penalty + data_penalty
-                    penalty_text = ""
-                    if total_penalty > 0:
-                        penalty_text = f"\n观看消耗积分: -{round(total_penalty, 2)}"
+            # 邀请人奖励：被邀请人基础积分的 10%，与被邀请人是否绑定 tg 无关
+            # 累积到字典，循环结束后统一发通知
+            inviter_tg_id = db.get_inviter_tg_id_by_plex_id(plex_id)
+            inviter_bonus = 0.0
+            if inviter_tg_id and credits_inc > 0:
+                inviter_bonus = round(credits_inc * 0.1, 2)
+                if inviter_tg_id not in inviter_rewards:
+                    inviter_rewards[inviter_tg_id] = {"total_bonus": 0.0, "details": []}
+                inviter_rewards[inviter_tg_id]["total_bonus"] = round(
+                    inviter_rewards[inviter_tg_id]["total_bonus"] + inviter_bonus, 2
+                )
+                inviter_rewards[inviter_tg_id]["details"].append(
+                    {
+                        "username": plex_username,
+                        "base_credits": round(credits_inc, 2),
+                        "bonus": inviter_bonus,
+                    }
+                )
+                logger.info(
+                    f"累积邀请人 {inviter_tg_id} 的奖励积分: +{inviter_bonus} (来自用户 {plex_username} ({plex_id}))"
+                )
 
-                    # 需要发送通知
-                    notification_tasks.append(
-                        (
-                            tg_id,
-                            f"""
+            if tg_id and play_duration > 0:
+                # 构建勋章加成信息 - 只显示总加成积分
+                badge_bonus_text = ""
+                if badge_bonus > 0:
+                    badge_bonus_text = f"\n勋章加成积分: +{round(badge_bonus, 2)}"
+
+                # 构建惩罚信息 - 只显示总惩罚分数
+                total_penalty = time_penalty + data_penalty
+                penalty_text = ""
+                if total_penalty > 0:
+                    penalty_text = f"\n观看消耗积分: -{round(total_penalty, 2)}"
+
+                # 构建邀请人奖励信息
+                inviter_bonus_text = ""
+                if inviter_bonus > 0:
+                    inviter_bonus_text = (
+                        f"\n邀请人额外奖励: +{inviter_bonus} (已发放给邀请人)"
+                    )
+
+                # 需要发送通知
+                notification_tasks.append(
+                    (
+                        tg_id,
+                        f"""
 Plex 观看积分更新通知
 ====================
 
 新增观看时长: {round(play_duration, 2)} 小时
-基础观看积分: {round(original_credits_inc, 2)}{penalty_text}{badge_bonus_text}
+基础观看积分: {round(original_credits_inc, 2)}{penalty_text}{badge_bonus_text}{inviter_bonus_text}
 Premium 流量使用情况: {round(traffic_usage_premium / (1024 * 1024 * 1024), 2)} GB
 Premium 每日流量超额: {max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
 Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
@@ -214,12 +246,53 @@ Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
 当前总观看时长: {round(watched_time, 2)} 小时
 
 ====================""",
-                        )
                     )
+                )
 
             logger.info(
                 f"更新 Plex 用户 {plex_username} ({plex_id}) 的积分和观看时长: "
                 f"新增观看时长 {round(play_duration, 2)} 小时，新增观看积分 {round(credits_inc, 2)} (原始: {round(original_credits_inc, 2)}, 时长惩罚: {round(time_penalty, 2)}, 流量惩罚: {round(data_penalty, 2)}), 流量消耗积分 {round(traffic_cost_credits, 2)}"
+            )
+
+        # 循环结束后，统一更新邀请人积分并发送汇总通知
+        for inviter_tg_id, reward_info in inviter_rewards.items():
+            total_bonus = reward_info["total_bonus"]
+            details = reward_info["details"]
+            inviter_credits_now = db.get_user_credits(inviter_tg_id)
+            if inviter_credits_now is None:
+                logger.warning(
+                    f"邀请人 {inviter_tg_id} 在 statistics 表中无记录，跳过奖励"
+                )
+                continue
+            db.update_user_credits(
+                inviter_credits_now + total_bonus, tg_id=inviter_tg_id
+            )
+            logger.info(
+                f"邀请人 {inviter_tg_id} 共获得 Plex 邀请奖励积分: +{total_bonus}"
+            )
+            # 构建明细行
+            detail_lines = "\n".join(
+                f"  · {d['username']}: 基础积分 {d['base_credits']} → 奖励 +{d['bonus']}"
+                for d in details
+            )
+            notification_tasks.append(
+                (
+                    inviter_tg_id,
+                    f"""
+Plex 邀请奖励通知
+====================
+
+今日共 {len(details)} 位被邀请用户有新增观看记录:
+{detail_lines}
+
+本次邀请奖励积分: +{total_bonus}
+
+--------------------
+
+当前总积分: {round(inviter_credits_now + total_bonus, 2)}
+
+====================""",
+                )
             )
 
     except Exception as e:
@@ -243,6 +316,8 @@ def update_emby_credits():
     # 获取所有用户的观看时长
     emby = Emby()
     notification_tasks = []
+    # 邀请人奖励累积字典: {inviter_tg_id: {"total_bonus": float, "details": [{"username": str, "base_credits": float, "bonus": float}]}}
+    inviter_rewards: dict = {}
     try:
         duration = emby.get_user_total_play_time()
         # 获取数据库中的观看时长信息
@@ -368,28 +443,58 @@ def update_emby_credits():
                         .values(emby_watched_time=playduration)
                     )
                     session.execute(stmt)
-                if (playduration - user[2]) > 0:
-                    # 构建勋章加成信息 - 只显示总加成积分
-                    badge_bonus_text = ""
-                    if badge_bonus > 0:
-                        badge_bonus_text = f"\n勋章加成积分: +{round(badge_bonus, 2)}"
 
-                    # 构建惩罚信息 - 只显示总惩罚分数
-                    total_penalty = time_penalty + data_penalty
-                    penalty_text = ""
-                    if total_penalty > 0:
-                        penalty_text = f"\n观看消耗积分: -{round(total_penalty, 2)}"
+            # 邀请人奖励：被邀请人基础积分的 10%，与被邀请人是否绑定 tg 无关
+            # 累积到字典，循环结束后统一发通知
+            inviter_tg_id = db.get_inviter_tg_id_by_emby_id(user[0])
+            inviter_bonus = 0.0
+            if inviter_tg_id and credits_inc > 0:
+                inviter_bonus = round(credits_inc * 0.1, 2)
+                if inviter_tg_id not in inviter_rewards:
+                    inviter_rewards[inviter_tg_id] = {"total_bonus": 0.0, "details": []}
+                inviter_rewards[inviter_tg_id]["total_bonus"] = round(
+                    inviter_rewards[inviter_tg_id]["total_bonus"] + inviter_bonus, 2
+                )
+                inviter_rewards[inviter_tg_id]["details"].append(
+                    {
+                        "username": emby_username,
+                        "base_credits": round(credits_inc, 2),
+                        "bonus": inviter_bonus,
+                    }
+                )
+                logger.info(
+                    f"累积邀请人 {inviter_tg_id} 的奖励积分: +{inviter_bonus} (来自用户 {emby_username} ({user[0]}))"
+                )
 
-                    # 需要发送消息通知
-                    notification_tasks.append(
-                        (
-                            user[1],
-                            f"""
+            if user[1] and (playduration - user[2]) > 0:
+                # 构建勋章加成信息 - 只显示总加成积分
+                badge_bonus_text = ""
+                if badge_bonus > 0:
+                    badge_bonus_text = f"\n勋章加成积分: +{round(badge_bonus, 2)}"
+
+                # 构建惩罚信息 - 只显示总惩罚分数
+                total_penalty = time_penalty + data_penalty
+                penalty_text = ""
+                if total_penalty > 0:
+                    penalty_text = f"\n观看消耗积分: -{round(total_penalty, 2)}"
+
+                # 构建邀请人奖励信息
+                inviter_bonus_text = ""
+                if inviter_bonus > 0:
+                    inviter_bonus_text = (
+                        f"\n邀请人额外奖励: +{inviter_bonus} (已发放给邀请人)"
+                    )
+
+                # 需要发送消息通知
+                notification_tasks.append(
+                    (
+                        user[1],
+                        f"""
 Emby 观看积分更新通知
 ====================
 
 新增观看时长: {round(playduration - user[2], 2)} 小时
-基础观看积分: {round(original_credits_inc, 2)}{penalty_text}{badge_bonus_text}
+基础观看积分: {round(original_credits_inc, 2)}{penalty_text}{badge_bonus_text}{inviter_bonus_text}
 Premium 流量使用情况: {round(traffic_usage_premium / (1024 * 1024 * 1024), 2)} GB
 Premium 每日流量超额: {max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
 Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
@@ -402,13 +507,55 @@ Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
 当前总观看时长: {round(playduration, 2)} 小时
 
 ====================""",
-                        )
                     )
+                )
 
             logger.info(
                 f"更新 Emby 用户 {emby_username} ({user[0]}) 的积分和观看时长: "
                 f"新增观看时长 {round(playduration - user[2], 2)} 小时，新增观看积分 {round(credits_inc, 2)} (原始: {round(original_credits_inc, 2)}, 时长惩罚: {round(time_penalty, 2)}, 流量惩罚: {round(data_penalty, 2)}), 流量消耗积分 {round(traffic_cost_credits, 2)}"
             )
+
+        # 循环结束后，统一更新邀请人积分并发送汇总通知
+        for inviter_tg_id, reward_info in inviter_rewards.items():
+            total_bonus = reward_info["total_bonus"]
+            details = reward_info["details"]
+            inviter_credits_now = db.get_user_credits(inviter_tg_id)
+            if inviter_credits_now is None:
+                logger.warning(
+                    f"邀请人 {inviter_tg_id} 在 statistics 表中无记录，跳过奖励"
+                )
+                continue
+            db.update_user_credits(
+                inviter_credits_now + total_bonus, tg_id=inviter_tg_id
+            )
+            logger.info(
+                f"邀请人 {inviter_tg_id} 共获得 Emby 邀请奖励积分: +{total_bonus}"
+            )
+            # 构建明细行
+            detail_lines = "\n".join(
+                f"  · {d['username']}: 基础积分 {d['base_credits']} → 奖励 +{d['bonus']}"
+                for d in details
+            )
+            notification_tasks.append(
+                (
+                    inviter_tg_id,
+                    f"""
+Emby 邀请奖励通知
+====================
+
+今日共 {len(details)} 位被邀请用户有新增观看记录:
+{detail_lines}
+
+本次邀请奖励积分: +{total_bonus}
+
+--------------------
+
+当前总积分: {round(inviter_credits_now + total_bonus, 2)}
+
+====================""",
+                )
+            )
+
     except Exception as e:
         logger.error(f"更新 Emby 用户积分及观看时长失败: {e}")
         for chat_id in settings.TG_ADMIN_CHAT_ID:

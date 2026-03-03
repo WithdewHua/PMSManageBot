@@ -547,6 +547,26 @@ class DatabaseORM:
             logger.error(f"Error updating invitation plex_id: {e}")
             return False
 
+    def get_inviter_tg_id_by_plex_id(self, plex_id: int) -> Optional[int]:
+        """通过被邀请人的 plex_id 查找邀请人的 tg_id"""
+        with get_session() as session:
+            stmt = select(Invitation.owner).where(
+                Invitation.plex_id == plex_id,
+                Invitation.service == "plex",
+                Invitation.is_used == 1,
+            )
+            return session.execute(stmt).scalar_one_or_none()
+
+    def get_inviter_tg_id_by_emby_id(self, emby_id: str) -> Optional[int]:
+        """通过被邀请人的 emby_id 查找邀请人的 tg_id"""
+        with get_session() as session:
+            stmt = select(Invitation.owner).where(
+                Invitation.emby_id == emby_id,
+                Invitation.service == "emby",
+                Invitation.is_used == 1,
+            )
+            return session.execute(stmt).scalar_one_or_none()
+
     # ==================== Overseerr Operations ====================
 
     def add_overseerr_user(self, user_id: int, user_email: str, tg_id: int) -> bool:
