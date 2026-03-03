@@ -211,10 +211,14 @@ async def check_custom_line_traffic():
             online_count = 0
 
             for line in lines:
-                # 获取当月流量使用情况（排除线路所有者）
+                # 获取当月流量使用情况（包含所有用户，不排除线路所有者）
                 # 从原始流量表实时读取当月流量
                 monthly_traffic_gb = await _get_line_monthly_traffic(
-                    session, line.domain, current_month, line.tg_id, from_raw_table=True
+                    session,
+                    line.domain,
+                    current_month,
+                    owner_tg_id=None,
+                    from_raw_table=True,
                 )
 
                 # 计算实际流量（根据流量类型）
@@ -538,18 +542,18 @@ async def _get_line_monthly_traffic(
     session,
     line_domain: str,
     year_month: str,
-    owner_tg_id: int,
+    owner_tg_id: Optional[int] = None,
     from_raw_table: bool = False,
 ) -> float:
     """
     获取指定线路在指定月份的总流量（GB）
-    排除线路所有者自己产生的流量
 
     Args:
         session: 数据库会话
         line_domain: 线路域名
         year_month: 年月，格式：YYYY-MM
-        owner_tg_id: 线路所有者的 tg_id
+        owner_tg_id: 线路所有者的 tg_id，传入时排除该所有者产生的流量（用于结算），
+                     None 表示包含所有用户流量（用于流量检查）
         from_raw_table: 是否从原始流量表(line_traffic_stats)实时聚合，用于删除线路时获取当月未聚合的流量
 
     Returns:
@@ -559,15 +563,16 @@ async def _get_line_monthly_traffic(
         # 获取线路所有者的用户名（Plex 和 Emby）
         owner_usernames = set()
 
-        # 查询 Plex 用户名
-        plex_user = db.get_plex_info_by_tg_id(owner_tg_id)
-        if plex_user and plex_user[4]:  # plex_username (索引4)
-            owner_usernames.add(plex_user[4].lower())
+        if owner_tg_id is not None:
+            # 查询 Plex 用户名
+            plex_user = db.get_plex_info_by_tg_id(owner_tg_id)
+            if plex_user and plex_user[4]:  # plex_username (索引4)
+                owner_usernames.add(plex_user[4].lower())
 
-        # 查询 Emby 用户名
-        emby_user = db.get_emby_info_by_tg_id(owner_tg_id)
-        if emby_user and emby_user[0]:  # emby_username
-            owner_usernames.add(emby_user[0].lower())
+            # 查询 Emby 用户名
+            emby_user = db.get_emby_info_by_tg_id(owner_tg_id)
+            if emby_user and emby_user[0]:  # emby_username
+                owner_usernames.add(emby_user[0].lower())
 
         if from_raw_table:
             # 从原始流量表实时聚合（用于删除线路时获取当月流量）
