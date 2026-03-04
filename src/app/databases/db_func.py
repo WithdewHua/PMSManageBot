@@ -187,7 +187,8 @@ def update_plex_credits():
             # 累积到字典，循环结束后统一发通知
             inviter_tg_id = db.get_inviter_tg_id_by_plex_id(plex_id)
             inviter_bonus = 0.0
-            if inviter_tg_id and credits_inc > 0:
+            # 排除邀请人是自己的情况
+            if inviter_tg_id and inviter_tg_id != tg_id and credits_inc > 0:
                 inviter_bonus = round(credits_inc * 0.1, 2)
                 if inviter_tg_id not in inviter_rewards:
                     inviter_rewards[inviter_tg_id] = {"total_bonus": 0.0, "details": []}
@@ -451,7 +452,8 @@ def update_emby_credits():
             # 累积到字典，循环结束后统一发通知
             inviter_tg_id = db.get_inviter_tg_id_by_emby_id(user[0])
             inviter_bonus = 0.0
-            if inviter_tg_id and credits_inc > 0:
+            # 排除邀请人是自己的情况
+            if inviter_tg_id and inviter_tg_id != user[1] and credits_inc > 0:
                 inviter_bonus = round(credits_inc * 0.1, 2)
                 if inviter_tg_id not in inviter_rewards:
                     inviter_rewards[inviter_tg_id] = {"total_bonus": 0.0, "details": []}
