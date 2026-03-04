@@ -101,6 +101,42 @@
               </v-list-item-title>
             </v-list-item>
           </template>
+
+          <!-- 用户分享线路分组 -->
+          <template v-if="customLines.length > 0">
+            <v-divider class="my-1"></v-divider>
+            <v-list-subheader class="custom-lines-subheader">
+              <v-icon size="x-small" class="mr-1">mdi-account-group</v-icon>
+              用户分享线路
+            </v-list-subheader>
+            <v-list-item
+              v-for="lineInfo in customLines"
+              :key="'custom-' + lineInfo.name"
+              @click="selectLine(lineInfo.name)"
+              :active="currentLine === lineInfo.name"
+              :color="currentLine === lineInfo.name ? '#9333ea' : undefined"
+              class="line-item"
+            >
+              <v-list-item-title class="d-flex align-center justify-space-between">
+                <div class="line-name-container">
+                  <span class="line-name">{{ lineInfo.name }}</span>
+                  <div v-if="lineInfo.tags && lineInfo.tags.length > 0" class="tags-container mt-1">
+                    <v-chip
+                      v-for="tag in lineInfo.tags"
+                      :key="tag"
+                      size="x-small"
+                      :color="getTagColor(tag)"
+                      variant="flat"
+                      class="mr-1 mb-1 tag-chip"
+                    >
+                      {{ tag }}
+                    </v-chip>
+                  </div>
+                </div>
+                <v-icon v-if="currentLine === lineInfo.name" color="success" size="small">mdi-check</v-icon>
+              </v-list-item-title>
+            </v-list-item>
+          </template>
           
           <v-divider></v-divider>
           
@@ -142,6 +178,7 @@
 
 <script>
 import { bindEmbyLine, unbindEmbyLine, getAvailableEmbyLines } from '@/services/embyService';
+import { getApprovedCustomLines } from '@/services/customLineService';
 
 export default {
   name: 'EmbyLineSelector',
@@ -161,6 +198,7 @@ export default {
       snackbarColor: 'success',
       currentLine: this.currentValue || 'AUTO',
       availableLines: [],
+      customLines: [],
       loadingLines: false,
       scrollAnimation: null
     }
@@ -221,7 +259,12 @@ export default {
     async loadAvailableLines() {
       this.loadingLines = true;
       try {
-        this.availableLines = await getAvailableEmbyLines();
+        const [systemLines, customLines] = await Promise.all([
+          getAvailableEmbyLines(),
+          getApprovedCustomLines(),
+        ]);
+        this.availableLines = systemLines;
+        this.customLines = customLines;
       } catch (error) {
         console.error('获取 Emby 线路列表失败:', error);
         this.showMessage('获取线路列表失败', 'error');
@@ -502,6 +545,15 @@ export default {
   font-size: 12px;
   font-weight: 600;
   color: #d97706;
+  padding: 4px 16px;
+  min-height: 32px !important;
+}
+
+/* 用户分享线路分组标题 */
+.custom-lines-subheader {
+  font-size: 12px;
+  font-weight: 600;
+  color: #7e22ce;
   padding: 4px 16px;
   min-height: 32px !important;
 }
