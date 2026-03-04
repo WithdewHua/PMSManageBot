@@ -154,6 +154,14 @@ async def _process_expired_lines(
         except Exception as e:
             logger.error(f"解绑过期线路 {line.domain} 用户时失败: {e}")
 
+        # 禁用所有使用该线路的调度规则并通知用户
+        try:
+            from app.webapp.routers.admin import disable_line_schedules_and_notify
+
+            await disable_line_schedules_and_notify(line.domain, "用户分享线路已过期")
+        except Exception as e:
+            logger.error(f"禁用过期线路 {line.domain} 的调度规则失败: {e}")
+
         # 发送通知给提交用户
         try:
             message = (
@@ -258,6 +266,20 @@ async def check_custom_line_traffic():
                         except Exception as e:
                             logger.error(
                                 f"解绑超流量线路 {line.domain} 用户时失败: {e}"
+                            )
+
+                        # 禁用所有使用该线路的调度规则并通知用户
+                        try:
+                            from app.webapp.routers.admin import (
+                                disable_line_schedules_and_notify,
+                            )
+
+                            await disable_line_schedules_and_notify(
+                                line.domain, "用户分享线路月流量已用尽"
+                            )
+                        except Exception as e:
+                            logger.error(
+                                f"禁用流量超限线路 {line.domain} 的调度规则失败: {e}"
                             )
 
                         # 发送通知给线路所有者

@@ -2545,6 +2545,16 @@ async def offline_custom_line(
             except Exception as e:
                 logger.error(f"解绑用户失败: {e}")
 
+            # 禁用所有使用该线路的调度规则并通知用户
+            try:
+                from app.webapp.routers.admin import disable_line_schedules_and_notify
+
+                await disable_line_schedules_and_notify(
+                    domain, "用户分享线路已被所有者下线"
+                )
+            except Exception as e:
+                logger.error(f"禁用线路 {domain} 的调度规则失败: {e}")
+
             # 更新状态为 offline
             line.status = "offline"
             line.updated_at = current_time

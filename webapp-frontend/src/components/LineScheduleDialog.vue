@@ -314,6 +314,43 @@
                       </v-list-item-title>
                     </v-list-item>
                     
+                    <!-- 用户分享线路分组 -->
+                    <template v-if="availableCustomLines.length > 0">
+                      <v-divider class="my-1"></v-divider>
+                      <v-list-subheader class="custom-lines-subheader">
+                        <v-icon size="x-small" class="mr-1">mdi-account-group</v-icon>
+                        用户分享线路
+                      </v-list-subheader>
+                      <v-list-item
+                        v-for="lineInfo in availableCustomLines"
+                        :key="'custom-' + lineInfo.name"
+                        @click="selectScheduleLine(lineInfo.name)"
+                        :active="scheduleForm.line === lineInfo.name"
+                        active-color="purple-darken-1"
+                        class="line-item"
+                        rounded="lg"
+                      >
+                        <v-list-item-title class="d-flex align-center justify-space-between">
+                          <div class="line-name-container">
+                            <span class="line-name">{{ lineInfo.name }}</span>
+                            <div v-if="lineInfo.tags && lineInfo.tags.length > 0" class="tags-container mt-1">
+                              <v-chip
+                                v-for="tag in lineInfo.tags"
+                                :key="tag"
+                                size="x-small"
+                                :color="getTagColor(tag)"
+                                variant="flat"
+                                class="mr-1 mb-1 tag-chip"
+                              >
+                                {{ tag }}
+                              </v-chip>
+                            </div>
+                          </div>
+                          <v-icon v-if="scheduleForm.line === lineInfo.name" color="success" size="small">mdi-check</v-icon>
+                        </v-list-item-title>
+                      </v-list-item>
+                    </template>
+
                     <v-divider></v-divider>
                     
                     <v-list-item>
@@ -464,6 +501,7 @@ import {
   getLineScheduleStatus,
 } from '@/services/lineScheduleService';
 import { getAvailableLines } from '@/services/userLineService';
+import { getApprovedCustomLines } from '@/services/customLineService';
 
 export default {
   name: 'LineScheduleDialog',
@@ -514,6 +552,7 @@ export default {
       // 线路选择器相关
       lineMenu: false,
       availableScheduleLines: [],
+      availableCustomLines: [],
       loadingScheduleLines: false,
       customScheduleLine: '',
       // Snackbar (用于非 Telegram 环境)
@@ -635,7 +674,12 @@ export default {
     async loadAvailableScheduleLines() {
       this.loadingScheduleLines = true;
       try {
-        this.availableScheduleLines = await getAvailableLines(this.serviceType);
+        const [systemLines, customLines] = await Promise.all([
+          getAvailableLines(this.serviceType),
+          getApprovedCustomLines(),
+        ]);
+        this.availableScheduleLines = systemLines;
+        this.availableCustomLines = customLines;
       } catch (error) {
         console.error('获取线路列表失败:', error);
         this.showMessage('获取线路列表失败', 'error');
@@ -1193,6 +1237,15 @@ export default {
 
 .custom-line-input {
   padding: 0 8px;
+}
+
+/* 用户分享线路分组标题 */
+.custom-lines-subheader {
+  font-size: 12px;
+  font-weight: 600;
+  color: #7e22ce;
+  padding: 4px 16px;
+  min-height: 32px !important;
 }
 
 /* 星期选择 */
