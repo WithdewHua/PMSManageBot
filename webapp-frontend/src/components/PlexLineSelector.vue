@@ -29,34 +29,78 @@
               <v-icon v-if="currentLine === 'AUTO'" color="success" size="small" end>mdi-check</v-icon>
             </v-list-item-title>
           </v-list-item>
-          
-          <v-list-item 
-            v-for="lineInfo in availableLines" 
-            :key="lineInfo.name" 
-            @click="selectLine(lineInfo.name)" 
-            :active="currentLine === lineInfo.name"
-            :color="currentLine === lineInfo.name ? '#9333ea' : undefined"
-            class="line-item"
-          >
-            <v-list-item-title class="d-flex align-center justify-space-between">
-              <div class="line-name-container">
-                <span class="line-name">{{ lineInfo.name }}</span>
-                <div v-if="lineInfo.tags && lineInfo.tags.length > 0" class="tags-container mt-1">
-                  <v-chip
-                    v-for="tag in lineInfo.tags"
-                    :key="tag"
-                    size="x-small"
-                    :color="getTagColor(tag)"
-                    variant="flat"
-                    class="mr-1 mb-1 tag-chip"
-                  >
-                    {{ tag }}
-                  </v-chip>
+
+          <!-- 普通线路分组 -->
+          <template v-if="normalLines.length > 0">
+            <v-divider class="my-1"></v-divider>
+            <v-list-subheader class="normal-lines-subheader">
+              <v-icon size="x-small" class="mr-1">mdi-router-wireless</v-icon>
+              普通线路
+            </v-list-subheader>
+            <v-list-item
+              v-for="lineInfo in normalLines"
+              :key="lineInfo.name"
+              @click="selectLine(lineInfo.name)"
+              :active="currentLine === lineInfo.name"
+              :color="currentLine === lineInfo.name ? '#9333ea' : undefined"
+              class="line-item"
+            >
+              <v-list-item-title class="d-flex align-center justify-space-between">
+                <div class="line-name-container">
+                  <span class="line-name">{{ lineInfo.name }}</span>
+                  <div v-if="lineInfo.tags && lineInfo.tags.length > 0" class="tags-container mt-1">
+                    <v-chip
+                      v-for="tag in lineInfo.tags"
+                      :key="tag"
+                      size="x-small"
+                      :color="getTagColor(tag)"
+                      variant="flat"
+                      class="mr-1 mb-1 tag-chip"
+                    >
+                      {{ tag }}
+                    </v-chip>
+                  </div>
                 </div>
-              </div>
-              <v-icon v-if="currentLine === lineInfo.name" color="success" size="small">mdi-check</v-icon>
-            </v-list-item-title>
-          </v-list-item>
+                <v-icon v-if="currentLine === lineInfo.name" color="success" size="small">mdi-check</v-icon>
+              </v-list-item-title>
+            </v-list-item>
+          </template>
+
+          <!-- Premium 线路分组 -->
+          <template v-if="premiumLines.length > 0">
+            <v-divider class="my-1"></v-divider>
+            <v-list-subheader class="premium-lines-subheader">
+              <v-icon size="x-small" class="mr-1">mdi-crown</v-icon>
+              Premium 线路
+            </v-list-subheader>
+            <v-list-item
+              v-for="lineInfo in premiumLines"
+              :key="lineInfo.name"
+              @click="selectLine(lineInfo.name)"
+              :active="currentLine === lineInfo.name"
+              :color="currentLine === lineInfo.name ? '#9333ea' : undefined"
+              class="line-item"
+            >
+              <v-list-item-title class="d-flex align-center justify-space-between">
+                <div class="line-name-container">
+                  <span class="line-name">{{ lineInfo.name }}</span>
+                  <div v-if="lineInfo.tags && lineInfo.tags.length > 0" class="tags-container mt-1">
+                    <v-chip
+                      v-for="tag in lineInfo.tags"
+                      :key="tag"
+                      size="x-small"
+                      :color="getTagColor(tag)"
+                      variant="flat"
+                      class="mr-1 mb-1 tag-chip"
+                    >
+                      {{ tag }}
+                    </v-chip>
+                  </div>
+                </div>
+                <v-icon v-if="currentLine === lineInfo.name" color="success" size="small">mdi-check</v-icon>
+              </v-list-item-title>
+            </v-list-item>
+          </template>
           
           <v-divider></v-divider>
           
@@ -126,7 +170,13 @@ export default {
       // 在文本末尾添加额外空白，确保滚动时完全可见
       const text = this.currentLine || 'AUTO';
       return text + '      '; // 增加到6个空格的缓冲
-    }
+    },
+    normalLines() {
+      return this.availableLines.filter(l => !l.is_premium);
+    },
+    premiumLines() {
+      return this.availableLines.filter(l => l.is_premium);
+    },
   },
   watch: {
     currentValue(newValue) {
@@ -436,6 +486,24 @@ export default {
   font-weight: 500;
   text-transform: none;
   letter-spacing: 0.5px;
+}
+
+/* 普通线路分组标题 */
+.normal-lines-subheader {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2563eb;
+  padding: 4px 16px;
+  min-height: 32px !important;
+}
+
+/* Premium 线路分组标题 */
+.premium-lines-subheader {
+  font-size: 12px;
+  font-weight: 600;
+  color: #d97706;
+  padding: 4px 16px;
+  min-height: 32px !important;
 }
 
 /* 自定义滚动条样式 */
