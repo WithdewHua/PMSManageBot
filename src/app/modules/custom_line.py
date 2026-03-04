@@ -10,7 +10,7 @@ from app.databases import db
 from app.databases.session import get_session
 from app.log import logger
 from app.models.models import CustomLine, LineTrafficMonthlyStats
-from app.utils.utils import send_message_by_url
+from app.utils.utils import normalize_line_domain, send_message_by_url
 from app.webapp.routers.admin import unbind_specified_line_for_all_users
 from sqlalchemy import and_, func, select
 
@@ -572,7 +572,7 @@ async def _get_line_monthly_traffic(
 
     Args:
         session: 数据库会话
-        line_domain: 线路域名
+        line_domain: 线路域名（支持带协议前缀或路径后缀，内部会自动规范化为纯主机名）
         year_month: 年月，格式：YYYY-MM
         owner_tg_id: 线路所有者的 tg_id，传入时排除该所有者产生的流量（用于结算），
                      None 表示包含所有用户流量（用于流量检查）
@@ -582,6 +582,10 @@ async def _get_line_monthly_traffic(
         总流量（GB）
     """
     try:
+        # 规范化 line_domain，去除协议前缀和路径后缀，与数据库中存储的纯主机名格式对齐
+        normalized_domain = normalize_line_domain(line_domain)
+        if normalized_domain != line_domain:
+            logger.debug(f"线路域名规范化: {line_domain!r} -> {normalized_domain!r}")
         # 获取线路所有者的用户名（Plex 和 Emby）
         owner_usernames = set()
 
@@ -617,7 +621,7 @@ async def _get_line_monthly_traffic(
             # 从原始流量表实时聚合
             stmt = select(func.sum(LineTrafficStats.send_bytes)).where(
                 and_(
-                    LineTrafficStats.line == line_domain,
+                    LineTrafficStats.line == normalized_domain,
                     LineTrafficStats.timestamp >= month_start_str,
                     LineTrafficStats.timestamp < next_month_start_str,
                     ~LineTrafficStats.username.in_([u.lower() for u in owner_usernames])
@@ -630,13 +634,13 @@ async def _get_line_monthly_traffic(
             total_bytes = result.scalar() or 0
 
             logger.info(
-                f"从原始流量表聚合线路 {line_domain} {year_month} 流量: {total_bytes} bytes"
+                f"从原始流量表聚合线路 {normalized_domain} {year_month} 流量: {total_bytes} bytes"
             )
         else:
             # 从月度流量统计表查询（用于正常月初结算）
             stmt = select(func.sum(LineTrafficMonthlyStats.total_bytes)).where(
                 and_(
-                    LineTrafficMonthlyStats.line == line_domain,
+                    LineTrafficMonthlyStats.line == normalized_domain,
                     LineTrafficMonthlyStats.year_month == year_month,
                     ~LineTrafficMonthlyStats.username.in_(
                         [u.lower() for u in owner_usernames]
