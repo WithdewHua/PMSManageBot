@@ -275,6 +275,9 @@ Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
                 f"  · {d['username']}: 基础积分 {d['base_credits']} → 奖励 +{d['bonus']}"
                 for d in details
             )
+            stat_date = (datetime.now(settings.TZ) - timedelta(days=1)).strftime(
+                "%Y-%m-%d"
+            )
             notification_tasks.append(
                 (
                     inviter_tg_id,
@@ -282,7 +285,7 @@ Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
 Plex 邀请奖励通知
 ====================
 
-今日共 {len(details)} 位被邀请用户有新增观看记录:
+{stat_date} 共 {len(details)} 位被邀请用户有新增观看记录:
 {detail_lines}
 
 本次邀请奖励积分: +{total_bonus}
@@ -536,6 +539,9 @@ Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
                 f"  · {d['username']}: 基础积分 {d['base_credits']} → 奖励 +{d['bonus']}"
                 for d in details
             )
+            stat_date = (datetime.now(settings.TZ) - timedelta(days=1)).strftime(
+                "%Y-%m-%d"
+            )
             notification_tasks.append(
                 (
                     inviter_tg_id,
@@ -543,7 +549,7 @@ Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
 Emby 邀请奖励通知
 ====================
 
-今日共 {len(details)} 位被邀请用户有新增观看记录:
+{stat_date} 共 {len(details)} 位被邀请用户有新增观看记录:
 {detail_lines}
 
 本次邀请奖励积分: +{total_bonus}
