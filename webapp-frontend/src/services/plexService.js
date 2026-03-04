@@ -1,5 +1,4 @@
 import { apiClient } from '@/main';
-import { getApprovedCustomLines } from './customLineService';
 
 /**
  * 绑定 Plex 线路
@@ -31,21 +30,13 @@ export async function unbindPlexLine() {
 }
 
 /**
- * 获取所有可用的Plex线路列表（包含系统线路和已批准的自定义线路）
+ * 获取可用的Plex系统线路列表
  * @returns {Promise<Array>} 线路信息列表，包含名称、标签和是否为高级线路
  */
 export async function getAvailablePlexLines() {
   try {
-    // 并行获取系统线路和自定义线路
-    const [systemResponse, customLines] = await Promise.all([
-      apiClient.get('/api/user/plex_lines'),
-      getApprovedCustomLines()
-    ]);
-    
-    const systemLines = systemResponse.data.lines || [];
-    
-    // 合并系统线路和自定义线路
-    return [...systemLines, ...customLines];
+    const response = await apiClient.get('/api/user/plex_lines');
+    return response.data.lines || [];
   } catch (error) {
     console.error('获取Plex线路列表失败:', error);
     return [];
