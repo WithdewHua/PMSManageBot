@@ -122,7 +122,7 @@ def restore_auction_schedules():
 
             # 为未过期的竞拍创建定时任务
             job_id = f"finish_auction_{auction_id}"
-            end_datetime = datetime.fromtimestamp(end_time)
+            end_datetime = datetime.fromtimestamp(end_time, tz=settings.TZ)
 
             scheduler.add_async_job(
                 func=finish_single_auction_job,
@@ -217,9 +217,13 @@ async def get_auction_list(
                 description=auction_data["description"],
                 starting_price=auction_data["starting_price"],
                 current_price=auction_data["current_price"],
-                end_time=datetime.fromtimestamp(auction_data["end_time"]),
+                end_time=datetime.fromtimestamp(
+                    auction_data["end_time"], tz=settings.TZ
+                ),
                 created_by=auction_data["created_by"],
-                created_at=datetime.fromtimestamp(auction_data["created_at"]),
+                created_at=datetime.fromtimestamp(
+                    auction_data["created_at"], tz=settings.TZ
+                ),
                 is_active=bool(auction_data["is_active"]),
                 winner_id=auction_data["winner_id"],
                 bid_count=auction_data["bid_count"],
@@ -286,9 +290,11 @@ async def get_auction_detail(
             description=auction_data["description"],
             starting_price=auction_data["starting_price"],
             current_price=auction_data["current_price"],
-            end_time=datetime.fromtimestamp(auction_data["end_time"]),
+            end_time=datetime.fromtimestamp(auction_data["end_time"], tz=settings.TZ),
             created_by=auction_data["created_by"],
-            created_at=datetime.fromtimestamp(auction_data["created_at"]),
+            created_at=datetime.fromtimestamp(
+                auction_data["created_at"], tz=settings.TZ
+            ),
             is_active=bool(auction_data["is_active"]),
             winner_id=auction_data["winner_id"],
             bid_count=auction_data["bid_count"],
@@ -303,7 +309,9 @@ async def get_auction_detail(
                 "auction_id": bid_data["auction_id"],
                 "bidder_id": bid_data["bidder_id"],
                 "bid_amount": bid_data["bid_amount"],
-                "bid_time": datetime.fromtimestamp(bid_data["bid_time"]),
+                "bid_time": datetime.fromtimestamp(
+                    bid_data["bid_time"], tz=settings.TZ
+                ),
                 "bidder_name": get_user_name_from_tg_id(bid_data["bidder_id"]),
             }
             recent_bids.append(bid)
@@ -311,7 +319,7 @@ async def get_auction_detail(
         # 检查用户是否可以出价
         user_can_bid = (
             auction.is_active
-            and auction.end_time > datetime.now()
+            and auction.end_time > datetime.now(settings.TZ)
             and current_user.id != auction.created_by
         )
 
@@ -348,7 +356,9 @@ async def create_auction(
         check_admin_permission(current_user)
 
         # 计算结束时间
-        end_time = datetime.now() + timedelta(hours=request_data.duration_hours)
+        end_time = datetime.now(settings.TZ) + timedelta(
+            hours=request_data.duration_hours
+        )
         end_timestamp = int(end_time.timestamp())
 
         # 创建竞拍
@@ -569,9 +579,13 @@ async def get_all_auctions_admin(
                 description=auction_data["description"],
                 starting_price=auction_data["starting_price"],
                 current_price=auction_data["current_price"],
-                end_time=datetime.fromtimestamp(auction_data["end_time"]),
+                end_time=datetime.fromtimestamp(
+                    auction_data["end_time"], tz=settings.TZ
+                ),
                 created_by=auction_data["created_by"],
-                created_at=datetime.fromtimestamp(auction_data["created_at"]),
+                created_at=datetime.fromtimestamp(
+                    auction_data["created_at"], tz=settings.TZ
+                ),
                 is_active=auction_data["is_active"],
                 winner_id=auction_data["winner_id"],
                 bid_count=auction_data["bid_count"],
@@ -832,7 +846,9 @@ async def get_auction_bids_admin(
                 "auction_id": bid_data["auction_id"],
                 "bidder_id": bid_data["bidder_id"],
                 "bid_amount": bid_data["bid_amount"],
-                "bid_time": datetime.fromtimestamp(bid_data["bid_time"]),
+                "bid_time": datetime.fromtimestamp(
+                    bid_data["bid_time"], tz=settings.TZ
+                ),
                 "bidder_name": get_user_name_from_tg_id(bid_data["bidder_id"]),
             }
             bids.append(bid)
@@ -871,8 +887,12 @@ async def get_user_auction_history_admin(
                 "description": auction_data["description"],
                 "starting_price": auction_data["starting_price"],
                 "current_price": auction_data["current_price"],
-                "end_time": datetime.fromtimestamp(auction_data["end_time"]),
-                "created_at": datetime.fromtimestamp(auction_data["created_at"]),
+                "end_time": datetime.fromtimestamp(
+                    auction_data["end_time"], tz=settings.TZ
+                ),
+                "created_at": datetime.fromtimestamp(
+                    auction_data["created_at"], tz=settings.TZ
+                ),
                 "is_active": auction_data["is_active"],
                 "user_highest_bid": auction_data["user_highest_bid"],
                 "is_winner": auction_data["is_winner"],
