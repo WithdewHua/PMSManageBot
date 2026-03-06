@@ -7,7 +7,7 @@ from app.databases.session import get_session
 from app.log import uvicorn_logger as logger
 from app.models.models import VaultwardenRedeemRecords
 from app.modules.vaultwarden import Vaultwarden
-from app.utils.utils import get_user_name_from_tg_id
+from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import (
@@ -16,7 +16,15 @@ from app.webapp.schemas import (
     VaultwardenRedeemRequest,
     VaultwardenRedeemResponse,
 )
-from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    HTTPException,
+    Request,
+    status,
+)
 
 # 创建路由器
 router = APIRouter(
@@ -24,6 +32,32 @@ router = APIRouter(
     tags=["vaultwarden"],
     responses={404: {"description": "Not found"}},
 )
+
+
+async def _notify_admins_vaultwarden_redeem(
+    user_id: int,
+    user_name: str,
+    email: str,
+    required_credits: float,
+    new_credits: float,
+):
+    """后台发送 Vaultwarden 兑换成功管理员通知"""
+    for admin in settings.TG_ADMIN_CHAT_ID:
+        try:
+            await send_message_by_url(
+                chat_id=admin,
+                text=(
+                    f"📬 <b>Vaultwarden 兑换通知</b>\n\n"
+                    f"用户 <b>{user_name}</b>（TG ID: <code>{user_id}</code>）\n"
+                    f"成功兑换 Vaultwarden 账户\n"
+                    f"邮箱：<code>{email}</code>\n"
+                    f"消耗积分：{required_credits}\n"
+                    f"剩余积分：{new_credits}"
+                ),
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.warning(f"发送管理员通知失败 {admin}: {e}")
 
 
 @router.get("/redeem-info", response_model=VaultwardenRedeemInfoResponse)
@@ -92,6 +126,7 @@ async def get_vaultwarden_redeem_info(
 @require_telegram_auth
 async def redeem_vaultwarden_account(
     request: Request,
+    background_tasks: BackgroundTasks,
     data: VaultwardenRedeemRequest = Body(...),
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
@@ -181,6 +216,17 @@ async def redeem_vaultwarden_account(
 
         logger.info(
             f"用户 {get_user_name_from_tg_id(user_id)} 成功兑换 Vaultwarden 账户，邮箱: {email}，扣除积分: {required_credits}"
+        )
+
+        # 发送管理员通知（BackgroundTasks 后台执行，不阻塞请求）
+        user_name = get_user_name_from_tg_id(user_id)
+        background_tasks.add_task(
+            _notify_admins_vaultwarden_redeem,
+            user_id=user_id,
+            user_name=user_name,
+            email=email,
+            required_credits=required_credits,
+            new_credits=new_credits,
         )
 
         return VaultwardenRedeemResponse(
