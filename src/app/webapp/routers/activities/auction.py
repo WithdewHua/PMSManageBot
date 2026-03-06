@@ -24,6 +24,23 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 router = APIRouter(prefix="/auction", tags=["auction"])
 
 
+async def send_channel_auction_notification(text: str):
+    """
+    后台任务：发送竞拍频道通知
+    """
+    if not settings.TG_CHANNEL_ID:
+        return
+    try:
+        await send_message_by_url(
+            chat_id=settings.TG_CHANNEL_ID,
+            text=text,
+            disable_notification=False,
+        )
+        logger.info("竞拍频道通知发送成功")
+    except Exception as e:
+        logger.error(f"发送竞拍频道通知失败: {e}")
+
+
 async def finish_single_auction_job(auction_id: int):
     """
     单个竞拍结束任务
@@ -51,7 +68,28 @@ async def finish_single_auction_job(auction_id: int):
                         chat_id=chat_id,
                         text=f"用户 {winner.get('winner_id')} 在竞拍 {auction_data['title']} 中获胜，但未扣除积分。",
                     )
+
+            # 发送频道通知：竞拍结束
+            winner_name = get_user_name_from_tg_id(winner.get("winner_id"))
+            channel_text = (
+                f"🏁 竞拍结束通知\n\n"
+                f"📝 竞拍: {auction_data['title']}\n"
+                f"🏆 最终得主: {winner_name}\n"
+                f"💰 成交价格: {winner.get('final_price')} 积分\n\n"
+                f"感谢所有参与者！"
+            )
+            await send_channel_auction_notification(channel_text)
+
             logger.info(f"竞拍 {auction_id} 自动结束成功")
+        elif success and not winner:
+            # 无人出价，流拍
+            channel_text = (
+                f"🏁 竞拍结束通知\n\n"
+                f"📝 竞拍: {auction_data['title']}\n"
+                f"😔 本次竞拍无人出价，已流拍。"
+            )
+            await send_channel_auction_notification(channel_text)
+            logger.info(f"竞拍 {auction_id} 自动结束，无人出价（流拍）")
         else:
             logger.warning(f"竞拍 {auction_id} 自动结束失败")
 
@@ -300,6 +338,7 @@ async def get_auction_detail(
 @require_telegram_auth
 async def create_auction(
     request_data: CreateAuctionRequest,
+    background_tasks: BackgroundTasks,
     request: Request,
     current_user: TelegramUser = Depends(get_telegram_user),
 ):
@@ -340,6 +379,18 @@ async def create_auction(
                 f"管理员 {get_user_name_from_tg_id(current_user.id)} 创建了竞拍: {request_data.title}，"
                 f"将在 {end_time} 自动结束"
             )
+
+            # 通过后台任务发送频道通知
+            channel_text = (
+                f"🎉 新竞拍活动开始啦！\n\n"
+                f"📝 竞拍: {request_data.title}\n"
+                f"📖 描述: {request_data.description or '暂无描述'}\n"
+                f"💰 起拍价: {request_data.starting_price} 积分\n"
+                f"⏰ 结束时间: {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+                f"欢迎感兴趣的朋友参与！"
+            )
+            background_tasks.add_task(send_channel_auction_notification, channel_text)
+
             return {
                 "success": True,
                 "message": "竞拍创建成功",
@@ -668,6 +719,7 @@ async def delete_auction_admin(
 @require_telegram_auth
 async def finish_auction_admin(
     auction_id: int,
+    background_tasks: BackgroundTasks,
     request: Request,
     current_user: TelegramUser = Depends(get_telegram_user),
 ):
@@ -703,7 +755,7 @@ async def finish_auction_admin(
             logger.info(
                 f"管理员 {get_user_name_from_tg_id(current_user.id)} 手动结束了竞拍 {auction_id}"
             )
-            # 通知用户
+            # 通知用户并发送频道通知
             if winner:
                 await send_message_by_url(
                     winner.get("winner_id"),
@@ -716,6 +768,22 @@ async def finish_auction_admin(
                             chat_id=chat_id,
                             text=f"用户 {winner.get('winner_id')} 在竞拍 {existing_auction['title']} 中获胜，但未扣除积分。",
                         )
+                winner_name = get_user_name_from_tg_id(winner.get("winner_id"))
+                channel_text = (
+                    f"🏁 竞拍结束通知\n\n"
+                    f"📝 竞拍: {existing_auction['title']}\n"
+                    f"🏆 最终得主: {winner_name}\n"
+                    f"💰 成交价格: {winner.get('final_price')} 积分\n\n"
+                    f"感谢所有参与者！"
+                )
+            else:
+                channel_text = (
+                    f"🏁 竞拍结束通知\n\n"
+                    f"📝 竞拍: {existing_auction['title']}\n"
+                    f"😔 本次竞拍无人出价，已流拍。"
+                )
+            background_tasks.add_task(send_channel_auction_notification, channel_text)
+
             return {
                 "success": True,
                 "message": "竞拍已结束",
