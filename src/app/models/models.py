@@ -554,6 +554,9 @@ class CustomLine(Base):
     expires_at: Mapped[Optional[int]] = mapped_column(
         BIGINT, nullable=True, index=True
     )  # 过期时间戳
+    expiry_notified_at: Mapped[Optional[int]] = mapped_column(
+        BIGINT, nullable=True
+    )  # 最后一次发送即将过期提醒的时间戳（用于避免重复通知）
     created_at: Mapped[int] = mapped_column(
         BIGINT, nullable=False, index=True
     )  # 创建时间戳

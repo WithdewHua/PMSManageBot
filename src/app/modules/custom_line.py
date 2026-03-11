@@ -40,7 +40,7 @@ async def check_expired_custom_lines():
                 session, current_time, one_day_later
             )
 
-            # 发送即将过期的提醒通知
+            # 发送即将过期的提醒通知（函数内部会过滤已通知的线路，并更新 expiry_notified_at）
             if expiring_soon_lines:
                 await _send_expiring_soon_notifications(
                     expiring_soon_lines, current_time
@@ -105,6 +105,14 @@ async def _send_expiring_soon_notifications(lines: List[CustomLine], current_tim
     logger.info(f"找到 {len(lines)} 条即将过期的自定义线路")
 
     for line in lines:
+        # 若已在本次过期窗口（最近24小时）内发送过提醒，则跳过，避免重复打扰
+        if (
+            line.expiry_notified_at is not None
+            and line.expiry_notified_at >= line.expires_at - 24 * 60 * 60
+        ):
+            logger.info(f"线路 {line.domain} 已在本次过期窗口内发送过提醒，跳过")
+            continue
+
         try:
             # 计算剩余时间（小时）
             remaining_hours = round((line.expires_at - current_time) / 3600, 1)
@@ -125,6 +133,9 @@ async def _send_expiring_soon_notifications(lines: List[CustomLine], current_tim
             await send_message_by_url(
                 chat_id=line.tg_id, text=message, disable_notification=False
             )
+
+            # 记录本次通知时间
+            line.expiry_notified_at = current_time
 
             logger.info(
                 f"已发送即将过期提醒给用户 {line.tg_id}，线路域名：{line.domain}，剩余 {remaining_hours} 小时"
