@@ -184,6 +184,42 @@ async def notify_treasure_settled(
     await send_message_by_url(chat_id=chat_id, text=text_group, parse_mode="HTML")
 
 
+async def notify_treasure_not_full_after_join(
+    *,
+    issue_id: int,
+    title: str | None,
+    joiner_tg_id: int,
+    bought_shares: int,
+    shares_sold: int,
+    total_shares: int,
+) -> None:
+    """用户参与后，若未满员则群组通知当前进度与距离开奖剩余人数/份数。"""
+
+    from app.utils.utils import send_message_by_url
+
+    chat_id = _get_group_chat_id()
+    if not chat_id:
+        return
+
+    try:
+        remaining = max(0, int(total_shares) - int(shares_sold))
+    except Exception:
+        remaining = 0
+
+    # 仅在未满员时通知（remaining==0 的情况由开奖公告覆盖）
+    if remaining <= 0:
+        return
+
+    text = (
+        f"🧩 <b>夺宝奇兵 #{int(issue_id)}</b> 有新参与\n"
+        f"标题：{title or 'N/A'}\n"
+        f"参与用户：<code>{get_user_name_from_tg_id(joiner_tg_id) or joiner_tg_id}</code>\n"
+        f"已购买份数：{bought_shares}\n"
+        f"距离开奖还差：{int(remaining)} 份"
+    )
+    await send_message_by_url(chat_id=chat_id, text=text, parse_mode="HTML")
+
+
 async def _get_eth_latest_block_hash_int() -> int:
     """获取以太坊最新区块哈希并转为整数 B。
 
@@ -345,6 +381,24 @@ async def join_issue(
             external_random_b=(eth_b if eth_b is not None else fallback_b),
             quantity=int(getattr(data, "quantity", 1)),
         )
+
+        # 若未满员：发送群组进度通知（失败不影响接口返回）
+        if not res.get("settled"):
+            try:
+                issue_full = db.get_treasure_issue_by_id(issue_id)
+                bought_shares = len(res.get("participations") or [])
+                issue_state = res.get("issue") or {}
+
+                await notify_treasure_not_full_after_join(
+                    issue_id=int(issue_id),
+                    title=str(issue_full.get("title")) if issue_full else None,
+                    joiner_tg_id=int(current_user.id),
+                    bought_shares=int(bought_shares) if bought_shares else 1,
+                    shares_sold=int(issue_state.get("shares_sold") or 0),
+                    total_shares=int(issue_state.get("total_shares") or 0),
+                )
+            except Exception as e:
+                logger.warning(f"Treasure progress notify failed: {e}")
 
         # 若本次触发结算：发送 TG 通知 + 安排 10 分钟后自动续期（失败不影响接口返回）
         if res.get("settled"):
