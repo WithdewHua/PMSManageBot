@@ -1,3 +1,4 @@
+from app.config import settings
 from app.databases import db
 from app.log import uvicorn_logger as logger
 from app.utils.utils import get_user_name_from_tg_id
@@ -329,7 +330,7 @@ async def create_issue(
         if not title:
             from datetime import datetime
 
-            now = datetime.now().strftime("%Y-%m-%d-%H:%M:%S")
+            now = datetime.now(settings.TZ).strftime("%Y-%m-%d-%H:%M:%S")
             title = f"夺宝奇兵 {now}"
 
         issue_id = db.create_treasure_issue(

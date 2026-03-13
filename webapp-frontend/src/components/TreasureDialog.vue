@@ -144,7 +144,7 @@
                 <v-list density="compact">
                   <v-list-item v-for="p in participations" :key="p.id">
                     <v-list-item-title>
-                      #{{ p.id }} · 号码 {{ p.lucky_number }}
+                      #{{ p.issue_seq || p.id }} · 号码 {{ p.lucky_number }}
                     </v-list-item-title>
                     <v-list-item-subtitle>
                       用户 {{ p.tg_username || p.tg_id }} · {{ formatMs(p.created_at_ms) }}

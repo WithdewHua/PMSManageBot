@@ -34,6 +34,7 @@ class TreasureIssueDetailResponse(BaseModel):
 class TreasureParticipationItem(BaseModel):
     id: int
     issue_id: int
+    issue_seq: int
     tg_id: int
     tg_username: Optional[str] = None
     lucky_number: int

@@ -1077,17 +1077,35 @@ class DatabaseORM:
         from app.utils.utils import get_user_name_from_tg_id
 
         with get_session() as session:
+            issue_seq = (
+                func.row_number()
+                .over(
+                    partition_by=TreasureParticipation.issue_id,
+                    order_by=TreasureParticipation.id.asc(),
+                )
+                .label("issue_seq")
+            )
             stmt = (
-                select(TreasureParticipation)
+                select(
+                    TreasureParticipation.id,
+                    TreasureParticipation.issue_id,
+                    TreasureParticipation.tg_id,
+                    TreasureParticipation.lucky_number,
+                    TreasureParticipation.cost_credits,
+                    TreasureParticipation.created_at_ms,
+                    TreasureParticipation.created_at,
+                    issue_seq,
+                )
                 .where(TreasureParticipation.issue_id == issue_id)
                 .order_by(TreasureParticipation.id.desc())
                 .limit(limit)
             )
-            rows = session.execute(stmt).scalars().all()
+            rows = session.execute(stmt).all()
             return [
                 {
                     "id": int(p.id),
                     "issue_id": int(p.issue_id),
+                    "issue_seq": int(p.issue_seq),
                     "tg_id": int(p.tg_id),
                     "tg_username": str(
                         get_user_name_from_tg_id(int(p.tg_id)) or p.tg_id
