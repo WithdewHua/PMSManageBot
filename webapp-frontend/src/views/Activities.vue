@@ -45,7 +45,6 @@
                   size="small"
                   variant="outlined"
                   :color="canParticipateActivity(activity) ? 'success' : 'warning'"
-                  class="mr-2"
                 >
                   <v-icon size="small" class="mr-1">mdi-star</v-icon>
                   最低积分要求： {{ activity.requireCredits }}
@@ -981,6 +980,11 @@ export default {
   
   .activity-subtitle {
     font-size: 13px;
+  }
+
+  .credits-requirement {
+    width: 100%;
+    justify-content: center;
   }
   
   .empty-state {
