@@ -435,21 +435,21 @@ export default {
           costCredits: 10
         },
         {
-          id: 'auction',
-          title: '竞拍活动',
-          description: '🎯 参与竞拍，赢取稀有奖品',
-          icon: 'mdi-gavel',
-          iconColor: 'blue',
-          enabled: true,
-          requireCredits: 10,
-          costCredits: 0
-        },
-        {
           id: 'treasure',
           title: '夺宝奇兵',
           description: '🎁 满员即开奖，拼手气赢大奖',
           icon: 'mdi-treasure-chest',
           iconColor: 'deep-purple',
+          enabled: true,
+          requireCredits: 10,
+          costCredits: 0
+        },
+        {
+          id: 'auction',
+          title: '竞拍活动',
+          description: '🎯 参与竞拍，赢取稀有奖品',
+          icon: 'mdi-gavel',
+          iconColor: 'blue',
           enabled: true,
           requireCredits: 10,
           costCredits: 0
