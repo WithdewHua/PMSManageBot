@@ -814,7 +814,14 @@
                           <v-text-field v-model="createTreasureForm.prize_credits" label="奖池积分" type="number" variant="outlined" density="compact" />
                           <v-text-field v-model="createTreasureForm.total_credits_required" label="总需积分" type="number" variant="outlined" density="compact" />
                           <v-text-field v-model="createTreasureForm.credits_per_share" label="每份积分" type="number" variant="outlined" density="compact" />
-                          <v-text-field v-model="createTreasureForm.start_number" label="起始幸运号" type="number" variant="outlined" density="compact" />
+                          <v-text-field
+                            v-model="createTreasureForm.start_number"
+                            label="起始幸运号（可选）"
+                            type="number"
+                            variant="outlined"
+                            density="compact"
+                            placeholder="留空则随机生成"
+                          />
 
                           <v-btn color="deep-purple" variant="elevated" block @click="submitCreateTreasureIssue">
                             <v-icon start>mdi-plus</v-icon>
@@ -2497,7 +2504,7 @@ export default {
         prize_credits: 100,
         total_credits_required: 1200,
         credits_per_share: 10,
-        start_number: 10000001
+        start_number: ''
       },
       systemStats: {
         plex_users: 0,
@@ -2716,7 +2723,14 @@ export default {
           prize_credits: Number(this.createTreasureForm.prize_credits),
           total_credits_required: Number(this.createTreasureForm.total_credits_required),
           credits_per_share: Number(this.createTreasureForm.credits_per_share),
-          start_number: Number(this.createTreasureForm.start_number)
+        }
+
+        const rawStartNumber = this.createTreasureForm.start_number
+        if (rawStartNumber !== '' && rawStartNumber !== null && rawStartNumber !== undefined) {
+          const n = Number(rawStartNumber)
+          if (Number.isFinite(n) && n > 0) {
+            payload.start_number = n
+          }
         }
         await createTreasureIssue(payload)
         this.showMessage('夺宝期数创建成功', 'success')

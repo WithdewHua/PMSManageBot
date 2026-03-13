@@ -4,6 +4,7 @@ ORM-based database operations using SQLAlchemy
 """
 
 import json
+import secrets
 import time
 import traceback
 from datetime import datetime, timedelta
@@ -35,7 +36,7 @@ from app.models.models import (
     VaultwardenRedeemRecords,
     WheelStats,
 )
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import case, delete, func, select, update
 from sqlalchemy.orm import joinedload
 
 
@@ -969,7 +970,7 @@ class DatabaseORM:
         prize_credits: int,
         total_credits_required: int,
         credits_per_share: int = 10,
-        start_number: int = 10000001,
+        start_number: Optional[int] = None,
         description: Optional[str] = None,
         created_by: Optional[int] = None,
     ) -> int:
@@ -985,6 +986,42 @@ class DatabaseORM:
             raise ValueError("invalid credits settings")
 
         with get_session() as session:
+            # 起始幸运号：如果前端未传，则随机生成一个 8 位起始号。
+            # 需要保证号段长度为 total_shares，且 number_high >= number_low。
+            if start_number is None:
+                lower = 10_000_001
+                upper = 99_999_999 - int(total_shares) + 1
+                if upper < lower:
+                    # 极端情况下（总份数过大）退化为固定起点
+                    start_number = lower
+                else:
+                    # 尝试避免与历史期数 start_number 完全重复（非强需求，尽量即可）
+                    used = set(
+                        n
+                        for (n,) in session.execute(
+                            select(TreasureIssue.start_number)
+                            .order_by(TreasureIssue.id.desc())
+                            .limit(500)
+                        ).all()
+                    )
+                    for _ in range(30):
+                        candidate = lower + secrets.randbelow(int(upper - lower + 1))
+                        if int(candidate) not in used:
+                            start_number = int(candidate)
+                            break
+                    else:
+                        start_number = lower + secrets.randbelow(int(upper - lower + 1))
+            else:
+                start_number = int(start_number)
+                if start_number <= 0:
+                    raise ValueError("start_number must be > 0")
+
+            # 最终范围校验
+            number_low = int(start_number)
+            number_high = int(start_number) + int(total_shares) - 1
+            if number_high < number_low:
+                raise ValueError("invalid number range")
+
             issue = TreasureIssue(
                 title=title,
                 description=description,
@@ -1040,7 +1077,13 @@ class DatabaseORM:
         self, limit: int = 50, include_closed: bool = True
     ) -> List[dict]:
         with get_session() as session:
-            stmt = select(TreasureIssue).order_by(TreasureIssue.id.desc()).limit(limit)
+            active_first = case((TreasureIssue.status == 1, 1), else_=0).desc()
+
+            stmt = (
+                select(TreasureIssue)
+                .order_by(active_first, TreasureIssue.id.desc())
+                .limit(limit)
+            )
             if not include_closed:
                 stmt = (
                     select(TreasureIssue)
@@ -1165,8 +1208,8 @@ class DatabaseORM:
             if buy_qty <= 0:
                 raise ValueError("issue already full")
 
-            # 单用户累计购买上限：不超过总份数的 20%（分批/单次都限制）
-            max_per_user = max(1, int(int(issue.total_shares) * 0.2))
+            # 单用户累计购买上限：不超过总份数的 10%（分批/单次都限制）
+            max_per_user = max(1, int(int(issue.total_shares) * 0.1))
             user_bought = session.execute(
                 select(func.count(TreasureParticipation.id)).where(
                     TreasureParticipation.issue_id == int(issue.id),

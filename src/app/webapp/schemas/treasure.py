@@ -54,7 +54,7 @@ class TreasureCreateIssueRequest(BaseModel):
     prize_credits: int = Field(..., gt=0)
     total_credits_required: int = Field(..., gt=0)
     credits_per_share: int = Field(10, gt=0)
-    start_number: int = Field(10000001, gt=0)
+    start_number: Optional[int] = Field(None, gt=0)
 
 
 class TreasureJoinRequest(BaseModel):
