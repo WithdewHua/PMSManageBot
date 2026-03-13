@@ -513,6 +513,26 @@ export default {
     this.loadLines()
   },
   methods: {
+    normalizeTags(line) {
+      // 兼容后端 tags 可能为 null / string(JSON) / array
+      if (!line) return line
+      const raw = line.tags
+      let tags = []
+      if (Array.isArray(raw)) {
+        tags = raw
+      } else if (typeof raw === 'string' && raw) {
+        try {
+          const parsed = JSON.parse(raw)
+          tags = Array.isArray(parsed) ? parsed : []
+        } catch (e) {
+          tags = []
+        }
+      }
+      return {
+        ...line,
+        tags
+      }
+    },
     async loadLines() {
       this.loading = true
       this.error = ''
@@ -520,7 +540,7 @@ export default {
       try {
         const response = await adminGetAllCustomLines()
         if (response.success) {
-          this.lines = response.lines || []
+          this.lines = (response.lines || []).map(this.normalizeTags)
         } else {
           this.error = response.message || '加载失败'
         }
@@ -591,13 +611,13 @@ export default {
     },
     
     viewLineDetail(line) {
-      this.currentLine = line
+      this.currentLine = this.normalizeTags(line)
       this.showDetailDialog = true
     },
     
     editTagsDialog(line) {
-      this.currentLine = line
-      this.editingTags = [...(line.tags || [])]
+      this.currentLine = this.normalizeTags(line)
+      this.editingTags = [...(this.currentLine.tags || [])]
       this.showTagsDialog = true
     },
     

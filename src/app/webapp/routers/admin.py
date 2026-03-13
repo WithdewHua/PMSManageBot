@@ -1291,6 +1291,8 @@ async def get_all_custom_lines(
     check_admin_permission(user)
 
     try:
+        import json
+
         from app.databases.session import get_session
         from app.models.models import CustomLine
         from app.webapp.schemas import CustomLineInfo, CustomLineListResponse
@@ -1326,6 +1328,11 @@ async def get_all_custom_lines(
                     status=line.status,
                     admin_note=line.admin_note,
                     user_note=line.user_note,
+                    tags=(
+                        json.loads(line.tags)
+                        if isinstance(line.tags, str) and line.tags
+                        else (line.tags or [])
+                    ),
                     approved_at=line.approved_at,
                     approved_by=line.approved_by,
                     expires_at=line.expires_at,
