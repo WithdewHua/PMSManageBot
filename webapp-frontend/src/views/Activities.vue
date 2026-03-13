@@ -311,6 +311,9 @@
         </v-card>
       </v-dialog>
 
+  <!-- 夺宝奇兵弹窗 -->
+  <TreasureDialog ref="treasureDialog" />
+
       <!-- 出价弹窗 -->
       <v-dialog v-model="showBidDialog" max-width="400">
         <v-card v-if="selectedAuction">
@@ -381,6 +384,7 @@
 
 <script>
 import LuckyWheel from '@/components/LuckyWheel.vue'
+import TreasureDialog from '@/components/TreasureDialog.vue'
 import { getUserInfo } from '@/api'
 import { getLuckyWheelUserStatus } from '@/services/wheelService'
 import { getActiveAuctions, placeBid, getAuctionDetails } from '@/services/auctionService'
@@ -388,7 +392,8 @@ import { getActiveAuctions, placeBid, getAuctionDetails } from '@/services/aucti
 export default {
   name: 'Activities',
   components: {
-    LuckyWheel
+    LuckyWheel,
+    TreasureDialog
   },
   data() {
     return {
@@ -436,6 +441,16 @@ export default {
           description: '🎯 参与竞拍，赢取稀有奖品',
           icon: 'mdi-gavel',
           iconColor: 'blue',
+          enabled: true,
+          requireCredits: 10,
+          costCredits: 0
+        },
+        {
+          id: 'treasure',
+          title: '夺宝奇兵',
+          description: '🎁 满员即开奖，拼手气赢大奖',
+          icon: 'mdi-treasure-chest',
+          iconColor: 'deep-purple',
           enabled: true,
           requireCredits: 10,
           costCredits: 0
@@ -574,7 +589,9 @@ export default {
         console.log(`积分不足，需要 ${activity.requireCredits} 积分才能参与`)
       }
       
-      if (activity.id === 'lucky-wheel') {
+      if (activity.id === 'treasure') {
+        this.$refs.treasureDialog?.open()
+      } else if (activity.id === 'lucky-wheel') {
         this.showLuckyWheelDialog = true
       } else if (activity.id === 'auction') {
         this.showAuctionDialog = true

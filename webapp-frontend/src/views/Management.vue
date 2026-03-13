@@ -690,6 +690,54 @@
                 </v-card-actions>
               </v-card>
 
+              <!-- 夺宝奇兵活动卡片 -->
+              <v-card class="activity-card-enhanced">
+                <v-card-title class="d-flex align-center">
+                  <v-icon class="mr-2" color="deep-purple">mdi-treasure-chest</v-icon>
+                  <span>夺宝奇兵</span>
+                  <v-spacer></v-spacer>
+                  <v-chip color="success" size="small" variant="flat">
+                    <v-icon start size="12">mdi-check-circle</v-icon>
+                    运行中
+                  </v-chip>
+                </v-card-title>
+
+                <v-card-text>
+                  <p class="text-body-2 text-medium-emphasis mb-4">
+                    创建/管理夺宝期数，查看参与进度与开奖结果
+                  </p>
+
+                  <div class="activity-stats mb-4">
+                    <v-row dense>
+                      <v-col cols="6">
+                        <div class="stat-item">
+                          <div class="stat-value">{{ treasureStats.total_issues || 0 }}</div>
+                          <div class="stat-label">期数总数</div>
+                        </div>
+                      </v-col>
+                      <v-col cols="6">
+                        <div class="stat-item">
+                          <div class="stat-value">{{ treasureStats.active_issues || 0 }}</div>
+                          <div class="stat-label">进行中</div>
+                        </div>
+                      </v-col>
+                    </v-row>
+                  </div>
+                </v-card-text>
+
+                <v-card-actions class="pa-4 pt-0">
+                  <v-btn
+                    color="deep-purple"
+                    variant="elevated"
+                    block
+                    @click="openTreasureManagement"
+                  >
+                    <v-icon start>mdi-treasure-chest</v-icon>
+                    进入夺宝管理
+                  </v-btn>
+                </v-card-actions>
+              </v-card>
+
               <!-- 其他活动卡片占位 -->
               <v-card class="activity-card-enhanced activity-placeholder">
                 <v-card-title class="d-flex align-center">
@@ -724,6 +772,109 @@
                 </v-card-actions>
               </v-card>
             </div>
+
+            <!-- 夺宝管理弹窗 -->
+            <v-dialog v-model="showTreasureManagement" max-width="900" persistent>
+              <v-card class="activity-dialog">
+                <v-card-title class="d-flex align-center justify-space-between">
+                  <div class="d-flex align-center">
+                    <v-icon class="mr-2" color="deep-purple">mdi-treasure-chest</v-icon>
+                    夺宝期数创建 / 管理
+                  </div>
+                  <div>
+                    <v-btn icon @click="loadTreasureStats" :loading="treasureIssuesLoading">
+                      <v-icon>mdi-refresh</v-icon>
+                    </v-btn>
+                    <v-btn icon @click="closeTreasureManagement">
+                      <v-icon>mdi-close</v-icon>
+                    </v-btn>
+                  </div>
+                </v-card-title>
+
+                <v-divider />
+
+                <v-card-text class="pa-6">
+                  <v-alert v-if="treasureIssuesError" type="error" variant="tonal" class="mb-4">
+                    {{ treasureIssuesError }}
+                  </v-alert>
+
+                  <v-row>
+                    <v-col cols="12" md="5">
+                      <v-card variant="outlined" rounded="lg">
+                        <v-card-title class="text-subtitle-1">创建新期数</v-card-title>
+                        <v-card-text>
+                          <v-text-field
+                            v-model="createTreasureForm.title"
+                            label="标题（可选）"
+                            variant="outlined"
+                            density="compact"
+                            placeholder="留空将自动生成"
+                          />
+                          <v-textarea v-model="createTreasureForm.description" label="描述（可选）" variant="outlined" density="compact" rows="3" />
+                          <v-text-field v-model="createTreasureForm.prize_credits" label="奖池积分" type="number" variant="outlined" density="compact" />
+                          <v-text-field v-model="createTreasureForm.total_credits_required" label="总需积分" type="number" variant="outlined" density="compact" />
+                          <v-text-field v-model="createTreasureForm.credits_per_share" label="每份积分" type="number" variant="outlined" density="compact" />
+                          <v-text-field v-model="createTreasureForm.start_number" label="起始幸运号" type="number" variant="outlined" density="compact" />
+
+                          <v-btn color="deep-purple" variant="elevated" block @click="submitCreateTreasureIssue">
+                            <v-icon start>mdi-plus</v-icon>
+                            创建期数
+                          </v-btn>
+                        </v-card-text>
+                      </v-card>
+                    </v-col>
+
+                    <v-col cols="12" md="7">
+                      <v-card variant="outlined" rounded="lg">
+                        <v-card-title class="text-subtitle-1">期数列表</v-card-title>
+                        <v-card-text>
+                          <div v-if="treasureIssuesLoading" class="text-center py-6">
+                            <v-progress-circular indeterminate color="primary" size="32" />
+                          </div>
+                          <div v-else>
+                            <v-list density="compact">
+                              <v-list-item v-for="it in treasureIssues" :key="it.id">
+                                <v-list-item-title>
+                                  #{{ it.id }} · {{ it.title }}
+                                </v-list-item-title>
+                                <v-list-item-subtitle>
+                                  进度 {{ it.shares_sold }}/{{ it.total_shares }}
+                                </v-list-item-subtitle>
+                                <template #append>
+                                  <div class="treasure-issue-actions">
+                                    <v-chip
+                                      size="small"
+                                      :color="it.status === 1 ? 'deep-purple' : (it.status === 2 ? 'success' : 'grey')"
+                                      variant="flat"
+                                      class="treasure-issue-status"
+                                    >
+                                      {{ it.status === 1 ? '进行中' : (it.status === 2 ? '已开奖' : '已取消') }}
+                                    </v-chip>
+
+                                    <v-chip
+                                      v-if="it.status === 1"
+                                      size="small"
+                                      color="error"
+                                      variant="tonal"
+                                      class="treasure-issue-cancel"
+                                      :disabled="deletingTreasureIssueId !== null"
+                                      @click.stop="confirmCancelTreasureIssue(it)"
+                                    >
+                                      <v-icon start size="14">mdi-trash-can-outline</v-icon>
+                                      取消
+                                    </v-chip>
+                                  </div>
+                                </template>
+                              </v-list-item>
+                            </v-list>
+                          </div>
+                        </v-card-text>
+                      </v-card>
+                    </v-col>
+                  </v-row>
+                </v-card-text>
+              </v-card>
+            </v-dialog>
           </v-window-item>
 
           <!-- 概览 Tab -->
@@ -2239,6 +2390,7 @@ import CustomLineManagement from '@/components/CustomLineManagement.vue'
 import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits, setPremiumDailyCredits, setPremiumUnlockEnabled, setCreditsTransferEnabled, setLineScheduleUnlockCredits, setDownloadUnlockCredits } from '@/services/adminService.js'
 import { getWheelStats } from '@/services/wheelService.js'
 import { getAuctionStats, getAllAuctions, finishExpiredAuctions, finishAuction, deleteAuction, createAuction, getAuctionBids, updateAuction } from '@/services/auctionService.js'
+import { listTreasureIssues, createTreasureIssue, cancelTreasureIssue } from '@/services/treasureService.js'
 import { getPremiumLineTrafficStats, formatTrafficSize, formatUsername, getTrafficOverview } from '@/services/trafficService.js'
 import { getAllCryptoDonationOrdersAdmin, ORDER_STATUS } from '@/services/cryptoDonationService.js'
 import { getBadgeCenterConfig, updateBadgeConfig, adminGetAllBadges, adminDeleteBadge } from '@/services/badgeService.js'
@@ -2292,6 +2444,10 @@ export default {
         total_bids: 0,
         total_value: 0.0
       },
+      treasureStats: {
+        total_issues: 0,
+        active_issues: 0
+      },
       // 竞拍管理相关数据
       auctionStatsLoading: false,
       auctionStatsError: null,
@@ -2330,6 +2486,19 @@ export default {
       ],
       showWheelManagement: false,
       showAuctionManagement: false,
+      showTreasureManagement: false,
+      treasureIssuesLoading: false,
+      treasureIssuesError: null,
+      deletingTreasureIssueId: null,
+      treasureIssues: [],
+      createTreasureForm: {
+        title: '',
+        description: '',
+        prize_credits: 100,
+        total_credits_required: 1200,
+        credits_per_share: 10,
+        start_number: 10000001
+      },
       systemStats: {
         plex_users: 0,
         emby_users: 0,
@@ -2414,7 +2583,8 @@ export default {
         console.log('切换到活动管理标签页，开始加载活动数据...')
         Promise.all([
           this.loadWheelStats(),
-          this.loadAuctionStats()
+          this.loadAuctionStats(),
+          this.loadTreasureStats()
         ])
       }
     }
@@ -2445,7 +2615,8 @@ export default {
         if (this.isAdmin && this.currentTab === 'wheel') {
           await Promise.all([
             this.loadWheelStats(),
-            this.loadAuctionStats()
+            this.loadAuctionStats(),
+            this.loadTreasureStats()
           ])
         }
         this.loading = false
@@ -2505,6 +2676,104 @@ export default {
         this.fetchTrafficStats(),
         this.fetchTrafficOverview()
       ])
+    },
+
+    // =====================
+    // Treasure 管理
+    // =====================
+    async loadTreasureStats() {
+      try {
+        this.treasureIssuesLoading = true
+        this.treasureIssuesError = null
+        const res = await listTreasureIssues({ include_closed: true, limit: 200 })
+        this.treasureIssues = res.data.issues || []
+        this.treasureStats.total_issues = this.treasureIssues.length
+        this.treasureStats.active_issues = this.treasureIssues.filter(i => i.status === 1).length
+      } catch (err) {
+        this.treasureIssuesError = err.response?.data?.detail || '加载夺宝期数失败'
+        console.error('加载夺宝期数失败:', err)
+      } finally {
+        this.treasureIssuesLoading = false
+      }
+    },
+
+    openTreasureManagement() {
+      this.showTreasureManagement = true
+      this.loadTreasureStats()
+    },
+
+    closeTreasureManagement() {
+      this.showTreasureManagement = false
+      this.treasureIssuesError = null
+    },
+
+    async submitCreateTreasureIssue() {
+      try {
+        const title = String(this.createTreasureForm.title || '').trim()
+        const payload = {
+          ...(title ? { title } : {}),
+          description: this.createTreasureForm.description || null,
+          prize_credits: Number(this.createTreasureForm.prize_credits),
+          total_credits_required: Number(this.createTreasureForm.total_credits_required),
+          credits_per_share: Number(this.createTreasureForm.credits_per_share),
+          start_number: Number(this.createTreasureForm.start_number)
+        }
+        await createTreasureIssue(payload)
+        this.showMessage('夺宝期数创建成功', 'success')
+        await this.loadTreasureStats()
+      } catch (err) {
+        const msg = err.response?.data?.detail || '创建夺宝期数失败'
+        this.showMessage(msg, 'error')
+        console.error('创建夺宝期数失败:', err)
+      }
+    },
+
+    async confirmCancelTreasureIssue(issue) {
+      try {
+        const id = issue?.id
+        if (!id) return
+
+        this.deletingTreasureIssueId = id
+
+        const tg = window.Telegram?.WebApp
+  const message = `确认取消进行中的夺宝期数 #${id} 吗？\n\n将会：\n- 取消本期\n- 删除全部参与记录\n- 自动退还参与者已消耗积分`
+
+        let ok = false
+        if (tg?.showConfirm) {
+          ok = await new Promise((resolve) => {
+            tg.showConfirm(message, (confirmed) => resolve(Boolean(confirmed)))
+          })
+        } else {
+          ok = window.confirm(message)
+        }
+        if (!ok) return
+
+        const res = await cancelTreasureIssue(id)
+        const data = res?.data || {}
+        const refundedTotal = data.refunded_total ?? 0
+        const refundedUsers = data.refunded_users ?? 0
+  this.showMessage(`期数 #${id} 已取消，已退还 ${refundedTotal} 积分（${refundedUsers} 人）`, 'success')
+
+        // 本地立即更新 UI（减少等待感），再刷新一次确保与服务端一致
+        const idx = this.treasureIssues.findIndex((x) => x.id === id)
+        if (idx >= 0) {
+          const old = this.treasureIssues[idx]
+          this.treasureIssues.splice(idx, 1, {
+            ...old,
+            status: 3,
+            shares_sold: 0,
+            winner_number: null,
+            winner_tg_id: null
+          })
+        }
+        await this.loadTreasureStats()
+      } catch (err) {
+        const msg = err.response?.data?.detail || '取消夺宝期数失败'
+        this.showMessage(msg, 'error')
+        console.error('取消夺宝期数失败:', err)
+      } finally {
+        this.deletingTreasureIssueId = null
+      }
     },
     
     async updatePlexRegister() {
@@ -4238,6 +4507,41 @@ export default {
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 16px;
   padding: 4px 0;
+}
+
+/* 夺宝期数列表操作区（删除 + 状态） */
+.treasure-issue-actions {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.treasure-issue-cancel {
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.treasure-issue-cancel :deep(.v-chip__content) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
+}
+
+.treasure-issue-cancel :deep(.v-icon) {
+  margin-inline-end: 0;
+}
+
+.treasure-issue-status {
+  white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+  .treasure-issue-actions {
+    gap: 6px;
+  }
 }
 
 .donation-btn {

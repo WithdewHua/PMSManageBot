@@ -141,71 +141,126 @@ async def send_message_by_url(
     Raises:
         ValueError: If required parameters are invalid
     """
+
+    def _normalize_chat_id(value: Union[int, str]) -> Union[int, str]:
+        """Normalize chat_id.
+
+        Accepts:
+        - int / numeric string (user id / group id)
+        - @channelusername
+
+        Rejects (returns as-is but will likely fail):
+        - t.me links / invite links (not a valid chat_id)
+        """
+        if isinstance(value, int):
+            return value
+        s = str(value).strip()
+        # common mistake: passing an invite link like https://t.me/+xxxx
+        if s.startswith("http://") or s.startswith("https://"):
+            return s
+        if s.startswith("@"):
+            return s
+        if s.lstrip("-").isdigit():
+            # keep negative ids for groups/supergroups
+            try:
+                return int(s)
+            except Exception:
+                return s
+        return s
+
     # Parameter validation
-    if not chat_id:
+    if chat_id is None:
         raise ValueError("chat_id cannot be empty")
+    chat_id = _normalize_chat_id(chat_id)
+    if isinstance(chat_id, str) and (
+        chat_id.startswith("http://") or chat_id.startswith("https://")
+    ):
+        raise ValueError(
+            f"chat_id looks like a URL ({chat_id}). Telegram sendMessage requires a chat id (numeric id or @username), not a t.me link."
+        )
     if not text or not text.strip():
         raise ValueError("text cannot be empty")
     if not token:
         raise ValueError("token cannot be empty")
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    data = {"chat_id": chat_id, "text": text.strip()}
-    data.update(kwargs)
+    data = {"chat_id": chat_id, "text": text.strip(), **kwargs}
 
     # Use global session manager to avoid connection pool issues
     session = await get_thread_safe_session()
 
-    async with session.post(url, data=data) as response:
-        for attempt in range(max_retries):
-            try:
-                logger.debug(
-                    f"Attempt {attempt + 1}/{max_retries}: Sending message to {chat_id}"
-                )
+    for attempt in range(max_retries):
+        try:
+            logger.debug(
+                f"Attempt {attempt + 1}/{max_retries}: Sending message to {chat_id}"
+            )
 
-                response.raise_for_status()
-                result = await response.json()
-
-                if result.get("ok"):
-                    logger.info(
-                        f"Message sent successfully to {chat_id}: {data.get('text')}"
-                    )
-                    return True
+            async with session.post(url, data=data) as response:
+                # Always read body for better diagnostics (Telegram returns useful description on 400)
+                content_type = response.headers.get("Content-Type", "")
+                if "application/json" in content_type:
+                    payload = await response.json(content_type=None)
                 else:
-                    logger.warning(f"Telegram API returned error: {result}")
-                    return False
+                    raw_text = await response.text()
+                    payload = {"raw": raw_text}
 
-            except (
-                aiohttp.ClientError,
-                aiohttp.ServerTimeoutError,
-                asyncio.TimeoutError,
-            ) as e:
-                # Network-related errors, worth retrying
+                if (
+                    response.status == 200
+                    and isinstance(payload, dict)
+                    and payload.get("ok")
+                ):
+                    logger.info(f"Message sent successfully to {chat_id}")
+                    return True
+
+                # Telegram errors are usually not retryable (400/403), but log description.
+                description = None
+                if isinstance(payload, dict):
+                    description = payload.get("description")
                 logger.warning(
-                    f"Network error on attempt {attempt + 1}: {type(e).__name__}: {e}"
+                    "Telegram sendMessage failed: status=%s chat_id=%s description=%s payload=%s",
+                    response.status,
+                    chat_id,
+                    description,
+                    payload,
                 )
-                if attempt == max_retries - 1:
-                    logger.error(
-                        f"Failed to send message to {chat_id} after {max_retries} attempts: {e}"
-                    )
-                    return False
 
-            except Exception as e:
-                # Other errors, may not be worth retrying
+                # Don't retry on client errors except 429
+                if response.status in (400, 401, 403, 404):
+                    return False
+                if response.status == 429 and isinstance(payload, dict):
+                    retry_after = payload.get("parameters", {}).get("retry_after")
+                    if isinstance(retry_after, int) and retry_after > 0:
+                        await asyncio.sleep(min(retry_after, 30))
+                        continue
+
+        except (
+            aiohttp.ClientError,
+            aiohttp.ServerTimeoutError,
+            asyncio.TimeoutError,
+        ) as e:
+            logger.warning(
+                f"Network error on attempt {attempt + 1}: {type(e).__name__}: {e}"
+            )
+            if attempt == max_retries - 1:
                 logger.error(
-                    f"Unexpected error on attempt {attempt + 1}: {type(e).__name__}: {e}"
+                    f"Failed to send message to {chat_id} after {max_retries} attempts: {e}"
                 )
-                if attempt == max_retries - 1:
-                    logger.error(
-                        f"Failed to send message to {chat_id} after {max_retries} attempts: {e}"
-                    )
-                    return False
+                return False
 
-            # Exponential backoff for retries
-            if attempt < max_retries - 1:
-                wait_time = min(2**attempt, 10)  # Cap at 10 seconds
-                logger.debug(f"Waiting {wait_time} seconds before retry...")
-                await asyncio.sleep(wait_time)
+        except Exception as e:
+            logger.error(
+                f"Unexpected error on attempt {attempt + 1}: {type(e).__name__}: {e}"
+            )
+            if attempt == max_retries - 1:
+                logger.error(
+                    f"Failed to send message to {chat_id} after {max_retries} attempts: {e}"
+                )
+                return False
+
+        if attempt < max_retries - 1:
+            wait_time = min(2**attempt, 10)
+            logger.debug(f"Waiting {wait_time} seconds before retry...")
+            await asyncio.sleep(wait_time)
 
     return False
 

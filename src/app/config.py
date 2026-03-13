@@ -55,7 +55,11 @@ class Settings(BaseSettings):
     TG_ADMIN_CHAT_ID: list[str] = []
     TG_GROUP: str = ""
     TG_CHANNEL: str = ""  # 可选的通知频道链接，如果不设置将使用群组链接
+    TG_GROUP_ID: str = ""  # Telegram 群组 ID，用于发送通知等消息
     TG_CHANNEL_ID: str = ""  # Telegram 频道 ID，用于发送统计报告等消息
+
+    # Ethereum JSON-RPC
+    ETH_RPC_URL: str = ""
 
     # WebApp
     WEBAPP_ENABLE: bool = True  # 是否启用 WebApp

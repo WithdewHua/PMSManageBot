@@ -79,3 +79,4 @@ from .vaultwarden import (
     VaultwardenRedeemRequest,
     VaultwardenRedeemResponse,
 )
+from .treasure import *
