@@ -1208,8 +1208,8 @@ class DatabaseORM:
             if buy_qty <= 0:
                 raise ValueError("issue already full")
 
-            # 单用户累计购买上限：不超过总份数的 10%（分批/单次都限制）
-            max_per_user = max(1, int(int(issue.total_shares) * 0.1))
+            # 单用户累计购买上限：不超过总份数的 20%（分批/单次都限制）
+            max_per_user = max(1, int(int(issue.total_shares) * 0.2))
             user_bought = session.execute(
                 select(func.count(TreasureParticipation.id)).where(
                     TreasureParticipation.issue_id == int(issue.id),

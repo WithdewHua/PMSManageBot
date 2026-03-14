@@ -451,7 +451,7 @@ export default {
           icon: 'mdi-gavel',
           iconColor: 'blue',
           enabled: true,
-          requireCredits: 10,
+          requireCredits: 5,
           costCredits: 0
         },
         {
