@@ -31,7 +31,7 @@
                 <v-card-title class="treasure-issue__titlebar">
                   <div class="treasure-issue__title">
                     <v-icon class="mr-2" color="deep-purple">mdi-treasure-chest</v-icon>
-                    <span class="text-subtitle-1 treasure-issue__title-text">{{ issue.title }}</span>
+                    <span class="text-subtitle-1 treasure-issue__title-text">期数 #{{ issue.id }}</span>
                   </div>
                   <v-chip class="treasure-issue__status" :color="statusColor(issue.status)" size="small" variant="elevated">
                     {{ statusText(issue.status) }}
@@ -85,7 +85,7 @@
 
             <v-card-text class="pa-6">
               <v-alert type="info" variant="tonal" density="compact" class="mb-4">
-                每份 {{ selectedIssue.credits_per_share }} 积分，满 {{ selectedIssue.total_shares }} 份立即开奖。
+                每份 {{ selectedIssue.credits_per_share }} 积分，满 {{ selectedIssue.total_shares }} 份立即开奖。当期单人最多可购买 {{ maxPerUser(selectedIssue) }} 份。
               </v-alert>
 
               <div class="d-flex justify-space-between mb-2">
@@ -117,7 +117,7 @@
                   density="compact"
                   hide-details
                   :min="1"
-                  :max="100"
+                  :max="maxPerUser(selectedIssue)"
                 />
                 <v-btn
                   class="treasure-join-btn"
@@ -231,6 +231,10 @@ export default {
       if (status === 3) return '已取消'
       return '未知'
     },
+    maxPerUser(issue) {
+      if (!issue) return 1
+      return Math.max(1, Math.floor(Number(issue.total_shares) * 0.2))
+    },
     statusColor(status) {
       if (status === 1) return 'deep-purple'
       if (status === 2) return 'success'
@@ -277,7 +281,7 @@ export default {
       if (!this.selectedIssue) return
       try {
         this.joining = true
-        const qty = Math.max(1, Math.min(100, Number(this.quantity || 1)))
+        const qty = Math.max(1, Math.min(this.maxPerUser(this.selectedIssue), Number(this.quantity || 1)))
         const res = await joinTreasureIssue(this.selectedIssue.id, qty)
         const data = res.data
         if (data.settled) {
