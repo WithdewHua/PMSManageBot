@@ -441,7 +441,7 @@ export default {
           icon: 'mdi-treasure-chest',
           iconColor: 'deep-purple',
           enabled: true,
-          requireCredits: 10,
+          requireCredits: 5,
           costCredits: 0
         },
         {
@@ -451,7 +451,7 @@ export default {
           icon: 'mdi-gavel',
           iconColor: 'blue',
           enabled: true,
-          requireCredits: 5,
+          requireCredits: 10,
           costCredits: 0
         },
         {
