@@ -586,7 +586,9 @@ async def bind_emby_line(
         logger.info(
             f"用户 {get_user_name_from_tg_id(tg_id)} 成功绑定 Emby 线路 {line}，原线路：{binded_line}"
         )
-        return BaseResponse(success=True, message=f"绑定线路 {line} 成功！")
+        return BaseResponse(
+            success=True, message=f"绑定线路 {line} 成功！请重新播放以应用线路变更"
+        )
 
     except Exception as e:
         logger.error(f"绑定Emby线路时发生错误: {str(e)}")
@@ -991,7 +993,9 @@ async def bind_plex_line(
         logger.info(
             f"用户 {get_user_name_from_tg_id(tg_id)} 成功绑定 Plex 线路 {line}，原线路：{binded_line}"
         )
-        return BaseResponse(success=True, message=f"绑定线路 {line} 成功！")
+        return BaseResponse(
+            success=True, message=f"绑定线路 {line} 成功！请重新播放以应用线路变更"
+        )
 
     except Exception as e:
         logger.error(f"绑定 Plex 线路时发生错误: {str(e)}")
