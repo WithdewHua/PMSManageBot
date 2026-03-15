@@ -1,6 +1,7 @@
 from app.config import settings
 from app.databases import db
 from app.log import uvicorn_logger as logger
+from app.utils.number import normalize_external_random_b
 from app.utils.utils import get_user_name_from_tg_id
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
@@ -249,8 +250,8 @@ async def _get_eth_latest_block_hash_int() -> int:
             if not block_hash or not isinstance(block_hash, str):
                 raise RuntimeError("failed to get latest block hash")
 
-            # hash like '0xabc...'
-            return int(block_hash, 16)
+            # hash like '0xabc...'; normalize to signed BIGINT-safe non-negative range.
+            return normalize_external_random_b(int(block_hash, 16), default=0) or 0
 
 
 router = APIRouter(prefix="/treasure", tags=["夺宝奇兵"])
@@ -382,17 +383,23 @@ async def join_issue(
                         digest = hmac.new(
                             secret.encode("utf-8"), msg, hashlib.sha256
                         ).digest()
-                        fallback_b = int.from_bytes(digest[:8], "big", signed=False)
+                        fallback_b = normalize_external_random_b(
+                            int.from_bytes(digest[:8], "big", signed=False)
+                        )
                         logger.info(
                             "ETH hash unavailable; using deterministic fallback B for settlement"
                         )
             except Exception as e:
                 logger.warning(f"生成随机兜底B失败，将继续使用默认B=0: {e}")
 
+        safe_external_b = normalize_external_random_b(
+            eth_b if eth_b is not None else fallback_b
+        )
+
         res = db.join_treasure_issue(
             issue_id=issue_id,
             tg_id=int(current_user.id),
-            external_random_b=(eth_b if eth_b is not None else fallback_b),
+            external_random_b=safe_external_b,
             quantity=int(getattr(data, "quantity", 1)),
         )
 

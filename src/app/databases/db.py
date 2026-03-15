@@ -36,6 +36,7 @@ from app.models.models import (
     VaultwardenRedeemRecords,
     WheelStats,
 )
+from app.utils.number import normalize_external_random_b
 from sqlalchemy import case, delete, distinct, func, select, update
 from sqlalchemy.orm import joinedload
 
@@ -1317,10 +1318,11 @@ class DatabaseORM:
                         .limit(n)
                     ).all()
                     a = sum(int(r[0]) for r in last_rows)
-                    b = (
+                    b = normalize_external_random_b(
                         int(external_random_b)
                         if external_random_b is not None
-                        else int(issue.external_random_b or 0)
+                        else int(issue.external_random_b or 0),
+                        default=0,
                     )
 
                     # 中奖号码：((A+B) % total_shares) + start_number
