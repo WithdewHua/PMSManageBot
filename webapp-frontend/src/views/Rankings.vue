@@ -912,7 +912,14 @@
                             </v-list-item-title>
                             <v-list-item-subtitle class="user-score">
                               <v-icon size="16" :color="getGameRankingIconColor()" class="mr-1">{{ getGameRankingIcon() }}</v-icon>
-                              {{ formatGameRankingValue(item) }}
+                              <template v-if="gameRankingType === 'wheel_credits'">
+                                {{ Number(item.earned_credits || 0).toFixed(2) }} 积分 /
+                                <v-icon size="14" color="indigo" class="mx-1">mdi-controller-classic</v-icon>
+                                {{ item.play_count || 0 }} 次
+                              </template>
+                              <template v-else>
+                                {{ formatGameRankingValue(item) }}
+                              </template>
                             </v-list-item-subtitle>
                           </div>
                         </div>
@@ -1744,7 +1751,7 @@ export default {
     formatGameRankingValue(item) {
       switch (this.gameRankingType) {
         case 'wheel_credits':
-          return `${Number(item.earned_credits || 0).toFixed(2)} 积分`
+          return `${Number(item.earned_credits || 0).toFixed(2)} 积分 / ${item.play_count || 0} 次`
         case 'wheel_invite_code':
           return `${item.invite_code_count || 0} 枚邀请码`
         case 'treasure_win_issue':

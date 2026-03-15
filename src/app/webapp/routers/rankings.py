@@ -271,6 +271,7 @@ async def get_wheel_game_rankings(
                     {
                         "name": get_user_name_from_tg_id(info[0]),
                         "earned_credits": float(info[1]),
+                        "play_count": int(info[2]),
                         "avatar": get_user_avatar_from_tg_id(info[0]),
                         "is_self": info[0] == user.id,
                     }

@@ -1671,13 +1671,18 @@ class DatabaseORM:
                     (WheelStats.credits_change > 0, WheelStats.credits_change), else_=0
                 )
             ).label("earned_credits")
+            play_count = func.count(WheelStats.id).label("play_count")
             stmt = (
-                select(WheelStats.tg_id, earned_credits)
+                select(WheelStats.tg_id, earned_credits, play_count)
                 .group_by(WheelStats.tg_id)
                 .order_by(earned_credits.desc())
             )
             results = session.execute(stmt).fetchall()
-            return [(r[0], float(r[1] or 0)) for r in results if float(r[1] or 0) > 0]
+            return [
+                (r[0], float(r[1] or 0), int(r[2] or 0))
+                for r in results
+                if float(r[1] or 0) > 0
+            ]
 
     def get_wheel_invite_code_rank(self) -> list:
         """获取幸运大转盘邀请码获得排行榜"""
