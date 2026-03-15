@@ -1706,7 +1706,7 @@ export default {
     getGameRankingTypeOptions() {
       if (this.gameSource === 'wheel') {
         return [
-          { title: '转盘赚取积分排名', value: 'wheel_credits' },
+          { title: '积分赚取排名', value: 'wheel_credits' },
           { title: '邀请码赚取排名', value: 'wheel_invite_code' }
         ]
       }
