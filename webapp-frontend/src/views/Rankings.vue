@@ -911,13 +911,20 @@
                               </div>
                             </v-list-item-title>
                             <v-list-item-subtitle class="user-score">
-                              <v-icon size="16" :color="getGameRankingIconColor()" class="mr-1">{{ getGameRankingIcon() }}</v-icon>
                               <template v-if="gameRankingType === 'wheel_credits'">
-                                {{ Number(item.earned_credits || 0).toFixed(2) }} 积分 /
-                                <v-icon size="14" color="indigo" class="mx-1">mdi-controller-classic</v-icon>
-                                {{ item.play_count || 0 }} 次
+                                <div class="game-score-stack">
+                                  <div class="game-score-line">
+                                    <v-icon size="16" color="amber" class="mr-1">mdi-star</v-icon>
+                                    <span class="game-score-value">{{ Number(item.earned_credits || 0).toFixed(2) }} 积分</span>
+                                  </div>
+                                  <div class="game-score-line">
+                                    <v-icon size="14" color="indigo" class="mr-1">mdi-controller-classic</v-icon>
+                                    <span class="game-score-value">{{ item.play_count || 0 }} 次</span>
+                                  </div>
+                                </div>
                               </template>
                               <template v-else>
+                                <v-icon size="16" :color="getGameRankingIconColor()" class="mr-1">{{ getGameRankingIcon() }}</v-icon>
                                 {{ formatGameRankingValue(item) }}
                               </template>
                             </v-list-item-subtitle>
@@ -2418,6 +2425,24 @@ export default {
   min-height: 28px;
 }
 
+.game-score-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+}
+
+.game-score-line {
+  display: flex;
+  align-items: center;
+  line-height: 1.2;
+}
+
+.game-score-value {
+  white-space: nowrap;
+}
+
 .bg-primary-subtle {
   background: linear-gradient(135deg, rgba(var(--v-theme-primary), 0.08), rgba(var(--v-theme-primary), 0.12)) !important;
   border-color: rgba(var(--v-theme-primary), 0.2) !important;
@@ -3098,6 +3123,10 @@ export default {
   .watched-time-container {
     font-size: 12px;
     gap: 4px;
+  }
+
+  .game-score-line {
+    font-size: 12px;
   }
   
   .emoji-icon {
