@@ -256,6 +256,20 @@ async def _get_eth_latest_block_hash_int() -> int:
 router = APIRouter(prefix="/treasure", tags=["夺宝奇兵"])
 
 
+@router.get("/user-stats")
+@require_telegram_auth
+async def get_user_treasure_stats(
+    request: Request, current_user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取用户个人夺宝统计数据。"""
+    try:
+        stats = db.get_user_treasure_stats(int(current_user.id))
+        return {"success": True, "data": stats}
+    except Exception as e:
+        logger.error(f"获取用户夺宝统计失败: {e}")
+        raise HTTPException(status_code=500, detail="获取用户夺宝统计失败")
+
+
 @router.get("/list", response_model=TreasureIssueListResponse)
 @require_telegram_auth
 async def list_issues(

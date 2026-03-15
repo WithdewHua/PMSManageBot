@@ -5,6 +5,10 @@ export const listTreasureIssues = (params = { include_closed: true, limit: 50 })
   return apiClient.get('/api/treasure/list', { params })
 }
 
+export const getUserTreasureStats = () => {
+  return apiClient.get('/api/treasure/user-stats')
+}
+
 export const getTreasureIssueDetail = (issueId) => {
   return apiClient.get(`/api/treasure/${issueId}`)
 }

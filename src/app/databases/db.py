@@ -36,7 +36,7 @@ from app.models.models import (
     VaultwardenRedeemRecords,
     WheelStats,
 )
-from sqlalchemy import case, delete, func, select, update
+from sqlalchemy import case, delete, distinct, func, select, update
 from sqlalchemy.orm import joinedload
 
 
@@ -1504,6 +1504,104 @@ class DatabaseORM:
                 "refunded_total": round(float(refunded_total), 2),
                 "refunded_users": int(refunded_users),
                 "participation_count": int(participation_count),
+            }
+
+    def get_user_treasure_stats(self, tg_id: int) -> dict:
+        """获取用户个人夺宝统计数据。"""
+        try:
+            with get_session() as session:
+                participated_issues = (
+                    session.execute(
+                        select(
+                            func.count(distinct(TreasureParticipation.issue_id))
+                        ).where(TreasureParticipation.tg_id == int(tg_id))
+                    ).scalar()
+                    or 0
+                )
+
+                total_cost_credits = (
+                    session.execute(
+                        select(func.sum(TreasureParticipation.cost_credits)).where(
+                            TreasureParticipation.tg_id == int(tg_id)
+                        )
+                    ).scalar()
+                    or 0
+                )
+
+                win_count = (
+                    session.execute(
+                        select(func.count(TreasureIssue.id)).where(
+                            TreasureIssue.winner_tg_id == int(tg_id),
+                            TreasureIssue.status == 2,
+                        )
+                    ).scalar()
+                    or 0
+                )
+
+                total_prize_credits = (
+                    session.execute(
+                        select(func.sum(TreasureIssue.prize_credits)).where(
+                            TreasureIssue.winner_tg_id == int(tg_id),
+                            TreasureIssue.status == 2,
+                        )
+                    ).scalar()
+                    or 0
+                )
+
+                recent_rows = session.execute(
+                    select(
+                        TreasureParticipation.issue_id,
+                        TreasureParticipation.cost_credits,
+                        TreasureParticipation.lucky_number,
+                        TreasureParticipation.created_at,
+                        TreasureIssue.winner_tg_id,
+                        TreasureIssue.prize_credits,
+                        TreasureIssue.status,
+                    )
+                    .join(
+                        TreasureIssue,
+                        TreasureIssue.id == TreasureParticipation.issue_id,
+                    )
+                    .where(TreasureParticipation.tg_id == int(tg_id))
+                    .order_by(TreasureParticipation.id.desc())
+                    .limit(10)
+                ).all()
+
+                recent_participations = []
+                for row in recent_rows:
+                    is_winner = (
+                        int(row.winner_tg_id) == int(tg_id)
+                        if row.winner_tg_id is not None
+                        else False
+                    )
+                    recent_participations.append(
+                        {
+                            "issue_id": int(row.issue_id),
+                            "cost_credits": int(row.cost_credits),
+                            "lucky_number": int(row.lucky_number),
+                            "is_winner": bool(is_winner),
+                            "won_credits": int(row.prize_credits)
+                            if is_winner and int(row.status) == 2
+                            else 0,
+                            "created_at": row.created_at,
+                        }
+                    )
+
+                return {
+                    "participated_issues": int(participated_issues),
+                    "total_cost_credits": int(total_cost_credits),
+                    "win_count": int(win_count),
+                    "total_prize_credits": int(total_prize_credits),
+                    "recent_participations": recent_participations,
+                }
+        except Exception as e:
+            logger.error(f"Error getting user treasure stats: {e}")
+            return {
+                "participated_issues": 0,
+                "total_cost_credits": 0,
+                "win_count": 0,
+                "total_prize_credits": 0,
+                "recent_participations": [],
             }
 
     def get_credits_rank(self) -> list:

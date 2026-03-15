@@ -433,14 +433,18 @@
                 <v-icon size="small" color="deep-orange-darken-1" class="mr-2">mdi-web</v-icon>
                 <span>入口线路：</span>
               </div>
-              <div 
-                class="entrance-url-chip"
+              <v-btn
+                size="x-small"
+                color="deep-orange-darken-1"
+                variant="outlined"
+                class="entrance-copy-btn"
+                :disabled="!systemStatus.emby_entry_url"
                 @click="copyToClipboard(systemStatus.emby_entry_url)"
                 title="点击复制线路地址"
               >
-                {{ systemStatus.emby_entry_url }}
-                <v-icon size="x-small" class="ml-1">mdi-content-copy</v-icon>
-              </div>
+                <v-icon start size="small">mdi-content-copy</v-icon>
+                复制链接
+              </v-btn>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
@@ -545,22 +549,35 @@
           <v-card-text>
             <!-- 幸运大转盘数据 -->
             <div class="activity-section">
-              <div class="section-header">
-                <v-icon size="small" color="purple-darken-1" class="mr-2">mdi-wheel-barrow</v-icon>
-                <span class="section-title">幸运大转盘</span>
+              <div class="section-header section-header-with-action">
+                <div class="d-flex align-center">
+                  <v-icon size="small" color="purple-darken-1" class="mr-2">mdi-wheel-barrow</v-icon>
+                  <span class="section-title">幸运大转盘</span>
+                </div>
+                <v-btn
+                  size="small"
+                  variant="text"
+                  color="primary"
+                  class="list-toggle-btn"
+                  @click="wheelSectionExpanded = !wheelSectionExpanded"
+                >
+                  {{ wheelSectionExpanded ? '收起' : '展开' }}
+                  <v-icon end size="small">{{ wheelSectionExpanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+                </v-btn>
               </div>
-              
-              <div v-if="activityLoading" class="activity-loading">
-                <v-progress-circular 
-                  indeterminate 
-                  color="primary" 
-                  size="30"
-                  width="3"
-                ></v-progress-circular>
-                <span class="ml-2">加载中...</span>
-              </div>
-              
-              <div v-else class="activity-stats-grid">
+              <v-expand-transition>
+                <div v-show="wheelSectionExpanded">
+                  <div v-if="activityLoading" class="activity-loading">
+                    <v-progress-circular 
+                      indeterminate 
+                      color="primary" 
+                      size="30"
+                      width="3"
+                    ></v-progress-circular>
+                    <span class="ml-2">加载中...</span>
+                  </div>
+                  
+                  <div v-else class="activity-stats-grid">
                 <!-- 今日数据 -->
                 <div class="stats-card today-stats">
                   <div class="stats-card-header">
@@ -646,39 +663,166 @@
               <!-- 最近游戏记录 -->
               <div v-if="!activityLoading && activityStats.recent_games && activityStats.recent_games.length > 0" class="recent-games-section">
                 <v-divider class="my-3"></v-divider>
-                <div class="section-header">
-                  <v-icon size="small" color="indigo-darken-1" class="mr-2">mdi-history</v-icon>
-                  <span class="section-title">最近游戏记录</span>
-                </div>
-                <div class="recent-games-list">
-                  <div 
-                    v-for="(game, index) in activityStats.recent_games" 
-                    :key="index" 
-                    class="recent-game-item"
+                <div class="section-header section-header-with-action">
+                  <div class="d-flex align-center">
+                    <v-icon size="small" color="indigo-darken-1" class="mr-2">mdi-history</v-icon>
+                    <span class="section-title">最近游戏记录</span>
+                  </div>
+                  <v-btn
+                    size="small"
+                    variant="text"
+                    color="primary"
+                    class="list-toggle-btn"
+                    @click="wheelRecordsExpanded = !wheelRecordsExpanded"
                   >
-                    <div class="game-result">
-                      <v-chip 
-                        size="small" 
-                        :color="getGameResultColor(game.item_name)"
-                        class="game-chip"
-                        :title="game.item_name"
-                      >
-                        {{ game.item_name }}
-                      </v-chip>
+                    {{ wheelRecordsExpanded ? '收起' : '展开' }}
+                    <v-icon end size="small">{{ wheelRecordsExpanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+                  </v-btn>
+                </div>
+                <v-expand-transition>
+                  <div v-show="wheelRecordsExpanded" class="recent-games-list">
+                    <div 
+                      v-for="(game, index) in activityStats.recent_games" 
+                      :key="index" 
+                      class="recent-game-item"
+                    >
+                      <div class="game-result">
+                        <v-chip 
+                          size="small" 
+                          :color="getGameResultColor(game.item_name)"
+                          class="game-chip"
+                          :title="game.item_name"
+                        >
+                          {{ game.item_name }}
+                        </v-chip>
+                      </div>
+                      <div class="game-change">
+                        <span 
+                          class="change-value"
+                          :class="game.credits_change >= 0 ? 'positive' : 'negative'"
+                        >
+                          {{ game.credits_change >= 0 ? '+' : '' }}{{ game.credits_change }}
+                        </span>
+                      </div>
+                      <div class="game-date">
+                        {{ formatGameDate(game.date) }}
+                      </div>
                     </div>
-                    <div class="game-change">
-                      <span 
-                        class="change-value"
-                        :class="game.credits_change >= 0 ? 'positive' : 'negative'"
-                      >
-                        {{ game.credits_change >= 0 ? '+' : '' }}{{ game.credits_change }}
-                      </span>
+                  </div>
+                </v-expand-transition>
+              </div>
+                </div>
+              </v-expand-transition>
+
+              <!-- 夺宝奇兵数据 -->
+              <div class="activity-section treasure-section">
+                <v-divider class="my-3"></v-divider>
+                <div class="section-header section-header-with-action">
+                  <div class="d-flex align-center">
+                    <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-treasure-chest</v-icon>
+                    <span class="section-title">夺宝奇兵</span>
+                  </div>
+                  <v-btn
+                    size="small"
+                    variant="text"
+                    color="primary"
+                    class="list-toggle-btn"
+                    @click="treasureSectionExpanded = !treasureSectionExpanded"
+                  >
+                    {{ treasureSectionExpanded ? '收起' : '展开' }}
+                    <v-icon end size="small">{{ treasureSectionExpanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+                  </v-btn>
+                </div>
+                <v-expand-transition>
+                  <div v-show="treasureSectionExpanded">
+                    <div v-if="treasureLoading" class="activity-loading">
+                      <v-progress-circular 
+                        indeterminate 
+                        color="amber-darken-2" 
+                        size="30"
+                        width="3"
+                      ></v-progress-circular>
+                      <span class="ml-2">加载中...</span>
                     </div>
-                    <div class="game-date">
-                      {{ formatGameDate(game.date) }}
+
+                    <div v-else class="treasure-stats-grid">
+                  <div class="stats-card treasure-stats">
+                    <div class="stats-card-header">
+                      <v-icon size="small" color="amber-darken-2">mdi-sword-cross</v-icon>
+                      <span>夺宝统计</span>
+                    </div>
+                    <div class="stats-items">
+                      <div class="stat-item">
+                        <span class="stat-label">参与期数</span>
+                        <span class="stat-value treasure-value">{{ treasureStats.participated_issues }}</span>
+                      </div>
+                      <div class="stat-item">
+                        <span class="stat-label">消耗总积分</span>
+                        <span class="stat-value treasure-cost-value">{{ treasureStats.total_cost_credits }}</span>
+                      </div>
+                      <div class="stat-item">
+                        <span class="stat-label">中奖次数</span>
+                        <span class="stat-value treasure-value">{{ treasureStats.win_count }}</span>
+                      </div>
+                      <div class="stat-item">
+                        <span class="stat-label">中奖总积分</span>
+                        <span class="stat-value treasure-win-value">{{ treasureStats.total_prize_credits }}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
+
+                <div
+                  v-if="!treasureLoading && treasureStats.recent_participations && treasureStats.recent_participations.length > 0"
+                  class="recent-games-section"
+                >
+                  <v-divider class="my-3"></v-divider>
+                  <div class="section-header section-header-with-action">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="brown-darken-1" class="mr-2">mdi-format-list-numbered</v-icon>
+                      <span class="section-title">最近参与记录</span>
+                    </div>
+                    <v-btn
+                      size="small"
+                      variant="text"
+                      color="primary"
+                      class="list-toggle-btn"
+                      @click="treasureRecordsExpanded = !treasureRecordsExpanded"
+                    >
+                      {{ treasureRecordsExpanded ? '收起' : '展开' }}
+                      <v-icon end size="small">{{ treasureRecordsExpanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+                    </v-btn>
+                  </div>
+                  <v-expand-transition>
+                    <div v-show="treasureRecordsExpanded" class="recent-games-list">
+                      <div 
+                        v-for="(record, index) in treasureStats.recent_participations" 
+                        :key="`treasure-${index}`" 
+                        class="recent-game-item"
+                      >
+                        <div class="game-result">
+                          <v-chip
+                            size="small"
+                            :color="record.is_winner ? 'success' : 'blue-darken-1'"
+                            class="game-chip"
+                            :title="`第${record.issue_id}期`"
+                          >
+                            第{{ record.issue_id }}期
+                          </v-chip>
+                        </div>
+                        <div class="game-change">
+                          <span class="change-value negative">-{{ record.cost_credits }}</span>
+                          <span v-if="record.won_credits > 0" class="change-value positive ml-1">+{{ record.won_credits }}</span>
+                        </div>
+                        <div class="game-date">
+                          {{ formatTreasureDate(record.created_at) }}
+                        </div>
+                      </div>
+                    </div>
+                  </v-expand-transition>
+                </div>
+                  </div>
+                </v-expand-transition>
               </div>
             </div>
           </v-card-text>
@@ -877,6 +1021,7 @@ import { getWatchLevelIcons, showNoWatchTimeText } from '@/utils/watchLevel.js'
 import { redeemInviteCodeForCredits } from '@/services/inviteCodeService.js'
 import { checkPrivilegedInviteCode, batchCheckPrivilegedInviteCodes } from '@/services/mediaServiceApi.js'
 import { getUserActivityStats } from '@/services/wheelService.js'
+import { getUserTreasureStats } from '@/services/treasureService.js'
 import { formatTraffic } from '@/utils/format.js'
 import { getMyBadges } from '@/services/badgeService.js'
 
@@ -934,6 +1079,18 @@ export default {
         recent_games: []
       },
       activityLoading: false,
+      wheelSectionExpanded: false,
+      wheelRecordsExpanded: false,
+      treasureStats: {
+        participated_issues: 0,
+        total_cost_credits: 0,
+        win_count: 0,
+        total_prize_credits: 0,
+        recent_participations: []
+      },
+      treasureLoading: false,
+      treasureSectionExpanded: false,
+      treasureRecordsExpanded: false,
       systemStatus: {
         site_name: '', // 默认值，从后端获取后会更新
         emby_entry_url: '', // 默认值，从后端获取后会更新
@@ -955,6 +1112,7 @@ export default {
   mounted() {
     this.fetchUserInfo()
     this.fetchActivityStats()
+    this.fetchTreasureStats()
     this.fetchSystemStatus() // 这里会同时获取系统状态和积分转移开关状态
     this.fetchUserBadges()
   },
@@ -1027,6 +1185,22 @@ export default {
         // 不显示错误，使用默认值
       } finally {
         this.activityLoading = false
+      }
+    },
+
+    // 获取夺宝统计数据
+    async fetchTreasureStats() {
+      try {
+        this.treasureLoading = true
+        const response = await getUserTreasureStats()
+        if (response.data && response.data.success) {
+          this.treasureStats = response.data.data
+        }
+      } catch (err) {
+        console.error('获取夺宝统计数据失败:', err)
+        // 不显示错误，使用默认值
+      } finally {
+        this.treasureLoading = false
       }
     },
 
@@ -1590,6 +1764,31 @@ export default {
       }
     },
 
+    // 格式化夺宝记录时间
+    formatTreasureDate(dateValue) {
+      if (!dateValue) return '未知时间'
+      try {
+        const date = new Date(dateValue)
+        if (Number.isNaN(date.getTime())) {
+          return '未知时间'
+        }
+
+        const now = new Date()
+        const diffMs = now - date
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+        if (diffDays === 0) {
+          return '今天'
+        }
+        if (diffDays === 1) {
+          return '昨天'
+        }
+        return date.toLocaleDateString('zh-CN')
+      } catch (error) {
+        return '未知时间'
+      }
+    },
+
     // 打开社区链接
     openCommunityLink(type) {
       let url = '';
@@ -2024,28 +2223,21 @@ export default {
   position: relative;
 }
 
-.entrance-url-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 12px;
-  background: linear-gradient(135deg, rgba(255, 87, 34, 0.1) 0%, rgba(255, 87, 34, 0.05) 100%);
-  border: 1px solid rgba(255, 87, 34, 0.2);
-  border-radius: 20px;
-  color: #D84315;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
+.entrance-copy-btn {
+  font-size: 11px;
+  height: 32px;
+  border-radius: 16px;
+  min-width: 90px;
   transition: all 0.3s ease;
-  backdrop-filter: blur(5px);
-  font-family: 'Monaco', 'Courier New', monospace;
-  letter-spacing: 0.3px;
 }
 
-.entrance-url-chip:hover {
-  transform: translateY(-2px);
+.entrance-copy-btn:hover:not(.v-btn--disabled) {
+  transform: translateY(-1px);
   box-shadow: 0 6px 18px rgba(255, 87, 34, 0.2);
-  background: linear-gradient(135deg, rgba(255, 87, 34, 0.15) 0%, rgba(255, 87, 34, 0.08) 100%);
-  border-color: rgba(255, 87, 34, 0.3);
+}
+
+.entrance-copy-btn:disabled {
+  opacity: 0.6;
 }
 
 /* 线路选择器包装样式 */
@@ -2229,6 +2421,14 @@ export default {
   border-bottom: 2px solid rgba(102, 126, 234, 0.1);
 }
 
+.section-header-with-action {
+  justify-content: space-between;
+}
+
+.list-toggle-btn {
+  min-width: 76px;
+}
+
 .section-title {
   font-weight: 600;
   font-size: 16px;
@@ -2247,6 +2447,13 @@ export default {
 .activity-stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.treasure-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 16px;
   margin-bottom: 20px;
 }
@@ -2319,6 +2526,24 @@ export default {
   background: linear-gradient(135deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 100%);
   color: #388E3C;
   border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+.treasure-value {
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.14) 0%, rgba(255, 193, 7, 0.06) 100%);
+  color: #F57C00;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.treasure-cost-value {
+  background: linear-gradient(135deg, rgba(239, 83, 80, 0.14) 0%, rgba(239, 83, 80, 0.06) 100%);
+  color: #C62828;
+  border: 1px solid rgba(239, 83, 80, 0.3);
+}
+
+.treasure-win-value {
+  background: linear-gradient(135deg, rgba(67, 160, 71, 0.14) 0%, rgba(67, 160, 71, 0.06) 100%);
+  color: #2E7D32;
+  border: 1px solid rgba(67, 160, 71, 0.3);
 }
 
 .stat-value.positive {
@@ -2409,6 +2634,15 @@ export default {
     grid-template-columns: 1fr;
     gap: 12px;
   }
+
+  .section-header-with-action {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .list-toggle-btn {
+    align-self: flex-end;
+  }
   
   .stats-card {
     padding: 12px;
@@ -2448,6 +2682,16 @@ export default {
 @media (max-width: 480px) {
   .activity-stats-grid {
     gap: 10px;
+  }
+
+  .section-header-with-action {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .list-toggle-btn {
+    align-self: flex-start;
+    padding-left: 0;
   }
   
   .stats-card {
@@ -2551,6 +2795,10 @@ export default {
 
 .total-stats {
   border-left: 4px solid #4CAF50;
+}
+
+.treasure-stats {
+  border-left: 4px solid #FFB300;
 }
 
 /* 社区链接部分样式 */
