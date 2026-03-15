@@ -249,6 +249,126 @@ async def get_invitation_rankings(
         raise HTTPException(status_code=500, detail="获取邀请排行榜数据失败")
 
 
+@router.get("/rankings/game/wheel")
+@require_telegram_auth
+async def get_wheel_game_rankings(
+    request: Request, user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取幸运大转盘游戏排行榜数据"""
+    logger.info(
+        f"{user.username or user.first_name or user.id} 开始获取幸运大转盘排行榜数据"
+    )
+
+    try:
+        wheel_credits_rank = []
+        wheel_invite_code_rank = []
+
+        try:
+            logger.debug("正在查询幸运大转盘积分赚取排行")
+            wheel_credits_data = db.get_wheel_credits_rank()
+            if wheel_credits_data:
+                wheel_credits_rank = [
+                    {
+                        "name": get_user_name_from_tg_id(info[0]),
+                        "earned_credits": float(info[1]),
+                        "avatar": get_user_avatar_from_tg_id(info[0]),
+                        "is_self": info[0] == user.id,
+                    }
+                    for info in wheel_credits_data
+                    if info[0] not in settings.TG_ADMIN_CHAT_ID
+                ]
+        except Exception as e:
+            logger.error(f"获取幸运大转盘积分赚取排行失败: {str(e)}")
+
+        try:
+            logger.debug("正在查询幸运大转盘邀请码获得排行")
+            wheel_invite_code_data = db.get_wheel_invite_code_rank()
+            if wheel_invite_code_data:
+                wheel_invite_code_rank = [
+                    {
+                        "name": get_user_name_from_tg_id(info[0]),
+                        "invite_code_count": int(info[1]),
+                        "avatar": get_user_avatar_from_tg_id(info[0]),
+                        "is_self": info[0] == user.id,
+                    }
+                    for info in wheel_invite_code_data
+                    if info[0] not in settings.TG_ADMIN_CHAT_ID
+                ]
+        except Exception as e:
+            logger.error(f"获取幸运大转盘邀请码获得排行失败: {str(e)}")
+
+        logger.info(
+            f"{user.username or user.first_name or user.id} 获取幸运大转盘排行榜数据成功"
+        )
+        return {
+            "wheel_credits_rank": wheel_credits_rank,
+            "wheel_invite_code_rank": wheel_invite_code_rank,
+        }
+    except Exception as e:
+        logger.error(f"获取幸运大转盘排行榜数据时发生未预期的错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取幸运大转盘排行榜数据失败")
+
+
+@router.get("/rankings/game/treasure")
+@require_telegram_auth
+async def get_treasure_game_rankings(
+    request: Request, user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取夺宝奇兵游戏排行榜数据"""
+    logger.info(
+        f"{user.username or user.first_name or user.id} 开始获取夺宝奇兵排行榜数据"
+    )
+
+    try:
+        treasure_win_issue_rank = []
+        treasure_win_credits_rank = []
+
+        try:
+            logger.debug("正在查询夺宝奇兵中奖期数排行")
+            treasure_win_issue_data = db.get_treasure_win_issue_rank()
+            if treasure_win_issue_data:
+                treasure_win_issue_rank = [
+                    {
+                        "name": get_user_name_from_tg_id(info[0]),
+                        "win_issue_count": int(info[1]),
+                        "avatar": get_user_avatar_from_tg_id(info[0]),
+                        "is_self": info[0] == user.id,
+                    }
+                    for info in treasure_win_issue_data
+                    if info[0] not in settings.TG_ADMIN_CHAT_ID
+                ]
+        except Exception as e:
+            logger.error(f"获取夺宝奇兵中奖期数排行失败: {str(e)}")
+
+        try:
+            logger.debug("正在查询夺宝奇兵中奖积分排行")
+            treasure_win_credits_data = db.get_treasure_win_credits_rank()
+            if treasure_win_credits_data:
+                treasure_win_credits_rank = [
+                    {
+                        "name": get_user_name_from_tg_id(info[0]),
+                        "win_credits": int(info[1]),
+                        "avatar": get_user_avatar_from_tg_id(info[0]),
+                        "is_self": info[0] == user.id,
+                    }
+                    for info in treasure_win_credits_data
+                    if info[0] not in settings.TG_ADMIN_CHAT_ID
+                ]
+        except Exception as e:
+            logger.error(f"获取夺宝奇兵中奖积分排行失败: {str(e)}")
+
+        logger.info(
+            f"{user.username or user.first_name or user.id} 获取夺宝奇兵排行榜数据成功"
+        )
+        return {
+            "treasure_win_issue_rank": treasure_win_issue_rank,
+            "treasure_win_credits_rank": treasure_win_credits_rank,
+        }
+    except Exception as e:
+        logger.error(f"获取夺宝奇兵排行榜数据时发生未预期的错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取夺宝奇兵排行榜数据失败")
+
+
 @router.get("/rankings/traffic/plex")
 @require_telegram_auth
 async def get_plex_traffic_rankings(

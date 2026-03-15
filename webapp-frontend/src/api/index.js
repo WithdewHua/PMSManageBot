@@ -48,6 +48,14 @@ export const getInvitationRankings = () => {
   return apiClient.get('/api/rankings/invitation')
 }
 
+export const getWheelGameRankings = () => {
+  return apiClient.get('/api/rankings/game/wheel')
+}
+
+export const getTreasureGameRankings = () => {
+  return apiClient.get('/api/rankings/game/treasure')
+}
+
 export const getBadgeRankings = () => {
   return apiClient.get('/api/rankings/badge')
 }

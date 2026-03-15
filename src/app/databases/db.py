@@ -1663,6 +1663,67 @@ class DatabaseORM:
             results = session.execute(stmt).fetchall()
             return [(r[0], r[1]) for r in results]
 
+    def get_wheel_credits_rank(self) -> list:
+        """获取幸运大转盘积分赚取排行榜（仅统计正向积分）"""
+        with get_session() as session:
+            earned_credits = func.sum(
+                case(
+                    (WheelStats.credits_change > 0, WheelStats.credits_change), else_=0
+                )
+            ).label("earned_credits")
+            stmt = (
+                select(WheelStats.tg_id, earned_credits)
+                .group_by(WheelStats.tg_id)
+                .order_by(earned_credits.desc())
+            )
+            results = session.execute(stmt).fetchall()
+            return [(r[0], float(r[1] or 0)) for r in results if float(r[1] or 0) > 0]
+
+    def get_wheel_invite_code_rank(self) -> list:
+        """获取幸运大转盘邀请码获得排行榜"""
+        with get_session() as session:
+            invite_count = func.count(WheelStats.id).label("invite_count")
+            stmt = (
+                select(WheelStats.tg_id, invite_count)
+                .where(WheelStats.item_name == "邀请码 1 枚")
+                .group_by(WheelStats.tg_id)
+                .order_by(invite_count.desc())
+            )
+            results = session.execute(stmt).fetchall()
+            return [(r[0], int(r[1] or 0)) for r in results if int(r[1] or 0) > 0]
+
+    def get_treasure_win_issue_rank(self) -> list:
+        """获取夺宝奇兵中奖期数排行榜"""
+        with get_session() as session:
+            win_count = func.count(TreasureIssue.id).label("win_count")
+            stmt = (
+                select(TreasureIssue.winner_tg_id, win_count)
+                .where(
+                    TreasureIssue.status == 2,
+                    TreasureIssue.winner_tg_id.isnot(None),
+                )
+                .group_by(TreasureIssue.winner_tg_id)
+                .order_by(win_count.desc())
+            )
+            results = session.execute(stmt).fetchall()
+            return [(r[0], int(r[1] or 0)) for r in results if int(r[1] or 0) > 0]
+
+    def get_treasure_win_credits_rank(self) -> list:
+        """获取夺宝奇兵中奖积分排行榜"""
+        with get_session() as session:
+            win_credits = func.sum(TreasureIssue.prize_credits).label("win_credits")
+            stmt = (
+                select(TreasureIssue.winner_tg_id, win_credits)
+                .where(
+                    TreasureIssue.status == 2,
+                    TreasureIssue.winner_tg_id.isnot(None),
+                )
+                .group_by(TreasureIssue.winner_tg_id)
+                .order_by(win_credits.desc())
+            )
+            results = session.execute(stmt).fetchall()
+            return [(r[0], int(r[1] or 0)) for r in results if int(r[1] or 0) > 0]
+
     def get_badge_rank(self) -> List[dict]:
         """
         获取勋章排行榜数据（按用户拥有的勋章数量排序）

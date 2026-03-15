@@ -61,6 +61,10 @@
               <v-icon start size="18">mdi-shield-star</v-icon>
               <span class="tab-text">勋章榜</span>
             </v-tab>
+            <v-tab value="game" class="tab-item">
+              <v-icon start size="18">mdi-gamepad-variant</v-icon>
+              <span class="tab-text">游戏榜</span>
+            </v-tab>
             <v-tab value="invitation" class="tab-item">
               <v-icon start size="18">mdi-account-plus</v-icon>
               <span class="tab-text">邀请榜</span>
@@ -807,6 +811,119 @@
             </v-list>
           </v-window-item>
 
+          <!-- 游戏榜 -->
+          <v-window-item value="game">
+            <!-- 游戏数据源加载中 -->
+            <div v-if="loading[`game-${gameSource}`]" class="text-center my-10">
+              <v-progress-circular indeterminate color="primary"></v-progress-circular>
+              <div class="mt-3">加载游戏榜数据中...</div>
+            </div>
+
+            <!-- 没有数据的情况 -->
+            <div v-else-if="getCurrentGameRankings().length === 0" class="text-center my-5">
+              <v-list-item>
+                <v-list-item-title class="text-grey">暂无{{ getCurrentGameRankingTitle() }}数据</v-list-item-title>
+              </v-list-item>
+            </div>
+
+            <!-- 有数据的情况 -->
+            <v-row v-else>
+              <v-col cols="12">
+                <div class="d-flex justify-space-between align-center mb-4">
+                  <div class="d-flex align-center gap-2">
+                    <h3 class="text-h6 text-primary font-weight-bold">游戏排行</h3>
+                  </div>
+                  <div class="d-flex align-center gap-4">
+                    <v-select
+                      v-model="gameSource"
+                      :items="[
+                        { title: '幸运大转盘', value: 'wheel' },
+                        { title: '夺宝奇兵', value: 'treasure' }
+                      ]"
+                      item-title="title"
+                      item-value="value"
+                      density="compact"
+                      hide-details
+                      variant="outlined"
+                      class="control-select game-source-select"
+                      color="primary"
+                    >
+                      <template v-slot:prepend-inner>
+                        <v-icon size="16" :color="gameSource === 'wheel' ? 'indigo' : 'amber-darken-2'">
+                          {{ gameSource === 'wheel' ? 'mdi-wheel-barrow' : 'mdi-treasure-chest' }}
+                        </v-icon>
+                      </template>
+                    </v-select>
+
+                    <v-select
+                      v-model="gameRankingType"
+                      :items="getGameRankingTypeOptions()"
+                      item-title="title"
+                      item-value="value"
+                      density="compact"
+                      hide-details
+                      variant="outlined"
+                      class="control-select game-ranking-type-select"
+                      color="primary"
+                    >
+                      <template v-slot:prepend-inner>
+                        <v-icon size="16" color="primary">mdi-trophy-variant</v-icon>
+                      </template>
+                    </v-select>
+                  </div>
+                </div>
+
+                <div class="transparent-list">
+                  <v-list lines="two" class="px-2 transparent-list-content">
+                    <v-list-item
+                      v-for="(item, index) in getCurrentGameRankings()"
+                      :key="`game-${gameRankingType}-${index}`"
+                      :class="{ 'bg-primary-subtle': item.is_self }"
+                      class="ranking-item mb-2"
+                      rounded="lg"
+                      elevation="1"
+                    >
+                      <template v-slot:prepend>
+                        <div class="rank-container">
+                          <div class="rank-number" :class="`rank-${index + 1}`">
+                            <span v-if="index < 3" class="rank-icon">{{ ['🥇', '🥈', '🥉'][index] }}</span>
+                            <span v-else>{{ index + 1 }}</span>
+                          </div>
+                        </div>
+                      </template>
+
+                      <template v-slot:default>
+                        <div class="d-flex align-center">
+                          <v-avatar class="user-avatar" size="44" style="margin-right: 16px;">
+                            <v-img
+                              v-if="item.avatar"
+                              :src="item.avatar"
+                              :alt="item.name"
+                              @error="handleImageError"
+                              class="avatar-img"
+                            />
+                            <v-icon v-else size="24" color="grey-lighten-1">mdi-account-circle</v-icon>
+                          </v-avatar>
+                          <div class="user-info flex-grow-1">
+                            <v-list-item-title class="user-name">
+                              <div class="user-name-text-wrapper">
+                                <span class="user-name-text">{{ item.name }}</span>
+                              </div>
+                            </v-list-item-title>
+                            <v-list-item-subtitle class="user-score">
+                              <v-icon size="16" :color="getGameRankingIconColor()" class="mr-1">{{ getGameRankingIcon() }}</v-icon>
+                              {{ formatGameRankingValue(item) }}
+                            </v-list-item-subtitle>
+                          </div>
+                        </div>
+                      </template>
+                    </v-list-item>
+                  </v-list>
+                </div>
+              </v-col>
+            </v-row>
+          </v-window-item>
+
           <!-- 邀请榜 -->
           <v-window-item value="invitation">
             <v-list lines="two" class="px-2">
@@ -1130,7 +1247,7 @@
 </template>
 
 <script>
-import { getCreditsRankings, getDonationRankings, getPlexWatchedTimeRankings, getEmbyWatchedTimeRankings, getPlexTrafficRankings, getEmbyTrafficRankings, getInvitationRankings, getBadgeRankings } from '@/api'
+import { getCreditsRankings, getDonationRankings, getPlexWatchedTimeRankings, getEmbyWatchedTimeRankings, getPlexTrafficRankings, getEmbyTrafficRankings, getInvitationRankings, getBadgeRankings, getWheelGameRankings, getTreasureGameRankings } from '@/api'
 import { getWatchLevelIcons } from '@/utils/watchLevel.js'
 import { getUserBadges } from '@/services/badgeService.js'
 
@@ -1141,6 +1258,8 @@ export default {
       activeTab: 'credits',
       watchedTimeSource: 'emby',
       trafficSource: 'emby',
+      gameSource: 'wheel',
+      gameRankingType: 'wheel_credits',
       showLevelInfo: false,
       // 流量榜日期选择
       trafficDateRange: 'today', // 'today', 'yesterday', 'week', 'custom'
@@ -1155,6 +1274,10 @@ export default {
         traffic_rank_plex: [],
         traffic_rank_emby: [],
         badge_rank: [],
+        wheel_credits_rank: [],
+        wheel_invite_code_rank: [],
+        treasure_win_issue_rank: [],
+        treasure_win_credits_rank: [],
         invitation_rank: []
       },
       loading: {
@@ -1163,11 +1286,14 @@ export default {
         watched: false,
         traffic: false,
         badge: false,
+        game: false,
         invitation: false,
         'watched-plex': false,
         'watched-emby': false,
         'traffic-plex': false,
-        'traffic-emby': false
+        'traffic-emby': false,
+        'game-wheel': false,
+        'game-treasure': false
       },
       loaded: {
         credits: false,
@@ -1175,11 +1301,14 @@ export default {
         watched: false,
         traffic: false,
         badge: false,
+        game: false,
         invitation: false,
         'watched-plex': false,
         'watched-emby': false,
         'traffic-plex': false,
-        'traffic-emby': false
+        'traffic-emby': false,
+        'game-wheel': false,
+        'game-treasure': false
       },
       error: null,
       userBadgesMap: {}, // 用户ID到勋章列表的映射
@@ -1218,6 +1347,16 @@ export default {
         const trafficKey = `traffic-${newSource}`
         if (!this.loaded[trafficKey]) {
           this.loadTrafficData(newSource)
+        }
+      }
+    },
+    gameSource(newSource) {
+      console.log(`切换游戏数据源到: ${newSource}`)
+      this.syncGameRankingTypeBySource(newSource)
+      if (this.activeTab === 'game') {
+        const gameKey = `game-${newSource}`
+        if (!this.loaded[gameKey]) {
+          this.loadGameData(newSource)
         }
       }
     },
@@ -1368,6 +1507,10 @@ export default {
             this.rankings.badge_rank = response.data.badge_rank || []
             console.log('勋章排行数据:', this.rankings.badge_rank)
             break
+          case 'game':
+            console.log(`加载游戏榜数据 - ${this.gameSource}`)
+            await this.loadGameData(this.gameSource)
+            break
           case 'invitation':
             console.log('调用邀请排行API...')
             response = await getInvitationRankings()
@@ -1457,6 +1600,51 @@ export default {
       }
     },
 
+    async loadGameData(source) {
+      console.log(`开始加载游戏榜数据 - ${source}`)
+
+      const gameKey = `game-${source}`
+      if (this.loaded[gameKey]) {
+        console.log(`${source} 游戏榜数据已加载，跳过`)
+        return
+      }
+
+      this.loading[gameKey] = true
+      this.error = null
+
+      try {
+        let response
+        if (source === 'wheel') {
+          console.log('调用幸运大转盘排行榜API...')
+          response = await getWheelGameRankings()
+          this.rankings.wheel_credits_rank = response.data.wheel_credits_rank || []
+          this.rankings.wheel_invite_code_rank = response.data.wheel_invite_code_rank || []
+          console.log('幸运大转盘排行榜数据:', {
+            wheel_credits_rank: this.rankings.wheel_credits_rank,
+            wheel_invite_code_rank: this.rankings.wheel_invite_code_rank
+          })
+        } else if (source === 'treasure') {
+          console.log('调用夺宝奇兵排行榜API...')
+          response = await getTreasureGameRankings()
+          this.rankings.treasure_win_issue_rank = response.data.treasure_win_issue_rank || []
+          this.rankings.treasure_win_credits_rank = response.data.treasure_win_credits_rank || []
+          console.log('夺宝奇兵排行榜数据:', {
+            treasure_win_issue_rank: this.rankings.treasure_win_issue_rank,
+            treasure_win_credits_rank: this.rankings.treasure_win_credits_rank
+          })
+        }
+
+        this.loaded[gameKey] = true
+        this.syncGameRankingTypeBySource(source)
+        console.log(`${source} 游戏榜数据加载完成`)
+      } catch (err) {
+        this.error = err.response?.data?.detail || `获取${source === 'wheel' ? '幸运大转盘' : '夺宝奇兵'}排行榜失败`
+        console.error(`获取${source} 游戏榜失败:`, err)
+      } finally {
+        this.loading[gameKey] = false
+      }
+    },
+
     getTabName(tab) {
       const names = {
         credits: '积分排行榜',
@@ -1464,6 +1652,7 @@ export default {
         watched: '观看时长排行榜',
         traffic: '流量排行榜',
         badge: '勋章排行榜',
+        game: '游戏排行榜',
         invitation: '邀请排行榜'
       }
       return names[tab] || '排行榜'
@@ -1475,6 +1664,9 @@ export default {
       }
       if (this.activeTab === 'traffic') {
         return this.loading[`traffic-${this.trafficSource}`]
+      }
+      if (this.activeTab === 'game') {
+        return this.loading[`game-${this.gameSource}`]
       }
       return this.loading[this.activeTab]
     },
@@ -1492,9 +1684,105 @@ export default {
         const trafficKey = `traffic-${this.trafficSource}`
         this.loaded[trafficKey] = false
         await this.loadTrafficData(this.trafficSource)
+      } else if (this.activeTab === 'game') {
+        const gameKey = `game-${this.gameSource}`
+        this.loaded[gameKey] = false
+        await this.loadGameData(this.gameSource)
       } else {
         this.loaded[this.activeTab] = false
         await this.loadTabData(this.activeTab)
+      }
+    },
+
+    syncGameRankingTypeBySource(source) {
+      if (source === 'wheel' && !['wheel_credits', 'wheel_invite_code'].includes(this.gameRankingType)) {
+        this.gameRankingType = 'wheel_credits'
+      }
+      if (source === 'treasure' && !['treasure_win_issue', 'treasure_win_credits'].includes(this.gameRankingType)) {
+        this.gameRankingType = 'treasure_win_issue'
+      }
+    },
+
+    getGameRankingTypeOptions() {
+      if (this.gameSource === 'wheel') {
+        return [
+          { title: '转盘赚取积分排名', value: 'wheel_credits' },
+          { title: '邀请码赚取排名', value: 'wheel_invite_code' }
+        ]
+      }
+      return [
+        { title: '中奖期数排名', value: 'treasure_win_issue' },
+        { title: '中奖积分排名', value: 'treasure_win_credits' }
+      ]
+    },
+
+    getCurrentGameRankings() {
+      switch (this.gameRankingType) {
+        case 'wheel_credits':
+          return this.rankings.wheel_credits_rank
+        case 'wheel_invite_code':
+          return this.rankings.wheel_invite_code_rank
+        case 'treasure_win_issue':
+          return this.rankings.treasure_win_issue_rank
+        case 'treasure_win_credits':
+          return this.rankings.treasure_win_credits_rank
+        default:
+          return []
+      }
+    },
+
+    getCurrentGameRankingTitle() {
+      const titleMap = {
+        wheel_credits: '转盘赚取积分排名',
+        wheel_invite_code: '邀请码赚取排名',
+        treasure_win_issue: '中奖期数排名',
+        treasure_win_credits: '中奖积分排名'
+      }
+      return titleMap[this.gameRankingType] || '游戏排名'
+    },
+
+    formatGameRankingValue(item) {
+      switch (this.gameRankingType) {
+        case 'wheel_credits':
+          return `${Number(item.earned_credits || 0).toFixed(2)} 积分`
+        case 'wheel_invite_code':
+          return `${item.invite_code_count || 0} 枚邀请码`
+        case 'treasure_win_issue':
+          return `${item.win_issue_count || 0} 期`
+        case 'treasure_win_credits':
+          return `${item.win_credits || 0} 积分`
+        default:
+          return '0'
+      }
+    },
+
+    getGameRankingIcon() {
+      switch (this.gameRankingType) {
+        case 'wheel_credits':
+          return 'mdi-star'
+        case 'wheel_invite_code':
+          return 'mdi-ticket-confirmation'
+        case 'treasure_win_issue':
+          return 'mdi-trophy'
+        case 'treasure_win_credits':
+          return 'mdi-diamond-stone'
+        default:
+          return 'mdi-gamepad-variant'
+      }
+    },
+
+    getGameRankingIconColor() {
+      switch (this.gameRankingType) {
+        case 'wheel_credits':
+          return 'amber'
+        case 'wheel_invite_code':
+          return 'green'
+        case 'treasure_win_issue':
+          return 'deep-orange'
+        case 'treasure_win_credits':
+          return 'teal'
+        default:
+          return 'primary'
       }
     },
     
@@ -2959,6 +3247,15 @@ export default {
   min-width: 180px;
 }
 
+/* 游戏榜选择器特殊设置 */
+.game-source-select {
+  min-width: 150px;
+}
+
+.game-ranking-type-select {
+  min-width: 190px;
+}
+
 /* 流量榜日期选择器特殊设置 */
 .date-range-select {
   min-width: 120px;
@@ -3246,6 +3543,14 @@ export default {
     min-width: 140px !important;
   }
 
+  .game-source-select {
+    min-width: 120px !important;
+  }
+
+  .game-ranking-type-select {
+    min-width: 150px !important;
+  }
+
   .custom-date-btn {
     height: 36px !important;
   }
@@ -3278,6 +3583,14 @@ export default {
 
   .watched-source-select {
     min-width: 120px !important;
+  }
+
+  .game-source-select {
+    min-width: 100px !important;
+  }
+
+  .game-ranking-type-select {
+    min-width: 130px !important;
   }
 
   .custom-date-btn {
