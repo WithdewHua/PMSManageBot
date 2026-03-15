@@ -909,9 +909,9 @@
                               <div class="user-name-text-wrapper">
                                 <span class="user-name-text">{{ item.name }}</span>
                               </div>
-                              <span v-if="getUserBadgesList(item.tg_id).length > 0" class="user-badges ml-2">
+                              <span v-if="getUserBadgesList(getRankingTgId(item)).length > 0" class="user-badges ml-2">
                                 <v-tooltip
-                                  v-for="badge in getUserBadgesList(item.tg_id).slice(0, getBadgeDisplayLimit())"
+                                  v-for="badge in getUserBadgesList(getRankingTgId(item)).slice(0, getBadgeDisplayLimit())"
                                   :key="badge.badge_id"
                                   location="top"
                                   :open-on-click="isMobile"
@@ -925,7 +925,7 @@
                                   <div>{{ badge.badge.name }}</div>
                                 </v-tooltip>
                                 <v-tooltip
-                                  v-if="getUserBadgesList(item.tg_id).length > getBadgeDisplayLimit()"
+                                  v-if="getUserBadgesList(getRankingTgId(item)).length > getBadgeDisplayLimit()"
                                   location="top"
                                   :open-on-click="isMobile"
                                   :open-on-hover="!isMobile"
@@ -934,12 +934,12 @@
                                     <span
                                       v-bind="props"
                                       class="more-badges-indicator"
-                                      @click="isMobile && showAllBadges(item.tg_id, item.name)"
+                                      @click="isMobile && showAllBadges(getRankingTgId(item), item.name)"
                                     >
-                                      +{{ getUserBadgesList(item.tg_id).length - getBadgeDisplayLimit() }}
+                                      +{{ getUserBadgesList(getRankingTgId(item)).length - getBadgeDisplayLimit() }}
                                     </span>
                                   </template>
-                                  <div v-if="!isMobile">还有 {{ getUserBadgesList(item.tg_id).length - getBadgeDisplayLimit() }} 个勋章</div>
+                                  <div v-if="!isMobile">还有 {{ getUserBadgesList(getRankingTgId(item)).length - getBadgeDisplayLimit() }} 个勋章</div>
                                   <div v-else>点击查看所有勋章</div>
                                 </v-tooltip>
                               </span>
@@ -1908,7 +1908,7 @@ export default {
     // 批量加载排行榜用户的勋章
     async loadBadgesForRankings(rankings) {
       const tgIds = rankings
-        .map(item => item.tg_id)
+        .map(item => this.getRankingTgId(item))
         .filter(tgId => tgId && !this.userBadgesMap[tgId])
       
       console.log('需要加载勋章的用户ID列表:', tgIds)
@@ -1921,6 +1921,14 @@ export default {
       // 并发加载所有用户的勋章
       await Promise.all(tgIds.map(tgId => this.loadUserBadges(tgId)))
       console.log('批量加载勋章完成，当前勋章映射:', this.userBadgesMap)
+    },
+
+    // 兼容不同排行榜接口中的用户ID字段
+    getRankingTgId(item) {
+      if (!item || typeof item !== 'object') {
+        return null
+      }
+      return item.tg_id || item.user_id || item.id || null
     },
 
     // 获取用户的勋章列表（用于模板）

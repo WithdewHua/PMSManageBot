@@ -269,6 +269,7 @@ async def get_wheel_game_rankings(
             if wheel_credits_data:
                 wheel_credits_rank = [
                     {
+                        "tg_id": info[0],
                         "name": get_user_name_from_tg_id(info[0]),
                         "earned_credits": float(info[1]),
                         "play_count": int(info[2]),
@@ -287,6 +288,7 @@ async def get_wheel_game_rankings(
             if wheel_invite_code_data:
                 wheel_invite_code_rank = [
                     {
+                        "tg_id": info[0],
                         "name": get_user_name_from_tg_id(info[0]),
                         "invite_code_count": int(info[1]),
                         "avatar": get_user_avatar_from_tg_id(info[0]),
@@ -330,6 +332,7 @@ async def get_treasure_game_rankings(
             if treasure_win_issue_data:
                 treasure_win_issue_rank = [
                     {
+                        "tg_id": info[0],
                         "name": get_user_name_from_tg_id(info[0]),
                         "win_issue_count": int(info[1]),
                         "avatar": get_user_avatar_from_tg_id(info[0]),
@@ -347,6 +350,7 @@ async def get_treasure_game_rankings(
             if treasure_win_credits_data:
                 treasure_win_credits_rank = [
                     {
+                        "tg_id": info[0],
                         "name": get_user_name_from_tg_id(info[0]),
                         "win_credits": int(info[1]),
                         "avatar": get_user_avatar_from_tg_id(info[0]),
