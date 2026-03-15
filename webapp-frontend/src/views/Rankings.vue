@@ -909,6 +909,40 @@
                               <div class="user-name-text-wrapper">
                                 <span class="user-name-text">{{ item.name }}</span>
                               </div>
+                              <span v-if="getUserBadgesList(item.tg_id).length > 0" class="user-badges ml-2">
+                                <v-tooltip
+                                  v-for="badge in getUserBadgesList(item.tg_id).slice(0, getBadgeDisplayLimit())"
+                                  :key="badge.badge_id"
+                                  location="top"
+                                  :open-on-click="isMobile"
+                                  :open-on-hover="!isMobile"
+                                >
+                                  <template v-slot:activator="{ props }">
+                                    <v-avatar v-bind="props" size="20" class="badge-avatar">
+                                      <v-img :src="badge.badge.icon_url" :alt="badge.badge.name" />
+                                    </v-avatar>
+                                  </template>
+                                  <div>{{ badge.badge.name }}</div>
+                                </v-tooltip>
+                                <v-tooltip
+                                  v-if="getUserBadgesList(item.tg_id).length > getBadgeDisplayLimit()"
+                                  location="top"
+                                  :open-on-click="isMobile"
+                                  :open-on-hover="!isMobile"
+                                >
+                                  <template v-slot:activator="{ props }">
+                                    <span
+                                      v-bind="props"
+                                      class="more-badges-indicator"
+                                      @click="isMobile && showAllBadges(item.tg_id, item.name)"
+                                    >
+                                      +{{ getUserBadgesList(item.tg_id).length - getBadgeDisplayLimit() }}
+                                    </span>
+                                  </template>
+                                  <div v-if="!isMobile">还有 {{ getUserBadgesList(item.tg_id).length - getBadgeDisplayLimit() }} 个勋章</div>
+                                  <div v-else>点击查看所有勋章</div>
+                                </v-tooltip>
+                              </span>
                             </v-list-item-title>
                             <v-list-item-subtitle class="user-score">
                               <template v-if="gameRankingType === 'wheel_credits'">
@@ -1633,6 +1667,10 @@ export default {
           response = await getWheelGameRankings()
           this.rankings.wheel_credits_rank = response.data.wheel_credits_rank || []
           this.rankings.wheel_invite_code_rank = response.data.wheel_invite_code_rank || []
+          await this.loadBadgesForRankings([
+            ...this.rankings.wheel_credits_rank,
+            ...this.rankings.wheel_invite_code_rank
+          ])
           console.log('幸运大转盘排行榜数据:', {
             wheel_credits_rank: this.rankings.wheel_credits_rank,
             wheel_invite_code_rank: this.rankings.wheel_invite_code_rank
@@ -1642,6 +1680,10 @@ export default {
           response = await getTreasureGameRankings()
           this.rankings.treasure_win_issue_rank = response.data.treasure_win_issue_rank || []
           this.rankings.treasure_win_credits_rank = response.data.treasure_win_credits_rank || []
+          await this.loadBadgesForRankings([
+            ...this.rankings.treasure_win_issue_rank,
+            ...this.rankings.treasure_win_credits_rank
+          ])
           console.log('夺宝奇兵排行榜数据:', {
             treasure_win_issue_rank: this.rankings.treasure_win_issue_rank,
             treasure_win_credits_rank: this.rankings.treasure_win_credits_rank
