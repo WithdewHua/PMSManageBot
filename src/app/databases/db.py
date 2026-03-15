@@ -1664,25 +1664,19 @@ class DatabaseORM:
             return [(r[0], r[1]) for r in results]
 
     def get_wheel_credits_rank(self) -> list:
-        """获取幸运大转盘积分赚取排行榜（仅统计正向积分）"""
+        """获取幸运大转盘积分变动排行榜（统计所有游戏结果）"""
         with get_session() as session:
-            earned_credits = func.sum(
-                case(
-                    (WheelStats.credits_change > 0, WheelStats.credits_change), else_=0
-                )
-            ).label("earned_credits")
+            total_credits_change = func.sum(WheelStats.credits_change).label(
+                "total_credits_change"
+            )
             play_count = func.count(WheelStats.id).label("play_count")
             stmt = (
-                select(WheelStats.tg_id, earned_credits, play_count)
+                select(WheelStats.tg_id, total_credits_change, play_count)
                 .group_by(WheelStats.tg_id)
-                .order_by(earned_credits.desc())
+                .order_by(total_credits_change.desc())
             )
             results = session.execute(stmt).fetchall()
-            return [
-                (r[0], float(r[1] or 0), int(r[2] or 0))
-                for r in results
-                if float(r[1] or 0) > 0
-            ]
+            return [(r[0], float(r[1] or 0), int(r[2] or 0)) for r in results]
 
     def get_wheel_invite_code_rank(self) -> list:
         """获取幸运大转盘邀请码获得排行榜"""
