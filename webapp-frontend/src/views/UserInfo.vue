@@ -590,7 +590,7 @@
                       <span class="stat-value today-value">{{ activityStats.today_spins }}</span>
                     </div>
                     <div class="stat-item">
-                      <span class="stat-label">参与消耗</span>
+                      <span class="stat-label">参与积分消耗</span>
                       <span class="stat-value today-value">-{{ activityStats.today_cost_credits.toFixed(1) }}</span>
                     </div>
                     <div class="stat-item">
@@ -621,7 +621,7 @@
                       <span class="stat-value week-value">{{ activityStats.week_spins }}</span>
                     </div>
                     <div class="stat-item">
-                      <span class="stat-label">参与消耗</span>
+                      <span class="stat-label">参与积分消耗</span>
                       <span class="stat-value week-value">-{{ activityStats.week_cost_credits.toFixed(1) }}</span>
                     </div>
                     <div class="stat-item">
@@ -652,7 +652,7 @@
                       <span class="stat-value total-value">{{ activityStats.total_spins }}</span>
                     </div>
                     <div class="stat-item">
-                      <span class="stat-label">参与消耗</span>
+                      <span class="stat-label">参与积分消耗</span>
                       <span class="stat-value total-value">-{{ activityStats.total_cost_credits.toFixed(1) }}</span>
                     </div>
                     <div class="stat-item">
