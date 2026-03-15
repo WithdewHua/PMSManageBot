@@ -329,13 +329,18 @@ async def spin_wheel(
         if final_credits < 0:
             final_credits = 0  # 积分不能为负数
 
+        # 计算实际生效的积分变化（处理积分下限截断）
+        actual_credits_change = final_credits - new_credits
+
         db.update_user_credits(credits=final_credits, tg_id=user_id)
 
         # 记录转盘统计数据
-        db.add_wheel_spin_record(user_id, winner.name, credits_change)
+        db.add_wheel_spin_record(
+            user_id, winner.name, actual_credits_change, config.cost_credits
+        )
 
         logger.info(
-            f"用户 {get_user_name_from_tg_id(user_id)} 转盘结果: {winner.name}, 积分变化: {credits_change}, 最终积分: {final_credits}"
+            f"用户 {get_user_name_from_tg_id(user_id)} 转盘结果: {winner.name}, 积分变化: {actual_credits_change}, 最终积分: {final_credits}"
         )
         if generated_privileged_code:
             for chat_id in settings.TG_ADMIN_CHAT_ID:
@@ -346,7 +351,9 @@ async def spin_wheel(
                 )
 
         return LuckyWheelSpinResult(
-            item=winner, credits_change=credits_change, current_credits=final_credits
+            item=winner,
+            credits_change=actual_credits_change,
+            current_credits=final_credits,
         )
 
     except HTTPException:

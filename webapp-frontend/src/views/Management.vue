@@ -598,13 +598,19 @@
                     </v-row>
                     
                     <v-row dense>
-                      <v-col cols="6">
+                      <v-col cols="4">
                         <div class="stat-item">
                           <div class="stat-value text-warning">{{ wheelStats.totalCreditsChange?.toFixed(2) || '0.00' }}</div>
                           <div class="stat-label">转盘总积分变化</div>
                         </div>
                       </v-col>
-                      <v-col cols="6">
+                      <v-col cols="4">
+                        <div class="stat-item">
+                          <div class="stat-value text-error">-{{ wheelStats.totalCostCredits?.toFixed(2) || '0.00' }}</div>
+                          <div class="stat-label">转盘参与总消耗积分</div>
+                        </div>
+                      </v-col>
+                      <v-col cols="4">
                         <div class="stat-item">
                           <div class="stat-value text-secondary">{{ wheelStats.totalInviteCodes || 0 }}</div>
                           <div class="stat-label">转盘总邀请码发放</div>
@@ -2443,6 +2449,7 @@ export default {
         todaySpins: 0,
         lastWeekSpins: 0,
         totalCreditsChange: 0.0,
+        totalCostCredits: 0.0,
         totalInviteCodes: 0
       },
       auctionStats: {
@@ -3165,7 +3172,12 @@ export default {
         // 使用默认数据
         this.wheelStats = {
           totalSpins: 0,
-          activeUsers: 0
+          activeUsers: 0,
+          todaySpins: 0,
+          lastWeekSpins: 0,
+          totalCreditsChange: 0.0,
+          totalCostCredits: 0.0,
+          totalInviteCodes: 0
         };
       }
     },

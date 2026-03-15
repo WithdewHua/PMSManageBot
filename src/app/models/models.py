@@ -161,6 +161,7 @@ class WheelStats(Base):
     id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
     tg_id: Mapped[int] = mapped_column(BIGINT, index=True, nullable=False)
     item_name: Mapped[str] = mapped_column(Text, nullable=False)
+    cost_credits: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     credits_change: Mapped[float] = mapped_column(Float, nullable=False)
     timestamp: Mapped[int] = mapped_column(BIGINT, nullable=False, index=True)
     date: Mapped[str] = mapped_column(Text, nullable=False, index=True)

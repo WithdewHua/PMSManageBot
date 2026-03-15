@@ -1902,7 +1902,7 @@ class DatabaseORM:
     # ==================== Wheel Operations ====================
 
     def add_wheel_spin_record(
-        self, tg_id: int, item_name: str, credits_change: float
+        self, tg_id: int, item_name: str, credits_change: float, cost_credits: float
     ) -> bool:
         """记录转盘旋转记录"""
         try:
@@ -1913,6 +1913,7 @@ class DatabaseORM:
                 wheel_record = WheelStats(
                     tg_id=tg_id,
                     item_name=item_name,
+                    cost_credits=cost_credits,
                     credits_change=credits_change,
                     timestamp=timestamp,
                     date=date,
@@ -1960,6 +1961,12 @@ class DatabaseORM:
                     or 0.0
                 )
 
+                # 转盘参与总消耗积分
+                total_cost_credits = (
+                    session.execute(select(func.sum(WheelStats.cost_credits))).scalar()
+                    or 0.0
+                )
+
                 # 总邀请码发放数
                 total_invite_codes = (
                     session.execute(
@@ -1976,6 +1983,7 @@ class DatabaseORM:
                     "todaySpins": today_spins,
                     "lastWeekSpins": week_spins,
                     "totalCreditsChange": float(total_credits_change),
+                    "totalCostCredits": float(total_cost_credits),
                     "totalInviteCodes": total_invite_codes,
                 }
         except Exception as e:
@@ -1986,6 +1994,7 @@ class DatabaseORM:
                 "todaySpins": 0,
                 "lastWeekSpins": 0,
                 "totalCreditsChange": 0.0,
+                "totalCostCredits": 0.0,
                 "totalInviteCodes": 0,
             }
 
@@ -2027,6 +2036,16 @@ class DatabaseORM:
                     or 0.0
                 )
 
+                # 用户总参与消耗积分
+                total_cost_credits = (
+                    session.execute(
+                        select(func.sum(WheelStats.cost_credits)).where(
+                            WheelStats.tg_id == tg_id
+                        )
+                    ).scalar()
+                    or 0.0
+                )
+
                 # 用户今日积分变化
                 today_credits_change = (
                     session.execute(
@@ -2037,10 +2056,30 @@ class DatabaseORM:
                     or 0.0
                 )
 
+                # 用户今日参与消耗积分
+                today_cost_credits = (
+                    session.execute(
+                        select(func.sum(WheelStats.cost_credits)).where(
+                            WheelStats.tg_id == tg_id, WheelStats.date == today
+                        )
+                    ).scalar()
+                    or 0.0
+                )
+
                 # 用户本周积分变化
                 week_credits_change = (
                     session.execute(
                         select(func.sum(WheelStats.credits_change)).where(
+                            WheelStats.tg_id == tg_id, WheelStats.date >= week_ago
+                        )
+                    ).scalar()
+                    or 0.0
+                )
+
+                # 用户本周参与消耗积分
+                week_cost_credits = (
+                    session.execute(
+                        select(func.sum(WheelStats.cost_credits)).where(
                             WheelStats.tg_id == tg_id, WheelStats.date >= week_ago
                         )
                     ).scalar()
@@ -2076,6 +2115,7 @@ class DatabaseORM:
                 stmt = (
                     select(
                         WheelStats.item_name,
+                        WheelStats.cost_credits,
                         WheelStats.credits_change,
                         WheelStats.date,
                         WheelStats.timestamp,
@@ -2089,9 +2129,10 @@ class DatabaseORM:
                 recent_games_list = [
                     {
                         "item_name": game[0],
-                        "credits_change": game[1],
-                        "date": game[2],
-                        "timestamp": game[3],
+                        "cost_credits": float(game[1] or 0),
+                        "credits_change": game[2],
+                        "date": game[3],
+                        "timestamp": game[4],
                     }
                     for game in recent_games_result
                 ]
@@ -2103,6 +2144,9 @@ class DatabaseORM:
                     "total_credits_change": float(total_credits_change),
                     "today_credits_change": float(today_credits_change),
                     "week_credits_change": float(week_credits_change),
+                    "total_cost_credits": float(total_cost_credits),
+                    "today_cost_credits": float(today_cost_credits),
+                    "week_cost_credits": float(week_cost_credits),
                     "total_invite_codes": invite_codes_earned,
                     "today_invite_codes": today_invite_codes,
                     "week_invite_codes": week_invite_codes,
@@ -2117,6 +2161,9 @@ class DatabaseORM:
                 "total_credits_change": 0.0,
                 "today_credits_change": 0.0,
                 "week_credits_change": 0.0,
+                "total_cost_credits": 0.0,
+                "today_cost_credits": 0.0,
+                "week_cost_credits": 0.0,
                 "total_invite_codes": 0,
                 "today_invite_codes": 0,
                 "week_invite_codes": 0,

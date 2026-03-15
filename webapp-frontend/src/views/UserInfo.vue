@@ -590,7 +590,11 @@
                       <span class="stat-value today-value">{{ activityStats.today_spins }}</span>
                     </div>
                     <div class="stat-item">
-                      <span class="stat-label">积分变化</span>
+                      <span class="stat-label">参与消耗</span>
+                      <span class="stat-value today-value">-{{ activityStats.today_cost_credits.toFixed(1) }}</span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">转盘积分变化</span>
                       <span 
                         class="stat-value today-value"
                         :class="activityStats.today_credits_change >= 0 ? 'positive' : 'negative'"
@@ -617,7 +621,11 @@
                       <span class="stat-value week-value">{{ activityStats.week_spins }}</span>
                     </div>
                     <div class="stat-item">
-                      <span class="stat-label">积分变化</span>
+                      <span class="stat-label">参与消耗</span>
+                      <span class="stat-value week-value">-{{ activityStats.week_cost_credits.toFixed(1) }}</span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">转盘积分变化</span>
                       <span 
                         class="stat-value week-value"
                         :class="activityStats.week_credits_change >= 0 ? 'positive' : 'negative'"
@@ -644,7 +652,11 @@
                       <span class="stat-value total-value">{{ activityStats.total_spins }}</span>
                     </div>
                     <div class="stat-item">
-                      <span class="stat-label">积分变化</span>
+                      <span class="stat-label">参与消耗</span>
+                      <span class="stat-value total-value">-{{ activityStats.total_cost_credits.toFixed(1) }}</span>
+                    </div>
+                    <div class="stat-item">
+                      <span class="stat-label">转盘积分变化</span>
                       <span 
                         class="stat-value total-value"
                         :class="activityStats.total_credits_change >= 0 ? 'positive' : 'negative'"
@@ -1073,6 +1085,9 @@ export default {
         total_credits_change: 0.0,
         today_credits_change: 0.0,
         week_credits_change: 0.0,
+        total_cost_credits: 0.0,
+        today_cost_credits: 0.0,
+        week_cost_credits: 0.0,
         total_invite_codes: 0,
         today_invite_codes: 0,
         week_invite_codes: 0,
@@ -1178,7 +1193,10 @@ export default {
         this.activityLoading = true
         const response = await getUserActivityStats()
         if (response.data && response.data.success) {
-          this.activityStats = response.data.data
+          this.activityStats = {
+            ...this.activityStats,
+            ...response.data.data
+          }
         }
       } catch (err) {
         console.error('获取活动统计数据失败:', err)

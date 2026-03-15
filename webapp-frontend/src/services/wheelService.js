@@ -46,6 +46,7 @@ export const getWheelStats = async () => {
         todaySpins: 0,
         lastWeekSpins: 0,
         totalCreditsChange: 0.0,
+        totalCostCredits: 0.0,
         totalCreditsPool: 0.0,
         totalInviteCodes: 0
       }
