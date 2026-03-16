@@ -6,6 +6,7 @@ from copy import copy
 from app.config import settings
 from app.databases.db_func import (
     auto_switch_user_lines,
+    check_and_award_game_king_badge,
     check_and_award_supreme_contributor_badge,
     check_expired_crypto_donation_orders,
     finish_expired_auctions_job,
@@ -365,6 +366,21 @@ def add_init_scheduler_job():
     logger.info(
         "添加定时任务：每月1号凌晨 2:00 结算上月自定义线路流量积分（在流量聚合后）"
     )
+
+    # 每天上午 9:10 检查并授予游戏王勋章 (异步任务)
+    scheduler.add_async_job(
+        func=check_and_award_game_king_badge,
+        trigger="cron",
+        id="check_and_award_game_king_badge",
+        replace_existing=True,
+        max_instances=1,
+        day_of_week="*",
+        hour=9,
+        minute=10,
+        next_run_time=datetime.datetime.now(settings.TZ)
+        + datetime.timedelta(minutes=3),  # 启动后 3 分钟执行一次
+    )
+    logger.info("添加定时任务：每天上午 09:10 检查并授予游戏王勋章")
 
 
 if __name__ == "__main__":

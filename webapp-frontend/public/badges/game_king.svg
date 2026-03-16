@@ -1,0 +1,288 @@
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 深邃星空渐变 - 主背景 -->
+    <radialGradient id="gkBg" cx="45%" cy="35%">
+      <stop offset="0%"   style="stop-color:#1A1040;stop-opacity:1" />
+      <stop offset="30%"  style="stop-color:#0D0A2E;stop-opacity:1" />
+      <stop offset="65%"  style="stop-color:#06052A;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#020318;stop-opacity:1" />
+    </radialGradient>
+
+    <!-- 金色边框渐变 -->
+    <linearGradient id="gkBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   style="stop-color:#FFE066;stop-opacity:1" />
+      <stop offset="35%"  style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="65%"  style="stop-color:#FFA500;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#DAA520;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- 游戏手柄主体渐变 -->
+    <linearGradient id="gkPad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   style="stop-color:#FFE87A;stop-opacity:1" />
+      <stop offset="30%"  style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="70%"  style="stop-color:#FFA500;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#CC8400;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- 按键宝石渐变 - 蓝 -->
+    <radialGradient id="gkGemBlue" cx="40%" cy="35%">
+      <stop offset="0%"   style="stop-color:#A8EFFF;stop-opacity:1" />
+      <stop offset="50%"  style="stop-color:#00BFFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0077CC;stop-opacity:1" />
+    </radialGradient>
+
+    <!-- 按键宝石渐变 - 红 -->
+    <radialGradient id="gkGemRed" cx="40%" cy="35%">
+      <stop offset="0%"   style="stop-color:#FFB3B3;stop-opacity:1" />
+      <stop offset="50%"  style="stop-color:#FF4040;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#CC0000;stop-opacity:1" />
+    </radialGradient>
+
+    <!-- 按键宝石渐变 - 绿 -->
+    <radialGradient id="gkGemGreen" cx="40%" cy="35%">
+      <stop offset="0%"   style="stop-color:#B3FFB3;stop-opacity:1" />
+      <stop offset="50%"  style="stop-color:#00DD44;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#008822;stop-opacity:1" />
+    </radialGradient>
+
+    <!-- 按键宝石渐变 - 黄 -->
+    <radialGradient id="gkGemYellow" cx="40%" cy="35%">
+      <stop offset="0%"   style="stop-color:#FFFAAA;stop-opacity:1" />
+      <stop offset="50%"  style="stop-color:#FFE000;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#CC9900;stop-opacity:1" />
+    </radialGradient>
+
+    <!-- 高光层 -->
+    <radialGradient id="gkHighlight" cx="40%" cy="28%">
+      <stop offset="0%"   style="stop-color:#FFFFFF;stop-opacity:0.85" />
+      <stop offset="50%"  style="stop-color:#FFFFFF;stop-opacity:0.25" />
+      <stop offset="100%" style="stop-color:#FFFFFF;stop-opacity:0" />
+    </radialGradient>
+
+    <!-- 内阴影 -->
+    <radialGradient id="gkInnerShadow" cx="50%" cy="50%">
+      <stop offset="60%"  style="stop-color:#0D0A2E;stop-opacity:0" />
+      <stop offset="100%" style="stop-color:#000010;stop-opacity:0.6" />
+    </radialGradient>
+
+    <!-- 金色文字渐变 -->
+    <linearGradient id="gkText" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   style="stop-color:#FFE87A;stop-opacity:1" />
+      <stop offset="50%"  style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#B8860B;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- 皇冠光晕渐变 -->
+    <radialGradient id="gkCrownGlow" cx="50%" cy="50%">
+      <stop offset="0%"   style="stop-color:#FFD700;stop-opacity:0.5">
+        <animate attributeName="stop-opacity" values="0.5;0.9;0.5" dur="2.5s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="100%" style="stop-color:#FFD700;stop-opacity:0" />
+    </radialGradient>
+
+    <!-- 手柄发光渐变 -->
+    <radialGradient id="gkPadGlow" cx="50%" cy="50%">
+      <stop offset="0%"   style="stop-color:#FFD700;stop-opacity:0.3">
+        <animate attributeName="stop-opacity" values="0.3;0.6;0.3" dur="2.5s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="100%" style="stop-color:#FFD700;stop-opacity:0" />
+    </radialGradient>
+
+    <!-- 外阴影滤镜 -->
+    <filter id="gkShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="0" dy="3" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.45"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- 金色发光滤镜 -->
+    <filter id="gkGoldGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feFlood flood-color="#FFD700" flood-opacity="0.55"/>
+      <feComposite in2="coloredBlur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- 宝石发光滤镜 -->
+    <filter id="gkGemGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- 闪烁光点 -->
+    <radialGradient id="gkSparkle" cx="50%" cy="50%">
+      <stop offset="0%"   style="stop-color:#FFFFFF;stop-opacity:1">
+        <animate attributeName="stop-opacity" values="1;0.3;1" dur="3s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="100%" style="stop-color:#FFFFFF;stop-opacity:0" />
+    </radialGradient>
+  </defs>
+
+  <!-- 外层阴影 -->
+  <circle cx="60" cy="63" r="54" fill="#000015" opacity="0.25" filter="url(#gkShadow)"/>
+
+  <!-- 主圆形背景 -->
+  <circle cx="60" cy="60" r="54" fill="url(#gkBg)" stroke="url(#gkBorder)" stroke-width="3.5"/>
+
+  <!-- 内阴影层 -->
+  <circle cx="60" cy="60" r="50" fill="url(#gkInnerShadow)"/>
+
+  <!-- 装饰圆环 -->
+  <circle cx="60" cy="60" r="48" fill="none" stroke="#FFD700" stroke-width="0.8" opacity="0.6"/>
+  <circle cx="60" cy="60" r="44" fill="none" stroke="#FFA500" stroke-width="0.4" opacity="0.35"/>
+
+  <!-- 背景星点 -->
+  <g fill="#FFFFFF">
+    <circle cx="22" cy="28" r="0.9" opacity="0.7"/>
+    <circle cx="40" cy="18" r="0.6" opacity="0.5"/>
+    <circle cx="80" cy="20" r="0.8" opacity="0.6"/>
+    <circle cx="97" cy="32" r="0.7" opacity="0.55"/>
+    <circle cx="18" cy="55" r="0.7" opacity="0.5"/>
+    <circle cx="100" cy="50" r="0.9" opacity="0.65"/>
+    <circle cx="25" cy="80" r="0.6" opacity="0.5"/>
+    <circle cx="95" cy="82" r="0.7" opacity="0.55"/>
+    <circle cx="50" cy="100" r="0.6" opacity="0.45"/>
+    <circle cx="72" cy="102" r="0.7" opacity="0.5"/>
+  </g>
+
+  <!-- 皇冠光晕（手柄上方） -->
+  <ellipse cx="60" cy="37" rx="22" ry="14" fill="url(#gkCrownGlow)"/>
+
+  <!-- 迷你皇冠（手柄顶部） -->
+  <g transform="translate(60, 26)" filter="url(#gkGoldGlow)">
+    <path d="M -10,5 L -8,-4 L -4,1 L 0,-7 L 4,1 L 8,-4 L 10,5 L 9,7 L -9,7 Z"
+          fill="url(#gkPad)" stroke="#B8860B" stroke-width="0.7"/>
+    <rect x="-9" y="7" width="18" height="3" rx="0.8"
+          fill="url(#gkPad)" stroke="#B8860B" stroke-width="0.4"/>
+    <!-- 皇冠顶珠 -->
+    <circle cx="0"  cy="-5.5" r="1.8" fill="#FF4444" stroke="#B8860B" stroke-width="0.3"/>
+    <circle cx="-8" cy="-2"   r="1.3" fill="#4488FF" stroke="#B8860B" stroke-width="0.3"/>
+    <circle cx="8"  cy="-2"   r="1.3" fill="#44CC44" stroke="#B8860B" stroke-width="0.3"/>
+  </g>
+
+  <!-- 手柄发光背景 -->
+  <ellipse cx="60" cy="62" rx="32" ry="20" fill="url(#gkPadGlow)"/>
+
+  <!-- ===== 游戏手柄主体 ===== -->
+  <g transform="translate(60, 62)" filter="url(#gkGoldGlow)">
+    <!-- 手柄主体形状 -->
+    <path d="
+      M -24,0
+      C -26,-10 -20,-15 -12,-15
+      L 12,-15
+      C 20,-15 26,-10 24,0
+      C 22,8  18,13  12,16
+      C 8,19  4,20   0,20
+      C -4,20 -8,19  -12,16
+      C -18,13 -22,8 -24,0
+      Z"
+      fill="url(#gkPad)" stroke="#B8860B" stroke-width="1.2"/>
+
+    <!-- 手柄内部凹陷高光 -->
+    <path d="
+      M -20,0
+      C -22,-8 -17,-12 -10,-12
+      L 10,-12
+      C 17,-12 22,-8 20,0
+      C 18,6  14,10  9,13
+      C 5,16  2,17   0,17
+      C -2,17 -5,16  -9,13
+      C -14,10 -18,6 -20,0
+      Z"
+      fill="none" stroke="#FFE87A" stroke-width="0.5" opacity="0.35"/>
+
+    <!-- 左侧方向键 -->
+    <g transform="translate(-13, 2)">
+      <!-- 横条 -->
+      <rect x="-7" y="-2.2" width="14" height="4.4" rx="1.2" fill="#CC8400" stroke="#8B5E00" stroke-width="0.5"/>
+      <!-- 竖条 -->
+      <rect x="-2.2" y="-7" width="4.4" height="14" rx="1.2" fill="#CC8400" stroke="#8B5E00" stroke-width="0.5"/>
+      <!-- 中心 -->
+      <circle cx="0" cy="0" r="2.5" fill="#AA6A00"/>
+      <!-- 方向箭头 -->
+      <path d="M 0,-5.5 L 1.2,-3.8 L -1.2,-3.8 Z" fill="#FFE066" opacity="0.8"/>
+      <path d="M 0,5.5  L 1.2,3.8  L -1.2,3.8  Z" fill="#FFE066" opacity="0.8"/>
+      <path d="M -5.5,0 L -3.8,1.2 L -3.8,-1.2 Z" fill="#FFE066" opacity="0.8"/>
+      <path d="M 5.5,0  L 3.8,1.2  L 3.8,-1.2  Z" fill="#FFE066" opacity="0.8"/>
+    </g>
+
+    <!-- 右侧四色按键 (ABXY 风格) -->
+    <g transform="translate(13, 2)" filter="url(#gkGemGlow)">
+      <!-- 上 - 黄 -->
+      <circle cx="0"  cy="-7" r="3" fill="url(#gkGemYellow)" stroke="#8B6500" stroke-width="0.6"/>
+      <!-- 下 - 蓝 -->
+      <circle cx="0"  cy="7"  r="3" fill="url(#gkGemBlue)"   stroke="#00448A" stroke-width="0.6"/>
+      <!-- 左 - 绿 -->
+      <circle cx="-7" cy="0"  r="3" fill="url(#gkGemGreen)"  stroke="#005510" stroke-width="0.6"/>
+      <!-- 右 - 红 -->
+      <circle cx="7"  cy="0"  r="3" fill="url(#gkGemRed)"    stroke="#880000" stroke-width="0.6"/>
+      <!-- 中心装饰 -->
+      <circle cx="0"  cy="0"  r="1.5" fill="#FFD700" opacity="0.5"/>
+    </g>
+
+    <!-- 中央 Start/Select 区 -->
+    <rect x="-4.5" y="-3.5" width="4" height="3" rx="1" fill="#AA6A00" stroke="#7A4A00" stroke-width="0.4" opacity="0.85"/>
+    <rect x="0.5"  y="-3.5" width="4" height="3" rx="1" fill="#AA6A00" stroke="#7A4A00" stroke-width="0.4" opacity="0.85"/>
+
+    <!-- 肩部 L 键 -->
+    <path d="M -24,0 C -26,-10 -22,-16 -15,-16 L -10,-15 C -18,-14 -23,-8 -22,0 Z"
+          fill="#CC8400" stroke="#8B5E00" stroke-width="0.5" opacity="0.7"/>
+    <!-- 肩部 R 键 -->
+    <path d="M 24,0 C 26,-10 22,-16 15,-16 L 10,-15 C 18,-14 23,-8 22,0 Z"
+          fill="#CC8400" stroke="#8B5E00" stroke-width="0.5" opacity="0.7"/>
+  </g>
+
+  <!-- 高光层 -->
+  <ellipse cx="48" cy="42" rx="28" ry="22" fill="url(#gkHighlight)" opacity="0.5"/>
+
+  <!-- 游戏王文字 -->
+  <text x="60" y="94"
+        font-family="'Microsoft YaHei', SimHei, sans-serif"
+        font-size="12" font-weight="bold" letter-spacing="3"
+        fill="url(#gkText)" text-anchor="middle"
+        stroke="#7A5000" stroke-width="0.3"
+        filter="url(#gkGoldGlow)">
+    游 戏 王
+  </text>
+
+  <!-- 四方星装饰 -->
+  <g opacity="0.9" filter="url(#gkGoldGlow)">
+    <g transform="translate(60, 11)">
+      <polygon points="0,-5 1.4,-1.4 5,0 1.4,1.4 0,5 -1.4,1.4 -5,0 -1.4,-1.4"
+               fill="#FFD700" stroke="#FFA500" stroke-width="0.5"/>
+    </g>
+    <g transform="translate(109, 60)">
+      <polygon points="0,-4 1.2,-1.2 4,0 1.2,1.2 0,4 -1.2,1.2 -4,0 -1.2,-1.2"
+               fill="#FFD700" stroke="#FFA500" stroke-width="0.5"/>
+    </g>
+    <g transform="translate(60, 109)">
+      <polygon points="0,-4 1.2,-1.2 4,0 1.2,1.2 0,4 -1.2,1.2 -4,0 -1.2,-1.2"
+               fill="#FFD700" stroke="#FFA500" stroke-width="0.5"/>
+    </g>
+    <g transform="translate(11, 60)">
+      <polygon points="0,-4 1.2,-1.2 4,0 1.2,1.2 0,4 -1.2,1.2 -4,0 -1.2,-1.2"
+               fill="#FFD700" stroke="#FFA500" stroke-width="0.5"/>
+    </g>
+  </g>
+
+  <!-- 闪烁光点 -->
+  <g fill="url(#gkSparkle)">
+    <circle cx="24"  cy="34" r="2"/>
+    <circle cx="96"  cy="38" r="1.5"/>
+    <circle cx="28"  cy="86" r="1.5"/>
+    <circle cx="92"  cy="82" r="2"/>
+    <circle cx="60"  cy="14" r="1.2"/>
+  </g>
+</svg>
