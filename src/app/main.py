@@ -68,6 +68,19 @@ async def set_bot_commands(application):
         logger.error(f"设置机器人命令列表失败: {e}")
 
 
+async def post_init_services(application):
+    """在 Telegram 事件循环就绪后初始化服务"""
+    await set_bot_commands(application)
+
+    try:
+        scheduler = Scheduler()
+        scheduler.start()
+        add_init_scheduler_job()
+        logger.info("调度器初始化完成")
+    except Exception as e:
+        logger.error(f"初始化调度器失败: {e}")
+
+
 def start_api_server():
     """启动 WebApp API 服务器"""
     import uvicorn
@@ -389,10 +402,6 @@ if __name__ == "__main__":
     # 初始化数据库
     init_db()
 
-    # 启动定时任务
-    logger.info("启动调度器...")
-    add_init_scheduler_job()
-
     # 初始化 Telegram Bot 应用
     application = ApplicationBuilder().token(settings.TG_API_TOKEN).build()
 
@@ -403,8 +412,8 @@ if __name__ == "__main__":
             logger.info(f"Add handler: {var}")
             application.add_handler(val)
 
-    # 设置机器人命令列表(在应用启动后执行)
-    application.post_init = set_bot_commands
+    # 在应用启动后（事件循环就绪）初始化命令与调度器
+    application.post_init = post_init_services
 
     # 根据配置决定是否启动 WebApp
     if settings.WEBAPP_ENABLE:

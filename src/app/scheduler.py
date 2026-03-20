@@ -30,13 +30,13 @@ class Scheduler(metaclass=SingletonMeta):
             timezone=settings.TZ,
         )
 
-        self.start()
-
     def start(self):
-        self.scheduler.start()
+        if not self.scheduler.running:
+            self.scheduler.start()
 
     def shutdown(self):
-        self.scheduler.shutdown()
+        if self.scheduler.running:
+            self.scheduler.shutdown()
 
     def add_jobstore(self, jobstore, alias, **kwargs):
         self.jobstores.update({alias: jobstore})
