@@ -193,6 +193,7 @@ async def notify_treasure_not_full_after_join(
     bought_shares: int,
     shares_sold: int,
     total_shares: int,
+    prize_credits: int,
 ) -> None:
     """用户参与后，若未满员则群组通知当前进度与距离开奖剩余人数/份数。"""
 
@@ -214,6 +215,7 @@ async def notify_treasure_not_full_after_join(
     text = (
         f"🧩 <b>夺宝奇兵 #{int(issue_id)}</b> 有新参与\n"
         f"标题：{title or 'N/A'}\n"
+        f"奖池：{prize_credits} 积分\n"
         f"参与用户：<code>{get_user_name_from_tg_id(joiner_tg_id) or joiner_tg_id}</code>\n"
         f"已购买份数：{bought_shares}\n"
         f"距离开奖还差：{int(remaining)} 份"
@@ -417,6 +419,7 @@ async def join_issue(
                     bought_shares=int(bought_shares) if bought_shares else 1,
                     shares_sold=int(issue_state.get("shares_sold") or 0),
                     total_shares=int(issue_state.get("total_shares") or 0),
+                    prize_credits=int(issue_full.get("prize_credits")),
                 )
             except Exception as e:
                 logger.warning(f"Treasure progress notify failed: {e}")
