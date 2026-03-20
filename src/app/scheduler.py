@@ -3,6 +3,7 @@ from app.utils.utils import SingletonMeta
 from apscheduler.executors.asyncio import AsyncIOExecutor
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.jobstores.memory import MemoryJobStore
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 
@@ -10,6 +11,7 @@ class Scheduler(metaclass=SingletonMeta):
     def __init__(self) -> None:
         self.jobstores = {
             "default": MemoryJobStore(),
+            "sqlalchemy": SQLAlchemyJobStore(url=settings.DB_URL),
         }
         self.executors = {
             "default": AsyncIOExecutor(),
@@ -43,13 +45,21 @@ class Scheduler(metaclass=SingletonMeta):
     def add_job(self, *args, **kwargs):
         self.scheduler.add_job(*args, **kwargs)
 
-    def add_async_job(self, func, *args, executor="default", **kwargs):
+    def add_async_job(
+        self, func, *args, jobstore="default", executor="default", **kwargs
+    ):
         """添加异步任务，默认使用AsyncIOExecutor"""
-        return self.scheduler.add_job(func, *args, executor=executor, **kwargs)
+        return self.scheduler.add_job(
+            func, *args, jobstore=jobstore, executor=executor, **kwargs
+        )
 
-    def add_sync_job(self, func, *args, executor="threadpool", **kwargs):
+    def add_sync_job(
+        self, func, *args, jobstore="default", executor="threadpool", **kwargs
+    ):
         """添加同步任务，使用ThreadPoolExecutor"""
-        return self.scheduler.add_job(func, *args, executor=executor, **kwargs)
+        return self.scheduler.add_job(
+            func, *args, jobstore=jobstore, executor=executor, **kwargs
+        )
 
     def remove_job(self, job_id, jobstore=None):
         """移除任务"""

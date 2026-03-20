@@ -95,6 +95,7 @@ def schedule_auto_reopen_treasure_issue(*, source_issue_id: int) -> None:
             max_instances=1,
             run_date=run_date,
             kwargs={"source_issue_id": int(source_issue_id)},
+            jobstore="sqlalchemy",  # 使用持久化存储，避免服务重启导致任务丢失
         )
         logger.info(
             f"Treasure auto reopen scheduled: source={source_issue_id}, delay_min={delay_min}"
