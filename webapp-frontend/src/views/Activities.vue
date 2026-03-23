@@ -106,6 +106,7 @@
           <v-card-text class="pa-6">
             <div class="activity-content">
               <LuckyWheel 
+                :user-credits="userCredits"
                 @spin-complete="onSpinComplete" 
                 @result-closed="onResultClosed"
               />

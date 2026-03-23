@@ -10,6 +10,10 @@ export const spinLuckyWheel = () => {
   return apiClient.post('/api/luckywheel/spin', {})
 }
 
+export const spinLuckyWheelTenTimes = () => {
+  return apiClient.post('/api/luckywheel/spin-ten', {})
+}
+
 export const updateLuckyWheelConfig = (config) => {
   return apiClient.put('/api/luckywheel/config', config)
 }

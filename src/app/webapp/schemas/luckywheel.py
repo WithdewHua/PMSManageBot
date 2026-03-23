@@ -33,6 +33,14 @@ class LuckyWheelSpinResult(BaseModel):
     current_credits: float = Field(..., description="当前剩余积分")
 
 
+class LuckyWheelTenSpinResult(BaseModel):
+    """转盘十连抽结果"""
+
+    results: List[LuckyWheelSpinResult] = Field(..., description="十连抽每次结果")
+    total_credits_change: float = Field(..., description="十连抽总积分变化")
+    current_credits: float = Field(..., description="十连抽后当前剩余积分")
+
+
 class LuckyWheelConfigUpdateRequest(BaseModel):
     """更新转盘配置请求"""
 

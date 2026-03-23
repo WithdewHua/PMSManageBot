@@ -19,6 +19,7 @@ from app.webapp.schemas.luckywheel import (
     LuckyWheelConfigUpdateRequest,
     LuckyWheelItem,
     LuckyWheelSpinResult,
+    LuckyWheelTenSpinResult,
 )
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -209,6 +210,61 @@ def _handle_invite_code(tg_id: int = None, gen_privileged_code: bool = False) ->
     return 0
 
 
+def execute_single_spin(
+    config: LuckyWheelConfig, user_id: int, current_credits: float
+) -> tuple[LuckyWheelSpinResult, float, bool]:
+    """执行一次转盘抽奖并返回结果。"""
+    # 扣除参与费用
+    new_credits = current_credits - config.cost_credits
+    db.update_user_credits(credits=new_credits, tg_id=user_id)
+
+    # 选择中奖奖品 - 使用增强版随机选择器
+    winner = random_select_winner(config.items, user_id=user_id)
+
+    # 如果中奖奖品是邀请码，判断是否需要生成特权邀请码
+    gen_privileged_code = False
+    generated_privileged_code = False
+    if "邀请码" in winner.name and config.gen_privileged_code:
+        gen_privileged_code = True
+        # 生成后立马关闭生成特权邀请码
+        config.gen_privileged_code = False
+        save_wheel_config(config)
+        generated_privileged_code = True
+
+    # 更新奖励，计算积分变化
+    credits_change = calculate_credits_change(
+        winner.name,
+        new_credits,
+        tg_id=user_id,
+        gen_privileged_code=gen_privileged_code,
+    )
+
+    # 更新用户积分
+    final_credits = new_credits + credits_change
+    if final_credits < 0:
+        final_credits = 0  # 积分不能为负数
+
+    # 计算实际生效的积分变化（处理积分下限截断）
+    actual_credits_change = final_credits - new_credits
+
+    db.update_user_credits(credits=final_credits, tg_id=user_id)
+
+    # 记录转盘统计数据
+    db.add_wheel_spin_record(
+        user_id, winner.name, actual_credits_change, config.cost_credits
+    )
+
+    return (
+        LuckyWheelSpinResult(
+            item=winner,
+            credits_change=actual_credits_change,
+            current_credits=final_credits,
+        ),
+        final_credits,
+        generated_privileged_code,
+    )
+
+
 @router.get("/config", response_model=LuckyWheelConfig)
 async def get_config():
     """获取转盘配置"""
@@ -287,7 +343,7 @@ async def spin_wheel(
 
         # 获取用户当前积分
         current_credits = db.get_user_credits(user_id)
-        if not current_credits:
+        if current_credits is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"未找到用户 {user_id}"
             )
@@ -299,48 +355,12 @@ async def spin_wheel(
                 detail=f"积分不足，需要至少 {config.min_credits_required} 积分才能参与",
             )
 
-        # 扣除参与费用
-        new_credits = current_credits - config.cost_credits
-        db.update_user_credits(credits=new_credits, tg_id=user_id)
-
-        # 选择中奖奖品 - 使用增强版随机选择器
-        winner = random_select_winner(config.items, user_id=user_id)
-
-        # 如果中奖奖品是邀请码，判断是否需要生成特权邀请码
-        gen_privileged_code = False
-        generated_privileged_code = False
-        if "邀请码" in winner.name and config.gen_privileged_code:
-            gen_privileged_code = True
-            # 生成后立马关闭生成特权邀请码
-            config.gen_privileged_code = False
-            save_wheel_config(config)
-            generated_privileged_code = True
-
-        # 更新奖励，计算积分变化
-        credits_change = calculate_credits_change(
-            winner.name,
-            new_credits,
-            tg_id=user_id,
-            gen_privileged_code=gen_privileged_code,
-        )
-
-        # 更新用户积分
-        final_credits = new_credits + credits_change
-        if final_credits < 0:
-            final_credits = 0  # 积分不能为负数
-
-        # 计算实际生效的积分变化（处理积分下限截断）
-        actual_credits_change = final_credits - new_credits
-
-        db.update_user_credits(credits=final_credits, tg_id=user_id)
-
-        # 记录转盘统计数据
-        db.add_wheel_spin_record(
-            user_id, winner.name, actual_credits_change, config.cost_credits
+        spin_result, final_credits, generated_privileged_code = execute_single_spin(
+            config=config, user_id=user_id, current_credits=current_credits
         )
 
         logger.info(
-            f"用户 {get_user_name_from_tg_id(user_id)} 转盘结果: {winner.name}, 积分变化: {actual_credits_change}, 最终积分: {final_credits}"
+            f"用户 {get_user_name_from_tg_id(user_id)} 转盘结果: {spin_result.item.name}, 积分变化: {spin_result.credits_change}, 最终积分: {final_credits}"
         )
         if generated_privileged_code:
             for chat_id in settings.TG_ADMIN_CHAT_ID:
@@ -350,11 +370,7 @@ async def spin_wheel(
                     token=settings.TG_API_TOKEN,
                 )
 
-        return LuckyWheelSpinResult(
-            item=winner,
-            credits_change=actual_credits_change,
-            current_credits=final_credits,
-        )
+        return spin_result
 
     except HTTPException:
         raise
@@ -362,6 +378,77 @@ async def spin_wheel(
         logger.error(f"转盘操作失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="转盘操作失败"
+        )
+
+
+@router.post("/spin-ten", response_model=LuckyWheelTenSpinResult)
+@require_telegram_auth
+async def spin_wheel_ten_times(
+    request: Request, current_user: TelegramUser = Depends(get_telegram_user)
+):
+    """转盘十连抽"""
+    try:
+        user_id = current_user.id
+
+        # 获取转盘配置
+        config = get_wheel_config()
+
+        # 获取用户当前积分
+        current_credits = db.get_user_credits(user_id)
+        if current_credits is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail=f"未找到用户 {user_id}"
+            )
+
+        # 十连抽参与门槛：需满足（最低参与积分 + 参与消耗积分）* 10
+        required_credits = (config.min_credits_required + config.cost_credits) * 10
+        if current_credits < required_credits:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"积分不足，十连抽需要至少 {required_credits} 积分才能参与",
+            )
+
+        results: list[LuckyWheelSpinResult] = []
+        total_credits_change = 0.0
+        running_credits = current_credits
+        generated_privileged_code = False
+
+        for _ in range(10):
+            spin_result, running_credits, generated = execute_single_spin(
+                config=config,
+                user_id=user_id,
+                current_credits=running_credits,
+            )
+            results.append(spin_result)
+            total_credits_change += spin_result.credits_change
+            if generated:
+                generated_privileged_code = True
+
+        logger.info(
+            f"用户 {get_user_name_from_tg_id(user_id)} 十连抽完成, 总积分变化: {total_credits_change}, 最终积分: {running_credits}"
+        )
+
+        if generated_privileged_code:
+            for chat_id in settings.TG_ADMIN_CHAT_ID:
+                await send_message_by_url(
+                    chat_id=chat_id,
+                    text=f"用户 {get_user_name_from_tg_id(user_id)} 在十连抽中获得了特权邀请码",
+                    token=settings.TG_API_TOKEN,
+                )
+
+        return LuckyWheelTenSpinResult(
+            results=results,
+            total_credits_change=total_credits_change,
+            current_credits=running_credits,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"转盘十连抽操作失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="转盘十连抽操作失败",
         )
 
 

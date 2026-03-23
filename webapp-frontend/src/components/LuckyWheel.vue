@@ -50,6 +50,22 @@
           {{ isSpinning ? '转动中...' : (disabled ? '已用完' : '开始') }}
         </v-btn>
       </div>
+
+      <!-- 十连抽按钮 -->
+      <div class="ten-spin-action">
+        <v-btn
+          color="deep-purple"
+          variant="elevated"
+          :disabled="isSpinning || disabled || isTenSpinDisabled"
+          @click="spinTenTimes"
+        >
+          十连抽
+        </v-btn>
+        <div class="ten-spin-hint">
+          十连抽参与条件：({{ minCreditsRequired }} + {{ costCredits }}) × 10 = {{ tenSpinRequiredCredits }}
+          <span v-if="userCredits !== null">，当前积分：{{ Number(userCredits).toFixed(2) }}</span>
+        </div>
+      </div>
     </div>
 
     <!-- 结果弹窗 -->
@@ -59,9 +75,15 @@
           <v-icon size="60" color="warning">mdi-trophy</v-icon>
         </v-card-title>
         <v-card-text class="text-center">
-          <h2 class="mb-4">恭喜您！</h2>
-          <p class="text-h5 mb-2">获得了</p>
-          <p class="text-h4 text-primary font-weight-bold">{{ winResult?.name }}</p>
+          <template v-if="winResult?.is_ten_spin">
+            <h2 class="mb-4">十连抽结果</h2>
+            <p class="text-h5 mb-2">本次共抽取 10 次</p>
+          </template>
+          <template v-else>
+            <h2 class="mb-4">恭喜您！</h2>
+            <p class="text-h5 mb-2">获得了</p>
+            <p class="text-h4 text-primary font-weight-bold">{{ winResult?.name }}</p>
+          </template>
           
           <!-- 显示积分变化 -->
           <div v-if="winResult?.credits_change !== undefined" class="mt-4">
@@ -78,6 +100,23 @@
               </p>
             </div>
           </div>
+
+          <div v-if="winResult?.is_ten_spin && winResult?.results?.length" class="mt-4">
+            <v-divider class="my-3"></v-divider>
+            <div class="text-subtitle-2 mb-2">十连抽结果：</div>
+            <div class="ten-spin-results">
+              <v-chip
+                v-for="(item, index) in winResult.results"
+                :key="`${item.name}-${index}`"
+                size="small"
+                class="ma-1"
+                color="primary"
+                variant="tonal"
+              >
+                {{ index + 1 }}. {{ item.name }}
+              </v-chip>
+            </div>
+          </div>
         </v-card-text>
         <v-card-actions class="justify-center">
           <v-btn color="primary" @click="closeResult">确定</v-btn>
@@ -85,12 +124,19 @@
       </v-card>
     </v-dialog>
 
+    <v-snackbar v-model="showError" color="error" :timeout="4000" location="top">
+      {{ errorMessage }}
+      <template v-slot:actions>
+        <v-btn variant="text" @click="showError = false">关闭</v-btn>
+      </template>
+    </v-snackbar>
+
 
   </div>
 </template>
 
 <script>
-import { getLuckyWheelConfig, spinLuckyWheel } from '@/services/wheelService'
+import { getLuckyWheelConfig, spinLuckyWheel, spinLuckyWheelTenTimes } from '@/services/wheelService'
 
 export default {
   name: 'LuckyWheel',
@@ -98,6 +144,10 @@ export default {
     disabled: {
       type: Boolean,
       default: false
+    },
+    userCredits: {
+      type: Number,
+      default: null
     }
   },
   emits: ['spin-complete', 'result-closed'],
@@ -109,7 +159,11 @@ export default {
       winResult: null,
       wheelItems: [],
       loading: true,
-      error: null
+      error: null,
+      costCredits: 10,
+      minCreditsRequired: 30,
+      showError: false,
+      errorMessage: ''
     }
   },
   mounted() {
@@ -117,7 +171,15 @@ export default {
     this.loadWheelConfig()
   },
   computed: {
-    // 这里可以根据需要添加其他计算属性
+    tenSpinRequiredCredits() {
+      return (Number(this.minCreditsRequired) + Number(this.costCredits)) * 10
+    },
+    isTenSpinDisabled() {
+      if (this.userCredits === null || this.userCredits === undefined) {
+        return false
+      }
+      return Number(this.userCredits) < this.tenSpinRequiredCredits
+    }
   },
   methods: {
     // 加载转盘配置
@@ -127,6 +189,8 @@ export default {
         this.error = null
         const response = await getLuckyWheelConfig()
         this.wheelItems = response.data.items
+        this.costCredits = response.data.cost_credits
+        this.minCreditsRequired = response.data.min_credits_required
         this.loading = false
         
         // 配置加载完成后进行测试
@@ -249,16 +313,32 @@ export default {
       this.isSpinning = true
       
       // 调用后端API进行转盘
-      this.callSpinAPI()
+      this.callSpinAPI(false)
+    },
+
+    spinTenTimes() {
+      if (this.isSpinning || this.disabled || this.isTenSpinDisabled) return
+
+      this.isSpinning = true
+      this.callSpinAPI(true)
     },
     
-    async callSpinAPI() {
+    async callSpinAPI(isTenSpin = false) {
       try {
-        const response = await spinLuckyWheel()
+        const response = isTenSpin ? await spinLuckyWheelTenTimes() : await spinLuckyWheel()
         const result = response.data
+
+        const winner = isTenSpin
+          ? (result.results && result.results.length ? result.results[result.results.length - 1].item : null)
+          : result.item
+
+        if (!winner) {
+          console.error('未找到中奖项目')
+          this.isSpinning = false
+          return
+        }
         
         // 使用后端返回的结果
-        const winner = result.item
         const winnerIndex = this.wheelItems.findIndex(item => item.name === winner.name)
         
         if (winnerIndex === -1) {
@@ -349,9 +429,17 @@ export default {
           }
           
           this.winResult = {
-            ...winner,
-            credits_change: result.credits_change,
-            current_credits: result.current_credits
+            ...(isTenSpin ? { name: '十连抽完成' } : winner),
+            credits_change: isTenSpin ? result.total_credits_change : result.credits_change,
+            current_credits: result.current_credits,
+            is_ten_spin: isTenSpin,
+            results: isTenSpin
+              ? (result.results || []).map(item => ({
+                name: item.item?.name,
+                credits_change: item.credits_change,
+                current_credits: item.current_credits
+              }))
+              : null
           }
           this.showResult = true
           
@@ -366,9 +454,8 @@ export default {
         this.isSpinning = false
         
         // 显示错误信息
-        const errorMessage = error.response?.data?.detail || '转盘失败，请稍后重试'
-        // 这里可以显示一个错误提示
-        alert(errorMessage)
+        this.errorMessage = error.response?.data?.detail || '转盘失败，请稍后重试'
+        this.showError = true
       }
     },
     
@@ -505,6 +592,7 @@ export default {
   justify-content: center;
   align-items: center;
   min-height: 400px;
+  flex-direction: column;
 }
 
 .wheel-wrapper {
@@ -603,6 +691,26 @@ export default {
 .result-card {
   text-align: center;
   padding: 20px;
+}
+
+.ten-spin-action {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.ten-spin-hint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+}
+
+.ten-spin-results {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 /* 响应式设计 */
