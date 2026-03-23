@@ -102,6 +102,37 @@ async def notify_prediction_market_resolved(
     await send_message_by_url(chat_id=chat_id, text=text, parse_mode="HTML")
 
 
+async def notify_prediction_bet_placed(
+    *,
+    market_id: int,
+    title: str,
+    bettor_tg_id: int,
+    option: int,
+    amount: int,
+    real_yes_pool: int,
+    real_no_pool: int,
+) -> None:
+    """用户押注后的群组通知。"""
+    from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
+
+    chat_id = _get_group_chat_id()
+    if not chat_id:
+        logger.info("TG_GROUP not configured; skip prediction bet notification")
+        return
+
+    option_text = "YES" if int(option) == 1 else "NO"
+    bettor_name = get_user_name_from_tg_id(int(bettor_tg_id)) or int(bettor_tg_id)
+    text = (
+        f"🎯 <b>大预言家 #{int(market_id)}</b> 有新押注\n"
+        f"标题：{title}\n"
+        f"参与用户：<code>{bettor_name}</code>\n"
+        f"方向：{option_text}\n"
+        f"金额：{int(amount)} 积分\n"
+        f"实盘池：YES {int(real_yes_pool)} / NO {int(real_no_pool)}"
+    )
+    await send_message_by_url(chat_id=chat_id, text=text, parse_mode="HTML")
+
+
 @router.get("/list", response_model=PredictionMarketListResponse)
 @require_telegram_auth
 async def list_markets(
@@ -193,6 +224,22 @@ async def place_bet(
             option=int(data.option),
             amount=int(data.amount),
         )
+
+        # 押注群组通知（失败不影响接口返回）
+        try:
+            market = result.get("market") or {}
+            await notify_prediction_bet_placed(
+                market_id=int(market.get("id") or market_id),
+                title=str(market.get("title") or ""),
+                bettor_tg_id=int(current_user.id),
+                option=int(data.option),
+                amount=int(data.amount),
+                real_yes_pool=int(market.get("real_yes_pool") or 0),
+                real_no_pool=int(market.get("real_no_pool") or 0),
+            )
+        except Exception as e:
+            logger.warning(f"Prediction bet notify failed: {e}")
+
         return {"success": True, **result}
     except ValueError as e:
         msg = str(e).lower()

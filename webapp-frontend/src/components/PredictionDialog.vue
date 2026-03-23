@@ -372,12 +372,19 @@ export default {
 
 .option-buttons {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
 .option-btn {
   height: 44px;
+  min-width: 0;
+}
+
+.option-btn :deep(.v-btn__content) {
+  white-space: normal;
+  text-align: center;
+  line-height: 1.2;
 }
 
 .option-btn--active {
