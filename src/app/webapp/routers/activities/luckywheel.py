@@ -210,7 +210,7 @@ def _handle_invite_code(tg_id: int = None, gen_privileged_code: bool = False) ->
     return 0
 
 
-def execute_single_spin(
+async def execute_single_spin(
     config: LuckyWheelConfig, user_id: int, current_credits: float
 ) -> tuple[LuckyWheelSpinResult, float, bool]:
     """执行一次转盘抽奖并返回结果。"""
@@ -253,6 +253,15 @@ def execute_single_spin(
     db.add_wheel_spin_record(
         user_id, winner.name, actual_credits_change, config.cost_credits
     )
+
+    # 发送管理员通知
+    if "邀请码" in winner.name:
+        for chat_id in settings.TG_ADMIN_CHAT_ID:
+            await send_message_by_url(
+                chat_id=chat_id,
+                text=f"用户 {get_user_name_from_tg_id(user_id)} 在转盘中获得了{'特权' if generated_privileged_code else ''}邀请码",
+                token=settings.TG_API_TOKEN,
+            )
 
     return (
         LuckyWheelSpinResult(
@@ -355,20 +364,13 @@ async def spin_wheel(
                 detail=f"积分不足，需要至少 {config.min_credits_required} 积分才能参与",
             )
 
-        spin_result, final_credits, generated_privileged_code = execute_single_spin(
+        spin_result, final_credits, _ = await execute_single_spin(
             config=config, user_id=user_id, current_credits=current_credits
         )
 
         logger.info(
             f"用户 {get_user_name_from_tg_id(user_id)} 转盘结果: {spin_result.item.name}, 积分变化: {spin_result.credits_change}, 最终积分: {final_credits}"
         )
-        if generated_privileged_code:
-            for chat_id in settings.TG_ADMIN_CHAT_ID:
-                await send_message_by_url(
-                    chat_id=chat_id,
-                    text=f"用户 {get_user_name_from_tg_id(user_id)} 在转盘中获得了特权邀请码",
-                    token=settings.TG_API_TOKEN,
-                )
 
         return spin_result
 
@@ -414,7 +416,7 @@ async def spin_wheel_ten_times(
         generated_privileged_code = False
 
         for _ in range(10):
-            spin_result, running_credits, generated = execute_single_spin(
+            spin_result, running_credits, generated = await execute_single_spin(
                 config=config,
                 user_id=user_id,
                 current_credits=running_credits,
