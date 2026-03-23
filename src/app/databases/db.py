@@ -1940,6 +1940,35 @@ class DatabaseORM:
                 for r in rows
             ]
 
+    def list_prediction_user_positions(self, market_id: int) -> list[dict]:
+        """按用户聚合某个预测题目的 YES/NO 持仓。"""
+        with get_session() as session:
+            rows = session.execute(
+                select(
+                    PredictionBet.tg_id,
+                    PredictionBet.option,
+                    func.coalesce(func.sum(PredictionBet.amount), 0),
+                )
+                .where(PredictionBet.market_id == int(market_id))
+                .group_by(PredictionBet.tg_id, PredictionBet.option)
+            ).all()
+
+            user_positions: dict[int, dict] = {}
+            for tg_id, option, amount in rows:
+                uid = int(tg_id)
+                if uid not in user_positions:
+                    user_positions[uid] = {
+                        "tg_id": uid,
+                        "yes_amount": 0,
+                        "no_amount": 0,
+                    }
+                if int(option) == 1:
+                    user_positions[uid]["yes_amount"] = int(amount or 0)
+                else:
+                    user_positions[uid]["no_amount"] = int(amount or 0)
+
+            return list(user_positions.values())
+
     def close_prediction_market_betting(self, market_id: int) -> dict:
         with get_session() as session:
             market = (

@@ -16,7 +16,7 @@ from app.webapp.schemas import (
     PredictionResolveRequest,
     TelegramUser,
 )
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 router = APIRouter(prefix="/prediction", tags=["大预言家"])
 
@@ -100,6 +100,38 @@ async def notify_prediction_market_resolved(
         f"裁决备注：{note_text}"
     )
     await send_message_by_url(chat_id=chat_id, text=text, parse_mode="HTML")
+
+
+async def notify_prediction_user_settlement(
+    *,
+    tg_id: int,
+    market_id: int,
+    title: str,
+    result_option: int,
+    yes_amount: int,
+    no_amount: int,
+    payout_amount: float,
+) -> None:
+    """题目结算后的个人通知（无论命中与否都发送）。"""
+    from app.utils.utils import send_message_by_url
+
+    result_text = "YES" if int(result_option) == 1 else "NO"
+    win_amount = int(yes_amount) if int(result_option) == 1 else int(no_amount)
+    lose_amount = int(no_amount) if int(result_option) == 1 else int(yes_amount)
+    hit = win_amount > 0
+    status_text = "✅ 你猜中了" if hit else "❌ 你没有猜中"
+
+    text = (
+        f"🏁 <b>大预言家 #{int(market_id)}</b> 已结算\n"
+        f"标题：{title}\n"
+        f"开奖结果：{result_text}\n"
+        f"你的押注：YES {int(yes_amount)} / NO {int(no_amount)}\n"
+        f"命中金额：{int(win_amount)} 积分\n"
+        f"未中金额：{int(lose_amount)} 积分\n"
+        f"结算返还：{float(payout_amount):.2f} 积分\n"
+        f"结果：{status_text}"
+    )
+    await send_message_by_url(chat_id=int(tg_id), text=text, parse_mode="HTML")
 
 
 async def notify_prediction_bet_placed(
@@ -328,6 +360,7 @@ async def close_market_betting(
 async def resolve_market(
     request: Request,
     market_id: int,
+    background_tasks: BackgroundTasks,
     data: PredictionResolveRequest,
     current_user: TelegramUser = Depends(get_telegram_user),
 ):
@@ -344,7 +377,8 @@ async def resolve_market(
         try:
             market = db.get_prediction_market_by_id(market_id=int(market_id))
             if market:
-                await notify_prediction_market_resolved(
+                background_tasks.add_task(
+                    notify_prediction_market_resolved,
                     market_id=int(market_id),
                     title=str(market.get("title") or ""),
                     result_option=int(res.get("result_option") or data.result_option),
@@ -356,6 +390,52 @@ async def resolve_market(
                     winner_count=int(res.get("winner_count") or 0),
                     resolution_note=market.get("resolution_note"),
                 )
+
+                # 结算个人通知（BackgroundTasks，命中与未命中都通知）
+                try:
+                    user_positions = db.list_prediction_user_positions(
+                        market_id=int(market_id)
+                    )
+                    result_option = int(res.get("result_option") or data.result_option)
+                    total_real_pool = int(res.get("total_real_pool") or 0)
+                    payout_pool = float(res.get("payout_pool") or 0)
+                    winner_pool = (
+                        int(market.get("real_yes_pool") or 0)
+                        if result_option == 1
+                        else int(market.get("real_no_pool") or 0)
+                    )
+
+                    for pos in user_positions:
+                        tg_id = int(pos.get("tg_id"))
+                        yes_amount = int(pos.get("yes_amount") or 0)
+                        no_amount = int(pos.get("no_amount") or 0)
+                        win_amount = yes_amount if result_option == 1 else no_amount
+
+                        payout_amount = 0.0
+                        if winner_pool > 0 and payout_pool > 0 and win_amount > 0:
+                            ratio = float(win_amount) / float(winner_pool)
+                            payout_amount = round(float(payout_pool) * ratio, 2)
+
+                        background_tasks.add_task(
+                            notify_prediction_user_settlement,
+                            tg_id=tg_id,
+                            market_id=int(market_id),
+                            title=str(market.get("title") or ""),
+                            result_option=result_option,
+                            yes_amount=yes_amount,
+                            no_amount=no_amount,
+                            payout_amount=payout_amount,
+                        )
+
+                    logger.info(
+                        "Prediction resolve personal notifications queued: "
+                        f"market_id={int(market_id)}, users={len(user_positions)}, "
+                        f"total_real_pool={total_real_pool}"
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Prediction resolve personal notify queue failed: {e}"
+                    )
         except Exception as e:
             logger.warning(f"Prediction resolve notify failed: {e}")
 
