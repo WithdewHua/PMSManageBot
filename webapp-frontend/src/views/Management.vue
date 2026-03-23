@@ -745,6 +745,53 @@
               </v-card>
 
               <!-- 其他活动卡片占位 -->
+              <v-card class="activity-card-enhanced">
+                <v-card-title class="d-flex align-center">
+                  <v-icon class="mr-2" color="indigo">mdi-chart-line</v-icon>
+                  <span>大预言家</span>
+                  <v-spacer></v-spacer>
+                  <v-chip color="success" size="small" variant="flat">
+                    <v-icon start size="12">mdi-check-circle</v-icon>
+                    运行中
+                  </v-chip>
+                </v-card-title>
+
+                <v-card-text>
+                  <p class="text-body-2 text-medium-emphasis mb-4">
+                    创建预测题目、设置截止时间、关闭押注并裁决结算
+                  </p>
+
+                  <div class="activity-stats mb-4">
+                    <v-row dense>
+                      <v-col cols="6">
+                        <div class="stat-item">
+                          <div class="stat-value">{{ predictionStats.total_markets || 0 }}</div>
+                          <div class="stat-label">题目总数</div>
+                        </div>
+                      </v-col>
+                      <v-col cols="6">
+                        <div class="stat-item">
+                          <div class="stat-value">{{ predictionStats.active_markets || 0 }}</div>
+                          <div class="stat-label">押注中</div>
+                        </div>
+                      </v-col>
+                    </v-row>
+                  </div>
+                </v-card-text>
+
+                <v-card-actions class="pa-4 pt-0">
+                  <v-btn
+                    color="indigo"
+                    variant="elevated"
+                    block
+                    @click="openPredictionManagement"
+                  >
+                    <v-icon start>mdi-chart-line</v-icon>
+                    进入预测管理
+                  </v-btn>
+                </v-card-actions>
+              </v-card>
+
               <v-card class="activity-card-enhanced activity-placeholder">
                 <v-card-title class="d-flex align-center">
                   <v-icon class="mr-2" color="grey-lighten-1">mdi-plus-circle-outline</v-icon>
@@ -875,6 +922,147 @@
                                     >
                                       <v-icon start size="14">mdi-trash-can-outline</v-icon>
                                       取消
+                                    </v-chip>
+                                  </div>
+                                </template>
+                              </v-list-item>
+                            </v-list>
+                          </div>
+                        </v-card-text>
+                      </v-card>
+                    </v-col>
+                  </v-row>
+                </v-card-text>
+              </v-card>
+            </v-dialog>
+
+            <!-- 预测管理弹窗 -->
+            <v-dialog v-model="showPredictionManagement" max-width="1000" persistent>
+              <v-card class="activity-dialog">
+                <v-card-title class="d-flex align-center justify-space-between">
+                  <div class="d-flex align-center">
+                    <v-icon class="mr-2" color="indigo">mdi-chart-line</v-icon>
+                    预测题目创建 / 管理
+                  </div>
+                  <div>
+                    <v-btn icon @click="loadPredictionStats" :loading="predictionMarketsLoading">
+                      <v-icon>mdi-refresh</v-icon>
+                    </v-btn>
+                    <v-btn icon @click="closePredictionManagement">
+                      <v-icon>mdi-close</v-icon>
+                    </v-btn>
+                  </div>
+                </v-card-title>
+
+                <v-divider />
+
+                <v-card-text class="pa-6">
+                  <v-alert v-if="predictionMarketsError" type="error" variant="tonal" class="mb-4">
+                    {{ predictionMarketsError }}
+                  </v-alert>
+
+                  <v-row>
+                    <v-col cols="12" md="5">
+                      <v-card variant="outlined" rounded="lg">
+                        <v-card-title class="text-subtitle-1">创建新题目</v-card-title>
+                        <v-card-text>
+                          <v-text-field
+                            v-model="createPredictionForm.title"
+                            label="标题"
+                            variant="outlined"
+                            density="compact"
+                            required
+                          />
+                          <v-textarea
+                            v-model="createPredictionForm.description"
+                            label="描述（可选）"
+                            variant="outlined"
+                            density="compact"
+                            rows="3"
+                          />
+                          <v-text-field
+                            v-model="createPredictionForm.betting_deadline"
+                            label="押注截止时间"
+                            type="datetime-local"
+                            variant="outlined"
+                            density="compact"
+                            required
+                          />
+                          <v-text-field v-model="createPredictionForm.virtual_yes_pool" label="YES 虚拟池" type="number" variant="outlined" density="compact" />
+                          <v-text-field v-model="createPredictionForm.virtual_no_pool" label="NO 虚拟池" type="number" variant="outlined" density="compact" />
+                          <v-text-field v-model="createPredictionForm.max_bet_per_user" label="单用户上限" type="number" variant="outlined" density="compact" />
+                          <v-btn color="indigo" variant="elevated" block @click="submitCreatePredictionMarket">
+                            <v-icon start>mdi-plus</v-icon>
+                            创建题目
+                          </v-btn>
+                        </v-card-text>
+                      </v-card>
+                    </v-col>
+
+                    <v-col cols="12" md="7">
+                      <v-card variant="outlined" rounded="lg">
+                        <v-card-title class="text-subtitle-1">题目列表</v-card-title>
+                        <v-card-text>
+                          <div v-if="predictionMarketsLoading" class="text-center py-6">
+                            <v-progress-circular indeterminate color="primary" size="32" />
+                          </div>
+                          <div v-else>
+                            <v-list density="compact">
+                              <v-list-item v-for="it in predictionMarkets" :key="it.id">
+                                <v-list-item-title>
+                                  #{{ it.id }} · {{ it.title }}
+                                </v-list-item-title>
+                                <v-list-item-subtitle>
+                                  YES {{ it.real_yes_pool }} / NO {{ it.real_no_pool }} · 截止 {{ formatDateTimeByTs(it.betting_deadline) }}
+                                </v-list-item-subtitle>
+                                <template #append>
+                                  <div class="treasure-issue-actions">
+                                    <v-chip
+                                      size="small"
+                                      :color="it.status === 1 ? 'indigo' : (it.status === 2 ? 'orange' : (it.status === 3 ? 'success' : 'grey'))"
+                                      variant="flat"
+                                      class="treasure-issue-status"
+                                    >
+                                      {{ it.status === 1 ? '押注中' : (it.status === 2 ? '已截止' : (it.status === 3 ? '已结算' : '已取消')) }}
+                                    </v-chip>
+
+                                    <v-chip
+                                      v-if="it.status === 1"
+                                      size="small"
+                                      color="warning"
+                                      variant="tonal"
+                                      class="treasure-issue-cancel"
+                                      :disabled="closingPredictionMarketId !== null || resolvingPredictionMarketId !== null"
+                                      @click.stop="submitClosePredictionMarket(it)"
+                                    >
+                                      <v-icon start size="14">mdi-lock</v-icon>
+                                      截止
+                                    </v-chip>
+
+                                    <v-chip
+                                      v-if="it.status === 2"
+                                      size="small"
+                                      color="success"
+                                      variant="tonal"
+                                      class="treasure-issue-cancel"
+                                      :disabled="closingPredictionMarketId !== null || resolvingPredictionMarketId !== null"
+                                      @click.stop="submitResolvePredictionMarket(it, 1)"
+                                    >
+                                      <v-icon start size="14">mdi-check</v-icon>
+                                      YES 胜
+                                    </v-chip>
+
+                                    <v-chip
+                                      v-if="it.status === 2"
+                                      size="small"
+                                      color="error"
+                                      variant="tonal"
+                                      class="treasure-issue-cancel"
+                                      :disabled="closingPredictionMarketId !== null || resolvingPredictionMarketId !== null"
+                                      @click.stop="submitResolvePredictionMarket(it, 0)"
+                                    >
+                                      <v-icon start size="14">mdi-close</v-icon>
+                                      NO 胜
                                     </v-chip>
                                   </div>
                                 </template>
@@ -2404,6 +2592,7 @@ import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, set
 import { getWheelStats } from '@/services/wheelService.js'
 import { getAuctionStats, getAllAuctions, finishExpiredAuctions, finishAuction, deleteAuction, createAuction, getAuctionBids, updateAuction } from '@/services/auctionService.js'
 import { listTreasureIssues, createTreasureIssue, cancelTreasureIssue } from '@/services/treasureService.js'
+import { listPredictionMarkets, createPredictionMarket, closePredictionMarket, resolvePredictionMarket } from '@/services/predictionService.js'
 import { getPremiumLineTrafficStats, formatTrafficSize, formatUsername, getTrafficOverview } from '@/services/trafficService.js'
 import { getAllCryptoDonationOrdersAdmin, ORDER_STATUS } from '@/services/cryptoDonationService.js'
 import { getBadgeCenterConfig, updateBadgeConfig, adminGetAllBadges, adminDeleteBadge } from '@/services/badgeService.js'
@@ -2462,6 +2651,10 @@ export default {
         total_issues: 0,
         active_issues: 0
       },
+      predictionStats: {
+        total_markets: 0,
+        active_markets: 0
+      },
       // 竞拍管理相关数据
       auctionStatsLoading: false,
       auctionStatsError: null,
@@ -2501,6 +2694,7 @@ export default {
       showWheelManagement: false,
       showAuctionManagement: false,
       showTreasureManagement: false,
+      showPredictionManagement: false,
       treasureIssuesLoading: false,
       treasureIssuesError: null,
       deletingTreasureIssueId: null,
@@ -2512,6 +2706,19 @@ export default {
         total_credits_required: 1200,
         credits_per_share: 10,
         start_number: ''
+      },
+      predictionMarketsLoading: false,
+      predictionMarketsError: null,
+      predictionMarkets: [],
+      closingPredictionMarketId: null,
+      resolvingPredictionMarketId: null,
+      createPredictionForm: {
+        title: '',
+        description: '',
+        betting_deadline: '',
+        virtual_yes_pool: 500,
+        virtual_no_pool: 500,
+        max_bet_per_user: 500
       },
       systemStats: {
         plex_users: 0,
@@ -2598,7 +2805,8 @@ export default {
         Promise.all([
           this.loadWheelStats(),
           this.loadAuctionStats(),
-          this.loadTreasureStats()
+          this.loadTreasureStats(),
+          this.loadPredictionStats()
         ])
       }
     }
@@ -2630,7 +2838,8 @@ export default {
           await Promise.all([
             this.loadWheelStats(),
             this.loadAuctionStats(),
-            this.loadTreasureStats()
+            this.loadTreasureStats(),
+            this.loadPredictionStats()
           ])
         }
         this.loading = false
@@ -2690,6 +2899,133 @@ export default {
         this.fetchTrafficStats(),
         this.fetchTrafficOverview()
       ])
+    },
+
+    // =====================
+    // Prediction 管理
+    // =====================
+    async loadPredictionStats() {
+      try {
+        this.predictionMarketsLoading = true
+        this.predictionMarketsError = null
+        const res = await listPredictionMarkets({ include_closed: true, limit: 200 })
+        this.predictionMarkets = res.data.markets || []
+        this.predictionStats.total_markets = this.predictionMarkets.length
+        this.predictionStats.active_markets = this.predictionMarkets.filter(i => i.status === 1).length
+      } catch (err) {
+        this.predictionMarketsError = err.response?.data?.detail || '加载预测题目失败'
+        console.error('加载预测题目失败:', err)
+      } finally {
+        this.predictionMarketsLoading = false
+      }
+    },
+
+    openPredictionManagement() {
+      this.showPredictionManagement = true
+      this.loadPredictionStats()
+    },
+
+    closePredictionManagement() {
+      this.showPredictionManagement = false
+      this.predictionMarketsError = null
+    },
+
+    formatDateTimeByTs(ts) {
+      if (!ts) return '未设置'
+      try {
+        return new Date(Number(ts) * 1000).toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        })
+      } catch (err) {
+        return String(ts)
+      }
+    },
+
+    async submitCreatePredictionMarket() {
+      try {
+        const title = String(this.createPredictionForm.title || '').trim()
+        if (!title) {
+          this.showMessage('请输入题目标题', 'error')
+          return
+        }
+        if (!this.createPredictionForm.betting_deadline) {
+          this.showMessage('请设置押注截止时间', 'error')
+          return
+        }
+
+        const deadlineSec = Math.floor(new Date(this.createPredictionForm.betting_deadline).getTime() / 1000)
+        if (!Number.isFinite(deadlineSec) || deadlineSec <= Math.floor(Date.now() / 1000)) {
+          this.showMessage('截止时间必须晚于当前时间', 'error')
+          return
+        }
+
+        const payload = {
+          title,
+          description: this.createPredictionForm.description || null,
+          betting_deadline: deadlineSec,
+          virtual_yes_pool: Number(this.createPredictionForm.virtual_yes_pool),
+          virtual_no_pool: Number(this.createPredictionForm.virtual_no_pool),
+          max_bet_per_user: Number(this.createPredictionForm.max_bet_per_user)
+        }
+
+        await createPredictionMarket(payload)
+        this.showMessage('预测题目创建成功', 'success')
+        this.createPredictionForm = {
+          title: '',
+          description: '',
+          betting_deadline: '',
+          virtual_yes_pool: 500,
+          virtual_no_pool: 500,
+          max_bet_per_user: 500
+        }
+        await this.loadPredictionStats()
+      } catch (err) {
+        const msg = err.response?.data?.detail || '创建预测题目失败'
+        this.showMessage(msg, 'error')
+        console.error('创建预测题目失败:', err)
+      }
+    },
+
+    async submitClosePredictionMarket(item) {
+      try {
+        const id = item?.id
+        if (!id) return
+        this.closingPredictionMarketId = id
+        await closePredictionMarket(id)
+        this.showMessage(`题目 #${id} 已截止押注`, 'success')
+        await this.loadPredictionStats()
+      } catch (err) {
+        const msg = err.response?.data?.detail || '截止押注失败'
+        this.showMessage(msg, 'error')
+        console.error('截止押注失败:', err)
+      } finally {
+        this.closingPredictionMarketId = null
+      }
+    },
+
+    async submitResolvePredictionMarket(item, resultOption) {
+      try {
+        const id = item?.id
+        if (!id) return
+        this.resolvingPredictionMarketId = id
+        await resolvePredictionMarket(id, {
+          result_option: Number(resultOption),
+          resolution_note: resultOption === 1 ? '管理员裁决：YES' : '管理员裁决：NO'
+        })
+        this.showMessage(`题目 #${id} 已完成裁决`, 'success')
+        await this.loadPredictionStats()
+      } catch (err) {
+        const msg = err.response?.data?.detail || '裁决失败'
+        this.showMessage(msg, 'error')
+        console.error('裁决失败:', err)
+      } finally {
+        this.resolvingPredictionMarketId = null
+      }
     },
 
     // =====================

@@ -79,4 +79,5 @@ from .vaultwarden import (
     VaultwardenRedeemRequest,
     VaultwardenRedeemResponse,
 )
+from .prediction import *
 from .treasure import *

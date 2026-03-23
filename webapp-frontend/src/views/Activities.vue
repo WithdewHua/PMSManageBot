@@ -314,6 +314,9 @@
   <!-- 夺宝奇兵弹窗 -->
   <TreasureDialog ref="treasureDialog" />
 
+  <!-- 预测游戏弹窗 -->
+  <PredictionDialog ref="predictionDialog" />
+
       <!-- 出价弹窗 -->
       <v-dialog v-model="showBidDialog" max-width="400">
         <v-card v-if="selectedAuction">
@@ -384,6 +387,7 @@
 
 <script>
 import LuckyWheel from '@/components/LuckyWheel.vue'
+import PredictionDialog from '@/components/PredictionDialog.vue'
 import TreasureDialog from '@/components/TreasureDialog.vue'
 import { getUserInfo } from '@/api'
 import { getLuckyWheelUserStatus } from '@/services/wheelService'
@@ -393,6 +397,7 @@ export default {
   name: 'Activities',
   components: {
     LuckyWheel,
+    PredictionDialog,
     TreasureDialog
   },
   data() {
@@ -443,6 +448,16 @@ export default {
           iconColor: 'deep-purple',
           enabled: true,
           requireCredits: 5,
+          costCredits: 0
+        },
+        {
+          id: 'prediction',
+          title: '大预言家',
+          description: '📈 预测事件结果，按彩池分配奖励',
+          icon: 'mdi-chart-line',
+          iconColor: 'indigo',
+          enabled: true,
+          requireCredits: 10,
           costCredits: 0
         },
         {
@@ -591,6 +606,8 @@ export default {
       
       if (activity.id === 'treasure') {
         this.$refs.treasureDialog?.open()
+      } else if (activity.id === 'prediction') {
+        this.$refs.predictionDialog?.open()
       } else if (activity.id === 'lucky-wheel') {
         this.showLuckyWheelDialog = true
       } else if (activity.id === 'auction') {
