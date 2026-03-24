@@ -182,7 +182,7 @@ async def list_markets(
         raise HTTPException(status_code=500, detail="获取预测题目列表失败")
 
 
-@router.get("/{market_id}", response_model=PredictionMarketDetailResponse)
+@router.get("/{market_id:int}", response_model=PredictionMarketDetailResponse)
 @require_telegram_auth
 async def get_market_detail(
     request: Request,
@@ -224,7 +224,7 @@ async def get_market_detail(
     )
 
 
-@router.get("/{market_id}/bets", response_model=PredictionBetListResponse)
+@router.get("/{market_id:int}/bets", response_model=PredictionBetListResponse)
 @require_telegram_auth
 async def list_market_bets(
     request: Request,
@@ -241,7 +241,7 @@ async def list_market_bets(
         raise HTTPException(status_code=500, detail="获取押注记录失败")
 
 
-@router.post("/{market_id}/bet", response_model=dict)
+@router.post("/{market_id:int}/bet", response_model=dict)
 @require_telegram_auth
 async def place_bet(
     request: Request,
@@ -334,7 +334,7 @@ async def create_market(
         raise HTTPException(status_code=500, detail="创建预测题目失败")
 
 
-@router.post("/{market_id}/close", response_model=dict)
+@router.post("/{market_id:int}/close", response_model=dict)
 @require_telegram_auth
 async def close_market_betting(
     request: Request,
@@ -355,7 +355,7 @@ async def close_market_betting(
         raise HTTPException(status_code=500, detail="截止押注失败")
 
 
-@router.post("/{market_id}/resolve", response_model=dict)
+@router.post("/{market_id:int}/resolve", response_model=dict)
 @require_telegram_auth
 async def resolve_market(
     request: Request,
@@ -448,3 +448,17 @@ async def resolve_market(
     except Exception as e:
         logger.error(f"裁决失败: {e}")
         raise HTTPException(status_code=500, detail="裁决失败")
+
+
+@router.get("/user-stats")
+@require_telegram_auth
+async def get_user_prediction_stats(
+    request: Request, current_user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取用户大预言家个人统计。"""
+    try:
+        stats = db.get_prediction_user_stats(int(current_user.id))
+        return {"success": True, "data": stats}
+    except Exception as e:
+        logger.error(f"获取大预言家用户统计失败: {e}")
+        raise HTTPException(status_code=500, detail="获取大预言家用户统计失败")

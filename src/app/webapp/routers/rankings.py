@@ -374,6 +374,82 @@ async def get_treasure_game_rankings(
         raise HTTPException(status_code=500, detail="获取夺宝奇兵排行榜数据失败")
 
 
+@router.get("/rankings/game/prediction")
+@require_telegram_auth
+async def get_prediction_game_rankings(
+    request: Request, user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取大预言家游戏排行榜数据"""
+    logger.info(
+        f"{user.username or user.first_name or user.id} 开始获取大预言家排行榜数据"
+    )
+
+    try:
+        prediction_net_profit_rank = []
+        prediction_win_rate_rank = []
+
+        try:
+            logger.debug("正在查询大预言家净盈亏排行")
+            net_profit_data = db.get_prediction_net_profit_rank()
+            if net_profit_data:
+                prediction_net_profit_rank = [
+                    {
+                        "tg_id": info["tg_id"],
+                        "name": get_user_name_from_tg_id(info["tg_id"]),
+                        "net_profit": float(info.get("net_profit") or 0),
+                        "win_rate": float(info.get("win_rate") or 0),
+                        "settled_markets": int(info.get("settled_markets") or 0),
+                        "win_markets": int(info.get("win_markets") or 0),
+                        "total_bet_amount": float(info.get("total_bet_amount") or 0),
+                        "total_payout_amount": float(
+                            info.get("total_payout_amount") or 0
+                        ),
+                        "avatar": get_user_avatar_from_tg_id(info["tg_id"]),
+                        "is_self": info["tg_id"] == user.id,
+                    }
+                    for info in net_profit_data
+                    if info["tg_id"] not in settings.TG_ADMIN_CHAT_ID
+                ]
+        except Exception as e:
+            logger.error(f"获取大预言家净盈亏排行失败: {str(e)}")
+
+        try:
+            logger.debug("正在查询大预言家胜率排行")
+            win_rate_data = db.get_prediction_win_rate_rank()
+            if win_rate_data:
+                prediction_win_rate_rank = [
+                    {
+                        "tg_id": info["tg_id"],
+                        "name": get_user_name_from_tg_id(info["tg_id"]),
+                        "win_rate": float(info.get("win_rate") or 0),
+                        "net_profit": float(info.get("net_profit") or 0),
+                        "settled_markets": int(info.get("settled_markets") or 0),
+                        "win_markets": int(info.get("win_markets") or 0),
+                        "total_bet_amount": float(info.get("total_bet_amount") or 0),
+                        "total_payout_amount": float(
+                            info.get("total_payout_amount") or 0
+                        ),
+                        "avatar": get_user_avatar_from_tg_id(info["tg_id"]),
+                        "is_self": info["tg_id"] == user.id,
+                    }
+                    for info in win_rate_data
+                    if info["tg_id"] not in settings.TG_ADMIN_CHAT_ID
+                ]
+        except Exception as e:
+            logger.error(f"获取大预言家胜率排行失败: {str(e)}")
+
+        logger.info(
+            f"{user.username or user.first_name or user.id} 获取大预言家排行榜数据成功"
+        )
+        return {
+            "prediction_net_profit_rank": prediction_net_profit_rank,
+            "prediction_win_rate_rank": prediction_win_rate_rank,
+        }
+    except Exception as e:
+        logger.error(f"获取大预言家排行榜数据时发生未预期的错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取大预言家排行榜数据失败")
+
+
 @router.get("/rankings/traffic/plex")
 @require_telegram_auth
 async def get_plex_traffic_rankings(

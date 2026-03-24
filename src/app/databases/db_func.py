@@ -26,6 +26,7 @@ from app.log import logger
 from app.models.models import (
     EmbyUser,
     PlexUser,
+    PredictionBet,
     Statistics,
     TreasureParticipation,
     UserBadge,
@@ -1840,6 +1841,7 @@ async def check_and_award_game_king_badge(
     获取条件（满足任一）：
     - 幸运大转盘累计游戏次数 >= 5000 次
     - 夺宝奇兵累计参与期数 >= 500 期
+    - 大预言家累计参与预测次数 >= 500 次
 
     Args:
         user_id: 可选，指定用户的 Telegram ID。如果提供，只检查该用户；否则检查所有符合条件的用户。
@@ -1849,6 +1851,7 @@ async def check_and_award_game_king_badge(
     """
     WHEEL_SPIN_THRESHOLD = 5000
     TREASURE_ISSUE_THRESHOLD = 500
+    PREDICTION_BET_THRESHOLD = 500
     BADGE_TYPE = "game_king"
 
     if user_id:
@@ -1864,7 +1867,11 @@ async def check_and_award_game_king_badge(
             badge_info = db.create_badge(
                 badge_type=BADGE_TYPE,
                 name="游戏王勋章",
-                description=f"此勋章授予游戏达人：大转盘累计游戏 {WHEEL_SPIN_THRESHOLD} 次，或夺宝奇兵累计参与 {TREASURE_ISSUE_THRESHOLD} 期",
+                description=(
+                    f"此勋章授予游戏达人：大转盘累计游戏 {WHEEL_SPIN_THRESHOLD} 次，"
+                    f"或夺宝奇兵累计参与 {TREASURE_ISSUE_THRESHOLD} 期，"
+                    f"或大预言家累计参与预测 {PREDICTION_BET_THRESHOLD} 次"
+                ),
                 icon_url="/badges/game_king.svg",
                 credits_cost=0,
                 bonus_percentage=0,
@@ -1883,7 +1890,7 @@ async def check_and_award_game_king_badge(
         # 2. 查询符合条件的用户
         with get_session() as session:
             if user_id:
-                # 单用户模式：分别检查大转盘次数和夺宝参与期数
+                # 单用户模式：分别检查大转盘次数、夺宝参与期数、大预言家预测次数
                 wheel_count = (
                     session.execute(
                         select(func.count(WheelStats.id)).where(
@@ -1900,21 +1907,31 @@ async def check_and_award_game_king_badge(
                     ).scalar()
                     or 0
                 )
+                prediction_count = (
+                    session.execute(
+                        select(func.count(PredictionBet.id)).where(
+                            PredictionBet.tg_id == user_id
+                        )
+                    ).scalar()
+                    or 0
+                )
 
                 if (
                     wheel_count < WHEEL_SPIN_THRESHOLD
                     and treasure_count < TREASURE_ISSUE_THRESHOLD
+                    and prediction_count < PREDICTION_BET_THRESHOLD
                 ):
                     logger.info(
                         f"用户 {user_id} 不满足游戏王条件："
                         f"大转盘 {wheel_count}/{WHEEL_SPIN_THRESHOLD} 次，"
-                        f"夺宝期数 {treasure_count}/{TREASURE_ISSUE_THRESHOLD} 期"
+                        f"夺宝期数 {treasure_count}/{TREASURE_ISSUE_THRESHOLD} 期，"
+                        f"大预言家预测 {prediction_count}/{PREDICTION_BET_THRESHOLD} 次"
                     )
                     return False
 
                 eligible_tg_ids = [user_id]
             else:
-                # 批量模式：用 UNION 合并大转盘和夺宝奇兵两个子查询
+                # 批量模式：用 UNION 合并大转盘、夺宝奇兵、大预言家三个子查询
                 wheel_subq = (
                     select(WheelStats.tg_id)
                     .group_by(WheelStats.tg_id)
@@ -1928,7 +1945,12 @@ async def check_and_award_game_king_badge(
                         >= TREASURE_ISSUE_THRESHOLD
                     )
                 )
-                union_stmt = union(wheel_subq, treasure_subq)
+                prediction_subq = (
+                    select(PredictionBet.tg_id)
+                    .group_by(PredictionBet.tg_id)
+                    .having(func.count(PredictionBet.id) >= PREDICTION_BET_THRESHOLD)
+                )
+                union_stmt = union(wheel_subq, treasure_subq, prediction_subq)
                 rows = session.execute(union_stmt).fetchall()
                 eligible_tg_ids = [row[0] for row in rows]
 
@@ -1983,8 +2005,6 @@ async def check_and_award_game_king_badge(
                             f"🎮 恭喜获得勋章！\n"
                             f"====================\n\n"
                             f"勋章名称：{badge_name}\n"
-                            f"获得原因：幸运大转盘游戏次数达到 {WHEEL_SPIN_THRESHOLD} 次，"
-                            f"或夺宝奇兵参与期数达到 {TREASURE_ISSUE_THRESHOLD} 期\n"
                             f"有效期限：永久\n\n"
                             f"感谢您的热情参与！\n\n"
                             f"====================",

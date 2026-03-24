@@ -838,7 +838,8 @@
                       v-model="gameSource"
                       :items="[
                         { title: '幸运大转盘', value: 'wheel' },
-                        { title: '夺宝奇兵', value: 'treasure' }
+                        { title: '夺宝奇兵', value: 'treasure' },
+                        { title: '大预言家', value: 'prediction' }
                       ]"
                       item-title="title"
                       item-value="value"
@@ -849,8 +850,8 @@
                       color="primary"
                     >
                       <template v-slot:prepend-inner>
-                        <v-icon size="16" :color="gameSource === 'wheel' ? 'indigo' : 'amber-darken-2'">
-                          {{ gameSource === 'wheel' ? 'mdi-wheel-barrow' : 'mdi-treasure-chest' }}
+                        <v-icon size="16" :color="getGameSourceIconColor()">
+                          {{ getGameSourceIcon() }}
                         </v-icon>
                       </template>
                     </v-select>
@@ -1295,7 +1296,7 @@
 </template>
 
 <script>
-import { getCreditsRankings, getDonationRankings, getPlexWatchedTimeRankings, getEmbyWatchedTimeRankings, getPlexTrafficRankings, getEmbyTrafficRankings, getInvitationRankings, getBadgeRankings, getWheelGameRankings, getTreasureGameRankings } from '@/api'
+import { getCreditsRankings, getDonationRankings, getPlexWatchedTimeRankings, getEmbyWatchedTimeRankings, getPlexTrafficRankings, getEmbyTrafficRankings, getInvitationRankings, getBadgeRankings, getWheelGameRankings, getTreasureGameRankings, getPredictionGameRankings } from '@/api'
 import { getWatchLevelIcons } from '@/utils/watchLevel.js'
 import { getUserBadges } from '@/services/badgeService.js'
 
@@ -1326,6 +1327,8 @@ export default {
         wheel_invite_code_rank: [],
         treasure_win_issue_rank: [],
         treasure_win_credits_rank: [],
+        prediction_net_profit_rank: [],
+        prediction_win_rate_rank: [],
         invitation_rank: []
       },
       loading: {
@@ -1341,7 +1344,8 @@ export default {
         'traffic-plex': false,
         'traffic-emby': false,
         'game-wheel': false,
-        'game-treasure': false
+        'game-treasure': false,
+        'game-prediction': false
       },
       loaded: {
         credits: false,
@@ -1356,7 +1360,8 @@ export default {
         'traffic-plex': false,
         'traffic-emby': false,
         'game-wheel': false,
-        'game-treasure': false
+        'game-treasure': false,
+        'game-prediction': false
       },
       error: null,
       userBadgesMap: {}, // 用户ID到勋章列表的映射
@@ -1688,13 +1693,26 @@ export default {
             treasure_win_issue_rank: this.rankings.treasure_win_issue_rank,
             treasure_win_credits_rank: this.rankings.treasure_win_credits_rank
           })
+        } else if (source === 'prediction') {
+          console.log('调用大预言家排行榜API...')
+          response = await getPredictionGameRankings()
+          this.rankings.prediction_net_profit_rank = response.data.prediction_net_profit_rank || []
+          this.rankings.prediction_win_rate_rank = response.data.prediction_win_rate_rank || []
+          await this.loadBadgesForRankings([
+            ...this.rankings.prediction_net_profit_rank,
+            ...this.rankings.prediction_win_rate_rank
+          ])
+          console.log('大预言家排行榜数据:', {
+            prediction_net_profit_rank: this.rankings.prediction_net_profit_rank,
+            prediction_win_rate_rank: this.rankings.prediction_win_rate_rank
+          })
         }
 
         this.loaded[gameKey] = true
         this.syncGameRankingTypeBySource(source)
         console.log(`${source} 游戏榜数据加载完成`)
       } catch (err) {
-        this.error = err.response?.data?.detail || `获取${source === 'wheel' ? '幸运大转盘' : '夺宝奇兵'}排行榜失败`
+        this.error = err.response?.data?.detail || `获取${source === 'wheel' ? '幸运大转盘' : source === 'treasure' ? '夺宝奇兵' : '大预言家'}排行榜失败`
         console.error(`获取${source} 游戏榜失败:`, err)
       } finally {
         this.loading[gameKey] = false
@@ -1757,6 +1775,9 @@ export default {
       if (source === 'treasure' && !['treasure_win_issue', 'treasure_win_credits'].includes(this.gameRankingType)) {
         this.gameRankingType = 'treasure_win_issue'
       }
+      if (source === 'prediction' && !['prediction_net_profit', 'prediction_win_rate'].includes(this.gameRankingType)) {
+        this.gameRankingType = 'prediction_net_profit'
+      }
     },
 
     getGameRankingTypeOptions() {
@@ -1764,6 +1785,12 @@ export default {
         return [
           { title: '积分赚取排名', value: 'wheel_credits' },
           { title: '邀请码赚取排名', value: 'wheel_invite_code' }
+        ]
+      }
+      if (this.gameSource === 'prediction') {
+        return [
+          { title: '积分净盈亏排名', value: 'prediction_net_profit' },
+          { title: '胜率排名', value: 'prediction_win_rate' }
         ]
       }
       return [
@@ -1782,6 +1809,10 @@ export default {
           return this.rankings.treasure_win_issue_rank
         case 'treasure_win_credits':
           return this.rankings.treasure_win_credits_rank
+        case 'prediction_net_profit':
+          return this.rankings.prediction_net_profit_rank
+        case 'prediction_win_rate':
+          return this.rankings.prediction_win_rate_rank
         default:
           return []
       }
@@ -1792,7 +1823,9 @@ export default {
         wheel_credits: '转盘赚取积分排名',
         wheel_invite_code: '邀请码赚取排名',
         treasure_win_issue: '中奖期数排名',
-        treasure_win_credits: '中奖积分排名'
+        treasure_win_credits: '中奖积分排名',
+        prediction_net_profit: '大预言家净盈亏排名',
+        prediction_win_rate: '大预言家胜率排名'
       }
       return titleMap[this.gameRankingType] || '游戏排名'
     },
@@ -1807,6 +1840,10 @@ export default {
           return `${item.win_issue_count || 0} 期`
         case 'treasure_win_credits':
           return `${item.win_credits || 0} 积分`
+        case 'prediction_net_profit':
+          return `${Number(item.net_profit || 0) >= 0 ? '+' : ''}${Number(item.net_profit || 0).toFixed(2)} 积分 (${item.settled_markets || 0} 题)`
+        case 'prediction_win_rate':
+          return `${Number(item.win_rate || 0).toFixed(2)}% (${item.win_markets || 0}/${item.settled_markets || 0})`
         default:
           return '0'
       }
@@ -1822,6 +1859,10 @@ export default {
           return 'mdi-trophy'
         case 'treasure_win_credits':
           return 'mdi-diamond-stone'
+        case 'prediction_net_profit':
+          return 'mdi-chart-line'
+        case 'prediction_win_rate':
+          return 'mdi-percent'
         default:
           return 'mdi-gamepad-variant'
       }
@@ -1837,9 +1878,39 @@ export default {
           return 'deep-orange'
         case 'treasure_win_credits':
           return 'teal'
+        case 'prediction_net_profit':
+          return 'indigo'
+        case 'prediction_win_rate':
+          return 'purple'
         default:
           return 'primary'
       }
+    },
+
+    getGameSourceIcon() {
+      if (this.gameSource === 'wheel') {
+        return 'mdi-wheel-barrow'
+      }
+      if (this.gameSource === 'treasure') {
+        return 'mdi-treasure-chest'
+      }
+      if (this.gameSource === 'prediction') {
+        return 'mdi-crystal-ball'
+      }
+      return 'mdi-gamepad-variant'
+    },
+
+    getGameSourceIconColor() {
+      if (this.gameSource === 'wheel') {
+        return 'indigo'
+      }
+      if (this.gameSource === 'treasure') {
+        return 'amber-darken-2'
+      }
+      if (this.gameSource === 'prediction') {
+        return 'indigo-darken-1'
+      }
+      return 'primary'
     },
     
     // 使用导入的工具函数，直接传递观看时间参数

@@ -27,3 +27,7 @@ export const closePredictionMarket = (marketId) => {
 export const resolvePredictionMarket = (marketId, payload) => {
   return apiClient.post(`/api/prediction/${marketId}/resolve`, payload)
 }
+
+export const getUserPredictionStats = () => {
+  return apiClient.get('/api/prediction/user-stats')
+}

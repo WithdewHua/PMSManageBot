@@ -836,6 +836,134 @@
                   </div>
                 </v-expand-transition>
               </div>
+
+              <!-- 大预言家数据 -->
+              <div class="activity-section prediction-section">
+                <v-divider class="my-3"></v-divider>
+                <div class="section-header section-header-with-action">
+                  <div class="d-flex align-center">
+                    <v-icon size="small" color="indigo-darken-1" class="mr-2">mdi-crystal-ball</v-icon>
+                    <span class="section-title">大预言家</span>
+                  </div>
+                  <v-btn
+                    size="small"
+                    variant="text"
+                    color="primary"
+                    class="list-toggle-btn"
+                    @click="predictionSectionExpanded = !predictionSectionExpanded"
+                  >
+                    {{ predictionSectionExpanded ? '收起' : '展开' }}
+                    <v-icon end size="small">{{ predictionSectionExpanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+                  </v-btn>
+                </div>
+                <v-expand-transition>
+                  <div v-show="predictionSectionExpanded">
+                    <div class="treasure-stats-grid">
+                      <div class="stats-card prediction-stats">
+                        <div class="stats-card-header">
+                          <v-icon size="small" color="indigo-darken-1">mdi-chart-box-outline</v-icon>
+                          <span>预测统计</span>
+                        </div>
+                        <div class="stats-items">
+                          <div class="stat-item">
+                            <span class="stat-label">已结算题目</span>
+                            <span class="stat-value prediction-value">{{ predictionStats.settled_markets || 0 }}</span>
+                          </div>
+                          <div class="stat-item">
+                            <span class="stat-label">命中题目</span>
+                            <span class="stat-value prediction-value">{{ predictionStats.win_markets || 0 }}</span>
+                          </div>
+                          <div class="stat-item">
+                            <span class="stat-label">胜率</span>
+                            <span class="stat-value prediction-value">{{ Number(predictionStats.win_rate || 0).toFixed(2) }}%</span>
+                          </div>
+                          <div class="stat-item">
+                            <span class="stat-label">净盈亏</span>
+                            <span
+                              class="stat-value prediction-value"
+                              :class="Number(predictionStats.net_profit || 0) >= 0 ? 'positive' : 'negative'"
+                            >
+                              {{ Number(predictionStats.net_profit || 0) >= 0 ? '+' : '' }}{{ Number(predictionStats.net_profit || 0).toFixed(2) }}
+                            </span>
+                          </div>
+                          <div class="stat-item">
+                            <span class="stat-label">累计下注</span>
+                            <span class="stat-value prediction-value">{{ Number(predictionStats.total_bet_amount || 0).toFixed(2) }}</span>
+                          </div>
+                          <div class="stat-item">
+                            <span class="stat-label">累计返还</span>
+                            <span class="stat-value prediction-value">{{ Number(predictionStats.total_payout_amount || 0).toFixed(2) }}</span>
+                          </div>
+                          <div class="stat-item">
+                            <span class="stat-label">未结算题目</span>
+                            <span class="stat-value prediction-value">{{ predictionStats.unsettled_markets || 0 }}</span>
+                          </div>
+                          <div class="stat-item">
+                            <span class="stat-label">未结算占用</span>
+                            <span class="stat-value prediction-value">{{ Number(predictionStats.unsettled_bet_amount || 0).toFixed(2) }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      v-if="predictionStats.recent_settlements && predictionStats.recent_settlements.length > 0"
+                      class="recent-games-section"
+                    >
+                      <v-divider class="my-3"></v-divider>
+                      <div class="section-header section-header-with-action">
+                        <div class="d-flex align-center">
+                          <v-icon size="small" color="indigo-darken-1" class="mr-2">mdi-history</v-icon>
+                          <span class="section-title">最近结算记录</span>
+                        </div>
+                        <v-btn
+                          size="small"
+                          variant="text"
+                          color="primary"
+                          class="list-toggle-btn"
+                          @click="predictionRecordsExpanded = !predictionRecordsExpanded"
+                        >
+                          {{ predictionRecordsExpanded ? '收起' : '展开' }}
+                          <v-icon end size="small">{{ predictionRecordsExpanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+                        </v-btn>
+                      </div>
+                      <v-expand-transition>
+                        <div v-show="predictionRecordsExpanded" class="recent-games-list prediction-recent-list">
+                          <div
+                            v-for="(record, index) in predictionStats.recent_settlements"
+                            :key="`prediction-${index}`"
+                            class="recent-game-item"
+                          >
+                            <div class="game-result">
+                              <v-chip
+                                size="small"
+                                :color="record.is_win ? 'success' : 'grey-darken-1'"
+                                class="game-chip"
+                                :title="record.title"
+                              >
+                                #{{ record.market_id }} {{ record.title }}
+                              </v-chip>
+                            </div>
+                            <div class="game-change">
+                              <span class="change-value negative">-{{ Number(record.bet_amount || 0).toFixed(2) }}</span>
+                              <span v-if="Number(record.payout_amount || 0) > 0" class="change-value positive ml-1">+{{ Number(record.payout_amount || 0).toFixed(2) }}</span>
+                              <span
+                                class="change-value ml-1"
+                                :class="Number(record.net_profit || 0) >= 0 ? 'positive' : 'negative'"
+                              >
+                                ({{ Number(record.net_profit || 0) >= 0 ? '+' : '' }}{{ Number(record.net_profit || 0).toFixed(2) }})
+                              </span>
+                            </div>
+                            <div class="game-date">
+                              {{ formatPredictionSettleDate(record.resolved_at) }}
+                            </div>
+                          </div>
+                        </div>
+                      </v-expand-transition>
+                    </div>
+                  </div>
+                </v-expand-transition>
+              </div>
             </div>
           </v-card-text>
         </v-card>
@@ -1034,6 +1162,7 @@ import { redeemInviteCodeForCredits } from '@/services/inviteCodeService.js'
 import { checkPrivilegedInviteCode, batchCheckPrivilegedInviteCodes } from '@/services/mediaServiceApi.js'
 import { getUserActivityStats } from '@/services/wheelService.js'
 import { getUserTreasureStats } from '@/services/treasureService.js'
+import { getUserPredictionStats } from '@/services/predictionService.js'
 import { formatTraffic } from '@/utils/format.js'
 import { getMyBadges } from '@/services/badgeService.js'
 
@@ -1106,6 +1235,19 @@ export default {
       treasureLoading: false,
       treasureSectionExpanded: false,
       treasureRecordsExpanded: false,
+      predictionSectionExpanded: false,
+      predictionRecordsExpanded: false,
+      predictionStats: {
+        settled_markets: 0,
+        win_markets: 0,
+        win_rate: 0,
+        total_bet_amount: 0,
+        total_payout_amount: 0,
+        net_profit: 0,
+        unsettled_markets: 0,
+        unsettled_bet_amount: 0,
+        recent_settlements: []
+      },
       systemStatus: {
         site_name: '', // 默认值，从后端获取后会更新
         emby_entry_url: '', // 默认值，从后端获取后会更新
@@ -1128,6 +1270,7 @@ export default {
     this.fetchUserInfo()
     this.fetchActivityStats()
     this.fetchTreasureStats()
+    this.fetchPredictionStats()
     this.fetchSystemStatus() // 这里会同时获取系统状态和积分转移开关状态
     this.fetchUserBadges()
   },
@@ -1219,6 +1362,22 @@ export default {
         // 不显示错误，使用默认值
       } finally {
         this.treasureLoading = false
+      }
+    },
+
+    // 获取大预言家统计数据
+    async fetchPredictionStats() {
+      try {
+        const response = await getUserPredictionStats()
+        if (response.data && response.data.success) {
+          this.predictionStats = {
+            ...this.predictionStats,
+            ...response.data.data
+          }
+        }
+      } catch (err) {
+        console.error('获取大预言家统计数据失败:', err)
+        // 不显示错误，使用默认值
       }
     },
 
@@ -1787,6 +1946,31 @@ export default {
       if (!dateValue) return '未知时间'
       try {
         const date = new Date(dateValue)
+        if (Number.isNaN(date.getTime())) {
+          return '未知时间'
+        }
+
+        const now = new Date()
+        const diffMs = now - date
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+        if (diffDays === 0) {
+          return '今天'
+        }
+        if (diffDays === 1) {
+          return '昨天'
+        }
+        return date.toLocaleDateString('zh-CN')
+      } catch (error) {
+        return '未知时间'
+      }
+    },
+
+    // 格式化大预言家结算时间
+    formatPredictionSettleDate(timestamp) {
+      if (!timestamp) return '未知时间'
+      try {
+        const date = new Date(Number(timestamp) * 1000)
         if (Number.isNaN(date.getTime())) {
           return '未知时间'
         }
@@ -2769,6 +2953,44 @@ export default {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
+  /* 大预言家最近结算记录：移动端改为两行布局，避免拥挤 */
+  .prediction-recent-list .recent-game-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "result result"
+      "change date";
+    align-items: center;
+    gap: 6px;
+    padding: 10px 8px;
+  }
+
+  .prediction-recent-list .game-result {
+    grid-area: result;
+    min-width: 0;
+  }
+
+  .prediction-recent-list .game-change {
+    grid-area: change;
+    justify-self: start;
+    text-align: left;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .prediction-recent-list .game-date {
+    grid-area: date;
+    justify-self: end;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .prediction-recent-list .game-chip {
+    max-width: 100%;
+  }
 }
 
 /* 超小屏幕优化 */
@@ -2799,6 +3021,21 @@ export default {
   
   .game-date {
     font-size: 9px;
+  }
+
+  .prediction-recent-list .recent-game-item {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "result"
+      "change"
+      "date";
+    gap: 4px;
+    padding: 8px 6px;
+  }
+
+  .prediction-recent-list .game-date {
+    justify-self: start;
+    text-align: left;
   }
 }
 
