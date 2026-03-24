@@ -61,9 +61,8 @@
         >
           十连抽
         </v-btn>
-        <div class="ten-spin-hint">
+        <div v-if="isTenSpinDisabled" class="ten-spin-hint">
           十连抽参与条件：({{ minCreditsRequired }} + {{ costCredits }}) × 10 = {{ tenSpinRequiredCredits }}
-          <span v-if="userCredits !== null">，当前积分：{{ Number(userCredits).toFixed(2) }}</span>
         </div>
       </div>
     </div>
@@ -703,8 +702,13 @@ export default {
 
 .ten-spin-hint {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.9);
+  color: #5f6368;
   text-align: center;
+  background: #f5f7fa;
+  border: 1px solid #d9dee7;
+  border-radius: 8px;
+  padding: 6px 10px;
+  line-height: 1.4;
 }
 
 .ten-spin-results {
