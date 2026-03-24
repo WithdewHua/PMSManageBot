@@ -6,7 +6,7 @@ import traceback
 
 from app.config import settings
 from app.databases import db
-from app.databases.db_func import add_redeem_code
+from app.databases.db_func import add_redeem_code, check_and_award_game_king_badge
 from app.log import logger
 from app.premium import update_premium_status
 from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
@@ -21,7 +21,7 @@ from app.webapp.schemas.luckywheel import (
     LuckyWheelSpinResult,
     LuckyWheelTenSpinResult,
 )
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 router = APIRouter(prefix="/luckywheel", tags=["幸运大转盘"])
@@ -341,7 +341,9 @@ async def update_config(
 @router.post("/spin", response_model=LuckyWheelSpinResult)
 @require_telegram_auth
 async def spin_wheel(
-    request: Request, current_user: TelegramUser = Depends(get_telegram_user)
+    request: Request,
+    background_tasks: BackgroundTasks,
+    current_user: TelegramUser = Depends(get_telegram_user),
 ):
     """转动转盘"""
     try:
@@ -372,6 +374,11 @@ async def spin_wheel(
             f"用户 {get_user_name_from_tg_id(user_id)} 转盘结果: {spin_result.item.name}, 积分变化: {spin_result.credits_change}, 最终积分: {final_credits}"
         )
 
+        background_tasks.add_task(
+            check_and_award_game_king_badge,
+            user_id=int(user_id),
+        )
+
         return spin_result
 
     except HTTPException:
@@ -386,7 +393,9 @@ async def spin_wheel(
 @router.post("/spin-ten", response_model=LuckyWheelTenSpinResult)
 @require_telegram_auth
 async def spin_wheel_ten_times(
-    request: Request, current_user: TelegramUser = Depends(get_telegram_user)
+    request: Request,
+    background_tasks: BackgroundTasks,
+    current_user: TelegramUser = Depends(get_telegram_user),
 ):
     """转盘十连抽"""
     try:
@@ -437,6 +446,11 @@ async def spin_wheel_ten_times(
                     text=f"用户 {get_user_name_from_tg_id(user_id)} 在十连抽中获得了特权邀请码",
                     token=settings.TG_API_TOKEN,
                 )
+
+        background_tasks.add_task(
+            check_and_award_game_king_badge,
+            user_id=int(user_id),
+        )
 
         return LuckyWheelTenSpinResult(
             results=results,

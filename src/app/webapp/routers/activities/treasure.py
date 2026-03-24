@@ -1,5 +1,6 @@
 from app.config import settings
 from app.databases import db
+from app.databases.db_func import check_and_award_game_king_badge
 from app.log import uvicorn_logger as logger
 from app.utils.number import normalize_external_random_b
 from app.utils.utils import get_user_name_from_tg_id
@@ -17,7 +18,7 @@ from app.webapp.schemas.treasure import (
     TreasureParticipationItem,
     TreasureParticipationListResponse,
 )
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 
 
 async def _auto_create_next_treasure_issue_from(*, source_issue_id: int) -> None:
@@ -336,6 +337,7 @@ async def list_participations(
 async def join_issue(
     request: Request,
     issue_id: int,
+    background_tasks: BackgroundTasks,
     data: TreasureJoinRequest,
     current_user: TelegramUser = Depends(get_telegram_user),
 ):
@@ -446,6 +448,11 @@ async def join_issue(
                 schedule_auto_reopen_treasure_issue(source_issue_id=int(issue_id))
             except Exception as e:
                 logger.warning(f"Treasure auto reopen schedule failed: {e}")
+
+        background_tasks.add_task(
+            check_and_award_game_king_badge,
+            user_id=int(current_user.id),
+        )
 
         return TreasureJoinResponse(
             success=True,

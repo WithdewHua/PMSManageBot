@@ -1,6 +1,7 @@
 import time
 
 from app.databases import db
+from app.databases.db_func import check_and_award_game_king_badge
 from app.log import uvicorn_logger as logger
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
@@ -246,6 +247,7 @@ async def list_market_bets(
 async def place_bet(
     request: Request,
     market_id: int,
+    background_tasks: BackgroundTasks,
     data: PredictionBetRequest,
     current_user: TelegramUser = Depends(get_telegram_user),
 ):
@@ -271,6 +273,11 @@ async def place_bet(
             )
         except Exception as e:
             logger.warning(f"Prediction bet notify failed: {e}")
+
+        background_tasks.add_task(
+            check_and_award_game_king_badge,
+            user_id=int(current_user.id),
+        )
 
         return {"success": True, **result}
     except ValueError as e:
