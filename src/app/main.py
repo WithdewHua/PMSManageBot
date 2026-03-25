@@ -9,6 +9,7 @@ from app.databases.db_func import (
     check_and_award_game_king_badge,
     check_and_award_supreme_contributor_badge,
     check_expired_crypto_donation_orders,
+    check_prediction_markets_closing_soon_job,
     finish_expired_auctions_job,
     monthly_traffic_data_migration,
     rewrite_users_credits_to_redis,
@@ -239,6 +240,19 @@ def add_init_scheduler_job():
         + datetime.timedelta(seconds=30),  # 启动后执行一次
     )
     logger.info("添加定时任务：每 1 小时更新用户信息")
+
+    # 每 1 小时检查一次大预言家押注中且 6 小时内截止的题目，并发送群组汇总通知
+    scheduler.add_async_job(
+        func=check_prediction_markets_closing_soon_job,
+        trigger="interval",
+        id="check_prediction_markets_closing_soon_job",
+        replace_existing=True,
+        max_instances=1,
+        hours=1,
+        next_run_time=datetime.datetime.now(settings.TZ)
+        + datetime.timedelta(minutes=2),  # 启动后 2 分钟先执行一次
+    )
+    logger.info("添加定时任务：每 1 小时检查大预言家 6 小时内截止题目并发送群组提醒")
 
     # 每 30min 更新一次用户最后观看时间
     scheduler.add_sync_job(

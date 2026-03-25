@@ -72,6 +72,62 @@ async def notify_prediction_market_created(
     await send_message_by_url(chat_id=chat_id, text=text, parse_mode="HTML")
 
 
+async def notify_prediction_markets_closing_soon(
+    *,
+    markets: list[dict],
+    threshold_hours: int = 6,
+) -> None:
+    """群组通知：押注截止时间临近的题目汇总。"""
+    from datetime import datetime
+
+    from app.config import settings
+    from app.utils.utils import send_message_by_url
+
+    chat_id = _get_group_chat_id()
+    if not chat_id:
+        logger.info(
+            "TG_GROUP not configured; skip prediction closing soon notification"
+        )
+        return
+
+    if not markets:
+        logger.info("No prediction markets closing soon; skip group notification")
+        return
+
+    now_ts = int(time.time())
+    lines: list[str] = []
+    for idx, market in enumerate(markets, 1):
+        market_id = int(market.get("id") or 0)
+        title = str(market.get("title") or "")
+        betting_deadline = int(market.get("betting_deadline") or 0)
+
+        remain_seconds = max(0, int(betting_deadline) - int(now_ts))
+        remain_minutes = remain_seconds // 60
+        remain_hours = remain_minutes // 60
+        remain_mins = remain_minutes % 60
+        remain_text = f"{remain_hours}h {remain_mins}m"
+
+        try:
+            deadline_text = datetime.fromtimestamp(
+                int(betting_deadline), tz=settings.TZ
+            ).strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            deadline_text = str(int(betting_deadline))
+
+        lines.append(
+            f"{idx}. #{market_id} {title}\\n"
+            f"   截止：{deadline_text}（剩余 {remain_text}）"
+        )
+
+    text = (
+        f"⏰ <b>大预言家截止提醒</b>（{int(threshold_hours)}h 内）\\n"
+        f"共 {len(markets)} 题即将截止押注：\\n\\n"
+        + "\\n".join(lines)
+        + "\\n\\n入口：WebApp 活动页 → 大预言家"
+    )
+    await send_message_by_url(chat_id=chat_id, text=text, parse_mode="HTML")
+
+
 async def notify_prediction_market_resolved(
     *,
     market_id: int,
