@@ -50,9 +50,9 @@
 
   <v-dialog v-model="detailDialog" max-width="860" persistent>
     <v-card v-if="detail">
-      <v-card-title class="d-flex align-center justify-space-between">
-        <span>#{{ detail.market.id }} {{ detail.market.title }}</span>
-        <v-btn icon @click="detailDialog = false"><v-icon>mdi-close</v-icon></v-btn>
+      <v-card-title class="d-flex align-center justify-space-between prediction-detail-title">
+        <span class="prediction-detail-title__text">#{{ detail.market.id }} {{ detail.market.title }}</span>
+        <v-btn icon class="prediction-detail-title__close" @click="detailDialog = false"><v-icon>mdi-close</v-icon></v-btn>
       </v-card-title>
       <v-divider />
       <v-card-text class="pa-6">
@@ -403,6 +403,23 @@ export default {
   border-radius: 10px;
   padding: 12px;
   text-align: center;
+}
+
+.prediction-detail-title {
+  min-width: 0;
+}
+
+.prediction-detail-title__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prediction-detail-title__close {
+  flex-shrink: 0;
+  margin-left: 8px;
 }
 
 @media (max-width: 640px) {
