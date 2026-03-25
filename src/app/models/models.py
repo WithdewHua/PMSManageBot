@@ -447,6 +447,38 @@ class PredictionMarket(Base):
     )
 
 
+class PredictionMarketSubmission(Base):
+    """用户提交的预测题目（待管理员审核）。"""
+
+    __tablename__ = "prediction_market_submission"
+
+    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    betting_deadline: Mapped[int] = mapped_column(BIGINT, nullable=False, index=True)
+    status: Mapped[int] = mapped_column(SMALLINT, nullable=False, default=0, index=True)
+    submitter_tg_id: Mapped[int] = mapped_column(BIGINT, nullable=False, index=True)
+    reviewed_by: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
+    reviewed_at: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
+    review_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    market_id: Mapped[Optional[int]] = mapped_column(
+        BIGINT, ForeignKey("prediction_market.id"), nullable=True, index=True
+    )
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "status IN (0,1,2)", name="ck_prediction_market_submission_status"
+        ),
+        CheckConstraint(
+            "betting_deadline > 0",
+            name="ck_prediction_market_submission_deadline_gt_0",
+        ),
+    )
+
+
 class PredictionBet(Base):
     """预测市场押注记录。"""
 

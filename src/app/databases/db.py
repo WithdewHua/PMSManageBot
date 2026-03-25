@@ -30,6 +30,7 @@ from app.models.models import (
     PlexUser,
     PredictionBet,
     PredictionMarket,
+    PredictionMarketSubmission,
     Statistics,
     SystemConfig,
     TreasureIssue,
@@ -1623,6 +1624,158 @@ class DatabaseORM:
         yes_odds = round(total_pool / yes_den, 4) if yes_den > 0 else 0.0
         no_odds = round(total_pool / no_den, 4) if no_den > 0 else 0.0
         return yes_odds, no_odds
+
+    def submit_prediction_market(
+        self,
+        title: str,
+        betting_deadline: int,
+        submitter_tg_id: int,
+        description: Optional[str] = None,
+    ) -> int:
+        if not str(title or "").strip():
+            raise ValueError("title is required")
+
+        now_ts = int(time.time())
+        if int(betting_deadline) <= int(now_ts):
+            raise ValueError("betting_deadline must be in the future")
+
+        with get_session() as session:
+            submission = PredictionMarketSubmission(
+                title=str(title).strip(),
+                description=description,
+                betting_deadline=int(betting_deadline),
+                status=0,
+                submitter_tg_id=int(submitter_tg_id),
+            )
+            session.add(submission)
+            session.flush()
+            return int(submission.id)
+
+    def list_prediction_submissions(
+        self,
+        status: Optional[int] = None,
+        limit: int = 50,
+        submitter_tg_id: Optional[int] = None,
+    ) -> list[dict]:
+        with get_session() as session:
+            stmt = select(PredictionMarketSubmission)
+            if status is not None:
+                stmt = stmt.where(PredictionMarketSubmission.status == int(status))
+            if submitter_tg_id is not None:
+                stmt = stmt.where(
+                    PredictionMarketSubmission.submitter_tg_id == int(submitter_tg_id)
+                )
+            stmt = stmt.order_by(PredictionMarketSubmission.id.desc()).limit(limit)
+
+            rows = session.execute(stmt).scalars().all()
+            return [
+                {
+                    "id": int(r.id),
+                    "title": str(r.title or ""),
+                    "description": r.description,
+                    "betting_deadline": int(r.betting_deadline),
+                    "status": int(r.status),
+                    "submitter_tg_id": int(r.submitter_tg_id),
+                    "reviewed_by": int(r.reviewed_by)
+                    if r.reviewed_by is not None
+                    else None,
+                    "reviewed_at": int(r.reviewed_at)
+                    if r.reviewed_at is not None
+                    else None,
+                    "review_note": r.review_note,
+                    "market_id": int(r.market_id) if r.market_id is not None else None,
+                    "created_at": r.created_at,
+                }
+                for r in rows
+            ]
+
+    def review_prediction_submission(
+        self,
+        submission_id: int,
+        admin_tg_id: int,
+        approved: bool,
+        review_note: Optional[str] = None,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        betting_deadline: Optional[int] = None,
+    ) -> dict:
+        with get_session() as session:
+            submission = (
+                session.execute(
+                    select(PredictionMarketSubmission)
+                    .where(PredictionMarketSubmission.id == int(submission_id))
+                    .with_for_update()
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if not submission:
+                raise ValueError("submission not found")
+            if int(submission.status) != 0:
+                raise ValueError("submission already reviewed")
+
+            now_ts = int(time.time())
+            final_title = str(
+                title if title is not None else submission.title or ""
+            ).strip()
+            final_description = (
+                description if description is not None else submission.description
+            )
+            final_deadline = int(
+                betting_deadline
+                if betting_deadline is not None
+                else int(submission.betting_deadline)
+            )
+
+            if not final_title:
+                raise ValueError("title is required")
+            if final_deadline <= int(now_ts):
+                raise ValueError("betting_deadline must be in the future")
+
+            market_id: Optional[int] = None
+            if bool(approved):
+                market = PredictionMarket(
+                    title=final_title,
+                    description=final_description,
+                    status=1,
+                    betting_deadline=final_deadline,
+                    real_yes_pool=0,
+                    real_no_pool=0,
+                    virtual_yes_pool=500,
+                    virtual_no_pool=500,
+                    fee_rate_bp=500,
+                    fee_burn_bp=300,
+                    fee_glory_bp=200,
+                    max_bet_per_user=500,
+                    created_by=int(admin_tg_id),
+                )
+                session.add(market)
+                session.flush()
+                market_id = int(market.id)
+                submission.status = 1
+                submission.market_id = int(market_id)
+            else:
+                submission.status = 2
+
+            submission.title = final_title
+            submission.description = final_description
+            submission.betting_deadline = final_deadline
+            submission.reviewed_by = int(admin_tg_id)
+            submission.reviewed_at = int(now_ts)
+            submission.review_note = review_note
+
+            session.flush()
+
+            return {
+                "submission_id": int(submission.id),
+                "status": int(submission.status),
+                "market_id": int(submission.market_id)
+                if submission.market_id is not None
+                else None,
+                "title": str(submission.title or ""),
+                "betting_deadline": int(submission.betting_deadline),
+                "submitter_tg_id": int(submission.submitter_tg_id),
+            }
 
     def create_prediction_market(
         self,

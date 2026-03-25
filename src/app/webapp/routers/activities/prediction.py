@@ -1,5 +1,6 @@
 import time
 
+from app.config import settings
 from app.databases import db
 from app.databases.db_func import check_and_award_game_king_badge
 from app.log import uvicorn_logger as logger
@@ -15,6 +16,10 @@ from app.webapp.schemas import (
     PredictionMarketItem,
     PredictionMarketListResponse,
     PredictionResolveRequest,
+    PredictionSubmissionItem,
+    PredictionSubmissionListResponse,
+    PredictionSubmissionReviewRequest,
+    PredictionSubmitRequest,
     TelegramUser,
 )
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
@@ -164,6 +169,88 @@ async def notify_prediction_bet_placed(
         f"实盘池：YES {int(real_yes_pool)} / NO {int(real_no_pool)}"
     )
     await send_message_by_url(chat_id=chat_id, text=text, parse_mode="HTML")
+
+
+async def notify_prediction_submission_created(
+    *,
+    submission_id: int,
+    title: str,
+    betting_deadline: int,
+    submitter_tg_id: int,
+) -> None:
+    """用户提交预测题目后，通知管理员审核。"""
+    from datetime import datetime
+
+    from app.config import settings
+    from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
+
+    submitter_name = get_user_name_from_tg_id(int(submitter_tg_id)) or int(
+        submitter_tg_id
+    )
+    try:
+        deadline_text = datetime.fromtimestamp(
+            int(betting_deadline), tz=settings.TZ
+        ).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception:
+        deadline_text = str(int(betting_deadline))
+
+    text = (
+        "📝 <b>大预言家</b> 收到新题目投稿\n"
+        f"投稿ID：{int(submission_id)}\n"
+        f"标题：{title}\n"
+        f"截止时间：{deadline_text}\n"
+        f"提交用户：<code>{submitter_name}</code> ({int(submitter_tg_id)})\n"
+        "请到管理端审核并发布。"
+    )
+
+    admin_chat_ids = getattr(settings, "TG_ADMIN_CHAT_ID", []) or []
+    for admin_chat_id in admin_chat_ids:
+        try:
+            await send_message_by_url(
+                chat_id=int(admin_chat_id),
+                text=text,
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.warning(
+                f"Prediction submission notify admin failed: {admin_chat_id}, error={e}"
+            )
+
+
+async def notify_prediction_submission_reviewed(
+    *,
+    submitter_tg_id: int,
+    submission_id: int,
+    approved: bool,
+    title: str,
+    review_note: str | None,
+    reward_credits: int = 0,
+    market_id: int | None = None,
+) -> None:
+    """投稿审核完成后，通知提交用户审核结果。"""
+    from app.utils.utils import send_message_by_url
+
+    status_text = "✅ 通过" if bool(approved) else "❌ 未通过"
+    note_text = (review_note or "").strip() or "无"
+    reward_text = (
+        f"\n奖励积分：+{int(reward_credits)}" if int(reward_credits) > 0 else ""
+    )
+    market_text = (
+        f"\n已发布题目ID：{int(market_id)}"
+        if bool(approved) and market_id is not None
+        else ""
+    )
+
+    text = (
+        "🧾 <b>大预言家</b> 投稿审核结果\n"
+        f"投稿ID：{int(submission_id)}\n"
+        f"标题：{title}\n"
+        f"审核结果：{status_text}{market_text}{reward_text}\n"
+        f"审核备注：{note_text}"
+    )
+    await send_message_by_url(
+        chat_id=int(submitter_tg_id), text=text, parse_mode="HTML"
+    )
 
 
 @router.get("/list", response_model=PredictionMarketListResponse)
@@ -339,6 +426,155 @@ async def create_market(
     except Exception as e:
         logger.error(f"创建预测题目失败: {e}")
         raise HTTPException(status_code=500, detail="创建预测题目失败")
+
+
+@router.post("/submit", response_model=dict)
+@require_telegram_auth
+async def submit_market(
+    request: Request,
+    data: PredictionSubmitRequest,
+    current_user: TelegramUser = Depends(get_telegram_user),
+):
+    try:
+        if int(data.betting_deadline) <= int(time.time()):
+            raise HTTPException(status_code=400, detail="截止时间必须晚于当前时间")
+
+        submission_id = db.submit_prediction_market(
+            title=data.title,
+            description=data.description,
+            betting_deadline=int(data.betting_deadline),
+            submitter_tg_id=int(current_user.id),
+        )
+
+        try:
+            await notify_prediction_submission_created(
+                submission_id=int(submission_id),
+                title=str(data.title),
+                betting_deadline=int(data.betting_deadline),
+                submitter_tg_id=int(current_user.id),
+            )
+        except Exception as e:
+            logger.warning(f"Prediction submission notify failed: {e}")
+
+        return {"success": True, "submission_id": int(submission_id)}
+    except ValueError as e:
+        msg = str(e).lower()
+        if "betting_deadline" in msg:
+            raise HTTPException(status_code=400, detail="请设置有效的截止时间")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"提交预测题目失败: {e}")
+        raise HTTPException(status_code=500, detail="提交预测题目失败")
+
+
+@router.get("/submissions", response_model=PredictionSubmissionListResponse)
+@require_telegram_auth
+async def list_submissions(
+    request: Request,
+    status: int | None = None,
+    limit: int = 50,
+    current_user: TelegramUser = Depends(get_telegram_user),
+):
+    try:
+        submitter_tg_id = None
+        admin_ids = {int(x) for x in (settings.TG_ADMIN_CHAT_ID or [])}
+        if int(current_user.id) not in admin_ids:
+            submitter_tg_id = int(current_user.id)
+
+        rows = db.list_prediction_submissions(
+            status=status,
+            limit=limit,
+            submitter_tg_id=submitter_tg_id,
+        )
+        items = [PredictionSubmissionItem(**r) for r in rows]
+        return PredictionSubmissionListResponse(submissions=items, total=len(items))
+    except Exception as e:
+        logger.error(f"获取预测投稿列表失败: {e}")
+        raise HTTPException(status_code=500, detail="获取预测投稿列表失败")
+
+
+@router.post("/submissions/{submission_id:int}/review", response_model=dict)
+@require_telegram_auth
+async def review_submission(
+    request: Request,
+    submission_id: int,
+    data: PredictionSubmissionReviewRequest,
+    current_user: TelegramUser = Depends(get_telegram_user),
+):
+    check_admin_permission(current_user)
+    try:
+        res = db.review_prediction_submission(
+            submission_id=int(submission_id),
+            admin_tg_id=int(current_user.id),
+            approved=bool(data.approved),
+            review_note=data.review_note,
+            title=data.title,
+            description=data.description,
+            betting_deadline=data.betting_deadline,
+        )
+
+        reward_credits = 0
+        if bool(data.approved):
+            # 审核通过奖励投稿用户 1 积分（失败不影响审核流程）
+            try:
+                submitter_tg_id = int(res.get("submitter_tg_id") or 0)
+                if submitter_tg_id > 0:
+                    current_credits = db.get_user_credits(submitter_tg_id)
+                    if current_credits is None:
+                        if db.add_user_data(
+                            tg_id=submitter_tg_id,
+                            credits=1,
+                            donation=0,
+                        ):
+                            reward_credits = 1
+                    else:
+                        if db.update_user_credits(
+                            credits=round(float(current_credits) + 1, 2),
+                            tg_id=submitter_tg_id,
+                        ):
+                            reward_credits = 1
+            except Exception as e:
+                logger.warning(f"Prediction submission reward credits failed: {e}")
+
+        if bool(data.approved) and res.get("market_id"):
+            try:
+                market = db.get_prediction_market_by_id(market_id=int(res["market_id"]))
+                if market:
+                    await notify_prediction_market_created(
+                        market_id=int(market.get("id") or res["market_id"]),
+                        title=str(market.get("title") or ""),
+                        betting_deadline=market.get("betting_deadline"),
+                    )
+            except Exception as e:
+                logger.warning(f"Prediction publish notify failed: {e}")
+
+        # 通知投稿用户审核结果（通过/不通过都通知）
+        try:
+            await notify_prediction_submission_reviewed(
+                submitter_tg_id=int(res.get("submitter_tg_id") or 0),
+                submission_id=int(submission_id),
+                approved=bool(data.approved),
+                title=str(res.get("title") or data.title or ""),
+                review_note=data.review_note,
+                reward_credits=int(reward_credits),
+                market_id=int(res["market_id"]) if res.get("market_id") else None,
+            )
+        except Exception as e:
+            logger.warning(f"Prediction submission review notify failed: {e}")
+
+        return {"success": True, **res}
+    except ValueError as e:
+        msg = str(e).lower()
+        if "not found" in msg:
+            raise HTTPException(status_code=404, detail="投稿不存在")
+        if "already reviewed" in msg:
+            raise HTTPException(status_code=400, detail="该投稿已审核")
+        if "betting_deadline" in msg:
+            raise HTTPException(status_code=400, detail="截止时间必须晚于当前时间")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"审核预测投稿失败: {e}")
+        raise HTTPException(status_code=500, detail="审核预测投稿失败")
 
 
 @router.post("/{market_id:int}/close", response_model=dict)

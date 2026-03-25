@@ -1,12 +1,28 @@
 <template>
   <v-dialog v-model="dialog" max-width="960" persistent>
     <v-card>
-      <v-card-title class="d-flex align-center justify-space-between">
-        <div class="d-flex align-center">
-          <v-icon class="mr-2" color="indigo">mdi-chart-line</v-icon>
-          预测游戏
+      <v-card-title class="prediction-header">
+        <div class="prediction-header__top">
+          <div class="prediction-header__title d-flex align-center">
+            <v-icon class="mr-2" color="indigo">mdi-chart-line</v-icon>
+            大预言家
+          </div>
+          <v-btn icon @click="close"><v-icon>mdi-close</v-icon></v-btn>
         </div>
-        <v-btn icon @click="close"><v-icon>mdi-close</v-icon></v-btn>
+        <div class="prediction-header__actions">
+          <v-btn size="small" variant="tonal" color="indigo" @click="submissionDialog = true">
+            提交题目
+          </v-btn>
+          <v-btn
+            v-if="isAdmin"
+            size="small"
+            variant="tonal"
+            color="deep-purple"
+            @click="openReviewDialog"
+          >
+            审核投稿
+          </v-btn>
+        </div>
       </v-card-title>
       <v-divider />
 
@@ -161,15 +177,168 @@
   </v-dialog>
 
   <v-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">{{ snackbarText }}</v-snackbar>
+
+  <v-dialog v-model="submissionDialog" max-width="620" persistent>
+    <v-card>
+      <v-card-title class="d-flex align-center justify-space-between">
+        <span>提交预测题目</span>
+        <v-btn icon @click="submissionDialog = false"><v-icon>mdi-close</v-icon></v-btn>
+      </v-card-title>
+      <v-divider />
+      <v-card-text>
+        <v-text-field
+          v-model="submitForm.title"
+          label="预测题目"
+          variant="outlined"
+          density="comfortable"
+          maxlength="200"
+          counter
+          class="mb-3"
+        />
+        <v-textarea
+          v-model="submitForm.description"
+          label="描述（可选）"
+          variant="outlined"
+          density="comfortable"
+          maxlength="2000"
+          counter
+          rows="3"
+          class="mb-3"
+        />
+        <v-text-field
+          v-model="submitForm.deadlineLocal"
+          label="截止时间"
+          type="datetime-local"
+          variant="outlined"
+          density="comfortable"
+        />
+        <v-alert type="info" variant="tonal" class="mt-2">
+          提交后将通知管理员审核，管理员可修改题目后发布。
+        </v-alert>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn variant="text" @click="submissionDialog = false">取消</v-btn>
+        <v-btn color="indigo" :loading="submittingTopic" @click="submitTopic">提交</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <v-dialog v-model="reviewDialog" max-width="960" persistent>
+    <v-card>
+      <v-card-title class="d-flex align-center justify-space-between">
+        <span>投稿审核</span>
+        <v-btn icon @click="reviewDialog = false"><v-icon>mdi-close</v-icon></v-btn>
+      </v-card-title>
+      <v-divider />
+      <v-card-text>
+        <div class="d-flex align-center ga-2 mb-3">
+          <v-select
+            v-model="reviewFilterStatus"
+            :items="reviewStatusOptions"
+            item-title="label"
+            item-value="value"
+            label="状态筛选"
+            density="comfortable"
+            variant="outlined"
+            hide-details
+            class="review-filter"
+          />
+          <v-btn color="primary" variant="text" :loading="reviewLoading" @click="loadSubmissions">
+            刷新
+          </v-btn>
+        </div>
+
+        <v-list v-if="submissions.length > 0" lines="three">
+          <v-list-item v-for="item in submissions" :key="item.id" class="submission-item">
+            <template #title>
+              <div class="d-flex align-center justify-space-between ga-2">
+                <span class="text-truncate">#{{ item.id }} {{ item.title }}</span>
+                <v-chip size="small" :color="submissionStatusColor(item.status)">
+                  {{ submissionStatusText(item.status) }}
+                </v-chip>
+              </div>
+            </template>
+            <template #subtitle>
+              <div class="mt-1">
+                <div>提交人：{{ item.submitter_tg_id }} ｜ 截止：{{ formatDeadline(item.betting_deadline) }}</div>
+                <div class="text-medium-emphasis">{{ item.description || '暂无描述' }}</div>
+              </div>
+            </template>
+            <template #append>
+              <v-btn
+                v-if="item.status === 0"
+                size="small"
+                color="deep-purple"
+                variant="tonal"
+                @click="openReviewForm(item)"
+              >
+                审核
+              </v-btn>
+            </template>
+          </v-list-item>
+        </v-list>
+        <div v-else class="text-body-2 text-medium-emphasis py-4">暂无投稿数据</div>
+
+        <v-divider class="my-4" />
+
+        <div v-if="reviewForm.id">
+          <div class="text-subtitle-1 mb-2">审核投稿 #{{ reviewForm.id }}</div>
+          <v-text-field
+            v-model="reviewForm.title"
+            label="题目（可修改）"
+            variant="outlined"
+            density="comfortable"
+            maxlength="200"
+            counter
+            class="mb-2"
+          />
+          <v-textarea
+            v-model="reviewForm.description"
+            label="描述（可修改）"
+            variant="outlined"
+            density="comfortable"
+            maxlength="2000"
+            counter
+            rows="3"
+            class="mb-2"
+          />
+          <v-text-field
+            v-model="reviewForm.deadlineLocal"
+            label="截止时间（可修改）"
+            type="datetime-local"
+            variant="outlined"
+            density="comfortable"
+            class="mb-2"
+          />
+          <v-textarea
+            v-model="reviewForm.note"
+            label="审核备注（可选）"
+            variant="outlined"
+            density="comfortable"
+            rows="2"
+          />
+          <div class="d-flex ga-2 mt-3">
+            <v-btn color="success" :loading="reviewSubmitting" @click="submitReview(true)">通过并发布</v-btn>
+            <v-btn color="error" variant="tonal" :loading="reviewSubmitting" @click="submitReview(false)">拒绝</v-btn>
+          </div>
+        </div>
+      </v-card-text>
+    </v-card>
+  </v-dialog>
 </template>
 
 <script>
 import {
+  listPredictionSubmissions,
   getPredictionMarketDetail,
+  reviewPredictionSubmission,
   listPredictionBets,
   listPredictionMarkets,
-  placePredictionBet
+  placePredictionBet,
+  submitPredictionMarket
 } from '@/services/predictionService'
+import { getUserInfo } from '@/api'
 
 export default {
   name: 'PredictionDialog',
@@ -185,6 +354,32 @@ export default {
       betOption: 1,
       betAmount: 50,
       betting: false,
+      isAdmin: false,
+      submissionDialog: false,
+      submittingTopic: false,
+      submitForm: {
+        title: '',
+        description: '',
+        deadlineLocal: ''
+      },
+      reviewDialog: false,
+      reviewLoading: false,
+      reviewSubmitting: false,
+      reviewFilterStatus: 0,
+      reviewStatusOptions: [
+        { label: '待审核', value: 0 },
+        { label: '已通过', value: 1 },
+        { label: '已拒绝', value: 2 },
+        { label: '全部', value: -1 }
+      ],
+      submissions: [],
+      reviewForm: {
+        id: null,
+        title: '',
+        description: '',
+        deadlineLocal: '',
+        note: ''
+      },
       snackbar: false,
       snackbarText: '',
       snackbarColor: 'success',
@@ -197,6 +392,7 @@ export default {
   methods: {
     open() {
       this.dialog = true
+      this.loadCurrentUser()
       this.load()
     },
     close() {
@@ -204,6 +400,13 @@ export default {
       this.detailDialog = false
       this.detail = null
       this.bets = []
+      this.reviewForm = {
+        id: null,
+        title: '',
+        description: '',
+        deadlineLocal: '',
+        note: ''
+      }
     },
     toast(text, color = 'success') {
       this.snackbarText = String(text || '')
@@ -260,6 +463,143 @@ export default {
         })
       } catch (err) {
         return String(ts)
+      }
+    },
+    toLocalInput(ts) {
+      if (!ts) return ''
+      const date = new Date(Number(ts) * 1000)
+      if (Number.isNaN(date.getTime())) return ''
+      const p = (v) => String(v).padStart(2, '0')
+      return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`
+    },
+    parseLocalInputToTs(value) {
+      if (!value) return null
+      const d = new Date(value)
+      if (Number.isNaN(d.getTime())) return null
+      return Math.floor(d.getTime() / 1000)
+    },
+    submissionStatusText(status) {
+      if (status === 0) return '待审核'
+      if (status === 1) return '已通过'
+      if (status === 2) return '已拒绝'
+      return '未知'
+    },
+    submissionStatusColor(status) {
+      if (status === 0) return 'orange'
+      if (status === 1) return 'success'
+      if (status === 2) return 'error'
+      return 'grey'
+    },
+    async loadCurrentUser() {
+      try {
+        const res = await getUserInfo()
+        this.isAdmin = !!res?.data?.is_admin
+      } catch (e) {
+        this.isAdmin = false
+      }
+    },
+    async submitTopic() {
+      const title = String(this.submitForm.title || '').trim()
+      const deadline = this.parseLocalInputToTs(this.submitForm.deadlineLocal)
+      if (!title) {
+        this.toast('请填写预测题目', 'warning')
+        return
+      }
+      if (!deadline) {
+        this.toast('请填写有效截止时间', 'warning')
+        return
+      }
+      if (deadline <= Math.floor(Date.now() / 1000)) {
+        this.toast('截止时间必须晚于当前时间', 'warning')
+        return
+      }
+      try {
+        this.submittingTopic = true
+        await submitPredictionMarket({
+          title,
+          description: this.submitForm.description || null,
+          betting_deadline: deadline
+        })
+        this.toast('提交成功，已通知管理员审核')
+        this.submitForm = {
+          title: '',
+          description: '',
+          deadlineLocal: ''
+        }
+        this.submissionDialog = false
+      } catch (e) {
+        this.toast(e.response?.data?.detail || '提交失败', 'error')
+      } finally {
+        this.submittingTopic = false
+      }
+    },
+    async openReviewDialog() {
+      this.reviewDialog = true
+      await this.loadSubmissions()
+    },
+    async loadSubmissions() {
+      try {
+        this.reviewLoading = true
+        const params = { limit: 50 }
+        if (Number(this.reviewFilterStatus) >= 0) {
+          params.status = Number(this.reviewFilterStatus)
+        }
+        const res = await listPredictionSubmissions(params)
+        this.submissions = res?.data?.submissions || []
+      } catch (e) {
+        this.toast(e.response?.data?.detail || '加载投稿失败', 'error')
+      } finally {
+        this.reviewLoading = false
+      }
+    },
+    openReviewForm(item) {
+      this.reviewForm = {
+        id: Number(item.id),
+        title: String(item.title || ''),
+        description: String(item.description || ''),
+        deadlineLocal: this.toLocalInput(item.betting_deadline),
+        note: ''
+      }
+    },
+    async submitReview(approved) {
+      if (!this.reviewForm.id) {
+        this.toast('请先选择一个投稿', 'warning')
+        return
+      }
+      const title = String(this.reviewForm.title || '').trim()
+      const deadline = this.parseLocalInputToTs(this.reviewForm.deadlineLocal)
+      if (!title) {
+        this.toast('题目不能为空', 'warning')
+        return
+      }
+      if (!deadline || deadline <= Math.floor(Date.now() / 1000)) {
+        this.toast('请设置晚于当前时间的截止时间', 'warning')
+        return
+      }
+
+      try {
+        this.reviewSubmitting = true
+        await reviewPredictionSubmission(this.reviewForm.id, {
+          approved: !!approved,
+          review_note: this.reviewForm.note || null,
+          title,
+          description: this.reviewForm.description || null,
+          betting_deadline: deadline
+        })
+        this.toast(approved ? '审核通过并发布成功' : '已拒绝该投稿')
+        this.reviewForm = {
+          id: null,
+          title: '',
+          description: '',
+          deadlineLocal: '',
+          note: ''
+        }
+        await this.loadSubmissions()
+        await this.load()
+      } catch (e) {
+        this.toast(e.response?.data?.detail || '审核操作失败', 'error')
+      } finally {
+        this.reviewSubmitting = false
       }
     },
     async load() {
@@ -422,7 +762,48 @@ export default {
   margin-left: 8px;
 }
 
+.prediction-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.prediction-header__top {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.prediction-header__title {
+  min-width: 0;
+  font-weight: 600;
+}
+
+.prediction-header__actions {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.review-filter {
+  max-width: 200px;
+}
+
+.submission-item {
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
 @media (max-width: 640px) {
+  .prediction-header {
+    gap: 8px;
+  }
+
   .option-buttons {
     grid-template-columns: 1fr;
   }

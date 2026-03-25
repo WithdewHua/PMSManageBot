@@ -71,3 +71,36 @@ class PredictionBetRequest(BaseModel):
 class PredictionResolveRequest(BaseModel):
     result_option: int = Field(..., ge=0, le=1)
     resolution_note: Optional[str] = Field(None, max_length=2000)
+
+
+class PredictionSubmitRequest(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = Field(None, max_length=2000)
+    betting_deadline: int = Field(..., description="押注截止时间（Unix秒时间戳）")
+
+
+class PredictionSubmissionItem(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    betting_deadline: int
+    status: int
+    submitter_tg_id: int
+    reviewed_by: Optional[int] = None
+    reviewed_at: Optional[int] = None
+    review_note: Optional[str] = None
+    market_id: Optional[int] = None
+    created_at: datetime
+
+
+class PredictionSubmissionListResponse(BaseModel):
+    submissions: list[PredictionSubmissionItem]
+    total: int
+
+
+class PredictionSubmissionReviewRequest(BaseModel):
+    approved: bool
+    review_note: Optional[str] = Field(None, max_length=2000)
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    description: Optional[str] = Field(None, max_length=2000)
+    betting_deadline: Optional[int] = Field(None, description="审核时可修改截止时间")

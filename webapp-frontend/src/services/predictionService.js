@@ -31,3 +31,15 @@ export const resolvePredictionMarket = (marketId, payload) => {
 export const getUserPredictionStats = () => {
   return apiClient.get('/api/prediction/user-stats')
 }
+
+export const submitPredictionMarket = (payload) => {
+  return apiClient.post('/api/prediction/submit', payload)
+}
+
+export const listPredictionSubmissions = (params = { limit: 50 }) => {
+  return apiClient.get('/api/prediction/submissions', { params })
+}
+
+export const reviewPredictionSubmission = (submissionId, payload) => {
+  return apiClient.post(`/api/prediction/submissions/${submissionId}/review`, payload)
+}
