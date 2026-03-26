@@ -946,19 +946,19 @@ async def check_prediction_markets_closing_soon_job() -> list[dict]:
                 .all()
             )
 
-        markets = [
-            {
-                "id": int(m.id),
-                "title": str(m.title or ""),
-                "betting_deadline": int(m.betting_deadline),
-            }
-            for m in rows
-            if m.betting_deadline is not None
-        ]
+            markets = [
+                {
+                    "id": int(m.id),
+                    "title": str(m.title or ""),
+                    "betting_deadline": int(m.betting_deadline),
+                }
+                for m in rows
+                if m.betting_deadline is not None
+            ]
 
-        if not markets:
-            logger.info("大预言家截止提醒检查完成：未来 6 小时内无押注截止题目")
-            return []
+            if not markets:
+                logger.info("大预言家截止提醒检查完成：未来 6 小时内无押注截止题目")
+                return []
 
         from app.webapp.routers.activities.prediction import (
             notify_prediction_markets_closing_soon,
