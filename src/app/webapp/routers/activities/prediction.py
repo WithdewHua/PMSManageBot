@@ -115,15 +115,15 @@ async def notify_prediction_markets_closing_soon(
             deadline_text = str(int(betting_deadline))
 
         lines.append(
-            f"{idx}. #{market_id} {title}\\n"
+            f"{idx}. #{market_id} {title}\n"
             f"   截止：{deadline_text}（剩余 {remain_text}）"
         )
 
     text = (
-        f"⏰ <b>大预言家截止提醒</b>（{int(threshold_hours)}h 内）\\n"
-        f"共 {len(markets)} 题即将截止押注：\\n\\n"
-        + "\\n".join(lines)
-        + "\\n\\n入口：WebApp 活动页 → 大预言家"
+        f"⏰ <b>大预言家截止提醒</b>（{int(threshold_hours)}h 内）\n"
+        f"共 {len(markets)} 题即将截止押注：\n\n"
+        + "\n".join(lines)
+        + "\n\n入口：WebApp 活动页 → 大预言家"
     )
     await send_message_by_url(chat_id=chat_id, text=text, parse_mode="HTML")
 
