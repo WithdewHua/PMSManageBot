@@ -228,18 +228,18 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每 5 分钟更新用户积分信息")
 
-    # 每 1h 更新一次用户信息
+    # 每 15min 更新一次用户信息
     scheduler.add_sync_job(
         func=write_user_info_cache,
-        trigger="cron",
+        trigger="interval",
         id="write_user_info_cache",
         replace_existing=True,
         max_instances=1,
-        hour="*/1",  # 每 1 小时执行一次
+        minutes=15,  # 每 15 分钟执行一次
         next_run_time=datetime.datetime.now(settings.TZ)
         + datetime.timedelta(seconds=30),  # 启动后执行一次
     )
-    logger.info("添加定时任务：每 1 小时更新用户信息")
+    logger.info("添加定时任务：每 15 分钟更新用户信息")
 
     # 每 1 小时检查一次大预言家押注中且 6 小时内截止的题目，并发送群组汇总通知
     scheduler.add_async_job(

@@ -1338,6 +1338,7 @@ def write_user_info_cache():
                 PlexUser.plex_username,
                 PlexUser.plex_email,
                 PlexUser.is_premium,
+                PlexUser.plex_line,
             )
             plex_users = session.execute(stmt).fetchall()
         for user in plex_users:
@@ -1349,6 +1350,7 @@ def write_user_info_cache():
             plex_username = user[2]
             plex_email = user[3]
             is_premium = user[4]
+            plex_line = user[5]
             if plex_username:
                 user_info_cache.put(
                     f"plex:{plex_username.lower()}",
@@ -1362,6 +1364,10 @@ def write_user_info_cache():
                         }
                     ),
                 )
+                if plex_line:
+                    plex_user_defined_line_cache.put(
+                        str(plex_username).lower(), plex_line
+                    )
         # 获取 Emby 用户信息
         with get_session() as session:
             stmt = select(
@@ -1369,6 +1375,7 @@ def write_user_info_cache():
                 EmbyUser.tg_id,
                 EmbyUser.emby_username,
                 EmbyUser.is_premium,
+                EmbyUser.emby_line,
             )
             emby_users = session.execute(stmt).fetchall()
         for user in emby_users:
@@ -1376,6 +1383,7 @@ def write_user_info_cache():
             tg_id = user[1]
             emby_username = user[2]
             is_premium = user[3]
+            emby_line = user[4]
             if emby_username:
                 user_info_cache.put(
                     f"emby:{emby_username.lower()}",
@@ -1388,6 +1396,10 @@ def write_user_info_cache():
                         }
                     ),
                 )
+                if emby_line:
+                    emby_user_defined_line_cache.put(
+                        str(emby_username).lower(), emby_line
+                    )
     except Exception as e:
         logger.error(f"写入用户信息缓存时发生错误: {e}")
 
