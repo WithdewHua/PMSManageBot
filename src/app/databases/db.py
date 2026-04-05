@@ -631,7 +631,10 @@ class DatabaseORM:
         换绑用户 Telegram ID
         通过 plex_email 或 emby_username 查找用户并更新其 tg_id
         会同时更新所有相关表（PlexUser/EmbyUser, Statistics, Overseerr, WheelStats,
-        VaultwardenRedeemRecords, LineSchedule, UserBadge）
+        VaultwardenRedeemRecords, LineSchedule, UserBadge, Invitation, Auctions,
+        AuctionBids, DonationRegistrations, CryptoDonationOrders, TreasureIssue,
+        TreasureParticipation, PredictionMarket, PredictionMarketSubmission,
+        PredictionBet, CustomLine）
 
         Args:
             new_tg_id: 新的 Telegram ID
@@ -861,6 +864,118 @@ class DatabaseORM:
                         if result.rowcount > 0:
                             logger.info(
                                 f"Updated {result.rowcount} CryptoDonationOrders records (user_id): {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 TreasureIssue 表的 winner_tg_id 列
+                        result = session.execute(
+                            update(TreasureIssue)
+                            .where(TreasureIssue.winner_tg_id == old_tg_id)
+                            .values(winner_tg_id=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} TreasureIssue records (winner_tg_id): {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 TreasureIssue 表的 created_by 列
+                        result = session.execute(
+                            update(TreasureIssue)
+                            .where(TreasureIssue.created_by == old_tg_id)
+                            .values(created_by=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} TreasureIssue records (created_by): {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 TreasureParticipation 表的 tg_id 列
+                        result = session.execute(
+                            update(TreasureParticipation)
+                            .where(TreasureParticipation.tg_id == old_tg_id)
+                            .values(tg_id=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} TreasureParticipation records (tg_id): {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 PredictionMarket 表的 created_by 列
+                        result = session.execute(
+                            update(PredictionMarket)
+                            .where(PredictionMarket.created_by == old_tg_id)
+                            .values(created_by=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} PredictionMarket records (created_by): {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 PredictionMarket 表的 resolved_by 列
+                        result = session.execute(
+                            update(PredictionMarket)
+                            .where(PredictionMarket.resolved_by == old_tg_id)
+                            .values(resolved_by=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} PredictionMarket records (resolved_by): {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 PredictionMarketSubmission 表的 submitter_tg_id 列
+                        result = session.execute(
+                            update(PredictionMarketSubmission)
+                            .where(
+                                PredictionMarketSubmission.submitter_tg_id == old_tg_id
+                            )
+                            .values(submitter_tg_id=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} PredictionMarketSubmission records (submitter_tg_id): {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 PredictionMarketSubmission 表的 reviewed_by 列
+                        result = session.execute(
+                            update(PredictionMarketSubmission)
+                            .where(PredictionMarketSubmission.reviewed_by == old_tg_id)
+                            .values(reviewed_by=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} PredictionMarketSubmission records (reviewed_by): {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 PredictionBet 表的 tg_id 列
+                        result = session.execute(
+                            update(PredictionBet)
+                            .where(PredictionBet.tg_id == old_tg_id)
+                            .values(tg_id=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} PredictionBet records (tg_id): {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 CustomLine 表的 tg_id 列
+                        result = session.execute(
+                            update(CustomLine)
+                            .where(CustomLine.tg_id == old_tg_id)
+                            .values(tg_id=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} CustomLine records (tg_id): {old_tg_id} -> {new_tg_id}"
+                            )
+
+                        # 更新 CustomLine 表的 approved_by 列
+                        result = session.execute(
+                            update(CustomLine)
+                            .where(CustomLine.approved_by == old_tg_id)
+                            .values(approved_by=new_tg_id)
+                        )
+                        if result.rowcount > 0:
+                            logger.info(
+                                f"Updated {result.rowcount} CustomLine records (approved_by): {old_tg_id} -> {new_tg_id}"
                             )
 
                 return updated
