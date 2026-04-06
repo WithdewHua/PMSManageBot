@@ -3,6 +3,7 @@
 
 import logging
 from datetime import datetime
+from logging.handlers import RotatingFileHandler
 
 from app.config import settings
 
@@ -42,6 +43,16 @@ while logger.handlers:  # Remove un-format logging in Stream, or all of messages
 consoleHandler = logging.StreamHandler()
 consoleHandler.setFormatter(logFormatter)
 logger.addHandler(consoleHandler)
+
+file_handler = RotatingFileHandler(
+    settings.LOG_PATH / "app.log",
+    maxBytes=10 * 1024 * 1024,
+    backupCount=5,
+    encoding="utf-8",
+)
+file_handler.setFormatter(logFormatter)
+file_handler.setLevel(logging.DEBUG)
+logger.addHandler(file_handler)
 
 # uvicorn 日志
 uvicorn_logger = logging.getLogger("uvicorn")

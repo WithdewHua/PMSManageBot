@@ -169,6 +169,13 @@ class Settings(BaseSettings):
         return Path(self.DATA_DIR)
 
     @property
+    def LOG_PATH(self):
+        path = self.DATA_PATH / "logs"
+        if not path.exists():
+            path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    @property
     def TG_USER_INFO_CACHE_PATH(self):
         return self.DATA_PATH / "tg_user_info.cache"
 
