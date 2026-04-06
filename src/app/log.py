@@ -36,11 +36,13 @@ logFormatter = TimezoneFormatter(
 )
 
 logger = logging.getLogger()
-logger.setLevel(getattr(logging, settings.LOG_LEVEL))
+logger.setLevel(logging.DEBUG)
 while logger.handlers:  # Remove un-format logging in Stream, or all of messages are appearing more than once.
     logger.handlers.pop()
 
 consoleHandler = logging.StreamHandler()
+# console 设置日志级别，默认为 INFO，可以通过环境变量 LOG_LEVEL 调整
+consoleHandler.setLevel(getattr(logging, settings.LOG_LEVEL))
 consoleHandler.setFormatter(logFormatter)
 logger.addHandler(consoleHandler)
 
