@@ -3000,11 +3000,12 @@ class DatabaseORM:
             stmt = select(
                 EmbyUser.emby_username,
                 EmbyUser.tg_id,
+                EmbyUser.emby_id,
                 EmbyUser.emby_line,
                 EmbyUser.is_premium,
             ).where(EmbyUser.emby_line.isnot(None))
             results = session.execute(stmt).fetchall()
-            return [(r[0], r[1], r[2], r[3]) for r in results]
+            return [(r[0], r[1], r[2], r[3], r[4]) for r in results]
 
     def set_plex_line(
         self, line: str, tg_id: Optional[int] = None, plex_id: Optional[int] = None
@@ -3042,11 +3043,12 @@ class DatabaseORM:
             stmt = select(
                 PlexUser.plex_username,
                 PlexUser.tg_id,
+                PlexUser.plex_id,
                 PlexUser.plex_line,
                 PlexUser.is_premium,
             ).where(PlexUser.plex_line.isnot(None))
             results = session.execute(stmt).fetchall()
-            return [(r[0], r[1], r[2], r[3]) for r in results]
+            return [(r[0], r[1], r[2], r[3], r[4]) for r in results]
 
     # ==================== Wheel Operations ====================
 
