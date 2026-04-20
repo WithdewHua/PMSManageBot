@@ -1,9 +1,19 @@
+import random
 import time
 import traceback
 from typing import Optional
 
 from app.databases.redis import Redis
 from app.log import logger
+
+try:
+    from redis.exceptions import RedisError
+
+    _REDIS_RETRY_EXCEPTIONS = (RedisError,)
+except Exception:  # pragma: no cover
+    # Fallback: if redis isn't importable for any reason, keep runtime from crashing.
+    # In normal production this path should never be used.
+    _REDIS_RETRY_EXCEPTIONS = (Exception,)
 
 
 class RedisCache:
@@ -14,6 +24,9 @@ class RedisCache:
         ttl_seconds: int = None,
         cache_key_prefix: str = "cache:",
         cache_usage_track: bool = False,
+        retry_attempts: int = 5,
+        retry_base_delay: float = 0.05,
+        retry_max_delay: float = 1.0,
     ):
         """
         初始化基于Redis的缓存
@@ -32,6 +45,77 @@ class RedisCache:
             else None
         )
 
+        self._retry_attempts = max(1, int(retry_attempts))
+        self._retry_base_delay = max(0.0, float(retry_base_delay))
+        self._retry_max_delay = max(0.0, float(retry_max_delay))
+
+    def _call_with_retry(
+        self,
+        func,
+        *,
+        op: str,
+        key: Optional[str] = None,
+        attempts: Optional[int] = None,
+        swallow: bool = False,
+        default=None,
+    ):
+        """执行 Redis 操作并在网络波动时自动重试。
+
+        - 指数退避: base_delay * 2^(attempt-1)
+        - 抖动: 0 ~ 0.1s
+        - 仅对 RedisError（或兜底 Exception）进行重试
+
+        Args:
+            func: 无参可调用对象
+            op: 操作名，用于日志
+            key: 关联 key（可选）
+            attempts: 覆盖默认重试次数
+            swallow: 失败后是否吞掉异常并返回 default
+            default: swallow=True 时最终返回值
+        """
+
+        max_attempts = (
+            self._retry_attempts if attempts is None else max(1, int(attempts))
+        )
+        last_exc: Exception | None = None
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                return func()
+            except _REDIS_RETRY_EXCEPTIONS as e:
+                last_exc = e
+                if attempt >= max_attempts:
+                    logger.error(
+                        "Redis operation failed after retries: op=%s key=%s error=%s",
+                        op,
+                        key,
+                        e,
+                    )
+                    if swallow:
+                        return default
+                    raise
+
+                backoff = self._retry_base_delay * (2 ** (attempt - 1))
+                wait_seconds = min(backoff, self._retry_max_delay)
+                wait_seconds += random.uniform(0.0, 0.1)
+                logger.warning(
+                    "Redis operation error, retrying: op=%s key=%s attempt=%s/%s wait=%.3fs error=%s",
+                    op,
+                    key,
+                    attempt,
+                    max_attempts,
+                    wait_seconds,
+                    e,
+                )
+                time.sleep(wait_seconds)
+
+        # 理论上不会走到这里
+        if swallow:
+            return default
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("Redis operation failed with unknown error")
+
     def _get_cache_key(self, key: str) -> str:
         """获取缓存键的完整Redis键名"""
         return f"{self._cache_key_prefix}{key}"
@@ -40,13 +124,18 @@ class RedisCache:
         """
         获取所有缓存值
         """
-        values = []
-        pipeline = self.redis_client.pipeline()
-        for key in self.redis_client.scan_iter(match=f"{self._cache_key_prefix}*"):
-            pipeline.get(key)
-        results = pipeline.execute()
-        values = [val for val in results if val is not None]
-        return values
+
+        def _op():
+            keys = list(self.redis_client.scan_iter(match=f"{self._cache_key_prefix}*"))
+            if not keys:
+                return []
+            pipeline = self.redis_client.pipeline()
+            for k in keys:
+                pipeline.get(k)
+            results = pipeline.execute()
+            return [val for val in results if val is not None]
+
+        return self._call_with_retry(_op, op="get_all")
 
     def get_all_key_values(self) -> dict:
         """
@@ -55,19 +144,22 @@ class RedisCache:
         Returns:
             包含所有缓存键值对的字典
         """
-        key_values = {}
-        pipeline = self.redis_client.pipeline()
-        for key in self.redis_client.scan_iter(match=f"{self._cache_key_prefix}*"):
-            pipeline.get(key)
-        results = pipeline.execute()
 
-        for key, value in zip(
-            self.redis_client.scan_iter(match=f"{self._cache_key_prefix}*"), results
-        ):
-            if value is not None:
-                key_values[key.removeprefix(self._cache_key_prefix)] = value
+        def _op():
+            key_values: dict = {}
+            keys = list(self.redis_client.scan_iter(match=f"{self._cache_key_prefix}*"))
+            if not keys:
+                return key_values
+            pipeline = self.redis_client.pipeline()
+            for k in keys:
+                pipeline.get(k)
+            results = pipeline.execute()
+            for k, v in zip(keys, results):
+                if v is not None:
+                    key_values[k.removeprefix(self._cache_key_prefix)] = v
+            return key_values
 
-        return key_values
+        return self._call_with_retry(_op, op="get_all_key_values")
 
     def get(self, key: str) -> Optional[str]:
         """
@@ -80,28 +172,44 @@ class RedisCache:
             缓存的值，如果不存在或已过期则返回 None
         """
         cache_key = self._get_cache_key(key)
-        value = self.redis_client.get(cache_key)
+
+        def _op_get():
+            return self.redis_client.get(cache_key)
+
+        value = self._call_with_retry(_op_get, op="get", key=key)
 
         if value is not None:
             # 更新访问时间
-            pipeline = self.redis_client.pipeline()
-            if self._cache_usage_key:
-                pipeline.zadd(self._cache_usage_key, {key: time.time()})
-            if self.ttl_seconds:
-                pipeline.expire(cache_key, self.ttl_seconds)  # 重置过期时间
-            pipeline.execute()
+            def _op_touch():
+                pipeline = self.redis_client.pipeline()
+                if self._cache_usage_key:
+                    pipeline.zadd(self._cache_usage_key, {key: time.time()})
+                if self.ttl_seconds:
+                    pipeline.expire(cache_key, self.ttl_seconds)  # 重置过期时间
+                pipeline.execute()
+
+            # touch 失败不应影响 get 的返回
+            self._call_with_retry(
+                _op_touch,
+                op="touch",
+                key=key,
+                swallow=True,
+                default=None,
+            )
 
         return value
 
-    def put(self, key: str, value: str):
+    def put(self, key: str, value: str, max_retry: int = 3):
         """
         添加或更新缓存条目
 
         Args:
             key: 缓存键
             value: 缓存值
+            max_retry: 最大重试次数
         """
-        try:
+
+        def _op():
             # 检查容量并清理过期项
             if self.capacity > 0 and self._cache_usage_key:
                 current_size = self.redis_client.zcard(self._cache_usage_key)
@@ -126,22 +234,43 @@ class RedisCache:
             pipeline.execute()
 
             logger.debug(f"Added key to cache: {key}")
+
+        try:
+            # put 的失败历史上是“吞掉异常+日志”，这里保持不改变外部行为
+            self._call_with_retry(
+                _op,
+                op="put",
+                key=key,
+                attempts=max_retry,
+            )
         except Exception as e:
             logger.error(f"Failed to add key to cache: {key}, error: {e}")
-            logger.exception(traceback.format_exc())
+            traceback.print_exc()
 
     def delete(self, key: str):
         """删除缓存条目"""
         cache_key = self._get_cache_key(key)
 
-        if self.redis_client.exists(cache_key):
-            pipeline = self.redis_client.pipeline()
-            pipeline.delete(cache_key)
+        def _op_exists():
+            return self.redis_client.exists(cache_key)
 
-            if self._cache_usage_key:
-                pipeline.zrem(self._cache_usage_key, key)
+        if self._call_with_retry(_op_exists, op="exists", key=key):
 
-            pipeline.execute()
+            def _op_del():
+                pipeline = self.redis_client.pipeline()
+                pipeline.delete(cache_key)
+
+                if self._cache_usage_key:
+                    pipeline.zrem(self._cache_usage_key, key)
+
+                pipeline.execute()
+
+            try:
+                self._call_with_retry(_op_del, op="delete", key=key)
+            except Exception as e:
+                logger.error(f"Failed to delete key from cache: {key}, error: {e}")
+                traceback.print_exc()
+                return
 
             logger.info(f"Deleted key from cache: {key}")
         else:
@@ -149,19 +278,27 @@ class RedisCache:
 
     def clear(self):
         """清空缓存"""
-        # 获取所有缓存键
-        keys_pattern = f"{self._cache_key_prefix}*"
 
-        pipeline = self.redis_client.pipeline()
-        # 删除所有缓存键
-        for key in self.redis_client.scan_iter(match=keys_pattern):
-            pipeline.delete(key)
-        # 清除使用记录
-        if self._cache_usage_key:
-            pipeline.delete(self._cache_usage_key)
-        pipeline.execute()
+        def _op():
+            # 获取所有缓存键
+            keys_pattern = f"{self._cache_key_prefix}*"
+            keys = list(self.redis_client.scan_iter(match=keys_pattern))
 
-        logger.info("Cache cleared")
+            pipeline = self.redis_client.pipeline()
+            # 删除所有缓存键
+            for k in keys:
+                pipeline.delete(k)
+            # 清除使用记录
+            if self._cache_usage_key:
+                pipeline.delete(self._cache_usage_key)
+            pipeline.execute()
+
+        try:
+            self._call_with_retry(_op, op="clear")
+            logger.info("Cache cleared")
+        except Exception as e:
+            logger.error(f"Failed to clear cache: {e}")
+            traceback.print_exc()
 
     def get_stats(self) -> dict:
         """
@@ -170,22 +307,28 @@ class RedisCache:
         Returns:
             包含缓存统计信息的字典
         """
-        # 获取未过期的键数量
-        active_keys = sum(
-            1 for _ in self.redis_client.scan_iter(match=f"{self._cache_key_prefix}*")
-        )
-        # 获取当前缓存大小
-        current_size = (
-            self.redis_client.zcard(self._cache_usage_key)
-            if self._cache_usage_key
-            else active_keys
-        )
 
-        return {
-            "total_entries": current_size,
-            "active_entries": active_keys,
-            "capacity": self.capacity,
-        }
+        def _op():
+            # 获取未过期的键数量
+            active_keys = sum(
+                1
+                for _ in self.redis_client.scan_iter(match=f"{self._cache_key_prefix}*")
+            )
+            # 获取当前缓存大小
+            current_size = (
+                self.redis_client.zcard(self._cache_usage_key)
+                if self._cache_usage_key
+                else active_keys
+            )
+
+            return {
+                "total_entries": current_size,
+                "active_entries": active_keys,
+                "capacity": self.capacity,
+            }
+
+        # stats 失败不要影响主流程
+        return self._call_with_retry(_op, op="get_stats", swallow=True, default={})
 
 
 # Emby Line Cache
