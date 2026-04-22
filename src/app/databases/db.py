@@ -4361,6 +4361,16 @@ class DatabaseORM:
         """创建流量统计记录"""
         try:
             with get_session() as session:
+                existing_stmt = select(LineTrafficStats.id).where(
+                    LineTrafficStats.event_hash == event_hash
+                )
+                existing_id = session.execute(existing_stmt).scalar_one_or_none()
+                if existing_id is not None:
+                    logger.info(
+                        f"Skip duplicated line traffic entry, event_hash={event_hash}"
+                    )
+                    return False, True
+
                 traffic_entry = LineTrafficStats(
                     line=line,
                     send_bytes=send_bytes,
@@ -4376,6 +4386,7 @@ class DatabaseORM:
                 session.add(traffic_entry)
                 return True, False
         except Exception as e:
+            # 并发场景下仍可能在显式查询后发生唯一键冲突，保留兜底判断
             if "uq_line_traffic_event_hash" in str(
                 e
             ) or "UNIQUE constraint failed: line_traffic_stats.event_hash" in str(e):
