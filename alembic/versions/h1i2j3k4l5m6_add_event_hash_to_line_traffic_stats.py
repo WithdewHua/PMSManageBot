@@ -6,6 +6,7 @@ Create Date: 2026-04-22 20:55:00.000000
 
 """
 
+import uuid
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -24,13 +25,28 @@ def upgrade() -> None:
         sa.Column("event_hash", sa.Text(), nullable=True),
     )
 
-    op.execute(
-        """
-        UPDATE line_traffic_stats
-        SET event_hash = lower(hex(randomblob(16)))
-        WHERE event_hash IS NULL OR event_hash = ''
-        """
+    connection = op.get_bind()
+    line_traffic_stats = sa.table(
+        "line_traffic_stats",
+        sa.column("id", sa.Integer),
+        sa.column("event_hash", sa.Text),
     )
+
+    rows = connection.execute(
+        sa.select(line_traffic_stats.c.id).where(
+            sa.or_(
+                line_traffic_stats.c.event_hash.is_(None),
+                line_traffic_stats.c.event_hash == "",
+            )
+        )
+    ).fetchall()
+
+    for row in rows:
+        connection.execute(
+            line_traffic_stats.update()
+            .where(line_traffic_stats.c.id == row.id)
+            .values(event_hash=uuid.uuid4().hex)
+        )
 
     op.alter_column("line_traffic_stats", "event_hash", nullable=False)
     op.create_unique_constraint(
