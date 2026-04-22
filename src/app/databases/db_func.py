@@ -47,6 +47,94 @@ from sqlalchemy import distinct, func, or_, select, union
 from sqlalchemy import update as sql_update
 
 
+def _get_premium_daily_limit(is_premium: bool) -> int:
+    return (
+        settings.PREMIUM_USER_TRAFFIC_LIMIT
+        if is_premium
+        else settings.USER_TRAFFIC_LIMIT
+    )
+
+
+def _get_traffic_cost_credits(chargeable_bytes: int) -> float:
+    if chargeable_bytes <= 0:
+        return 0
+
+    gb_tiers = math.ceil(chargeable_bytes / (10 * 1024 * 1024 * 1024))
+    return round(gb_tiers * settings.CREDITS_COST_PER_10GB, 2)
+
+
+def _parse_debt_date(date_str: Optional[str]) -> Optional[datetime]:
+    if not date_str:
+        return None
+
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=settings.TZ)
+    except ValueError:
+        return None
+
+
+def _resolve_premium_status_for_settlement(
+    current_is_premium: bool,
+    premium_status_updated_at: Optional[int],
+    settlement_date: datetime,
+) -> bool:
+    if not premium_status_updated_at:
+        return current_is_premium
+
+    status_updated_at = datetime.fromtimestamp(
+        premium_status_updated_at, tz=settings.TZ
+    )
+    settlement_day_end = settlement_date.replace(
+        hour=23, minute=59, second=59, microsecond=999999
+    )
+    if status_updated_at > settlement_day_end:
+        return not current_is_premium
+
+    return current_is_premium
+
+
+def _settle_premium_traffic_usage(
+    traffic_usage_premium: int,
+    is_premium: bool,
+    debt_bytes: int,
+    debt_updated_date: Optional[str],
+    settlement_date: datetime,
+) -> dict:
+    daily_limit = _get_premium_daily_limit(is_premium)
+    max_debt_bytes = daily_limit * 2
+    previous_debt = max(int(debt_bytes or 0), 0)
+    debt_date = _parse_debt_date(debt_updated_date)
+    gap_days = 0
+
+    if debt_date and debt_date.date() < settlement_date.date():
+        gap_days = (settlement_date.date() - debt_date.date()).days - 1
+        gap_days = max(gap_days, 0)
+
+    recovered_before_today = min(previous_debt, gap_days * daily_limit)
+    debt_before_today = max(previous_debt - recovered_before_today, 0)
+    effective_limit = max(daily_limit - debt_before_today, 0)
+    end_of_day_debt_raw = max(
+        debt_before_today + traffic_usage_premium - daily_limit, 0
+    )
+    chargeable_bytes = max(end_of_day_debt_raw - max_debt_bytes, 0)
+    next_debt_bytes = min(end_of_day_debt_raw, max_debt_bytes)
+    exceed_bytes = max(traffic_usage_premium - effective_limit, 0)
+    traffic_cost_credits = _get_traffic_cost_credits(chargeable_bytes)
+
+    return {
+        "daily_limit": daily_limit,
+        "effective_limit": effective_limit,
+        "debt_before_today": debt_before_today,
+        "recovered_before_today": recovered_before_today,
+        "exceed_bytes": exceed_bytes,
+        "chargeable_debt_excess": chargeable_bytes,
+        "next_debt_bytes": next_debt_bytes,
+        "chargeable_bytes": chargeable_bytes,
+        "traffic_cost_credits": traffic_cost_credits,
+        "next_debt_updated_date": settlement_date.strftime("%Y-%m-%d"),
+    }
+
+
 def update_plex_credits():
     """更新积分及观看时长"""
     logger.info("开始更新 Plex 用户积分及观看时长")
@@ -70,8 +158,6 @@ def update_plex_credits():
 
         for plex_id in plex_ids:
             play_duration = round(min(float(duration.get(plex_id, 0)), 24), 2)
-            if play_duration == 0:
-                continue
             # 最大记 8h
             credits_inc = min(play_duration, 8)
 
@@ -82,6 +168,9 @@ def update_plex_credits():
                     PlexUser.tg_id,
                     PlexUser.plex_username,
                     PlexUser.is_premium,
+                    PlexUser.premium_status_updated_at,
+                    PlexUser.premium_traffic_debt_bytes,
+                    PlexUser.premium_traffic_debt_updated_date,
                 ).where(PlexUser.plex_id == plex_id)
                 res = session.execute(stmt).fetchone()
             if not res:
@@ -90,35 +179,47 @@ def update_plex_credits():
             tg_id = res[2]
             plex_username = res[3]
             is_premium = res[4]
+            premium_status_updated_at = res[5]
+            debt_bytes = int(res[6] or 0)
+            debt_updated_date = res[7]
+            settlement_date = datetime.now(settings.TZ) - timedelta(days=1)
+            is_premium_for_settlement = _resolve_premium_status_for_settlement(
+                current_is_premium=bool(is_premium),
+                premium_status_updated_at=premium_status_updated_at,
+                settlement_date=settlement_date,
+            )
             # 获取用户昨日的 premium 流量使用情况（用于流量费用计算）
             traffic_usage_premium = db.get_user_daily_traffic(
                 user_id=str(plex_id),
                 service="plex",
-                date=datetime.now(settings.TZ) - timedelta(days=1),
+                date=settlement_date,
                 premium_only=True,
             )
             # 获取用户昨日的总流量（用于流量惩罚计算）
             traffic_usage_total = db.get_user_daily_traffic(
                 user_id=str(plex_id),
                 service="plex",
-                date=datetime.now(settings.TZ) - timedelta(days=1),
+                date=settlement_date,
                 premium_only=False,
             )
 
-            # 计算 premium 流量积分消耗
-            traffic_usage_exceed = traffic_usage_premium - (
-                settings.USER_TRAFFIC_LIMIT
-                if not is_premium
-                else settings.PREMIUM_USER_TRAFFIC_LIMIT
+            premium_traffic_result = _settle_premium_traffic_usage(
+                traffic_usage_premium=traffic_usage_premium,
+                is_premium=is_premium_for_settlement,
+                debt_bytes=debt_bytes,
+                debt_updated_date=debt_updated_date,
+                settlement_date=settlement_date,
             )
-            traffic_cost_credits = 0
-            if traffic_usage_exceed > 0:
-                # 按10GB档位计费，不足10GB按10GB计算
-                gb_tiers = math.ceil(traffic_usage_exceed / (10 * 1024 * 1024 * 1024))
-                traffic_cost_credits = round(
-                    gb_tiers * settings.CREDITS_COST_PER_10GB,
-                    2,
-                )
+            traffic_usage_exceed = premium_traffic_result["exceed_bytes"]
+            traffic_cost_credits = premium_traffic_result["traffic_cost_credits"]
+
+            if (
+                play_duration == 0
+                and traffic_usage_total == 0
+                and premium_traffic_result["debt_before_today"] == 0
+                and premium_traffic_result["next_debt_bytes"] == 0
+            ):
+                continue
 
             # 计算超长观看惩罚 (TimePenalty)
             time_penalty = 0
@@ -166,7 +267,16 @@ def update_plex_credits():
                     stmt = (
                         sql_update(PlexUser)
                         .where(PlexUser.plex_id == plex_id)
-                        .values(credits=credits, watched_time=watched_time)
+                        .values(
+                            credits=credits,
+                            watched_time=watched_time,
+                            premium_traffic_debt_bytes=premium_traffic_result[
+                                "next_debt_bytes"
+                            ],
+                            premium_traffic_debt_updated_date=premium_traffic_result[
+                                "next_debt_updated_date"
+                            ],
+                        )
                     )
                     session.execute(stmt)
             else:
@@ -182,7 +292,15 @@ def update_plex_credits():
                     stmt1 = (
                         sql_update(PlexUser)
                         .where(PlexUser.plex_id == plex_id)
-                        .values(watched_time=watched_time)
+                        .values(
+                            watched_time=watched_time,
+                            premium_traffic_debt_bytes=premium_traffic_result[
+                                "next_debt_bytes"
+                            ],
+                            premium_traffic_debt_updated_date=premium_traffic_result[
+                                "next_debt_updated_date"
+                            ],
+                        )
                     )
                     stmt2 = (
                         sql_update(Statistics)
@@ -245,7 +363,12 @@ Plex 观看积分更新通知
 新增观看时长: {round(play_duration, 2)} 小时
 基础观看积分: {round(original_credits_inc, 2)}{penalty_text}{badge_bonus_text}{inviter_bonus_text}
 Premium 流量使用情况: {round(traffic_usage_premium / (1024 * 1024 * 1024), 2)} GB
-Premium 每日流量超额: {max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
+Premium 当日可用免费额度: {round(premium_traffic_result["effective_limit"] / (1024 * 1024 * 1024), 2)} GB
+Premium 当日前待偿还额度: {round(premium_traffic_result["debt_before_today"] / (1024 * 1024 * 1024), 2)} GB
+Premium 自动偿还额度: {round(premium_traffic_result["recovered_before_today"] / (1024 * 1024 * 1024), 2)} GB
+Premium 当日超额流量: {max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
+Premium 结转待偿还额度: {round(premium_traffic_result["next_debt_bytes"] / (1024 * 1024 * 1024), 2)} GB
+Premium 实际扣费流量: {round(premium_traffic_result["chargeable_bytes"] / (1024 * 1024 * 1024), 2)} GB
 Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
 
 积分变化: {round(credits_inc + badge_bonus - traffic_cost_credits, 2):+.2f}
@@ -342,45 +465,59 @@ def update_emby_credits():
                 EmbyUser.emby_credits,
                 EmbyUser.emby_username,
                 EmbyUser.is_premium,
+                EmbyUser.premium_status_updated_at,
+                EmbyUser.premium_traffic_debt_bytes,
+                EmbyUser.premium_traffic_debt_updated_date,
             )
             users = session.execute(stmt).fetchall()
         for user in users:
             playduration = round(float(duration.get(user[0], 0)) / 3600, 2)
-            if playduration == 0:
-                continue
             # 最大记 8
             daily_play_duration = playduration - user[2]
             credits_inc = min(daily_play_duration, 8)
+            next_watched_time = max(playduration, user[2])
             emby_username, is_premium = user[4], user[5]
+            premium_status_updated_at = user[6]
+            debt_bytes = int(user[7] or 0)
+            debt_updated_date = user[8]
+            settlement_date = datetime.now(settings.TZ) - timedelta(days=1)
+            is_premium_for_settlement = _resolve_premium_status_for_settlement(
+                current_is_premium=bool(is_premium),
+                premium_status_updated_at=premium_status_updated_at,
+                settlement_date=settlement_date,
+            )
             # 获取用户昨日的 premium 流量使用情况（用于流量费用计算）
             traffic_usage_premium = db.get_user_daily_traffic(
                 username=emby_username,
                 service="emby",
-                date=datetime.now(settings.TZ) - timedelta(days=1),
+                date=settlement_date,
                 premium_only=True,
             )
             # 获取用户昨日的总流量（用于流量惩罚计算）
             traffic_usage_total = db.get_user_daily_traffic(
                 username=emby_username,
                 service="emby",
-                date=datetime.now(settings.TZ) - timedelta(days=1),
+                date=settlement_date,
                 premium_only=False,
             )
 
-            # 计算 premium 流量积分消耗
-            traffic_usage_exceed = traffic_usage_premium - (
-                settings.USER_TRAFFIC_LIMIT
-                if not is_premium
-                else settings.PREMIUM_USER_TRAFFIC_LIMIT
+            premium_traffic_result = _settle_premium_traffic_usage(
+                traffic_usage_premium=traffic_usage_premium,
+                is_premium=is_premium_for_settlement,
+                debt_bytes=debt_bytes,
+                debt_updated_date=debt_updated_date,
+                settlement_date=settlement_date,
             )
-            traffic_cost_credits = 0
-            if traffic_usage_exceed > 0:
-                # 按10GB档位计费，不足10GB按10GB计算
-                gb_tiers = math.ceil(traffic_usage_exceed / (10 * 1024 * 1024 * 1024))
-                traffic_cost_credits = round(
-                    gb_tiers * settings.CREDITS_COST_PER_10GB,
-                    2,
-                )
+            traffic_usage_exceed = premium_traffic_result["exceed_bytes"]
+            traffic_cost_credits = premium_traffic_result["traffic_cost_credits"]
+
+            if (
+                daily_play_duration <= 0
+                and traffic_usage_total == 0
+                and premium_traffic_result["debt_before_today"] == 0
+                and premium_traffic_result["next_debt_bytes"] == 0
+            ):
+                continue
 
             # 计算超长观看惩罚 (TimePenalty)
             time_penalty = 0
@@ -427,7 +564,16 @@ def update_emby_credits():
                     stmt = (
                         sql_update(EmbyUser)
                         .where(EmbyUser.emby_id == user[0])
-                        .values(emby_watched_time=playduration, emby_credits=_credits)
+                        .values(
+                            emby_watched_time=next_watched_time,
+                            emby_credits=_credits,
+                            premium_traffic_debt_bytes=premium_traffic_result[
+                                "next_debt_bytes"
+                            ],
+                            premium_traffic_debt_updated_date=premium_traffic_result[
+                                "next_debt_updated_date"
+                            ],
+                        )
                     )
                     session.execute(stmt)
             else:
@@ -453,7 +599,15 @@ def update_emby_credits():
                     stmt = (
                         sql_update(EmbyUser)
                         .where(EmbyUser.emby_id == user[0])
-                        .values(emby_watched_time=playduration)
+                        .values(
+                            emby_watched_time=next_watched_time,
+                            premium_traffic_debt_bytes=premium_traffic_result[
+                                "next_debt_bytes"
+                            ],
+                            premium_traffic_debt_updated_date=premium_traffic_result[
+                                "next_debt_updated_date"
+                            ],
+                        )
                     )
                     session.execute(stmt)
 
@@ -510,7 +664,12 @@ Emby 观看积分更新通知
 新增观看时长: {round(playduration - user[2], 2)} 小时
 基础观看积分: {round(original_credits_inc, 2)}{penalty_text}{badge_bonus_text}{inviter_bonus_text}
 Premium 流量使用情况: {round(traffic_usage_premium / (1024 * 1024 * 1024), 2)} GB
-Premium 每日流量超额: {max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
+Premium 当日可用免费额度: {round(premium_traffic_result["effective_limit"] / (1024 * 1024 * 1024), 2)} GB
+Premium 当日前待偿还额度: {round(premium_traffic_result["debt_before_today"] / (1024 * 1024 * 1024), 2)} GB
+Premium 自动偿还额度: {round(premium_traffic_result["recovered_before_today"] / (1024 * 1024 * 1024), 2)} GB
+Premium 当日超额流量: {max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
+Premium 结转待偿还额度: {round(premium_traffic_result["next_debt_bytes"] / (1024 * 1024 * 1024), 2)} GB
+Premium 实际扣费流量: {round(premium_traffic_result["chargeable_bytes"] / (1024 * 1024 * 1024), 2)} GB
 Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
 
 积分变化: {round(credits_inc + badge_bonus - traffic_cost_credits, 2):+.2f}
@@ -969,7 +1128,7 @@ async def check_prediction_markets_closing_soon_job() -> list[dict]:
             threshold_hours=6,
         )
         logger.info(
-            "大预言家截止提醒已发送：" f"count={len(markets)}, window=(now, now+6h]"
+            f"大预言家截止提醒已发送：count={len(markets)}, window=(now, now+6h]"
         )
         return markets
     except Exception as e:

@@ -447,6 +447,106 @@ class DatabaseORM:
                 )
             return None
 
+    def get_plex_premium_quota_status(self, plex_id: int) -> dict:
+        """获取 Plex 用户今日 Premium 免费额度状态"""
+        try:
+            today = datetime.now(settings.TZ)
+            with get_session() as session:
+                user = session.execute(
+                    select(
+                        PlexUser.is_premium,
+                        PlexUser.premium_traffic_debt_bytes,
+                        PlexUser.premium_traffic_debt_updated_date,
+                    ).where(PlexUser.plex_id == plex_id)
+                ).fetchone()
+
+            if not user:
+                return {
+                    "daily_limit": 0,
+                    "current_debt": 0,
+                    "remaining_free": 0,
+                }
+
+            daily_limit = (
+                settings.PREMIUM_USER_TRAFFIC_LIMIT
+                if user[0]
+                else settings.USER_TRAFFIC_LIMIT
+            )
+            current_debt = int(user[1] or 0)
+            debt_updated_date = user[2]
+
+            if debt_updated_date:
+                try:
+                    debt_day = datetime.strptime(debt_updated_date, "%Y-%m-%d").replace(
+                        tzinfo=settings.TZ
+                    )
+                    gap_days = max((today.date() - debt_day.date()).days - 1, 0)
+                    current_debt = max(current_debt - gap_days * daily_limit, 0)
+                except ValueError:
+                    logger.warning(
+                        f"Invalid Plex premium debt date for {plex_id}: {debt_updated_date}"
+                    )
+
+            return {
+                "daily_limit": daily_limit,
+                "current_debt": current_debt,
+                "remaining_free": max(daily_limit - current_debt, 0),
+            }
+        except Exception as e:
+            logger.error(f"Error getting Plex premium quota status for {plex_id}: {e}")
+            return {"daily_limit": 0, "current_debt": 0, "remaining_free": 0}
+
+    def get_emby_premium_quota_status(self, emby_username: str) -> dict:
+        """获取 Emby 用户今日 Premium 免费额度状态"""
+        try:
+            today = datetime.now(settings.TZ)
+            with get_session() as session:
+                user = session.execute(
+                    select(
+                        EmbyUser.is_premium,
+                        EmbyUser.premium_traffic_debt_bytes,
+                        EmbyUser.premium_traffic_debt_updated_date,
+                    ).where(func.lower(EmbyUser.emby_username) == emby_username.lower())
+                ).fetchone()
+
+            if not user:
+                return {
+                    "daily_limit": 0,
+                    "current_debt": 0,
+                    "remaining_free": 0,
+                }
+
+            daily_limit = (
+                settings.PREMIUM_USER_TRAFFIC_LIMIT
+                if user[0]
+                else settings.USER_TRAFFIC_LIMIT
+            )
+            current_debt = int(user[1] or 0)
+            debt_updated_date = user[2]
+
+            if debt_updated_date:
+                try:
+                    debt_day = datetime.strptime(debt_updated_date, "%Y-%m-%d").replace(
+                        tzinfo=settings.TZ
+                    )
+                    gap_days = max((today.date() - debt_day.date()).days - 1, 0)
+                    current_debt = max(current_debt - gap_days * daily_limit, 0)
+                except ValueError:
+                    logger.warning(
+                        f"Invalid Emby premium debt date for {emby_username}: {debt_updated_date}"
+                    )
+
+            return {
+                "daily_limit": daily_limit,
+                "current_debt": current_debt,
+                "remaining_free": max(daily_limit - current_debt, 0),
+            }
+        except Exception as e:
+            logger.error(
+                f"Error getting Emby premium quota status for {emby_username}: {e}"
+            )
+            return {"daily_limit": 0, "current_debt": 0, "remaining_free": 0}
+
     # ==================== Statistics Operations ====================
 
     def add_user_data(
@@ -3382,6 +3482,7 @@ class DatabaseORM:
     def update_expired_premium_status(self) -> int:
         """批量更新已过期的 Premium 用户状态"""
         current_time = datetime.now(settings.TZ).isoformat()
+        current_timestamp = int(datetime.now(settings.TZ).timestamp())
 
         with get_session() as session:
             # 更新 Plex 用户
@@ -3392,7 +3493,11 @@ class DatabaseORM:
                     PlexUser.premium_expiry_time.isnot(None),
                     PlexUser.premium_expiry_time < current_time,
                 )
-                .values(is_premium=0, premium_expiry_time=None)
+                .values(
+                    is_premium=0,
+                    premium_expiry_time=None,
+                    premium_status_updated_at=current_timestamp,
+                )
             )
 
             # 更新 Emby 用户
@@ -3403,7 +3508,11 @@ class DatabaseORM:
                     EmbyUser.premium_expiry_time.isnot(None),
                     EmbyUser.premium_expiry_time < current_time,
                 )
-                .values(is_premium=0, premium_expiry_time=None)
+                .values(
+                    is_premium=0,
+                    premium_expiry_time=None,
+                    premium_status_updated_at=current_timestamp,
+                )
             )
             total_updated = plex_result.rowcount + emby_result.rowcount
             return total_updated
@@ -4379,54 +4488,37 @@ class DatabaseORM:
             day_start = date.replace(hour=0, minute=0, second=0, microsecond=0)
             day_end = date.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-            # 判断查询日期是否为当月
-            now = datetime.now(settings.TZ)
-            current_month_start = now.replace(
-                day=1, hour=0, minute=0, second=0, microsecond=0
-            )
+            with get_session() as session:
+                # 原始流量表按天精确查询，月初结算昨日数据也依赖这里
+                if user_id:
+                    conditions = [
+                        LineTrafficStats.user_id == user_id,
+                        LineTrafficStats.service == service,
+                        LineTrafficStats.timestamp >= day_start.isoformat(),
+                        LineTrafficStats.timestamp <= day_end.isoformat(),
+                    ]
+                else:
+                    conditions = [
+                        func.lower(LineTrafficStats.username) == username.lower(),
+                        LineTrafficStats.service == service,
+                        LineTrafficStats.timestamp >= day_start.isoformat(),
+                        LineTrafficStats.timestamp <= day_end.isoformat(),
+                    ]
 
-            if date >= current_month_start:
-                # 当月数据，从 line_traffic_stats 表查询
-                with get_session() as session:
-                    # 构建基本查询条件
-                    if user_id:
-                        conditions = [
-                            LineTrafficStats.user_id == user_id,
-                            LineTrafficStats.service == service,
-                            LineTrafficStats.timestamp >= day_start.isoformat(),
-                            LineTrafficStats.timestamp <= day_end.isoformat(),
-                        ]
+                if premium_only:
+                    premium_lines = settings.PREMIUM_STREAM_BACKEND
+                    if premium_lines:
+                        conditions.append(LineTrafficStats.line.in_(premium_lines))
                     else:
-                        conditions = [
-                            func.lower(LineTrafficStats.username) == username.lower(),
-                            LineTrafficStats.service == service,
-                            LineTrafficStats.timestamp >= day_start.isoformat(),
-                            LineTrafficStats.timestamp <= day_end.isoformat(),
-                        ]
+                        return 0
 
-                    # 如果只统计 premium 线路
-                    if premium_only:
-                        premium_lines = settings.PREMIUM_STREAM_BACKEND
-                        if premium_lines:
-                            conditions.append(LineTrafficStats.line.in_(premium_lines))
-                        else:
-                            # 如果没有配置 premium 线路，返回 0
-                            return 0
+                result = session.execute(
+                    select(
+                        func.coalesce(func.sum(LineTrafficStats.send_bytes), 0)
+                    ).where(*conditions)
+                ).scalar()
 
-                    result = session.execute(
-                        select(
-                            func.coalesce(func.sum(LineTrafficStats.send_bytes), 0)
-                        ).where(*conditions)
-                    ).scalar()
-
-                    return result if result else 0
-            else:
-                # 历史月份数据，从 line_traffic_monthly_stats 表查询
-                # 注意：月度表只有月度总计，无法精确到天，返回 0
-                logger.warning(
-                    f"无法获取历史日期 {date.strftime('%Y-%m-%d')} 的精确日流量数据"
-                )
-                return 0
+                return result if result else 0
 
         except Exception as e:
             logger.error(

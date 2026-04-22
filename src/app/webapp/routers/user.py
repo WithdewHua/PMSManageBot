@@ -139,6 +139,16 @@ async def get_user_info(
                 )
                 # 获取下载权限状态
                 download_status = db.check_download_unlock(tg_id, "plex")
+                premium_quota_status = db.get_plex_premium_quota_status(plex_info[0])
+                projected_premium_debt = min(
+                    max(
+                        premium_quota_status["current_debt"]
+                        + daily_premium_traffic
+                        - premium_quota_status["daily_limit"],
+                        0,
+                    ),
+                    premium_quota_status["daily_limit"] * 2,
+                )
 
                 user_info.plex_info = {
                     "username": plex_info[4],
@@ -150,6 +160,13 @@ async def get_user_info(
                     "premium_expiry": plex_info[10],
                     "daily_traffic": daily_traffic,
                     "daily_premium_traffic": daily_premium_traffic,
+                    "daily_premium_free_remaining": max(
+                        premium_quota_status["remaining_free"] - daily_premium_traffic,
+                        0,
+                    ),
+                    "daily_premium_free_limit": premium_quota_status["daily_limit"],
+                    "daily_premium_debt": premium_quota_status["current_debt"],
+                    "daily_premium_projected_debt": projected_premium_debt,
                     "last_viewed_at": plex_info[11],
                     "download_unlocked": download_status["is_unlocked"],
                     "download_unlock_time": download_status["unlock_time"],
@@ -181,6 +198,16 @@ async def get_user_info(
                 )
                 # 获取下载权限状态
                 download_status = db.check_download_unlock(tg_id, "emby")
+                premium_quota_status = db.get_emby_premium_quota_status(emby_info[0])
+                projected_premium_debt = min(
+                    max(
+                        premium_quota_status["current_debt"]
+                        + daily_premium_traffic
+                        - premium_quota_status["daily_limit"],
+                        0,
+                    ),
+                    premium_quota_status["daily_limit"] * 2,
+                )
 
                 user_info.emby_info = {
                     "username": emby_info[0],
@@ -191,6 +218,13 @@ async def get_user_info(
                     "premium_expiry": emby_info[9],
                     "daily_traffic": daily_traffic,
                     "daily_premium_traffic": daily_premium_traffic,
+                    "daily_premium_free_remaining": max(
+                        premium_quota_status["remaining_free"] - daily_premium_traffic,
+                        0,
+                    ),
+                    "daily_premium_free_limit": premium_quota_status["daily_limit"],
+                    "daily_premium_debt": premium_quota_status["current_debt"],
+                    "daily_premium_projected_debt": projected_premium_debt,
                     "last_viewed_at": emby_info[10],
                     "download_unlocked": download_status["is_unlocked"],
                     "download_unlock_time": download_status["unlock_time"],

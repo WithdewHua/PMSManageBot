@@ -39,12 +39,12 @@ class Settings(BaseSettings):
     LINE_SCHEDULE_UNLOCK_CREDITS: int = 264  # 解锁线路调度功能所需积分
     DOWNLOAD_UNLOCK_CREDITS: int = 368  # 解锁下载/同步功能所需积分
     USER_TRAFFIC_LIMIT: int = (
-        30 * 1024 * 1024 * 1024
-    )  # 每日用户流量限额，单位为字节（30GB）
+        12 * 1024 * 1024 * 1024
+    )  # 每日用户免费 Premium 流量额度，单位为字节（12GB）
     PREMIUM_USER_TRAFFIC_LIMIT: int = (
-        60 * 1024 * 1024 * 1024
-    )  # 每日高级用户流量限额，单位为字节（60GB）
-    CREDITS_COST_PER_10GB: int = 5  # 超出每日限额后，每 10GB 流量消耗的积分
+        24 * 1024 * 1024 * 1024
+    )  # 每日高级用户免费 Premium 流量额度，单位为字节（24GB）
+    CREDITS_COST_PER_10GB: int = 5  # 超出当日可用免费额度后，每 10GB 流量消耗的积分
 
     # 功能开放设置
     PREMIUM_UNLOCK_ENABLED: bool = False  # 是否开放 premium 解锁功能

@@ -302,6 +302,24 @@
               </div>
               <div class="value-display traffic-value premium-traffic">{{ formatTraffic(userInfo.plex_info.daily_premium_traffic || 0) }}</div>
             </div>
+            <div v-if="systemStatus.premium_free || userInfo.plex_info.is_premium || userInfo.plex_info.daily_premium_debt > 0 || userInfo.plex_info.daily_premium_projected_debt > 0" class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="green-darken-1" class="mr-2">mdi-gauge</v-icon>
+                <span>Premium 日基础余量：</span>
+              </div>
+              <div class="d-flex align-center">
+                <v-tooltip location="top" open-on-click open-on-hover>
+                  <template v-slot:activator="{ props }">
+                    <div v-bind="props" class="value-display traffic-value free-premium-remaining quota-trigger">{{ formatTraffic(userInfo.plex_info.daily_premium_free_remaining || 0) }}</div>
+                  </template>
+                  <div class="quota-tooltip">
+                    <div>基础日额：{{ formatTraffic(userInfo.plex_info.daily_premium_free_limit || 0) }}</div>
+                    <div>当前欠额：{{ formatTraffic(userInfo.plex_info.daily_premium_debt || 0) }}</div>
+                    <div>预计结算后欠额：{{ formatTraffic(userInfo.plex_info.daily_premium_projected_debt || 0) }}</div>
+                  </div>
+                </v-tooltip>
+              </div>
+            </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
                 <v-icon size="small" color="amber-darken-2" class="mr-2">mdi-crown</v-icon>
@@ -482,6 +500,24 @@
                 <span>今日 Premium 流量：</span>
               </div>
               <div class="value-display traffic-value premium-traffic">{{ formatTraffic(userInfo.emby_info.daily_premium_traffic || 0) }}</div>
+            </div>
+            <div v-if="systemStatus.premium_free || userInfo.emby_info.is_premium || userInfo.emby_info.daily_premium_debt > 0 || userInfo.emby_info.daily_premium_projected_debt > 0" class="d-flex justify-space-between mb-2 align-center">
+              <div class="d-flex align-center">
+                <v-icon size="small" color="green-darken-1" class="mr-2">mdi-gauge</v-icon>
+                <span>Premium 日基础余量：</span>
+              </div>
+              <div class="d-flex align-center">
+                <v-tooltip location="top" open-on-click open-on-hover>
+                  <template v-slot:activator="{ props }">
+                    <div v-bind="props" class="value-display traffic-value free-premium-remaining quota-trigger">{{ formatTraffic(userInfo.emby_info.daily_premium_free_remaining || 0) }}</div>
+                  </template>
+                  <div class="quota-tooltip">
+                    <div>基础日额：{{ formatTraffic(userInfo.emby_info.daily_premium_free_limit || 0) }}</div>
+                    <div>当前欠额：{{ formatTraffic(userInfo.emby_info.daily_premium_debt || 0) }}</div>
+                    <div>预计结算后欠额：{{ formatTraffic(userInfo.emby_info.daily_premium_projected_debt || 0) }}</div>
+                  </div>
+                </v-tooltip>
+              </div>
             </div>
             <div class="d-flex justify-space-between mb-2 align-center">
               <div class="d-flex align-center">
@@ -1193,12 +1229,20 @@ export default {
         plex_info: {
           line: null,
           daily_traffic: 0,
-          daily_premium_traffic: 0
+          daily_premium_traffic: 0,
+          daily_premium_free_remaining: 0,
+          daily_premium_free_limit: 0,
+          daily_premium_debt: 0,
+          daily_premium_projected_debt: 0
         },
         emby_info: {
           line: null,
           daily_traffic: 0,
-          daily_premium_traffic: 0
+          daily_premium_traffic: 0,
+          daily_premium_free_remaining: 0,
+          daily_premium_free_limit: 0,
+          daily_premium_debt: 0,
+          daily_premium_projected_debt: 0
         },
         overseerr_info: null,
         is_admin: false
@@ -1252,6 +1296,7 @@ export default {
         site_name: '', // 默认值，从后端获取后会更新
         emby_entry_url: '', // 默认值，从后端获取后会更新
         premium_unlock_enabled: true,
+        premium_free: false,
         community_links: {
           group: '',
           channel: ''
@@ -2393,6 +2438,22 @@ export default {
   color: #F57C00;
   border: 1px solid rgba(255, 193, 7, 0.3);
   box-shadow: 0 2px 8px rgba(255, 193, 7, 0.1);
+}
+
+.free-premium-remaining {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.08) 100%);
+  color: #2E7D32;
+  border: 1px solid rgba(76, 175, 80, 0.25);
+}
+
+.quota-tooltip {
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.quota-trigger {
+  cursor: pointer;
 }
 
 /* 观看等级图标样式 */

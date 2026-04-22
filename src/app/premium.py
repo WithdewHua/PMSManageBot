@@ -138,6 +138,7 @@ def update_premium_status(db, tg_id: int, service: str, days: int = 30) -> datet
     :return: 新的 Premium 到期时间
     """
     new_expiry = None
+    current_timestamp = int(datetime.now(settings.TZ).timestamp())
     # 检查用户是否绑定了对应服务
     if service == "plex":
         user_info = db.get_plex_info_by_tg_id(tg_id)
@@ -162,10 +163,16 @@ def update_premium_status(db, tg_id: int, service: str, days: int = 30) -> datet
 
         # 更新数据库 - 设置is_premium=1和到期时间
         with get_session() as session:
+            update_values = {
+                "is_premium": 1,
+                "premium_expiry_time": new_expiry.isoformat(),
+            }
+            if not bool(user_info[9]):
+                update_values["premium_status_updated_at"] = current_timestamp
             stmt = (
                 sql_update(PlexUser)
                 .where(PlexUser.tg_id == tg_id)
-                .values(is_premium=1, premium_expiry_time=new_expiry.isoformat())
+                .values(**update_values)
             )
             session.execute(stmt)
 
@@ -209,10 +216,16 @@ def update_premium_status(db, tg_id: int, service: str, days: int = 30) -> datet
 
         # 更新数据库 - 设置is_premium=1和到期时间
         with get_session() as session:
+            update_values = {
+                "is_premium": 1,
+                "premium_expiry_time": new_expiry.isoformat(),
+            }
+            if not bool(user_info[8]):
+                update_values["premium_status_updated_at"] = current_timestamp
             stmt = (
                 sql_update(EmbyUser)
                 .where(EmbyUser.tg_id == tg_id)
-                .values(is_premium=1, premium_expiry_time=new_expiry.isoformat())
+                .values(**update_values)
             )
             session.execute(stmt)
 

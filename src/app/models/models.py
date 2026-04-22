@@ -54,6 +54,9 @@ class PlexUser(Base):
     plex_line: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     is_premium: Mapped[int] = mapped_column(SMALLINT, default=0, nullable=False)
     premium_expiry_time: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    premium_status_updated_at: Mapped[Optional[int]] = mapped_column(
+        BIGINT, nullable=True
+    )
     # Line schedule feature unlock
     line_schedule_unlocked: Mapped[int] = mapped_column(
         SMALLINT, default=0, nullable=False
@@ -72,6 +75,12 @@ class PlexUser(Base):
     sync_unlock_time: Mapped[Optional[int]] = mapped_column(
         BIGINT, nullable=True
     )  # Timestamp when unlocked
+    premium_traffic_debt_bytes: Mapped[int] = mapped_column(
+        BIGINT, default=0, nullable=False
+    )
+    premium_traffic_debt_updated_date: Mapped[Optional[str]] = mapped_column(
+        String, nullable=True
+    )
 
 
 class EmbyUser(Base):
@@ -93,6 +102,9 @@ class EmbyUser(Base):
     emby_line: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     is_premium: Mapped[int] = mapped_column(SMALLINT, default=0, nullable=False)
     premium_expiry_time: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    premium_status_updated_at: Mapped[Optional[int]] = mapped_column(
+        BIGINT, nullable=True
+    )
     # Line schedule feature unlock
     line_schedule_unlocked: Mapped[int] = mapped_column(
         SMALLINT, default=0, nullable=False
@@ -111,6 +123,12 @@ class EmbyUser(Base):
     download_unlock_time: Mapped[Optional[int]] = mapped_column(
         BIGINT, nullable=True
     )  # Timestamp when unlocked
+    premium_traffic_debt_bytes: Mapped[int] = mapped_column(
+        BIGINT, default=0, nullable=False
+    )
+    premium_traffic_debt_updated_date: Mapped[Optional[str]] = mapped_column(
+        String, nullable=True
+    )
 
 
 class Invitation(Base):

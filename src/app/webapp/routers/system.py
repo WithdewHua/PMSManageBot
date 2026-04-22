@@ -93,6 +93,7 @@ async def get_system_status():
             "plex_register": settings.PLEX_REGISTER,
             "emby_register": settings.EMBY_REGISTER,
             "premium_unlock_enabled": settings.PREMIUM_UNLOCK_ENABLED,
+            "premium_free": settings.PREMIUM_FREE,
             "premium_daily_credits": settings.PREMIUM_DAILY_CREDITS,
             "credits_transfer_enabled": settings.CREDITS_TRANSFER_ENABLED,
             "community_links": {
