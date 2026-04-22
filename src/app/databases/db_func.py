@@ -1230,6 +1230,7 @@ async def update_line_traffic_stats(
 
     source_queue = "filebeat_nginx_stream_logs"
     processing_queue = "filebeat_nginx_stream_logs_processing"
+    transfer_batch_size = 100
 
     def _build_line_traffic_event_hash(
         backend: str,
@@ -1262,15 +1263,33 @@ async def update_line_traffic_stats(
 
     values = []
     transferred_count = 0
+    emby = None
     try:
-        pipeline = stream_traffic_cache.redis_client.pipeline()
-        for _ in range(count):
-            pipeline.rpoplpush(source_queue, processing_queue)
-        raw_values = pipeline.execute()
-        values = [value for value in raw_values if value]
-        transferred_count = len(values)
+        remaining = max(int(count), 0)
+        while remaining > 0:
+            current_batch_size = min(remaining, transfer_batch_size)
+            pipeline = stream_traffic_cache.redis_client.pipeline()
+            for _ in range(current_batch_size):
+                pipeline.rpoplpush(source_queue, processing_queue)
+            batch_values = [value for value in pipeline.execute() if value]
+            if not batch_values:
+                break
+            values.extend(batch_values)
+            transferred_count += len(batch_values)
+            remaining -= len(batch_values)
+            if len(batch_values) < current_batch_size:
+                break
     except Exception as e:
         logger.error(f"从 Redis 转移流量日志到处理中队列失败: {e}")
+        if values:
+            try:
+                rollback_pipeline = stream_traffic_cache.redis_client.pipeline()
+                for value in values:
+                    rollback_pipeline.lrem(processing_queue, 1, value)
+                    rollback_pipeline.lpush(source_queue, value)
+                rollback_pipeline.execute()
+            except Exception as rollback_error:
+                logger.error(f"Redis 转移失败后回滚已转移日志失败: {rollback_error}")
         return
 
     if not values:
@@ -1280,6 +1299,7 @@ async def update_line_traffic_stats(
     processed_count = 0
     acknowledged_count = 0
     duplicate_count = 0
+    skipped_count = 0
     failed_logs = []
 
     plex_username_to_id = {}
@@ -1357,6 +1377,7 @@ async def update_line_traffic_stats(
                         processing_queue, 1, raw_log_for_ack
                     )
                     acknowledged_count += 1
+                    skipped_count += 1
                     continue
 
                 # 提取需要的字段
@@ -1374,6 +1395,7 @@ async def update_line_traffic_stats(
                         processing_queue, 1, raw_log_for_ack
                     )
                     acknowledged_count += 1
+                    skipped_count += 1
                     continue
 
                 if not url.startswith("/stream") and not re.search(
@@ -1386,6 +1408,7 @@ async def update_line_traffic_stats(
                         processing_queue, 1, raw_log_for_ack
                     )
                     acknowledged_count += 1
+                    skipped_count += 1
                     continue
 
                 # 解析 URL 获取服务信息
@@ -1414,6 +1437,7 @@ async def update_line_traffic_stats(
                             processing_queue, 1, raw_log_for_ack
                         )
                         acknowledged_count += 1
+                        skipped_count += 1
                         continue
 
                 service = service_list[0]
@@ -1427,6 +1451,7 @@ async def update_line_traffic_stats(
                         processing_queue, 1, raw_log_for_ack
                     )
                     acknowledged_count += 1
+                    skipped_count += 1
                     continue
 
                 username = None
@@ -1444,8 +1469,11 @@ async def update_line_traffic_stats(
                         user_id = emby_username_to_id.get(username.lower())
                     else:
                         # 尝试通过 api key 获取用户名
-                        emby = Emby()
-                        username = await emby.get_emby_username_from_api_key(token)
+                        if emby is None:
+                            emby = Emby()
+                        username = await asyncio.wait_for(
+                            emby.get_emby_username_from_api_key(token), timeout=5
+                        )
                         if username:
                             user_id = emby_username_to_id.get(username.lower())
 
@@ -1456,6 +1484,7 @@ async def update_line_traffic_stats(
                         processing_queue, 1, raw_log_for_ack
                     )
                     acknowledged_count += 1
+                    skipped_count += 1
                     continue
 
                 # 转换时间格式为 ISO 格式
@@ -1536,6 +1565,10 @@ async def update_line_traffic_stats(
                 logger.error(f"JSON 解析错误: {e}, 原始数据: {raw_log}")
                 failed_logs.append(raw_log)
                 continue
+            except asyncio.TimeoutError:
+                logger.error("通过 Emby api_key 查询用户名超时，日志将回滚重试")
+                failed_logs.append(raw_log_for_ack)
+                continue
             except Exception as e:
                 logger.error(f"处理日志时发生错误: {e}, 原始数据: {raw_log}")
                 failed_logs.append(raw_log)
@@ -1557,7 +1590,7 @@ async def update_line_traffic_stats(
                 logger.error(f"回滚失败的流量日志到 Redis 队列时发生错误: {e}")
 
         logger.info(
-            f"流量日志处理完成: 本次转移 {transferred_count} 条, 成功新增 {processed_count} 条, 重复跳过 {duplicate_count} 条, 已确认 {acknowledged_count} 条, 失败回滚 {len(failed_logs)} 条"
+            f"流量日志处理完成: 本次转移 {transferred_count} 条, 成功新增 {processed_count} 条, 业务跳过 {skipped_count} 条, 重复跳过 {duplicate_count} 条, 已确认 {acknowledged_count} 条, 失败回滚 {len(failed_logs)} 条"
         )
 
     except Exception as e:

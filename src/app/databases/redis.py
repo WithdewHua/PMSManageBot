@@ -17,6 +17,10 @@ class Redis:
             port=port,
             password=password,
             decode_responses=decode_responses,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+            retry_on_timeout=True,
+            health_check_interval=30,
         )
         self.client = redis.Redis(connection_pool=self._pool)
 
