@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import math
 import re
@@ -1227,16 +1228,59 @@ async def update_line_traffic_stats(
     更新线路的流量数据
     """
 
-    # 每次从 redis 中取出指定数量的数据
-    values = stream_traffic_cache.redis_client.lpop(
-        "filebeat_nginx_stream_logs", count=count
-    )
+    source_queue = "filebeat_nginx_stream_logs"
+    processing_queue = "filebeat_nginx_stream_logs_processing"
+
+    def _build_line_traffic_event_hash(
+        backend: str,
+        service: str,
+        username: str,
+        user_id: Optional[str],
+        formatted_timestamp: str,
+        decoded_uri: str,
+        bytes_sent: int,
+        upstream: Optional[str],
+        upstream_response_time: Optional[str],
+    ) -> str:
+        raw = json.dumps(
+            {
+                "line": backend,
+                "service": service,
+                "username": username,
+                "user_id": user_id or "",
+                "timestamp": formatted_timestamp,
+                "request_uri": decoded_uri,
+                "send_bytes": int(bytes_sent),
+                "upstream": upstream or "",
+                "upstream_response_time": upstream_response_time or "",
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    values = []
+    transferred_count = 0
+    try:
+        pipeline = stream_traffic_cache.redis_client.pipeline()
+        for _ in range(count):
+            pipeline.rpoplpush(source_queue, processing_queue)
+        raw_values = pipeline.execute()
+        values = [value for value in raw_values if value]
+        transferred_count = len(values)
+    except Exception as e:
+        logger.error(f"从 Redis 转移流量日志到处理中队列失败: {e}")
+        return
 
     if not values:
         logger.info("没有新的流量日志数据")
         return
 
     processed_count = 0
+    acknowledged_count = 0
+    duplicate_count = 0
+    failed_logs = []
 
     plex_username_to_id = {}
     emby_username_to_id = {}
@@ -1266,11 +1310,25 @@ async def update_line_traffic_stats(
             }
     except Exception as e:
         logger.error(f"加载用户ID映射失败: {e}")
+        if values:
+            try:
+                pipeline = stream_traffic_cache.redis_client.pipeline()
+                for value in values:
+                    pipeline.lrem(processing_queue, 1, value)
+                    pipeline.lpush(source_queue, value)
+                pipeline.execute()
+            except Exception as rollback_error:
+                logger.error(
+                    f"加载用户ID映射失败后回滚 Redis 处理中队列数据失败: {rollback_error}"
+                )
         return
 
     try:
         for raw_log in values:
             try:
+                raw_log_for_ack = (
+                    raw_log.decode("utf-8") if isinstance(raw_log, bytes) else raw_log
+                )
                 # 解析 JSON 日志
                 if isinstance(raw_log, bytes):
                     raw_log = raw_log.decode("utf-8")
@@ -1295,6 +1353,10 @@ async def update_line_traffic_stats(
 
                 if not match:
                     logger.warning(f"无法解析日志格式: {message}")
+                    stream_traffic_cache.redis_client.lrem(
+                        processing_queue, 1, raw_log_for_ack
+                    )
+                    acknowledged_count += 1
                     continue
 
                 # 提取需要的字段
@@ -1308,6 +1370,10 @@ async def update_line_traffic_stats(
 
                 # 只处理成功的请求 (2xx 状态码)
                 if status_code < 200 or status_code >= 300:
+                    stream_traffic_cache.redis_client.lrem(
+                        processing_queue, 1, raw_log_for_ack
+                    )
+                    acknowledged_count += 1
                     continue
 
                 if not url.startswith("/stream") and not re.search(
@@ -1316,6 +1382,10 @@ async def update_line_traffic_stats(
                     # 只处理 /stream 路径的请求
                     # 或者包含 "Original." 的请求（兼容下 emby 反代）
                     logger.info(f"跳过非流媒体请求: {url}")
+                    stream_traffic_cache.redis_client.lrem(
+                        processing_queue, 1, raw_log_for_ack
+                    )
+                    acknowledged_count += 1
                     continue
 
                 # 解析 URL 获取服务信息
@@ -1340,6 +1410,10 @@ async def update_line_traffic_stats(
                     else:
                         # 如果没有 service 或 token，跳过此条记录
                         logger.warning(f"缺少必要的参数 service 或 token: {url}")
+                        stream_traffic_cache.redis_client.lrem(
+                            processing_queue, 1, raw_log_for_ack
+                        )
+                        acknowledged_count += 1
                         continue
 
                 service = service_list[0]
@@ -1349,6 +1423,10 @@ async def update_line_traffic_stats(
                 backend = line_list[0] if line_list else backend
                 if not backend:
                     logger.warning(f"缺少 backend 信息: {url}")
+                    stream_traffic_cache.redis_client.lrem(
+                        processing_queue, 1, raw_log_for_ack
+                    )
+                    acknowledged_count += 1
                     continue
 
                 username = None
@@ -1374,6 +1452,10 @@ async def update_line_traffic_stats(
                 # 如果无法获取到用户信息，跳过此条记录
                 if not username:
                     logger.warning(f"无法找到 token 对应的用户名: {token}")
+                    stream_traffic_cache.redis_client.lrem(
+                        processing_queue, 1, raw_log_for_ack
+                    )
+                    acknowledged_count += 1
                     continue
 
                 # 转换时间格式为 ISO 格式
@@ -1395,13 +1477,26 @@ async def update_line_traffic_stats(
                     )
 
                 # 存储到数据库
-                success = db.create_line_traffic_entry(
+                event_hash = _build_line_traffic_event_hash(
+                    backend=backend,
+                    service=service,
+                    username=username,
+                    user_id=user_id,
+                    formatted_timestamp=formatted_timestamp,
+                    decoded_uri=decoded_uri,
+                    bytes_sent=bytes_sent,
+                    upstream=upstream,
+                    upstream_response_time=upstream_response_time,
+                )
+
+                success, is_duplicate = db.create_line_traffic_entry(
                     line=backend,
                     send_bytes=bytes_sent,
                     service=service,
                     username=username,
                     user_id=user_id,
                     timestamp=formatted_timestamp,
+                    event_hash=event_hash,
                     request_uri=decoded_uri,
                     upstream=upstream,
                     upstream_response_time=upstream_response_time,
@@ -1421,15 +1516,49 @@ async def update_line_traffic_stats(
                         log_msg += f"\n    上游响应时间: {upstream_response_time}s"
                     logger.debug(log_msg)
                     processed_count += 1
+                    stream_traffic_cache.redis_client.lrem(
+                        processing_queue, 1, raw_log_for_ack
+                    )
+                    acknowledged_count += 1
+                elif is_duplicate:
+                    duplicate_count += 1
+                    stream_traffic_cache.redis_client.lrem(
+                        processing_queue, 1, raw_log_for_ack
+                    )
+                    acknowledged_count += 1
+                else:
+                    logger.error(
+                        f"流量日志入库失败，将回滚到 Redis 队列重试: event_hash={event_hash}"
+                    )
+                    failed_logs.append(raw_log_for_ack)
 
             except json.JSONDecodeError as e:
                 logger.error(f"JSON 解析错误: {e}, 原始数据: {raw_log}")
+                failed_logs.append(raw_log)
                 continue
             except Exception as e:
                 logger.error(f"处理日志时发生错误: {e}, 原始数据: {raw_log}")
+                failed_logs.append(raw_log)
                 continue
 
-        logger.info(f"成功处理了 {processed_count} 条流量日志")
+        if failed_logs:
+            try:
+                pipeline = stream_traffic_cache.redis_client.pipeline()
+                for failed_log in failed_logs:
+                    failed_log_text = (
+                        failed_log.decode("utf-8")
+                        if isinstance(failed_log, bytes)
+                        else failed_log
+                    )
+                    pipeline.lrem(processing_queue, 1, failed_log_text)
+                    pipeline.lpush(source_queue, failed_log_text)
+                pipeline.execute()
+            except Exception as e:
+                logger.error(f"回滚失败的流量日志到 Redis 队列时发生错误: {e}")
+
+        logger.info(
+            f"流量日志处理完成: 本次转移 {transferred_count} 条, 成功新增 {processed_count} 条, 重复跳过 {duplicate_count} 条, 已确认 {acknowledged_count} 条, 失败回滚 {len(failed_logs)} 条"
+        )
 
     except Exception as e:
         logger.error(f"更新线路流量统计时发生错误: {e}")

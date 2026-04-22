@@ -4353,10 +4353,11 @@ class DatabaseORM:
         username: str,
         user_id: str,
         timestamp: str,
+        event_hash: str,
         request_uri: Optional[str] = None,
         upstream: Optional[str] = None,
         upstream_response_time: Optional[str] = None,
-    ) -> bool:
+    ) -> tuple[bool, bool]:
         """创建流量统计记录"""
         try:
             with get_session() as session:
@@ -4367,15 +4368,23 @@ class DatabaseORM:
                     username=username,
                     user_id=user_id,
                     timestamp=timestamp,
+                    event_hash=event_hash,
                     request_uri=request_uri,
                     upstream=upstream,
                     upstream_response_time=upstream_response_time,
                 )
                 session.add(traffic_entry)
-                return True
+                return True, False
         except Exception as e:
+            if "uq_line_traffic_event_hash" in str(
+                e
+            ) or "UNIQUE constraint failed: line_traffic_stats.event_hash" in str(e):
+                logger.info(
+                    f"Skip duplicated line traffic entry, event_hash={event_hash}"
+                )
+                return False, True
             logger.error(f"Error creating line traffic entry: {e}")
-            return False
+            return False, False
 
     def get_premium_line_traffic_statistics(self) -> list:
         """获取Premium线路流量统计信息"""

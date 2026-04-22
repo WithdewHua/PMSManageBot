@@ -237,11 +237,13 @@ class LineTrafficStats(Base):
     username: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     user_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     timestamp: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    event_hash: Mapped[str] = mapped_column(Text, nullable=False)
     request_uri: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     upstream: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     upstream_response_time: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
+        UniqueConstraint("event_hash", name="uq_line_traffic_event_hash"),
         Index("idx_line_traffic_service_user_time", "service", "username", "timestamp"),
         Index("idx_line_traffic_line_time", "line", "timestamp"),
         Index("idx_line_traffic_line_stats", "line", "timestamp", "send_bytes"),
