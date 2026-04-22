@@ -1296,29 +1296,47 @@ return moved
         )
         return result or []
 
-    def _acknowledge_processing_logs(logs: list[str], chunk_size: int = 200) -> None:
-        if not logs:
+    def _finalize_processing_logs(
+        processed_log_count: int, failed_positions: list[int]
+    ) -> None:
+        if processed_log_count <= 0:
             return
 
-        ack_script = """
+        finalize_script = """
 local processing_queue = KEYS[1]
-local removed = 0
+local processed_log_count = tonumber(ARGV[1]) or 0
+local failed_positions = {}
+local failed_values = {}
 
-for i = 1, #ARGV do
-    removed = removed + redis.call('LREM', processing_queue, 1, ARGV[i])
+for i = 2, #ARGV do
+    failed_positions[tonumber(ARGV[i])] = true
 end
 
-return removed
+for i = 1, processed_log_count do
+    local value = redis.call('LPOP', processing_queue)
+    if not value then
+        break
+    end
+
+    if failed_positions[i] then
+        failed_values[#failed_values + 1] = value
+    end
+end
+
+for i = 1, #failed_values do
+    redis.call('RPUSH', processing_queue, failed_values[i])
+end
+
+return #failed_values
 """
 
-        for index in range(0, len(logs), chunk_size):
-            chunk = logs[index : index + chunk_size]
-            stream_traffic_cache.redis_client.eval(
-                ack_script,
-                1,
-                processing_queue,
-                *chunk,
-            )
+        args = [processed_log_count, *failed_positions]
+        stream_traffic_cache.redis_client.eval(
+            finalize_script,
+            1,
+            processing_queue,
+            *args,
+        )
 
     values = []
     transferred_count = 0
@@ -1354,8 +1372,7 @@ return removed
     acknowledged_count = 0
     duplicate_count = 0
     skipped_count = 0
-    failed_logs = []
-    ack_logs = []
+    failed_positions = []
 
     plex_username_to_id = {}
     emby_username_to_id = {}
@@ -1388,11 +1405,8 @@ return removed
         return
 
     try:
-        for raw_log in values:
+        for index, raw_log in enumerate(values, start=1):
             try:
-                raw_log_for_ack = (
-                    raw_log.decode("utf-8") if isinstance(raw_log, bytes) else raw_log
-                )
                 # 解析 JSON 日志
                 if isinstance(raw_log, bytes):
                     raw_log = raw_log.decode("utf-8")
@@ -1417,7 +1431,6 @@ return removed
 
                 if not match:
                     logger.warning(f"无法解析日志格式: {message}")
-                    ack_logs.append(raw_log_for_ack)
                     acknowledged_count += 1
                     skipped_count += 1
                     continue
@@ -1433,7 +1446,6 @@ return removed
 
                 # 只处理成功的请求 (2xx 状态码)
                 if status_code < 200 or status_code >= 300:
-                    ack_logs.append(raw_log_for_ack)
                     acknowledged_count += 1
                     skipped_count += 1
                     continue
@@ -1444,7 +1456,6 @@ return removed
                     # 只处理 /stream 路径的请求
                     # 或者包含 "Original." 的请求（兼容下 emby 反代）
                     logger.info(f"跳过非流媒体请求: {url}")
-                    ack_logs.append(raw_log_for_ack)
                     acknowledged_count += 1
                     skipped_count += 1
                     continue
@@ -1471,7 +1482,6 @@ return removed
                     else:
                         # 如果没有 service 或 token，跳过此条记录
                         logger.warning(f"缺少必要的参数 service 或 token: {url}")
-                        ack_logs.append(raw_log_for_ack)
                         acknowledged_count += 1
                         skipped_count += 1
                         continue
@@ -1483,7 +1493,6 @@ return removed
                 backend = line_list[0] if line_list else backend
                 if not backend:
                     logger.warning(f"缺少 backend 信息: {url}")
-                    ack_logs.append(raw_log_for_ack)
                     acknowledged_count += 1
                     skipped_count += 1
                     continue
@@ -1514,7 +1523,6 @@ return removed
                 # 如果无法获取到用户信息，跳过此条记录
                 if not username:
                     logger.warning(f"无法找到 token 对应的用户名: {token}")
-                    ack_logs.append(raw_log_for_ack)
                     acknowledged_count += 1
                     skipped_count += 1
                     continue
@@ -1577,43 +1585,40 @@ return removed
                         log_msg += f"\n    上游响应时间: {upstream_response_time}s"
                     logger.debug(log_msg)
                     processed_count += 1
-                    ack_logs.append(raw_log_for_ack)
                     acknowledged_count += 1
                 elif is_duplicate:
                     duplicate_count += 1
-                    ack_logs.append(raw_log_for_ack)
                     acknowledged_count += 1
                 else:
                     logger.error(
                         f"流量日志入库失败，将保留在处理中队列重试: event_hash={event_hash}"
                     )
-                    failed_logs.append(raw_log_for_ack)
+                    failed_positions.append(index)
 
             except json.JSONDecodeError as e:
                 logger.error(f"JSON 解析错误: {e}, 原始数据: {raw_log}")
-                failed_logs.append(raw_log)
+                failed_positions.append(index)
                 continue
             except asyncio.TimeoutError:
                 logger.error("通过 Emby api_key 查询用户名超时，日志将回滚重试")
-                failed_logs.append(raw_log_for_ack)
+                failed_positions.append(index)
                 continue
             except Exception as e:
                 logger.error(f"处理日志时发生错误: {e}, 原始数据: {raw_log}")
-                failed_logs.append(raw_log)
+                failed_positions.append(index)
                 continue
 
-        if ack_logs:
+        if values:
             try:
-                acknowledge_log_texts = [
-                    ack_log.decode("utf-8") if isinstance(ack_log, bytes) else ack_log
-                    for ack_log in ack_logs
-                ]
-                _acknowledge_processing_logs(acknowledge_log_texts)
+                _finalize_processing_logs(
+                    processed_log_count=len(values),
+                    failed_positions=failed_positions,
+                )
             except Exception as e:
                 logger.error(f"批量确认处理完成的流量日志时发生错误: {e}")
 
         logger.info(
-            f"流量日志处理完成: 本次转移 {transferred_count} 条, 成功新增 {processed_count} 条, 业务跳过 {skipped_count} 条, 重复跳过 {duplicate_count} 条, 已确认 {acknowledged_count} 条, 留待重试 {len(failed_logs)} 条"
+            f"流量日志处理完成: 本次转移 {transferred_count} 条, 成功新增 {processed_count} 条, 业务跳过 {skipped_count} 条, 重复跳过 {duplicate_count} 条, 已确认 {acknowledged_count} 条, 留待重试 {len(failed_positions)} 条"
         )
 
     except Exception as e:
