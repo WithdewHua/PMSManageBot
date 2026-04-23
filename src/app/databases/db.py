@@ -2039,16 +2039,17 @@ class DatabaseORM:
         self, limit: int = 50, include_closed: bool = True
     ) -> list[dict]:
         with get_session() as session:
+            active_first = case((PredictionMarket.status == 1, 1), else_=0).desc()
             stmt = (
                 select(PredictionMarket)
-                .order_by(PredictionMarket.id.desc())
+                .order_by(active_first, PredictionMarket.id.desc())
                 .limit(limit)
             )
             if not include_closed:
                 stmt = (
                     select(PredictionMarket)
                     .where(PredictionMarket.status.in_([1, 2]))
-                    .order_by(PredictionMarket.id.desc())
+                    .order_by(active_first, PredictionMarket.id.desc())
                     .limit(limit)
                 )
 
