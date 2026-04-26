@@ -1,5 +1,10 @@
 <template>
-  <v-dialog v-model="showDialog" max-width="900" scrollable>
+  <v-dialog
+    v-model="showDialog"
+    :max-width="$vuetify.display.xs ? '100vw' : '900'"
+    :fullscreen="$vuetify.display.xs"
+    scrollable
+  >
     <v-card class="schedule-dialog">
       <v-card-title class="dialog-title">
         <v-icon start size="28">mdi-calendar-clock</v-icon>
@@ -58,35 +63,14 @@
 
         <!-- 已解锁状态 - 直接显示高级调度配置 -->
         <div v-else>
-          <!-- 当前生效的调度 -->
-          <v-card v-if="activeSchedule" variant="tonal" color="success" class="active-schedule-card mb-4">
-            <v-card-subtitle class="pb-2 d-flex align-center">
-              <v-icon size="small" class="mr-1">mdi-check-circle</v-icon>
-              <span class="font-weight-medium">当前生效的调度</span>
-            </v-card-subtitle>
-            <v-card-text>
-              <div class="d-flex align-center flex-wrap gap-2">
-                <v-chip color="success" variant="elevated" size="small" class="font-weight-bold">
-                  <v-icon start size="x-small">mdi-router-wireless</v-icon>
-                  {{ activeSchedule.line }}
-                </v-chip>
-                <span class="text-body-2">
-                  {{ formatDaysOfWeek(activeSchedule.days_of_week) }}
-                  <v-icon size="x-small" class="mx-1">mdi-clock-outline</v-icon>
-                  {{ activeSchedule.start_time }} - {{ activeSchedule.end_time }}
-                </span>
-              </div>
-            </v-card-text>
-          </v-card>
-
           <!-- 调度列表 -->
           <v-card variant="outlined" class="schedule-list-card">
-            <v-card-subtitle class="schedule-header">
-              <div class="d-flex justify-space-between align-center">
+            <div class="schedule-header">
+              <div class="schedule-header-row">
                 <span class="schedule-title">
                   <v-icon size="small" class="mr-1">mdi-format-list-bulleted</v-icon>
                   调度规则列表
-                  <v-chip size="x-small" color="purple-lighten-3" class="ml-2">
+                  <v-chip size="x-small" color="purple-darken-1" variant="flat" class="schedule-count-chip ml-2">
                     {{ schedules.length }} 条
                   </v-chip>
                 </span>
@@ -102,7 +86,7 @@
                   添加调度
                 </v-btn>
               </div>
-            </v-card-subtitle>
+            </div>
             <v-divider></v-divider>
             <v-card-text class="pa-0">
               <div v-if="schedules.length > 0" class="schedules-container">
@@ -110,18 +94,21 @@
                   v-for="schedule in schedules"
                   :key="schedule.id"
                   class="schedule-item"
-                  :class="{ 'schedule-disabled': !schedule.is_enabled }"
+                  :class="{
+                    'schedule-disabled': !schedule.is_enabled,
+                    'schedule-active': isActiveSchedule(schedule),
+                  }"
                   variant="outlined"
                 >
                   <!-- 左侧线路标识 -->
-                  <div class="schedule-line-indicator" :style="{ backgroundColor: schedule.is_enabled ? '#9333ea' : '#9e9e9e' }"></div>
+                  <div class="schedule-line-indicator" :style="{ backgroundColor: getScheduleIndicatorColor(schedule) }"></div>
                   
                   <div class="schedule-content">
                     <!-- 顶部：线路和状态 -->
                     <div class="schedule-top">
                       <div class="d-flex align-center flex-wrap" style="gap: 8px;">
                         <v-chip 
-                          :color="schedule.is_enabled ? 'purple-darken-1' : 'grey'" 
+                          :color="getScheduleLineChipColor(schedule)" 
                           variant="elevated"
                           size="small"
                           class="schedule-line-chip"
@@ -138,6 +125,16 @@
                             {{ schedule.is_enabled ? 'mdi-check-circle' : 'mdi-pause-circle' }}
                           </v-icon>
                           {{ schedule.is_enabled ? '已启用' : '已禁用' }}
+                        </v-chip>
+                        <v-chip
+                          v-if="isActiveSchedule(schedule)"
+                          size="x-small"
+                          color="success"
+                          variant="elevated"
+                          class="active-schedule-badge"
+                        >
+                          <v-icon start size="x-small">mdi-lightning-bolt</v-icon>
+                          当前生效
                         </v-chip>
                       </div>
                       
@@ -195,27 +192,28 @@
                       </div>
                     </div>
                     
-                    <!-- 中间：日期信息 -->
-                    <div class="schedule-days">
-                      <v-icon size="small" class="mr-2">mdi-calendar-range</v-icon>
-                      <span class="schedule-days-text">{{ formatDaysOfWeek(schedule.days_of_week) }}</span>
-                    </div>
-                    
-                    <!-- 底部：时间 -->
-                    <div class="schedule-bottom">
-                      <div class="schedule-time">
-                        <v-icon size="small" class="mr-1">mdi-clock-outline</v-icon>
-                        <span>{{ schedule.start_time }} - {{ schedule.end_time }}</span>
+                    <div class="schedule-meta-grid">
+                      <div class="schedule-meta-item schedule-days">
+                        <v-icon size="small">mdi-calendar-range</v-icon>
+                        <div class="schedule-meta-copy">
+                          <div class="schedule-meta-label">生效日期</div>
+                          <div class="schedule-meta-value schedule-days-text">{{ formatDaysOfWeek(schedule.days_of_week) }}</div>
+                        </div>
                       </div>
-                      <!-- 优先级暂时隐藏，因为不允许调度时间重叠 -->
-                      <!-- <v-chip 
-                        size="x-small" 
-                        variant="outlined"
-                        color="purple-darken-1"
-                      >
-                        <v-icon start size="x-small">mdi-priority-high</v-icon>
-                        优先级 {{ schedule.priority }}
-                      </v-chip> -->
+                      <div class="schedule-meta-item schedule-time">
+                        <v-icon size="small">mdi-clock-outline</v-icon>
+                        <div class="schedule-meta-copy">
+                          <div class="schedule-meta-label">时间范围</div>
+                          <div class="schedule-meta-value">{{ schedule.start_time }} - {{ schedule.end_time }}</div>
+                        </div>
+                      </div>
+                      <div class="schedule-meta-item schedule-priority">
+                        <v-icon size="small">mdi-priority-high</v-icon>
+                        <div class="schedule-meta-copy">
+                          <div class="schedule-meta-label">优先级</div>
+                          <div class="schedule-meta-value">{{ schedule.priority }}</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </v-card>
@@ -478,8 +476,7 @@
               </v-row>
             </div>
 
-            <!-- 优先级 (暂时隐藏，因为不允许调度时间重叠) -->
-            <!-- <div class="form-section">
+            <div class="form-section">
               <div class="form-label mb-2">
                 <v-icon size="small" class="mr-1">mdi-priority-high</v-icon>
                 优先级
@@ -494,7 +491,7 @@
                 persistent-hint
                 :rules="[v => v >= 0 || '优先级不能为负数']"
               ></v-text-field>
-            </div> -->
+            </div>
           </v-form>
         </v-card-text>
         <v-divider></v-divider>
@@ -670,7 +667,7 @@ export default {
       if (!this.unlockStatus.is_unlocked) return;
       try {
         const result = await getLineScheduleStatus(this.serviceType);
-        this.activeSchedule = result.active_schedule;
+        this.activeSchedule = result.current_schedule;
       } catch (error) {
         console.error('加载调度状态失败:', error);
       }
@@ -796,6 +793,17 @@ export default {
     },
     onScheduleLineChanged(newLine) {
       this.scheduleForm.line = newLine;
+    },
+    isActiveSchedule(schedule) {
+      return this.activeSchedule && this.activeSchedule.id === schedule.id;
+    },
+    getScheduleIndicatorColor(schedule) {
+      if (!schedule.is_enabled) return '#9e9e9e';
+      return this.isActiveSchedule(schedule) ? '#22c55e' : '#9333ea';
+    },
+    getScheduleLineChipColor(schedule) {
+      if (!schedule.is_enabled) return 'grey';
+      return this.isActiveSchedule(schedule) ? 'success' : 'purple-darken-1';
     },
     async saveSchedule() {
       if (!this.$refs.scheduleForm.validate()) return;
@@ -983,12 +991,6 @@ export default {
   letter-spacing: 0.5px;
 }
 
-/* 当前生效的调度卡片 */
-.active-schedule-card {
-  border-radius: 12px !important;
-  border-left: 4px solid #4caf50 !important;
-}
-
 /* 调度列表卡片 */
 .schedule-list-card {
   border-radius: 12px !important;
@@ -997,22 +999,38 @@ export default {
 }
 
 .schedule-header {
-  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+  background: #ffffff;
   padding: 16px 20px !important;
+  border-bottom: 1px solid #eef2f7;
+  opacity: 1 !important;
+}
+
+.schedule-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
 
 .schedule-title {
   font-weight: 600;
   font-size: 15px;
-  color: #2d3748;
+  color: #1e293b;
   display: flex;
   align-items: center;
+}
+
+.schedule-count-chip {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  opacity: 1 !important;
 }
 
 .add-schedule-btn {
   font-weight: 600;
   letter-spacing: 0.3px;
   text-transform: none;
+  box-shadow: none !important;
 }
 
 /* 调度容器 */
@@ -1070,6 +1088,21 @@ export default {
   border-color: #cbd5e1 !important;
 }
 
+.schedule-item.schedule-active {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  border-color: #22c55e !important;
+  box-shadow: 0 8px 20px rgba(34, 197, 94, 0.16) !important;
+}
+
+.schedule-item.schedule-active:hover {
+  border-color: #16a34a !important;
+  box-shadow: 0 10px 24px rgba(34, 197, 94, 0.22) !important;
+}
+
+.active-schedule-badge {
+  font-weight: 700 !important;
+}
+
 /* 左侧线路指示条 */
 .schedule-line-indicator {
   position: absolute;
@@ -1112,46 +1145,81 @@ export default {
   flex-shrink: 0;
 }
 
-/* 日期区域 */
-.schedule-days {
+/* 调度元信息 */
+.schedule-meta-grid {
   display: flex;
-  align-items: center;
-  padding: 10px 14px;
-  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
-  border-radius: 8px;
-  border-left: 4px solid #9333ea;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
 }
 
-.schedule-days-text {
-  font-size: 13px;
-  font-weight: 500;
+.schedule-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 6px 10px;
+  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+  border: 1px solid #e9d5ff;
+  border-radius: 999px;
   color: #6b21a8;
 }
 
-.schedule-item.schedule-disabled .schedule-days {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-left-color: #9e9e9e;
+.schedule-meta-item.schedule-days {
+  flex: 1 1 220px;
 }
 
-.schedule-item.schedule-disabled .schedule-days-text {
+.schedule-meta-item.schedule-time,
+.schedule-meta-item.schedule-priority {
+  flex: 0 1 auto;
+}
+
+.schedule-meta-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.schedule-meta-label {
+  color: #7e22ce;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.schedule-meta-value {
+  color: #581c87;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.schedule-item.schedule-disabled .schedule-meta-item {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-color: #e2e8f0;
   color: #64748b;
 }
 
-/* 底部区域 */
-.schedule-bottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
+.schedule-item.schedule-disabled .schedule-meta-label,
+.schedule-item.schedule-disabled .schedule-meta-value {
+  color: #64748b;
 }
 
-.schedule-time {
-  display: flex;
-  align-items: center;
-  font-size: 13px;
-  font-weight: 500;
-  color: #475569;
+.schedule-item.schedule-active .schedule-meta-item {
+  background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+  border-color: #86efac;
+  color: #166534;
+}
+
+.schedule-item.schedule-active .schedule-meta-label,
+.schedule-item.schedule-active .schedule-meta-value {
+  color: #166534;
 }
 
 /* 空状态 */
@@ -1333,14 +1401,102 @@ export default {
 
 /* 响应式调整 */
 @media (max-width: 600px) {
+  .schedule-dialog {
+    border-radius: 0;
+  }
+
+  .dialog-title {
+    padding: 16px;
+  }
+
+  .dialog-content {
+    padding: 12px !important;
+  }
+
+  .schedule-list-card {
+    border-radius: 10px !important;
+    margin-bottom: 12px;
+  }
+
+  .schedule-header {
+    padding: 12px !important;
+  }
+
+  .schedule-header-row {
+    align-items: center;
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .schedule-title {
+    flex-wrap: wrap;
+  }
+
+  .add-schedule-btn {
+    align-self: center;
+    flex-shrink: 0;
+  }
+
+  .schedules-container {
+    padding: 12px 8px;
+    gap: 14px;
+  }
+
+  .schedule-item {
+    overflow: visible;
+    border-radius: 14px !important;
+  }
+
+  .schedule-item:hover {
+    transform: none;
+  }
+
+  .schedule-line-indicator {
+    width: 4px;
+    border-radius: 14px 0 0 14px;
+  }
+
+  .schedule-item:hover .schedule-line-indicator {
+    width: 4px;
+  }
+
   .schedule-top {
     flex-direction: column;
     align-items: flex-start;
+    gap: 10px;
   }
   
   .schedule-actions {
     width: 100%;
     justify-content: flex-end;
+  }
+
+  .schedule-content {
+    padding: 14px 12px 14px 18px;
+    gap: 12px;
+  }
+
+  .schedule-meta-grid {
+    gap: 7px;
+  }
+
+  .schedule-meta-item {
+    align-items: flex-start;
+    border-radius: 10px;
+    padding: 8px 10px;
+    width: 100%;
+    min-height: 0;
+  }
+
+  .schedule-meta-copy {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .schedule-meta-value {
+    font-size: 13px;
+    line-height: 1.4;
   }
   
   .unlock-alert .d-flex {

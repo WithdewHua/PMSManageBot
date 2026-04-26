@@ -1791,16 +1791,6 @@ async def create_line_schedule(
         if not has_permission:
             return BaseResponse(success=False, message=f"{error_msg}，无法创建调度")
 
-        # 检查时间冲突
-        if db.check_schedule_conflict(
-            user.id,
-            service,
-            data.days_of_week,
-            data.start_time,
-            data.end_time,
-        ):
-            return BaseResponse(success=False, message="时间段与现有调度冲突")
-
         # 创建调度
         schedule_id = db.create_line_schedule(
             user.id,
@@ -1874,23 +1864,6 @@ async def update_line_schedule(
             update_kwargs["priority"] = data.priority
         if data.is_enabled is not None:
             update_kwargs["is_enabled"] = data.is_enabled
-
-        # 如果修改了时间相关字段，检查冲突
-        if any(k in update_kwargs for k in ["days_of_week", "start_time", "end_time"]):
-            # 使用更新后的值检查冲突
-            check_days = update_kwargs.get("days_of_week", schedule["days_of_week"])
-            check_start = update_kwargs.get("start_time", schedule["start_time"])
-            check_end = update_kwargs.get("end_time", schedule["end_time"])
-
-            if db.check_schedule_conflict(
-                user.id,
-                schedule["service"],
-                check_days,
-                check_start,
-                check_end,
-                exclude_id=schedule_id,
-            ):
-                return BaseResponse(success=False, message="时间段与现有调度冲突")
 
         # 执行更新
         if db.update_line_schedule(schedule_id, user.id, **update_kwargs):
