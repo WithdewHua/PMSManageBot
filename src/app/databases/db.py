@@ -3722,6 +3722,159 @@ class DatabaseORM:
             logger.error(f"Error getting all active premium users: {e}")
             return []
 
+    def get_all_premium_traffic_debt_users(self) -> list:
+        """获取所有有 Premium 流量欠额或预计结算后欠额的用户"""
+        debt_users = []
+        now = datetime.now(settings.TZ)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        today_end = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+        premium_lines = settings.PREMIUM_STREAM_BACKEND
+
+        if not premium_lines:
+            return debt_users
+
+        try:
+            with get_session() as session:
+                plex_traffic_rows = session.execute(
+                    select(
+                        LineTrafficStats.user_id,
+                        func.coalesce(func.sum(LineTrafficStats.send_bytes), 0),
+                    )
+                    .where(
+                        LineTrafficStats.service == "plex",
+                        LineTrafficStats.user_id.isnot(None),
+                        LineTrafficStats.line.in_(premium_lines),
+                        LineTrafficStats.timestamp >= today_start.isoformat(),
+                        LineTrafficStats.timestamp <= today_end.isoformat(),
+                    )
+                    .group_by(LineTrafficStats.user_id)
+                ).fetchall()
+                plex_today_traffic = {
+                    str(user_id): int(traffic or 0)
+                    for user_id, traffic in plex_traffic_rows
+                    if user_id
+                }
+                plex_today_user_ids = [
+                    int(user_id)
+                    for user_id in plex_today_traffic
+                    if str(user_id).isdigit()
+                ]
+
+                emby_traffic_rows = session.execute(
+                    select(
+                        LineTrafficStats.username,
+                        func.coalesce(func.sum(LineTrafficStats.send_bytes), 0),
+                    )
+                    .where(
+                        LineTrafficStats.service == "emby",
+                        LineTrafficStats.line.in_(premium_lines),
+                        LineTrafficStats.timestamp >= today_start.isoformat(),
+                        LineTrafficStats.timestamp <= today_end.isoformat(),
+                    )
+                    .group_by(LineTrafficStats.username)
+                ).fetchall()
+                emby_today_traffic = {
+                    username.lower(): int(traffic or 0)
+                    for username, traffic in emby_traffic_rows
+                    if username
+                }
+
+                plex_stmt = select(
+                    PlexUser.plex_id,
+                    PlexUser.tg_id,
+                    PlexUser.plex_username,
+                    PlexUser.plex_line,
+                    PlexUser.is_premium,
+                    PlexUser.premium_traffic_debt_bytes,
+                ).where(
+                    (PlexUser.premium_traffic_debt_bytes > 0)
+                    | (PlexUser.plex_id.in_(plex_today_user_ids))
+                )
+                plex_users = session.execute(plex_stmt).fetchall()
+
+                emby_stmt = select(
+                    EmbyUser.emby_username,
+                    EmbyUser.tg_id,
+                    EmbyUser.emby_line,
+                    EmbyUser.is_premium,
+                    EmbyUser.premium_traffic_debt_bytes,
+                ).where(
+                    (EmbyUser.premium_traffic_debt_bytes > 0)
+                    | (
+                        func.lower(EmbyUser.emby_username).in_(
+                            list(emby_today_traffic.keys())
+                        )
+                    )
+                )
+                emby_users = session.execute(emby_stmt).fetchall()
+
+            for user in plex_users:
+                plex_id = user[0]
+                today_premium_traffic = plex_today_traffic.get(str(plex_id), 0)
+                quota_status = self.get_plex_premium_quota_status(plex_id)
+                daily_limit = quota_status["daily_limit"]
+                current_debt = quota_status["current_debt"]
+                projected_debt = min(
+                    max(current_debt + today_premium_traffic - daily_limit, 0),
+                    daily_limit * 2,
+                )
+                today_exceed_traffic = max(
+                    today_premium_traffic - quota_status["remaining_free"], 0
+                )
+
+                if current_debt > 0 or projected_debt > 0:
+                    debt_users.append(
+                        {
+                            "service": "Plex",
+                            "username": user[2],
+                            "tg_id": user[1],
+                            "is_premium": bool(user[4]),
+                            "current_debt": current_debt,
+                            "today_exceed_traffic": today_exceed_traffic,
+                            "projected_debt": projected_debt,
+                        }
+                    )
+
+            for user in emby_users:
+                username = user[0]
+                today_premium_traffic = emby_today_traffic.get(username.lower(), 0)
+                quota_status = self.get_emby_premium_quota_status(username)
+                daily_limit = quota_status["daily_limit"]
+                current_debt = quota_status["current_debt"]
+                projected_debt = min(
+                    max(current_debt + today_premium_traffic - daily_limit, 0),
+                    daily_limit * 2,
+                )
+                today_exceed_traffic = max(
+                    today_premium_traffic - quota_status["remaining_free"], 0
+                )
+
+                if current_debt > 0 or projected_debt > 0:
+                    debt_users.append(
+                        {
+                            "service": "Emby",
+                            "username": username,
+                            "tg_id": user[1],
+                            "is_premium": bool(user[3]),
+                            "current_debt": current_debt,
+                            "today_exceed_traffic": today_exceed_traffic,
+                            "projected_debt": projected_debt,
+                        }
+                    )
+
+            debt_users.sort(
+                key=lambda item: (
+                    item["service"],
+                    -item["projected_debt"],
+                    -item["current_debt"],
+                    item["username"] or "",
+                )
+            )
+            return debt_users
+        except Exception as e:
+            logger.error(f"Error getting premium traffic debt users: {e}")
+            return []
+
     # ==================== Auction Operations ====================
 
     def create_auction(

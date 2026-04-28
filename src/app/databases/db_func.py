@@ -65,6 +65,51 @@ def _get_traffic_cost_credits(chargeable_bytes: int) -> float:
     return round(gb_tiers * settings.CREDITS_COST_PER_10GB, 2)
 
 
+def _format_premium_traffic_deduction_summary(deduction_records: list[dict]) -> str:
+    settlement_date = (datetime.now(settings.TZ) - timedelta(days=1)).strftime(
+        "%Y-%m-%d"
+    )
+    total_credits = sum(record["deducted_credits"] for record in deduction_records)
+    total_chargeable_bytes = sum(
+        record["chargeable_bytes"] for record in deduction_records
+    )
+    message_parts = [
+        "💳 Premium 流量扣分汇总",
+        f"⏰ 结算日期: {settlement_date}",
+        "─" * 40,
+    ]
+
+    for service, title in (
+        ("Plex", "🎬 Plex 扣分用户:"),
+        ("Emby", "📺 Emby 扣分用户:"),
+    ):
+        service_records = [
+            record for record in deduction_records if record["service"] == service
+        ]
+        if not service_records:
+            continue
+
+        message_parts.extend(["", title])
+        for record in service_records:
+            tg_id = record.get("tg_id") or "未绑定 TG"
+            message_parts.append(
+                f"  • {record['username']} | TG: {tg_id} | "
+                f"扣除积分: {record['deducted_credits']:.2f} | "
+                f"扣费流量: {format_traffic_size(record['chargeable_bytes'])}"
+            )
+
+    message_parts.extend(
+        [
+            "",
+            "📋 总计:",
+            f"扣分用户: {len(deduction_records)} 人",
+            f"扣除积分: {total_credits:.2f}",
+            f"扣费流量: {format_traffic_size(total_chargeable_bytes)}",
+        ]
+    )
+    return "\n".join(message_parts)
+
+
 def _parse_debt_date(date_str: Optional[str]) -> Optional[datetime]:
     if not date_str:
         return None
@@ -141,6 +186,7 @@ def update_plex_credits():
     """更新积分及观看时长"""
     logger.info("开始更新 Plex 用户积分及观看时长")
     notification_tasks = []
+    deduction_records = []
     # 邀请人奖励累积字典: {inviter_tg_id: {"total_bonus": float, "details": [{"username": str, "base_credits": float, "bonus": float}]}}
     inviter_rewards: dict = {}
     try:
@@ -214,6 +260,16 @@ def update_plex_credits():
             )
             traffic_usage_exceed = premium_traffic_result["exceed_bytes"]
             traffic_cost_credits = premium_traffic_result["traffic_cost_credits"]
+            if traffic_cost_credits > 0:
+                deduction_records.append(
+                    {
+                        "service": "Plex",
+                        "username": plex_username,
+                        "tg_id": tg_id,
+                        "deducted_credits": traffic_cost_credits,
+                        "chargeable_bytes": premium_traffic_result["chargeable_bytes"],
+                    }
+                )
 
             if (
                 play_duration == 0
@@ -221,6 +277,21 @@ def update_plex_credits():
                 and premium_traffic_result["debt_before_today"] == 0
                 and premium_traffic_result["next_debt_bytes"] == 0
             ):
+                if debt_bytes > 0 or debt_updated_date:
+                    with get_session() as session:
+                        stmt = (
+                            sql_update(PlexUser)
+                            .where(PlexUser.plex_id == plex_id)
+                            .values(
+                                premium_traffic_debt_bytes=premium_traffic_result[
+                                    "next_debt_bytes"
+                                ],
+                                premium_traffic_debt_updated_date=premium_traffic_result[
+                                    "next_debt_updated_date"
+                                ],
+                            )
+                        )
+                        session.execute(stmt)
                 continue
 
             # 计算超长观看惩罚 (TimePenalty)
@@ -442,10 +513,10 @@ Plex 邀请奖励通知
                     f"更新 Plex 用户积分及观看时长失败: {e}",
                 )
             )
-        return notification_tasks
+        return notification_tasks, deduction_records
     else:
         logger.info("Plex 用户积分及观看时长更新完成")
-        return notification_tasks
+        return notification_tasks, deduction_records
 
 
 def update_emby_credits():
@@ -454,6 +525,7 @@ def update_emby_credits():
     # 获取所有用户的观看时长
     emby = Emby()
     notification_tasks = []
+    deduction_records = []
     # 邀请人奖励累积字典: {inviter_tg_id: {"total_bonus": float, "details": [{"username": str, "base_credits": float, "bonus": float}]}}
     inviter_rewards: dict = {}
     try:
@@ -512,6 +584,16 @@ def update_emby_credits():
             )
             traffic_usage_exceed = premium_traffic_result["exceed_bytes"]
             traffic_cost_credits = premium_traffic_result["traffic_cost_credits"]
+            if traffic_cost_credits > 0:
+                deduction_records.append(
+                    {
+                        "service": "Emby",
+                        "username": emby_username,
+                        "tg_id": user[1],
+                        "deducted_credits": traffic_cost_credits,
+                        "chargeable_bytes": premium_traffic_result["chargeable_bytes"],
+                    }
+                )
 
             if (
                 daily_play_duration <= 0
@@ -519,6 +601,21 @@ def update_emby_credits():
                 and premium_traffic_result["debt_before_today"] == 0
                 and premium_traffic_result["next_debt_bytes"] == 0
             ):
+                if debt_bytes > 0 or debt_updated_date:
+                    with get_session() as session:
+                        stmt = (
+                            sql_update(EmbyUser)
+                            .where(EmbyUser.emby_id == user[0])
+                            .values(
+                                premium_traffic_debt_bytes=premium_traffic_result[
+                                    "next_debt_bytes"
+                                ],
+                                premium_traffic_debt_updated_date=premium_traffic_result[
+                                    "next_debt_updated_date"
+                                ],
+                            )
+                        )
+                        session.execute(stmt)
                 continue
 
             # 计算超长观看惩罚 (TimePenalty)
@@ -743,16 +840,24 @@ Emby 邀请奖励通知
                     f"更新 Emby 用户积分及观看时长失败: {e}",
                 )
             )
-        return notification_tasks
+        return notification_tasks, deduction_records
     else:
         logger.info("Emby 用户积分及观看时长更新完成")
-        return notification_tasks
+        return notification_tasks, deduction_records
 
 
 async def update_credits():
     """更新 Plex 和 Emby 用户积分及观看时长"""
-    notification_tasks = update_plex_credits()
-    notification_tasks.extend(update_emby_credits())
+    notification_tasks, deduction_records = update_plex_credits()
+    emby_notification_tasks, emby_deduction_records = update_emby_credits()
+    notification_tasks.extend(emby_notification_tasks)
+    deduction_records.extend(emby_deduction_records)
+
+    if deduction_records and settings.TG_ADMIN_CHAT_ID:
+        admin_message = _format_premium_traffic_deduction_summary(deduction_records)
+        for chat_id in settings.TG_ADMIN_CHAT_ID:
+            notification_tasks.append((chat_id, admin_message))
+
     for tg_id, text in notification_tasks:
         # 发送通知消息，静默模式
         await send_message_by_url(chat_id=tg_id, text=text, disable_notification=True)

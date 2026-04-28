@@ -281,14 +281,17 @@ def unbind_premium_line(db, service: str, username: str, tg_id: int):
     return last_line or "AUTO"
 
 
-def format_premium_statistics_message(stats, premium_users=None) -> str:
+def format_premium_statistics_message(
+    stats, premium_users=None, premium_debt_users=None
+) -> str:
     """
     格式化 Premium 线路统计信息为 Telegram 消息格式
     :param stats: 统计数据列表
     :param premium_users: Premium 用户列表（可选）
+    :param premium_debt_users: Premium 流量欠额用户列表（可选）
     :return: 格式化后的消息字符串
     """
-    if not stats and not premium_users:
+    if not stats and not premium_users and not premium_debt_users:
         return "📊 Premium 统计信息\n\n❌ 暂无统计数据"
 
     current_time = datetime.now(settings.TZ).strftime("%Y-%m-%d %H:%M:%S")
@@ -416,6 +419,41 @@ def format_premium_statistics_message(stats, premium_users=None) -> str:
                         f"  • {username} | 永久会员 | 线路: {line or 'AUTO'}"
                     )
 
+    if premium_debt_users:
+        message_parts.extend(
+            [
+                "",
+                "─" * 40,
+                f"💳 Premium 流量欠额用户 (共 {len(premium_debt_users)} 人)",
+                "─" * 40,
+            ]
+        )
+
+        plex_debt_users = [u for u in premium_debt_users if u["service"] == "Plex"]
+        emby_debt_users = [u for u in premium_debt_users if u["service"] == "Emby"]
+
+        if plex_debt_users:
+            message_parts.append("\n🎬 Plex 欠额:")
+            for user in plex_debt_users:
+                premium_status = "Premium" if user["is_premium"] else "非 Premium"
+                message_parts.append(
+                    f"  • {user['username']} | {premium_status} | "
+                    f"累计欠额: {format_traffic_size(user['current_debt'])} | "
+                    f"今日超出流量: {format_traffic_size(user['today_exceed_traffic'])} | "
+                    f"预计结算后欠额: {format_traffic_size(user['projected_debt'])}"
+                )
+
+        if emby_debt_users:
+            message_parts.append("\n📺 Emby 欠额:")
+            for user in emby_debt_users:
+                premium_status = "Premium" if user["is_premium"] else "非 Premium"
+                message_parts.append(
+                    f"  • {user['username']} | {premium_status} | "
+                    f"累计欠额: {format_traffic_size(user['current_debt'])} | "
+                    f"今日超出流量: {format_traffic_size(user['today_exceed_traffic'])} | "
+                    f"预计结算后欠额: {format_traffic_size(user['projected_debt'])}"
+                )
+
     message_parts.extend(["", "─" * 40])
 
     return "\n".join(message_parts)
@@ -435,12 +473,17 @@ async def get_and_send_premium_statistics():
         # 获取 Premium 用户列表
         premium_users = db.get_all_active_premium_users()
 
-        if not stats and not premium_users:
-            logger.warning("未获取到 Premium 线路统计数据和用户数据")
+        # 获取所有 Premium 流量欠额或预计结算后欠额用户
+        premium_debt_users = db.get_all_premium_traffic_debt_users()
+
+        if not stats and not premium_users and not premium_debt_users:
+            logger.warning("未获取到 Premium 线路统计数据、用户数据和欠额数据")
             return
 
         # 格式化消息
-        message = format_premium_statistics_message(stats, premium_users)
+        message = format_premium_statistics_message(
+            stats, premium_users, premium_debt_users
+        )
 
         # 发送给所有管理员
         admin_chat_ids = settings.TG_ADMIN_CHAT_ID
