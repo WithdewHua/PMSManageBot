@@ -5200,24 +5200,61 @@ class DatabaseORM:
 
     def update_traffic_username(self, old_username: str, new_username: str) -> bool:
         """更新流量统计中的用户名"""
+        if not old_username or not new_username:
+            logger.warning(
+                f"跳过流量统计用户名更新，用户名为空: {old_username} -> {new_username}"
+            )
+            return False
+
         try:
             with get_session() as session:
                 # 更新 line_traffic_stats 表
-                session.execute(
+                raw_result = session.execute(
                     update(LineTrafficStats)
                     .where(
                         func.lower(LineTrafficStats.username) == old_username.lower()
                     )
                     .values(username=new_username)
                 )
-                # 更新 line_traffic_monthly_stats 表
-                session.execute(
-                    update(LineTrafficMonthlyStats)
-                    .where(
+
+                # 月度表存在唯一约束 (line, service, username, year_month)，
+                # 用户名变更时如果目标用户名记录已存在，需要合并流量后删除旧记录。
+                monthly_records = session.execute(
+                    select(LineTrafficMonthlyStats).where(
                         func.lower(LineTrafficMonthlyStats.username)
-                        == old_username.lower()
+                        == old_username.lower(),
+                        LineTrafficMonthlyStats.username != new_username,
                     )
-                    .values(username=new_username)
+                ).scalars()
+
+                monthly_updated_count = 0
+                monthly_merged_count = 0
+                for monthly_record in monthly_records:
+                    existing_record = session.execute(
+                        select(LineTrafficMonthlyStats).where(
+                            LineTrafficMonthlyStats.line == monthly_record.line,
+                            LineTrafficMonthlyStats.service == monthly_record.service,
+                            LineTrafficMonthlyStats.username == new_username,
+                            LineTrafficMonthlyStats.year_month
+                            == monthly_record.year_month,
+                            LineTrafficMonthlyStats.id != monthly_record.id,
+                        )
+                    ).scalar_one_or_none()
+
+                    if existing_record:
+                        existing_record.total_bytes += monthly_record.total_bytes
+                        if not existing_record.user_id and monthly_record.user_id:
+                            existing_record.user_id = monthly_record.user_id
+                        session.delete(monthly_record)
+                        monthly_merged_count += 1
+                    else:
+                        monthly_record.username = new_username
+                        monthly_updated_count += 1
+
+                logger.info(
+                    f"更新流量统计用户名成功: {old_username} -> {new_username}, "
+                    f"原始记录 {raw_result.rowcount} 条, 月度更新 {monthly_updated_count} 条, "
+                    f"月度合并 {monthly_merged_count} 条"
                 )
                 return True
         except Exception as e:

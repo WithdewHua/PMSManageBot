@@ -6,6 +6,44 @@ from typing import Optional
 from app.databases.redis import Redis
 from app.log import logger
 
+GET_ALL_KEY_VALUES_SCRIPT = """
+local cursor = "0"
+local pattern = ARGV[1]
+local count = tonumber(ARGV[2]) or 100
+local result = {}
+
+repeat
+    local scan_result = redis.call("SCAN", cursor, "MATCH", pattern, "COUNT", count)
+    cursor = scan_result[1]
+    local keys = scan_result[2]
+
+    for _, key in ipairs(keys) do
+        local value = redis.call("GET", key)
+        if value then
+            table.insert(result, key)
+            table.insert(result, value)
+        end
+    end
+until cursor == "0"
+
+return result
+"""
+
+GET_STATS_SCRIPT = """
+local cursor = "0"
+local pattern = ARGV[1]
+local count = tonumber(ARGV[2]) or 100
+local active_keys = 0
+
+repeat
+    local scan_result = redis.call("SCAN", cursor, "MATCH", pattern, "COUNT", count)
+    cursor = scan_result[1]
+    active_keys = active_keys + #scan_result[2]
+until cursor == "0"
+
+return active_keys
+"""
+
 try:
     from redis.exceptions import RedisError
 
@@ -17,6 +55,9 @@ except Exception:  # pragma: no cover
 
 
 class RedisCache:
+    _SCAN_COUNT = 100
+    _BATCH_SIZE = 100
+
     def __init__(
         self,
         db: int = 0,
@@ -120,22 +161,77 @@ class RedisCache:
         """获取缓存键的完整Redis键名"""
         return f"{self._cache_key_prefix}{key}"
 
+    def _iter_prefixed_keys(self):
+        """分批扫描当前缓存前缀下的 keys，避免一次性拉取导致超时。"""
+        cursor = 0
+        match = f"{self._cache_key_prefix}*"
+        while True:
+            current_cursor = cursor
+            cursor, keys = self._call_with_retry(
+                lambda: self.redis_client.scan(
+                    cursor=current_cursor,
+                    match=match,
+                    count=self._SCAN_COUNT,
+                ),
+                op="scan",
+                key=match,
+            )
+            for key in keys:
+                yield key
+            if cursor == 0:
+                break
+
+    def _batched_prefixed_keys(self):
+        batch = []
+        for key in self._iter_prefixed_keys():
+            batch.append(key)
+            if len(batch) >= self._BATCH_SIZE:
+                yield batch
+                batch = []
+        if batch:
+            yield batch
+
+    def _get_all_key_values_via_lua(self) -> dict:
+        result = self._call_with_retry(
+            lambda: self.redis_client.eval(
+                GET_ALL_KEY_VALUES_SCRIPT,
+                0,
+                f"{self._cache_key_prefix}*",
+                self._SCAN_COUNT,
+            ),
+            op="eval_get_all_key_values",
+            key=f"{self._cache_key_prefix}*",
+        )
+
+        key_values = {}
+        for index in range(0, len(result), 2):
+            key = result[index]
+            value = result[index + 1]
+            key_values[key.removeprefix(self._cache_key_prefix)] = value
+        return key_values
+
+    def _get_all_key_values_via_scan_get(self) -> dict:
+        key_values: dict = {}
+        for keys in self._batched_prefixed_keys():
+            for key in keys:
+                value = self._call_with_retry(
+                    lambda key=key: self.redis_client.get(key),
+                    op="get_batch_item",
+                    key=key,
+                )
+                if value is not None:
+                    key_values[key.removeprefix(self._cache_key_prefix)] = value
+        return key_values
+
     def get_all(self) -> list:
         """
         获取所有缓存值
         """
 
         def _op():
-            keys = list(self.redis_client.scan_iter(match=f"{self._cache_key_prefix}*"))
-            if not keys:
-                return []
-            pipeline = self.redis_client.pipeline()
-            for k in keys:
-                pipeline.get(k)
-            results = pipeline.execute()
-            return [val for val in results if val is not None]
+            return list(self.get_all_key_values().values())
 
-        return self._call_with_retry(_op, op="get_all")
+        return _op()
 
     def get_all_key_values(self) -> dict:
         """
@@ -146,20 +242,15 @@ class RedisCache:
         """
 
         def _op():
-            key_values: dict = {}
-            keys = list(self.redis_client.scan_iter(match=f"{self._cache_key_prefix}*"))
-            if not keys:
-                return key_values
-            pipeline = self.redis_client.pipeline()
-            for k in keys:
-                pipeline.get(k)
-            results = pipeline.execute()
-            for k, v in zip(keys, results):
-                if v is not None:
-                    key_values[k.removeprefix(self._cache_key_prefix)] = v
-            return key_values
+            try:
+                return self._get_all_key_values_via_lua()
+            except Exception as e:
+                logger.warning(
+                    f"Redis Lua get_all_key_values failed, fallback to SCAN+GET: {e}"
+                )
+                return self._get_all_key_values_via_scan_get()
 
-        return self._call_with_retry(_op, op="get_all_key_values")
+        return _op()
 
     def get(self, key: str) -> Optional[str]:
         """
@@ -281,17 +372,29 @@ class RedisCache:
 
         def _op():
             # 获取所有缓存键
-            keys_pattern = f"{self._cache_key_prefix}*"
-            keys = list(self.redis_client.scan_iter(match=keys_pattern))
+            deleted_count = 0
+            for keys in self._batched_prefixed_keys():
+                pipeline = self.redis_client.pipeline()
+                for k in keys:
+                    pipeline.delete(k)
+                self._call_with_retry(
+                    pipeline.execute,
+                    op="delete_batch",
+                    key=f"{self._cache_key_prefix}*[{len(keys)}]",
+                )
+                deleted_count += len(keys)
 
-            pipeline = self.redis_client.pipeline()
-            # 删除所有缓存键
-            for k in keys:
-                pipeline.delete(k)
             # 清除使用记录
             if self._cache_usage_key:
+                pipeline = self.redis_client.pipeline()
                 pipeline.delete(self._cache_usage_key)
-            pipeline.execute()
+                self._call_with_retry(
+                    pipeline.execute,
+                    op="delete_usage_key",
+                    key=self._cache_usage_key,
+                )
+
+            return deleted_count
 
         try:
             self._call_with_retry(_op, op="clear")
@@ -310,9 +413,15 @@ class RedisCache:
 
         def _op():
             # 获取未过期的键数量
-            active_keys = sum(
-                1
-                for _ in self.redis_client.scan_iter(match=f"{self._cache_key_prefix}*")
+            active_keys = self._call_with_retry(
+                lambda: self.redis_client.eval(
+                    GET_STATS_SCRIPT,
+                    0,
+                    f"{self._cache_key_prefix}*",
+                    self._SCAN_COUNT,
+                ),
+                op="eval_get_stats",
+                key=f"{self._cache_key_prefix}*",
             )
             # 获取当前缓存大小
             current_size = (
