@@ -91,9 +91,9 @@ def _format_premium_traffic_deduction_summary(deduction_records: list[dict]) -> 
 
         message_parts.extend(["", title])
         for record in service_records:
-            tg_id = record.get("tg_id") or "未绑定 TG"
+            tg_id = record.get("tg_id")
             message_parts.append(
-                f"  • {record['username']} | TG: {tg_id} | "
+                f"  • {record['username']} | TG: {get_user_name_from_tg_id(tg_id) if tg_id else '未绑定 TG'} | "
                 f"扣除积分: {record['deducted_credits']:.2f} | "
                 f"扣费流量: {format_traffic_size(record['chargeable_bytes'])}"
             )
