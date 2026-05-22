@@ -8,7 +8,11 @@ from app.config import settings
 from app.databases import db
 from app.log import uvicorn_logger as logger
 from app.premium import update_premium_status
-from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
+from app.utils.utils import (
+    get_service_label,
+    get_user_name_from_tg_id,
+    notify_admins_by_url,
+)
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import BaseResponse, TelegramUser
@@ -116,12 +120,11 @@ async def unlock_premium(
         )
 
         # 发送通知消息
-        service_emoji = "🎬" if service == "plex" else "📺"
-        service_name = service.upper()
+        service_name, service_emoji = get_service_label(service)
 
         notification_text = f"""✨ Premium 解锁成功
 
-👤 用户: {get_user_name_from_tg_id(tg_id)}
+👤 用户: {get_user_name_from_tg_id(tg_id)}（TG ID: {tg_id}）
 {service_emoji} 服务: {service_name}
 ⏰ 天数: {days} 天
 💎 花费: {total_cost} 积分
@@ -133,9 +136,8 @@ async def unlock_premium(
             notification_text += f"\n🎉 享受了 {discount_percent}折 优惠！"
 
         background_tasks.add_task(
-            send_message_by_url,
-            chat_id=settings.TG_ADMIN_CHAT_ID,
-            text=notification_text,
+            notify_admins_by_url,
+            notification_text,
         )
 
         return PremiumUnlockResponse(

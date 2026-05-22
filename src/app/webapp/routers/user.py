@@ -20,10 +20,12 @@ from app.modules.plex import Plex
 from app.modules.tautulli import Tautulli
 from app.utils.utils import (
     caculate_credits_fund,
+    get_service_label,
     get_user_info_from_tg_id,
     get_user_name_from_tg_id,
     get_user_total_duration,
     is_binded_premium_line,
+    notify_admins_by_url,
     refresh_tg_user_info,
     send_message_by_url,
 )
@@ -716,6 +718,7 @@ async def get_nsfw_info(
 @require_telegram_auth
 async def nsfw_operation(
     request: Request,
+    background_tasks: BackgroundTasks,
     operation: str,
     data: dict = Body(...),
     user: TelegramUser = Depends(get_telegram_user),
@@ -890,6 +893,19 @@ async def nsfw_operation(
                     all_lib=0, unlock_time=None, tg_id=tg_id, media_server="emby"
                 ):
                     raise HTTPException(status_code=500, detail="更新权限状态失败")
+
+        if operation == "unlock":
+            service_name, service_emoji = get_service_label(service)
+            user_name = get_user_name_from_tg_id(tg_id)
+            background_tasks.add_task(
+                notify_admins_by_url,
+                f"""🔞 NSFW 权限解锁通知
+
+👤 用户: {user_name}（TG ID: {tg_id}）
+{service_emoji} 服务: {service_name}
+💎 花费: {settings.UNLOCK_CREDITS} 积分
+💰 剩余: {credits:.2f} 积分""",
+            )
 
         return {
             "success": True,
@@ -1681,6 +1697,7 @@ async def check_line_schedule_unlock_status(
 @require_telegram_auth
 async def unlock_line_schedule(
     request: Request,
+    background_tasks: BackgroundTasks,
     data: LineScheduleUnlockRequest,
     user: TelegramUser = Depends(get_telegram_user),
 ):
@@ -1729,6 +1746,19 @@ async def unlock_line_schedule(
         logger.info(
             f"用户 {get_user_name_from_tg_id(user.id)} 消耗 {credits_needed} 积分解锁 {service} 线路调度功能"
         )
+
+        service_name, service_emoji = get_service_label(service)
+        user_name = get_user_name_from_tg_id(user.id)
+        background_tasks.add_task(
+            notify_admins_by_url,
+            f"""🗓️ 线路调度解锁通知
+
+👤 用户: {user_name}（TG ID: {user.id}）
+{service_emoji} 服务: {service_name}
+💎 花费: {credits_needed} 积分
+💰 剩余: {new_credits:.2f} 积分""",
+        )
+
         return LineScheduleUnlockResponse(
             success=True, message=f"成功解锁线路调度功能，消耗 {credits_needed} 积分"
         )
@@ -2025,21 +2055,19 @@ async def unlock_download_permission(
         )
 
         # 发送管理员通知
-        service_emoji = "🎬" if service == "plex" else "📺"
-        service_name = service.upper()
+        service_name, service_emoji = get_service_label(service)
         user_name = get_user_name_from_tg_id(tg_id)
 
         admin_notification = f"""📥 下载权限解锁通知
 
-👤 用户: {user_name}
+👤 用户: {user_name}（TG ID: {tg_id}）
 {service_emoji} 服务: {service_name}
 💎 花费: {settings.DOWNLOAD_UNLOCK_CREDITS} 积分
 💰 剩余: {remaining_credits:.2f} 积分"""
 
         background_tasks.add_task(
-            send_message_by_url,
-            chat_id=settings.TG_ADMIN_CHAT_ID,
-            text=admin_notification,
+            notify_admins_by_url,
+            admin_notification,
         )
 
         return BaseResponse(

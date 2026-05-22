@@ -265,6 +265,23 @@ async def send_message_by_url(
     return False
 
 
+async def notify_admins_by_url(text: str, **kwargs) -> None:
+    """Send a Telegram message to every configured admin."""
+    for admin in settings.TG_ADMIN_CHAT_ID:
+        try:
+            success = await send_message_by_url(chat_id=admin, text=text, **kwargs)
+            if not success:
+                logger.warning(f"发送管理员通知失败 {admin}")
+        except Exception as e:
+            logger.warning(f"发送管理员通知失败 {admin}: {e}")
+
+
+def get_service_label(service: str) -> tuple[str, str]:
+    service_name = service.upper()
+    service_emoji = "🎬" if service == "plex" else "📺"
+    return service_name, service_emoji
+
+
 def get_user_total_duration(home_stats: dict):
     """Get user's total watched duration"""
     user_total_duration: dict = {}
