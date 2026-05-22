@@ -62,6 +62,8 @@ async def get_admin_settings(
             "invitation_credits": settings.INVITATION_CREDITS,
             "unlock_credits": settings.UNLOCK_CREDITS,
             "premium_daily_credits": settings.PREMIUM_DAILY_CREDITS,
+            "user_traffic_limit": settings.USER_TRAFFIC_LIMIT,
+            "premium_user_traffic_limit": settings.PREMIUM_USER_TRAFFIC_LIMIT,
             "credits_transfer_enabled": settings.CREDITS_TRANSFER_ENABLED,  # 添加积分转移开关
             "line_schedule_unlock_credits": settings.LINE_SCHEDULE_UNLOCK_CREDITS,  # 解锁线路调度功能所需积分
             "download_unlock_credits": settings.DOWNLOAD_UNLOCK_CREDITS,  # 解锁下载/同步功能所需积分
@@ -827,6 +829,78 @@ async def set_premium_daily_credits(
         )
     except Exception as e:
         logger.error(f"设置 Premium 每日积分失败: {str(e)}")
+        return BaseResponse(success=False, message="设置失败")
+
+
+@router.post("/settings/user-traffic-limit")
+@require_telegram_auth
+async def set_user_traffic_limit(
+    request: Request,
+    data: dict = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """设置普通用户每日免费 Premium 流量额度"""
+    check_admin_permission(user)
+
+    try:
+        traffic_limit = data.get("traffic_limit", settings.USER_TRAFFIC_LIMIT)
+
+        if (
+            isinstance(traffic_limit, bool)
+            or not isinstance(traffic_limit, int)
+            or traffic_limit < 0
+        ):
+            return BaseResponse(success=False, message="流量额度必须是非负整数")
+
+        settings.USER_TRAFFIC_LIMIT = traffic_limit
+        settings.save_config_to_env_file({"USER_TRAFFIC_LIMIT": str(traffic_limit)})
+
+        logger.info(
+            f"管理员 {user.username or user.id} 设置普通用户每日免费 Premium 流量额度为: {traffic_limit} 字节"
+        )
+        return BaseResponse(
+            success=True,
+            message=f"普通用户每日免费 Premium 流量额度已设置为 {traffic_limit} 字节",
+        )
+    except Exception as e:
+        logger.error(f"设置普通用户每日免费 Premium 流量额度失败: {str(e)}")
+        return BaseResponse(success=False, message="设置失败")
+
+
+@router.post("/settings/premium-user-traffic-limit")
+@require_telegram_auth
+async def set_premium_user_traffic_limit(
+    request: Request,
+    data: dict = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """设置高级用户每日免费 Premium 流量额度"""
+    check_admin_permission(user)
+
+    try:
+        traffic_limit = data.get("traffic_limit", settings.PREMIUM_USER_TRAFFIC_LIMIT)
+
+        if (
+            isinstance(traffic_limit, bool)
+            or not isinstance(traffic_limit, int)
+            or traffic_limit < 0
+        ):
+            return BaseResponse(success=False, message="流量额度必须是非负整数")
+
+        settings.PREMIUM_USER_TRAFFIC_LIMIT = traffic_limit
+        settings.save_config_to_env_file(
+            {"PREMIUM_USER_TRAFFIC_LIMIT": str(traffic_limit)}
+        )
+
+        logger.info(
+            f"管理员 {user.username or user.id} 设置高级用户每日免费 Premium 流量额度为: {traffic_limit} 字节"
+        )
+        return BaseResponse(
+            success=True,
+            message=f"高级用户每日免费 Premium 流量额度已设置为 {traffic_limit} 字节",
+        )
+    except Exception as e:
+        logger.error(f"设置高级用户每日免费 Premium 流量额度失败: {str(e)}")
         return BaseResponse(success=False, message="设置失败")
 
 

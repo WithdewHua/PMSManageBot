@@ -273,10 +273,10 @@
             <!-- 自定义线路管理 -->
             <CustomLineManagement />
 
-            <!-- 积分设置 -->
+            <!-- 积分与额度设置 -->
             <v-card class="admin-card-enhanced mb-4">
               <v-card-title class="text-center">
-                <v-icon start color="yellow-darken-2">mdi-star</v-icon> 积分设置
+                <v-icon start color="yellow-darken-2">mdi-star</v-icon> 积分与额度设置
               </v-card-title>
               <v-card-text>
                 <div v-if="!adminLoading && !adminError">
@@ -342,6 +342,52 @@
                         max="10000"
                         @blur="updatePremiumDailyCredits"
                         @keyup.enter="updatePremiumDailyCredits"
+                      ></v-text-field>
+                    </div>
+                  </div>
+
+                  <!-- 普通用户每日免费 Premium 流量额度 -->
+                  <div class="d-flex justify-space-between align-center mb-3">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="cyan-darken-2" class="mr-2">mdi-gauge</v-icon>
+                      <span>普通用户每日免费流量：</span>
+                    </div>
+                    <div class="d-flex align-center">
+                      <v-text-field
+                        v-model.number="adminSettings.user_traffic_limit_gb"
+                        type="number"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        suffix="GB"
+                        style="width: 120px"
+                        min="0"
+                        step="0.1"
+                        @blur="updateUserTrafficLimit"
+                        @keyup.enter="updateUserTrafficLimit"
+                      ></v-text-field>
+                    </div>
+                  </div>
+
+                  <!-- 高级用户每日免费 Premium 流量额度 -->
+                  <div class="d-flex justify-space-between align-center mb-3">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="purple-darken-2" class="mr-2">mdi-speedometer</v-icon>
+                      <span>Premium 用户每日免费流量：</span>
+                    </div>
+                    <div class="d-flex align-center">
+                      <v-text-field
+                        v-model.number="adminSettings.premium_user_traffic_limit_gb"
+                        type="number"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        suffix="GB"
+                        style="width: 120px"
+                        min="0"
+                        step="0.1"
+                        @blur="updatePremiumUserTrafficLimit"
+                        @keyup.enter="updatePremiumUserTrafficLimit"
                       ></v-text-field>
                     </div>
                   </div>
@@ -2588,7 +2634,7 @@ import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import WheelAdminPanel from '@/components/WheelAdminPanel.vue'
 import BadgeEditorDialog from '@/components/BadgeEditorDialog.vue'
 import CustomLineManagement from '@/components/CustomLineManagement.vue'
-import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits, setPremiumDailyCredits, setPremiumUnlockEnabled, setCreditsTransferEnabled, setLineScheduleUnlockCredits, setDownloadUnlockCredits } from '@/services/adminService.js'
+import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits, setPremiumDailyCredits, setUserTrafficLimit, setPremiumUserTrafficLimit, setPremiumUnlockEnabled, setCreditsTransferEnabled, setLineScheduleUnlockCredits, setDownloadUnlockCredits } from '@/services/adminService.js'
 import { getWheelStats } from '@/services/wheelService.js'
 import { getAuctionStats, getAllAuctions, finishExpiredAuctions, finishAuction, deleteAuction, createAuction, getAuctionBids, updateAuction } from '@/services/auctionService.js'
 import { listTreasureIssues, createTreasureIssue, cancelTreasureIssue } from '@/services/treasureService.js'
@@ -2596,6 +2642,8 @@ import { listPredictionMarkets, createPredictionMarket, closePredictionMarket, r
 import { getPremiumLineTrafficStats, formatTrafficSize, formatUsername, getTrafficOverview } from '@/services/trafficService.js'
 import { getAllCryptoDonationOrdersAdmin, ORDER_STATUS } from '@/services/cryptoDonationService.js'
 import { getBadgeCenterConfig, updateBadgeConfig, adminGetAllBadges, adminDeleteBadge } from '@/services/badgeService.js'
+
+const BYTES_PER_GB = 1024 * 1024 * 1024
 
 export default {
   name: 'Management',
@@ -2626,6 +2674,8 @@ export default {
         invitation_credits: 288,
         unlock_credits: 100,
         premium_daily_credits: 15,
+        user_traffic_limit_gb: 12,
+        premium_user_traffic_limit_gb: 24,
         line_schedule_unlock_credits: 264,
         download_unlock_credits: 368,
         loaded: false // 添加标记，避免重复加载
@@ -2855,13 +2905,26 @@ export default {
         this.adminLoading = true
         this.adminError = null
         const response = await getAdminSettings()
-        this.adminSettings = { ...response.data, loaded: true }
+        this.adminSettings = {
+          ...response.data,
+          user_traffic_limit_gb: this.bytesToGb(response.data.user_traffic_limit),
+          premium_user_traffic_limit_gb: this.bytesToGb(response.data.premium_user_traffic_limit),
+          loaded: true
+        }
         this.adminLoading = false
       } catch (err) {
         this.adminError = err.response?.data?.detail || '获取管理员设置失败'
         this.adminLoading = false
         console.error('获取管理员设置失败:', err)
       }
+    },
+
+    bytesToGb(value) {
+      return Math.round((Number(value || 0) / BYTES_PER_GB) * 100) / 100
+    },
+
+    gbToBytes(value) {
+      return Math.round(Number(value) * BYTES_PER_GB)
     },
     
     async fetchSystemStats() {
@@ -3257,6 +3320,44 @@ export default {
       } catch (err) {
         this.showMessage('更新 Premium 每日积分设置失败', 'error')
         console.error('更新 Premium 每日积分设置失败:', err)
+        // 重新获取设置以恢复状态
+        await this.fetchAdminSettings()
+      }
+    },
+
+    async updateUserTrafficLimit() {
+      try {
+        const trafficLimitGb = Number(this.adminSettings.user_traffic_limit_gb)
+        if (!Number.isFinite(trafficLimitGb) || trafficLimitGb < 0) {
+          this.showMessage('流量额度必须是非负数字', 'error')
+          // 重新获取设置以恢复状态
+          await this.fetchAdminSettings()
+          return
+        }
+        await setUserTrafficLimit(this.gbToBytes(trafficLimitGb))
+        this.showMessage(`普通用户每日免费 Premium 流量额度已设置为 ${trafficLimitGb}GB`)
+      } catch (err) {
+        this.showMessage('更新普通用户每日免费流量额度失败', 'error')
+        console.error('更新普通用户每日免费流量额度失败:', err)
+        // 重新获取设置以恢复状态
+        await this.fetchAdminSettings()
+      }
+    },
+
+    async updatePremiumUserTrafficLimit() {
+      try {
+        const trafficLimitGb = Number(this.adminSettings.premium_user_traffic_limit_gb)
+        if (!Number.isFinite(trafficLimitGb) || trafficLimitGb < 0) {
+          this.showMessage('流量额度必须是非负数字', 'error')
+          // 重新获取设置以恢复状态
+          await this.fetchAdminSettings()
+          return
+        }
+        await setPremiumUserTrafficLimit(this.gbToBytes(trafficLimitGb))
+        this.showMessage(`高级用户每日免费 Premium 流量额度已设置为 ${trafficLimitGb}GB`)
+      } catch (err) {
+        this.showMessage('更新高级用户每日免费流量额度失败', 'error')
+        console.error('更新高级用户每日免费流量额度失败:', err)
         // 重新获取设置以恢复状态
         await this.fetchAdminSettings()
       }

@@ -202,6 +202,40 @@ export async function setPremiumDailyCredits(credits) {
 }
 
 /**
+ * 设置普通用户每日免费 Premium 流量额度
+ * @param {number} trafficLimit - 流量额度，单位字节
+ * @returns {Promise} 设置结果
+ */
+export async function setUserTrafficLimit(trafficLimit) {
+  try {
+    const response = await apiClient.post('/api/admin/settings/user-traffic-limit', {
+      traffic_limit: trafficLimit
+    });
+    return response;
+  } catch (error) {
+    console.error('设置普通用户每日免费 Premium 流量额度失败:', error);
+    throw error;
+  }
+}
+
+/**
+ * 设置高级用户每日免费 Premium 流量额度
+ * @param {number} trafficLimit - 流量额度，单位字节
+ * @returns {Promise} 设置结果
+ */
+export async function setPremiumUserTrafficLimit(trafficLimit) {
+  try {
+    const response = await apiClient.post('/api/admin/settings/premium-user-traffic-limit', {
+      traffic_limit: trafficLimit
+    });
+    return response;
+  } catch (error) {
+    console.error('设置高级用户每日免费 Premium 流量额度失败:', error);
+    throw error;
+  }
+}
+
+/**
  * 设置 Premium 解锁开放状态
  * @param {boolean} enabled - 是否开放 Premium 解锁
  * @returns {Promise} 设置结果
