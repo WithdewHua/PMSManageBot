@@ -1070,6 +1070,7 @@ export default {
   overflow: hidden;
   background: white;
   border: 2px solid #e2e8f0 !important;
+  flex-shrink: 0;
 }
 
 .schedule-item:hover {
