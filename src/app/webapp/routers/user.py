@@ -2087,6 +2087,7 @@ async def unlock_download_permission(
 @require_telegram_auth
 async def submit_custom_line(
     request: Request,
+    background_tasks: BackgroundTasks,
     data: CustomLineSubmitRequest,
     user: TelegramUser = Depends(get_telegram_user),
 ):
@@ -2189,10 +2190,12 @@ async def submit_custom_line(
 """
 
             # 异步发送通知
-            await send_message_by_url(
-                chat_id=settings.TG_ADMIN_CHAT_ID,
-                text=admin_notification,
-            )
+            for admin_id in settings.TG_ADMIN_IDS:
+                background_tasks.add_task(
+                    send_message_by_url,
+                    chat_id=admin_id,
+                    text=admin_notification,
+                )
 
             return BaseResponse(
                 success=True,
@@ -2618,11 +2621,12 @@ async def offline_custom_line(
 📊 解绑用户数: {unbind_count}
 ⏰ 下线时间: {offline_time}"""
 
-            background_tasks.add_task(
-                send_message_by_url,
-                chat_id=settings.TG_ADMIN_CHAT_ID,
-                text=admin_notification,
-            )
+            for admin_id in settings.TG_ADMIN_CHAT_ID:
+                background_tasks.add_task(
+                    send_message_by_url,
+                    chat_id=admin_id,
+                    text=admin_notification,
+                )
 
             return BaseResponse(success=True, message=f"线路 {domain} 已下线")
 
