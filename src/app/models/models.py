@@ -532,7 +532,10 @@ class DonationRegistrations(Base):
 
     id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
-        BIGINT, ForeignKey("statistics.tg_id"), nullable=False, index=True
+        BIGINT,
+        ForeignKey("statistics.tg_id", onupdate="CASCADE"),
+        nullable=False,
+        index=True,
     )
     payment_method: Mapped[str] = mapped_column(Text, nullable=False)
     amount: Mapped[float] = mapped_column(Float, nullable=False)
@@ -542,7 +545,7 @@ class DonationRegistrations(Base):
     created_at: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     processed_at: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     processed_by: Mapped[Optional[int]] = mapped_column(
-        BIGINT, ForeignKey("statistics.tg_id"), nullable=True
+        BIGINT, ForeignKey("statistics.tg_id", onupdate="CASCADE"), nullable=True
     )
     is_donation_registration: Mapped[int] = mapped_column(
         SMALLINT, default=0, nullable=False
@@ -572,7 +575,10 @@ class CryptoDonationOrders(Base):
 
     id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(
-        BIGINT, ForeignKey("statistics.tg_id"), nullable=False, index=True
+        BIGINT,
+        ForeignKey("statistics.tg_id", onupdate="CASCADE"),
+        nullable=False,
+        index=True,
     )
     order_id: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
     trade_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True, index=True)
@@ -604,7 +610,10 @@ class VaultwardenRedeemRecords(Base):
 
     id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
     tg_id: Mapped[int] = mapped_column(
-        BIGINT, ForeignKey("statistics.tg_id"), nullable=False, index=True
+        BIGINT,
+        ForeignKey("statistics.tg_id", onupdate="CASCADE"),
+        nullable=False,
+        index=True,
     )
     email: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     credits_cost: Mapped[float] = mapped_column(Float, nullable=False)
@@ -651,7 +660,10 @@ class LineSchedule(Base):
 
     id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
     tg_id: Mapped[int] = mapped_column(
-        BIGINT, ForeignKey("statistics.tg_id"), nullable=False, index=True
+        BIGINT,
+        ForeignKey("statistics.tg_id", onupdate="CASCADE"),
+        nullable=False,
+        index=True,
     )
     service: Mapped[str] = mapped_column(
         String, nullable=False
@@ -733,7 +745,10 @@ class UserBadge(Base):
 
     id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
     tg_id: Mapped[int] = mapped_column(
-        BIGINT, ForeignKey("statistics.tg_id"), nullable=False, index=True
+        BIGINT,
+        ForeignKey("statistics.tg_id", onupdate="CASCADE"),
+        nullable=False,
+        index=True,
     )
     badge_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("badges.id"), nullable=False, index=True
@@ -770,7 +785,10 @@ class CustomLine(Base):
 
     id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
     tg_id: Mapped[int] = mapped_column(
-        BIGINT, ForeignKey("statistics.tg_id"), nullable=False, index=True
+        BIGINT,
+        ForeignKey("statistics.tg_id", onupdate="CASCADE"),
+        nullable=False,
+        index=True,
     )  # 提交用户的 Telegram ID
     domain: Mapped[str] = mapped_column(
         String, nullable=False, unique=True, index=True
@@ -814,7 +832,7 @@ class CustomLine(Base):
         BIGINT, nullable=True
     )  # 批准时间戳
     approved_by: Mapped[Optional[int]] = mapped_column(
-        BIGINT, ForeignKey("statistics.tg_id"), nullable=True
+        BIGINT, ForeignKey("statistics.tg_id", onupdate="CASCADE"), nullable=True
     )  # 批准管理员的 Telegram ID
     expires_at: Mapped[Optional[int]] = mapped_column(
         BIGINT, nullable=True, index=True

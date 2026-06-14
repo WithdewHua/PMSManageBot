@@ -805,277 +805,82 @@ class DatabaseORM:
 
                 # 更新所有其他相关表的 tg_id
                 if updated and old_tg_ids:
+                    # 引用 statistics.tg_id 但未建外键约束的列：任何换绑场景都需显式迁移
+                    plain_ref_columns = [
+                        (Overseerr, "tg_id"),
+                        (WheelStats, "tg_id"),
+                        (Invitation, "owner"),
+                        (Auctions, "created_by"),
+                        (Auctions, "winner_id"),
+                        (AuctionBids, "bidder_id"),
+                        (TreasureIssue, "winner_tg_id"),
+                        (TreasureIssue, "created_by"),
+                        (TreasureParticipation, "tg_id"),
+                        (PredictionMarket, "created_by"),
+                        (PredictionMarket, "resolved_by"),
+                        (PredictionMarketSubmission, "submitter_tg_id"),
+                        (PredictionMarketSubmission, "reviewed_by"),
+                        (PredictionBet, "tg_id"),
+                    ]
+                    # 设有 statistics.tg_id 外键（ON UPDATE CASCADE）的列：
+                    # 换绑到全新 ID 时随 statistics 主键更新自动级联，无需显式迁移；
+                    # 合并到已存在 ID 时不触发级联，需显式迁移
+                    fk_ref_columns = [
+                        (VaultwardenRedeemRecords, "tg_id"),
+                        (LineSchedule, "tg_id"),
+                        (UserBadge, "tg_id"),
+                        (DonationRegistrations, "user_id"),
+                        (DonationRegistrations, "processed_by"),
+                        (CryptoDonationOrders, "user_id"),
+                        (CustomLine, "tg_id"),
+                        (CustomLine, "approved_by"),
+                    ]
+
                     for old_tg_id in old_tg_ids:
-                        # 更新 Statistics 表（主键是 tg_id，需要特殊处理）
-                        stmt = select(Statistics).where(Statistics.tg_id == old_tg_id)
-                        stat = session.execute(stmt).scalar_one_or_none()
-                        if stat:
-                            # 删除旧记录
-                            session.delete(stat)
+                        # tg_id 未变化时无需迁移
+                        if old_tg_id == new_tg_id:
+                            continue
+
+                        old_stat = session.get(Statistics, old_tg_id)
+                        new_stat = session.get(Statistics, new_tg_id)
+                        merging = old_stat is not None and new_stat is not None
+
+                        # 无外键约束的列在任何场景都需显式迁移
+                        columns_to_migrate = list(plain_ref_columns)
+
+                        if old_stat is not None and new_stat is None:
+                            # 目标为全新 ID：直接改 statistics 主键，
+                            # 引用它且设了 ON UPDATE CASCADE 的子表会自动跟随
+                            old_stat.tg_id = new_tg_id
                             session.flush()
-                            # 创建新记录或更新已存在的记录
-                            stmt = select(Statistics).where(
-                                Statistics.tg_id == new_tg_id
+                            logger.info(
+                                f"Migrated Statistics tg_id (cascade): {old_tg_id} -> {new_tg_id}"
                             )
-                            new_stat = session.execute(stmt).scalar_one_or_none()
-                            if new_stat:
-                                # 合并数据
-                                new_stat.donation += stat.donation
-                                new_stat.credits += stat.credits
-                            else:
-                                # 创建新记录
-                                new_stat = Statistics(
-                                    tg_id=new_tg_id,
-                                    donation=stat.donation,
-                                    credits=stat.credits,
+                        elif merging:
+                            # 目标 ID 已存在：合并积分；外键列不触发级联，需显式迁移
+                            new_stat.donation += old_stat.donation
+                            new_stat.credits += old_stat.credits
+                            session.flush()
+                            columns_to_migrate += fk_ref_columns
+
+                        for model, attr in columns_to_migrate:
+                            column = getattr(model, attr)
+                            result = session.execute(
+                                update(model)
+                                .where(column == old_tg_id)
+                                .values({column: new_tg_id})
+                            )
+                            if result.rowcount > 0:
+                                logger.info(
+                                    f"Migrated {result.rowcount} {model.__tablename__}.{attr}: {old_tg_id} -> {new_tg_id}"
                                 )
-                                session.add(new_stat)
-                            logger.info(
-                                f"Updated Statistics table: {old_tg_id} -> {new_tg_id}"
-                            )
 
-                        # 更新 Overseerr 表
-                        result = session.execute(
-                            update(Overseerr)
-                            .where(Overseerr.tg_id == old_tg_id)
-                            .values(tg_id=new_tg_id)
-                        )
-                        if result.rowcount > 0:
+                        if merging:
+                            # 外键引用均已迁出，删除旧 Statistics 记录
+                            session.delete(old_stat)
+                            session.flush()
                             logger.info(
-                                f"Updated {result.rowcount} Overseerr records: {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 WheelStats 表
-                        result = session.execute(
-                            update(WheelStats)
-                            .where(WheelStats.tg_id == old_tg_id)
-                            .values(tg_id=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} WheelStats records: {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 VaultwardenRedeemRecords 表
-                        result = session.execute(
-                            update(VaultwardenRedeemRecords)
-                            .where(VaultwardenRedeemRecords.tg_id == old_tg_id)
-                            .values(tg_id=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} VaultwardenRedeemRecords: {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 LineSchedule 表
-                        result = session.execute(
-                            update(LineSchedule)
-                            .where(LineSchedule.tg_id == old_tg_id)
-                            .values(tg_id=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} LineSchedule records: {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 UserBadge 表
-                        result = session.execute(
-                            update(UserBadge)
-                            .where(UserBadge.tg_id == old_tg_id)
-                            .values(tg_id=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} UserBadge records: {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 Invitation 表的 owner 列
-                        result = session.execute(
-                            update(Invitation)
-                            .where(Invitation.owner == old_tg_id)
-                            .values(owner=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} Invitation records (owner): {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 Auctions 表的 created_by 列
-                        result = session.execute(
-                            update(Auctions)
-                            .where(Auctions.created_by == old_tg_id)
-                            .values(created_by=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} Auctions records (created_by): {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 Auctions 表的 winner_id 列
-                        result = session.execute(
-                            update(Auctions)
-                            .where(Auctions.winner_id == old_tg_id)
-                            .values(winner_id=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} Auctions records (winner_id): {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 AuctionBids 表的 bidder_id 列
-                        result = session.execute(
-                            update(AuctionBids)
-                            .where(AuctionBids.bidder_id == old_tg_id)
-                            .values(bidder_id=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} AuctionBids records (bidder_id): {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 DonationRegistrations 表的 user_id 列
-                        result = session.execute(
-                            update(DonationRegistrations)
-                            .where(DonationRegistrations.user_id == old_tg_id)
-                            .values(user_id=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} DonationRegistrations records (user_id): {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 DonationRegistrations 表的 processed_by 列
-                        result = session.execute(
-                            update(DonationRegistrations)
-                            .where(DonationRegistrations.processed_by == old_tg_id)
-                            .values(processed_by=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} DonationRegistrations records (processed_by): {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 CryptoDonationOrders 表的 user_id 列
-                        result = session.execute(
-                            update(CryptoDonationOrders)
-                            .where(CryptoDonationOrders.user_id == old_tg_id)
-                            .values(user_id=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} CryptoDonationOrders records (user_id): {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 TreasureIssue 表的 winner_tg_id 列
-                        result = session.execute(
-                            update(TreasureIssue)
-                            .where(TreasureIssue.winner_tg_id == old_tg_id)
-                            .values(winner_tg_id=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} TreasureIssue records (winner_tg_id): {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 TreasureIssue 表的 created_by 列
-                        result = session.execute(
-                            update(TreasureIssue)
-                            .where(TreasureIssue.created_by == old_tg_id)
-                            .values(created_by=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} TreasureIssue records (created_by): {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 TreasureParticipation 表的 tg_id 列
-                        result = session.execute(
-                            update(TreasureParticipation)
-                            .where(TreasureParticipation.tg_id == old_tg_id)
-                            .values(tg_id=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} TreasureParticipation records (tg_id): {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 PredictionMarket 表的 created_by 列
-                        result = session.execute(
-                            update(PredictionMarket)
-                            .where(PredictionMarket.created_by == old_tg_id)
-                            .values(created_by=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} PredictionMarket records (created_by): {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 PredictionMarket 表的 resolved_by 列
-                        result = session.execute(
-                            update(PredictionMarket)
-                            .where(PredictionMarket.resolved_by == old_tg_id)
-                            .values(resolved_by=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} PredictionMarket records (resolved_by): {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 PredictionMarketSubmission 表的 submitter_tg_id 列
-                        result = session.execute(
-                            update(PredictionMarketSubmission)
-                            .where(
-                                PredictionMarketSubmission.submitter_tg_id == old_tg_id
-                            )
-                            .values(submitter_tg_id=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} PredictionMarketSubmission records (submitter_tg_id): {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 PredictionMarketSubmission 表的 reviewed_by 列
-                        result = session.execute(
-                            update(PredictionMarketSubmission)
-                            .where(PredictionMarketSubmission.reviewed_by == old_tg_id)
-                            .values(reviewed_by=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} PredictionMarketSubmission records (reviewed_by): {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 PredictionBet 表的 tg_id 列
-                        result = session.execute(
-                            update(PredictionBet)
-                            .where(PredictionBet.tg_id == old_tg_id)
-                            .values(tg_id=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} PredictionBet records (tg_id): {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 CustomLine 表的 tg_id 列
-                        result = session.execute(
-                            update(CustomLine)
-                            .where(CustomLine.tg_id == old_tg_id)
-                            .values(tg_id=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} CustomLine records (tg_id): {old_tg_id} -> {new_tg_id}"
-                            )
-
-                        # 更新 CustomLine 表的 approved_by 列
-                        result = session.execute(
-                            update(CustomLine)
-                            .where(CustomLine.approved_by == old_tg_id)
-                            .values(approved_by=new_tg_id)
-                        )
-                        if result.rowcount > 0:
-                            logger.info(
-                                f"Updated {result.rowcount} CustomLine records (approved_by): {old_tg_id} -> {new_tg_id}"
+                                f"Removed merged Statistics record: {old_tg_id} -> {new_tg_id}"
                             )
 
                 return updated
