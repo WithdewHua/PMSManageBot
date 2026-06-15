@@ -1534,20 +1534,38 @@ return #failed_values
                 log_pattern = r'(\S+) - \S+? \[([^\]]+)\] "(\S+) ([^"]+) ([^"]+)" (\d+) (\d+) "([^"]*)"(?: "[^"]*" "[^"]*" "upstream: ([^"]*)" "ups_resp_time: ([^"]*)")?'
                 match = re.match(log_pattern, message)
 
-                if not match:
-                    logger.warning(f"无法解析日志格式: {message}")
-                    acknowledged_count += 1
-                    skipped_count += 1
-                    continue
+                if match:
+                    # 提取需要的字段
+                    access_time = match.group(2)
+                    url = match.group(4)
+                    status_code = int(match.group(6))
+                    bytes_sent = int(match.group(7))
+                    # 新格式的可选字段（旧格式时为 None）
+                    upstream = match.group(9)
+                    upstream_response_time = match.group(10)
+                else:
+                    # stream 格式：'$remote_addr [$time_local] "$request" $status $body_bytes_sent '
+                    # 'rt=$request_time uct=$upstream_connect_time uht=$upstream_header_time urt=$upstream_response_time '
+                    # 'ua="$upstream_addr" us="$upstream_status" ...'
+                    stream_log_pattern = (
+                        r'(\S+) \[([^\]]+)\] "(\S+) ([^"]+) ([^"]+)" (\d+) (\d+) '
+                        r"rt=(\S+) uct=(\S+) uht=(\S+) urt=(\S+) "
+                        r'ua="([^"]*)" us="([^"]*)"'
+                    )
+                    stream_match = re.match(stream_log_pattern, message)
 
-                # 提取需要的字段
-                access_time = match.group(2)
-                url = match.group(4)
-                status_code = int(match.group(6))
-                bytes_sent = int(match.group(7))
-                # 新格式的可选字段（旧格式时为 None）
-                upstream = match.group(9)
-                upstream_response_time = match.group(10)
+                    if not stream_match:
+                        logger.warning(f"无法解析日志格式: {message}")
+                        acknowledged_count += 1
+                        skipped_count += 1
+                        continue
+
+                    access_time = stream_match.group(2)
+                    url = stream_match.group(4)
+                    status_code = int(stream_match.group(6))
+                    bytes_sent = int(stream_match.group(7))
+                    upstream = stream_match.group(12)
+                    upstream_response_time = stream_match.group(11)
 
                 # 只处理成功的请求 (2xx 状态码)
                 if status_code < 200 or status_code >= 300:
