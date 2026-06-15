@@ -1510,206 +1510,244 @@ return #failed_values
         return
 
     try:
+        # 阶段0：逐条解析（纯 CPU），收集待处理记录与各类计数
+        parsed_records = []
         for index, raw_log in enumerate(values, start=1):
             try:
                 # 解析 JSON 日志
                 if isinstance(raw_log, bytes):
                     raw_log = raw_log.decode("utf-8")
-
                 log_data = json.loads(raw_log)
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON 解析错误: {e}, 原始数据: {raw_log}")
+                failed_positions.append(index)
+                continue
+            except Exception as e:
+                logger.error(f"处理日志时发生错误: {e}, 原始数据: {raw_log}")
+                failed_positions.append(index)
+                continue
 
-                # 提取时间戳
-                timestamp = log_data.get("@timestamp", "")
+            # 提取时间戳
+            timestamp = log_data.get("@timestamp", "")
+            # 提取后端服务器信息（线路）
+            backend = log_data.get("backend", "")
+            # 解析 message 字段中的 nginx 访问日志
+            message = log_data.get("message", "")
 
-                # 提取后端服务器信息（线路）
-                backend = log_data.get("backend", "")
+            # 使用正则表达式解析 nginx 访问日志格式
+            # 旧格式：'$remote_addr - $remote_user [$time_local] "$request" ' '$status $body_bytes_sent "$http_referer" ' '"$http_user_agent" "$http_x_forwarded_for"'
+            # 新格式：'$remote_addr - $remote_user [$time_local] "$request" ' '$status $body_bytes_sent "$http_referer" ' '"$http_user_agent" "$http_x_forwarded_for" ' '"upstream: $upstream_addr" ' '"ups_resp_time: $upstream_response_time"'
+            log_pattern = r'(\S+) - \S+? \[([^\]]+)\] "(\S+) ([^"]+) ([^"]+)" (\d+) (\d+) "([^"]*)"(?: "[^"]*" "[^"]*" "upstream: ([^"]*)" "ups_resp_time: ([^"]*)")?'
+            match = re.match(log_pattern, message)
 
-                # 解析 message 字段中的 nginx 访问日志
-                message = log_data.get("message", "")
+            if match:
+                # 提取需要的字段
+                access_time = match.group(2)
+                url = match.group(4)
+                status_code = int(match.group(6))
+                bytes_sent = int(match.group(7))
+                # 新格式的可选字段（旧格式时为 None）
+                upstream = match.group(9)
+                upstream_response_time = match.group(10)
+            else:
+                # stream 格式：'$remote_addr [$time_local] "$request" $status $body_bytes_sent '
+                # 'rt=$request_time uct=$upstream_connect_time uht=$upstream_header_time urt=$upstream_response_time '
+                # 'ua="$upstream_addr" us="$upstream_status" ...'
+                stream_log_pattern = (
+                    r'(\S+) \[([^\]]+)\] "(\S+) ([^"]+) ([^"]+)" (\d+) (\d+) '
+                    r"rt=(\S+) uct=(\S+) uht=(\S+) urt=(\S+) "
+                    r'ua="([^"]*)" us="([^"]*)"'
+                )
+                stream_match = re.match(stream_log_pattern, message)
 
-                # 使用正则表达式解析 nginx 访问日志格式
-                # 旧格式：'$remote_addr - $remote_user [$time_local] "$request" ' '$status $body_bytes_sent "$http_referer" ' '"$http_user_agent" "$http_x_forwarded_for"'
-                # 新格式：'$remote_addr - $remote_user [$time_local] "$request" ' '$status $body_bytes_sent "$http_referer" ' '"$http_user_agent" "$http_x_forwarded_for" ' '"upstream: $upstream_addr" ' '"ups_resp_time: $upstream_response_time"'
+                if not stream_match:
+                    logger.warning(f"无法解析日志格式: {message}")
+                    acknowledged_count += 1
+                    skipped_count += 1
+                    continue
 
-                log_pattern = r'(\S+) - \S+? \[([^\]]+)\] "(\S+) ([^"]+) ([^"]+)" (\d+) (\d+) "([^"]*)"(?: "[^"]*" "[^"]*" "upstream: ([^"]*)" "ups_resp_time: ([^"]*)")?'
-                match = re.match(log_pattern, message)
+                access_time = stream_match.group(2)
+                url = stream_match.group(4)
+                status_code = int(stream_match.group(6))
+                bytes_sent = int(stream_match.group(7))
+                upstream = stream_match.group(12)
+                upstream_response_time = stream_match.group(11)
 
-                if match:
-                    # 提取需要的字段
-                    access_time = match.group(2)
-                    url = match.group(4)
-                    status_code = int(match.group(6))
-                    bytes_sent = int(match.group(7))
-                    # 新格式的可选字段（旧格式时为 None）
-                    upstream = match.group(9)
-                    upstream_response_time = match.group(10)
-                else:
-                    # stream 格式：'$remote_addr [$time_local] "$request" $status $body_bytes_sent '
-                    # 'rt=$request_time uct=$upstream_connect_time uht=$upstream_header_time urt=$upstream_response_time '
-                    # 'ua="$upstream_addr" us="$upstream_status" ...'
-                    stream_log_pattern = (
-                        r'(\S+) \[([^\]]+)\] "(\S+) ([^"]+) ([^"]+)" (\d+) (\d+) '
-                        r"rt=(\S+) uct=(\S+) uht=(\S+) urt=(\S+) "
-                        r'ua="([^"]*)" us="([^"]*)"'
+            # 只处理成功的请求 (2xx 状态码)
+            if status_code < 200 or status_code >= 300:
+                acknowledged_count += 1
+                skipped_count += 1
+                continue
+
+            if not url.startswith("/stream") and not re.search(
+                r"[Oo]riginal\.|[Ss]tream\.?", url
+            ):
+                # 只处理 /stream 路径的请求
+                # 或者包含 "Original." 的请求（兼容下 emby 反代）
+                logger.info(f"跳过非流媒体请求: {url}")
+                acknowledged_count += 1
+                skipped_count += 1
+                continue
+
+            # 解析 URL 获取服务信息
+            parsed_url = urlparse(url)
+            query_params = parse_qs(parsed_url.query)
+            # URL 解码请求 URI（只保留路径部分，不包含查询参数）
+            decoded_uri = unquote(parsed_url.path)
+
+            # 检查服务和 token
+            service_list = query_params.get("service")
+            token_list = query_params.get("token")
+            line_list = query_params.get("line")
+            if not service_list or not token_list:
+                if query_params.get("api_key"):
+                    # 兼容 emby 反代
+                    logger.warning(
+                        f"缺少必要的参数 service 或 token，但发现 api_key: {url}"
                     )
-                    stream_match = re.match(stream_log_pattern, message)
-
-                    if not stream_match:
-                        logger.warning(f"无法解析日志格式: {message}")
-                        acknowledged_count += 1
-                        skipped_count += 1
-                        continue
-
-                    access_time = stream_match.group(2)
-                    url = stream_match.group(4)
-                    status_code = int(stream_match.group(6))
-                    bytes_sent = int(stream_match.group(7))
-                    upstream = stream_match.group(12)
-                    upstream_response_time = stream_match.group(11)
-
-                # 只处理成功的请求 (2xx 状态码)
-                if status_code < 200 or status_code >= 300:
+                    service_list = ["emby"]
+                    token_list = query_params.get("api_key")
+                else:
+                    # 如果没有 service 或 token，跳过此条记录
+                    logger.warning(f"缺少必要的参数 service 或 token: {url}")
                     acknowledged_count += 1
                     skipped_count += 1
                     continue
 
-                if not url.startswith("/stream") and not re.search(
-                    r"[Oo]riginal\.|[Ss]tream\.?", url
-                ):
-                    # 只处理 /stream 路径的请求
-                    # 或者包含 "Original." 的请求（兼容下 emby 反代）
-                    logger.info(f"跳过非流媒体请求: {url}")
-                    acknowledged_count += 1
-                    skipped_count += 1
-                    continue
+            service = service_list[0]
+            token = token_list[0]
+            # 优先使用 line 参数，如果没有则使用 backend
+            # line 可能是自定义线路，仍会统计到，只是在线路流量统计中不会显示
+            backend = line_list[0] if line_list else backend
+            if not backend:
+                logger.warning(f"缺少 backend 信息: {url}")
+                acknowledged_count += 1
+                skipped_count += 1
+                continue
 
-                # 解析 URL 获取服务信息
-                parsed_url = urlparse(url)
-                query_params = parse_qs(parsed_url.query)
+            # 转换时间格式为 ISO 格式
+            try:
+                # 将 nginx 时间格式转换为 datetime 对象
+                # 格式: 23/Jun/2025:15:43:03 +0000
+                dt = datetime.strptime(access_time, "%d/%b/%Y:%H:%M:%S %z").astimezone(
+                    settings.TZ
+                )
+                formatted_timestamp = dt.isoformat()
+            except ValueError:
+                # 如果解析失败，使用原始的 @timestamp
+                formatted_timestamp = (
+                    datetime.fromisoformat(timestamp)
+                    .astimezone(settings.TZ)
+                    .isoformat()
+                    if timestamp
+                    else ""
+                )
 
-                # URL 解码请求 URI（只保留路径部分，不包含查询参数）
-                decoded_uri = unquote(parsed_url.path)
+            parsed_records.append(
+                {
+                    "index": index,
+                    "line": backend,
+                    "service": service,
+                    "token": token,
+                    "bytes_sent": bytes_sent,
+                    "decoded_uri": decoded_uri,
+                    "formatted_timestamp": formatted_timestamp,
+                    "upstream": upstream,
+                    "upstream_response_time": upstream_response_time,
+                }
+            )
 
-                # 检查服务和 token
-                service_list = query_params.get("service")
-                token_list = query_params.get("token")
-                line_list = query_params.get("line")
-                if not service_list or not token_list:
-                    if query_params.get("api_key"):
-                        # 兼容 emby 反代
-                        logger.warning(
-                            f"缺少必要的参数 service 或 token，但发现 api_key: {url}"
-                        )
-                        service_list = ["emby"]
-                        token_list = query_params.get("api_key")
-                    else:
-                        # 如果没有 service 或 token，跳过此条记录
-                        logger.warning(f"缺少必要的参数 service 或 token: {url}")
-                        acknowledged_count += 1
-                        skipped_count += 1
-                        continue
+        # 阶段1：解析 token -> username
+        plex_tokens = {r["token"] for r in parsed_records if r["service"] == "plex"}
+        emby_tokens = {r["token"] for r in parsed_records if r["service"] == "emby"}
 
-                service = service_list[0]
-                token = token_list[0]
-                # 优先使用 line 参数，如果没有则使用 backend
-                # line 可能是自定义线路，仍会统计到，只是在线路流量统计中不会显示
-                backend = line_list[0] if line_list else backend
-                if not backend:
-                    logger.warning(f"缺少 backend 信息: {url}")
-                    acknowledged_count += 1
-                    skipped_count += 1
-                    continue
+        # 逐个查询去重后的 token：真正的优化是去重（同一 token 不再每条日志重复查），
+        # 而非合并成一次 mget。逐条小请求对高延迟/抖动的远程 Redis 更稳健——
+        # 单次卡顿只影响一个 token 并可重试，不会像一次大 mget 那样拖垮整批。
+        plex_token_to_name = {t: plex_token_cache.get(t) for t in plex_tokens}
+        emby_token_to_name = {t: emby_api_key_cache.get(t) for t in emby_tokens}
 
-                username = None
-                user_id = None
+        emby_timeout_tokens = set()
+        emby_miss_tokens = [t for t in emby_tokens if not emby_token_to_name.get(t)]
+        if emby_miss_tokens:
+            if emby is None:
+                emby = Emby()
+            fetched = await emby.get_emby_usernames_from_api_keys(emby_miss_tokens)
+            for token, username in fetched.items():
+                if username is Emby.FETCH_TIMEOUT:
+                    emby_timeout_tokens.add(token)
+                elif username:
+                    emby_token_to_name[token] = username
 
-                if service == "plex":
-                    username = plex_token_cache.get(token)
-                    if username:
-                        # 使用内存缓存查询 user_id，避免数据库查询
-                        user_id = plex_username_to_id.get(username.lower())
-                elif service == "emby":
-                    username = emby_api_key_cache.get(token)
-                    if username:
-                        # 使用内存缓存查询 user_id，避免数据库查询
-                        user_id = emby_username_to_id.get(username.lower())
-                    else:
-                        # 尝试通过 api key 获取用户名
-                        if emby is None:
-                            emby = Emby()
-                        username = await asyncio.wait_for(
-                            emby.get_emby_username_from_api_key(token), timeout=5
-                        )
-                        if username:
-                            user_id = emby_username_to_id.get(username.lower())
+        # 阶段2：组装待入库记录并分类
+        to_insert = []  # (index, row, event_hash)
+        for r in parsed_records:
+            service = r["service"]
+            token = r["token"]
+            if service == "plex":
+                username = plex_token_to_name.get(token)
+            else:
+                username = emby_token_to_name.get(token)
 
-                # 如果无法获取到用户信息，跳过此条记录
-                if not username:
+            # 如果无法获取到用户信息
+            if not username:
+                if token in emby_timeout_tokens:
+                    # emby 查询超时，保留重试
+                    failed_positions.append(r["index"])
+                else:
                     logger.warning(f"无法找到 token 对应的用户名: {token}")
                     acknowledged_count += 1
                     skipped_count += 1
-                    continue
+                continue
 
-                # 转换时间格式为 ISO 格式
-                try:
-                    # 将 nginx 时间格式转换为 datetime 对象
-                    # 格式: 23/Jun/2025:15:43:03 +0000
-                    dt = datetime.strptime(
-                        access_time, "%d/%b/%Y:%H:%M:%S %z"
-                    ).astimezone(settings.TZ)
-                    formatted_timestamp = dt.isoformat()
-                except ValueError:
-                    # 如果解析失败，使用原始的 @timestamp
-                    formatted_timestamp = (
-                        datetime.fromisoformat(timestamp)
-                        .astimezone(settings.TZ)
-                        .isoformat()
-                        if timestamp
-                        else ""
-                    )
+            # 使用内存缓存查询 user_id，避免数据库查询
+            if service == "plex":
+                user_id = plex_username_to_id.get(username.lower())
+            else:
+                user_id = emby_username_to_id.get(username.lower())
 
-                # 存储到数据库
-                event_hash = _build_line_traffic_event_hash(
-                    backend=backend,
-                    service=service,
-                    username=username,
-                    user_id=user_id,
-                    formatted_timestamp=formatted_timestamp,
-                    decoded_uri=decoded_uri,
-                    bytes_sent=bytes_sent,
-                    upstream=upstream,
-                    upstream_response_time=upstream_response_time,
-                )
+            event_hash = _build_line_traffic_event_hash(
+                backend=r["line"],
+                service=service,
+                username=username,
+                user_id=user_id,
+                formatted_timestamp=r["formatted_timestamp"],
+                decoded_uri=r["decoded_uri"],
+                bytes_sent=r["bytes_sent"],
+                upstream=r["upstream"],
+                upstream_response_time=r["upstream_response_time"],
+            )
+            row = {
+                "line": r["line"],
+                "send_bytes": r["bytes_sent"],
+                "service": service,
+                "username": username,
+                "user_id": user_id,
+                "timestamp": r["formatted_timestamp"],
+                "event_hash": event_hash,
+                "request_uri": r["decoded_uri"],
+                "upstream": r["upstream"],
+                "upstream_response_time": r["upstream_response_time"],
+            }
+            to_insert.append((r["index"], row, event_hash))
 
-                success, is_duplicate = db.create_line_traffic_entry(
-                    line=backend,
-                    send_bytes=bytes_sent,
-                    service=service,
-                    username=username,
-                    user_id=user_id,
-                    timestamp=formatted_timestamp,
-                    event_hash=event_hash,
-                    request_uri=decoded_uri,
-                    upstream=upstream,
-                    upstream_response_time=upstream_response_time,
-                )
-
-                if success:
-                    log_msg = f"""成功处理流量日志
-    线路: {backend}
-    服务: {service}
-    用户: {username}
-    流量: {format_traffic_size(bytes_sent)}
-    时间: {formatted_timestamp}
-    URI: {decoded_uri}"""
-                    if upstream:
-                        log_msg += f"\n    上游: {upstream}"
-                    if upstream_response_time:
-                        log_msg += f"\n    上游响应时间: {upstream_response_time}s"
-                    logger.debug(log_msg)
-                    processed_count += 1
+        # 阶段3：批量写库并回填每条结果
+        if to_insert:
+            hash_status = db.bulk_create_line_traffic_entries(
+                [row for _, row, _ in to_insert]
+            )
+            # 批内同一 event_hash 多条：首条按状态计数，其余计为重复，
+            # 避免重复计入 processed（实际只入库一条）
+            seen_hashes = set()
+            for index, row, event_hash in to_insert:
+                status = hash_status.get(event_hash, "failed")
+                if status == "inserted":
+                    if event_hash in seen_hashes:
+                        duplicate_count += 1
+                    else:
+                        processed_count += 1
                     acknowledged_count += 1
-                elif is_duplicate:
+                elif status == "duplicate":
                     duplicate_count += 1
                     acknowledged_count += 1
                 else:
@@ -1717,19 +1755,7 @@ return #failed_values
                         f"流量日志入库失败，将保留在处理中队列重试: event_hash={event_hash}"
                     )
                     failed_positions.append(index)
-
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON 解析错误: {e}, 原始数据: {raw_log}")
-                failed_positions.append(index)
-                continue
-            except asyncio.TimeoutError:
-                logger.error("通过 Emby api_key 查询用户名超时，日志将回滚重试")
-                failed_positions.append(index)
-                continue
-            except Exception as e:
-                logger.error(f"处理日志时发生错误: {e}, 原始数据: {raw_log}")
-                failed_positions.append(index)
-                continue
+                seen_hashes.add(event_hash)
 
         if values:
             try:

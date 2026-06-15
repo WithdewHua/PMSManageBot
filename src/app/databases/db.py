@@ -4356,6 +4356,71 @@ class DatabaseORM:
             logger.error(f"Error creating line traffic entry: {e}")
             return False, False
 
+    def bulk_create_line_traffic_entries(
+        self,
+        rows: list[dict],
+        *,
+        query_chunk: int = 500,
+        insert_chunk: int = 500,
+    ) -> dict[str, str]:
+        """批量创建流量统计记录
+
+        Args:
+            rows: 每项为含 event_hash 及 LineTrafficStats 字段的 dict
+
+        Returns:
+            {event_hash: 'inserted' | 'duplicate' | 'failed'}
+            默认 'failed'（未确定，调用方应重试）；查重命中为 'duplicate'；
+            成功落库为 'inserted'。批内重复 event_hash 在此防御性收敛，
+            每个 event_hash 只插入一次。
+        """
+        if not rows:
+            return {}
+
+        # 防御性去重：同一 event_hash 只保留首条
+        unique: dict[str, dict] = {}
+        for row in rows:
+            unique.setdefault(row["event_hash"], row)
+
+        # 默认 failed：任何未走到确定结论的 event_hash 都交给上游重试
+        result: dict[str, str] = {event_hash: "failed" for event_hash in unique}
+
+        try:
+            with get_session() as session:
+                # 分块预查重，避免 SQLite IN 参数上限（999）
+                hashes = list(unique.keys())
+                existing: set[str] = set()
+                for i in range(0, len(hashes), query_chunk):
+                    chunk = hashes[i : i + query_chunk]
+                    stmt = select(LineTrafficStats.event_hash).where(
+                        LineTrafficStats.event_hash.in_(chunk)
+                    )
+                    existing.update(session.execute(stmt).scalars().all())
+
+                for event_hash in existing:
+                    result[event_hash] = "duplicate"
+
+                pending = [unique[h] for h in hashes if h not in existing]
+
+                # 分块插入并提交，单块失败仅影响该块（保持默认 failed）
+                for i in range(0, len(pending), insert_chunk):
+                    chunk_rows = pending[i : i + insert_chunk]
+                    try:
+                        session.add_all([LineTrafficStats(**row) for row in chunk_rows])
+                        session.flush()
+                        session.commit()
+                        for row in chunk_rows:
+                            result[row["event_hash"]] = "inserted"
+                    except Exception as e:
+                        session.rollback()
+                        logger.error(
+                            f"批量插入流量日志失败，本块 {len(chunk_rows)} 条将重试: {e}"
+                        )
+        except Exception as e:
+            logger.error(f"批量创建流量日志记录时发生错误: {e}")
+
+        return result
+
     def get_premium_line_traffic_statistics(self) -> list:
         """获取Premium线路流量统计信息"""
         try:

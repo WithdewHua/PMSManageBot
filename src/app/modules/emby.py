@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 
+import asyncio
 import json
 import pickle
 from datetime import datetime, timedelta
@@ -17,6 +18,9 @@ from app.log import logger
 class Emby:
     cache = settings.DATA_PATH / "emby_user_info.cache"
     cache_lock = filelock.FileLock(str(cache) + ".lock")
+
+    # 批量查询用户名时的超时哨兵：区分“超时需重试”与“查不到需丢弃”
+    FETCH_TIMEOUT = object()
 
     def __init__(
         self,
@@ -525,6 +529,32 @@ class Emby:
         except Exception as e:
             logger.error(f"Error fetching Emby username: {e}")
         return None
+
+    async def get_emby_usernames_from_api_keys(
+        self, api_keys, *, concurrency: int = 8, timeout: int = 5
+    ) -> dict:
+        """并发通过 api_key 批量获取用户名
+
+        Returns:
+            {api_key: username | None | Emby.FETCH_TIMEOUT}
+            - username: 成功（内部已回填缓存）
+            - None: 查不到（丢弃，不重试）
+            - Emby.FETCH_TIMEOUT: 超时（保留重试）
+        """
+        sem = asyncio.Semaphore(concurrency)
+
+        async def _one(api_key):
+            async with sem:
+                try:
+                    username = await asyncio.wait_for(
+                        self.get_emby_username_from_api_key(api_key), timeout=timeout
+                    )
+                    return api_key, (username or None)
+                except asyncio.TimeoutError:
+                    return api_key, self.FETCH_TIMEOUT
+
+        results = await asyncio.gather(*(_one(k) for k in api_keys))
+        return dict(results)
 
     def get_emby_current_playing_user_num(self):
         url = self.base_url + f"/Sessions?IsPlaying=True&api_key={self.api_token}"
