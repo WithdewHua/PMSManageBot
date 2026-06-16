@@ -4402,20 +4402,31 @@ class DatabaseORM:
 
                 pending = [unique[h] for h in hashes if h not in existing]
 
-                # 分块插入并提交，单块失败仅影响该块（保持默认 failed）
-                for i in range(0, len(pending), insert_chunk):
-                    chunk_rows = pending[i : i + insert_chunk]
-                    try:
-                        session.add_all([LineTrafficStats(**row) for row in chunk_rows])
-                        session.flush()
-                        session.commit()
-                        for row in chunk_rows:
-                            result[row["event_hash"]] = "inserted"
-                    except Exception as e:
-                        session.rollback()
-                        logger.error(
-                            f"批量插入流量日志失败，本块 {len(chunk_rows)} 条将重试: {e}"
-                        )
+                # 按 service 分组后再分块插入：plex 的 user_id 是整数、emby 的是 hex
+                # 字符串，而 user_id 列为 text。批量插入用多行 VALUES，Postgres 会按列
+                # 统一推断类型，同一批混入整数与字符串会把该列推断为 integer，导致
+                # 字符串报 "invalid input syntax for type integer"。按 service 分批可
+                # 保证每批 user_id 类型同构，无需改写入值。单块失败仅影响该块。
+                pending_by_service: dict[str, list[dict]] = {}
+                for row in pending:
+                    pending_by_service.setdefault(row["service"], []).append(row)
+
+                for service_rows in pending_by_service.values():
+                    for i in range(0, len(service_rows), insert_chunk):
+                        chunk_rows = service_rows[i : i + insert_chunk]
+                        try:
+                            session.add_all(
+                                [LineTrafficStats(**row) for row in chunk_rows]
+                            )
+                            session.flush()
+                            session.commit()
+                            for row in chunk_rows:
+                                result[row["event_hash"]] = "inserted"
+                        except Exception as e:
+                            session.rollback()
+                            logger.error(
+                                f"批量插入流量日志失败，本块 {len(chunk_rows)} 条将重试: {e}"
+                            )
         except Exception as e:
             logger.error(f"批量创建流量日志记录时发生错误: {e}")
 
