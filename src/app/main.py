@@ -10,6 +10,7 @@ from app.databases.db_func import (
     check_and_award_supreme_contributor_badge,
     check_expired_crypto_donation_orders,
     check_prediction_markets_closing_soon_job,
+    clean_ghost_sessions_job,
     finish_expired_auctions_job,
     monthly_traffic_data_migration,
     rewrite_users_credits_to_redis,
@@ -125,6 +126,20 @@ def add_init_scheduler_job():
         minute=0,
     )
     logger.info("添加定时任务：每天凌晨 12:00 更新积分 (Plex 和 Emby)")
+
+    # 每 6 小时清理一次 Tautulli 幽灵会话 (异步任务)
+    # 结算前那次清理保证积分不被脏数据污染，这个高频任务则负责缩短脏数据
+    # 在时长展示与观看时长榜上的暴露窗口。错开整点，避开 0:00 的结算任务。
+    scheduler.add_async_job(
+        func=clean_ghost_sessions_job,
+        trigger="cron",
+        id="clean_ghost_sessions",
+        replace_existing=True,
+        max_instances=1,
+        hour="3,9,15,21",
+        minute=17,
+    )
+    logger.info("添加定时任务：每 6 小时清理 Tautulli 幽灵会话")
     # 每天中午 12:00 更新 plex 用户信息 (同步任务)
     scheduler.add_sync_job(
         func=update_plex_info,

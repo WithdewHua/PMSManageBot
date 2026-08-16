@@ -38,6 +38,11 @@ from app.models.models import (
 from app.modules.emby import Emby
 from app.modules.plex import Plex
 from app.modules.tautulli import Tautulli
+from app.utils.tautulli_history import (
+    STATUS_GHOST,
+    STATUS_UNDETERMINED,
+    scan_history,
+)
 from app.utils.utils import (
     format_traffic_size,
     get_user_name_from_tg_id,
@@ -47,6 +52,39 @@ from app.utils.utils import (
 )
 from sqlalchemy import distinct, func, or_, select, union
 from sqlalchemy import update as sql_update
+
+# 幽灵会话扫描窗口（天）。Tautulli 的 get_history 按 stopped 过滤，而幽灵会话
+# 落库时 stopped 即落库时刻，因此只要落库后 3 天内扫过一次就必定命中，
+# 无需为「started 很早」的记录扩大窗口。留 3 天是为了容忍某轮任务失败。
+GHOST_SCAN_DAYS = 3
+
+# 积分结算水位线：记录已经完成结算的最后一个日期（YYYY-MM-DD）。
+# 幽灵会话的补偿判定必须依赖它而非当前时刻——清理任务既会在结算前被调用，
+# 也会作为独立定时任务在白天运行，只有水位线能稳定回答「这天结算过没有」。
+GHOST_SETTLEMENT_CONFIG_TYPE = "ghost_session"
+GHOST_SETTLEMENT_CONFIG_KEY = "settled_through_date"
+
+
+def _get_settled_through_date() -> str:
+    """取已完成结算的最后一个日期
+
+    未初始化时保守地视为「昨天及以前都已结算」：首次部署时库里可能残留早已
+    按被夸大的时长结算过的幽灵记录，此时宁可少补也不能重复补——重复补偿会把
+    时长二次计入，比不补更糟。水位线随首次结算完成后即进入正常推进。
+    """
+    stored = db.get_system_config(
+        GHOST_SETTLEMENT_CONFIG_TYPE, GHOST_SETTLEMENT_CONFIG_KEY
+    )
+    if stored:
+        return stored
+    return (datetime.now(settings.TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
+
+
+def _set_settled_through_date(date_str: str) -> None:
+    """结算完成后推进水位线"""
+    db.set_system_config(
+        GHOST_SETTLEMENT_CONFIG_TYPE, GHOST_SETTLEMENT_CONFIG_KEY, date_str
+    )
 
 
 def _get_premium_daily_limit(is_premium: bool) -> int:
@@ -182,11 +220,220 @@ def _settle_premium_traffic_usage(
     }
 
 
+def clean_tautulli_ghost_sessions(scan_days: int = GHOST_SCAN_DAYS) -> dict:
+    """清理 Tautulli 中的幽灵会话记录
+
+    Plex 在部分版本下不发送 WebSocket stop 事件，Tautulli 会保持会话开启直到
+    超时或重启才写入 history，产生一条时长被严重夸大的记录，污染观看时长与积分。
+    Tautulli 官方对此的处置方式即为删除错误记录。
+
+    处理顺序是「先留档、再删除、后标记」：
+      - 留档失败则不删除，下轮重试；
+      - 删除失败则停在 deleted=0，不会被补偿，下轮由自愈逻辑重试；
+      - 记录一旦从 Tautulli 删除便无法回溯，补偿时长只能依赖留档表。
+
+    必须在积分结算之前执行，否则 get_home_stats 取到的仍是脏数据。
+
+    Returns
+    -------
+    dict
+        本次清理的汇总，供管理员通知使用。
+    """
+    logger.info(f"开始清理 Tautulli 幽灵会话（扫描最近 {scan_days} 天）")
+    summary = {
+        "scanned": 0,
+        "ghosts": [],
+        "undetermined": [],
+        "deleted": 0,
+        "failed": [],
+        "retried": 0,
+    }
+
+    try:
+        tautulli = Tautulli()
+
+        # 自愈：上一轮留档成功但未确认删除的记录，先重试一次
+        stale_row_ids = db.get_undeleted_ghost_row_ids()
+        if stale_row_ids:
+            logger.warning(f"发现 {len(stale_row_ids)} 条未确认删除的幽灵会话，重试")
+            if tautulli.delete_history(stale_row_ids):
+                db.mark_ghost_sessions_deleted(stale_row_ids)
+                summary["retried"] = len(stale_row_ids)
+            else:
+                logger.error(f"重试删除幽灵会话失败: {stale_row_ids}")
+
+        after = (datetime.now(settings.TZ) - timedelta(days=scan_days)).strftime(
+            "%Y-%m-%d"
+        )
+        scanned, verdicts = scan_history(tautulli, after=after)
+        summary["scanned"] = scanned
+
+        ghosts = [v for v in verdicts if v.status == STATUS_GHOST and v.row_id]
+        summary["undetermined"] = [
+            {
+                "row_id": v.row_id,
+                "friendly_name": v.friendly_name,
+                "title": v.title,
+                "raw_seconds": v.raw_seconds,
+            }
+            for v in verdicts
+            if v.status == STATUS_UNDETERMINED
+        ]
+
+        if not ghosts:
+            logger.info(f"未发现幽灵会话（共扫描 {scanned} 条记录）")
+            return summary
+
+        # 跳过已经处理过的，避免重复删除与重复补偿
+        logged = db.get_logged_ghost_row_ids([v.row_id for v in ghosts])
+        ghosts = [v for v in ghosts if v.row_id not in logged]
+        if not ghosts:
+            logger.info("检出的幽灵会话均已留档处理过，跳过")
+            return summary
+
+        staged_row_ids = []
+        # 结算水位线之前（含当天）的记录已经按被夸大的时长结算过了，
+        # 此时再补偿等于把时长二次计入，因此这类记录只删除、不补偿。
+        # 水位线为空表示还没跑过任何结算，此时全部记录都可补偿。
+        settled_through = _get_settled_through_date()
+        for v in ghosts:
+            play_date = (
+                datetime.fromtimestamp(v.started, settings.TZ).strftime("%Y-%m-%d")
+                if v.started
+                else datetime.now(settings.TZ).strftime("%Y-%m-%d")
+            )
+            already_settled = bool(settled_through) and play_date <= settled_through
+            record = {
+                "row_id": v.row_id,
+                "user_id": v.user_id,
+                "friendly_name": v.friendly_name,
+                "title": v.title,
+                "rating_key": v.rating_key,
+                "started": v.started,
+                "stopped": v.stopped,
+                "play_date": play_date,
+                "raw_seconds": v.raw_seconds,
+                "media_seconds": v.media_seconds,
+                "percent_complete": v.percent_complete,
+                "compensated_seconds": v.compensated_seconds,
+                "compensated": 1 if already_settled else 0,
+            }
+            # 留档必须先于删除：删掉之后这条记录就再也拿不回来了
+            if db.add_ghost_session_log(record):
+                staged_row_ids.append(v.row_id)
+                summary["ghosts"].append(
+                    {
+                        "row_id": v.row_id,
+                        "user_id": v.user_id,
+                        "friendly_name": v.friendly_name,
+                        "title": v.title,
+                        "raw_seconds": v.raw_seconds,
+                        "media_seconds": v.media_seconds,
+                        "percent_complete": v.percent_complete,
+                        "compensated_seconds": v.compensated_seconds,
+                        "play_date": play_date,
+                        "already_settled": already_settled,
+                    }
+                )
+            else:
+                summary["failed"].append(v.row_id)
+                logger.error(f"幽灵会话 row_id={v.row_id} 留档失败，跳过删除")
+
+        if staged_row_ids:
+            if tautulli.delete_history(staged_row_ids):
+                if db.mark_ghost_sessions_deleted(staged_row_ids):
+                    summary["deleted"] = len(staged_row_ids)
+                else:
+                    # 已从 Tautulli 删除但标记失败，补偿会被推迟到下轮自愈
+                    logger.error(
+                        f"幽灵会话已删除但标记失败，需人工核查: {staged_row_ids}"
+                    )
+            else:
+                summary["failed"].extend(staged_row_ids)
+                logger.error(f"删除幽灵会话失败: {staged_row_ids}")
+
+        for item in summary["ghosts"]:
+            logger.info(
+                f"清理幽灵会话 row_id={item['row_id']} 用户={item['friendly_name']} "
+                f"《{item['title']}》 原始 {item['raw_seconds'] / 3600:.2f}h -> "
+                f"补偿 {item['compensated_seconds'] / 3600:.2f}h"
+            )
+        logger.info(
+            f"幽灵会话清理完成：扫描 {scanned} 条，删除 {summary['deleted']} 条，"
+            f"失败 {len(summary['failed'])} 条"
+        )
+
+    except Exception as e:
+        logger.error(f"清理 Tautulli 幽灵会话失败: {e}")
+        traceback.print_exc()
+
+    return summary
+
+
+def _format_ghost_session_summary(summary: dict) -> str:
+    """把清理结果拼成管理员通知文本"""
+    lines = [
+        "Tautulli 幽灵会话清理报告",
+        "====================",
+        "",
+        f"扫描记录: {summary['scanned']} 条",
+        f"清理删除: {summary['deleted']} 条",
+    ]
+    if summary.get("retried"):
+        lines.append(f"补删遗留: {summary['retried']} 条")
+
+    if summary["ghosts"]:
+        compensated = [g for g in summary["ghosts"] if not g.get("already_settled")]
+        settled = [g for g in summary["ghosts"] if g.get("already_settled")]
+
+        def _detail(item):
+            return (
+                f"· {item['friendly_name']}《{item['title']}》\n"
+                f"  {item['play_date']} 原始 {item['raw_seconds'] / 3600:.2f}h → "
+                f"补偿 {item['compensated_seconds'] / 3600:.2f}h "
+                f"(媒体 {(item['media_seconds'] or 0) / 3600:.2f}h, "
+                f"进度 {item['percent_complete']}%)"
+            )
+
+        if compensated:
+            lines.append("")
+            lines.append("--- 已删除并补偿时长 ---")
+            lines.extend(_detail(item) for item in compensated)
+
+        if settled:
+            lines.append("")
+            lines.append("--- 已删除，不补偿（该日积分已结算，补偿会二次计入）---")
+            lines.extend(
+                f"· {item['friendly_name']}《{item['title']}》 {item['play_date']} "
+                f"原始 {item['raw_seconds'] / 3600:.2f}h"
+                for item in settled
+            )
+
+    if summary["undetermined"]:
+        lines.append("")
+        lines.append("--- 无法判定，需人工确认 ---")
+        for item in summary["undetermined"]:
+            lines.append(
+                f"· {item['friendly_name']}《{item['title']}》 "
+                f"{item['raw_seconds'] / 3600:.2f}h (媒体元数据缺失)"
+            )
+
+    if summary["failed"]:
+        lines.append("")
+        lines.append(f"--- 处理失败 {len(summary['failed'])} 条 ---")
+        lines.append(f"row_ids: {summary['failed']}")
+
+    lines.append("")
+    lines.append("====================")
+    return "\n".join(lines)
+
+
 def update_plex_credits():
     """更新积分及观看时长"""
     logger.info("开始更新 Plex 用户积分及观看时长")
     notification_tasks = []
     deduction_records = []
+    ghost_compensation: dict = {}
     # 邀请人奖励累积字典: {inviter_tg_id: {"total_bonus": float, "details": [{"username": str, "base_credits": float, "bonus": float}]}}
     inviter_rewards: dict = {}
     try:
@@ -199,6 +446,21 @@ def update_plex_credits():
                 1, "duration", len(Plex().users_by_id), "top_users"
             )
         )
+        # 加回被清理掉的幽灵会话时长：这些记录已从 Tautulli 删除，
+        # get_home_stats 不再包含它们，只能从留档表按真实播放进度补回，
+        # 否则用户这部分观看时长就白丢了
+        ghost_compensation = db.get_pending_ghost_compensation()
+        for ghost_user_id, ghost_hours in ghost_compensation.items():
+            # duration 的 key 直接来自 Tautulli，为 int 型 user_id
+            key = (
+                int(ghost_user_id)
+                if str(ghost_user_id).lstrip("-").isdigit()
+                else ghost_user_id
+            )
+            duration[key] = duration.get(key, 0) + ghost_hours
+            logger.info(
+                f"用户 {ghost_user_id} 补回幽灵会话观看时长 {round(ghost_hours, 2)} 小时"
+            )
         # update credits and watched_time
         with get_session() as session:
             stmt = select(PlexUser.plex_id).where(PlexUser.plex_id.isnot(None))
@@ -515,6 +777,16 @@ Plex 邀请奖励通知
             )
         return notification_tasks, deduction_records
     else:
+        # 补偿时长已确实写入积分与观看时长，此时才允许标记结算，
+        # 中途失败则保持未结算状态，留到下一轮补上
+        if ghost_compensation:
+            db.mark_ghost_compensation_settled()
+            logger.info(f"已结算 {len(ghost_compensation)} 个用户的幽灵会话补偿时长")
+        # 推进结算水位线：本次处理的是前一天的数据。之后再检出该日期及更早的
+        # 幽灵会话时，清理任务据此判定为「已结算」，只删除不补偿。
+        _set_settled_through_date(
+            (datetime.now(settings.TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
+        )
         logger.info("Plex 用户积分及观看时长更新完成")
         return notification_tasks, deduction_records
 
@@ -848,6 +1120,10 @@ Emby 邀请奖励通知
 
 async def update_credits():
     """更新 Plex 和 Emby 用户积分及观看时长"""
+    # 必须先清理幽灵会话：否则 get_home_stats 取到的仍是被夸大的脏数据。
+    # 清理任务自身已吞掉异常，失败不会阻断后续结算。
+    ghost_summary = clean_tautulli_ghost_sessions()
+
     notification_tasks, deduction_records = update_plex_credits()
     emby_notification_tasks, emby_deduction_records = update_emby_credits()
     notification_tasks.extend(emby_notification_tasks)
@@ -858,9 +1134,43 @@ async def update_credits():
         for chat_id in settings.TG_ADMIN_CHAT_ID:
             notification_tasks.append((chat_id, admin_message))
 
+    # 有清理动作或有待人工确认的记录时才打扰管理员
+    if (
+        ghost_summary["ghosts"]
+        or ghost_summary["undetermined"]
+        or ghost_summary["failed"]
+    ) and settings.TG_ADMIN_CHAT_ID:
+        ghost_message = _format_ghost_session_summary(ghost_summary)
+        for chat_id in settings.TG_ADMIN_CHAT_ID:
+            notification_tasks.append((chat_id, ghost_message))
+
     for tg_id, text in notification_tasks:
         # 发送通知消息，静默模式
         await send_message_by_url(chat_id=tg_id, text=text, disable_notification=True)
+        await asyncio.sleep(1)
+
+
+async def clean_ghost_sessions_job():
+    """独立的幽灵会话清理任务（高频）
+
+    与结算前那次清理是同一套逻辑，区别只在于不接结算：幽灵记录在被清掉之前会
+    污染 webapp 的时长展示与观看时长榜，靠这个任务把脏数据的暴露窗口从一天
+    缩短到几小时。补偿与否由结算水位线判定，与本任务何时运行无关。
+    """
+    summary = clean_tautulli_ghost_sessions()
+
+    if not (summary["ghosts"] or summary["failed"]):
+        # 无事发生就不打扰管理员；「无法判定」留给结算前那次汇总一并报告
+        return
+
+    if not settings.TG_ADMIN_CHAT_ID:
+        return
+
+    message = _format_ghost_session_summary(summary)
+    for chat_id in settings.TG_ADMIN_CHAT_ID:
+        await send_message_by_url(
+            chat_id=chat_id, text=message, disable_notification=True
+        )
         await asyncio.sleep(1)
 
 
@@ -1017,32 +1327,6 @@ def update_all_lib():
                     .values(all_lib=all_lib_flag)
                 )
                 session.execute(stmt)
-    except Exception as e:
-        print(e)
-
-
-def update_watched_time():
-    """更新用户观看时长"""
-    duration = get_user_total_duration(
-        Tautulli().get_home_stats(
-            36500, "duration", len(Plex().users_by_id), "top_users"
-        )
-    )
-    try:
-        with get_session() as session:
-            stmt = select(PlexUser.plex_id)
-            users = session.execute(stmt).fetchall()
-        for user in users:
-            plex_id = user[0]
-            watched_time = duration.get(plex_id, 0)
-            with get_session() as session:
-                stmt = (
-                    sql_update(PlexUser)
-                    .where(PlexUser.plex_id == plex_id)
-                    .values(watched_time=watched_time)
-                )
-                session.execute(stmt)
-
     except Exception as e:
         print(e)
 

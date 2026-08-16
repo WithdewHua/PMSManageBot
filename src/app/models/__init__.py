@@ -10,6 +10,7 @@ from app.models.models import (
     CustomLine,
     DonationRegistrations,
     EmbyUser,
+    GhostSessionLog,
     Invitation,
     LineTrafficMonthlyStats,
     LineTrafficStats,
@@ -34,4 +35,5 @@ __all__ = [
     "DonationRegistrations",
     "CryptoDonationOrders",
     "CustomLine",
+    "GhostSessionLog",
 ]
