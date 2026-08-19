@@ -838,6 +838,68 @@
                 </v-card-actions>
               </v-card>
 
+              <!-- 礼包活动卡片 -->
+              <v-card class="activity-card-enhanced">
+                <v-card-title class="d-flex align-center">
+                  <v-icon class="mr-2" color="pink-darken-1">mdi-gift</v-icon>
+                  <span>礼包</span>
+                  <v-spacer></v-spacer>
+                  <v-chip color="success" size="small" variant="flat">
+                    <v-icon start size="12">mdi-check-circle</v-icon>
+                    运行中
+                  </v-chip>
+                </v-card-title>
+
+                <v-card-text>
+                  <p class="text-body-2 text-medium-emphasis mb-4">
+                    发布带时间窗、领取资格与限量的运营福利，查看领取进度与发放统计
+                  </p>
+
+                  <div class="activity-stats mb-4">
+                    <v-row dense>
+                      <v-col cols="6">
+                        <div class="stat-item">
+                          <div class="stat-value">{{ giftPackStats.total_packs || 0 }}</div>
+                          <div class="stat-label">礼包总数</div>
+                        </div>
+                      </v-col>
+                      <v-col cols="6">
+                        <div class="stat-item">
+                          <div class="stat-value text-success">{{ giftPackStats.active_packs || 0 }}</div>
+                          <div class="stat-label">进行中</div>
+                        </div>
+                      </v-col>
+                    </v-row>
+                    <v-row dense class="mt-2">
+                      <v-col cols="6">
+                        <div class="stat-item">
+                          <div class="stat-value text-info">{{ giftPackStats.total_claims || 0 }}</div>
+                          <div class="stat-label">累计领取</div>
+                        </div>
+                      </v-col>
+                      <v-col cols="6">
+                        <div class="stat-item">
+                          <div class="stat-value text-warning">{{ giftPackStats.upcoming_packs || 0 }}</div>
+                          <div class="stat-label">未开始</div>
+                        </div>
+                      </v-col>
+                    </v-row>
+                  </div>
+                </v-card-text>
+
+                <v-card-actions class="pa-4 pt-0">
+                  <v-btn
+                    color="pink-darken-1"
+                    variant="elevated"
+                    block
+                    @click="openGiftPackManagement"
+                  >
+                    <v-icon start>mdi-gift</v-icon>
+                    进入礼包管理
+                  </v-btn>
+                </v-card-actions>
+              </v-card>
+
               <v-card class="activity-card-enhanced activity-placeholder">
                 <v-card-title class="d-flex align-center">
                   <v-icon class="mr-2" color="grey-lighten-1">mdi-plus-circle-outline</v-icon>
@@ -1805,6 +1867,34 @@
       </v-card>
     </v-dialog>
 
+    <!-- 礼包管理弹窗 -->
+    <v-dialog
+      v-model="showGiftPackManagement"
+      fullscreen
+      transition="dialog-bottom-transition"
+      :persistent="true"
+    >
+      <v-card>
+        <v-toolbar color="pink-darken-1" dark>
+          <v-btn icon dark @click="closeGiftPackManagement">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+          <v-toolbar-title>
+            <v-icon class="mr-2">mdi-gift</v-icon>
+            礼包管理
+          </v-toolbar-title>
+          <v-spacer></v-spacer>
+          <v-btn icon dark @click="refreshGiftPackPanel">
+            <v-icon>mdi-refresh</v-icon>
+          </v-btn>
+        </v-toolbar>
+
+        <div style="height: calc(100vh - 64px); overflow-y: auto;">
+          <GiftPackAdminPanel ref="giftPackAdminPanel" @changed="loadGiftPackStats" />
+        </div>
+      </v-card>
+    </v-dialog>
+
     <!-- 竞拍管理弹窗 -->
     <v-dialog 
       v-model="showAuctionManagement" 
@@ -2632,6 +2722,7 @@ import DonationRegistrationManagementDialog from '@/components/DonationRegistrat
 import AdminInviteCodeDialog from '@/components/AdminInviteCodeDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import WheelAdminPanel from '@/components/WheelAdminPanel.vue'
+import GiftPackAdminPanel from '@/components/GiftPackAdminPanel.vue'
 import BadgeEditorDialog from '@/components/BadgeEditorDialog.vue'
 import CustomLineManagement from '@/components/CustomLineManagement.vue'
 import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits, setPremiumDailyCredits, setUserTrafficLimit, setPremiumUserTrafficLimit, setPremiumUnlockEnabled, setCreditsTransferEnabled, setLineScheduleUnlockCredits, setDownloadUnlockCredits } from '@/services/adminService.js'
@@ -2639,6 +2730,7 @@ import { getWheelStats } from '@/services/wheelService.js'
 import { getAuctionStats, getAllAuctions, finishExpiredAuctions, finishAuction, deleteAuction, createAuction, getAuctionBids, updateAuction } from '@/services/auctionService.js'
 import { listTreasureIssues, createTreasureIssue, cancelTreasureIssue } from '@/services/treasureService.js'
 import { listPredictionMarkets, createPredictionMarket, closePredictionMarket, resolvePredictionMarket } from '@/services/predictionService.js'
+import { adminListGiftPacks } from '@/services/giftPackService.js'
 import { getPremiumLineTrafficStats, formatTrafficSize, formatUsername, getTrafficOverview } from '@/services/trafficService.js'
 import { getAllCryptoDonationOrdersAdmin, ORDER_STATUS } from '@/services/cryptoDonationService.js'
 import { getBadgeCenterConfig, updateBadgeConfig, adminGetAllBadges, adminDeleteBadge } from '@/services/badgeService.js'
@@ -2653,6 +2745,7 @@ export default {
     AdminInviteCodeDialog,
     LineManagementDialog,
     WheelAdminPanel,
+    GiftPackAdminPanel,
     BadgeEditorDialog,
     CustomLineManagement
   },
@@ -2705,6 +2798,12 @@ export default {
         total_markets: 0,
         active_markets: 0
       },
+      giftPackStats: {
+        total_packs: 0,
+        active_packs: 0,
+        upcoming_packs: 0,
+        total_claims: 0
+      },
       // 竞拍管理相关数据
       auctionStatsLoading: false,
       auctionStatsError: null,
@@ -2745,6 +2844,7 @@ export default {
       showAuctionManagement: false,
       showTreasureManagement: false,
       showPredictionManagement: false,
+      showGiftPackManagement: false,
       treasureIssuesLoading: false,
       treasureIssuesError: null,
       deletingTreasureIssueId: null,
@@ -2856,7 +2956,8 @@ export default {
           this.loadWheelStats(),
           this.loadAuctionStats(),
           this.loadTreasureStats(),
-          this.loadPredictionStats()
+          this.loadPredictionStats(),
+          this.loadGiftPackStats()
         ])
       }
     }
@@ -2889,7 +2990,8 @@ export default {
             this.loadWheelStats(),
             this.loadAuctionStats(),
             this.loadTreasureStats(),
-            this.loadPredictionStats()
+            this.loadPredictionStats(),
+            this.loadGiftPackStats()
           ])
         }
         this.loading = false
@@ -2991,6 +3093,42 @@ export default {
     closePredictionManagement() {
       this.showPredictionManagement = false
       this.predictionMarketsError = null
+    },
+
+    // =====================
+    // Gift Pack 管理
+    // =====================
+    async loadGiftPackStats() {
+      try {
+        const res = await adminListGiftPacks({ page: 1, page_size: 200 })
+        const packs = res.data.packs || []
+        this.giftPackStats.total_packs = packs.length
+        this.giftPackStats.active_packs = packs.filter(
+          p => p.lifecycle === 'active' && p.is_enabled
+        ).length
+        this.giftPackStats.upcoming_packs = packs.filter(p => p.lifecycle === 'upcoming').length
+        this.giftPackStats.total_claims = packs.reduce(
+          (sum, p) => sum + (p.claimed_count || 0), 0
+        )
+      } catch (err) {
+        console.error('加载礼包统计失败:', err)
+      }
+    },
+
+    openGiftPackManagement() {
+      this.showGiftPackManagement = true
+      this.loadGiftPackStats()
+    },
+
+    closeGiftPackManagement() {
+      this.showGiftPackManagement = false
+      // 关闭时同步入口卡的统计，避免面板内的增删改与卡片数字不一致
+      this.loadGiftPackStats()
+    },
+
+    refreshGiftPackPanel() {
+      this.$refs.giftPackAdminPanel?.loadPacks()
+      this.loadGiftPackStats()
     },
 
     formatDateTimeByTs(ts) {

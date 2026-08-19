@@ -41,6 +41,13 @@
       <transition name="slide-up">
         <div v-if="showActionMenu" class="action-menu">
           <div class="menu-grid">
+            <div class="menu-item" @click="openGiftPackDialog()">
+              <div class="menu-icon-wrapper">
+                <v-icon color="white" size="18">mdi-gift</v-icon>
+              </div>
+              <span>我的礼包</span>
+            </div>
+
             <div class="menu-item" @click="openRedeemCodeDialog()">
               <div class="menu-icon-wrapper">
                 <v-icon color="white" size="18">mdi-ticket-confirmation</v-icon>
@@ -94,6 +101,9 @@
     
     <!-- 提交自定义线路对话框组件 -->
     <submit-custom-line-dialog ref="submitCustomLineDialog" @submitted="handleCustomLineSubmitted" />
+
+    <!-- 礼包中心对话框组件 -->
+    <gift-pack-dialog ref="giftPackDialog" @claimed="handleGiftPackClaimed" />
   </div>
 </template>
 
@@ -108,6 +118,8 @@ import BindAccountDialog from './BindAccountDialog.vue';
 import BindLineDialog from './BindLineDialog.vue';
 // 导入提交自定义线路对话框组件
 import SubmitCustomLineDialog from './SubmitCustomLineDialog.vue';
+// 导入礼包中心对话框组件
+import GiftPackDialog from './GiftPackDialog.vue';
 
 export default {
   name: 'BottomMenu',
@@ -116,7 +128,8 @@ export default {
     RedeemCodeDialog,
     BindAccountDialog,
     BindLineDialog,
-    SubmitCustomLineDialog
+    SubmitCustomLineDialog,
+    GiftPackDialog
   },
   props: {
     // 当前激活的标签，从父组件传入
@@ -200,7 +213,19 @@ export default {
       this.showActionMenu = false;
       this.$refs.submitCustomLineDialog.open();
     },
-    
+
+    // 打开礼包中心对话框（供开屏提醒的「前往领取」复用）
+    openGiftPackDialog() {
+      this.showActionMenu = false;
+      this.$refs.giftPackDialog.open();
+    },
+
+    // 处理礼包领取完成事件
+    handleGiftPackClaimed(data) {
+      // 积分/Premium 已变化，通知父组件刷新用户信息
+      this.$emit('gift-pack-claimed', data);
+    },
+
     // 处理自定义线路提交完成事件
     handleCustomLineSubmitted() {
       // 可以在这里刷新相关数据或显示提示

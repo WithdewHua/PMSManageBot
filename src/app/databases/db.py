@@ -23,6 +23,8 @@ from app.models.models import (
     DonationRegistrations,
     EmbyUser,
     GhostSessionLog,
+    GiftPack,
+    GiftPackUserState,
     Invitation,
     LineSchedule,
     LineTrafficMonthlyStats,
@@ -7330,6 +7332,994 @@ class DatabaseORM:
                 return True
         except Exception as e:
             logger.error(f"标记幽灵会话补偿已结算失败: {e}")
+            return False
+
+    # ==================== Gift Pack Operations ====================
+
+    @staticmethod
+    def _gift_pack_reward_label(reward: Dict) -> str:
+        """把一个奖励项渲染成人类可读的短语，如「100 积分」「7 天 Premium」"""
+        reward_type = reward.get("type")
+        if reward_type == "credits":
+            amount = float(reward.get("amount") or 0)
+            text = str(int(amount)) if amount.is_integer() else f"{amount:g}"
+            return f"{text} 积分"
+        if reward_type == "premium_days":
+            return f"{int(reward.get('days') or 0)} 天 Premium"
+        return str(reward_type)
+
+    @staticmethod
+    def _gift_pack_local_date(timestamp: int) -> str:
+        """按 settings.TZ 把时间戳折算成 YYYY-MM-DD
+
+        提醒节流的「今天」以运营时区为准，而非用户浏览器时区，
+        否则跨时区用户的提醒节奏会与运营预期错位。
+        """
+        return datetime.fromtimestamp(int(timestamp), settings.TZ).strftime("%Y-%m-%d")
+
+    @staticmethod
+    def _is_premium_active(is_premium, expiry_time) -> bool:
+        """判断某个服务的 Premium 是否当前有效（永久会员视为有效）"""
+        if not is_premium:
+            return False
+        if not expiry_time:
+            # 有 is_premium 标记但无到期时间 = 永久会员
+            return True
+        try:
+            return datetime.fromisoformat(str(expiry_time)).astimezone(
+                settings.TZ
+            ) > datetime.now(settings.TZ)
+        except (ValueError, TypeError):
+            # 到期时间无法解析时退回标记位，避免因脏数据误判为不可领取
+            return bool(is_premium)
+
+    def _load_gift_pack_user_context(self, session, tg_id: int) -> Dict:
+        """一次性载入资格判定所需的用户状态
+
+        列表页要对 N 个礼包逐个判资格，集中载入避免 N 次重复查询。
+        资格永远基于此处的实时查询结果，不使用任何缓存。
+        """
+        credits = session.execute(
+            select(Statistics.credits).where(Statistics.tg_id == tg_id)
+        ).scalar_one_or_none()
+        plex = session.execute(
+            select(PlexUser.is_premium, PlexUser.premium_expiry_time).where(
+                PlexUser.tg_id == tg_id
+            )
+        ).one_or_none()
+        emby = session.execute(
+            select(EmbyUser.is_premium, EmbyUser.premium_expiry_time).where(
+                EmbyUser.tg_id == tg_id
+            )
+        ).one_or_none()
+
+        bound_services = []
+        if plex is not None:
+            bound_services.append("plex")
+        if emby is not None:
+            bound_services.append("emby")
+
+        premium_services = []
+        if plex is not None and self._is_premium_active(plex[0], plex[1]):
+            premium_services.append("plex")
+        if emby is not None and self._is_premium_active(emby[0], emby[1]):
+            premium_services.append("emby")
+
+        return {
+            "has_stats": credits is not None,
+            "credits": float(credits or 0),
+            "bound_services": bound_services,
+            "premium_services": premium_services,
+        }
+
+    @staticmethod
+    def _evaluate_gift_pack_eligibility(
+        eligibility: Optional[Dict], context: Dict
+    ) -> Tuple[bool, List[str]]:
+        """判定用户是否满足礼包的领取资格
+
+        :return: (是否满足, 未满足的具体原因列表)
+        """
+        if not eligibility:
+            return True, []
+
+        reasons: List[str] = []
+
+        min_credits = eligibility.get("min_credits")
+        if min_credits is not None and context["credits"] < float(min_credits):
+            gap = float(min_credits) - context["credits"]
+            reasons.append(
+                f"积分不足，还差 {gap:.2f} 积分（需要 {float(min_credits):.2f}）"
+            )
+
+        if eligibility.get("require_premium") and not context["premium_services"]:
+            reasons.append("需要 Premium 会员身份")
+
+        require_binding = eligibility.get("require_binding")
+        if require_binding == "any":
+            if not context["bound_services"]:
+                reasons.append("需先绑定 Plex 或 Emby 账号")
+        elif require_binding in ("plex", "emby"):
+            if require_binding not in context["bound_services"]:
+                reasons.append(f"需先绑定 {require_binding.capitalize()} 账号")
+
+        return (not reasons), reasons
+
+    def _grant_gift_pack_rewards(
+        self, session, tg_id: int, rewards: List[Dict], context: Dict
+    ) -> Tuple[List[Dict], List[str]]:
+        """在调用方的事务内发放全部奖励项
+
+        任一项失败即抛出异常，由调用方回滚整个事务。
+
+        :return: (发放快照, 待事务提交后同步媒体服务器权限的服务列表)
+        """
+        # 延迟导入：app.premium 依赖本模块，模块级导入会形成循环
+        from app.premium import update_premium_status
+
+        snapshot: List[Dict] = []
+        pending_permission_sync: List[str] = []
+
+        for reward in rewards:
+            reward_type = reward.get("type")
+            label = self._gift_pack_reward_label(reward)
+
+            if reward_type == "credits":
+                amount = float(reward.get("amount") or 0)
+                stats = (
+                    session.execute(
+                        select(Statistics)
+                        .where(Statistics.tg_id == tg_id)
+                        .with_for_update()
+                    )
+                    .scalars()
+                    .one_or_none()
+                )
+                if not stats:
+                    raise ValueError("用户积分信息不存在")
+                stats.credits = round(float(stats.credits) + amount, 2)
+                snapshot.append(
+                    {
+                        "type": "credits",
+                        "label": label,
+                        "success": True,
+                        "amount": amount,
+                        "balance_after": stats.credits,
+                    }
+                )
+
+            elif reward_type == "premium_days":
+                days = int(reward.get("days") or 0)
+                services = context["bound_services"]
+                if not services:
+                    # 正常情况下已被 require_binding 资格拦住，这里是最后一道防线
+                    raise ValueError("请先绑定媒体账号后再领取")
+                for service in services:
+                    # 传入 session 复用外层事务，使 Premium 写入与领取记录同生共死
+                    new_expiry = update_premium_status(
+                        self, tg_id, service, days, session=session
+                    )
+                    if new_expiry is None:
+                        # 永久会员：跳过延长，但不阻断领取
+                        snapshot.append(
+                            {
+                                "type": "premium_days",
+                                "label": label,
+                                "success": True,
+                                "days": days,
+                                "service": service,
+                                "skipped": "lifetime",
+                                "message": f"{service.capitalize()} 为永久会员，Premium 天数未生效",
+                            }
+                        )
+                    else:
+                        snapshot.append(
+                            {
+                                "type": "premium_days",
+                                "label": label,
+                                "success": True,
+                                "days": days,
+                                "service": service,
+                                "new_expiry": new_expiry.isoformat(),
+                            }
+                        )
+                        pending_permission_sync.append(service)
+
+            else:
+                raise ValueError(f"不支持的奖励类型: {reward_type}")
+
+        return snapshot, pending_permission_sync
+
+    @staticmethod
+    def _gift_pack_lifecycle(pack: GiftPack, now: int) -> str:
+        """礼包相对当前时间的生命周期状态"""
+        if now < int(pack.start_at):
+            return "upcoming"
+        if now > int(pack.end_at):
+            return "ended"
+        return "active"
+
+    @staticmethod
+    def _gift_pack_remaining(pack: GiftPack) -> Optional[int]:
+        """剩余份数；不限量时返回 None"""
+        if pack.total_quantity is None:
+            return None
+        return max(0, int(pack.total_quantity) - int(pack.claimed_count))
+
+    def create_gift_pack(
+        self,
+        title: str,
+        rewards: List[Dict],
+        start_at: int,
+        end_at: int,
+        description: Optional[str] = None,
+        eligibility: Optional[Dict] = None,
+        total_quantity: Optional[int] = None,
+        max_prompt_count: int = 3,
+        is_enabled: bool = True,
+        created_by: Optional[int] = None,
+    ) -> int:
+        """创建礼包，返回礼包 ID
+
+        含 Premium 天数奖励时自动补「至少绑定一个媒体账号」的资格：
+        把它做成显式资格而非发放时的隐式校验，用户在列表里就能看到
+        可行动的提示，且天然不会进入提醒候选。
+        """
+        if not rewards:
+            raise ValueError("礼包至少需要一项奖励")
+        if end_at <= start_at:
+            raise ValueError("结束时间必须晚于开始时间")
+        if total_quantity is not None and total_quantity <= 0:
+            raise ValueError("限量份数必须大于 0")
+
+        eligibility = dict(eligibility) if eligibility else {}
+        if any(r.get("type") == "premium_days" for r in rewards):
+            if not eligibility.get("require_binding"):
+                eligibility["require_binding"] = "any"
+
+        now = int(time.time())
+        with get_session() as session:
+            pack = GiftPack(
+                title=title,
+                description=description,
+                rewards=json.dumps(rewards, ensure_ascii=False),
+                eligibility=json.dumps(eligibility, ensure_ascii=False)
+                if eligibility
+                else None,
+                total_quantity=total_quantity,
+                claimed_count=0,
+                start_at=int(start_at),
+                end_at=int(end_at),
+                max_prompt_count=int(max_prompt_count),
+                is_enabled=1 if is_enabled else 0,
+                expiry_notified=0,
+                created_by=created_by,
+                created_at=now,
+                updated_at=now,
+            )
+            session.add(pack)
+            session.flush()
+            return int(pack.id)
+
+    def update_gift_pack(self, pack_id: int, **fields) -> bool:
+        """编辑礼包；仅更新传入的字段"""
+        allowed = {
+            "title",
+            "description",
+            "rewards",
+            "eligibility",
+            "total_quantity",
+            "start_at",
+            "end_at",
+            "max_prompt_count",
+            "is_enabled",
+        }
+        updates = {k: v for k, v in fields.items() if k in allowed and v is not None}
+        if not updates:
+            return True
+
+        with get_session() as session:
+            pack = (
+                session.execute(select(GiftPack).where(GiftPack.id == pack_id))
+                .scalars()
+                .one_or_none()
+            )
+            if not pack:
+                raise ValueError("礼包不存在")
+
+            start_at = int(updates.get("start_at", pack.start_at))
+            end_at = int(updates.get("end_at", pack.end_at))
+            if end_at <= start_at:
+                raise ValueError("结束时间必须晚于开始时间")
+
+            rewards = updates.get("rewards")
+            if rewards is not None:
+                if not rewards:
+                    raise ValueError("礼包至少需要一项奖励")
+                # 奖励项变更后重新套用绑定资格：含 Premium 则必须绑定
+                eligibility = updates.get("eligibility")
+                if eligibility is None:
+                    eligibility = (
+                        json.loads(pack.eligibility) if pack.eligibility else {}
+                    )
+                eligibility = dict(eligibility)
+                if any(r.get("type") == "premium_days" for r in rewards):
+                    if not eligibility.get("require_binding"):
+                        eligibility["require_binding"] = "any"
+                updates["eligibility"] = eligibility
+                updates["rewards"] = json.dumps(rewards, ensure_ascii=False)
+
+            if "eligibility" in updates and not isinstance(updates["eligibility"], str):
+                value = updates["eligibility"]
+                updates["eligibility"] = (
+                    json.dumps(value, ensure_ascii=False) if value else None
+                )
+
+            if "total_quantity" in updates:
+                total_quantity = int(updates["total_quantity"])
+                if total_quantity <= 0:
+                    raise ValueError("限量份数必须大于 0")
+                if total_quantity < int(pack.claimed_count):
+                    raise ValueError(
+                        f"限量份数不能小于已领取份数（已领 {int(pack.claimed_count)} 份）"
+                    )
+
+            if "is_enabled" in updates:
+                updates["is_enabled"] = 1 if updates["is_enabled"] else 0
+
+            for key, value in updates.items():
+                setattr(pack, key, value)
+            pack.updated_at = int(time.time())
+            return True
+
+    def set_gift_pack_enabled(self, pack_id: int, is_enabled: bool) -> bool:
+        """启用 / 停用礼包"""
+        try:
+            with get_session() as session:
+                result = session.execute(
+                    update(GiftPack)
+                    .where(GiftPack.id == pack_id)
+                    .values(
+                        is_enabled=1 if is_enabled else 0, updated_at=int(time.time())
+                    )
+                )
+                return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"更新礼包启用状态失败 (pack_id={pack_id}): {e}")
+            return False
+
+    def delete_gift_pack(self, pack_id: int) -> bool:
+        """删除礼包；已有领取记录时拒绝删除，只能停用"""
+        with get_session() as session:
+            pack = (
+                session.execute(select(GiftPack).where(GiftPack.id == pack_id))
+                .scalars()
+                .one_or_none()
+            )
+            if not pack:
+                raise ValueError("礼包不存在")
+
+            claimed = session.execute(
+                select(func.count(GiftPackUserState.id)).where(
+                    GiftPackUserState.pack_id == pack_id,
+                    GiftPackUserState.claimed_at.isnot(None),
+                )
+            ).scalar_one()
+            if int(claimed) > 0 or int(pack.claimed_count) > 0:
+                raise ValueError("该礼包已有用户领取，只能停用不能删除")
+
+            # 仅被提醒过、从未领取的状态行随礼包一并清理
+            session.execute(
+                delete(GiftPackUserState).where(GiftPackUserState.pack_id == pack_id)
+            )
+            session.delete(pack)
+            return True
+
+    def get_gift_pack_by_id(self, pack_id: int) -> Optional[Dict]:
+        """获取单个礼包的原始定义"""
+        try:
+            with get_session() as session:
+                pack = (
+                    session.execute(select(GiftPack).where(GiftPack.id == pack_id))
+                    .scalars()
+                    .one_or_none()
+                )
+                if not pack:
+                    return None
+                now = int(time.time())
+                return {
+                    "id": int(pack.id),
+                    "title": pack.title,
+                    "description": pack.description,
+                    "rewards": json.loads(pack.rewards),
+                    "eligibility": json.loads(pack.eligibility)
+                    if pack.eligibility
+                    else None,
+                    "total_quantity": pack.total_quantity,
+                    "claimed_count": int(pack.claimed_count),
+                    "remaining": self._gift_pack_remaining(pack),
+                    "start_at": int(pack.start_at),
+                    "end_at": int(pack.end_at),
+                    "max_prompt_count": int(pack.max_prompt_count),
+                    "is_enabled": bool(pack.is_enabled),
+                    "lifecycle": self._gift_pack_lifecycle(pack, now),
+                    "created_by": pack.created_by,
+                    "created_at": int(pack.created_at),
+                    "updated_at": int(pack.updated_at),
+                }
+        except Exception as e:
+            logger.error(f"获取礼包失败 (pack_id={pack_id}): {e}")
+            return None
+
+    def get_gift_packs_for_user(self, tg_id: int) -> List[Dict]:
+        """礼包中心列表：返回与该用户相关的礼包及其对该用户的状态
+
+        「相关」= 所有已启用的礼包，加上该用户已领取过的礼包
+        （后者即使事后被停用，用户仍应能查到自己的领取凭据）。
+        """
+        try:
+            with get_session() as session:
+                now = int(time.time())
+                claimed_pack_ids = [
+                    pid
+                    for (pid,) in session.execute(
+                        select(GiftPackUserState.pack_id).where(
+                            GiftPackUserState.tg_id == tg_id,
+                            GiftPackUserState.claimed_at.isnot(None),
+                        )
+                    ).all()
+                ]
+                condition = GiftPack.is_enabled == 1
+                if claimed_pack_ids:
+                    condition = condition | GiftPack.id.in_(claimed_pack_ids)
+                packs = (
+                    session.execute(select(GiftPack).where(condition)).scalars().all()
+                )
+                if not packs:
+                    return []
+
+                states = {
+                    state.pack_id: state
+                    for state in session.execute(
+                        select(GiftPackUserState).where(
+                            GiftPackUserState.tg_id == tg_id,
+                            GiftPackUserState.pack_id.in_([p.id for p in packs]),
+                        )
+                    )
+                    .scalars()
+                    .all()
+                }
+                context = self._load_gift_pack_user_context(session, tg_id)
+
+                items: List[Dict] = []
+                for pack in packs:
+                    rewards = json.loads(pack.rewards)
+                    eligibility = (
+                        json.loads(pack.eligibility) if pack.eligibility else None
+                    )
+                    lifecycle = self._gift_pack_lifecycle(pack, now)
+                    remaining = self._gift_pack_remaining(pack)
+                    state = states.get(pack.id)
+
+                    reasons: List[str] = []
+                    if state is not None and state.claimed_at:
+                        status = "claimed"
+                    elif not pack.is_enabled:
+                        status = "disabled"
+                    elif lifecycle == "upcoming":
+                        status = "upcoming"
+                    elif lifecycle == "ended":
+                        status = "ended"
+                    elif remaining is not None and remaining <= 0:
+                        status = "sold_out"
+                    else:
+                        eligible, reasons = self._evaluate_gift_pack_eligibility(
+                            eligibility, context
+                        )
+                        status = "claimable" if eligible else "ineligible"
+
+                    items.append(
+                        {
+                            "id": int(pack.id),
+                            "title": pack.title,
+                            "description": pack.description,
+                            "rewards": [
+                                {
+                                    "type": r.get("type"),
+                                    "amount": r.get("amount"),
+                                    "days": r.get("days"),
+                                    "label": self._gift_pack_reward_label(r),
+                                }
+                                for r in rewards
+                            ],
+                            "start_at": int(pack.start_at),
+                            "end_at": int(pack.end_at),
+                            "total_quantity": pack.total_quantity,
+                            "claimed_count": int(pack.claimed_count),
+                            "remaining": remaining,
+                            "lifecycle": lifecycle,
+                            "status": status,
+                            "ineligible_reasons": reasons,
+                            "claimed_at": int(state.claimed_at)
+                            if state is not None and state.claimed_at
+                            else None,
+                            "reward_snapshot": json.loads(state.reward_snapshot)
+                            if state is not None and state.reward_snapshot
+                            else None,
+                        }
+                    )
+
+                # 进行中排最前，其次未开始，最后已结束；同组内按结束时间由近及远
+                order = {"active": 0, "upcoming": 1, "ended": 2}
+                items.sort(key=lambda x: (order.get(x["lifecycle"], 3), x["end_at"]))
+                return items
+        except Exception as e:
+            logger.error(f"获取用户礼包列表失败 (tg_id={tg_id}): {e}")
+            return []
+
+    def claim_gift_pack(self, pack_id: int, tg_id: int) -> Dict:
+        """领取礼包
+
+        单事务内完成：锁 pack 行 → 校验启用/窗口/余量/资格/未领取 →
+        发放全部奖励 → claimed_count += 1 → upsert user_state。
+        任一步失败整体回滚，不扣余量、不记领取、不发奖励。
+        UniqueConstraint(pack_id, tg_id) 是并发重复提交的最后一道防线。
+
+        媒体服务器权限同步是不可回滚的外部副作用，放到事务提交之后执行。
+        """
+        now = int(time.time())
+        with get_session() as session:
+            pack = (
+                session.execute(
+                    select(GiftPack).where(GiftPack.id == pack_id).with_for_update()
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if not pack:
+                raise ValueError("礼包不存在")
+            if not pack.is_enabled:
+                raise ValueError("礼包已停用")
+            if now < int(pack.start_at):
+                raise ValueError("礼包尚未开始")
+            if now > int(pack.end_at):
+                raise ValueError("礼包已结束")
+
+            total_quantity = pack.total_quantity
+            if total_quantity is not None and int(pack.claimed_count) >= int(
+                total_quantity
+            ):
+                raise ValueError("礼包已被领完")
+
+            state = (
+                session.execute(
+                    select(GiftPackUserState)
+                    .where(
+                        GiftPackUserState.pack_id == pack_id,
+                        GiftPackUserState.tg_id == tg_id,
+                    )
+                    .with_for_update()
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if state is not None and state.claimed_at:
+                raise ValueError("你已领取过该礼包")
+
+            context = self._load_gift_pack_user_context(session, tg_id)
+            if not context["has_stats"]:
+                raise ValueError("用户积分信息不存在")
+
+            eligibility = json.loads(pack.eligibility) if pack.eligibility else None
+            eligible, reasons = self._evaluate_gift_pack_eligibility(
+                eligibility, context
+            )
+            if not eligible:
+                raise ValueError("；".join(reasons) or "不满足领取条件")
+
+            rewards = json.loads(pack.rewards)
+            snapshot, pending_permission_sync = self._grant_gift_pack_rewards(
+                session, tg_id, rewards, context
+            )
+
+            pack.claimed_count = int(pack.claimed_count) + 1
+            snapshot_json = json.dumps(snapshot, ensure_ascii=False)
+            if state is not None:
+                state.claimed_at = now
+                state.reward_snapshot = snapshot_json
+            else:
+                session.add(
+                    GiftPackUserState(
+                        pack_id=pack_id,
+                        tg_id=tg_id,
+                        claimed_at=now,
+                        reward_snapshot=snapshot_json,
+                        prompt_count=0,
+                    )
+                )
+
+            claimed_count = int(pack.claimed_count)
+            remaining = self._gift_pack_remaining(pack)
+            pack_title = pack.title
+
+        # 事务已提交：同步媒体服务器权限（best-effort，失败只告警不影响领取结果）
+        for service in pending_permission_sync:
+            try:
+                from app.premium import sync_media_permission
+
+                sync_media_permission(self, tg_id, service)
+            except Exception as e:
+                logger.warning(
+                    f"礼包领取后同步 {service} 权限失败 (pack_id={pack_id}, tg_id={tg_id}): {e}"
+                )
+
+        return {
+            "pack_id": int(pack_id),
+            "title": pack_title,
+            "results": snapshot,
+            "claimed_count": claimed_count,
+            "remaining": remaining,
+            "total_quantity": total_quantity,
+            "sold_out": total_quantity is not None
+            and claimed_count >= int(total_quantity),
+        }
+
+    def prompt_check_gift_packs(self, tg_id: int) -> List[Dict]:
+        """判定是否该向用户弹出礼包提醒，并在返回的同时记账
+
+        返回非空即表示应弹出一个汇总弹窗。候选条件（D5）：
+        进行中 ∧ 已启用 ∧ 未领取 ∧ 满足资格 ∧ 有余量
+        ∧ prompt_count < max_prompt_count ∧ 今天尚未提醒过。
+
+        空态短路：系统中不存在进行中且启用的礼包时立即返回，不做任何
+        用户维度查询、不写任何行——「当前没有活动」是运营常态。
+        """
+        try:
+            with get_session() as session:
+                now = int(time.time())
+                packs = (
+                    session.execute(
+                        select(GiftPack).where(
+                            GiftPack.is_enabled == 1,
+                            GiftPack.start_at <= now,
+                            GiftPack.end_at >= now,
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                # 空态短路：不写库、不查用户
+                if not packs:
+                    return []
+
+                # 有余量的礼包才值得提醒
+                packs = [
+                    p
+                    for p in packs
+                    if p.total_quantity is None
+                    or int(p.claimed_count) < int(p.total_quantity)
+                ]
+                if not packs:
+                    return []
+
+                context = self._load_gift_pack_user_context(session, tg_id)
+                if not context["has_stats"]:
+                    # 无 Statistics 记录的用户无法写入状态行（外键约束），不提醒
+                    return []
+
+                states = {
+                    state.pack_id: state
+                    for state in session.execute(
+                        select(GiftPackUserState).where(
+                            GiftPackUserState.tg_id == tg_id,
+                            GiftPackUserState.pack_id.in_([p.id for p in packs]),
+                        )
+                    )
+                    .scalars()
+                    .all()
+                }
+                today = self._gift_pack_local_date(now)
+
+                candidates: List[Dict] = []
+                for pack in packs:
+                    state = states.get(pack.id)
+                    if state is not None:
+                        if state.claimed_at:
+                            continue
+                        if int(state.prompt_count) >= int(pack.max_prompt_count):
+                            continue
+                        if state.last_prompted_at and (
+                            self._gift_pack_local_date(state.last_prompted_at) == today
+                        ):
+                            continue
+
+                    eligibility = (
+                        json.loads(pack.eligibility) if pack.eligibility else None
+                    )
+                    eligible, _ = self._evaluate_gift_pack_eligibility(
+                        eligibility, context
+                    )
+                    if not eligible:
+                        continue
+
+                    # 判定通过即记账：多记一次的后果（少提醒一次）远优于漏记（反复骚扰）
+                    if state is not None:
+                        state.prompt_count = int(state.prompt_count) + 1
+                        state.last_prompted_at = now
+                    else:
+                        session.add(
+                            GiftPackUserState(
+                                pack_id=pack.id,
+                                tg_id=tg_id,
+                                prompt_count=1,
+                                last_prompted_at=now,
+                            )
+                        )
+
+                    rewards = json.loads(pack.rewards)
+                    candidates.append(
+                        {
+                            "id": int(pack.id),
+                            "title": pack.title,
+                            "description": pack.description,
+                            "rewards": [
+                                {
+                                    "type": r.get("type"),
+                                    "amount": r.get("amount"),
+                                    "days": r.get("days"),
+                                    "label": self._gift_pack_reward_label(r),
+                                }
+                                for r in rewards
+                            ],
+                            "end_at": int(pack.end_at),
+                            "total_quantity": pack.total_quantity,
+                            "remaining": self._gift_pack_remaining(pack),
+                        }
+                    )
+
+                return candidates
+        except Exception as e:
+            logger.error(f"礼包提醒判定失败 (tg_id={tg_id}): {e}")
+            return []
+
+    def get_gift_packs_admin(
+        self, page: int = 1, page_size: int = 20
+    ) -> Tuple[List[Dict], int]:
+        """管理端礼包列表（按创建时间倒序分页）"""
+        try:
+            with get_session() as session:
+                now = int(time.time())
+                total = session.execute(select(func.count(GiftPack.id))).scalar_one()
+                packs = (
+                    session.execute(
+                        select(GiftPack)
+                        .order_by(GiftPack.created_at.desc())
+                        .offset(max(0, (page - 1) * page_size))
+                        .limit(page_size)
+                    )
+                    .scalars()
+                    .all()
+                )
+                if not packs:
+                    return [], int(total)
+
+                claimed_counts = {
+                    pid: count
+                    for pid, count in session.execute(
+                        select(
+                            GiftPackUserState.pack_id,
+                            func.count(GiftPackUserState.id),
+                        )
+                        .where(
+                            GiftPackUserState.pack_id.in_([p.id for p in packs]),
+                            GiftPackUserState.claimed_at.isnot(None),
+                        )
+                        .group_by(GiftPackUserState.pack_id)
+                    ).all()
+                }
+
+                items = [
+                    {
+                        "id": int(pack.id),
+                        "title": pack.title,
+                        "description": pack.description,
+                        "rewards": json.loads(pack.rewards),
+                        "eligibility": json.loads(pack.eligibility)
+                        if pack.eligibility
+                        else None,
+                        "total_quantity": pack.total_quantity,
+                        "claimed_count": int(pack.claimed_count),
+                        "remaining": self._gift_pack_remaining(pack),
+                        "start_at": int(pack.start_at),
+                        "end_at": int(pack.end_at),
+                        "max_prompt_count": int(pack.max_prompt_count),
+                        "is_enabled": bool(pack.is_enabled),
+                        "lifecycle": self._gift_pack_lifecycle(pack, now),
+                        "can_delete": int(claimed_counts.get(pack.id, 0)) == 0
+                        and int(pack.claimed_count) == 0,
+                        "created_by": pack.created_by,
+                        "created_at": int(pack.created_at),
+                        "updated_at": int(pack.updated_at),
+                    }
+                    for pack in packs
+                ]
+                return items, int(total)
+        except Exception as e:
+            logger.error(f"获取礼包管理列表失败: {e}")
+            return [], 0
+
+    def get_gift_pack_stats(self, pack_id: int) -> Optional[Dict]:
+        """单个礼包的领取统计：领取人数、被提醒人数、各类奖励发放总量"""
+        try:
+            with get_session() as session:
+                pack = (
+                    session.execute(select(GiftPack).where(GiftPack.id == pack_id))
+                    .scalars()
+                    .one_or_none()
+                )
+                if not pack:
+                    return None
+
+                claimed_users = session.execute(
+                    select(func.count(GiftPackUserState.id)).where(
+                        GiftPackUserState.pack_id == pack_id,
+                        GiftPackUserState.claimed_at.isnot(None),
+                    )
+                ).scalar_one()
+                prompted_users = session.execute(
+                    select(func.count(GiftPackUserState.id)).where(
+                        GiftPackUserState.pack_id == pack_id,
+                        GiftPackUserState.prompt_count > 0,
+                    )
+                ).scalar_one()
+
+                # reward_snapshot 是 JSON 文本，聚合只能在 Python 侧做
+                snapshots = [
+                    row
+                    for (row,) in session.execute(
+                        select(GiftPackUserState.reward_snapshot).where(
+                            GiftPackUserState.pack_id == pack_id,
+                            GiftPackUserState.reward_snapshot.isnot(None),
+                        )
+                    ).all()
+                ]
+                credits_total = 0.0
+                premium_days_total = 0
+                premium_grants = 0
+                premium_skipped = 0
+                for raw in snapshots:
+                    try:
+                        for item in json.loads(raw):
+                            if item.get("type") == "credits":
+                                credits_total += float(item.get("amount") or 0)
+                            elif item.get("type") == "premium_days":
+                                if item.get("skipped"):
+                                    premium_skipped += 1
+                                else:
+                                    premium_days_total += int(item.get("days") or 0)
+                                    premium_grants += 1
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"解析礼包发放快照失败 (pack_id={pack_id}): {e}")
+
+                reward_totals = []
+                if credits_total:
+                    reward_totals.append(
+                        {
+                            "type": "credits",
+                            "label": "积分",
+                            "total": round(credits_total, 2),
+                        }
+                    )
+                if premium_grants or premium_skipped:
+                    reward_totals.append(
+                        {
+                            "type": "premium_days",
+                            "label": "Premium 天数",
+                            "total": premium_days_total,
+                            "grants": premium_grants,
+                            "skipped_lifetime": premium_skipped,
+                        }
+                    )
+
+                return {
+                    "pack_id": int(pack.id),
+                    "title": pack.title,
+                    "claimed_users": int(claimed_users),
+                    "prompted_users": int(prompted_users),
+                    "total_quantity": pack.total_quantity,
+                    "remaining": self._gift_pack_remaining(pack),
+                    "reward_totals": reward_totals,
+                }
+        except Exception as e:
+            logger.error(f"获取礼包统计失败 (pack_id={pack_id}): {e}")
+            return None
+
+    def get_gift_pack_claim_records(
+        self, pack_id: int, page: int = 1, page_size: int = 20
+    ) -> Tuple[List[Dict], int]:
+        """某礼包的领取记录（按领取时间倒序分页）"""
+        try:
+            with get_session() as session:
+                total = session.execute(
+                    select(func.count(GiftPackUserState.id)).where(
+                        GiftPackUserState.pack_id == pack_id,
+                        GiftPackUserState.claimed_at.isnot(None),
+                    )
+                ).scalar_one()
+                rows = (
+                    session.execute(
+                        select(GiftPackUserState)
+                        .where(
+                            GiftPackUserState.pack_id == pack_id,
+                            GiftPackUserState.claimed_at.isnot(None),
+                        )
+                        .order_by(GiftPackUserState.claimed_at.desc())
+                        .offset(max(0, (page - 1) * page_size))
+                        .limit(page_size)
+                    )
+                    .scalars()
+                    .all()
+                )
+                records = [
+                    {
+                        "tg_id": int(row.tg_id),
+                        "claimed_at": int(row.claimed_at),
+                        "reward_snapshot": json.loads(row.reward_snapshot)
+                        if row.reward_snapshot
+                        else None,
+                    }
+                    for row in rows
+                ]
+                return records, int(total)
+        except Exception as e:
+            logger.error(f"获取礼包领取记录失败 (pack_id={pack_id}): {e}")
+            return [], 0
+
+    def get_expired_unnotified_gift_packs(self) -> List[Dict]:
+        """扫描已过期且尚未发送汇总通知的礼包
+
+        配合 mark_gift_pack_expiry_notified() 使用。用周期扫描而非 date job：
+        end_at 是管理员可编辑的，date job 每次改期都要重排、漏排就永久丢通知。
+        """
+        try:
+            now = int(time.time())
+            with get_session() as session:
+                packs = (
+                    session.execute(
+                        select(GiftPack).where(
+                            GiftPack.end_at < now,
+                            GiftPack.expiry_notified == 0,
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                return [
+                    {
+                        "id": int(pack.id),
+                        "title": pack.title,
+                        "total_quantity": pack.total_quantity,
+                        "claimed_count": int(pack.claimed_count),
+                        "end_at": int(pack.end_at),
+                    }
+                    for pack in packs
+                ]
+        except Exception as e:
+            logger.error(f"扫描过期礼包失败: {e}")
+            return []
+
+    def mark_gift_pack_expiry_notified(self, pack_id: int) -> bool:
+        """标记某礼包的过期汇总通知已发送"""
+        try:
+            with get_session() as session:
+                result = session.execute(
+                    update(GiftPack)
+                    .where(GiftPack.id == pack_id, GiftPack.expiry_notified == 0)
+                    .values(expiry_notified=1)
+                )
+                return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"标记礼包过期通知失败 (pack_id={pack_id}): {e}")
             return False
 
 

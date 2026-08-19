@@ -39,6 +39,7 @@ from app.premium import (
 from app.scheduler import Scheduler
 from app.utils.report import send_weekly_report
 from app.utils.utils import refresh_emby_user_info, refresh_tg_user_info
+from app.webapp.routers.gift_pack import scan_expired_gift_packs
 from telegram import BotCommand
 from telegram.ext import ApplicationBuilder
 
@@ -376,6 +377,22 @@ def add_init_scheduler_job():
         + datetime.timedelta(minutes=3),  # 启动后 3 分钟执行一次
     )
     logger.info("添加定时任务：每 5 分钟检查并下线过期的自定义线路")
+
+    # 每 10 分钟扫描已过期的礼包并向管理员发送领取汇总 (异步任务)
+    # 用周期扫描而非创建时安排 date job：礼包的 end_at 管理员可编辑，
+    # date job 每次改期都要重排、漏排就永久丢通知；扫描配 expiry_notified
+    # 标记列对重启、改期、漏发都免疫，代价只是通知最多延迟一个扫描周期。
+    scheduler.add_async_job(
+        func=scan_expired_gift_packs,
+        trigger="interval",
+        id="scan_expired_gift_packs",
+        replace_existing=True,
+        max_instances=1,
+        minutes=10,
+        next_run_time=datetime.datetime.now(settings.TZ)
+        + datetime.timedelta(minutes=4),  # 启动后 4 分钟执行一次
+    )
+    logger.info("添加定时任务：每 10 分钟扫描过期礼包并发送领取汇总")
 
     # 每 3 分钟检查自定义线路流量使用情况 (异步任务)
     scheduler.add_async_job(

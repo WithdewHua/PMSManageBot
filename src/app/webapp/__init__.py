@@ -17,6 +17,7 @@ from app.webapp.routers.activities.treasure import router as treasure_router
 from app.webapp.routers.admin import router as admin_router
 from app.webapp.routers.badge import router as badge_router
 from app.webapp.routers.crypto_donation import router as crypto_donation_router
+from app.webapp.routers.gift_pack import router as gift_pack_router
 from app.webapp.routers.invitation import router as invitation_router
 from app.webapp.routers.premium import router as premium_router
 from app.webapp.routers.vaultwarden import router as vaultwarden_router
@@ -78,6 +79,7 @@ app.include_router(treasure_router, prefix="/api")  # 添加夺宝奇兵路由
 app.include_router(prediction_router, prefix="/api")  # 添加预测游戏路由
 app.include_router(vaultwarden_router)  # 添加 Vaultwarden 路由
 app.include_router(badge_router)  # 添加勋章路由
+app.include_router(gift_pack_router)  # 添加礼包路由
 
 
 def setup_static_files():

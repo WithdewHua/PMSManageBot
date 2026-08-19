@@ -37,6 +37,26 @@ from .invitation import (
     RedeemForCreditsRequest,
     RedeemForCreditsResponse,
 )
+from .gift_pack import (
+    CreditsReward,
+    PremiumDaysReward,
+    GiftPackEligibility,
+    GiftPackCreateRequest,
+    GiftPackUpdateRequest,
+    GiftPackSetEnabledRequest,
+    GiftPackRewardView,
+    GiftPackItem,
+    GiftPackListResponse,
+    GiftPackPromptItem,
+    GiftPackPromptCheckResponse,
+    GiftPackClaimRewardResult,
+    GiftPackClaimResponse,
+    GiftPackAdminItem,
+    GiftPackAdminListResponse,
+    GiftPackStatsResponse,
+    GiftPackClaimRecordItem,
+    GiftPackClaimRecordListResponse,
+)
 from .ranking import RankingInfo
 from .user import (
     AdminCustomLineUpdateRequest,

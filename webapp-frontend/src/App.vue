@@ -4,21 +4,28 @@
       <router-view />
     </v-main>
     <!-- 使用底部菜单组件 -->
-    <bottom-menu 
+    <bottom-menu
+      ref="bottomMenu"
       :current-active-tab="activeTab"
-      @navigate="navigateTo" 
+      @navigate="navigateTo"
     />
+    <!-- 礼包开屏汇总提醒 -->
+    <gift-pack-prompt-dialog ref="giftPackPrompt" @go-claim="openGiftPackCenter" />
   </v-app>
 </template>
 
 <script>
 // 导入底部菜单组件
 import BottomMenu from './components/BottomMenu.vue';
+// 导入礼包开屏提醒组件
+import GiftPackPromptDialog from './components/GiftPackPromptDialog.vue';
+import { promptCheckGiftPacks } from './services/giftPackService';
 
 export default {
   name: 'App',
   components: {
-    BottomMenu
+    BottomMenu,
+    GiftPackPromptDialog
   },
   data() {
     return {
@@ -44,6 +51,7 @@ export default {
         this.$router.replace({ name: 'user-info' });
       });
     }
+    this.checkGiftPackPrompt()
   },
   methods: {
     navigateTo(route) {
@@ -51,6 +59,31 @@ export default {
         this.$router.push({ name: route });
       }
       this.activeTab = route;
+    },
+
+    /**
+     * 礼包开屏提醒判定。
+     *
+     * 这是一个独立请求，不与 getUserInfo / systemStatus 合并——礼包是运营活动，
+     * 与用户信息、系统状态的生命周期无关，合并会让三者互相牵连。
+     * 后端在返回时已完成提醒记账；返回空数组表示不弹窗。
+     */
+    async checkGiftPackPrompt() {
+      try {
+        const res = await promptCheckGiftPacks()
+        const packs = res.data?.packs || []
+        if (packs.length) {
+          this.$refs.giftPackPrompt?.open(packs)
+        }
+      } catch (e) {
+        // 提醒是锦上添花，失败时静默跳过，不打断启动流程
+        console.warn('礼包提醒判定失败:', e)
+      }
+    },
+
+    // 「前往领取」→ 关闭提醒弹窗（组件内已关闭）→ 打开礼包中心
+    openGiftPackCenter() {
+      this.$refs.bottomMenu?.openGiftPackDialog()
     }
   }
 }
