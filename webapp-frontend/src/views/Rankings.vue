@@ -5,33 +5,9 @@
       <div class="rankings-header">
         <h1 class="page-title">排行榜</h1>
         <p class="page-subtitle">系统数据榜单</p>
-        <v-btn 
-          color="primary" 
-          variant="tonal"
-          size="small"
-          @click="forceRefreshData"
-          class="refresh-btn"
-        >
-          <v-icon start>mdi-refresh</v-icon>
-          刷新数据
-        </v-btn>
-      </div>
-      
-      <div v-if="isCurrentTabLoading()" class="loading-container">
-        <div class="loading-content">
-          <v-progress-circular indeterminate color="primary" size="50" width="4"></v-progress-circular>
-          <div class="loading-text">加载中...</div>
-        </div>
       </div>
 
-      <div v-else-if="error" class="error-container">
-        <v-alert type="error" class="error-alert" rounded="lg" elevation="4">{{ error }}</v-alert>
-        <v-btn color="primary" @click="forceRefreshData" class="mt-3">
-          重试
-        </v-btn>
-      </div>
-
-      <div v-else>
+      <div>
         <div class="rankings-tabs-container">
           <v-tabs 
             v-model="activeTab" 
@@ -76,6 +52,13 @@
           <v-window v-model="activeTab">
           <!-- 积分榜 -->
           <v-window-item value="credits">
+            <ranking-state-block
+              :loading="loading.credits"
+              :error="errors.credits"
+              :empty="rankings.credits_rank.length === 0"
+              @retry="forceRefreshData('credits')"
+              @content-rendered="checkMarqueeOverflows"
+            >
             <v-list lines="two" class="px-2">
               <v-list-item
                 v-for="(item, index) in rankings.credits_rank"
@@ -156,14 +139,19 @@
                   </div>
                 </template>
               </v-list-item>
-              <v-list-item v-if="rankings.credits_rank.length === 0" class="text-center">
-                <v-list-item-title class="text-grey">暂无数据</v-list-item-title>
-              </v-list-item>
             </v-list>
+            </ranking-state-block>
           </v-window-item>
 
           <!-- 捐赠榜 -->
           <v-window-item value="donation">
+            <ranking-state-block
+              :loading="loading.donation"
+              :error="errors.donation"
+              :empty="rankings.donation_rank.length === 0"
+              @retry="forceRefreshData('donation')"
+              @content-rendered="checkMarqueeOverflows"
+            >
             <v-list lines="two" class="px-2">
               <v-list-item
                 v-for="(item, index) in rankings.donation_rank"
@@ -244,72 +232,63 @@
                   </div>
                 </template>
               </v-list-item>
-              <v-list-item v-if="rankings.donation_rank.length === 0" class="text-center">
-                <v-list-item-title class="text-grey">暂无数据</v-list-item-title>
-              </v-list-item>
             </v-list>
+            </ranking-state-block>
           </v-window-item>
 
           <!-- 观看时长榜 -->
           <v-window-item value="watched">
-            <!-- 观看时长数据源加载中 -->
-            <div v-if="loading[`watched-${watchedTimeSource}`]" class="text-center my-10">
-              <v-progress-circular indeterminate color="primary"></v-progress-circular>
-              <div class="mt-3">加载{{ watchedTimeSource.toUpperCase() }}数据中...</div>
+            <!-- 标题与数据源选择：置于状态分支之外，加载中与失败时仍可见可操作 -->
+            <div class="d-flex justify-space-between align-center mb-4">
+              <div class="d-flex align-center gap-2">
+                <h3 class="text-h6 text-primary font-weight-bold">观看时长排行</h3>
+                <v-btn
+                  icon
+                  size="x-small"
+                  variant="text"
+                  color="primary"
+                  @click="showLevelInfo = true"
+                  class="info-btn"
+                >
+                  <v-icon size="16">mdi-information</v-icon>
+                  <v-tooltip activator="parent" location="top">
+                    等级说明
+                  </v-tooltip>
+                </v-btn>
+              </div>
+              <v-select
+                  v-model="watchedTimeSource"
+                  :items="[
+                    { title: 'Plex', value: 'plex' },
+                    { title: 'Emby', value: 'emby' }
+                  ]"
+                  item-title="title"
+                  item-value="value"
+                  density="compact"
+                  hide-details
+                  variant="outlined"
+                  class="control-select watched-source-select"
+                  style="max-width: 150px;"
+                  color="primary"
+                >
+                  <template v-slot:prepend-inner>
+                    <v-icon size="16" :color="watchedTimeSource === 'plex' ? 'orange' : 'green'">
+                      {{ watchedTimeSource === 'plex' ? 'mdi-plex' : 'mdi-emby' }}
+                    </v-icon>
+                  </template>
+                </v-select>
             </div>
-            
-            <!-- 没有数据的情况 -->
-            <div v-else-if="(watchedTimeSource === 'plex' && rankings.watched_time_rank_plex.length === 0) || 
-                            (watchedTimeSource === 'emby' && rankings.watched_time_rank_emby.length === 0)" 
-                 class="text-center my-5">
-              <v-list-item>
-                <v-list-item-title class="text-grey">暂无{{ watchedTimeSource.toUpperCase() }}数据</v-list-item-title>
-              </v-list-item>
-            </div>
-            
-            <!-- 有数据的情况 -->
-            <v-row v-else>
+
+            <ranking-state-block
+              :loading="loading[`watched-${watchedTimeSource}`]"
+              :error="errors[`watched-${watchedTimeSource}`]"
+              :empty="getCurrentWatchedTimeRankings().length === 0"
+              :label="watchedTimeSource.toUpperCase()"
+              @retry="forceRefreshData(`watched-${watchedTimeSource}`)"
+              @content-rendered="checkMarqueeOverflows"
+            >
+            <v-row>
               <v-col cols="12">
-                <div class="d-flex justify-space-between align-center mb-4">
-                  <div class="d-flex align-center gap-2">
-                    <h3 class="text-h6 text-primary font-weight-bold">观看时长排行</h3>
-                    <v-btn
-                      icon
-                      size="x-small"
-                      variant="text"
-                      color="primary"
-                      @click="showLevelInfo = true"
-                      class="info-btn"
-                    >
-                      <v-icon size="16">mdi-information</v-icon>
-                      <v-tooltip activator="parent" location="top">
-                        等级说明
-                      </v-tooltip>
-                    </v-btn>
-                  </div>
-                  <v-select
-                      v-model="watchedTimeSource"
-                      :items="[
-                        { title: 'Plex', value: 'plex' },
-                        { title: 'Emby', value: 'emby' }
-                      ]"
-                      item-title="title"
-                      item-value="value"
-                      density="compact"
-                      hide-details
-                      variant="outlined"
-                      class="control-select watched-source-select"
-                      style="max-width: 150px;"
-                      color="primary"
-                    >
-                      <template v-slot:prepend-inner>
-                        <v-icon size="16" :color="watchedTimeSource === 'plex' ? 'orange' : 'green'">
-                          {{ watchedTimeSource === 'plex' ? 'mdi-plex' : 'mdi-emby' }}
-                        </v-icon>
-                      </template>
-                    </v-select>
-                </div>
-                
                 <!-- Plex 观看时长榜 -->
                 <div v-if="watchedTimeSource === 'plex'" class="transparent-list">
                   <v-list lines="two" class="px-2 transparent-list-content">
@@ -386,12 +365,9 @@
                         </div>
                       </template>
                     </v-list-item>
-                    <v-list-item v-if="rankings.watched_time_rank_plex.length === 0" class="text-center">
-                      <v-list-item-title class="text-grey">暂无数据</v-list-item-title>
-                    </v-list-item>
                   </v-list>
                 </div>
-                
+
                 <!-- Emby 观看时长榜 -->
                 <div v-if="watchedTimeSource === 'emby'" class="transparent-list">
                   <v-list lines="two" class="px-2 transparent-list-content">
@@ -468,107 +444,98 @@
                         </div>
                       </template>
                     </v-list-item>
-                    <v-list-item v-if="rankings.watched_time_rank_emby.length === 0" class="text-center">
-                      <v-list-item-title class="text-grey">暂无数据</v-list-item-title>
-                    </v-list-item>
                   </v-list>
                 </div>
               </v-col>
             </v-row>
+            </ranking-state-block>
           </v-window-item>
 
           <!-- 流量日榜 -->
           <v-window-item value="traffic">
-            <!-- 流量数据源加载中 -->
-            <div v-if="loading[`traffic-${trafficSource}`]" class="text-center my-10">
-              <v-progress-circular indeterminate color="primary"></v-progress-circular>
-              <div class="mt-3">加载{{ trafficSource.toUpperCase() }}数据中...</div>
+            <!-- 标题、日期筛选与数据源选择：置于状态分支之外，加载中与失败时仍可见可操作 -->
+            <div class="d-flex justify-space-between align-center mb-4">
+              <div class="d-flex align-center gap-2">
+                <h3 class="text-h6 text-primary font-weight-bold">流量排行</h3>
+                <v-chip size="small" :color="getDateRangeChipColor()" variant="elevated" class="ml-2">
+                  <v-icon start size="12">mdi-calendar-today</v-icon>
+                  {{ getDateRangeText() }}
+                </v-chip>
+              </div>
+              <div class="d-flex align-center gap-4">
+                <!-- 日期范围选择 -->
+                <v-select
+                  v-model="trafficDateRange"
+                  :items="[
+                    { title: '今日', value: 'today' },
+                    { title: '昨日', value: 'yesterday' },
+                    { title: '本周', value: 'week' },
+                    { title: '本月', value: 'month' },
+                    { title: '自定义', value: 'custom' }
+                  ]"
+                  item-title="title"
+                  item-value="value"
+                  density="compact"
+                  hide-details
+                  variant="outlined"
+                  class="control-select date-range-select"
+                  color="primary"
+                >
+                  <template v-slot:prepend-inner>
+                    <v-icon size="16" color="primary">mdi-calendar-range</v-icon>
+                  </template>
+                </v-select>
+
+                <!-- 自定义日期按钮 -->
+                <v-btn
+                  v-if="trafficDateRange === 'custom'"
+                  icon
+                  size="small"
+                  variant="outlined"
+                  color="primary"
+                  @click="showDatePicker = true"
+                  class="custom-date-btn"
+                >
+                  <v-icon size="18">mdi-calendar-edit</v-icon>
+                  <v-tooltip activator="parent" location="top">
+                    选择日期范围
+                  </v-tooltip>
+                </v-btn>
+
+                <!-- 数据源选择 -->
+                <v-select
+                    v-model="trafficSource"
+                    :items="[
+                      { title: 'Plex', value: 'plex' },
+                      { title: 'Emby', value: 'emby' }
+                    ]"
+                    item-title="title"
+                    item-value="value"
+                    density="compact"
+                    hide-details
+                    variant="outlined"
+                    class="control-select traffic-source-select"
+                    color="primary"
+                  >
+                    <template v-slot:prepend-inner>
+                      <v-icon size="16" :color="trafficSource === 'plex' ? 'orange' : 'green'">
+                        {{ trafficSource === 'plex' ? 'mdi-plex' : 'mdi-emby' }}
+                      </v-icon>
+                    </template>
+                  </v-select>
+              </div>
             </div>
-            
-            <!-- 没有数据的情况 -->
-            <div v-else-if="(trafficSource === 'plex' && rankings.traffic_rank_plex.length === 0) || 
-                            (trafficSource === 'emby' && rankings.traffic_rank_emby.length === 0)" 
-                 class="text-center my-5">
-              <v-list-item>
-                <v-list-item-title class="text-grey">暂无{{ trafficSource.toUpperCase() }}数据</v-list-item-title>
-              </v-list-item>
-            </div>
-            
-            <!-- 有数据的情况 -->
-            <v-row v-else>
+
+            <ranking-state-block
+              :loading="loading[`traffic-${trafficSource}`]"
+              :error="errors[`traffic-${trafficSource}`]"
+              :empty="getCurrentTrafficRankings().length === 0"
+              :label="trafficSource.toUpperCase()"
+              @retry="forceRefreshData(`traffic-${trafficSource}`)"
+              @content-rendered="checkMarqueeOverflows"
+            >
+            <v-row>
               <v-col cols="12">
-                <div class="d-flex justify-space-between align-center mb-4">
-                  <div class="d-flex align-center gap-2">
-                    <h3 class="text-h6 text-primary font-weight-bold">流量排行</h3>
-                    <v-chip size="small" :color="getDateRangeChipColor()" variant="elevated" class="ml-2">
-                      <v-icon start size="12">mdi-calendar-today</v-icon>
-                      {{ getDateRangeText() }}
-                    </v-chip>
-                  </div>
-                  <div class="d-flex align-center gap-4">
-                    <!-- 日期范围选择 -->
-                    <v-select
-                      v-model="trafficDateRange"
-                      :items="[
-                        { title: '今日', value: 'today' },
-                        { title: '昨日', value: 'yesterday' },
-                        { title: '本周', value: 'week' },
-                        { title: '本月', value: 'month' },
-                        { title: '自定义', value: 'custom' }
-                      ]"
-                      item-title="title"
-                      item-value="value"
-                      density="compact"
-                      hide-details
-                      variant="outlined"
-                      class="control-select date-range-select"
-                      color="primary"
-                    >
-                      <template v-slot:prepend-inner>
-                        <v-icon size="16" color="primary">mdi-calendar-range</v-icon>
-                      </template>
-                    </v-select>
-
-                    <!-- 自定义日期按钮 -->
-                    <v-btn
-                      v-if="trafficDateRange === 'custom'"
-                      icon
-                      size="small"
-                      variant="outlined"
-                      color="primary"
-                      @click="showDatePicker = true"
-                      class="custom-date-btn"
-                    >
-                      <v-icon size="18">mdi-calendar-edit</v-icon>
-                      <v-tooltip activator="parent" location="top">
-                        选择日期范围
-                      </v-tooltip>
-                    </v-btn>
-
-                    <!-- 数据源选择 -->
-                    <v-select
-                        v-model="trafficSource"
-                        :items="[
-                          { title: 'Plex', value: 'plex' },
-                          { title: 'Emby', value: 'emby' }
-                        ]"
-                        item-title="title"
-                        item-value="value"
-                        density="compact"
-                        hide-details
-                        variant="outlined"
-                        class="control-select traffic-source-select"
-                        color="primary"
-                      >
-                        <template v-slot:prepend-inner>
-                          <v-icon size="16" :color="trafficSource === 'plex' ? 'orange' : 'green'">
-                            {{ trafficSource === 'plex' ? 'mdi-plex' : 'mdi-emby' }}
-                          </v-icon>
-                        </template>
-                      </v-select>
-                  </div>
-                </div>
-                
                 <!-- Plex 流量榜 -->
                 <div v-if="trafficSource === 'plex'" class="transparent-list">
                   <v-list lines="two" class="px-2 transparent-list-content">
@@ -633,12 +600,9 @@
                         </div>
                       </template>
                     </v-list-item>
-                    <v-list-item v-if="rankings.traffic_rank_plex.length === 0" class="text-center">
-                      <v-list-item-title class="text-grey">暂无数据</v-list-item-title>
-                    </v-list-item>
                   </v-list>
                 </div>
-                
+
                 <!-- Emby 流量榜 -->
                 <div v-if="trafficSource === 'emby'" class="transparent-list">
                   <v-list lines="two" class="px-2 transparent-list-content">
@@ -703,17 +667,22 @@
                         </div>
                       </template>
                     </v-list-item>
-                    <v-list-item v-if="rankings.traffic_rank_emby.length === 0" class="text-center">
-                      <v-list-item-title class="text-grey">暂无数据</v-list-item-title>
-                    </v-list-item>
                   </v-list>
                 </div>
               </v-col>
             </v-row>
+            </ranking-state-block>
           </v-window-item>
 
           <!-- 勋章榜 -->
           <v-window-item value="badge">
+            <ranking-state-block
+              :loading="loading.badge"
+              :error="errors.badge"
+              :empty="rankings.badge_rank.length === 0"
+              @retry="forceRefreshData('badge')"
+              @content-rendered="checkMarqueeOverflows"
+            >
             <v-list lines="two" class="px-2">
               <v-list-item
                 v-for="(item, index) in rankings.badge_rank"
@@ -805,75 +774,68 @@
                   </div>
                 </template>
               </v-list-item>
-              <v-list-item v-if="rankings.badge_rank.length === 0" class="text-center">
-                <v-list-item-title class="text-grey">暂无数据</v-list-item-title>
-              </v-list-item>
             </v-list>
+            </ranking-state-block>
           </v-window-item>
 
           <!-- 游戏榜 -->
           <v-window-item value="game">
-            <!-- 游戏数据源加载中 -->
-            <div v-if="loading[`game-${gameSource}`]" class="text-center my-10">
-              <v-progress-circular indeterminate color="primary"></v-progress-circular>
-              <div class="mt-3">加载游戏榜数据中...</div>
+            <!-- 标题与筛选控件：置于状态分支之外，加载中与失败时仍可见可操作 -->
+            <div class="d-flex justify-space-between align-center mb-4">
+              <div class="d-flex align-center gap-2">
+                <h3 class="text-h6 text-primary font-weight-bold">游戏排行</h3>
+              </div>
+              <div class="d-flex align-center gap-4">
+                <v-select
+                  v-model="gameSource"
+                  :items="[
+                    { title: '幸运大转盘', value: 'wheel' },
+                    { title: '夺宝奇兵', value: 'treasure' },
+                    { title: '大预言家', value: 'prediction' }
+                  ]"
+                  item-title="title"
+                  item-value="value"
+                  density="compact"
+                  hide-details
+                  variant="outlined"
+                  class="control-select game-source-select"
+                  color="primary"
+                >
+                  <template v-slot:prepend-inner>
+                    <v-icon size="16" :color="getGameSourceIconColor()">
+                      {{ getGameSourceIcon() }}
+                    </v-icon>
+                  </template>
+                </v-select>
+
+                <v-select
+                  v-model="gameRankingType"
+                  :items="getGameRankingTypeOptions()"
+                  item-title="title"
+                  item-value="value"
+                  density="compact"
+                  hide-details
+                  variant="outlined"
+                  class="control-select game-ranking-type-select"
+                  color="primary"
+                >
+                  <template v-slot:prepend-inner>
+                    <v-icon size="16" color="primary">mdi-trophy-variant</v-icon>
+                  </template>
+                </v-select>
+              </div>
             </div>
 
-            <!-- 没有数据的情况 -->
-            <div v-else-if="getCurrentGameRankings().length === 0" class="text-center my-5">
-              <v-list-item>
-                <v-list-item-title class="text-grey">暂无{{ getCurrentGameRankingTitle() }}数据</v-list-item-title>
-              </v-list-item>
-            </div>
-
-            <!-- 有数据的情况 -->
-            <v-row v-else>
+            <ranking-state-block
+              :loading="loading[`game-${gameSource}`]"
+              :error="errors[`game-${gameSource}`]"
+              :empty="getCurrentGameRankings().length === 0"
+              :label="getCurrentGameRankingTitle()"
+              @retry="forceRefreshData(`game-${gameSource}`)"
+              @content-rendered="checkMarqueeOverflows"
+            >
+            <v-row>
               <v-col cols="12">
-                <div class="d-flex justify-space-between align-center mb-4">
-                  <div class="d-flex align-center gap-2">
-                    <h3 class="text-h6 text-primary font-weight-bold">游戏排行</h3>
-                  </div>
-                  <div class="d-flex align-center gap-4">
-                    <v-select
-                      v-model="gameSource"
-                      :items="[
-                        { title: '幸运大转盘', value: 'wheel' },
-                        { title: '夺宝奇兵', value: 'treasure' },
-                        { title: '大预言家', value: 'prediction' }
-                      ]"
-                      item-title="title"
-                      item-value="value"
-                      density="compact"
-                      hide-details
-                      variant="outlined"
-                      class="control-select game-source-select"
-                      color="primary"
-                    >
-                      <template v-slot:prepend-inner>
-                        <v-icon size="16" :color="getGameSourceIconColor()">
-                          {{ getGameSourceIcon() }}
-                        </v-icon>
-                      </template>
-                    </v-select>
-
-                    <v-select
-                      v-model="gameRankingType"
-                      :items="getGameRankingTypeOptions()"
-                      item-title="title"
-                      item-value="value"
-                      density="compact"
-                      hide-details
-                      variant="outlined"
-                      class="control-select game-ranking-type-select"
-                      color="primary"
-                    >
-                      <template v-slot:prepend-inner>
-                        <v-icon size="16" color="primary">mdi-trophy-variant</v-icon>
-                      </template>
-                    </v-select>
-                  </div>
-                </div>
-
                 <div class="transparent-list">
                   <v-list lines="two" class="px-2 transparent-list-content">
                     <v-list-item
@@ -971,10 +933,18 @@
                 </div>
               </v-col>
             </v-row>
+            </ranking-state-block>
           </v-window-item>
 
           <!-- 邀请榜 -->
           <v-window-item value="invitation">
+            <ranking-state-block
+              :loading="loading.invitation"
+              :error="errors.invitation"
+              :empty="rankings.invitation_rank.length === 0"
+              @retry="forceRefreshData('invitation')"
+              @content-rendered="checkMarqueeOverflows"
+            >
             <v-list lines="two" class="px-2">
               <v-list-item
                 v-for="(item, index) in rankings.invitation_rank"
@@ -1019,10 +989,8 @@
                   </div>
                 </template>
               </v-list-item>
-              <v-list-item v-if="rankings.invitation_rank.length === 0" class="text-center">
-                <v-list-item-title class="text-grey">暂无数据</v-list-item-title>
-              </v-list-item>
             </v-list>
+            </ranking-state-block>
           </v-window-item>
         </v-window>
         </div>
@@ -1299,9 +1267,34 @@
 import { getCreditsRankings, getDonationRankings, getPlexWatchedTimeRankings, getEmbyWatchedTimeRankings, getPlexTrafficRankings, getEmbyTrafficRankings, getInvitationRankings, getBadgeRankings, getWheelGameRankings, getTreasureGameRankings, getPredictionGameRankings } from '@/api'
 import { getWatchLevelIcons } from '@/utils/watchLevel.js'
 import { getUserBadges } from '@/services/badgeService.js'
+import RankingStateBlock from '@/components/RankingStateBlock.vue'
+
+// 状态键的单一来源：loading / loaded / errors 三个字典共用这套键，
+// 使三者不可能失同步。带数据源维度的榜单只有 `{tab}-{source}` 级键，
+// 不设标签页级键 —— 后者会与数据源级键描述同一件事却不同步。
+const STATE_KEYS = [
+  'credits',
+  'donation',
+  'badge',
+  'invitation',
+  'watched-plex',
+  'watched-emby',
+  'traffic-plex',
+  'traffic-emby',
+  'game-wheel',
+  'game-treasure',
+  'game-prediction'
+]
+
+// 由 STATE_KEYS 派生初始状态字典
+const createStateMap = (initialValue) =>
+  STATE_KEYS.reduce((map, key) => ({ ...map, [key]: initialValue }), {})
 
 export default {
   name: "Rankings",
+  components: {
+    RankingStateBlock
+  },
   data() {
     return {
       activeTab: 'credits',
@@ -1331,39 +1324,9 @@ export default {
         prediction_win_rate_rank: [],
         invitation_rank: []
       },
-      loading: {
-        credits: false,
-        donation: false,
-        watched: false,
-        traffic: false,
-        badge: false,
-        game: false,
-        invitation: false,
-        'watched-plex': false,
-        'watched-emby': false,
-        'traffic-plex': false,
-        'traffic-emby': false,
-        'game-wheel': false,
-        'game-treasure': false,
-        'game-prediction': false
-      },
-      loaded: {
-        credits: false,
-        donation: false,
-        watched: false,
-        traffic: false,
-        badge: false,
-        game: false,
-        invitation: false,
-        'watched-plex': false,
-        'watched-emby': false,
-        'traffic-plex': false,
-        'traffic-emby': false,
-        'game-wheel': false,
-        'game-treasure': false,
-        'game-prediction': false
-      },
-      error: null,
+      loading: createStateMap(false),
+      loaded: createStateMap(false),
+      errors: createStateMap(null),
       userBadgesMap: {}, // 用户ID到勋章列表的映射
       windowWidth: window.innerWidth, // 窗口宽度，用于响应式显示勋章数量
       // 所有勋章对话框相关
@@ -1386,40 +1349,29 @@ export default {
     watchedTimeSource(newSource) {
       console.log(`切换观看时长数据源到: ${newSource}`)
       if (this.activeTab === 'watched') {
-        // 检查新数据源是否已加载，如果没有则加载
-        const watchedKey = `watched-${newSource}`
-        if (!this.loaded[watchedKey]) {
-          this.loadWatchedTimeData(newSource)
-        }
+        this.loadWatchedTimeData(newSource)
       }
     },
     trafficSource(newSource) {
       console.log(`切换流量数据源到: ${newSource}`)
       if (this.activeTab === 'traffic') {
-        // 检查新数据源是否已加载，如果没有则加载
-        const trafficKey = `traffic-${newSource}`
-        if (!this.loaded[trafficKey]) {
-          this.loadTrafficData(newSource)
-        }
+        this.loadTrafficData(newSource)
       }
     },
     gameSource(newSource) {
       console.log(`切换游戏数据源到: ${newSource}`)
       this.syncGameRankingTypeBySource(newSource)
       if (this.activeTab === 'game') {
-        const gameKey = `game-${newSource}`
-        if (!this.loaded[gameKey]) {
-          this.loadGameData(newSource)
-        }
+        this.loadGameData(newSource)
       }
     },
     trafficDateRange(newRange) {
       console.log(`切换流量日期范围到: ${newRange}`)
       this.updateTrafficDatesByRange(newRange)
       if (this.activeTab === 'traffic') {
-        // 重置加载状态并重新加载数据
-        const trafficKey = `traffic-${this.trafficSource}`
-        this.loaded[trafficKey] = false
+        // 日期范围是全局筛选器：所有数据源的既有流量数据一并失效，
+        // 只重新获取当前展示的那个，另一个留待切换时懒加载。
+        this.invalidateAllTrafficSources()
         this.loadTrafficData(this.trafficSource)
       }
     },
@@ -1453,16 +1405,13 @@ export default {
       if (!this.rankings.credits_rank.length) {
         this.loadTabData('credits')
       }
-      this.checkMarqueeOverflows()
     })
-    
+
     // 监听窗口大小变化，用于响应式调整勋章显示数量
     window.addEventListener('resize', this.handleResize)
   },
   updated() {
-    this.$nextTick(() => {
-      this.checkMarqueeOverflows()
-    })
+    this.checkMarqueeOverflows()
   },
   beforeUnmount() {
     // 清理事件监听
@@ -1472,28 +1421,29 @@ export default {
     // 处理窗口大小变化
     handleResize() {
       this.windowWidth = window.innerWidth
-      this.$nextTick(() => {
-        this.checkMarqueeOverflows()
-      })
+      this.checkMarqueeOverflows()
     },
     
-    // 检测所有用户名文本是否溢出，如果溢出则添加跑马灯效果
+    // 检测所有用户名文本是否溢出，如果溢出则添加跑马灯效果。
+    // 测量依赖真实布局，故一律等到 DOM patch 完成后再读取尺寸。
     checkMarqueeOverflows() {
-      const wrappers = this.$el?.querySelectorAll('.user-name-text-wrapper')
-      if (!wrappers) return
-      wrappers.forEach((wrapper) => {
-        const textEl = wrapper.querySelector('.user-name-text')
-        if (!textEl) return
-        const isOverflowing = textEl.scrollWidth > wrapper.clientWidth
-        if (isOverflowing) {
-          wrapper.classList.add('is-overflowing')
-          // Calculate how far to scroll: the excess amount
-          const distance = -(textEl.scrollWidth - wrapper.clientWidth)
-          wrapper.style.setProperty('--marquee-distance', `${distance}px`)
-        } else {
-          wrapper.classList.remove('is-overflowing')
-          wrapper.style.removeProperty('--marquee-distance')
-        }
+      this.$nextTick(() => {
+        const wrappers = this.$el?.querySelectorAll('.user-name-text-wrapper')
+        if (!wrappers) return
+        wrappers.forEach((wrapper) => {
+          const textEl = wrapper.querySelector('.user-name-text')
+          if (!textEl) return
+          const isOverflowing = textEl.scrollWidth > wrapper.clientWidth
+          if (isOverflowing) {
+            wrapper.classList.add('is-overflowing')
+            // Calculate how far to scroll: the excess amount
+            const distance = -(textEl.scrollWidth - wrapper.clientWidth)
+            wrapper.style.setProperty('--marquee-distance', `${distance}px`)
+          } else {
+            wrapper.classList.remove('is-overflowing')
+            wrapper.style.removeProperty('--marquee-distance')
+          }
+        })
       })
     },
     
@@ -1515,15 +1465,32 @@ export default {
     
     async loadTabData(tab) {
       console.log(`开始加载 ${tab} 数据...`)
-      
-      // 如果已经加载过该tab的数据，直接返回
-      if (this.loaded[tab]) {
-        console.log(`${tab} 数据已加载，跳过`)
+      // 带数据源维度的标签页：状态由 `{tab}-{source}` 键唯一表达，
+      // 此处不设也不查标签页级标记，直接委托给对应的加载方法。
+      if (tab === 'watched') {
+        console.log(`加载观看时长数据 - ${this.watchedTimeSource}`)
+        await this.loadWatchedTimeData(this.watchedTimeSource)
+        return
+      }
+      if (tab === 'traffic') {
+        console.log(`加载流量数据 - ${this.trafficSource}`)
+        await this.loadTrafficData(this.trafficSource)
+        return
+      }
+      if (tab === 'game') {
+        console.log(`加载游戏榜数据 - ${this.gameSource}`)
+        await this.loadGameData(this.gameSource)
+        return
+      }
+
+      // 已获取成功、或处于失败态（保留失败提示待用户重试）时不重新请求
+      if (this.loaded[tab] || this.errors[tab]) {
+        console.log(`${tab} 数据已加载或处于失败态，跳过`)
         return
       }
 
       this.loading[tab] = true
-      this.error = null
+      this.errors[tab] = null
 
       try {
         let response
@@ -1544,25 +1511,11 @@ export default {
             // 加载捐赠榜用户的勋章
             await this.loadBadgesForRankings(this.rankings.donation_rank)
             break
-          case 'watched':
-            // 观看时长tab被激活时，加载当前选中的数据源
-            console.log(`加载观看时长数据 - ${this.watchedTimeSource}`)
-            await this.loadWatchedTimeData(this.watchedTimeSource)
-            break
-          case 'traffic':
-            // 流量tab被激活时，加载当前选中的数据源
-            console.log(`加载流量数据 - ${this.trafficSource}`)
-            await this.loadTrafficData(this.trafficSource)
-            break
           case 'badge':
             console.log('调用勋章排行API...')
             response = await getBadgeRankings()
             this.rankings.badge_rank = response.data.badge_rank || []
             console.log('勋章排行数据:', this.rankings.badge_rank)
-            break
-          case 'game':
-            console.log(`加载游戏榜数据 - ${this.gameSource}`)
-            await this.loadGameData(this.gameSource)
             break
           case 'invitation':
             console.log('调用邀请排行API...')
@@ -1574,7 +1527,7 @@ export default {
         this.loaded[tab] = true
         console.log(`${tab} 数据加载完成`)
       } catch (err) {
-        this.error = err.response?.data?.detail || `获取${this.getTabName(tab)}失败`
+        this.errors[tab] = err.response?.data?.detail || `获取${this.getTabName(tab)}失败`
         console.error(`获取${this.getTabName(tab)}失败:`, err)
       } finally {
         this.loading[tab] = false
@@ -1585,14 +1538,14 @@ export default {
       console.log(`开始加载观看时长数据 - ${source}`)
       
       const watchedKey = `watched-${source}`
-      // 如果已经加载过该数据源的观看时长数据，直接返回
-      if (this.loaded[watchedKey]) {
-        console.log(`${source} 观看时长数据已加载，跳过`)
+      // 已按当前条件获取成功、或处于失败态（保留失败提示待用户重试）时不重新请求
+      if (this.loaded[watchedKey] || this.errors[watchedKey]) {
+        console.log(`${source} 观看时长数据已加载或处于失败态，跳过`)
         return
       }
 
       this.loading[watchedKey] = true
-      this.error = null
+      this.errors[watchedKey] = null
 
       try {
         let response
@@ -1610,25 +1563,37 @@ export default {
         this.loaded[watchedKey] = true
         console.log(`${source} 观看时长数据加载完成`)
       } catch (err) {
-        this.error = err.response?.data?.detail || `获取${source.toUpperCase()}观看时长排行失败`
+        this.errors[watchedKey] = err.response?.data?.detail || `获取${source.toUpperCase()}观看时长排行失败`
         console.error(`获取${source.toUpperCase()}观看时长排行失败:`, err)
       } finally {
         this.loading[watchedKey] = false
       }
     },
 
+    // 使全部数据源的流量数据失效。
+    // 日期范围是作用于整个流量榜的筛选器，它一变，所有数据源此前获取的数据
+    // 在语义上都已过期 —— 包括当前未展示的那个。失败态一并清除，
+    // 使筛选条件变化后能重新尝试获取。
+    invalidateAllTrafficSources() {
+      ['plex', 'emby'].forEach((source) => {
+        const trafficKey = `traffic-${source}`
+        this.loaded[trafficKey] = false
+        this.errors[trafficKey] = null
+      })
+    },
+
     async loadTrafficData(source) {
       console.log(`开始加载流量数据 - ${source}`)
       
       const trafficKey = `traffic-${source}`
-      // 如果已经加载过该数据源的流量数据，直接返回
-      if (this.loaded[trafficKey]) {
-        console.log(`${source} 流量数据已加载，跳过`)
+      // 已按当前筛选条件获取成功、或处于失败态（保留失败提示待用户重试）时不重新请求
+      if (this.loaded[trafficKey] || this.errors[trafficKey]) {
+        console.log(`${source} 流量数据已加载或处于失败态，跳过`)
         return
       }
 
       this.loading[trafficKey] = true
-      this.error = null
+      this.errors[trafficKey] = null
 
       try {
         let response
@@ -1646,7 +1611,7 @@ export default {
         this.loaded[trafficKey] = true
         console.log(`${source} 流量数据加载完成`)
       } catch (err) {
-        this.error = err.response?.data?.detail || `获取${source.toUpperCase()}流量排行失败`
+        this.errors[trafficKey] = err.response?.data?.detail || `获取${source.toUpperCase()}流量排行失败`
         console.error(`获取${source.toUpperCase()}流量排行失败:`, err)
       } finally {
         this.loading[trafficKey] = false
@@ -1657,13 +1622,14 @@ export default {
       console.log(`开始加载游戏榜数据 - ${source}`)
 
       const gameKey = `game-${source}`
-      if (this.loaded[gameKey]) {
-        console.log(`${source} 游戏榜数据已加载，跳过`)
+      // 已获取成功、或处于失败态（保留失败提示待用户重试）时不重新请求
+      if (this.loaded[gameKey] || this.errors[gameKey]) {
+        console.log(`${source} 游戏榜数据已加载或处于失败态，跳过`)
         return
       }
 
       this.loading[gameKey] = true
-      this.error = null
+      this.errors[gameKey] = null
 
       try {
         let response
@@ -1712,7 +1678,7 @@ export default {
         this.syncGameRankingTypeBySource(source)
         console.log(`${source} 游戏榜数据加载完成`)
       } catch (err) {
-        this.error = err.response?.data?.detail || `获取${source === 'wheel' ? '幸运大转盘' : source === 'treasure' ? '夺宝奇兵' : '大预言家'}排行榜失败`
+        this.errors[gameKey] = err.response?.data?.detail || `获取${source === 'wheel' ? '幸运大转盘' : source === 'treasure' ? '夺宝奇兵' : '大预言家'}排行榜失败`
         console.error(`获取${source} 游戏榜失败:`, err)
       } finally {
         this.loading[gameKey] = false
@@ -1732,39 +1698,24 @@ export default {
       return names[tab] || '排行榜'
     },
 
-    isCurrentTabLoading() {
-      if (this.activeTab === 'watched') {
-        return this.loading[`watched-${this.watchedTimeSource}`]
-      }
-      if (this.activeTab === 'traffic') {
-        return this.loading[`traffic-${this.trafficSource}`]
-      }
-      if (this.activeTab === 'game') {
-        return this.loading[`game-${this.gameSource}`]
-      }
-      return this.loading[this.activeTab]
-    },
+    // 重试指定状态键对应的那一格数据。
+    // 由各榜单区域内的重试按钮调用 —— 作用范围与按钮位置一致。
+    async forceRefreshData(stateKey) {
+      console.log(`重试加载: ${stateKey}`)
 
-    // 强制重新加载当前标签页数据
-    async forceRefreshData() {
-      console.log('强制刷新数据...')
-      
-      // 重置加载状态
-      if (this.activeTab === 'watched') {
-        const watchedKey = `watched-${this.watchedTimeSource}`
-        this.loaded[watchedKey] = false
-        await this.loadWatchedTimeData(this.watchedTimeSource)
-      } else if (this.activeTab === 'traffic') {
-        const trafficKey = `traffic-${this.trafficSource}`
-        this.loaded[trafficKey] = false
-        await this.loadTrafficData(this.trafficSource)
-      } else if (this.activeTab === 'game') {
-        const gameKey = `game-${this.gameSource}`
-        this.loaded[gameKey] = false
-        await this.loadGameData(this.gameSource)
+      // 清除该格的成功与失败标记，使其重新发起请求
+      this.loaded[stateKey] = false
+      this.errors[stateKey] = null
+
+      const [tab, source] = stateKey.split('-')
+      if (tab === 'watched') {
+        await this.loadWatchedTimeData(source)
+      } else if (tab === 'traffic') {
+        await this.loadTrafficData(source)
+      } else if (tab === 'game') {
+        await this.loadGameData(source)
       } else {
-        this.loaded[this.activeTab] = false
-        await this.loadTabData(this.activeTab)
+        await this.loadTabData(stateKey)
       }
     },
 
@@ -1797,6 +1748,20 @@ export default {
         { title: '中奖期数排名', value: 'treasure_win_issue' },
         { title: '中奖积分排名', value: 'treasure_win_credits' }
       ]
+    },
+
+    // 当前数据源的观看时长排行
+    getCurrentWatchedTimeRankings() {
+      return this.watchedTimeSource === 'plex'
+        ? this.rankings.watched_time_rank_plex
+        : this.rankings.watched_time_rank_emby
+    },
+
+    // 当前数据源的流量排行
+    getCurrentTrafficRankings() {
+      return this.trafficSource === 'plex'
+        ? this.rankings.traffic_rank_plex
+        : this.rankings.traffic_rank_emby
     },
 
     getCurrentGameRankings() {
@@ -2097,9 +2062,8 @@ export default {
         }
 
         if (this.activeTab === 'traffic') {
-          // 重置加载状态并重新加载数据
-          const trafficKey = `traffic-${this.trafficSource}`
-          this.loaded[trafficKey] = false
+          // 日期变化：全部数据源的流量数据一并失效
+          this.invalidateAllTrafficSources()
           this.loadTrafficData(this.trafficSource)
         }
       }
@@ -2134,8 +2098,8 @@ export default {
       this.showDatePicker = false
       // 触发数据重新加载
       if (this.activeTab === 'traffic') {
-        const trafficKey = `traffic-${this.trafficSource}`
-        this.loaded[trafficKey] = false
+        // 日期变化：全部数据源的流量数据一并失效
+        this.invalidateAllTrafficSources()
         this.loadTrafficData(this.trafficSource)
       }
     },
@@ -2197,13 +2161,6 @@ export default {
   margin: 0 0 16px 0;
 }
 
-.refresh-btn {
-  margin-top: 16px;
-  font-weight: 600;
-  border-radius: 12px;
-  transition: all 0.3s ease;
-}
-
 .transparent-container {
   background: transparent !important;
 }
@@ -2238,42 +2195,7 @@ export default {
   min-width: 100%; /* 确保有足够宽度 */
 }
 
-/* 加载状态样式 */
-.loading-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 200px;
-  margin: 40px 0;
-}
-
-.loading-content {
-  text-align: center;
-  padding: 30px;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 16px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(10px);
-}
-
-.loading-text {
-  margin-top: 16px;
-  font-size: 16px;
-  color: #666;
-  font-weight: 500;
-}
-
-/* 错误状态样式 */
-.error-container {
-  text-align: center;
-  margin: 40px 0;
-}
-
-.error-alert {
-  background: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(10px);
-  border: none !important;
-}
+/* 加载中与失败状态的样式已随状态展示单元迁移至 RankingStateBlock.vue */
 
 .tab-item {
   font-weight: 600;
