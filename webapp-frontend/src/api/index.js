@@ -52,6 +52,10 @@ export const getWheelGameRankings = () => {
   return apiClient.get('/api/rankings/game/wheel')
 }
 
+export const getBlackjackGameRankings = () => {
+  return apiClient.get('/api/rankings/game/blackjack')
+}
+
 export const getTreasureGameRankings = () => {
   return apiClient.get('/api/rankings/game/treasure')
 }

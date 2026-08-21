@@ -679,6 +679,114 @@
                 </v-card-actions>
               </v-card>
 
+              <!-- 21 点卡片 -->
+              <v-card class="activity-card-enhanced">
+                <v-card-title class="d-flex align-center">
+                  <v-icon class="mr-2" color="pink">mdi-cards-playing</v-icon>
+                  <span>21 点</span>
+                  <v-spacer></v-spacer>
+                  <v-chip
+                    :color="blackjackEnabled ? 'success' : 'grey'"
+                    size="small"
+                    variant="flat"
+                  >
+                    <v-icon start size="12">
+                      {{ blackjackEnabled ? 'mdi-check-circle' : 'mdi-pause-circle' }}
+                    </v-icon>
+                    {{ blackjackEnabled ? '运行中' : '已停用' }}
+                  </v-chip>
+                </v-card-title>
+
+                <v-card-text>
+                  <p class="text-body-2 text-medium-emphasis mb-4">
+                    调整注额档位、参与门槛、抽水比率与拆分、庄家规则与超时时限，控制活动开关
+                  </p>
+
+                  <div class="activity-stats mb-4">
+                    <v-row dense>
+                      <v-col cols="4">
+                        <div class="stat-item">
+                          <div class="stat-value">{{ blackjackStats.total_hands || 0 }}</div>
+                          <div class="stat-label">总手数</div>
+                        </div>
+                      </v-col>
+                      <v-col cols="4">
+                        <div class="stat-item">
+                          <div class="stat-value text-success">{{ blackjackStats.total_players || 0 }}</div>
+                          <div class="stat-label">参与人数</div>
+                        </div>
+                      </v-col>
+                      <v-col cols="4">
+                        <div class="stat-item">
+                          <div class="stat-value text-info">{{ blackjackStats.today_hands || 0 }}</div>
+                          <div class="stat-label">今日手数</div>
+                        </div>
+                      </v-col>
+                    </v-row>
+
+                    <v-row dense>
+                      <v-col cols="4">
+                        <div class="stat-item">
+                          <div class="stat-value text-error">{{ blackjackStats.total_wagered?.toFixed(2) || '0.00' }}</div>
+                          <div class="stat-label">累计押注</div>
+                        </div>
+                      </v-col>
+                      <v-col cols="4">
+                        <div class="stat-item">
+                          <div class="stat-value text-warning">{{ blackjackStats.total_rake?.toFixed(2) || '0.00' }}</div>
+                          <div class="stat-label">累计抽水</div>
+                        </div>
+                      </v-col>
+                      <v-col cols="4">
+                        <div class="stat-item">
+                          <!-- 玩家视角：为负说明活动在净回收积分，与设计意图一致，故负值反而是好结果 -->
+                          <div
+                            class="stat-value"
+                            :class="blackjackStats.net_credits > 0 ? 'text-error' : 'text-success'"
+                          >
+                            {{ blackjackStats.net_credits?.toFixed(2) || '0.00' }}
+                          </div>
+                          <div class="stat-label">玩家净变化</div>
+                        </div>
+                      </v-col>
+                    </v-row>
+
+                    <v-row dense>
+                      <v-col cols="4">
+                        <div class="stat-item">
+                          <div class="stat-value text-secondary">{{ blackjackStats.active_hands || 0 }}</div>
+                          <div class="stat-label">进行中</div>
+                        </div>
+                      </v-col>
+                      <v-col cols="4">
+                        <div class="stat-item">
+                          <div class="stat-value text-warning">{{ blackjackStats.jackpot_balance?.toFixed(2) || '0.00' }}</div>
+                          <div class="stat-label">奖池余额</div>
+                        </div>
+                      </v-col>
+                      <v-col cols="4">
+                        <div class="stat-item">
+                          <div class="stat-value text-info">{{ blackjackStats.jackpot_paid?.toFixed(2) || '0.00' }}</div>
+                          <div class="stat-label">奖池已派彩</div>
+                        </div>
+                      </v-col>
+                    </v-row>
+                  </div>
+                </v-card-text>
+
+                <v-card-actions class="pa-4 pt-0">
+                  <v-btn
+                    color="pink"
+                    variant="elevated"
+                    block
+                    @click="openBlackjackManagement"
+                  >
+                    <v-icon start>mdi-cog</v-icon>
+                    进入 21 点管理
+                  </v-btn>
+                </v-card-actions>
+              </v-card>
+
               <!-- 竞拍活动卡片 -->
               <v-card class="activity-card-enhanced">
                 <v-card-title class="d-flex align-center">
@@ -1867,6 +1975,34 @@
       </v-card>
     </v-dialog>
 
+    <!-- 21 点管理弹窗 -->
+    <v-dialog
+      v-model="showBlackjackManagement"
+      fullscreen
+      transition="dialog-bottom-transition"
+      :persistent="true"
+    >
+      <v-card>
+        <v-toolbar color="pink" dark>
+          <v-btn icon dark @click="closeBlackjackManagement">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+          <v-toolbar-title>
+            <v-icon class="mr-2">mdi-cards-playing</v-icon>
+            21 点管理
+          </v-toolbar-title>
+          <v-spacer></v-spacer>
+          <v-btn icon dark @click="refreshBlackjackPanel">
+            <v-icon>mdi-refresh</v-icon>
+          </v-btn>
+        </v-toolbar>
+
+        <div style="height: calc(100vh - 64px); overflow-y: auto;">
+          <BlackjackAdminPanel ref="blackjackAdminPanel" @show-message="showMessage" />
+        </div>
+      </v-card>
+    </v-dialog>
+
     <!-- 礼包管理弹窗 -->
     <v-dialog
       v-model="showGiftPackManagement"
@@ -2722,11 +2858,13 @@ import DonationRegistrationManagementDialog from '@/components/DonationRegistrat
 import AdminInviteCodeDialog from '@/components/AdminInviteCodeDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import WheelAdminPanel from '@/components/WheelAdminPanel.vue'
+import BlackjackAdminPanel from '@/components/BlackjackAdminPanel.vue'
 import GiftPackAdminPanel from '@/components/GiftPackAdminPanel.vue'
 import BadgeEditorDialog from '@/components/BadgeEditorDialog.vue'
 import CustomLineManagement from '@/components/CustomLineManagement.vue'
 import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits, setPremiumDailyCredits, setUserTrafficLimit, setPremiumUserTrafficLimit, setPremiumUnlockEnabled, setCreditsTransferEnabled, setLineScheduleUnlockCredits, setDownloadUnlockCredits } from '@/services/adminService.js'
 import { getWheelStats } from '@/services/wheelService.js'
+import { getBlackjackConfig, getBlackjackAdminStats } from '@/services/blackjackService.js'
 import { getAuctionStats, getAllAuctions, finishExpiredAuctions, finishAuction, deleteAuction, createAuction, getAuctionBids, updateAuction } from '@/services/auctionService.js'
 import { listTreasureIssues, createTreasureIssue, cancelTreasureIssue } from '@/services/treasureService.js'
 import { listPredictionMarkets, createPredictionMarket, closePredictionMarket, resolvePredictionMarket } from '@/services/predictionService.js'
@@ -2745,6 +2883,7 @@ export default {
     AdminInviteCodeDialog,
     LineManagementDialog,
     WheelAdminPanel,
+    BlackjackAdminPanel,
     GiftPackAdminPanel,
     BadgeEditorDialog,
     CustomLineManagement
@@ -2804,6 +2943,18 @@ export default {
         upcoming_packs: 0,
         total_claims: 0
       },
+      // 21 点运营统计。金额项只统计已结束的手牌，进行中的押注不计入
+      blackjackStats: {
+        total_hands: 0,
+        active_hands: 0,
+        total_players: 0,
+        today_hands: 0,
+        total_wagered: 0,
+        total_rake: 0,
+        net_credits: 0,
+        jackpot_paid: 0,
+        jackpot_balance: 0
+      },
       // 竞拍管理相关数据
       auctionStatsLoading: false,
       auctionStatsError: null,
@@ -2841,6 +2992,8 @@ export default {
         { title: '操作', key: 'actions', sortable: false, width: 160 }
       ],
       showWheelManagement: false,
+      showBlackjackManagement: false,
+      blackjackEnabled: false,
       showAuctionManagement: false,
       showTreasureManagement: false,
       showPredictionManagement: false,
@@ -2957,7 +3110,9 @@ export default {
           this.loadAuctionStats(),
           this.loadTreasureStats(),
           this.loadPredictionStats(),
-          this.loadGiftPackStats()
+          this.loadGiftPackStats(),
+          this.loadBlackjackStatus(),
+          this.loadBlackjackStats()
         ])
       }
     }
@@ -2991,7 +3146,8 @@ export default {
             this.loadAuctionStats(),
             this.loadTreasureStats(),
             this.loadPredictionStats(),
-            this.loadGiftPackStats()
+            this.loadGiftPackStats(),
+            this.loadBlackjackStatus()
           ])
         }
         this.loading = false
@@ -3715,6 +3871,57 @@ export default {
       this.showWheelManagement = false;
       // 关闭时刷新统计数据
       this.loadWheelStats();
+    },
+
+    // 打开 21 点管理
+    openBlackjackManagement() {
+      this.showBlackjackManagement = true;
+    },
+
+    // 关闭 21 点管理
+    closeBlackjackManagement() {
+      this.showBlackjackManagement = false;
+      // 关闭时刷新开关状态，使卡片上的运行中/已停用标记与后端一致；
+      // 面板里注入奖池种子会改变余额，故统计也一并重取
+      this.loadBlackjackStatus();
+      this.loadBlackjackStats();
+    },
+
+    // 刷新 21 点管理面板
+    async refreshBlackjackPanel() {
+      const panel = this.$refs.blackjackAdminPanel;
+      if (!panel) {
+        this.showMessage('面板尚未就绪', 'warning');
+        return;
+      }
+      await panel.load();
+      // 面板自身会在失败时展示错误，此处仅在确实加载成功时才报成功
+      if (panel.loadError) {
+        this.showMessage(panel.loadError, 'error');
+      } else {
+        this.showMessage('配置已刷新');
+      }
+    },
+
+    // 读取 21 点开关状态，用于卡片上的状态标记
+    async loadBlackjackStatus() {
+      try {
+        const response = await getBlackjackConfig()
+        this.blackjackEnabled = !!response.data.enabled
+      } catch (error) {
+        console.error('加载 21 点状态失败:', error);
+        this.blackjackEnabled = false
+      }
+    },
+
+    // 读取 21 点运营统计。仅管理员可调，故只在活动管理 tab 内触发
+    async loadBlackjackStats() {
+      try {
+        const response = await getBlackjackAdminStats()
+        this.blackjackStats = response.data
+      } catch (error) {
+        console.error('加载 21 点统计失败:', error);
+      }
     },
 
     // 打开竞拍管理

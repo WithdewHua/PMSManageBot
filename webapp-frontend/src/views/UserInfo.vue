@@ -1000,6 +1000,89 @@
                   </div>
                 </v-expand-transition>
               </div>
+
+              <!-- 21 点数据 -->
+              <div class="activity-section blackjack-section">
+                <v-divider class="my-3"></v-divider>
+                <div class="section-header section-header-with-action">
+                  <div class="d-flex align-center">
+                    <v-icon size="small" color="pink-darken-1" class="mr-2">mdi-cards-playing</v-icon>
+                    <span class="section-title">21 点</span>
+                  </div>
+                  <v-btn
+                    size="small"
+                    variant="text"
+                    color="primary"
+                    class="list-toggle-btn"
+                    @click="blackjackSectionExpanded = !blackjackSectionExpanded"
+                  >
+                    {{ blackjackSectionExpanded ? '收起' : '展开' }}
+                    <v-icon end size="small">{{ blackjackSectionExpanded ? 'mdi-chevron-up' : 'mdi-chevron-down' }}</v-icon>
+                  </v-btn>
+                </div>
+                <v-expand-transition>
+                  <div v-show="blackjackSectionExpanded">
+                    <div v-if="blackjackLoading" class="activity-loading">
+                      <v-progress-circular
+                        indeterminate
+                        color="primary"
+                        size="30"
+                        width="3"
+                      ></v-progress-circular>
+                      <span class="ml-2">加载中...</span>
+                    </div>
+
+                    <div v-else class="treasure-stats-grid">
+                      <div class="stats-card blackjack-stats">
+                        <div class="stats-card-header">
+                          <v-icon size="small" color="pink-darken-1">mdi-cards-playing-outline</v-icon>
+                          <span>牌局统计</span>
+                        </div>
+                        <div class="stats-items">
+                          <div class="stat-item">
+                            <span class="stat-label">累计手数</span>
+                            <span class="stat-value blackjack-value">{{ blackjackStats.total_hands || 0 }}</span>
+                          </div>
+                          <div class="stat-item">
+                            <span class="stat-label">胜率</span>
+                            <span class="stat-value blackjack-value">{{ Number(blackjackStats.win_rate || 0).toFixed(2) }}%</span>
+                          </div>
+                          <div class="stat-item">
+                            <!-- 决策准确率是 21 点里唯一纯粹反映技巧的口径，故置于醒目位置 -->
+                            <span class="stat-label">决策准确率</span>
+                            <span class="stat-value blackjack-accuracy-value">{{ Number(blackjackStats.accuracy || 0).toFixed(2) }}%</span>
+                          </div>
+                          <div class="stat-item">
+                            <span class="stat-label">累计决策次数</span>
+                            <span class="stat-value blackjack-value">{{ blackjackStats.decisions_total || 0 }}</span>
+                          </div>
+                          <div class="stat-item">
+                            <span class="stat-label">净积分变动</span>
+                            <span
+                              class="stat-value blackjack-value"
+                              :class="Number(blackjackStats.net_credits || 0) >= 0 ? 'positive' : 'negative'"
+                            >
+                              {{ Number(blackjackStats.net_credits || 0) >= 0 ? '+' : '' }}{{ Number(blackjackStats.net_credits || 0).toFixed(2) }}
+                            </span>
+                          </div>
+                          <div class="stat-item">
+                            <span class="stat-label">单手最大赢利</span>
+                            <span class="stat-value blackjack-win-value">{{ Number(blackjackStats.max_win || 0).toFixed(2) }}</span>
+                          </div>
+                          <div class="stat-item">
+                            <span class="stat-label">累计奖池派彩</span>
+                            <span class="stat-value blackjack-jackpot-value">{{ Number(blackjackStats.jackpot_total || 0).toFixed(2) }}</span>
+                          </div>
+                        </div>
+                        <!-- 后端把奖池派彩与赔付分开记账，不注明的话这几个数字看着对不上 -->
+                        <div class="stats-card-note">
+                          净积分变动与单手最大赢利均不含奖池派彩
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </v-expand-transition>
+              </div>
             </div>
           </v-card-text>
         </v-card>
@@ -1199,6 +1282,7 @@ import { checkPrivilegedInviteCode, batchCheckPrivilegedInviteCodes } from '@/se
 import { getUserActivityStats } from '@/services/wheelService.js'
 import { getUserTreasureStats } from '@/services/treasureService.js'
 import { getUserPredictionStats } from '@/services/predictionService.js'
+import { getUserBlackjackStats } from '@/services/blackjackService.js'
 import { formatTraffic } from '@/utils/format.js'
 import { getMyBadges } from '@/services/badgeService.js'
 
@@ -1292,6 +1376,19 @@ export default {
         unsettled_bet_amount: 0,
         recent_settlements: []
       },
+      blackjackSectionExpanded: false,
+      blackjackLoading: false,
+      // 净积分与单手最大赢利均**不含**奖池派彩，后端如此分开记账：
+      // 奖池衡量的是运气，混进去会让这两项失去反映打法的意义
+      blackjackStats: {
+        total_hands: 0,
+        net_credits: 0,
+        max_win: 0,
+        win_rate: 0,
+        accuracy: 0,
+        decisions_total: 0,
+        jackpot_total: 0
+      },
       systemStatus: {
         site_name: '', // 默认值，从后端获取后会更新
         emby_entry_url: '', // 默认值，从后端获取后会更新
@@ -1316,6 +1413,7 @@ export default {
     this.fetchActivityStats()
     this.fetchTreasureStats()
     this.fetchPredictionStats()
+    this.fetchBlackjackStats()
     this.fetchSystemStatus() // 这里会同时获取系统状态和积分转移开关状态
     this.fetchUserBadges()
   },
@@ -1423,6 +1521,26 @@ export default {
       } catch (err) {
         console.error('获取大预言家统计数据失败:', err)
         // 不显示错误，使用默认值
+      }
+    },
+
+    // 获取 21 点统计数据。
+    // 该接口直接返回统计对象，没有 {success, data} 外壳，与夺宝/大预言家不同
+    async fetchBlackjackStats() {
+      try {
+        this.blackjackLoading = true
+        const response = await getUserBlackjackStats()
+        if (response.data) {
+          this.blackjackStats = {
+            ...this.blackjackStats,
+            ...response.data
+          }
+        }
+      } catch (err) {
+        console.error('获取 21 点统计数据失败:', err)
+        // 不显示错误，使用默认值
+      } finally {
+        this.blackjackLoading = false
       }
     },
 
@@ -2807,6 +2925,40 @@ export default {
   background: linear-gradient(135deg, rgba(67, 160, 71, 0.14) 0%, rgba(67, 160, 71, 0.06) 100%);
   color: #2E7D32;
   border: 1px solid rgba(67, 160, 71, 0.3);
+}
+
+.blackjack-value {
+  background: linear-gradient(135deg, rgba(233, 30, 99, 0.12) 0%, rgba(233, 30, 99, 0.05) 100%);
+  color: #C2185B;
+  border: 1px solid rgba(233, 30, 99, 0.28);
+}
+
+/* 决策准确率是唯一纯技巧口径，用更实的底色与主榜地位相称 */
+.blackjack-accuracy-value {
+  background: linear-gradient(135deg, rgba(156, 39, 176, 0.16) 0%, rgba(156, 39, 176, 0.07) 100%);
+  color: #7B1FA2;
+  border: 1px solid rgba(156, 39, 176, 0.32);
+}
+
+.blackjack-win-value {
+  background: linear-gradient(135deg, rgba(67, 160, 71, 0.14) 0%, rgba(67, 160, 71, 0.06) 100%);
+  color: #2E7D32;
+  border: 1px solid rgba(67, 160, 71, 0.3);
+}
+
+.blackjack-jackpot-value {
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.16) 0%, rgba(255, 193, 7, 0.06) 100%);
+  color: #F57C00;
+  border: 1px solid rgba(255, 193, 7, 0.32);
+}
+
+.stats-card-note {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.08);
+  font-size: 12px;
+  color: #888;
+  line-height: 1.5;
 }
 
 .stat-value.positive {

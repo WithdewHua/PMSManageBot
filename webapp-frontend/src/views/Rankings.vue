@@ -790,6 +790,7 @@
                   v-model="gameSource"
                   :items="[
                     { title: '幸运大转盘', value: 'wheel' },
+                    { title: '21 点', value: 'blackjack' },
                     { title: '夺宝奇兵', value: 'treasure' },
                     { title: '大预言家', value: 'prediction' }
                   ]"
@@ -1264,7 +1265,7 @@
 </template>
 
 <script>
-import { getCreditsRankings, getDonationRankings, getPlexWatchedTimeRankings, getEmbyWatchedTimeRankings, getPlexTrafficRankings, getEmbyTrafficRankings, getInvitationRankings, getBadgeRankings, getWheelGameRankings, getTreasureGameRankings, getPredictionGameRankings } from '@/api'
+import { getCreditsRankings, getDonationRankings, getPlexWatchedTimeRankings, getEmbyWatchedTimeRankings, getPlexTrafficRankings, getEmbyTrafficRankings, getInvitationRankings, getBadgeRankings, getWheelGameRankings, getBlackjackGameRankings, getTreasureGameRankings, getPredictionGameRankings } from '@/api'
 import { getWatchLevelIcons } from '@/utils/watchLevel.js'
 import { getUserBadges } from '@/services/badgeService.js'
 import RankingStateBlock from '@/components/RankingStateBlock.vue'
@@ -1282,6 +1283,7 @@ const STATE_KEYS = [
   'traffic-plex',
   'traffic-emby',
   'game-wheel',
+  'game-blackjack',
   'game-treasure',
   'game-prediction'
 ]
@@ -1318,6 +1320,9 @@ export default {
         badge_rank: [],
         wheel_credits_rank: [],
         wheel_invite_code_rank: [],
+        blackjack_accuracy_rank: [],
+        blackjack_win_rate_rank: [],
+        blackjack_max_win_rank: [],
         treasure_win_issue_rank: [],
         treasure_win_credits_rank: [],
         prediction_net_profit_rank: [],
@@ -1646,6 +1651,22 @@ export default {
             wheel_credits_rank: this.rankings.wheel_credits_rank,
             wheel_invite_code_rank: this.rankings.wheel_invite_code_rank
           })
+        } else if (source === 'blackjack') {
+          console.log('调用 21 点排行榜API...')
+          response = await getBlackjackGameRankings()
+          this.rankings.blackjack_accuracy_rank = response.data.blackjack_accuracy_rank || []
+          this.rankings.blackjack_win_rate_rank = response.data.blackjack_win_rate_rank || []
+          this.rankings.blackjack_max_win_rank = response.data.blackjack_max_win_rank || []
+          await this.loadBadgesForRankings([
+            ...this.rankings.blackjack_accuracy_rank,
+            ...this.rankings.blackjack_win_rate_rank,
+            ...this.rankings.blackjack_max_win_rank
+          ])
+          console.log('21 点排行榜数据:', {
+            blackjack_accuracy_rank: this.rankings.blackjack_accuracy_rank,
+            blackjack_win_rate_rank: this.rankings.blackjack_win_rate_rank,
+            blackjack_max_win_rank: this.rankings.blackjack_max_win_rank
+          })
         } else if (source === 'treasure') {
           console.log('调用夺宝奇兵排行榜API...')
           response = await getTreasureGameRankings()
@@ -1678,7 +1699,13 @@ export default {
         this.syncGameRankingTypeBySource(source)
         console.log(`${source} 游戏榜数据加载完成`)
       } catch (err) {
-        this.errors[gameKey] = err.response?.data?.detail || `获取${source === 'wheel' ? '幸运大转盘' : source === 'treasure' ? '夺宝奇兵' : '大预言家'}排行榜失败`
+        const sourceNames = {
+          wheel: '幸运大转盘',
+          blackjack: '21 点',
+          treasure: '夺宝奇兵',
+          prediction: '大预言家'
+        }
+        this.errors[gameKey] = err.response?.data?.detail || `获取${sourceNames[source] || source}排行榜失败`
         console.error(`获取${source} 游戏榜失败:`, err)
       } finally {
         this.loading[gameKey] = false
@@ -1723,6 +1750,9 @@ export default {
       if (source === 'wheel' && !['wheel_credits', 'wheel_invite_code'].includes(this.gameRankingType)) {
         this.gameRankingType = 'wheel_credits'
       }
+      if (source === 'blackjack' && !['blackjack_accuracy', 'blackjack_win_rate', 'blackjack_max_win'].includes(this.gameRankingType)) {
+        this.gameRankingType = 'blackjack_accuracy'
+      }
       if (source === 'treasure' && !['treasure_win_issue', 'treasure_win_credits'].includes(this.gameRankingType)) {
         this.gameRankingType = 'treasure_win_issue'
       }
@@ -1736,6 +1766,13 @@ export default {
         return [
           { title: '积分赚取排名', value: 'wheel_credits' },
           { title: '邀请码赚取排名', value: 'wheel_invite_code' }
+        ]
+      }
+      if (this.gameSource === 'blackjack') {
+        return [
+          { title: '决策准确率排名', value: 'blackjack_accuracy' },
+          { title: '胜率排名', value: 'blackjack_win_rate' },
+          { title: '单手最大赢利排名', value: 'blackjack_max_win' }
         ]
       }
       if (this.gameSource === 'prediction') {
@@ -1770,6 +1807,12 @@ export default {
           return this.rankings.wheel_credits_rank
         case 'wheel_invite_code':
           return this.rankings.wheel_invite_code_rank
+        case 'blackjack_accuracy':
+          return this.rankings.blackjack_accuracy_rank
+        case 'blackjack_win_rate':
+          return this.rankings.blackjack_win_rate_rank
+        case 'blackjack_max_win':
+          return this.rankings.blackjack_max_win_rank
         case 'treasure_win_issue':
           return this.rankings.treasure_win_issue_rank
         case 'treasure_win_credits':
@@ -1787,6 +1830,9 @@ export default {
       const titleMap = {
         wheel_credits: '转盘赚取积分排名',
         wheel_invite_code: '邀请码赚取排名',
+        blackjack_accuracy: '21 点决策准确率排名',
+        blackjack_win_rate: '21 点胜率排名',
+        blackjack_max_win: '21 点单手最大赢利排名',
         treasure_win_issue: '中奖期数排名',
         treasure_win_credits: '中奖积分排名',
         prediction_net_profit: '大预言家净盈亏排名',
@@ -1801,6 +1847,12 @@ export default {
           return `${Number(item.earned_credits || 0).toFixed(2)} 积分 / ${item.play_count || 0} 次`
         case 'wheel_invite_code':
           return `${item.invite_code_count || 0} 枚邀请码`
+        case 'blackjack_accuracy':
+          return `${Number(item.accuracy || 0).toFixed(2)}% (${item.decisions_total || 0} 次决策 / ${item.hand_count || 0} 手)`
+        case 'blackjack_win_rate':
+          return `${Number(item.win_rate || 0).toFixed(2)}% (${item.hand_count || 0} 手 · 准确率 ${Number(item.accuracy || 0).toFixed(1)}%)`
+        case 'blackjack_max_win':
+          return `+${Number(item.max_win || 0).toFixed(2)} 积分 / ${item.hand_count || 0} 手`
         case 'treasure_win_issue':
           return `${item.win_issue_count || 0} 期`
         case 'treasure_win_credits':
@@ -1820,6 +1872,12 @@ export default {
           return 'mdi-star'
         case 'wheel_invite_code':
           return 'mdi-ticket-confirmation'
+        case 'blackjack_accuracy':
+          return 'mdi-school-outline'
+        case 'blackjack_win_rate':
+          return 'mdi-cards-playing'
+        case 'blackjack_max_win':
+          return 'mdi-trending-up'
         case 'treasure_win_issue':
           return 'mdi-trophy'
         case 'treasure_win_credits':
@@ -1839,6 +1897,12 @@ export default {
           return 'amber'
         case 'wheel_invite_code':
           return 'green'
+        case 'blackjack_accuracy':
+          return 'pink'
+        case 'blackjack_win_rate':
+          return 'pink-lighten-1'
+        case 'blackjack_max_win':
+          return 'pink-lighten-2'
         case 'treasure_win_issue':
           return 'deep-orange'
         case 'treasure_win_credits':
@@ -1856,6 +1920,9 @@ export default {
       if (this.gameSource === 'wheel') {
         return 'mdi-wheel-barrow'
       }
+      if (this.gameSource === 'blackjack') {
+        return 'mdi-cards-playing'
+      }
       if (this.gameSource === 'treasure') {
         return 'mdi-treasure-chest'
       }
@@ -1868,6 +1935,9 @@ export default {
     getGameSourceIconColor() {
       if (this.gameSource === 'wheel') {
         return 'indigo'
+      }
+      if (this.gameSource === 'blackjack') {
+        return 'pink'
       }
       if (this.gameSource === 'treasure') {
         return 'amber-darken-2'

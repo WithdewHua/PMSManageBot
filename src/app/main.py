@@ -192,6 +192,41 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每天凌晨 2 点检查过期竞拍活动（兜底机制）")
 
+    # 每 10 分钟清理超时的 21 点手牌（兜底机制）
+    # 单手超时时限默认 15 分钟，调度任务丢失或用户不再回来时由本任务兜底，
+    # 避免手牌带着已扣的押注长期悬挂
+    from app.webapp.routers.activities.blackjack import (
+        sweep_expired_blackjack_hands_job,
+    )
+
+    scheduler.add_async_job(
+        func=sweep_expired_blackjack_hands_job,
+        trigger="cron",
+        id="sweep_expired_blackjack_hands_fallback",
+        replace_existing=True,
+        max_instances=1,
+        minute="*/10",
+    )
+    logger.info("添加定时任务：每 10 分钟清理超时的 21 点手牌（兜底机制）")
+
+    # 每分钟播报新产生的 21 点幸运奖池中奖
+    # 用游标轮询而非在结算处挂钩子：派彩散落在发牌、停牌、加倍、超时任务、
+    # 定时兜底与惰性清理六条路径上，逐条挂钩极易漏播。查询走主键范围
+    # (id > 游标)，扫描量只有上一轮之后的新增手牌，故可以跑得这么频繁。
+    from app.webapp.routers.activities.blackjack import (
+        notify_blackjack_jackpot_wins_job,
+    )
+
+    scheduler.add_async_job(
+        func=notify_blackjack_jackpot_wins_job,
+        trigger="cron",
+        id="notify_blackjack_jackpot_wins",
+        replace_existing=True,
+        max_instances=1,  # 游标的并发安全依赖于此
+        minute="*",
+    )
+    logger.info("添加定时任务：每分钟播报 21 点幸运奖池中奖")
+
     # 每 5 分钟检查 Premium 会员过期状态 (异步任务)
     scheduler.add_async_job(
         func=check_premium_expiry,
@@ -336,6 +371,14 @@ def add_init_scheduler_job():
         restore_auction_schedules()
     except Exception as e:
         logger.error(f"恢复竞拍定时任务失败: {e}")
+
+    # 恢复进行中 21 点手牌的超时任务
+    try:
+        from app.webapp.routers.activities.blackjack import restore_blackjack_timeouts
+
+        restore_blackjack_timeouts()
+    except Exception as e:
+        logger.error(f"恢复 21 点超时任务失败: {e}")
 
     # 每周一凌晨 00:05 分发送每周统计报告
     scheduler.add_async_job(

@@ -634,6 +634,14 @@ class SystemConfig(Base):
     - free_premium_line: Free premium lines (key=line_name, value=enabled)
     - line_tag: Line tags (key=line_name, value=comma-separated tags)
     - lucky_wheel: Lucky wheel config (key=config/randomness_config, value=json)
+    - blackjack: 21 点配置 (key=config, value=json；key=jackpot_fund, value=幸运奖池余额)
+    - prediction_market: 大预言家配置 (key=config/glory_fund, value=json)
+
+    注意：`prediction_market.glory_fund`（荣耀奖池余额）**仅由大预言家注入**。
+    21 点的抽水注入的是自有的 `blackjack.jackpot_fund`（幸运奖池，余额对玩家
+    可见），两者互不相干。两个余额都以**小数字符串**存储——21 点的单手注入天然
+    是小数，而荣耀奖池的读取端曾用 `int()` 解析、读到小数即抛错并把余额静默清零，
+    该隐患已一并修掉。
     """
 
     __tablename__ = "system_config"
@@ -1026,4 +1034,127 @@ class GiftPackUserState(Base):
         UniqueConstraint("pack_id", "tg_id", name="uq_gift_pack_user"),
         CheckConstraint("prompt_count >= 0", name="ck_gift_pack_state_prompt_count"),
         Index("idx_gift_pack_state_user_claimed", "tg_id", "claimed_at"),
+    )
+
+
+class BlackjackHand(Base):
+    """21 点手牌 - 一行代表用户的一次对局
+
+    牌靴不落库：只存随机种子与取牌游标，取第 N 张牌 = 用种子重建牌序后取
+    下标 N。种子在发牌时确定并写入，故服务端无法中途换牌，且任一已结束手牌
+    可凭种子完整复现以处理争议。`deck_seed` 与 `next_card_index` 绝不出现在
+    面向用户的接口响应中。
+
+    参数快照五列（rake_bp_on_profit / rake_jackpot_bp / blackjack_payout /
+    dealer_hits_soft_17 / hand_timeout_minutes）记录发牌当时生效的配置，结算与
+    超时判定都读快照而非读当前配置，使管理员改配置不影响进行中的手牌。
+    """
+
+    __tablename__ = "blackjack_hand"
+
+    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    tg_id: Mapped[int] = mapped_column(
+        BIGINT,
+        ForeignKey("statistics.tg_id", onupdate="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # 状态：1=玩家回合 2=庄家回合 3=已结算 4=超时弃牌（3、4 为终态）
+    status: Mapped[int] = mapped_column(SMALLINT, nullable=False, default=1)
+
+    # 注额
+    bet_credits: Mapped[int] = mapped_column(Integer, nullable=False)  # 基础注额
+    doubled: Mapped[int] = mapped_column(
+        SMALLINT, nullable=False, default=0
+    )  # 0=未加倍 1=已加倍（总押注为两份基础注额）
+
+    # 牌靴
+    deck_seed: Mapped[str] = mapped_column(
+        Text, nullable=False
+    )  # 定序种子，仅供服务端复现，不对外暴露
+    next_card_index: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0
+    )  # 下一张待发牌在牌序中的下标，只增不减
+
+    # 牌面（JSON 数组）
+    player_cards: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    dealer_cards: Mapped[str] = mapped_column(
+        Text, nullable=False, default="[]"
+    )  # 玩家回合期间响应层须裁剪为仅首张
+
+    # 结算结果
+    outcome: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True
+    )  # blackjack / win / push / lose / bust
+    payout_credits: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True
+    )  # 实际入账积分（含返还本金，已扣抽水）；**不含奖池派彩**
+    rake_credits: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True
+    )  # 本手抽水总额，仅作审计记录；销毁部分不另行落账
+    jackpot_won: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True
+    )  # 幸运奖池派彩，与 payout_credits 分别记账——并入会使单手最大赢利榜
+    # 退化成奖池中奖者名单
+
+    # 决策评判：落在手牌而非用户上，与参数快照同一哲学——每手牌自带其评判依据
+    # （当时的庄家规则），用户维度的准确率由聚合得到
+    decisions_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    decisions_correct: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # 是否为当日免抽水的那一手。与「快照 rake_bp_on_profit=0」信息重复，但仍单列：
+    # 管理员把全局抽水调为 0 时两者会混淆，显式一列让审计无歧义
+    rake_waived: Mapped[int] = mapped_column(SMALLINT, nullable=False, default=0)
+
+    # 参数快照（发牌时生效的配置）
+    rake_bp_on_profit: Mapped[int] = mapped_column(Integer, nullable=False, default=300)
+    rake_jackpot_bp: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=120
+    )  # 抽水中注入幸运奖池的部分（基点）
+    blackjack_payout: Mapped[float] = mapped_column(Float, nullable=False, default=1.5)
+    dealer_hits_soft_17: Mapped[int] = mapped_column(
+        SMALLINT, nullable=False, default=0
+    )  # 0=软 17 停牌 1=软 17 继续要牌
+    hand_timeout_minutes: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=15
+    )  # 超时时限；快照于此，故管理员调整时限不影响已发出的手牌
+
+    # Phase 2 争霸赛预留：恒为 NULL，不设外键与索引
+    tournament_id: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
+
+    created_at_ms: Mapped[int] = mapped_column(
+        BIGINT, nullable=False
+    )  # 毫秒时间戳，兼作发牌速率判定与当日首手判定的依据
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
+    )
+    settled_at: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)  # 秒时间戳
+
+    __table_args__ = (
+        CheckConstraint("bet_credits > 0", name="ck_blackjack_hand_bet_gt_0"),
+        CheckConstraint("status IN (1,2,3,4)", name="ck_blackjack_hand_status"),
+        CheckConstraint("doubled IN (0,1)", name="ck_blackjack_hand_doubled"),
+        CheckConstraint(
+            "next_card_index >= 0", name="ck_blackjack_hand_next_card_index_nonneg"
+        ),
+        CheckConstraint(
+            "hand_timeout_minutes > 0", name="ck_blackjack_hand_timeout_gt_0"
+        ),
+        CheckConstraint(
+            "decisions_total >= 0", name="ck_blackjack_hand_decisions_total_nonneg"
+        ),
+        CheckConstraint(
+            "decisions_correct >= 0 AND decisions_correct <= decisions_total",
+            name="ck_blackjack_hand_decisions_correct_range",
+        ),
+        CheckConstraint("rake_waived IN (0,1)", name="ck_blackjack_hand_rake_waived"),
+        CheckConstraint(
+            "jackpot_won IS NULL OR jackpot_won >= 0",
+            name="ck_blackjack_hand_jackpot_won_nonneg",
+        ),
+        # 「找该用户进行中的手牌」
+        Index("idx_blackjack_hand_user_status", "tg_id", "status"),
+        # 发牌速率判定、当日首手判定与各榜单
+        Index("idx_blackjack_hand_user_time", "tg_id", "created_at_ms"),
     )

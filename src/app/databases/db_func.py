@@ -26,6 +26,7 @@ from app.databases.db import db
 from app.databases.session import get_session
 from app.log import logger
 from app.models.models import (
+    BlackjackHand,
     EmbyUser,
     PlexUser,
     PredictionBet,
@@ -2690,6 +2691,7 @@ async def check_and_award_game_king_badge(
     - 幸运大转盘累计游戏次数 >= 5000 次
     - 夺宝奇兵累计参与期数 >= 500 期
     - 大预言家累计参与预测次数 >= 500 次
+    - 21 点累计手数 >= 2000 手**且**决策准确率 >= 80%
 
     Args:
         user_id: 可选，指定用户的 Telegram ID。如果提供，只检查该用户；否则检查所有符合条件的用户。
@@ -2700,6 +2702,21 @@ async def check_and_award_game_king_badge(
     WHEEL_SPIN_THRESHOLD = 5000
     TREASURE_ISSUE_THRESHOLD = 500
     PREDICTION_BET_THRESHOLD = 500
+    # 21 点按平均注额 15 计，等价投入量约 3300 手；取 2000 手略低于等价投入量，
+    # 因为单手需多次交互、耗时显著长于转盘一次点击，按投入量对等设定会形同虚设。
+    #
+    # 但**单以手数为条件是负期望游戏里的纯刷量激励**（2000 手 @ 注 15 的期望代价
+    # 是 −720 积分）。叠加决策准确率后，这条件奖励的变成「把牌打好」而非「打得多」。
+    # 80% 是刻意留出余地的阈值：严格照基本策略打是 100%，凭直觉打大约 70–85%。
+    #
+    # 两个阈值取自 21 点配置而非写死：spec 要求管理员可在线调整，SHALL NOT 需要
+    # 重新部署。其余三个活动的阈值本就不属于 21 点，维持原样。
+    _bj_config = db.get_blackjack_config_dict()
+    BLACKJACK_HAND_THRESHOLD = int(_bj_config.get("badge_min_hands", 2000))
+    BLACKJACK_ACCURACY_THRESHOLD = float(_bj_config.get("badge_min_accuracy", 80))
+    # 终态集合以引擎常量为单一来源，避免与 db 层的口径各自漂移
+    from app.blackjack_engine import TERMINAL_STATUSES as BLACKJACK_TERMINAL_STATUSES
+
     BADGE_TYPE = "game_king"
 
     if user_id:
@@ -2718,7 +2735,9 @@ async def check_and_award_game_king_badge(
                 description=(
                     f"此勋章授予游戏达人：大转盘累计游戏 {WHEEL_SPIN_THRESHOLD} 次，"
                     f"或夺宝奇兵累计参与 {TREASURE_ISSUE_THRESHOLD} 期，"
-                    f"或大预言家累计参与预测 {PREDICTION_BET_THRESHOLD} 次"
+                    f"或大预言家累计参与预测 {PREDICTION_BET_THRESHOLD} 次，"
+                    f"或 21 点累计 {BLACKJACK_HAND_THRESHOLD} 手"
+                    f"且决策准确率达 {int(BLACKJACK_ACCURACY_THRESHOLD)}%"
                 ),
                 icon_url="/badges/game_king.svg",
                 credits_cost=0,
@@ -2735,10 +2754,19 @@ async def check_and_award_game_king_badge(
         badge_name = badge_info.get("name", "游戏王勋章")
         valid_days = badge_info.get("valid_days", 36500)
 
+        # 21 点的双条件统计在**开启事务之前**取好：get_user_blackjack_stats 自带
+        # 一个 get_session()，在下方的 with 块内调用会同时占用两个连接。
+        blackjack_count = 0
+        blackjack_accuracy = 0.0
+        if user_id:
+            blackjack_stats = db.get_user_blackjack_stats(user_id)
+            blackjack_count = int(blackjack_stats.get("total_hands") or 0)
+            blackjack_accuracy = float(blackjack_stats.get("accuracy") or 0)
+
         # 2. 查询符合条件的用户
         with get_session() as session:
             if user_id:
-                # 单用户模式：分别检查大转盘次数、夺宝参与期数、大预言家预测次数
+                # 单用户模式：分别检查大转盘次数、夺宝参与期数、大预言家预测次数、21 点手数
                 wheel_count = (
                     session.execute(
                         select(func.count(WheelStats.id)).where(
@@ -2763,23 +2791,32 @@ async def check_and_award_game_king_badge(
                     ).scalar()
                     or 0
                 )
+                # 21 点为双条件：手数 + 决策准确率，两者须同时满足。
+                # 统计已在事务外取好，见上方注释。
+                blackjack_ok = (
+                    blackjack_count >= BLACKJACK_HAND_THRESHOLD
+                    and blackjack_accuracy >= BLACKJACK_ACCURACY_THRESHOLD
+                )
 
                 if (
                     wheel_count < WHEEL_SPIN_THRESHOLD
                     and treasure_count < TREASURE_ISSUE_THRESHOLD
                     and prediction_count < PREDICTION_BET_THRESHOLD
+                    and not blackjack_ok
                 ):
                     logger.info(
                         f"用户 {user_id} 不满足游戏王条件："
                         f"大转盘 {wheel_count}/{WHEEL_SPIN_THRESHOLD} 次，"
                         f"夺宝期数 {treasure_count}/{TREASURE_ISSUE_THRESHOLD} 期，"
-                        f"大预言家预测 {prediction_count}/{PREDICTION_BET_THRESHOLD} 次"
+                        f"大预言家预测 {prediction_count}/{PREDICTION_BET_THRESHOLD} 次，"
+                        f"21 点 {blackjack_count}/{BLACKJACK_HAND_THRESHOLD} 手 "
+                        f"且准确率 {blackjack_accuracy:.1f}%/{BLACKJACK_ACCURACY_THRESHOLD}%"
                     )
                     return False
 
                 eligible_tg_ids = [user_id]
             else:
-                # 批量模式：用 UNION 合并大转盘、夺宝奇兵、大预言家三个子查询
+                # 批量模式：用 UNION 合并大转盘、夺宝奇兵、大预言家、21 点四个子查询
                 wheel_subq = (
                     select(WheelStats.tg_id)
                     .group_by(WheelStats.tg_id)
@@ -2798,7 +2835,23 @@ async def check_and_award_game_king_badge(
                     .group_by(PredictionBet.tg_id)
                     .having(func.count(PredictionBet.id) >= PREDICTION_BET_THRESHOLD)
                 )
-                union_stmt = union(wheel_subq, treasure_subq, prediction_subq)
+                # 21 点为双条件：手数达标**且**准确率达标。准确率在 SQL 里算，
+                # 避免把全部达手数的用户拉回 Python 再逐个查
+                blackjack_subq = (
+                    select(BlackjackHand.tg_id)
+                    .where(BlackjackHand.status.in_(BLACKJACK_TERMINAL_STATUSES))
+                    .group_by(BlackjackHand.tg_id)
+                    .having(
+                        func.count(BlackjackHand.id) >= BLACKJACK_HAND_THRESHOLD,
+                        func.sum(BlackjackHand.decisions_total) > 0,
+                        func.sum(BlackjackHand.decisions_correct) * 100.0
+                        >= func.sum(BlackjackHand.decisions_total)
+                        * BLACKJACK_ACCURACY_THRESHOLD,
+                    )
+                )
+                union_stmt = union(
+                    wheel_subq, treasure_subq, prediction_subq, blackjack_subq
+                )
                 rows = session.execute(union_stmt).fetchall()
                 eligible_tg_ids = [row[0] for row in rows]
 

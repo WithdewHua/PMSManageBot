@@ -11,6 +11,7 @@ from app.webapp.routers import (
     user_router,
 )
 from app.webapp.routers.activities.auction import router as auction_router
+from app.webapp.routers.activities.blackjack import router as blackjack_router
 from app.webapp.routers.activities.luckywheel import router as luckywheel_router
 from app.webapp.routers.activities.prediction import router as prediction_router
 from app.webapp.routers.activities.treasure import router as treasure_router
@@ -74,6 +75,7 @@ app.include_router(admin_router)  # 添加管理员路由
 app.include_router(donation_router)  # 添加捐赠路由
 app.include_router(crypto_donation_router)  # 添加 Crypto 捐赠路由
 app.include_router(luckywheel_router, prefix="/api")  # 添加幸运大转盘路由
+app.include_router(blackjack_router, prefix="/api")  # 添加 21 点路由
 app.include_router(auction_router, prefix="/api")  # 添加竞拍活动路由
 app.include_router(treasure_router, prefix="/api")  # 添加夺宝奇兵路由
 app.include_router(prediction_router, prefix="/api")  # 添加预测游戏路由

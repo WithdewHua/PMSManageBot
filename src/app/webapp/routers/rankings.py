@@ -450,6 +450,107 @@ async def get_prediction_game_rankings(
         raise HTTPException(status_code=500, detail="获取大预言家排行榜数据失败")
 
 
+@router.get("/rankings/game/blackjack")
+@require_telegram_auth
+async def get_blackjack_game_rankings(
+    request: Request, user: TelegramUser = Depends(get_telegram_user)
+):
+    """获取 21 点游戏排行榜数据
+
+    提供决策准确率榜（主）、胜率榜与单手最大赢利榜。
+
+    不提供净积分变动榜与连胜榜：两者都奖励运气与刷量而非技巧。在负期望的前提下
+    累计净积分几乎必然为负，且其排名在现实手数下由随机波动主导；连胜长度则重度
+    依赖累计手数。
+    """
+    logger.info(
+        f"{user.username or user.first_name or user.id} 开始获取 21 点排行榜数据"
+    )
+
+    try:
+        blackjack_accuracy_rank = []
+        blackjack_win_rate_rank = []
+        blackjack_max_win_rank = []
+
+        # 准确率榜与胜率榜共用同一份聚合，一次扫描算出两个榜
+        try:
+            logger.debug("正在查询 21 点决策准确率与胜率排行")
+            skill_ranks = db.get_blackjack_skill_ranks()
+            accuracy_data = skill_ranks.get("accuracy") or []
+            win_rate_data = skill_ranks.get("win_rate") or []
+        except Exception as e:
+            logger.error(f"获取 21 点技巧类排行失败: {str(e)}")
+            accuracy_data, win_rate_data = [], []
+
+        try:
+            if accuracy_data:
+                blackjack_accuracy_rank = [
+                    {
+                        "tg_id": info["tg_id"],
+                        "name": get_user_name_from_tg_id(info["tg_id"]),
+                        "accuracy": float(info["accuracy"]),
+                        "win_rate": float(info["win_rate"]),
+                        "hand_count": int(info["hand_count"]),
+                        "decisions_total": int(info["decisions_total"]),
+                        "avatar": get_user_avatar_from_tg_id(info["tg_id"]),
+                        "is_self": info["tg_id"] == user.id,
+                    }
+                    for info in accuracy_data
+                    if info["tg_id"] not in settings.TG_ADMIN_CHAT_ID
+                ]
+        except Exception as e:
+            logger.error(f"渲染 21 点决策准确率排行失败: {str(e)}")
+
+        try:
+            if win_rate_data:
+                blackjack_win_rate_rank = [
+                    {
+                        "tg_id": info["tg_id"],
+                        "name": get_user_name_from_tg_id(info["tg_id"]),
+                        "win_rate": float(info["win_rate"]),
+                        "accuracy": float(info["accuracy"]),
+                        "hand_count": int(info["hand_count"]),
+                        "avatar": get_user_avatar_from_tg_id(info["tg_id"]),
+                        "is_self": info["tg_id"] == user.id,
+                    }
+                    for info in win_rate_data
+                    if info["tg_id"] not in settings.TG_ADMIN_CHAT_ID
+                ]
+        except Exception as e:
+            logger.error(f"渲染 21 点胜率排行失败: {str(e)}")
+
+        try:
+            logger.debug("正在查询 21 点单手最大赢利排行")
+            max_win_data = db.get_blackjack_max_win_rank()
+            if max_win_data:
+                blackjack_max_win_rank = [
+                    {
+                        "tg_id": info[0],
+                        "name": get_user_name_from_tg_id(info[0]),
+                        "max_win": float(info[1]),
+                        "hand_count": int(info[2]),
+                        "avatar": get_user_avatar_from_tg_id(info[0]),
+                        "is_self": info[0] == user.id,
+                    }
+                    for info in max_win_data
+                    if info[0] not in settings.TG_ADMIN_CHAT_ID
+                ]
+        except Exception as e:
+            logger.error(f"获取 21 点单手最大赢利排行失败: {str(e)}")
+
+        logger.info(
+            f"{user.username or user.first_name or user.id} 获取 21 点排行榜数据成功"
+        )
+        return {
+            "blackjack_accuracy_rank": blackjack_accuracy_rank,
+            "blackjack_win_rate_rank": blackjack_win_rate_rank,
+            "blackjack_max_win_rank": blackjack_max_win_rank,
+        }
+    except Exception as e:
+        logger.error(f"获取 21 点排行榜数据时发生未预期的错误: {str(e)}")
+        raise HTTPException(status_code=500, detail="获取 21 点排行榜数据失败")
+
+
 @router.get("/rankings/traffic/plex")
 @require_telegram_auth
 async def get_plex_traffic_rankings(

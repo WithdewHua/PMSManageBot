@@ -59,6 +59,17 @@
                   <v-icon size="small" class="mr-1">mdi-minus</v-icon>
                   参与消耗积分：{{ activity.costCredits }}
                 </v-chip>
+
+                <!-- 21 点按注额分档，以区间展示而非单一固定值 -->
+                <v-chip
+                  v-if="activity.id === 'black-jack' && betRangeText(activity)"
+                  size="small"
+                  variant="outlined"
+                  color="info"
+                >
+                  <v-icon size="small" class="mr-1">mdi-cash-multiple</v-icon>
+                  单手注额：{{ betRangeText(activity) }}
+                </v-chip>
                 
                 <v-chip
                   v-if="activity.id === 'auction'"
@@ -314,6 +325,9 @@
   <!-- 夺宝奇兵弹窗 -->
   <TreasureDialog ref="treasureDialog" />
 
+  <!-- 21 点牌桌 -->
+  <BlackjackDialog ref="blackjackDialog" @credits-changed="fetchUserCreditsOnly" />
+
   <!-- 预测游戏弹窗 -->
   <PredictionDialog ref="predictionDialog" />
 
@@ -386,16 +400,19 @@
 </template>
 
 <script>
+import BlackjackDialog from '@/components/BlackjackDialog.vue'
 import LuckyWheel from '@/components/LuckyWheel.vue'
 import PredictionDialog from '@/components/PredictionDialog.vue'
 import TreasureDialog from '@/components/TreasureDialog.vue'
 import { getUserInfo } from '@/api'
 import { getLuckyWheelUserStatus } from '@/services/wheelService'
+import { getBlackjackConfig } from '@/services/blackjackService'
 import { getActiveAuctions, placeBid, getAuctionDetails } from '@/services/auctionService'
 
 export default {
   name: 'Activities',
   components: {
+    BlackjackDialog,
     LuckyWheel,
     PredictionDialog,
     TreasureDialog
@@ -441,6 +458,19 @@ export default {
           costCredits: 10
         },
         {
+          id: 'black-jack',
+          title: '21 点',
+          description: '🃏 要牌或停牌，与庄家比点数',
+          icon: 'mdi-cards-playing',
+          iconColor: 'pink',
+          enabled: true,
+          // 门槛与注额档位从后端 /api/blackjack/config 获取
+          requireCredits: 30,
+          costCredits: 0,
+          // 注额分档，卡片上以区间展示而非单一固定值
+          betOptions: []
+        },
+        {
           id: 'treasure',
           title: '夺宝奇兵',
           description: '🎁 满员即开奖，拼手气赢大奖',
@@ -469,16 +499,6 @@ export default {
           enabled: true,
           requireCredits: 10,
           costCredits: 0
-        },
-        {
-          id: 'black-jack',
-          title: '21 点',
-          description: '🃏沉浸娱乐，抓住财富',
-          icon: 'mdi-gift',
-          iconColor: 'pink',
-          enabled: false,
-          requireCredits: 50,
-          costCredits: 20
         }
       ]
     }
@@ -503,6 +523,19 @@ export default {
         v => this.selectedAuction && Number(v) >= this.getMinBidAmount(this.selectedAuction) || `出价不能低于 ${this.getMinBidAmount(this.selectedAuction)}`,
         v => Number(v) <= this.userCredits || '出价不能超过当前积分'
       ]
+    },
+
+    // 注额档位的区间文案：单档显示该值，多档显示「最小 ~ 最大」
+    betRangeText() {
+      return (activity) => {
+        const options = activity.betOptions || []
+        if (!options.length) {
+          return ''
+        }
+        const min = Math.min(...options)
+        const max = Math.max(...options)
+        return min === max ? `${min}` : `${min} ~ ${max}`
+      }
     }
   },
   methods: {
@@ -528,13 +561,9 @@ export default {
           luckyWheelActivity.costCredits = config.cost_credits
         }
         
-        // 21点游戏暂时使用模拟配置
-        const blackJackActivity = this.activities.find(a => a.id === 'black-jack')
-        if (blackJackActivity) {
-          blackJackActivity.requireCredits = 50
-          blackJackActivity.costCredits = 20
-        }
-        
+        // 21 点：门槛与注额档位取自后端，不硬编码
+        await this.fetchBlackjackConfig()
+
         console.log('活动配置获取成功:', this.activitiesConfig)
       } catch (err) {
         console.error('获取活动配置失败:', err)
@@ -544,15 +573,32 @@ export default {
           luckyWheelActivity.requireCredits = 30
           luckyWheelActivity.costCredits = 10
         }
-        
-        const blackJackActivity = this.activities.find(a => a.id === 'black-jack')
-        if (blackJackActivity) {
-          blackJackActivity.requireCredits = 50
-          blackJackActivity.costCredits = 20
-        }
-        
+
+        await this.fetchBlackjackConfig()
+
         // 如果获取活动配置失败，仍需要获取用户积分
         await this.fetchUserCreditsOnly()
+      }
+    },
+
+    async fetchBlackjackConfig() {
+      // 21 点的门槛、注额档位与开放状态一律取自后端配置接口；
+      // 服务端停用开关直接决定卡片的启用状态。
+      const blackJackActivity = this.activities.find(a => a.id === 'black-jack')
+      if (!blackJackActivity) {
+        return
+      }
+      try {
+        const response = await getBlackjackConfig()
+        const config = response.data
+        blackJackActivity.enabled = !!config.enabled
+        blackJackActivity.requireCredits = config.min_credits
+        blackJackActivity.betOptions = config.bet_options || []
+        this.activitiesConfig.blackjack = config
+      } catch (err) {
+        console.error('获取 21 点配置失败:', err)
+        // 拿不到配置时按停用处理，避免用户点进去后才被后端拒绝
+        blackJackActivity.enabled = false
       }
     },
 
@@ -610,6 +656,8 @@ export default {
         this.$refs.predictionDialog?.open()
       } else if (activity.id === 'lucky-wheel') {
         this.showLuckyWheelDialog = true
+      } else if (activity.id === 'black-jack') {
+        this.$refs.blackjackDialog?.open()
       } else if (activity.id === 'auction') {
         this.showAuctionDialog = true
         this.loadActiveAuctions()
