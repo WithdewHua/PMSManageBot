@@ -126,7 +126,7 @@ class Settings(BaseSettings):
     VAULTWARDEN_REDEEM_CREDITS: int = 500  # 兑换 Vaultwarden 账户所需积分
 
     # 数据库配置
-    DATABASE_TYPE: str = "sqlite"  # 数据库类型: sqlite, postgresql, mysql
+    DATABASE_TYPE: str = "sqlite"  # 数据库类型: sqlite, postgresql
     DATABASE_URL: str = ""  # 完整数据库连接 URL（优先级高于单独配置）
     # PostgreSQL 配置
     POSTGRES_HOST: str = "localhost"
@@ -134,12 +134,6 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = "pmsmanagebot"
     POSTGRES_PASSWORD: str = ""
     POSTGRES_DB: str = "pmsmanagebot"
-    # MySQL 配置
-    MYSQL_HOST: str = "localhost"
-    MYSQL_PORT: int = 3306
-    MYSQL_USER: str = "pmsmanagebot"
-    MYSQL_PASSWORD: str = ""
-    MYSQL_DB: str = "pmsmanagebot"
     # 数据库连接池配置
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
@@ -206,11 +200,6 @@ class Settings(BaseSettings):
                 f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
                 f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
             )
-        elif db_type == "mysql":
-            return (
-                f"mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}@"
-                f"{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DB}"
-            )
         else:
             # 默认使用 SQLite
             db_path = self.DATA_PATH / "data.db"
@@ -221,10 +210,21 @@ class Settings(BaseSettings):
         """
         获取数据库连接参数
 
-        """
-        db_type = self.DATABASE_TYPE.lower()
+        依据 **DB_URL 实际使用的驱动** 判定，而非 DATABASE_TYPE——两者会在两种
+        常见配置下不一致，而它们是同一次 `create_engine` 的两个入参，必须同源：
 
-        if db_type == "sqlite":
+        1. `DATABASE_URL` 直接指定连接串时，DB_URL 原样返回它，此时 DATABASE_TYPE
+           可能仍是默认的 sqlite。若照 DATABASE_TYPE 判定，就会把 SQLite 专有的
+           `check_same_thread` 传给 psycopg2，连接直接失败。
+        2. DATABASE_TYPE 为未被识别的值（拼写错误，或已移除支持的类型）时，
+           DB_URL 会回退到 SQLite，而照 DATABASE_TYPE 判定会漏掉
+           `check_same_thread=False`。本项目在线程中运行 uvicorn，而机器人与
+           调度器在主线程，连接被跨线程复用时 SQLite 会直接抛错。
+        """
+        # 形如 sqlite:///path、sqlite+pysqlite:///path，取驱动名部分
+        scheme = self.DB_URL.split("://", 1)[0].split("+", 1)[0].lower()
+
+        if scheme == "sqlite":
             return {"check_same_thread": False}
         else:
             return {}

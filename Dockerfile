@@ -42,7 +42,7 @@ COPY README.md ./
 COPY src/ ./src/
 
 # 使用 uv 安装依赖（包括所有可选依赖）
-RUN uv pip install --system --no-cache ".[postgres,mysql]"
+RUN uv pip install --system --no-cache ".[postgres]"
 
 # 最终运行镜像
 FROM python:3.11-slim AS runtime

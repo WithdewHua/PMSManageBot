@@ -7,7 +7,7 @@ It manages Plex/Emby media server users, credits, premium subscriptions, and act
 
 - **Backend:** Python 3.11+, FastAPI, SQLAlchemy 2.x, python-telegram-bot, APScheduler, Pydantic v2
 - **Frontend:** Vue 3, Vuetify 3, Vue Router 4, axios (JavaScript, no TypeScript)
-- **Database:** SQLAlchemy ORM with Alembic migrations (SQLite/PostgreSQL/MySQL)
+- **Database:** SQLAlchemy ORM with Alembic migrations (SQLite/PostgreSQL)
 - **Package managers:** `uv` (Python), `npm` (frontend)
 
 ---
@@ -18,7 +18,7 @@ It manages Plex/Emby media server users, credits, premium subscriptions, and act
 
 ```bash
 # Install dependencies
-uv pip install ".[postgres,mysql]"
+uv pip install ".[postgres]"
 
 # Run the application
 python3 -m app.main
@@ -89,9 +89,6 @@ Notable disabled rules: `vue/multi-word-component-names`, `vue/valid-v-slot`.
 ---
 
 ## Tests
-
-**There is currently no test suite.** The `tests/` directory exists but is empty.
-No pytest configuration exists in `pyproject.toml`.
 
 When tests are added, the expected commands will be:
 
