@@ -157,8 +157,10 @@ def _get_group_chat_id() -> str | None:
 def _format_jackpot_win(win: dict, jackpot_balance: float) -> str:
     """把一条中奖记录渲染成群播报文案。
 
-    刻意带上牌面与稀有度：只报金额的话，奖池空虚期会出现「赢得 0.4 积分」
-    这种毫无说服力的播报；牌面本身（同花天胡、三张 7）才是真正稀有的部分。
+    刻意带上牌面：只报金额的话，奖池空虚期会出现「赢得 0.4 积分」这种毫无
+    说服力的播报；牌面本身（同花天胡、三张 7）才是真正稀有的部分。稀有度不
+    另注明触发频率——那是给管理员判断播报频次用的（见管理面板），播到群里
+    只会让报喜的消息读着像说明书。
 
     余额由调用方查好传入——本函数会被逐条调用，在此处查库等于每条消息各开
     一次会话去读同一个值。
@@ -169,16 +171,14 @@ def _format_jackpot_win(win: dict, jackpot_balance: float) -> str:
 
     if win.get("triple_seven"):
         headline = "🎰 <b>三张 7！幸运奖池被通吃</b>"
-        odds = "约每 5500 手才出一次，全额派发"
     else:
         headline = "🃏 <b>同花天胡！命中幸运奖池</b>"
-        odds = "约每 83 手一次"
 
     return (
         f"{headline}\n"
         f"玩家：<code>{name}</code>\n"
         f"牌面：{cards}\n"
-        f"奖池派彩：<b>{amount:.2f}</b> 积分（{odds}）\n"
+        f"奖池派彩：<b>{amount:.2f}</b> 积分\n"
         f"当前奖池：{jackpot_balance:.2f} 积分\n"
         f"入口：WebApp 活动页 → 21 点"
     )
