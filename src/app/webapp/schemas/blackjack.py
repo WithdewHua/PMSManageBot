@@ -56,8 +56,16 @@ class BlackjackHandResponse(BaseModel):
     can_double: bool = Field(
         ..., description="当前是否可加倍（未含余额判定，余额由前端另行校验）"
     )
+    can_surrender: bool = Field(
+        False,
+        description=(
+            "当前是否可投降。由该手牌快照的投降开关与当前牌面共同判定，"
+            "前端不必自行推导——管理员中途关闭开关不影响进行中的手牌"
+        ),
+    )
     outcome: Optional[str] = Field(
-        None, description="blackjack / win / push / lose / bust；未结算为 null"
+        None,
+        description="blackjack / win / push / lose / bust / surrender；未结算为 null",
     )
     payout_credits: Optional[float] = Field(
         None, description="结算入账积分（含返还本金，已扣抽水）；不含奖池派彩"
@@ -134,6 +142,10 @@ class BlackjackHandResponse(BaseModel):
             can_hit=engine.can_hit(player_cards, status),
             can_stand=in_player_turn,
             can_double=engine.can_double(player_cards, status),
+            can_surrender=bool(hand.get("surrender_enabled"))
+            and engine.can_surrender(
+                player_cards, status, int(hand.get("doubled") or 0) == 1
+            ),
             outcome=hand.get("outcome"),
             payout_credits=hand.get("payout_credits"),
             rake_credits=hand.get("rake_credits"),
@@ -192,6 +204,9 @@ class BlackjackUserStatsResponse(BaseModel):
     accuracy: float = Field(0, description="决策准确率（百分比）")
     decisions_total: int = Field(0, description="累计决策次数")
     jackpot_total: float = Field(0, description="累计奖池派彩")
+    surrender_hands: int = Field(
+        0, description="累计投降手数；计入胜率分母，不计入分子"
+    )
 
 
 class BlackjackPublicConfigResponse(BaseModel):
@@ -209,6 +224,13 @@ class BlackjackPublicConfigResponse(BaseModel):
         ..., description="抽水比率（百分比），仅对净赢利计取"
     )
     dealer_hits_soft_17: bool = Field(..., description="庄家软 17 是否继续要牌")
+    surrender_enabled: bool = Field(
+        True,
+        description=(
+            "投降是否开放，供前端决定是否渲染投降按钮与规则条目。"
+            "返还比例固定为基础注额的一半，不可配置"
+        ),
+    )
     hand_timeout_minutes: int = Field(..., description="手牌超时时限（分钟）")
     free_hands_per_day: int = Field(0, description="每日免抽水手数")
     jackpot_enabled: bool = Field(True, description="幸运奖池是否启用")
@@ -234,6 +256,13 @@ class BlackjackAdminConfig(BaseModel):
         ..., ge=0, le=10000, description="抽水中注入幸运奖池的部分（基点）"
     )
     dealer_hits_soft_17: bool = Field(..., description="庄家软 17 是否继续要牌")
+    surrender_enabled: bool = Field(
+        True,
+        description=(
+            "投降开关。关闭后仅影响此后发出的手牌——进行中的手牌按其发牌时的"
+            "快照仍可投降。返还比例固定为一半，不设配置项"
+        ),
+    )
     blackjack_payout: float = Field(..., gt=0, description="天胡赔率")
     hand_timeout_minutes: int = Field(..., ge=1, description="手牌超时时限（分钟）")
     min_deal_interval_seconds: float = Field(

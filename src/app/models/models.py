@@ -1045,9 +1045,10 @@ class BlackjackHand(Base):
     可凭种子完整复现以处理争议。`deck_seed` 与 `next_card_index` 绝不出现在
     面向用户的接口响应中。
 
-    参数快照五列（rake_bp_on_profit / rake_jackpot_bp / blackjack_payout /
-    dealer_hits_soft_17 / hand_timeout_minutes）记录发牌当时生效的配置，结算与
-    超时判定都读快照而非读当前配置，使管理员改配置不影响进行中的手牌。
+    参数快照六列（rake_bp_on_profit / rake_jackpot_bp / blackjack_payout /
+    dealer_hits_soft_17 / hand_timeout_minutes / surrender_enabled）记录发牌当时
+    生效的配置，结算、超时判定与决策评判都读快照而非读当前配置，使管理员改配置
+    不影响进行中的手牌。
     """
 
     __tablename__ = "blackjack_hand"
@@ -1119,6 +1120,9 @@ class BlackjackHand(Base):
     hand_timeout_minutes: Mapped[int] = mapped_column(
         Integer, nullable=False, default=15
     )  # 超时时限；快照于此，故管理员调整时限不影响已发出的手牌
+    surrender_enabled: Mapped[int] = mapped_column(
+        SMALLINT, nullable=False, server_default="0", default=0
+    )  # 发牌时投降是否可用；存量手牌为 0，故其决策评判继续走不含投降的策略表
 
     # Phase 2 争霸赛预留：恒为 NULL，不设外键与索引
     tournament_id: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
@@ -1135,6 +1139,9 @@ class BlackjackHand(Base):
         CheckConstraint("bet_credits > 0", name="ck_blackjack_hand_bet_gt_0"),
         CheckConstraint("status IN (1,2,3,4)", name="ck_blackjack_hand_status"),
         CheckConstraint("doubled IN (0,1)", name="ck_blackjack_hand_doubled"),
+        CheckConstraint(
+            "surrender_enabled IN (0,1)", name="ck_blackjack_hand_surrender_enabled"
+        ),
         CheckConstraint(
             "next_card_index >= 0", name="ck_blackjack_hand_next_card_index_nonneg"
         ),

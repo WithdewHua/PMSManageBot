@@ -197,7 +197,11 @@
               class="mb-4"
             >
               <div class="font-weight-bold">{{ outcomeText(hand.outcome) }}</div>
-              <div class="text-caption mt-1">
+              <!-- 投降没有胜负，故不套用「入账/净额」那套胜负口径的展示 -->
+              <div v-if="isSurrender" class="text-caption mt-1">
+                本手押注 {{ totalStake }}，返还 {{ (hand.payout_credits || 0).toFixed(2) }} · 不计抽水
+              </div>
+              <div v-else class="text-caption mt-1">
                 本手押注 {{ totalStake }}，入账 {{ (hand.payout_credits || 0).toFixed(2) }}
                 <span v-if="hand.rake_credits"> （含抽水 {{ hand.rake_credits.toFixed(2) }}）</span>
                 <span v-else-if="hand.rake_waived"> （本手免抽水）</span>
@@ -277,7 +281,7 @@
                 停牌
               </v-btn>
               <v-btn
-                class="mb-2"
+                class="mr-2 mb-2"
                 color="amber-darken-2"
                 :loading="acting === 'double'"
                 :disabled="!canDouble || !!acting"
@@ -287,6 +291,18 @@
                 <span v-if="hand.can_double && currentCredits < hand.bet_credits" class="text-caption ml-1">
                   （需 {{ hand.bet_credits }} 积分）
                 </span>
+              </v-btn>
+              <!-- 与前三个动作同等形态。颜色避开停牌的 grey-darken-1，否则两个
+                   灰按钮相邻难以分辨 -->
+              <v-btn
+                v-if="hand.can_surrender"
+                class="mb-2"
+                color="blue-grey-darken-1"
+                :loading="acting === 'surrender'"
+                :disabled="!!acting"
+                @click="confirmSurrender = true"
+              >
+                投降
               </v-btn>
             </div>
 
@@ -342,8 +358,19 @@
               <strong>停牌</strong>：结束你的回合，由庄家补牌。<br />
               <strong>加倍</strong>：追加一份等额注额，只再发一张牌并自动停牌。
               仅在手中恰为最初两张牌时可用，要牌后即不可加倍，且需另有 {{ betRangeText }} 的可用积分。
+              <template v-if="config.surrender_enabled">
+                <br />
+                <strong>投降</strong>：认输并<strong>返还一半基础注额</strong>，本手立即结束，
+                不进庄家回合。<strong>仅在手中恰为最初两张牌时可用</strong>，要牌或加倍后即不可投降。
+              </template>
             </p>
-            <p class="text-caption text-medium-emphasis">不设分牌、保险与投降。</p>
+            <p class="text-caption text-medium-emphasis">
+              不设分牌与保险<span v-if="!config.surrender_enabled">、投降</span>。
+              <span v-if="config.surrender_enabled">
+                投降是几个最差局面（如硬 16 对庄家 10）下唯一能主动减损的选择，
+                返还比例固定为一半，不可调整。
+              </span>
+            </p>
           </div>
 
           <div class="rules-section">
@@ -362,13 +389,18 @@
               <strong>普通取胜</strong>：赔 1 倍注额。<br />
               <strong>加倍取胜</strong>：赔 2 倍注额。<br />
               <strong>平局</strong>：原额退回押注。
+              <template v-if="config.surrender_enabled">
+                <br />
+                <strong>投降</strong>：退回一半基础注额（不计胜负）。
+              </template>
             </p>
           </div>
 
           <div class="rules-section">
             <div class="rules-title">抽水</div>
             <p>
-              <strong>仅对赢利部分计取 {{ config.rake_percent_on_profit }}%，输与平局不抽。</strong>
+              <strong>仅对赢利部分计取 {{ config.rake_percent_on_profit }}%，输<span
+                v-if="config.surrender_enabled">、投降</span>与平局不抽。</strong>
             </p>
             <p v-if="config.free_hands_per_day > 0">
               每个自然日的前 {{ config.free_hands_per_day }} 手<strong>完全免抽水</strong>，
@@ -394,8 +426,8 @@
           <div class="rules-section">
             <div class="rules-title">决策反馈</div>
             <p>
-              每次要牌、停牌、加倍都会与<strong>基本策略</strong>（21 点公认的最优打法）对照，
-              结算后逐次显示「你的决策 / 建议决策」，并统计准确率。
+              每次要牌、停牌、加倍<span v-if="config.surrender_enabled">、投降</span>都会与<strong>基本策略</strong>（21
+              点公认的最优打法）对照，结算后逐次显示「你的决策 / 建议决策」，并统计准确率。
             </p>
             <p class="text-caption text-medium-emphasis">
               这只是事后建议，系统不会阻止或替代你的任何选择。准确率同时用于决策准确率排行榜。
@@ -418,6 +450,31 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+    <!-- 投降二次确认：本活动唯一「点下去即无任何后续操作」的动作，
+         加倍至少还会发一张牌，故只有这里需要拦一道 -->
+    <v-dialog v-model="confirmSurrender" max-width="420">
+      <v-card>
+        <v-card-title class="d-flex align-center">
+          <v-icon class="mr-2" color="grey-darken-1">mdi-flag-outline</v-icon>
+          确认投降？
+        </v-card-title>
+        <v-divider />
+        <v-card-text class="pa-5">
+          <p class="text-body-2">
+            本手立即结束，返还一半基础注额
+            <strong v-if="hand">{{ (hand.bet_credits / 2).toFixed(2) }}</strong>
+            积分，不再发牌、不进庄家回合。
+          </p>
+          <p class="text-caption text-medium-emphasis mb-0">投降后无法撤回。</p>
+        </v-card-text>
+        <v-divider />
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="confirmSurrender = false">取消</v-btn>
+          <v-btn color="grey-darken-2" variant="flat" @click="doSurrender">确认投降</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-dialog>
 </template>
 
@@ -429,7 +486,8 @@ import {
   getCurrentBlackjackHand,
   getUserBlackjackStats,
   hitBlackjackHand,
-  standBlackjackHand
+  standBlackjackHand,
+  surrenderBlackjackHand
 } from '../services/blackjackService'
 
 const SUIT_SYMBOLS = { S: '♠', H: '♥', D: '♦', C: '♣' }
@@ -461,6 +519,8 @@ export default {
       actionError: null,
       acting: null,
       showRules: false,
+      // 投降的二次确认弹层
+      confirmSurrender: false,
       hand: null,
       stats: null,
       currentCredits: 0,
@@ -485,6 +545,7 @@ export default {
         blackjack_payout: 1.5,
         rake_percent_on_profit: 3,
         dealer_hits_soft_17: false,
+        surrender_enabled: false,
         hand_timeout_minutes: 15,
         free_hands_per_day: 0,
         jackpot_enabled: false,
@@ -506,6 +567,9 @@ export default {
     canDouble() {
       // 服务端会强校验余额；此处禁用只是避免用户白点一次
       return !!this.hand && this.hand.can_double && this.currentCredits >= this.hand.bet_credits
+    },
+    isSurrender() {
+      return !!(this.hand && this.hand.outcome === 'surrender')
     },
     dealerCards() {
       return (this.hand && this.hand.dealer_cards) || []
@@ -551,6 +615,12 @@ export default {
     dealerStatusText() {
       if (!this.hand) {
         return ''
+      }
+      // 投降的手牌庄家从未行动过：暗牌照常公开（便于复盘这次投降是对是错），
+      // 但绝不能标「停牌」——庄家手上可能只有 16 点，那与「不足 17 必须要牌」
+      // 的规则直接矛盾，玩家会以为庄家违规。
+      if (this.isSurrender) {
+        return this.revealing && this.dealerRevealCount < 2 ? '亮出暗牌…' : '未行动'
       }
       if (this.revealing) {
         if (this.dealerRevealCount < 2) {
@@ -671,7 +741,8 @@ export default {
       const handlers = {
         hit: hitBlackjackHand,
         stand: standBlackjackHand,
-        double: doubleBlackjackHand
+        double: doubleBlackjackHand,
+        surrender: surrenderBlackjackHand
       }
       this.acting = action
       this.actionError = null
@@ -683,6 +754,12 @@ export default {
       } finally {
         this.acting = null
       }
+    },
+
+    // 二次确认后才真正发出投降请求
+    doSurrender() {
+      this.confirmSurrender = false
+      this.act('surrender')
     },
 
     applyActionResult(data) {
@@ -817,7 +894,8 @@ export default {
           win: '你赢了',
           push: '平局',
           lose: '你输了',
-          bust: '爆牌，你输了'
+          bust: '爆牌，你输了',
+          surrender: '已投降，返还一半注额'
         }[outcome] || outcome
       )
     },
@@ -826,11 +904,15 @@ export default {
       if (outcome === 'blackjack' || outcome === 'win') {
         return 'success'
       }
-      return outcome === 'push' ? 'info' : 'error'
+      // 投降既非胜也非负，用中性色，不打胜负标识
+      if (outcome === 'push' || outcome === 'surrender') {
+        return 'info'
+      }
+      return 'error'
     },
 
     actionText(action) {
-      return { hit: '要牌', stand: '停牌', double: '加倍' }[action] || action
+      return { hit: '要牌', stand: '停牌', double: '加倍', surrender: '投降' }[action] || action
     }
   }
 }

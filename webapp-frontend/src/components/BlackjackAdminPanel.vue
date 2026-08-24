@@ -265,6 +265,15 @@
             density="compact"
             class="mb-4"
           />
+          <v-switch
+            v-model="form.surrender_enabled"
+            label="开放投降（初始两张牌时可认输，返还一半注额）"
+            color="indigo"
+            hint="关闭后仅影响此后发出的手牌，进行中的手牌仍可投降。返还比例固定为一半，不可配置"
+            persistent-hint
+            density="compact"
+            class="mb-4"
+          />
           <v-row dense>
             <v-col cols="12" md="4">
               <v-text-field
@@ -411,6 +420,7 @@ export default {
         rake_burn_bp: 180,
         rake_jackpot_bp: 120,
         dealer_hits_soft_17: false,
+        surrender_enabled: true,
         blackjack_payout: 1.5,
         hand_timeout_minutes: 15,
         min_deal_interval_seconds: 1,

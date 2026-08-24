@@ -19,6 +19,11 @@ export const doubleBlackjackHand = (handId) => {
   return apiClient.post(`/api/blackjack/${handId}/double`)
 }
 
+// 投降：返还一半基础注额，手牌立即结算。仅在响应的 can_surrender 为真时可用
+export const surrenderBlackjackHand = (handId) => {
+  return apiClient.post(`/api/blackjack/${handId}/surrender`)
+}
+
 // 取当前进行中的手牌，用于进入活动时恢复牌桌
 export const getCurrentBlackjackHand = () => {
   return apiClient.get('/api/blackjack/current')

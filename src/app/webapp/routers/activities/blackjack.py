@@ -266,6 +266,12 @@ def _raise_for_value_error(e: ValueError) -> None:
         raise HTTPException(status_code=400, detail="本手牌已加倍，不能重复加倍")
     if "cannot double after hit" in msg_l:
         raise HTTPException(status_code=400, detail="已要牌，不能再加倍")
+    if "surrender disabled" in msg_l:
+        raise HTTPException(status_code=400, detail="投降当前未开放")
+    if "cannot surrender after hit" in msg_l:
+        raise HTTPException(status_code=400, detail="已要牌，不能再投降")
+    if "cannot surrender after double" in msg_l:
+        raise HTTPException(status_code=400, detail="已加倍，不能再投降")
     if "deal too frequent" in msg_l:
         raise HTTPException(status_code=429, detail="操作过于频繁，请稍后再试")
     if "hand not found" in msg_l:
@@ -409,6 +415,33 @@ async def double(
         raise HTTPException(status_code=500, detail="加倍失败")
 
 
+@router.post("/{hand_id}/surrender", response_model=BlackjackActionResponse)
+@require_telegram_auth
+async def surrender(
+    request: Request,
+    hand_id: int,
+    background_tasks: BackgroundTasks,
+    current_user: TelegramUser = Depends(get_telegram_user),
+):
+    """投降：返还一半基础注额，手牌立即结算，不经庄家回合"""
+    try:
+        result = db.blackjack_surrender(
+            tg_id=int(current_user.id), hand_id=int(hand_id)
+        )
+        background_tasks.add_task(
+            check_and_award_game_king_badge,
+            user_id=int(current_user.id),
+        )
+        return _build_action_response(result, int(current_user.id), "已投降")
+    except ValueError as e:
+        _raise_for_value_error(e)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"21 点投降失败: {e}")
+        raise HTTPException(status_code=500, detail="投降失败")
+
+
 @router.get("/current", response_model=BlackjackCurrentHandResponse)
 @require_telegram_auth
 async def get_current_hand(
@@ -467,6 +500,7 @@ async def get_public_config(
                 float(config.get("rake_bp_on_profit", 300)) / 100.0, 2
             ),
             dealer_hits_soft_17=bool(config.get("dealer_hits_soft_17", False)),
+            surrender_enabled=bool(config.get("surrender_enabled", True)),
             hand_timeout_minutes=int(config.get("hand_timeout_minutes", 15)),
             free_hands_per_day=int(config.get("free_hands_per_day", 1)),
             jackpot_enabled=bool(config.get("jackpot_enabled", True)),

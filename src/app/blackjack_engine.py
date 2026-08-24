@@ -27,6 +27,7 @@ OUTCOME_WIN = "win"  # 普通胜
 OUTCOME_PUSH = "push"  # 平局
 OUTCOME_LOSE = "lose"  # 判负（含庄家点数更高、仅庄家天胡）
 OUTCOME_BUST = "bust"  # 玩家爆牌判负
+OUTCOME_SURRENDER = "surrender"  # 投降，返还一半基础注额；非胜非负非平局
 
 BLACKJACK_TOTAL = 21
 DEALER_STAND_TOTAL = 17
@@ -138,6 +139,16 @@ def deal_initial(deck: list[str]) -> tuple[list[str], list[str], int]:
 def can_double(cards: list[str], status: int) -> bool:
     """能否加倍：仅在玩家回合、且手中恰为初始两张牌时。要牌后即不可加倍。"""
     return status == STATUS_PLAYER_TURN and len(cards) == 2
+
+
+def can_surrender(cards: list[str], status: int, doubled: bool) -> bool:
+    """能否投降：玩家回合 + 手中恰为初始两张牌 + 未加倍，三者同时满足。
+
+    本函数只判牌面与状态，**不判投降开关**——开关取自该手牌的参数快照，由调用方
+    另行判定。后投降（Late Surrender）口径由现有流程天然满足：开局天胡在发牌阶段
+    即已结算，能进入玩家回合就意味着庄家没有天胡。
+    """
+    return status == STATUS_PLAYER_TURN and len(cards) == 2 and not doubled
 
 
 def can_hit(cards: list[str], status: int) -> bool:
@@ -259,17 +270,25 @@ def evaluate_initial_deal(
 # 基本策略
 # ============================================================
 
-# 建议动作，与玩家的三个可用动作对应
+# 建议动作，与玩家的四个可用动作对应
 ACTION_HIT = "hit"
 ACTION_STAND = "stand"
 ACTION_DOUBLE = "double"
+ACTION_SURRENDER = "surrender"
 
 # 策略表内部用的记号：
 #   "D"  = 能加倍就加倍，否则要牌
 #   "Ds" = 能加倍就加倍，否则**停牌**（软 18 对 3–6 是这一类）
-# 两者的回退方向不同，混为一谈会在三张牌以上的局面给出错误建议。
+#   "RH" = 能投降就投降，否则要牌
+#   "Rs" = 能投降就投降，否则**停牌**（H17 下的硬 17 对 A 是唯一这一类）
+# 各记号的回退方向不同，混为一谈会给出错误建议。投降之所以也需要两个方向：
+# 硬 15、16 在不能投降时本就该要牌，而硬 17 对 A 该停牌——若一律回退到要牌，
+# 投降关闭的手牌（含全部存量手牌）在该格的评判会由「停牌正确」翻成「要牌正确」，
+# 直接违背「存量手牌口径逐位不变」。
 _D_ELSE_HIT = "D"
 _D_ELSE_STAND = "Ds"
+_R_ELSE_HIT = "RH"
+_R_ELSE_STAND = "Rs"
 
 
 def upcard_value(card: str) -> int:
@@ -282,6 +301,17 @@ def upcard_value(card: str) -> int:
 
 def _hard_strategy(total: int, up: int, hits_soft_17: bool) -> str:
     """硬手（无按 11 计的 A）的基本策略。`up` 为 2–11，其中 11 表示 A。"""
+    # 投降的格子必须判在最前面：硬 17 对 A 会被 `total >= 17` 的停牌提前返回、
+    # 硬 15、16 会被 13–16 的停牌/要牌提前返回，放在后面等于永不生效。
+    #
+    # 恒定三格：硬 16 对 9、10、A；硬 15 对 10
+    # 仅 H17：硬 15 对 A（回退要牌）、硬 17 对 A（回退**停牌**）
+    if total == 16 and up in (9, 10, 11):
+        return _R_ELSE_HIT
+    if total == 15 and (up == 10 or (hits_soft_17 and up == 11)):
+        return _R_ELSE_HIT
+    if total == 17 and hits_soft_17 and up == 11:
+        return _R_ELSE_STAND
     if total >= 17:
         return ACTION_STAND
     if total >= 13:
@@ -336,17 +366,20 @@ def recommend_action(
     dealer_upcard: str,
     can_double: bool,
     hits_soft_17: bool = False,
+    can_surrender: bool = False,
 ) -> str:
     """给出基本策略在当前局面下的建议动作。
 
-    采用标准的「不分牌、不投降、不保险」基本策略表——本活动的动作集正是如此。
-    `hits_soft_17` 须取自**该手牌的参数快照**而非当前配置，否则管理员改了庄家
-    规则会让历史手牌的评判口径跟着变。
+    采用标准的「不分牌、不保险」基本策略表，投降按 `can_surrender` 纳入或排除
+    ——本活动的动作集正是如此。`hits_soft_17` 与 `can_surrender` 都须取自
+    **该手牌的参数快照**而非当前配置，否则管理员改了庄家规则或投降开关会让历史
+    手牌的评判口径跟着变：存量手牌的快照为「投降不可用」，其评判必须继续走不含
+    投降的策略表。
 
     这是一个纯函数：同一局面恒得同一建议，**零方差**。决策准确率因此是本游戏
     里唯一完全不受运气影响的指标，这正是它适合作为主榜口径的原因。
 
-    `can_double` 为假时（手中已超过两张牌），建议会按各自的回退方向落到要牌或
+    `can_double` / `can_surrender` 为假时，建议会按各自的回退方向落到要牌或
     停牌，绝不会返回一个当前不可执行的动作。
     """
     total = hand_total(player_cards)
@@ -361,6 +394,10 @@ def recommend_action(
         return ACTION_DOUBLE if can_double else ACTION_HIT
     if rec == _D_ELSE_STAND:
         return ACTION_DOUBLE if can_double else ACTION_STAND
+    if rec == _R_ELSE_HIT:
+        return ACTION_SURRENDER if can_surrender else ACTION_HIT
+    if rec == _R_ELSE_STAND:
+        return ACTION_SURRENDER if can_surrender else ACTION_STAND
     return rec
 
 

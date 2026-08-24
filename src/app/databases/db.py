@@ -59,6 +59,11 @@ DEFAULT_BLACKJACK_CONFIG = {
     "rake_jackpot_bp": 120,  # 抽水中注入幸运奖池的部分（基点），120/300 = 40%
     "dealer_hits_soft_17": False,  # 庄家软 17 是否继续要牌；False 即软 17 停牌
     "blackjack_payout": 1.5,  # 天胡赔率，3:2
+    # 投降开关。返还比例**固定为基础注额的二分之一，不设配置项**：基本策略的
+    # 投降建议正是按 0.5 推导的（只有期望低于 −0.5 的局面才该投降），比例若可调，
+    # 该投降的格子集合就得跟着重算——而策略表是决策准确率的依据，准确率又是主榜
+    # 口径与游戏王勋章的条件，一个比例旋钮会让整条评判链失去稳定依据。
+    "surrender_enabled": True,
     "hand_timeout_minutes": 15,  # 手牌超时时限（分钟），超时按停牌自动结算
     "min_deal_interval_seconds": 1,  # 两次发牌的最小间隔，压制脚本化高频刷牌
     # 幸运奖池：由抽水供养、不增发积分，双层触发
@@ -2807,7 +2812,9 @@ class DatabaseORM:
         两个榜单的口径只差排序字段，分开查会对同一张表做两次全表扫描。
 
         胜率的分母是**已结束的手数**，分子是判为玩家胜的手数（含天胡胜）；平局
-        既不计胜也不计负，但仍计入分母——它确实消耗了一手。
+        既不计胜也不计负，但仍计入分母——它确实消耗了一手。投降同一待遇：
+        `"surrender"` 不在 `win_flag` 里故不计入分子，其 status 是已结算故自动
+        计入分母与手数门槛，本方法因此无需为投降加任何分支。
         """
         from app import blackjack_engine as engine
 
@@ -3052,6 +3059,7 @@ class DatabaseORM:
             "blackjack_payout": float(hand.blackjack_payout),
             "dealer_hits_soft_17": int(hand.dealer_hits_soft_17),
             "hand_timeout_minutes": int(hand.hand_timeout_minutes),
+            "surrender_enabled": int(hand.surrender_enabled) == 1,
             "created_at_ms": int(hand.created_at_ms),
             "settled_at": int(hand.settled_at) if hand.settled_at is not None else None,
         }
@@ -3763,6 +3771,7 @@ class DatabaseORM:
                 if config.get("dealer_hits_soft_17", False)
                 else 0,
                 hand_timeout_minutes=timeout_minutes,
+                surrender_enabled=1 if config.get("surrender_enabled", True) else 0,
                 rake_waived=1 if rake_waived else 0,
                 created_at_ms=now_ms,
             )
@@ -3795,6 +3804,7 @@ class DatabaseORM:
         player_cards: list,
         dealer_upcard: str,
         can_double: bool,
+        can_surrender: bool,
         hits_soft_17: bool,
         action: str,
     ) -> dict:
@@ -3804,8 +3814,8 @@ class DatabaseORM:
         届时 `can_double` 等判定的依据已经变了。评判要还原的是玩家做决定时看到的
         局面，不是执行之后的局面。
 
-        `hits_soft_17` 取自该手牌的参数快照而非当前配置：否则管理员改了庄家规则，
-        历史手牌的准确率会跟着漂移。
+        `hits_soft_17` 与 `can_surrender` 取自该手牌的参数快照而非当前配置：否则
+        管理员改了庄家规则或投降开关，历史手牌的准确率会跟着漂移。
         """
         from app import blackjack_engine as engine
 
@@ -3814,6 +3824,7 @@ class DatabaseORM:
             dealer_upcard,
             can_double=can_double,
             hits_soft_17=hits_soft_17,
+            can_surrender=can_surrender,
         )
         correct = recommended == action
 
@@ -3829,15 +3840,26 @@ class DatabaseORM:
         return {"action": action, "recommended": recommended, "correct": correct}
 
     def _capture_decision_context(self, hand: BlackjackHand) -> dict:
-        """在抢占前捕获评判所需的局面。"""
+        """在抢占前捕获评判所需的局面。
+
+        `can_surrender` 由手牌快照的 `surrender_enabled` 与当前牌面共同决定，
+        **不读当前配置**：存量手牌的快照为 0，其评判继续走不含投降的策略表，
+        历史准确率逐位不变（设计决策 2）。要牌/停牌/加倍三条路径同样取用本方法，
+        故开关打开后它们的评判也会正确地把投降建议算进去。
+        """
         from app import blackjack_engine as engine
 
         player_cards = json.loads(hand.player_cards or "[]")
         dealer_cards = json.loads(hand.dealer_cards or "[]")
+        surrender_enabled = int(hand.surrender_enabled) == 1
         return {
             "player_cards": player_cards,
             "dealer_upcard": dealer_cards[0] if dealer_cards else None,
             "can_double": engine.can_double(player_cards, int(hand.status)),
+            "can_surrender": surrender_enabled
+            and engine.can_surrender(
+                player_cards, int(hand.status), int(hand.doubled) == 1
+            ),
             "hits_soft_17": int(hand.dealer_hits_soft_17) == 1,
         }
 
@@ -4011,6 +4033,122 @@ class DatabaseORM:
             result["settled"] = bool(not result.get("already_settled"))
             result["decision"] = decision
             return result
+
+    def blackjack_surrender(self, tg_id: int, hand_id: int) -> dict:
+        """投降：返还一半基础注额，手牌立即结算，不经庄家回合。
+
+        **不走 `_settle_blackjack_hand()`**（设计决策 4）：那条路径的职责是「让庄家
+        补牌后按牌面判胜负」，而投降没有胜负——`resolve()` 的三元组里没有它的位置
+        （`profit_multiplier` 恒为 0 但 `return_multiplier` 是 0.5，不是 stake 的
+        整数倍）。硬塞进去要给一个纯按牌面判定的函数加一个与牌面无关的分支。
+
+        比停牌短，少了三件事：不补牌、不抽水（返还额本就是净亏损，无赢利可抽）、
+        不触碰奖池（投降的时点为手中恰两张牌，同花天胡在发牌阶段已结算、三张 7
+        需要三张牌，两种牌型都在该时点之外——持一对 7 投降即放弃了凑成的可能）。
+
+        幂等与并发照既有纪律：先 `_claim_blackjack_hand()` 抢占（把 status 从玩家
+        回合原子地推进到庄家回合），抢不到即说明已被其他请求或超时任务处理，直接
+        放弃且不做任何写入；随后的终态写入同样带 `WHERE status NOT IN (终态)`
+        条件，构成第二道闸门。加锁顺序仍为手牌 → statistics。
+        """
+        from app import blackjack_engine as engine
+
+        with get_session() as session:
+            hand = self._lock_blackjack_hand(session, tg_id, hand_id)
+
+            if int(hand.status) in engine.TERMINAL_STATUSES:
+                raise ValueError("hand already finished")
+            if int(hand.status) != engine.STATUS_PLAYER_TURN:
+                raise ValueError("not player turn")
+
+            # 开关取该手牌的**快照**而非当前配置：管理员在玩家思考期间关闭开关，
+            # 已渲染出投降按钮的手牌仍应可投降（spec：关闭投降不影响进行中手牌）
+            if int(hand.surrender_enabled) != 1:
+                raise ValueError("surrender disabled")
+
+            if int(hand.doubled) == 1:
+                raise ValueError("cannot surrender after double")
+
+            player_cards = json.loads(hand.player_cards or "[]")
+            if not engine.can_surrender(
+                player_cards, int(hand.status), int(hand.doubled) == 1
+            ):
+                raise ValueError("cannot surrender after hit")
+
+            bet = int(hand.bet_credits)
+            ctx = self._capture_decision_context(hand)
+
+            # 抢占先于任何写入：抢不到就说明手牌已被他人推进或结算，
+            # 此时若已入账，事务提交会造成重复赔付
+            if not self._claim_blackjack_hand(session, hand_id):
+                raise ValueError("hand already finished")
+            session.expire(hand)
+
+            # 投降本身也是一次决策，与要牌/停牌/加倍同样计入准确率
+            decision = self._record_blackjack_decision(
+                session, hand_id, action=engine.ACTION_SURRENDER, **ctx
+            )
+
+            # 返还比例固定为二分之一（不可配置，见 DEFAULT_BLACKJACK_CONFIG 的注释）
+            payout = round(float(bet) * 0.5, 2)
+            now_ts = int(time.time())
+
+            # 第二道幂等闸门：只有把手牌从非终态原子地改成终态的那一方才入账。
+            # `with_for_update()` 在 SQLite 上是 no-op，故不能只靠上方的读取判断。
+            # `jackpot_won` 保持 NULL——投降不触发奖池派彩。
+            session.flush()
+            claimed = session.execute(
+                update(BlackjackHand)
+                .where(
+                    BlackjackHand.id == int(hand_id),
+                    BlackjackHand.status.notin_(engine.TERMINAL_STATUSES),
+                )
+                .values(
+                    status=engine.STATUS_SETTLED,
+                    outcome=engine.OUTCOME_SURRENDER,
+                    payout_credits=float(payout),
+                    rake_credits=0.0,
+                    settled_at=now_ts,
+                )
+            )
+            if claimed.rowcount == 0:
+                session.expire(hand)
+                return {
+                    "hand": self._blackjack_hand_to_dict(hand),
+                    "already_settled": True,
+                    "settled": False,
+                }
+            session.expire(hand)
+
+            stats = (
+                session.execute(
+                    select(Statistics)
+                    .where(Statistics.tg_id == int(tg_id))
+                    .with_for_update()
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if stats:
+                stats.credits = round(float(stats.credits) + payout, 2)
+            else:
+                session.add(
+                    Statistics(tg_id=int(tg_id), donation=0, credits=float(payout))
+                )
+
+            session.flush()
+
+            return {
+                "hand": self._blackjack_hand_to_dict(hand),
+                "already_settled": False,
+                "settled": True,
+                "outcome": engine.OUTCOME_SURRENDER,
+                "payout_credits": payout,
+                "rake_credits": 0.0,
+                "jackpot_won": 0.0,
+                "jackpot_in": 0.0,
+                "decision": decision,
+            }
 
     def _lock_blackjack_hand(self, session, tg_id: int, hand_id: int) -> BlackjackHand:
         """取手牌行并加锁，校验归属。锁顺序的第一步。"""
@@ -4196,6 +4334,7 @@ class DatabaseORM:
             "accuracy": 0.0,
             "decisions_total": 0,
             "jackpot_total": 0.0,
+            "surrender_hands": 0,
         }
         try:
             with get_session() as session:
@@ -4213,6 +4352,11 @@ class DatabaseORM:
                     ),
                     else_=0,
                 )
+                # 投降手数单列：把主动止损作为一项技巧展示出来。与 win_flag 互斥，
+                # 故不影响胜率——投降计入分母不计入分子（与平局同一待遇）。
+                surrender_flag = case(
+                    (BlackjackHand.outcome == engine.OUTCOME_SURRENDER, 1), else_=0
+                )
                 row = session.execute(
                     select(
                         func.count(BlackjackHand.id),
@@ -4222,6 +4366,7 @@ class DatabaseORM:
                         func.coalesce(func.sum(BlackjackHand.decisions_total), 0),
                         func.coalesce(func.sum(BlackjackHand.decisions_correct), 0),
                         func.coalesce(func.sum(BlackjackHand.jackpot_won), 0),
+                        func.coalesce(func.sum(surrender_flag), 0),
                     ).where(
                         BlackjackHand.tg_id == int(tg_id),
                         BlackjackHand.status.in_(engine.TERMINAL_STATUSES),
@@ -4242,6 +4387,7 @@ class DatabaseORM:
                     else 0.0,
                     "decisions_total": dec_total,
                     "jackpot_total": round(float(row[6] or 0), 2),
+                    "surrender_hands": int(row[7] or 0),
                 }
         except Exception as e:
             logger.error(f"获取用户 21 点统计失败 (tg_id={tg_id}): {e}")

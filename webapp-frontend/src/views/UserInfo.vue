@@ -1048,6 +1048,11 @@
                             <span class="stat-value blackjack-value">{{ Number(blackjackStats.win_rate || 0).toFixed(2) }}%</span>
                           </div>
                           <div class="stat-item">
+                            <!-- 投降手数与胜率并列：该投就投也是技巧，故单列展示而非藏进胜率里 -->
+                            <span class="stat-label">投降手数</span>
+                            <span class="stat-value blackjack-value">{{ blackjackStats.surrender_hands || 0 }}</span>
+                          </div>
+                          <div class="stat-item">
                             <!-- 决策准确率是 21 点里唯一纯粹反映技巧的口径，故置于醒目位置 -->
                             <span class="stat-label">决策准确率</span>
                             <span class="stat-value blackjack-accuracy-value">{{ Number(blackjackStats.accuracy || 0).toFixed(2) }}%</span>
@@ -1387,7 +1392,9 @@ export default {
         win_rate: 0,
         accuracy: 0,
         decisions_total: 0,
-        jackpot_total: 0
+        jackpot_total: 0,
+        // 投降手数：计入胜率分母、不计入分子（与平局同一待遇）
+        surrender_hands: 0
       },
       systemStatus: {
         site_name: '', // 默认值，从后端获取后会更新
