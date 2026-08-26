@@ -328,6 +328,12 @@
   <!-- 21 点牌桌 -->
   <BlackjackDialog ref="blackjackDialog" @credits-changed="fetchUserCreditsOnly" />
 
+  <!-- 21 点锦标赛 -->
+  <BlackjackTournamentDialog
+    ref="blackjackTournamentDialog"
+    @credits-changed="fetchUserCreditsOnly"
+  />
+
   <!-- 预测游戏弹窗 -->
   <PredictionDialog ref="predictionDialog" />
 
@@ -401,6 +407,7 @@
 
 <script>
 import BlackjackDialog from '@/components/BlackjackDialog.vue'
+import BlackjackTournamentDialog from '@/components/BlackjackTournamentDialog.vue'
 import LuckyWheel from '@/components/LuckyWheel.vue'
 import PredictionDialog from '@/components/PredictionDialog.vue'
 import TreasureDialog from '@/components/TreasureDialog.vue'
@@ -413,6 +420,7 @@ export default {
   name: 'Activities',
   components: {
     BlackjackDialog,
+    BlackjackTournamentDialog,
     LuckyWheel,
     PredictionDialog,
     TreasureDialog
@@ -469,6 +477,17 @@ export default {
           costCredits: 0,
           // 注额分档，卡片上以区间展示而非单一固定值
           betOptions: []
+        },
+        {
+          id: 'blackjack-tournament',
+          title: '21 点锦标赛',
+          description: '🏆 报名换筹码，打满手数争冠军',
+          icon: 'mdi-trophy',
+          iconColor: 'amber-darken-2',
+          enabled: true,
+          // 报名费按每场赛事设定，卡片只作提示；实际以大厅内各赛事为准
+          requireCredits: 30,
+          costCredits: 0
         },
         {
           id: 'treasure',
@@ -658,6 +677,8 @@ export default {
         this.showLuckyWheelDialog = true
       } else if (activity.id === 'black-jack') {
         this.$refs.blackjackDialog?.open()
+      } else if (activity.id === 'blackjack-tournament') {
+        this.$refs.blackjackTournamentDialog?.open()
       } else if (activity.id === 'auction') {
         this.showAuctionDialog = true
         this.loadActiveAuctions()

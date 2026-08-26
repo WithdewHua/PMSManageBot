@@ -642,6 +642,11 @@ class SystemConfig(Base):
     可见），两者互不相干。两个余额都以**小数字符串**存储——21 点的单手注入天然
     是小数，而荣耀奖池的读取端曾用 `int()` 解析、读到小数即抛错并把余额静默清零，
     该隐患已一并修掉。
+
+    锦标赛只在 `blackjack.config` 里放全局旋钮（通知开关、提醒提前量、勋章加成
+    上限、创建赛事的表单默认值）。**每场赛事的实际参数落在 `blackjack_tournament`
+    表自己的列上**，不进本表——赛事参数须逐场快照且赛中不可改，而本表是全局
+    可变配置，把两者混在一起就失去了「改配置不影响已创建赛事」这个保证。
     """
 
     __tablename__ = "system_config"
@@ -1164,4 +1169,235 @@ class BlackjackHand(Base):
         Index("idx_blackjack_hand_user_status", "tg_id", "status"),
         # 发牌速率判定、当日首手判定与各榜单
         Index("idx_blackjack_hand_user_time", "tg_id", "created_at_ms"),
+        # 赛事清场（结算一场赛事的全部在局手牌）与赛内手牌归属查询
+        Index("idx_blackjack_hand_tournament", "tournament_id", "tg_id"),
+    )
+
+
+class BlackjackTournament(Base):
+    """21 点锦标赛 - 一行代表一场赛事
+
+    异步筹码累积赛：报名扣积分换取赛内筹码，各自安排时间打完固定手数，按最终
+    筹码在全场报名者中排名分取奖池。**锦标赛是事件而非技巧阶梯**——赛果不进入
+    任何榜单，赛内手牌也不计入决策准确率等技巧口径（以名次为目标时，落后者在
+    末几手会做出单手期望为负但对名次正确的选择，按基本策略评判会惩罚打得对的人）。
+
+    奖池金额**不落列**：`entrant_count × buy_in_credits + seeded_prize_credits`
+    恒等于真值，累加列会引入「报名成功但累加失败 / 退款后忘记回退 / 并发累加
+    丢失」一整类漂移 bug。与幸运奖池刻意不同——那边增量来自每手不同的抽水份额，
+    无法推导。
+
+    参数快照四列（dealer_hits_soft_17 / blackjack_payout / surrender_enabled /
+    hand_timeout_minutes）记录创建当时生效的全局配置，赛内全部手牌按该快照结算，
+    使管理员改全局配置不影响已创建的赛事。
+
+    每手牌仍各自持有独立的 `secrets` 种子（落在 `BlackjackHand.deck_seed` 上），
+    本表**不存赛事级种子**：每手牌本来就能凭自己的种子复现，派生只是多一个必须
+    保密的字段和一层无收益的间接。同一赛事的不同报名者因此天然使用不同牌序——
+    复式赛制（全场同牌序）在异步作战下不可行，先打完的人在群里说一句就泄漏全部
+    牌序与庄家暗牌。
+    """
+
+    __tablename__ = "blackjack_tournament"
+
+    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # 状态：1=报名中 2=进行中 3=已结算 4=已取消（3、4 为终态）。
+    # 每次流转都靠条件 UPDATE（CAS）抢占，抢到的一方才发通知——五处通知里有三处
+    # 存在多条触发路径，CAS 同时充当流转闸门与通知去重。
+    status: Mapped[int] = mapped_column(SMALLINT, nullable=False, default=1)
+
+    # 报名与筹码
+    buy_in_credits: Mapped[int] = mapped_column(Integer, nullable=False)
+    starting_chips: Mapped[int] = mapped_column(Integer, nullable=False)
+    total_hands: Mapped[int] = mapped_column(Integer, nullable=False)
+    # 注额区间。赛内不用现金局的固定档位——下注额本身即为锦标赛的主要技巧，
+    # 固定档位会让这项技巧无从施展
+    min_bet_chips: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_bet_chips: Mapped[int] = mapped_column(Integer, nullable=False)
+    bet_step_chips: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+
+    min_entrants: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_entrants: Mapped[int] = mapped_column(Integer, nullable=False)
+    # 报名占位的 CAS 依据，兼奖池推导的因子。与 entry 行数只在同一事务内一起
+    # 变动；赛事进入进行中后不再改变
+    entrant_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # 奖池：抽水部分直接销毁，不落账（销毁即「不发给任何人」）
+    rake_bp: Mapped[int] = mapped_column(Integer, nullable=False, default=1000)
+    # 管理员补贴。本变更两条增发路径之一，必须是显式操作而非自动行为
+    seeded_prize_credits: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0
+    )
+    # 派奖档位百分比，JSON 数组如 [50, 30, 20]。具备派奖资格者少于档位数时
+    # 截断至该数量并重新归一至 100%，确保奖池无残留
+    payout_structure: Mapped[str] = mapped_column(
+        Text, nullable=False, default="[50, 30, 20]"
+    )
+
+    # 参数快照（创建时生效的全局配置）
+    dealer_hits_soft_17: Mapped[int] = mapped_column(
+        SMALLINT, nullable=False, default=0
+    )
+    blackjack_payout: Mapped[float] = mapped_column(Float, nullable=False, default=1.5)
+    surrender_enabled: Mapped[int] = mapped_column(SMALLINT, nullable=False, default=1)
+    hand_timeout_minutes: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=15
+    )
+
+    register_deadline_ms: Mapped[int] = mapped_column(BIGINT, nullable=False)
+    # 发牌端点以 `now < play_deadline_ms` 为闸门。它是个与赛事状态无关的固定
+    # 时间戳，故「先清场、后排名」的两阶段之间不可能有新手牌冒出来，无需引入
+    # 「结算中」这个中间状态
+    play_deadline_ms: Mapped[int] = mapped_column(BIGINT, nullable=False)
+
+    # 完赛提醒的去重标记。提醒是**公平性保障而非便利**：未打满即失去派奖资格
+    # 是一条硬规则，缺少提醒会使其等同于静默没收报名费
+    reminder_sent_at: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
+
+    created_by: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
+    )
+    settled_at: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)  # 秒时间戳
+
+    entries = relationship(
+        "BlackjackTournamentEntry",
+        back_populates="tournament",
+        cascade="all, delete-orphan",
+    )
+
+    __table_args__ = (
+        CheckConstraint("status IN (1,2,3,4)", name="ck_blackjack_tournament_status"),
+        CheckConstraint(
+            "buy_in_credits > 0", name="ck_blackjack_tournament_buy_in_gt_0"
+        ),
+        CheckConstraint(
+            "starting_chips > 0", name="ck_blackjack_tournament_chips_gt_0"
+        ),
+        CheckConstraint("total_hands > 0", name="ck_blackjack_tournament_hands_gt_0"),
+        CheckConstraint(
+            "bet_step_chips > 0", name="ck_blackjack_tournament_bet_step_gt_0"
+        ),
+        CheckConstraint(
+            "min_bet_chips > 0 AND min_bet_chips <= max_bet_chips",
+            name="ck_blackjack_tournament_bet_range",
+        ),
+        CheckConstraint(
+            "min_entrants > 0 AND min_entrants <= max_entrants",
+            name="ck_blackjack_tournament_entrant_range",
+        ),
+        CheckConstraint(
+            "entrant_count >= 0 AND entrant_count <= max_entrants",
+            name="ck_blackjack_tournament_entrant_count",
+        ),
+        CheckConstraint(
+            "rake_bp >= 0 AND rake_bp <= 10000",
+            name="ck_blackjack_tournament_rake_bp",
+        ),
+        CheckConstraint(
+            "seeded_prize_credits >= 0",
+            name="ck_blackjack_tournament_seed_nonneg",
+        ),
+        CheckConstraint(
+            "surrender_enabled IN (0,1)",
+            name="ck_blackjack_tournament_surrender_enabled",
+        ),
+        CheckConstraint(
+            "dealer_hits_soft_17 IN (0,1)",
+            name="ck_blackjack_tournament_dealer_h17",
+        ),
+        CheckConstraint(
+            "hand_timeout_minutes > 0",
+            name="ck_blackjack_tournament_timeout_gt_0",
+        ),
+        CheckConstraint(
+            "register_deadline_ms <= play_deadline_ms",
+            name="ck_blackjack_tournament_deadline_order",
+        ),
+        # tick 任务按 (status, 各截止时点) 扫待处理的赛事
+        Index("idx_blackjack_tournament_status_reg", "status", "register_deadline_ms"),
+        Index("idx_blackjack_tournament_status_play", "status", "play_deadline_ms"),
+    )
+
+
+class BlackjackTournamentEntry(Base):
+    """21 点锦标赛报名 - 一行代表一位用户在一场赛事中的参赛记录
+
+    `chips` 是赛内结算适配层加锁与写入的对象，**替代现金局路径上的
+    `Statistics.credits`**：赛内高频路径因此与积分行锁彻底解耦，一个人打 30 手
+    赛内牌不会和自己的现金局、也不会和派奖抢同一行锁。全局锁序为
+    `hand → tournament → entry → statistics → system_config`，各路径取到的都是
+    这条全序的子序列。
+
+    筹码为**整数**，赔付向下取整：注额约束为 `bet_step_chips` 的整数倍，故 3:2
+    天胡赔率下 `2.5 × bet` 必为整数，取整实际不会触发；只有管理员把
+    `blackjack_payout` 改成非常规值时才生效，量级在 1 筹码以内。好处是排名与
+    展示不出现 `1247.5 筹码`，也不必在赛内重复现金局那套浮点收敛纪律。
+
+    派奖结果落在本表（`final_rank` / `prize_credits`）而非另建流水表：一次派奖
+    对一条 entry 恰好写一次，CAS 已保证不重复，流水表提供不了额外信息。
+    """
+
+    __tablename__ = "blackjack_tournament_entry"
+
+    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    tournament_id: Mapped[int] = mapped_column(
+        BIGINT,
+        ForeignKey("blackjack_tournament.id"),
+        nullable=False,
+        index=True,
+    )
+    tg_id: Mapped[int] = mapped_column(
+        BIGINT,
+        ForeignKey("statistics.tg_id", onupdate="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    chips: Mapped[int] = mapped_column(Integer, nullable=False)
+    hands_played: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # 状态：1=进行中 2=已打完（打满总手数） 3=已淘汰（筹码低于最小注）。
+    # **只有 2 与 3 具备派奖资格**：21 点接近零期望，故不打牌的期望筹码高于打满
+    # 全部手数的中位数——若无这道资格门，最优策略将是报名后什么都不做。
+    status: Mapped[int] = mapped_column(SMALLINT, nullable=False, default=1)
+
+    # 结算后写入。并列由报名时点决胜——它不可操纵且不奖励任何行为：以手数决胜
+    # 会奖励少打，以最后一手时点决胜会奖励拖到截止前
+    final_rank: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    prize_credits: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
+    registered_at_ms: Mapped[int] = mapped_column(BIGINT, nullable=False)
+
+    tournament = relationship("BlackjackTournament", back_populates="entries")
+
+    __table_args__ = (
+        # 重复报名的唯一防线：名额占位的 CAS 与本约束在同一事务内，插入撞约束时
+        # 整个事务回滚、计数增量随之回退，不需要补偿性减一
+        UniqueConstraint(
+            "tournament_id", "tg_id", name="uq_blackjack_tournament_entry"
+        ),
+        CheckConstraint(
+            "status IN (1,2,3)", name="ck_blackjack_tournament_entry_status"
+        ),
+        CheckConstraint(
+            "chips >= 0", name="ck_blackjack_tournament_entry_chips_nonneg"
+        ),
+        CheckConstraint(
+            "hands_played >= 0", name="ck_blackjack_tournament_entry_hands_nonneg"
+        ),
+        CheckConstraint(
+            "prize_credits IS NULL OR prize_credits >= 0",
+            name="ck_blackjack_tournament_entry_prize_nonneg",
+        ),
+        # 排名（按 chips 降序）与「找某用户在某赛事的报名」
+        Index(
+            "idx_blackjack_tournament_entry_rank",
+            "tournament_id",
+            "chips",
+        ),
     )

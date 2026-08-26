@@ -19,6 +19,8 @@ from app.models.models import (
     Auctions,
     Badge,
     BlackjackHand,
+    BlackjackTournament,
+    BlackjackTournamentEntry,
     CryptoDonationOrders,
     CustomLine,
     DonationRegistrations,
@@ -78,7 +80,38 @@ DEFAULT_BLACKJACK_CONFIG = {
     # 游戏王勋章的 21 点双条件
     "badge_min_hands": 2000,
     "badge_min_accuracy": 80,  # 决策准确率（百分比）
+    # ---- 锦标赛 ----
+    # 赛事通知开关。关闭时仍照常推进 reminder_sent_at 与各状态 CAS，只是不发送
+    # ——若关闭时直接跳过流转，积压的通知会在重新打开的那一刻一次性倾泻
+    "tournament_notify_enabled": True,
+    # 完赛提醒的提前量（小时）。这不是便利而是**公平性保障**：未打满即失去派奖
+    # 资格是一条硬规则，缺少提醒会使其等同于静默没收报名费
+    "tournament_remind_lead_hours": 6,
+    # 冠军勋章加成的累积上限（天），防止持续夺冠者无限累积
+    "tournament_badge_cap_days": 90,
+    # 管理员创建赛事时的默认值，仅作表单预填，每场赛事的实际参数以其自身的列为准
+    "tournament_defaults": {
+        "buy_in_credits": 30,
+        "starting_chips": 1000,
+        "total_hands": 30,
+        "min_bet_chips": 10,
+        "max_bet_chips": 500,
+        "bet_step_chips": 10,
+        "min_entrants": 6,
+        "max_entrants": 20,
+        "rake_bp": 1000,
+        "payout_structure": [50, 30, 20],
+    },
 }
+
+# 冠军勋章。照既有 game_king 的形状：缺失时自动创建，故不需要预置数据或迁移。
+#
+# 带 5% 每日观看积分加成、30 天有效期，再次夺冠时**续期而非重置**。这是一条
+# 增发路径（0.4 积分/天/人），量级相对大转盘的回收可忽略，但原设计对增发很严格，
+# 故在此显式记账。
+CHAMPION_BADGE_TYPE = "blackjack_champion"
+CHAMPION_BADGE_BONUS = 0.05
+CHAMPION_BADGE_VALID_DAYS = 30
 
 # 幸运奖池余额的存放位置。与大预言家的荣耀奖池
 # `(prediction_market, glory_fund)` **完全无关**：21 点的抽水只进这个池子。
@@ -2815,6 +2848,11 @@ class DatabaseORM:
         既不计胜也不计负，但仍计入分母——它确实消耗了一手。投降同一待遇：
         `"surrender"` 不在 `win_flag` 里故不计入分子，其 status 是已结算故自动
         计入分母与手数门槛，本方法因此无需为投降加任何分支。
+
+        **只统计现金局手牌**（`tournament_id IS NULL`）：锦标赛以名次而非单手
+        期望为目标，落后者在末几手会做出单手期望为负但对名次正确的选择，按基本
+        策略评判会惩罚打得对的人；赛内手数计入门槛也会让只打锦标赛的用户挤进
+        技巧榜。赛内手牌的决策计数恒为 0，是漏掉本过滤时的第二层防御。
         """
         from app import blackjack_engine as engine
 
@@ -2834,7 +2872,10 @@ class DatabaseORM:
 
         stmt = (
             select(BlackjackHand.tg_id, hand_count, wins, dec_total, dec_correct)
-            .where(BlackjackHand.status.in_(engine.TERMINAL_STATUSES))
+            .where(
+                BlackjackHand.status.in_(engine.TERMINAL_STATUSES),
+                BlackjackHand.tournament_id.is_(None),
+            )
             .group_by(BlackjackHand.tg_id)
             .having(func.count(BlackjackHand.id) >= int(min_hands))
         )
@@ -2914,6 +2955,9 @@ class DatabaseORM:
         只统计已结束的手牌，且只保留净赢利为正的用户。本榜不设手数门槛：它是
         高光时刻展示而非技术排名，一手也可以上榜。
 
+        **只统计现金局手牌**（`tournament_id IS NULL`）：赛内筹码不是积分，
+        把它与积分赢利并列排名没有意义。
+
         Returns: [(tg_id, max_win, hand_count), ...] 按单手最大赢利降序
         """
         from app import blackjack_engine as engine
@@ -2929,7 +2973,10 @@ class DatabaseORM:
             hand_count = func.count(BlackjackHand.id).label("hand_count")
             stmt = (
                 select(BlackjackHand.tg_id, max_win, hand_count)
-                .where(BlackjackHand.status.in_(engine.TERMINAL_STATUSES))
+                .where(
+                    BlackjackHand.status.in_(engine.TERMINAL_STATUSES),
+                    BlackjackHand.tournament_id.is_(None),
+                )
                 .group_by(BlackjackHand.tg_id)
                 .order_by(max_win.desc())
             )
@@ -3060,6 +3107,12 @@ class DatabaseORM:
             "dealer_hits_soft_17": int(hand.dealer_hits_soft_17),
             "hand_timeout_minutes": int(hand.hand_timeout_minutes),
             "surrender_enabled": int(hand.surrender_enabled) == 1,
+            # 该手牌属于哪一侧。响应层据此把用户引回正确的牌桌：两侧共用「同时至多
+            # 一手」这个不变量，故 `/current` 可能返回一手赛内牌，而现金局界面若把
+            # 它当自己的牌渲染，用户点任何动作都只会得到「找不到该手牌」
+            "tournament_id": int(hand.tournament_id)
+            if hand.tournament_id is not None
+            else None,
             "created_at_ms": int(hand.created_at_ms),
             "settled_at": int(hand.settled_at) if hand.settled_at is not None else None,
         }
@@ -3592,7 +3645,9 @@ class DatabaseORM:
                     ):
                         continue
                     session.expire(hand)
-                    self._settle_blackjack_hand(
+                    # 按 tournament_id 分派适配层：赛内手牌必须走筹码路径，
+                    # 否则会用筹码算出的数额去赔用户的**积分**
+                    self._settle_blackjack_hand_dispatch(
                         session,
                         hand,
                         abandoned=True,
@@ -3615,15 +3670,19 @@ class DatabaseORM:
         return int(day_start.timestamp() * 1000)
 
     def _count_blackjack_hands_today(self, session, tg_id: int) -> int:
-        """该用户当日已发的手数（含进行中）。
+        """该用户当日已发的**现金局**手数（含进行中）。
 
         走已有的 `(tg_id, created_at_ms)` 复合索引，不新增存储也不新增查询模式。
+
+        锦标赛赛内手牌不计入（`tournament_id IS NULL`）：赛内根本不产生抽水，
+        故不该消耗当日的免抽水额度——否则先打一场赛事就会把当天的免抽水吃掉。
         """
         return int(
             session.execute(
                 select(func.count(BlackjackHand.id)).where(
                     BlackjackHand.tg_id == int(tg_id),
                     BlackjackHand.created_at_ms >= self._blackjack_day_start_ms(),
+                    BlackjackHand.tournament_id.is_(None),
                 )
             ).scalar_one()
             or 0
@@ -3701,17 +3760,37 @@ class DatabaseORM:
             # 若在已持有 statistics 锁时再锁手牌就构成 ABBA 死锁（超时任务持有
             # 手牌等 statistics，本方法持有 statistics 等手牌）。同一用户的手牌
             # 由 statistics 锁间接串行化，无需另外加锁。
-            active_count = session.execute(
-                select(func.count(BlackjackHand.id)).where(
+            #
+            # **刻意不加 `tournament_id IS NULL`**：「同时至多一手非终态」这个
+            # 不变量跨现金局与全部锦标赛共用。单一不变量最简单、也最不容易被
+            # 绕过；按侧分别计数会让「一个人同时开一手现金局和一手赛内牌」成为
+            # 可能，而两侧共用同一套动作端点与超时机制，届时哪一手该被超时任务
+            # 处置将变得依赖调用顺序。代价是一手悬挂的赛内牌会挡住现金局发牌，
+            # 上界是该手牌自己的超时时限。
+            #
+            # 取阻塞方的 `tournament_id` 而非只数个数：现金局的 `/current` 会
+            # 滤掉赛内手牌（那手牌不该出现在现金局牌桌上），于是用户看到的是一个
+            # 正常的下注界面，点一次报错一次，而「你还有一手牌未结束」在现金局里
+            # 根本无处可寻。必须把他指回锦标赛。
+            blocking = session.execute(
+                select(BlackjackHand.tournament_id)
+                .where(
                     BlackjackHand.tg_id == int(tg_id),
                     BlackjackHand.status.notin_(engine.TERMINAL_STATUSES),
                 )
-            ).scalar_one()
-            if int(active_count or 0) > 0:
+                .limit(1)
+            ).first()
+            if blocking is not None:
+                if blocking[0] is not None:
+                    raise ValueError(f"hand in progress in tournament {blocking[0]}")
                 raise ValueError("hand in progress")
 
             # 速率下限：读该用户最近一手的 created_at_ms，同一事务、同一把锁、
-            # 零额外依赖，且不会因缓存失效而失效
+            # 零额外依赖，且不会因缓存失效而失效。
+            #
+            # **刻意不加 `tournament_id IS NULL`**：该限制的目的是压制脚本化高频
+            # 请求与积分行锁争用，两者都与手牌属于现金局还是赛内无关。按侧分别
+            # 判定等于把允许的请求频率翻倍，恰好削弱它要防的东西。
             if min_interval_seconds > 0:
                 last_ms = session.execute(
                     select(func.max(BlackjackHand.created_at_ms)).where(
@@ -4150,8 +4229,20 @@ class DatabaseORM:
                 "decision": decision,
             }
 
-    def _lock_blackjack_hand(self, session, tg_id: int, hand_id: int) -> BlackjackHand:
-        """取手牌行并加锁，校验归属。锁顺序的第一步。"""
+    def _lock_blackjack_hand(
+        self, session, tg_id: int, hand_id: int, *, cash_only: bool = True
+    ) -> BlackjackHand:
+        """取手牌行并加锁，校验归属。锁顺序的第一步。
+
+        `cash_only=True`（默认）会**拒绝赛内手牌**。这不是可选的洁癖：现金局的
+        四个动作端点只按 hand_id 取牌，若不拦，用户把赛内手牌的 id 提交到
+        `/blackjack/{id}/stand` 就会走现金局适配层——那会拿筹码注额算出一笔钱
+        赔进他的**积分**，并把筹码数按抽水比例注进幸运奖池。两侧的 id 空间共用
+        同一张表，故这道检查必须在加锁处而不是各端点里，漏一个端点即是漏洞。
+
+        赛内路径用 `_lock_tournament_hand`（它以 `cash_only=False` 调用本方法，
+        再反向要求 `tournament_id` 非空），两个方向各自把对面的手牌挡在外面。
+        """
         hand = (
             session.execute(
                 select(BlackjackHand)
@@ -4164,6 +4255,8 @@ class DatabaseORM:
         if not hand:
             raise ValueError("hand not found")
         if int(hand.tg_id) != int(tg_id):
+            raise ValueError("hand not found")
+        if cash_only and hand.tournament_id is not None:
             raise ValueError("hand not found")
         return hand
 
@@ -4254,7 +4347,7 @@ class DatabaseORM:
                     "already_settled": True,
                 }
             session.expire(hand)
-            return self._settle_blackjack_hand(
+            return self._settle_blackjack_hand_dispatch(
                 session, hand, abandoned=True, jackpot_config=jackpot_config
             )
 
@@ -4292,7 +4385,14 @@ class DatabaseORM:
             return self._blackjack_hand_to_dict(hand)
 
     def list_active_blackjack_hands(self) -> list[dict]:
-        """列出所有非终态的手牌，供启动时重建超时任务用。"""
+        """列出所有非终态的手牌，供启动时重建超时任务用。
+
+        **刻意不加 `tournament_id IS NULL`**：赛内手牌同样受单手超时兜底约束，
+        重启后也必须重建其超时任务。此处漏掉赛内手牌会让它们在重启后失去及时性
+        保障，只能等每 10 分钟的全量兜底——而全量兜底本就是最后一层，不该被当作
+        常规路径。结算时走哪个适配层由 `_settle_blackjack_hand_dispatch` 按
+        `tournament_id` 分派，与本方法无关。
+        """
         from app import blackjack_engine as engine
 
         try:
@@ -4370,6 +4470,10 @@ class DatabaseORM:
                     ).where(
                         BlackjackHand.tg_id == int(tg_id),
                         BlackjackHand.status.in_(engine.TERMINAL_STATUSES),
+                        # 只统计现金局手牌：赛内不产生抽水与奖池派彩，其筹码
+                        # 也不是积分，混入会让 net_credits / max_win 失去口径，
+                        # 并稀释决策准确率（赛内决策计数恒为 0）
+                        BlackjackHand.tournament_id.is_(None),
                     )
                 ).one()
 
@@ -4462,6 +4566,11 @@ class DatabaseORM:
                         func.coalesce(func.sum(raked), 0),
                         func.coalesce(func.sum(paid), 0),
                         func.coalesce(func.sum(jackpot), 0),
+                    ).where(
+                        # 只统计现金局手牌。这里不是「仅展示失真」的量级：赛内的
+                        # bet_credits 是**筹码**，混入会把筹码数加进以积分计价的
+                        # total_wagered 与 net_credits，得出的运营数字毫无意义。
+                        BlackjackHand.tournament_id.is_(None)
                     )
                 ).one()
 
@@ -4486,6 +4595,1933 @@ class DatabaseORM:
         except Exception as e:
             logger.error(f"获取 21 点运营统计失败: {e}")
             return empty
+
+    # ==================== 21 点锦标赛 ====================
+    #
+    # 锦标赛与现金局共用 `blackjack_engine`（引擎返回赔付倍率而非积分数，故同一
+    # 套倍率可以作用于赛内筹码），但**结算适配层是两个平级函数而非一个带分支的
+    # 函数**——见 `_settle_blackjack_tournament_hand` 的说明。
+    #
+    # 全局锁序：hand → tournament → entry → statistics → system_config。
+    # 各路径取到的都是这条全序的子序列：
+    #   报名      tournament(CAS) → statistics
+    #   赛内结算  hand(CAS) → entry              ← 完全不碰 statistics
+    #   派奖/退款 tournament(CAS) → entry → statistics
+    # 赛内结算不触及 statistics 是筹码不是积分带来的直接好处：赛内高频路径与积分
+    # 行锁彻底解耦。
+
+    # 赛事状态
+    TOURNAMENT_REGISTERING = 1
+    TOURNAMENT_RUNNING = 2
+    TOURNAMENT_SETTLED = 3
+    TOURNAMENT_CANCELLED = 4
+    TOURNAMENT_TERMINAL = (3, 4)
+
+    # 报名状态。**只有已打完与已淘汰具备派奖资格**：21 点接近零期望，故不打牌的
+    # 期望筹码高于打满全部手数的中位数——若无这道资格门，最优策略将是报名后什么
+    # 都不做。
+    ENTRY_PLAYING = 1
+    ENTRY_FINISHED = 2
+    ENTRY_ELIMINATED = 3
+    ENTRY_ELIGIBLE = (2, 3)
+
+    # 已有报名者之后仍可改的字段——**只有展示文案与两个截止时点**。
+    # 其余一律冻结：报名者是按公示参数付的报名费，而 `buy_in_credits` 同时是
+    # 奖池推导（entrant_count × buy_in）与取消退款的因子，改它等于拿新价去算
+    # 旧钱——按 30 收了 10 个人再改成 100，奖池会凭空多出 700 分派出去。
+    TOURNAMENT_MUTABLE_WITH_ENTRANTS = (
+        "title",
+        "description",
+        "register_deadline_ms",
+        "play_deadline_ms",
+    )
+
+    # 赛程窗口下限。缺了这道校验，`register_deadline == play_deadline` 的赛事会在
+    # 同一次 tick 内开赛并立即结算：无人打完、无人淘汰，资格集为空，**全部报名费
+    # 静默销毁**。窗口还要随总手数放大，否则 100 手配 30 分钟同样无人打得完。
+    TOURNAMENT_MIN_PLAY_WINDOW_MS = 30 * 60 * 1000
+    TOURNAMENT_MS_PER_HAND = 60 * 1000
+
+    def _tournament_to_dict(self, t: BlackjackTournament) -> dict:
+        """把赛事行转为字典。奖池按报名数推导，不读累加列（本表没有那一列）。"""
+        try:
+            payout_structure = json.loads(t.payout_structure or "[]")
+            if not isinstance(payout_structure, list):
+                payout_structure = []
+        except Exception:
+            payout_structure = []
+
+        gross = round(
+            int(t.entrant_count) * int(t.buy_in_credits)
+            + float(t.seeded_prize_credits),
+            2,
+        )
+        rake = round(gross * int(t.rake_bp) / 10000.0, 2)
+        return {
+            "id": int(t.id),
+            "title": str(t.title),
+            "description": t.description,
+            "status": int(t.status),
+            "buy_in_credits": int(t.buy_in_credits),
+            "starting_chips": int(t.starting_chips),
+            "total_hands": int(t.total_hands),
+            "min_bet_chips": int(t.min_bet_chips),
+            "max_bet_chips": int(t.max_bet_chips),
+            "bet_step_chips": int(t.bet_step_chips),
+            "min_entrants": int(t.min_entrants),
+            "max_entrants": int(t.max_entrants),
+            "entrant_count": int(t.entrant_count),
+            "rake_bp": int(t.rake_bp),
+            "seeded_prize_credits": float(t.seeded_prize_credits),
+            "payout_structure": payout_structure,
+            # 奖池总额与实际可派发额分列：前者是玩家看到的「奖池」，后者扣掉抽水
+            "prize_pool_gross": gross,
+            "prize_pool_net": round(gross - rake, 2),
+            "dealer_hits_soft_17": int(t.dealer_hits_soft_17) == 1,
+            "blackjack_payout": float(t.blackjack_payout),
+            "surrender_enabled": int(t.surrender_enabled) == 1,
+            "hand_timeout_minutes": int(t.hand_timeout_minutes),
+            "register_deadline_ms": int(t.register_deadline_ms),
+            "play_deadline_ms": int(t.play_deadline_ms),
+            "created_by": int(t.created_by) if t.created_by is not None else None,
+            "settled_at": int(t.settled_at) if t.settled_at is not None else None,
+        }
+
+    def _tournament_entry_to_dict(self, e: BlackjackTournamentEntry) -> dict:
+        """把报名行转为字典。"""
+        return {
+            "id": int(e.id),
+            "tournament_id": int(e.tournament_id),
+            "tg_id": int(e.tg_id),
+            "chips": int(e.chips),
+            "hands_played": int(e.hands_played),
+            "status": int(e.status),
+            "eligible": int(e.status) in self.ENTRY_ELIGIBLE,
+            "final_rank": int(e.final_rank) if e.final_rank is not None else None,
+            "prize_credits": float(e.prize_credits)
+            if e.prize_credits is not None
+            else None,
+            "registered_at_ms": int(e.registered_at_ms),
+        }
+
+    def _validate_tournament_params(self, params: dict) -> dict:
+        """校验并归一赛事参数。非法值一律抛 ValueError 由路由翻译。
+
+        注额区间与步进的关系是这里唯一容易被忽略的一处：`min_bet` 与 `max_bet`
+        都必须落在步进上，否则用户在滑杆上永远选不到端点值，而服务端又只接受
+        步进的整数倍——两端不一致会让「全下」这个按钮直接报错。
+        """
+        out = {}
+
+        title = str(params.get("title") or "").strip()
+        if not title:
+            raise ValueError("tournament title required")
+        out["title"] = title
+        desc = params.get("description")
+        out["description"] = str(desc).strip() if desc else None
+
+        def _pos_int(key: str) -> int:
+            try:
+                value = int(params[key])
+            except (KeyError, TypeError, ValueError):
+                raise ValueError(f"invalid {key}")
+            if value <= 0:
+                raise ValueError(f"invalid {key}")
+            return value
+
+        out["buy_in_credits"] = _pos_int("buy_in_credits")
+        out["starting_chips"] = _pos_int("starting_chips")
+        out["total_hands"] = _pos_int("total_hands")
+        out["bet_step_chips"] = _pos_int("bet_step_chips")
+        out["min_bet_chips"] = _pos_int("min_bet_chips")
+        out["max_bet_chips"] = _pos_int("max_bet_chips")
+        out["min_entrants"] = _pos_int("min_entrants")
+        out["max_entrants"] = _pos_int("max_entrants")
+
+        step = out["bet_step_chips"]
+        if out["min_bet_chips"] > out["max_bet_chips"]:
+            raise ValueError("min_bet_chips must not exceed max_bet_chips")
+        if out["min_bet_chips"] % step or out["max_bet_chips"] % step:
+            raise ValueError(f"bet bounds must be multiples of {step}")
+        if out["max_bet_chips"] > out["starting_chips"]:
+            raise ValueError("max_bet_chips must not exceed starting_chips")
+        if out["min_entrants"] > out["max_entrants"]:
+            raise ValueError("min_entrants must not exceed max_entrants")
+
+        try:
+            rake_bp = int(params.get("rake_bp", 1000))
+        except (TypeError, ValueError):
+            raise ValueError("invalid rake_bp")
+        if not 0 <= rake_bp <= 10000:
+            raise ValueError("rake_bp must be between 0 and 10000")
+        out["rake_bp"] = rake_bp
+
+        try:
+            seed = round(float(params.get("seeded_prize_credits", 0) or 0), 2)
+        except (TypeError, ValueError):
+            raise ValueError("invalid seeded_prize_credits")
+        if seed < 0:
+            raise ValueError("seeded_prize_credits must not be negative")
+        out["seeded_prize_credits"] = seed
+
+        # 用 `is None` 而非 `or`：空列表是**明确给错了**，不是没给。
+        # `params.get(...) or default` 会把管理员清空的档位静默换成默认值，
+        # 他会以为自己设的生效了，而奖池按另一套档位派了出去。
+        structure = params.get("payout_structure")
+        if structure is None:
+            structure = [50, 30, 20]
+        if isinstance(structure, str):
+            try:
+                structure = json.loads(structure)
+            except Exception:
+                raise ValueError("invalid payout_structure")
+        if not isinstance(structure, list) or not structure:
+            raise ValueError("payout_structure must be a non-empty list")
+        try:
+            structure = [round(float(x), 4) for x in structure]
+        except (TypeError, ValueError):
+            raise ValueError("invalid payout_structure")
+        if any(x <= 0 for x in structure):
+            raise ValueError("payout_structure entries must be positive")
+        if abs(sum(structure) - 100.0) > 0.01:
+            raise ValueError("payout_structure must sum to 100")
+        out["payout_structure"] = json.dumps(structure)
+
+        try:
+            reg = int(params["register_deadline_ms"])
+            play = int(params["play_deadline_ms"])
+        except (KeyError, TypeError, ValueError):
+            raise ValueError("invalid deadlines")
+        if reg > play:
+            raise ValueError("register deadline must not be after play deadline")
+        # 赛程窗口须够打完总手数。见 TOURNAMENT_MIN_PLAY_WINDOW_MS 的说明：
+        # 窗口为零时全员无资格，报名费会被静默销毁
+        min_window = max(
+            self.TOURNAMENT_MIN_PLAY_WINDOW_MS,
+            out["total_hands"] * self.TOURNAMENT_MS_PER_HAND,
+        )
+        if play - reg < min_window:
+            raise ValueError(
+                f"play window must be at least {min_window // 60000} minutes "
+                f"for {out['total_hands']} hands"
+            )
+        out["register_deadline_ms"] = reg
+        out["play_deadline_ms"] = play
+
+        return out
+
+    def _generate_tournament_title(self) -> str:
+        """赛事名称留空时的自动命名：`21 点锦标赛 · 第 N 期`。
+
+        期数取**已创建赛事总数 + 1**而非 `id`：id 是内部编号，管理端列表本来就在
+        标题前显示 `#id`，写进名字只是重复；而「第 N 期」自带连续感。赛事没有删除
+        路径（取消也只是状态流转），故该计数单调递增，语义稳定。
+
+        并发创建会算出同一个 N 而两场重名——**不加唯一约束是有意的**：重名只是
+        显示上的巧合，而 UNIQUE 会把它升级成一次创建失败。赛事创建是管理员的手动
+        低频操作，实际不会并发。
+        """
+        with get_session() as session:
+            count = (
+                session.execute(select(func.count(BlackjackTournament.id))).scalar()
+                or 0
+            )
+        return f"21 点锦标赛 · 第 {int(count) + 1} 期"
+
+    def create_blackjack_tournament(
+        self, params: dict, created_by: Optional[int] = None
+    ) -> dict:
+        """创建赛事。快照创建当时生效的庄家规则、天胡赔率、投降开关与单手时限。
+
+        快照的意义与现金局手牌相同：赛内全部手牌按该快照结算，管理员改全局配置
+        不影响已创建的赛事。故这四个值**不从 `get_blackjack_config_dict()` 现读**，
+        而是在此固化到赛事行上。
+        """
+        # 名称留空即「你帮我取一个」。**更新路径刻意不做同样处理**：那里留空的
+        # 意思是「把名字清空」，应当照旧拒绝——静默换成一个新名字会让管理员以为
+        # 自己改的名字生效了，而群里公示的是另一个。
+        params = dict(params)
+        if not str(params.get("title") or "").strip():
+            params["title"] = self._generate_tournament_title()
+
+        validated = self._validate_tournament_params(params)
+        config = self.get_blackjack_config_dict()
+
+        if not config.get("enabled", False):
+            raise ValueError("blackjack disabled")
+
+        now_ms = int(time.time() * 1000)
+        if validated["register_deadline_ms"] <= now_ms:
+            raise ValueError("register deadline must be in the future")
+
+        with get_session() as session:
+            tournament = BlackjackTournament(
+                status=self.TOURNAMENT_REGISTERING,
+                entrant_count=0,
+                # 参数快照
+                dealer_hits_soft_17=1 if config.get("dealer_hits_soft_17") else 0,
+                blackjack_payout=float(config.get("blackjack_payout", 1.5)),
+                surrender_enabled=1 if config.get("surrender_enabled", True) else 0,
+                hand_timeout_minutes=int(config.get("hand_timeout_minutes", 15)),
+                created_by=int(created_by) if created_by is not None else None,
+                **validated,
+            )
+            session.add(tournament)
+            session.flush()
+            return self._tournament_to_dict(tournament)
+
+    def update_blackjack_tournament(self, tournament_id: int, params: dict) -> dict:
+        """修改赛事。**仅允许修改处于报名中的赛事**，且已有报名者后经济参数冻结。
+
+        进入进行中后一律拒绝：报名者已按公示的参数付过报名费，而总手数、注额区间
+        与派奖档位都直接决定他们的策略与预期收益，中途变更等于事后改规则。
+
+        报名中但**已有人付费**时同样不能改经济参数——理由更硬：奖池是
+        `entrant_count × buy_in_credits` 推导出来的，取消退款也读同一个字段。
+        按 30 收了 10 个人再把 buy_in 改成 100，派奖会按 1000 算而实收只有
+        300，差额是凭空增发；走取消路径则每人退 100。要改就先取消（全额退款）
+        再重建。可改的只有展示文案与两个截止时点，外加**只增不减**的奖池补贴。
+        """
+        validated = self._validate_tournament_params(params)
+
+        with get_session() as session:
+            tournament = (
+                session.execute(
+                    select(BlackjackTournament)
+                    .where(BlackjackTournament.id == int(tournament_id))
+                    .with_for_update()
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if not tournament:
+                raise ValueError("tournament not found")
+            if int(tournament.status) != self.TOURNAMENT_REGISTERING:
+                raise ValueError("tournament already started")
+
+            # 已有报名时不得把人数上限压到报名数以下，否则 entrant_count 会越界
+            if validated["max_entrants"] < int(tournament.entrant_count):
+                raise ValueError(
+                    f"max_entrants must not be below current entrants "
+                    f"({int(tournament.entrant_count)})"
+                )
+
+            if int(tournament.entrant_count) > 0:
+                self._assert_tournament_params_frozen(tournament, validated)
+
+            for key, value in validated.items():
+                setattr(tournament, key, value)
+            session.flush()
+            return self._tournament_to_dict(tournament)
+
+    def _assert_tournament_params_frozen(
+        self, tournament: BlackjackTournament, validated: dict
+    ) -> None:
+        """已有报名者时，校验本次修改没有触碰冻结字段。"""
+        for key, value in validated.items():
+            if key in self.TOURNAMENT_MUTABLE_WITH_ENTRANTS:
+                continue
+            current = getattr(tournament, key)
+
+            if key == "seeded_prize_credits":
+                # 加码是纯利好，减码等于事后缩水已公示的奖池，故只放行增加
+                if float(value) < float(current):
+                    raise ValueError("seeded_prize_credits must not decrease")
+                continue
+
+            if isinstance(current, (int, float)) and isinstance(value, (int, float)):
+                same = abs(float(value) - float(current)) < 1e-9
+            else:
+                # payout_structure 两端都是同一段 json.dumps 产出的字符串
+                same = str(value) == str(current)
+            if not same:
+                raise ValueError(f"cannot change {key} after entrants joined")
+
+    def register_blackjack_tournament(self, tg_id: int, tournament_id: int) -> dict:
+        """报名：占名额 → 扣报名费 → 建 entry；满员则尝试开赛。
+
+        **名额占位用条件 UPDATE（CAS）而非「读计数再判断」**：
+        `with_for_update()` 在 SQLite 上是 no-op，两个并发报名会各自读到未满员、
+        各自插入，把人数顶到上限之上。CAS 不依赖行锁，在 SQLite 与 PostgreSQL 上
+        都成立。
+
+        计数增量与 entry 插入**在同一事务内**：插入撞 `uq_blackjack_tournament_entry`
+        （同一用户并发重复报名）时整个事务回滚，计数增量随之回退，故不需要补偿性
+        的减一。这一点必须保持——若把两者拆到不同事务，会留下「名额被占但无 entry」
+        的幽灵占位，而 entrant_count 又是奖池推导的因子，等于凭空多算一份报名费。
+
+        锁序 tournament → statistics。
+
+        Returns: {entry, tournament, started(bool), notify_entrants: [tg_id]}
+        """
+        config = self.get_blackjack_config_dict()
+        if not config.get("enabled", False):
+            raise ValueError("blackjack disabled")
+
+        now_ms = int(time.time() * 1000)
+
+        with get_session() as session:
+            tournament = (
+                session.execute(
+                    select(BlackjackTournament).where(
+                        BlackjackTournament.id == int(tournament_id)
+                    )
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if not tournament:
+                raise ValueError("tournament not found")
+            if int(tournament.status) != self.TOURNAMENT_REGISTERING:
+                raise ValueError("tournament not open for registration")
+            if now_ms >= int(tournament.register_deadline_ms):
+                raise ValueError("registration closed")
+
+            buy_in = int(tournament.buy_in_credits)
+            starting_chips = int(tournament.starting_chips)
+            max_entrants = int(tournament.max_entrants)
+
+            # 先做一次廉价的重复报名检查，把绝大多数重复请求挡在扣费之前。
+            # 真正的防线是下方插入时的唯一约束——此处只读不锁，并发下会漏。
+            existing = (
+                session.execute(
+                    select(BlackjackTournamentEntry).where(
+                        BlackjackTournamentEntry.tournament_id == int(tournament_id),
+                        BlackjackTournamentEntry.tg_id == int(tg_id),
+                    )
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if existing:
+                raise ValueError("already registered")
+
+            # 名额占位：CAS。抢不到即已满员
+            claimed = session.execute(
+                update(BlackjackTournament)
+                .where(
+                    BlackjackTournament.id == int(tournament_id),
+                    BlackjackTournament.status == self.TOURNAMENT_REGISTERING,
+                    BlackjackTournament.entrant_count < max_entrants,
+                )
+                .values(entrant_count=BlackjackTournament.entrant_count + 1)
+            )
+            if claimed.rowcount == 0:
+                raise ValueError("tournament full")
+
+            # 扣报名费。锁序 tournament → statistics，故此处才取积分行锁
+            stats = (
+                session.execute(
+                    select(Statistics)
+                    .where(Statistics.tg_id == int(tg_id))
+                    .with_for_update()
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if not stats:
+                raise ValueError("user stats not found")
+            if float(stats.credits) < float(buy_in):
+                raise ValueError(f"insufficient credits: need {buy_in}")
+            stats.credits = round(float(stats.credits) - float(buy_in), 2)
+
+            entry = BlackjackTournamentEntry(
+                tournament_id=int(tournament_id),
+                tg_id=int(tg_id),
+                chips=starting_chips,
+                hands_played=0,
+                status=self.ENTRY_PLAYING,
+                registered_at_ms=now_ms,
+            )
+            session.add(entry)
+            # 立刻 flush：让唯一约束在本事务内就撞出来，而不是等到 commit 时
+            # 才失败——那时扣费与计数都已写下，异常从 commit 抛出更难归因。
+            #
+            # 撞约束就是「并发重复报名」，翻成与前置检查同一句 ValueError：路由层
+            # 只捕获 ValueError，裸的 IntegrityError 会冒成 500，而这是一次正常的
+            # 业务拒绝，用户该看到「你已报名该赛事」。事务照旧整体回滚，扣费与
+            # 名额增量一并回退
+            try:
+                session.flush()
+            except IntegrityError:
+                raise ValueError("already registered")
+            session.expire(tournament)
+
+            entry_dict = self._tournament_entry_to_dict(entry)
+
+            # 满员即开：sit-and-go。定死开赛时间在冷清社区会大量流局
+            started = False
+            notify_entrants: list[int] = []
+            if int(tournament.entrant_count) >= max_entrants:
+                started = self._claim_tournament_transition(
+                    session,
+                    int(tournament_id),
+                    self.TOURNAMENT_REGISTERING,
+                    self.TOURNAMENT_RUNNING,
+                )
+                if started:
+                    session.expire(tournament)
+                    notify_entrants = self._list_tournament_entrant_ids(
+                        session, int(tournament_id)
+                    )
+
+            return {
+                "entry": entry_dict,
+                "tournament": self._tournament_to_dict(tournament),
+                "started": started,
+                "notify_entrants": notify_entrants,
+            }
+
+    def _claim_tournament_transition(
+        self, session, tournament_id: int, from_status: int, to_status: int
+    ) -> bool:
+        """把赛事状态从 `from_status` 原子地改为 `to_status`，返回是否抢到。
+
+        这是赛事的**唯一**流转方式，也是五处通知的去重闸门：抢到的一方负责发通知，
+        抢不到的一方什么都不做。开赛、赛果、取消三处各有多条触发路径（最后一次
+        报名 / tick 任务 / 任务重试），靠「记得只发一次」是不可能正确的。
+
+        不依赖行锁——`with_for_update()` 在 SQLite 上是 no-op，两个并发事务可以
+        各自读到旧状态再依次写入，于是通知发两遍、派奖也可能算两遍。
+
+        调用方须在事务内，且必须先 `session.flush()` 把挂起的改动刷下去，否则
+        条件 UPDATE 读到的可能不是最新状态。
+        """
+        session.flush()
+        values: dict = {"status": int(to_status)}
+        if int(to_status) in self.TOURNAMENT_TERMINAL:
+            values["settled_at"] = int(time.time())
+        claimed = session.execute(
+            update(BlackjackTournament)
+            .where(
+                BlackjackTournament.id == int(tournament_id),
+                BlackjackTournament.status == int(from_status),
+            )
+            .values(**values)
+        )
+        return claimed.rowcount == 1
+
+    def _list_tournament_entrant_ids(self, session, tournament_id: int) -> list[int]:
+        """该赛事全部报名者的 tg_id，供通知使用。"""
+        rows = session.execute(
+            select(BlackjackTournamentEntry.tg_id)
+            .where(BlackjackTournamentEntry.tournament_id == int(tournament_id))
+            .order_by(BlackjackTournamentEntry.registered_at_ms.asc())
+        ).all()
+        return [int(r[0]) for r in rows]
+
+    def start_blackjack_tournament(self, tournament_id: int) -> dict:
+        """报名截止且人数达标时开赛。由 tick 任务调用。
+
+        Returns: {started(bool), tournament, notify_entrants: [tg_id]}
+        """
+        with get_session() as session:
+            tournament = (
+                session.execute(
+                    select(BlackjackTournament).where(
+                        BlackjackTournament.id == int(tournament_id)
+                    )
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if not tournament:
+                return {"started": False, "tournament": None, "notify_entrants": []}
+            if int(tournament.status) != self.TOURNAMENT_REGISTERING:
+                return {
+                    "started": False,
+                    "tournament": self._tournament_to_dict(tournament),
+                    "notify_entrants": [],
+                }
+            if int(tournament.entrant_count) < int(tournament.min_entrants):
+                return {
+                    "started": False,
+                    "tournament": self._tournament_to_dict(tournament),
+                    "notify_entrants": [],
+                }
+
+            started = self._claim_tournament_transition(
+                session,
+                int(tournament_id),
+                self.TOURNAMENT_REGISTERING,
+                self.TOURNAMENT_RUNNING,
+            )
+            notify_entrants = (
+                self._list_tournament_entrant_ids(session, int(tournament_id))
+                if started
+                else []
+            )
+            session.expire(tournament)
+            return {
+                "started": started,
+                "tournament": self._tournament_to_dict(tournament),
+                "notify_entrants": notify_entrants,
+            }
+
+    def cancel_blackjack_tournament(
+        self, tournament_id: int, reason: str = "insufficient_entrants"
+    ) -> dict:
+        """取消赛事并**全额**退还报名费。
+
+        退款不计任何抽水——赛事从未开始，没有可供计取的东西。
+
+        幂等由 `1 → 4` 的 CAS 保证：抢不到的一方一分钱不退、一条通知不发。
+        进行中的赛事一律不可取消：报名费已收而筹码无法折算回积分，强制作废只会
+        制造一批无法解释的账。
+
+        锁序 tournament → entry → statistics。
+
+        Returns: {cancelled(bool), tournament, refunds: [{tg_id, credits}]}
+        """
+        with get_session() as session:
+            tournament = (
+                session.execute(
+                    select(BlackjackTournament).where(
+                        BlackjackTournament.id == int(tournament_id)
+                    )
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if not tournament:
+                raise ValueError("tournament not found")
+            if int(tournament.status) == self.TOURNAMENT_RUNNING:
+                raise ValueError("tournament already started")
+            if int(tournament.status) in self.TOURNAMENT_TERMINAL:
+                return {
+                    "cancelled": False,
+                    "tournament": self._tournament_to_dict(tournament),
+                    "refunds": [],
+                }
+
+            buy_in = int(tournament.buy_in_credits)
+
+            # 先抢占状态：抢不到说明已被他人取消或开赛，绝不能继续退款
+            if not self._claim_tournament_transition(
+                session,
+                int(tournament_id),
+                self.TOURNAMENT_REGISTERING,
+                self.TOURNAMENT_CANCELLED,
+            ):
+                session.expire(tournament)
+                return {
+                    "cancelled": False,
+                    "tournament": self._tournament_to_dict(tournament),
+                    "refunds": [],
+                }
+            session.expire(tournament)
+
+            entries = (
+                session.execute(
+                    select(BlackjackTournamentEntry)
+                    .where(BlackjackTournamentEntry.tournament_id == int(tournament_id))
+                    .order_by(BlackjackTournamentEntry.registered_at_ms.asc())
+                )
+                .scalars()
+                .all()
+            )
+
+            refunds = []
+            for entry in entries:
+                stats = (
+                    session.execute(
+                        select(Statistics)
+                        .where(Statistics.tg_id == int(entry.tg_id))
+                        .with_for_update()
+                    )
+                    .scalars()
+                    .one_or_none()
+                )
+                if stats:
+                    stats.credits = round(float(stats.credits) + float(buy_in), 2)
+                else:
+                    session.add(
+                        Statistics(
+                            tg_id=int(entry.tg_id), donation=0, credits=float(buy_in)
+                        )
+                    )
+                refunds.append({"tg_id": int(entry.tg_id), "credits": float(buy_in)})
+
+            session.flush()
+            logger.info(
+                f"21 点锦标赛 {tournament_id} 已取消（{reason}），"
+                f"退还 {len(refunds)} 人各 {buy_in} 积分"
+            )
+            return {
+                "cancelled": True,
+                "tournament": self._tournament_to_dict(tournament),
+                "refunds": refunds,
+            }
+
+    def claim_tournament_reminder(self, tournament_id: int) -> dict:
+        """抢占完赛提醒的发送权，并返回该发给谁。
+
+        去重靠 `reminder_sent_at` 的**条件 UPDATE**（`WHERE reminder_sent_at IS
+        NULL`）：tick 任务每分钟都会扫到同一场处于提醒窗口内的赛事，抢不到的那些
+        轮次直接返回 `claimed=False`，一条也不发。
+
+        **通知开关关闭时调用方仍应照常调用本方法**，只是不发送。若关闭时直接跳过、
+        让标记冻结，重新打开的那一分钟会把积压的提醒一次性倾泻给所有人。
+
+        `pending` 只含**未打满且未被淘汰**的报名——已打完与已淘汰的人都已具备派奖
+        资格，提醒他们毫无意义。
+
+        Returns: {claimed(bool), pending: [{tg_id, hands_remaining}]}
+        """
+        now_ts = int(time.time())
+        try:
+            with get_session() as session:
+                claimed = session.execute(
+                    update(BlackjackTournament)
+                    .where(
+                        BlackjackTournament.id == int(tournament_id),
+                        BlackjackTournament.status == self.TOURNAMENT_RUNNING,
+                        BlackjackTournament.reminder_sent_at.is_(None),
+                    )
+                    .values(reminder_sent_at=now_ts)
+                )
+                if claimed.rowcount == 0:
+                    return {"claimed": False, "pending": []}
+
+                tournament = (
+                    session.execute(
+                        select(BlackjackTournament).where(
+                            BlackjackTournament.id == int(tournament_id)
+                        )
+                    )
+                    .scalars()
+                    .one_or_none()
+                )
+                if not tournament:
+                    return {"claimed": False, "pending": []}
+                total_hands = int(tournament.total_hands)
+
+                rows = session.execute(
+                    select(
+                        BlackjackTournamentEntry.tg_id,
+                        BlackjackTournamentEntry.hands_played,
+                    ).where(
+                        BlackjackTournamentEntry.tournament_id == int(tournament_id),
+                        BlackjackTournamentEntry.status == self.ENTRY_PLAYING,
+                    )
+                ).all()
+
+                pending = [
+                    {
+                        "tg_id": int(r[0]),
+                        "hands_remaining": max(0, total_hands - int(r[1])),
+                    }
+                    for r in rows
+                    if int(r[1]) < total_hands
+                ]
+                return {"claimed": True, "pending": pending}
+        except Exception as e:
+            logger.error(f"抢占锦标赛完赛提醒失败 (id={tournament_id}): {e}")
+            return {"claimed": False, "pending": []}
+
+    def get_blackjack_tournament(
+        self, tournament_id: int, tg_id: Optional[int] = None
+    ) -> Optional[dict]:
+        """赛事详情。给定 `tg_id` 时附带该用户的报名（没报名则为 None）。"""
+        try:
+            with get_session() as session:
+                tournament = (
+                    session.execute(
+                        select(BlackjackTournament).where(
+                            BlackjackTournament.id == int(tournament_id)
+                        )
+                    )
+                    .scalars()
+                    .one_or_none()
+                )
+                if not tournament:
+                    return None
+                result = self._tournament_to_dict(tournament)
+                result["my_entry"] = None
+                if tg_id is not None:
+                    entry = (
+                        session.execute(
+                            select(BlackjackTournamentEntry).where(
+                                BlackjackTournamentEntry.tournament_id
+                                == int(tournament_id),
+                                BlackjackTournamentEntry.tg_id == int(tg_id),
+                            )
+                        )
+                        .scalars()
+                        .one_or_none()
+                    )
+                    if entry:
+                        result["my_entry"] = self._tournament_entry_to_dict(entry)
+                return result
+        except Exception as e:
+            logger.error(f"获取 21 点锦标赛失败 (id={tournament_id}): {e}")
+            return None
+
+    def list_blackjack_tournaments(
+        self,
+        tg_id: Optional[int] = None,
+        statuses: Optional[tuple] = None,
+        limit: int = 20,
+    ) -> list[dict]:
+        """赛事列表。默认列出报名中与进行中的赛事，供大厅展示。
+
+        给定 `tg_id` 时一次性带出该用户在这批赛事中的报名，避免前端逐场再查。
+        """
+        if statuses is None:
+            statuses = (self.TOURNAMENT_REGISTERING, self.TOURNAMENT_RUNNING)
+        try:
+            with get_session() as session:
+                tournaments = (
+                    session.execute(
+                        select(BlackjackTournament)
+                        .where(BlackjackTournament.status.in_(tuple(statuses)))
+                        .order_by(BlackjackTournament.id.desc())
+                        .limit(int(limit))
+                    )
+                    .scalars()
+                    .all()
+                )
+                results = [self._tournament_to_dict(t) for t in tournaments]
+                if tg_id is not None and results:
+                    ids = [r["id"] for r in results]
+                    entries = (
+                        session.execute(
+                            select(BlackjackTournamentEntry).where(
+                                BlackjackTournamentEntry.tournament_id.in_(ids),
+                                BlackjackTournamentEntry.tg_id == int(tg_id),
+                            )
+                        )
+                        .scalars()
+                        .all()
+                    )
+                    by_tid = {
+                        int(e.tournament_id): self._tournament_entry_to_dict(e)
+                        for e in entries
+                    }
+                    for r in results:
+                        r["my_entry"] = by_tid.get(r["id"])
+                else:
+                    for r in results:
+                        r["my_entry"] = None
+                return results
+        except Exception as e:
+            logger.error(f"列出 21 点锦标赛失败: {e}")
+            return []
+
+    def get_blackjack_tournament_standings(self, tournament_id: int) -> list[dict]:
+        """全场排名。进行中按当前筹码排序，已结算按最终名次排序。
+
+        排序口径与结算时完全一致（筹码降序，并列由报名时点较早者列前），使进行中
+        看到的顺序不会在结算那一刻莫名重排。
+
+        **是否已结算按赛事状态判定，不能靠「所有行都有 final_rank」**：无资格者
+        （既没打完也没被淘汰）永远拿不到 final_rank，而设计上就假定这种人存在，
+        故那个条件几乎恒假——已结算的赛事会掉进临时位次分支，按筹码重排，让一个
+        坐等不打的人顶着「第 1」和真正的冠军并列显示。无资格者在已结算的赛事里
+        **两个名次字段都留空**，由前端渲染成「无名次」。
+        """
+        try:
+            with get_session() as session:
+                settled = (
+                    session.execute(
+                        select(BlackjackTournament.status).where(
+                            BlackjackTournament.id == int(tournament_id)
+                        )
+                    ).scalar()
+                    == self.TOURNAMENT_SETTLED
+                )
+                entries = (
+                    session.execute(
+                        select(BlackjackTournamentEntry)
+                        .where(
+                            BlackjackTournamentEntry.tournament_id == int(tournament_id)
+                        )
+                        .order_by(
+                            BlackjackTournamentEntry.chips.desc(),
+                            BlackjackTournamentEntry.registered_at_ms.asc(),
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                rows = [self._tournament_entry_to_dict(e) for e in entries]
+                if settled:
+                    # 有名次的按名次升序在前，无资格者维持筹码序垫在最后
+                    rows.sort(
+                        key=lambda r: (
+                            r["final_rank"] is None,
+                            r["final_rank"] if r["final_rank"] is not None else 0,
+                        )
+                    )
+                else:
+                    for i, r in enumerate(rows, start=1):
+                        r["provisional_rank"] = i
+                return rows
+        except Exception as e:
+            logger.error(f"获取 21 点锦标赛排名失败 (id={tournament_id}): {e}")
+            return []
+
+    def get_user_blackjack_tournament_entry(
+        self, tg_id: int, tournament_id: int
+    ) -> Optional[dict]:
+        """该用户在某赛事中的报名。"""
+        try:
+            with get_session() as session:
+                entry = (
+                    session.execute(
+                        select(BlackjackTournamentEntry).where(
+                            BlackjackTournamentEntry.tournament_id
+                            == int(tournament_id),
+                            BlackjackTournamentEntry.tg_id == int(tg_id),
+                        )
+                    )
+                    .scalars()
+                    .one_or_none()
+                )
+                return self._tournament_entry_to_dict(entry) if entry else None
+        except Exception as e:
+            logger.error(
+                f"获取 21 点锦标赛报名失败 (tg_id={tg_id}, id={tournament_id}): {e}"
+            )
+            return None
+
+    def count_user_blackjack_tournament_titles(self, tg_id: int) -> int:
+        """该用户的锦标赛冠军次数。
+
+        由 `final_rank == 1` 数出，不新增存储。这是个人统计里的展示项，**不是
+        榜单**——spec 明确锦标赛赛果不进入任何榜单。
+        """
+        try:
+            with get_session() as session:
+                return int(
+                    session.execute(
+                        select(func.count(BlackjackTournamentEntry.id)).where(
+                            BlackjackTournamentEntry.tg_id == int(tg_id),
+                            BlackjackTournamentEntry.final_rank == 1,
+                        )
+                    ).scalar_one()
+                    or 0
+                )
+        except Exception as e:
+            logger.error(f"获取 21 点冠军次数失败 (tg_id={tg_id}): {e}")
+            return 0
+
+    def check_blackjack_tournament_consistency(
+        self, tournament_id: int
+    ) -> Optional[dict]:
+        """比对 `entrant_count` 与 entry 实际行数，供管理端校验。
+
+        两者只在同一事务内一起变动，本不该漂移；但 `entrant_count` 是奖池推导的
+        因子，一旦漂移会直接影响派奖金额，故提供一处显式校验而不是等出问题再查。
+        """
+        try:
+            with get_session() as session:
+                tournament = (
+                    session.execute(
+                        select(BlackjackTournament).where(
+                            BlackjackTournament.id == int(tournament_id)
+                        )
+                    )
+                    .scalars()
+                    .one_or_none()
+                )
+                if not tournament:
+                    return None
+                actual = int(
+                    session.execute(
+                        select(func.count(BlackjackTournamentEntry.id)).where(
+                            BlackjackTournamentEntry.tournament_id == int(tournament_id)
+                        )
+                    ).scalar_one()
+                    or 0
+                )
+                counter = int(tournament.entrant_count)
+                return {
+                    "tournament_id": int(tournament_id),
+                    "entrant_count": counter,
+                    "entry_rows": actual,
+                    "consistent": counter == actual,
+                }
+        except Exception as e:
+            logger.error(f"校验 21 点锦标赛一致性失败 (id={tournament_id}): {e}")
+            return None
+
+    # ==================== 赛内手牌：结算适配层与动作 ====================
+
+    def _lock_tournament_entry(
+        self, session, tournament_id: int, tg_id: int
+    ) -> BlackjackTournamentEntry:
+        """取报名行并加锁。赛内路径上它替代现金局的 `Statistics`。"""
+        entry = (
+            session.execute(
+                select(BlackjackTournamentEntry)
+                .where(
+                    BlackjackTournamentEntry.tournament_id == int(tournament_id),
+                    BlackjackTournamentEntry.tg_id == int(tg_id),
+                )
+                .with_for_update()
+            )
+            .scalars()
+            .one_or_none()
+        )
+        if not entry:
+            raise ValueError("tournament entry not found")
+        return entry
+
+    def _apply_tournament_entry_terminal_status(
+        self,
+        entry: BlackjackTournamentEntry,
+        tournament: Optional[BlackjackTournament],
+    ) -> None:
+        """按打完手数与剩余筹码判定报名的终态。
+
+        打满总手数记已打完；筹码不足最小注记已淘汰（不必等归零——低于最小注就
+        再也发不出牌了，让他挂在「进行中」只会让他误以为还能打）。两者都具备派奖
+        资格，区别仅在于展示与统计口径。
+
+        **这条规则只此一份**：结算适配层与投降各写一遍时，两份的空值防护就已经
+        分了叉，而任何一次口径调整（比如把淘汰线从「低于最小注」改成「归零」）
+        都必须同时改两处，漏一处就会让投降的人拿到与其他人不同的终态。
+        """
+        total_hands = int(tournament.total_hands) if tournament else 0
+        min_bet = int(tournament.min_bet_chips) if tournament else 0
+        if total_hands and int(entry.hands_played) >= total_hands:
+            entry.status = self.ENTRY_FINISHED
+        elif min_bet and int(entry.chips) < min_bet:
+            entry.status = self.ENTRY_ELIMINATED
+
+    def _tournament_total_hands(self, session, tournament_id: int) -> Optional[int]:
+        """取赛事的总手数，供动作响应算「剩余手数」。
+
+        动作响应里捎回它，路由层就不必为了这一个数字再开一次事务去查赛事——那次
+        查询失败会返回 `None`，而路由层原本会直接下标取值，把一次已经落库并按筹码
+        赔付完毕的结算变成 500。
+        """
+        value = session.execute(
+            select(BlackjackTournament.total_hands).where(
+                BlackjackTournament.id == int(tournament_id)
+            )
+        ).scalar()
+        return int(value) if value is not None else None
+
+    def _tournament_entry_state(self, session, tournament_id: int, tg_id: int) -> dict:
+        """动作未使手牌结算时的筹码与进度快照。"""
+        entry = self._lock_tournament_entry(session, int(tournament_id), int(tg_id))
+        return {
+            "chips": int(entry.chips),
+            "hands_played": int(entry.hands_played),
+            "entry_status": int(entry.status),
+            "total_hands": self._tournament_total_hands(session, int(tournament_id)),
+        }
+
+    def _tournament_already_settled_result(self, session, hand: BlackjackHand) -> dict:
+        """本次结算未生效（他人已抢先结算）时的返回值。
+
+        **必须捎上 entry 的三个字段**：路由层会把缺失的键兜底成 `0 / 0 / 1`，而前端
+        拿到就直接覆盖本地状态——玩家的筹码栈会显示成 0、进度回退到 0/N，直到他
+        重新打开牌桌。这条路径并不罕见：十分钟一次的兜底扫描与用户自己的停牌撞在
+        一起就会走到（`with_for_update()` 在 SQLite 上是 no-op，CAS 正是为此存在）。
+
+        entry 缺失只记日志、不抛异常：本方法也在清场路径上被调用，那里抛异常会让
+        手牌停在非终态、赛事永远清不干净，比少三个展示字段严重得多。
+        """
+        result = {
+            "hand": self._blackjack_hand_to_dict(hand),
+            "already_settled": True,
+        }
+        entry = (
+            session.execute(
+                select(BlackjackTournamentEntry).where(
+                    BlackjackTournamentEntry.tournament_id == int(hand.tournament_id),
+                    BlackjackTournamentEntry.tg_id == int(hand.tg_id),
+                )
+            )
+            .scalars()
+            .one_or_none()
+        )
+        if entry:
+            result["chips"] = int(entry.chips)
+            result["hands_played"] = int(entry.hands_played)
+            result["entry_status"] = int(entry.status)
+        else:
+            logger.error(
+                f"赛内手牌 {int(hand.id)} 找不到对应报名行 "
+                f"(tournament={hand.tournament_id}, tg_id={hand.tg_id})"
+            )
+        result["total_hands"] = self._tournament_total_hands(
+            session, int(hand.tournament_id)
+        )
+        return result
+
+    def _settle_blackjack_tournament_hand(
+        self,
+        session,
+        hand: BlackjackHand,
+        abandoned: bool = False,
+    ) -> dict:
+        """赛内结算：停牌 / 加倍 / 爆牌 / 投降 / 超时兜底 / 赛事清场共用这一条。
+
+        **本方法是 `_settle_blackjack_hand` 的同构复刻，不是它的一个分支。**
+        引擎完全共用（`resolve()` 返回的是相对基础注额的倍率，与钱还是筹码无关），
+        差异全在适配层：
+
+        | | 现金局 | 赛内 |
+        |---|---|---|
+        | 加锁对象 | `Statistics` | `BlackjackTournamentEntry` |
+        | 抽水 | 按快照计取 | **不计** —— 已在报名费上一次性收过 |
+        | 幸运奖池 | 派彩 + 注入 | **不碰** —— 筹码不是积分，注进去等于凭空造钱 |
+        | 决策计数 | 落库 | **不写**（恒为 0） |
+        | 取整 | `round(x, 2)` | `floor` —— 筹码是整数 |
+
+        为什么不在现有函数里加三条 `if hand.tournament_id`：那个函数已 200 余行，
+        其中相当篇幅是历史事故的说明；穿上分支后每一条既有推理都要重新验证「在
+        赛内这一支是否仍成立」。两个函数各自短、各自能被读完，比一个长函数便宜。
+
+        代价是 CAS 闸门被复制了一份。**这是有意接受的**：那段逻辑最不该「聪明地
+        复用」——把它抽成公共 helper 会让闸门与其保护的写操作在源码上分离，而现金局
+        踩过的事故恰恰是「闸门晚于写操作」导致扣了钱不赔付。宁可两份都显式。
+
+        锁序 hand → entry。赛内结算**完全不触及 `Statistics`**，故赛内高频路径与
+        积分行锁彻底解耦。
+
+        调用方须已对 `hand` 行取过 FOR UPDATE 并完成抢占。
+        """
+        from app import blackjack_engine as engine
+
+        # 廉价前置检查：多数重复请求在此被挡掉。**不是**幂等的保证——真正的
+        # 保证是下方的条件 UPDATE
+        if int(hand.status) in engine.TERMINAL_STATUSES:
+            return self._tournament_already_settled_result(session, hand)
+
+        hand_id = int(hand.id)
+        tg_id = int(hand.tg_id)
+        tournament_id = int(hand.tournament_id)
+        bet = int(hand.bet_credits)
+        doubled = int(hand.doubled) == 1
+        player_cards = json.loads(hand.player_cards or "[]")
+        dealer_cards = json.loads(hand.dealer_cards or "[]")
+
+        # 按手牌上的快照结算（快照来自赛事，赛事又快照自创建时的全局配置）
+        blackjack_payout = float(hand.blackjack_payout)
+        hits_soft_17 = int(hand.dealer_hits_soft_17) == 1
+
+        deck = engine.build_deck(str(hand.deck_seed))
+        next_index = int(hand.next_card_index)
+
+        # 庄家在两种情形下不补牌：玩家爆牌，或开局任一方天胡（天胡在发牌阶段
+        # 即已结算，庄家从未开始行动）。漏掉后者会把幽灵牌写进 dealer_cards，
+        # 前端于是回放一段完全编造的庄家补牌过程
+        settled_on_deal = engine.is_natural_blackjack(
+            player_cards
+        ) or engine.is_natural_blackjack(dealer_cards)
+        if engine.is_bust(player_cards) or settled_on_deal:
+            final_dealer_cards = dealer_cards
+        else:
+            final_dealer_cards, next_index = engine.play_dealer(
+                deck, dealer_cards, next_index, hits_soft_17=hits_soft_17
+            )
+
+        outcome, return_multiplier, _profit_multiplier = engine.resolve(
+            player_cards,
+            final_dealer_cards,
+            doubled=doubled,
+            blackjack_payout=blackjack_payout,
+        )
+
+        # 筹码为整数，赔付向下取整。注额被约束为步进的整数倍，故 3:2 赔率下
+        # `2.5 × bet` 必为整数，取整实际不会触发；只有管理员把赔率设成非常规值
+        # 时才生效，量级在 1 筹码以内。`_profit_multiplier` 在赛内无用武之地
+        # ——它是给抽水算基数的，而赛内不抽水。
+        #
+        # **先 round 到分位再取整**，不直接 `int(a * b)`：二进制浮点会让本该整数的
+        # 乘积落在整数下方（如 1.2 赔率下某些注额算出 x.999999999999），`int()`
+        # 向零截断就白吃掉玩家 1 个筹码，而那正是这段注释声称不会发生的事。
+        payout = int(round(float(return_multiplier) * float(bet), 2))
+
+        final_status = engine.STATUS_ABANDONED if abandoned else engine.STATUS_SETTLED
+        now_ts = int(time.time())
+
+        # 以上都是无副作用的纯计算。幂等闸门在此：只有把手牌从非终态原子地改成
+        # 终态的那一方，才有权继续写筹码
+        session.flush()
+        claimed = session.execute(
+            update(BlackjackHand)
+            .where(
+                BlackjackHand.id == hand_id,
+                BlackjackHand.status.notin_(engine.TERMINAL_STATUSES),
+            )
+            .values(
+                status=final_status,
+                outcome=outcome,
+                payout_credits=float(payout),
+                # 赛内不抽水，显式写 0 而非留空：留空会让「这手没抽水」与
+                # 「这手还没结算」在审计时无法区分
+                rake_credits=0.0,
+                dealer_cards=json.dumps(final_dealer_cards),
+                next_card_index=int(next_index),
+                settled_at=now_ts,
+            )
+        )
+        if claimed.rowcount == 0:
+            session.expire(hand)
+            return self._tournament_already_settled_result(session, hand)
+
+        session.expire(hand)
+
+        # 抢占成功，本次结算生效。锁序 hand → entry
+        entry = self._lock_tournament_entry(session, tournament_id, tg_id)
+        tournament = (
+            session.execute(
+                select(BlackjackTournament).where(
+                    BlackjackTournament.id == tournament_id
+                )
+            )
+            .scalars()
+            .one_or_none()
+        )
+        total_hands = int(tournament.total_hands) if tournament else 0
+
+        entry.chips = int(entry.chips) + int(payout)
+        entry.hands_played = int(entry.hands_played) + 1
+        self._apply_tournament_entry_terminal_status(entry, tournament)
+
+        session.flush()
+
+        return {
+            "hand": self._blackjack_hand_to_dict(hand),
+            "already_settled": False,
+            "outcome": outcome,
+            "payout_credits": float(payout),
+            "chips": int(entry.chips),
+            "hands_played": int(entry.hands_played),
+            "entry_status": int(entry.status),
+            # 捎回总手数，省掉路由层为算「剩余手数」而多打的一次赛事查询
+            "total_hands": total_hands,
+        }
+
+    def _settle_blackjack_hand_dispatch(
+        self,
+        session,
+        hand: BlackjackHand,
+        abandoned: bool = False,
+        jackpot_config: Optional[dict] = None,
+    ) -> dict:
+        """按 `tournament_id` 选结算适配层。
+
+        超时任务、定时兜底与赛事清场三条入口共用本函数，避免三处各写一遍判断
+        ——漏掉任何一处都会让赛内手牌走现金局的适配层：那会给用户的**积分**
+        赔付一笔按筹码算出来的钱，并把筹码注额当积分注进幸运奖池。
+        """
+        if hand.tournament_id is not None:
+            return self._settle_blackjack_tournament_hand(
+                session, hand, abandoned=abandoned
+            )
+        return self._settle_blackjack_hand(
+            session, hand, abandoned=abandoned, jackpot_config=jackpot_config
+        )
+
+    def create_blackjack_tournament_hand(
+        self, tg_id: int, tournament_id: int, bet_chips: int
+    ) -> dict:
+        """赛内发牌：校验 → 扣筹码 → 定序 → 发初始牌 → 天胡则直接结算。
+
+        锁序 entry → statistics。**为什么要锁一行自己根本不修改的 `Statistics`**：
+        「同一用户同时至多一手非终态」这个不变量跨现金局与全部赛事共用，而现金局
+        发牌正是以该用户的 `Statistics` 行锁作为串行化点。赛内若只锁 entry，一个
+        用户并发发起「现金局发牌 + 赛内发牌」会各持一把互不相干的锁，双双通过
+        「无进行中手牌」检查，于是同时开出两手牌——两侧共用同一套动作端点与超时
+        机制，届时哪一手该被处置将取决于调用顺序。锁同一行是让该不变量真正成立
+        的唯一办法，代价只是一次单行加锁。
+
+        Returns: {hand, settled(bool), chips, ...}
+        """
+        from app import blackjack_engine as engine
+
+        # 惰性清理走独立事务并先行提交，理由同现金局：不寄生在发牌事务里，
+        # 否则后续任何一次校验失败都会把已完成的结算连带回滚
+        self.sweep_timed_out_blackjack_hands(tg_id=int(tg_id))
+
+        config = self.get_blackjack_config_dict()
+        min_interval_seconds = float(config.get("min_deal_interval_seconds", 1))
+        now_ms = int(time.time() * 1000)
+
+        with get_session() as session:
+            tournament = (
+                session.execute(
+                    select(BlackjackTournament).where(
+                        BlackjackTournament.id == int(tournament_id)
+                    )
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if not tournament:
+                raise ValueError("tournament not found")
+            if int(tournament.status) != self.TOURNAMENT_RUNNING:
+                raise ValueError("tournament not running")
+            # 完赛截止是个与赛事状态无关的固定时间戳，故「先清场、后排名」的
+            # 两阶段之间不可能有新手牌冒出来——无需引入「结算中」的中间状态
+            if now_ms >= int(tournament.play_deadline_ms):
+                raise ValueError("tournament finished")
+
+            entry = self._lock_tournament_entry(session, int(tournament_id), int(tg_id))
+            if int(entry.status) == self.ENTRY_FINISHED:
+                raise ValueError("all hands played")
+            if int(entry.status) == self.ENTRY_ELIMINATED:
+                raise ValueError("eliminated")
+
+            total_hands = int(tournament.total_hands)
+            if int(entry.hands_played) >= total_hands:
+                raise ValueError("all hands played")
+
+            # 注额校验：区间内、步进的整数倍、不超过当前筹码
+            bet = int(bet_chips)
+            step = int(tournament.bet_step_chips)
+            min_bet = int(tournament.min_bet_chips)
+            max_bet = int(tournament.max_bet_chips)
+            if bet % step:
+                raise ValueError(f"bet must be a multiple of {step}")
+            if bet < min_bet or bet > max_bet:
+                raise ValueError(f"bet out of range: {min_bet}~{max_bet}")
+            if bet > int(entry.chips):
+                raise ValueError("insufficient chips")
+
+            # 见方法 docstring：这一行只锁不改，是全局「至多一手」不变量的串行化点
+            session.execute(
+                select(Statistics.tg_id)
+                .where(Statistics.tg_id == int(tg_id))
+                .with_for_update()
+            )
+
+            # 「同时至多一手」与发牌速率两项**跨现金局与赛内共同计算**，
+            # 故此处不加 tournament_id 过滤。同样取阻塞方的归属，好把用户指回
+            # 正确的那张牌桌——现金局的牌与别场赛事的牌在本赛事界面里都看不见
+            blocking = session.execute(
+                select(BlackjackHand.tournament_id)
+                .where(
+                    BlackjackHand.tg_id == int(tg_id),
+                    BlackjackHand.status.notin_(engine.TERMINAL_STATUSES),
+                )
+                .limit(1)
+            ).first()
+            if blocking is not None:
+                blocking_tid = blocking[0]
+                if blocking_tid is None:
+                    raise ValueError("hand in progress in cash game")
+                if int(blocking_tid) != int(tournament_id):
+                    raise ValueError(f"hand in progress in tournament {blocking_tid}")
+                raise ValueError("hand in progress")
+
+            if min_interval_seconds > 0:
+                last_ms = session.execute(
+                    select(func.max(BlackjackHand.created_at_ms)).where(
+                        BlackjackHand.tg_id == int(tg_id)
+                    )
+                ).scalar_one_or_none()
+                if last_ms is not None:
+                    elapsed = (now_ms - int(last_ms)) / 1000.0
+                    if elapsed < min_interval_seconds:
+                        raise ValueError("deal too frequent")
+
+            entry.chips = int(entry.chips) - bet
+
+            deck_seed = secrets.token_hex(16)
+            deck = engine.build_deck(deck_seed)
+            player_cards, dealer_cards, next_index = engine.deal_initial(deck)
+
+            hand = BlackjackHand(
+                tg_id=int(tg_id),
+                tournament_id=int(tournament_id),
+                status=engine.STATUS_PLAYER_TURN,
+                bet_credits=bet,
+                doubled=0,
+                deck_seed=deck_seed,
+                next_card_index=int(next_index),
+                player_cards=json.dumps(player_cards),
+                dealer_cards=json.dumps(dealer_cards),
+                # 参数快照取自**赛事**而非当前全局配置
+                blackjack_payout=float(tournament.blackjack_payout),
+                dealer_hits_soft_17=int(tournament.dealer_hits_soft_17),
+                surrender_enabled=int(tournament.surrender_enabled),
+                hand_timeout_minutes=int(tournament.hand_timeout_minutes),
+                # 赛内不抽水：快照写 0，结算路径读的本来就是快照。`rake_waived`
+                # 保持 0——那一列的语义是「当日首手免抽水」，赛内根本不在那个
+                # 体系里，标成 1 会让审计误以为它消耗了免抽水额度
+                rake_bp_on_profit=0,
+                rake_jackpot_bp=0,
+                rake_waived=0,
+                created_at_ms=now_ms,
+            )
+            session.add(hand)
+            session.flush()
+
+            initial = engine.evaluate_initial_deal(
+                player_cards,
+                dealer_cards,
+                blackjack_payout=float(hand.blackjack_payout),
+            )
+            if initial is not None:
+                result = self._settle_blackjack_tournament_hand(session, hand)
+                result["settled"] = True
+                return result
+
+            return {
+                "hand": self._blackjack_hand_to_dict(hand),
+                "settled": False,
+                "chips": int(entry.chips),
+                "hands_played": int(entry.hands_played),
+                "entry_status": int(entry.status),
+                "total_hands": total_hands,
+            }
+
+    def _lock_tournament_hand(self, session, tg_id: int, hand_id: int) -> BlackjackHand:
+        """取赛内手牌行并加锁，校验归属、确实属于某场赛事、且该赛事仍可操作。
+
+        与 `_lock_blackjack_hand` 的 `cash_only` 构成双向隔离：现金局手牌被提交到
+        赛内端点时同样按「找不到」拒绝，绝不能在此按筹码结算——那会让一手用积分
+        押注的牌把赔付写进某场赛事的筹码栈。
+
+        **完赛截止闸门必须在这里，而不是只在发牌处**：清场与排名是两个相邻但独立
+        的事务，若截止后仍放行动作，一个恰好挤在两者之间的 `double` 会让该玩家
+        带着已扣未赔的筹码参与排名，之后那手牌再把赔付写回一场已经派完奖的赛事。
+        锁序 hand → tournament，与结算路径一致。
+        """
+        hand = self._lock_blackjack_hand(session, tg_id, hand_id, cash_only=False)
+        if hand.tournament_id is None:
+            raise ValueError("hand not found")
+
+        tournament = (
+            session.execute(
+                select(BlackjackTournament).where(
+                    BlackjackTournament.id == int(hand.tournament_id)
+                )
+            )
+            .scalars()
+            .one_or_none()
+        )
+        if not tournament:
+            raise ValueError("tournament not found")
+        if int(tournament.status) != self.TOURNAMENT_RUNNING:
+            raise ValueError("tournament not running")
+        if int(time.time() * 1000) >= int(tournament.play_deadline_ms):
+            # 清场任务会把它按停牌口径结算，不因截止判负
+            raise ValueError("tournament finished")
+        return hand
+
+    def blackjack_tournament_hit(self, tg_id: int, hand_id: int) -> dict:
+        """赛内要牌。**不记录决策评判**——赛内的正解与基本策略并不一致。"""
+        from app import blackjack_engine as engine
+
+        with get_session() as session:
+            hand = self._lock_tournament_hand(session, tg_id, hand_id)
+
+            if int(hand.status) in engine.TERMINAL_STATUSES:
+                raise ValueError("hand already finished")
+            if int(hand.status) != engine.STATUS_PLAYER_TURN:
+                raise ValueError("not player turn")
+
+            # 先原子抢占，再动任何数据
+            if not self._claim_blackjack_hand(session, hand_id):
+                raise ValueError("hand already finished")
+            session.expire(hand)
+
+            player_cards = json.loads(hand.player_cards or "[]")
+            deck = engine.build_deck(str(hand.deck_seed))
+            card, next_index = engine.draw_card(deck, int(hand.next_card_index))
+            player_cards.append(card)
+
+            hand.player_cards = json.dumps(player_cards)
+            hand.next_card_index = int(next_index)
+            session.flush()
+
+            if engine.is_bust(player_cards):
+                result = self._settle_blackjack_tournament_hand(session, hand)
+                result["settled"] = bool(not result.get("already_settled"))
+                return result
+
+            self._release_blackjack_hand(session, hand_id)
+            session.expire(hand)
+            return {
+                "hand": self._blackjack_hand_to_dict(hand),
+                "settled": False,
+                **self._tournament_entry_state(
+                    session, int(hand.tournament_id), int(tg_id)
+                ),
+            }
+
+    def blackjack_tournament_stand(self, tg_id: int, hand_id: int) -> dict:
+        """赛内停牌：转入庄家回合并结算。"""
+        from app import blackjack_engine as engine
+
+        with get_session() as session:
+            hand = self._lock_tournament_hand(session, tg_id, hand_id)
+
+            if int(hand.status) in engine.TERMINAL_STATUSES:
+                raise ValueError("hand already finished")
+            if int(hand.status) != engine.STATUS_PLAYER_TURN:
+                raise ValueError("not player turn")
+
+            if not self._claim_blackjack_hand(session, hand_id):
+                raise ValueError("hand already finished")
+            session.expire(hand)
+
+            result = self._settle_blackjack_tournament_hand(session, hand)
+            result["settled"] = bool(not result.get("already_settled"))
+            return result
+
+    def blackjack_tournament_double(self, tg_id: int, hand_id: int) -> dict:
+        """赛内加倍：追加扣一份注额的筹码 → 只发一张 → 自动停牌结算。
+
+        余额不足必须拒绝，否则存在把筹码打成负数的路径。
+        """
+        from app import blackjack_engine as engine
+
+        with get_session() as session:
+            hand = self._lock_tournament_hand(session, tg_id, hand_id)
+
+            if int(hand.status) in engine.TERMINAL_STATUSES:
+                raise ValueError("hand already finished")
+            if int(hand.status) != engine.STATUS_PLAYER_TURN:
+                raise ValueError("not player turn")
+            if int(hand.doubled) == 1:
+                raise ValueError("already doubled")
+
+            player_cards = json.loads(hand.player_cards or "[]")
+            if not engine.can_double(player_cards, int(hand.status)):
+                raise ValueError("cannot double after hit")
+
+            bet = int(hand.bet_credits)
+            tournament_id = int(hand.tournament_id)
+
+            # **抢占必须早于扣筹码**：否则抢占失败时追加的注额已被扣掉，
+            # 而结算又不会赔付，用户白损失一份注额
+            if not self._claim_blackjack_hand(session, hand_id):
+                raise ValueError("hand already finished")
+            session.expire(hand)
+
+            entry = self._lock_tournament_entry(session, tournament_id, int(tg_id))
+            if int(entry.chips) < bet:
+                # 事务回滚会把 status 恢复为玩家回合，手牌不受影响
+                raise ValueError(f"insufficient chips to double: need {bet}")
+            entry.chips = int(entry.chips) - bet
+
+            player_cards = json.loads(hand.player_cards or "[]")
+            deck = engine.build_deck(str(hand.deck_seed))
+            card, next_index = engine.draw_card(deck, int(hand.next_card_index))
+            player_cards.append(card)
+
+            hand.doubled = 1
+            hand.player_cards = json.dumps(player_cards)
+            hand.next_card_index = int(next_index)
+            session.flush()
+
+            result = self._settle_blackjack_tournament_hand(session, hand)
+            result["settled"] = bool(not result.get("already_settled"))
+            return result
+
+    def blackjack_tournament_surrender(self, tg_id: int, hand_id: int) -> dict:
+        """赛内投降：返还一半基础注额的筹码，立即结算，不经庄家回合。
+
+        返还比例固定为二分之一，与现金局同一口径。筹码为整数，故返还额向下取整
+        ——注额被约束为步进（默认 10）的整数倍，实际不会产生小数。
+        """
+        from app import blackjack_engine as engine
+
+        with get_session() as session:
+            hand = self._lock_tournament_hand(session, tg_id, hand_id)
+
+            if int(hand.status) in engine.TERMINAL_STATUSES:
+                raise ValueError("hand already finished")
+            if int(hand.status) != engine.STATUS_PLAYER_TURN:
+                raise ValueError("not player turn")
+            if int(hand.surrender_enabled) != 1:
+                raise ValueError("surrender disabled")
+
+            player_cards = json.loads(hand.player_cards or "[]")
+            if not engine.can_surrender(
+                player_cards, int(hand.status), int(hand.doubled) == 1
+            ):
+                raise ValueError("cannot surrender now")
+
+            bet = int(hand.bet_credits)
+            tournament_id = int(hand.tournament_id)
+
+            if not self._claim_blackjack_hand(session, hand_id):
+                raise ValueError("hand already finished")
+            session.expire(hand)
+
+            payout = int(bet // 2)
+            now_ts = int(time.time())
+
+            # 第二道幂等闸门。投降不经庄家回合，故 dealer_cards 与游标一律不动
+            session.flush()
+            claimed = session.execute(
+                update(BlackjackHand)
+                .where(
+                    BlackjackHand.id == int(hand_id),
+                    BlackjackHand.status.notin_(engine.TERMINAL_STATUSES),
+                )
+                .values(
+                    status=engine.STATUS_SETTLED,
+                    outcome=engine.OUTCOME_SURRENDER,
+                    payout_credits=float(payout),
+                    rake_credits=0.0,
+                    settled_at=now_ts,
+                )
+            )
+            if claimed.rowcount == 0:
+                session.expire(hand)
+                result = self._tournament_already_settled_result(session, hand)
+                result["settled"] = False
+                return result
+            session.expire(hand)
+
+            entry = self._lock_tournament_entry(session, tournament_id, int(tg_id))
+            tournament = (
+                session.execute(
+                    select(BlackjackTournament).where(
+                        BlackjackTournament.id == tournament_id
+                    )
+                )
+                .scalars()
+                .one_or_none()
+            )
+            entry.chips = int(entry.chips) + payout
+            entry.hands_played = int(entry.hands_played) + 1
+            # 终态判定与结算适配层共用同一份规则，不在此另写一遍
+            self._apply_tournament_entry_terminal_status(entry, tournament)
+            session.flush()
+
+            return {
+                "hand": self._blackjack_hand_to_dict(hand),
+                "already_settled": False,
+                "settled": True,
+                "outcome": engine.OUTCOME_SURRENDER,
+                "payout_credits": float(payout),
+                "chips": int(entry.chips),
+                "hands_played": int(entry.hands_played),
+                "entry_status": int(entry.status),
+                "total_hands": int(tournament.total_hands) if tournament else None,
+            }
+
+    def force_settle_tournament_hands(self, tournament_id: int) -> dict:
+        """结算某赛事全部尚未终结的手牌。
+
+        完赛截止时点到达时的**第一阶段**：排名必须读到终局筹码，而一手在局的牌
+        意味着押注已从 chips 扣除、赔付尚未计入，其持有者的筹码被低估。
+
+        口径等同玩家停牌（庄家按规则补牌、正常判定胜负），**绝不因截止而判负**。
+        不看各手牌自己的 15 分钟时限——赛事已到点，一律清场。
+
+        **每手牌自成一个事务**：不把整批放进一个事务，否则第 N 手上的任何异常
+        都会回滚前面已算好的赔付，而返回值仍会把它们报成已结算。
+
+        返回 `{"settled": 本次结算手数, "remaining": 仍未终结手数, "cleared": bool}`。
+        **`cleared` 必须由调用方检查**：单手结算失败会被本函数吞掉（只丢那一手），
+        此时排名读到的是被低估的筹码，而派奖的 CAS 一旦触发就再没有重试的机会。
+        `remaining` 由结算后的**重新扫描**得出，不靠计数相减——扫描才能反映期间
+        被其他事务终结的手牌。
+        """
+        from app import blackjack_engine as engine
+
+        def _scan_pending() -> list[int]:
+            with get_session() as session:
+                return [
+                    int(r[0])
+                    for r in session.execute(
+                        select(BlackjackHand.id).where(
+                            BlackjackHand.tournament_id == int(tournament_id),
+                            BlackjackHand.status.notin_(engine.TERMINAL_STATUSES),
+                        )
+                    ).all()
+                ]
+
+        try:
+            pending_ids = _scan_pending()
+        except Exception as e:
+            logger.error(f"扫描赛事在局手牌失败 (tournament={tournament_id}): {e}")
+            # 扫不到就不能宣称已清场，否则会放行一次读不准筹码的派奖
+            return {"settled": 0, "remaining": -1, "cleared": False}
+
+        settled = 0
+        for hand_id in pending_ids:
+            try:
+                with get_session() as session:
+                    hand = (
+                        session.execute(
+                            select(BlackjackHand)
+                            .where(BlackjackHand.id == hand_id)
+                            .with_for_update()
+                        )
+                        .scalars()
+                        .one_or_none()
+                    )
+                    if not hand or int(hand.status) in engine.TERMINAL_STATUSES:
+                        continue
+                    if not self._claim_blackjack_hand(
+                        session, hand_id, allow_dealer_turn=True
+                    ):
+                        continue
+                    session.expire(hand)
+                    # 记为已结算而非已弃牌：它是被赛事截止收走的，不是玩家离场
+                    self._settle_blackjack_tournament_hand(session, hand)
+                    settled += 1
+            except Exception as e:
+                logger.error(f"清场赛内手牌失败 (hand={hand_id}): {e}")
+
+        try:
+            remaining = len(_scan_pending())
+        except Exception as e:
+            logger.error(f"复查赛事在局手牌失败 (tournament={tournament_id}): {e}")
+            return {"settled": settled, "remaining": -1, "cleared": False}
+
+        if settled:
+            logger.info(f"赛事 {tournament_id} 清场：结算了 {settled} 手在局手牌")
+        if remaining:
+            logger.error(
+                f"赛事 {tournament_id} 清场未尽：仍有 {remaining} 手未终结，"
+                f"本轮跳过派奖，等下一分钟重试"
+            )
+        return {"settled": settled, "remaining": remaining, "cleared": remaining == 0}
+
+    def award_or_renew_badge(
+        self,
+        tg_id: int,
+        badge_id: int,
+        valid_days: int,
+        cap_days: Optional[int] = None,
+    ) -> dict:
+        """授予勋章；已持有则**续期**其加成而非重置。
+
+        `UserBadge` 的语义是「持有永久、仅加成过期」（见模型注释），故续期只动
+        `expires_at`，不新建行——`UNIQUE(tg_id, badge_id)` 也不允许新建。
+
+            首次   expires_at = now + valid_days
+            再次   expires_at = min(max(expires_at, now) + valid_days,
+                                    now + cap_days)
+
+        `max(expires_at, now)` 就是「续期而非重置」的全部含义：加成还没过期就往后
+        接（连庄因此有连续的获得感），已经过期就从现在起算。外层 `cap_days` 防止
+        持续夺冠者把加成累积到无限长。
+
+        **不改既有的授予路径**（`game_king` / `supreme_contributor` 那两处只做
+        「有则跳过」）：续期是本变更引入的新语义，混进去会让那两个勋章的行为
+        跟着变。
+
+        Returns: {awarded(bool), renewed(bool), expires_at, previous_expires_at}
+        """
+        now_ts = int(time.time())
+        span = int(valid_days) * 24 * 3600
+        try:
+            with get_session() as session:
+                existing = (
+                    session.execute(
+                        select(UserBadge)
+                        .where(
+                            UserBadge.tg_id == int(tg_id),
+                            UserBadge.badge_id == int(badge_id),
+                        )
+                        .with_for_update()
+                    )
+                    .scalars()
+                    .one_or_none()
+                )
+
+                if not existing:
+                    session.add(
+                        UserBadge(
+                            tg_id=int(tg_id),
+                            badge_id=int(badge_id),
+                            credits_cost=0,
+                            redeemed_at=now_ts,
+                            expires_at=now_ts + span,
+                            is_active=1,
+                        )
+                    )
+                    return {
+                        "awarded": True,
+                        "renewed": False,
+                        "expires_at": now_ts + span,
+                        "previous_expires_at": None,
+                    }
+
+                previous = int(existing.expires_at)
+                new_expires = max(previous, now_ts) + span
+                if cap_days:
+                    new_expires = min(new_expires, now_ts + int(cap_days) * 24 * 3600)
+                existing.expires_at = new_expires
+                # 加成过期后 is_active 可能已被置 0，续期时一并恢复
+                existing.is_active = 1
+                return {
+                    "awarded": False,
+                    "renewed": True,
+                    "expires_at": new_expires,
+                    "previous_expires_at": previous,
+                }
+        except Exception as e:
+            logger.error(f"授予/续期勋章失败 (tg_id={tg_id}, badge={badge_id}): {e}")
+            return {
+                "awarded": False,
+                "renewed": False,
+                "expires_at": None,
+                "previous_expires_at": None,
+            }
+
+    def _compute_tournament_payouts(
+        self, eligible_count: int, structure: list, net_pool: float
+    ) -> list:
+        """按档位算出每个名次的派奖额。
+
+        具备派奖资格者少于档位数时，档位**截断至该数量并重新归一至 100%**，
+        使奖池不残留。例：档位 50/30/20 而只有 2 人具备资格 → 62.5/37.5。
+
+        末位吸收舍入误差：逐个 `round(x, 2)` 之后各项之和未必恰好等于 `net_pool`，
+        把差额并入最后一名，保证派出去的总额与奖池分毫不差。
+        """
+        if eligible_count <= 0 or net_pool <= 0 or not structure:
+            return []
+
+        used = list(structure)[: int(eligible_count)]
+        total = sum(used)
+        if total <= 0:
+            return []
+
+        payouts = [round(net_pool * (pct / total), 2) for pct in used]
+        drift = round(net_pool - sum(payouts), 2)
+        if payouts and abs(drift) >= 0.01:
+            payouts[-1] = round(payouts[-1] + drift, 2)
+        return payouts
+
+    def settle_blackjack_tournament(self, tournament_id: int) -> dict:
+        """完赛结算：排名 → 派奖 → 返回冠军以待授勋。
+
+        **调用方必须先调 `force_settle_tournament_hands()` 清场**：排名要读终局
+        筹码，而一手在局的牌意味着押注已从 chips 扣除、赔付尚未计入，其持有者的
+        筹码被低估。
+
+        幂等由 `2 → 3` 的 CAS 保证：抢不到的一方一分钱不派、一个勋章不发。
+
+        排名口径：仅取具备派奖资格者（已打完或已淘汰），按筹码降序、报名时点
+        升序决胜。**未打满且未被淘汰者不参与派奖，其报名费留在奖池中**——21 点
+        接近零期望，不设这道门的话「报名后什么都不做」就是占优策略。
+
+        锁序 tournament → entry → statistics。
+
+        Returns: {settled(bool), tournament, standings, champion_tg_id, prize_total}
+        """
+        with get_session() as session:
+            tournament = (
+                session.execute(
+                    select(BlackjackTournament).where(
+                        BlackjackTournament.id == int(tournament_id)
+                    )
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if not tournament:
+                raise ValueError("tournament not found")
+            if int(tournament.status) != self.TOURNAMENT_RUNNING:
+                return {
+                    "settled": False,
+                    "tournament": self._tournament_to_dict(tournament),
+                    "standings": [],
+                    "champion_tg_id": None,
+                    "prize_total": 0.0,
+                }
+
+            snapshot = self._tournament_to_dict(tournament)
+
+            # 先抢占：抢不到说明已被他人结算，绝不能继续派奖
+            if not self._claim_tournament_transition(
+                session,
+                int(tournament_id),
+                self.TOURNAMENT_RUNNING,
+                self.TOURNAMENT_SETTLED,
+            ):
+                session.expire(tournament)
+                return {
+                    "settled": False,
+                    "tournament": self._tournament_to_dict(tournament),
+                    "standings": [],
+                    "champion_tg_id": None,
+                    "prize_total": 0.0,
+                }
+            session.expire(tournament)
+
+            entries = (
+                session.execute(
+                    select(BlackjackTournamentEntry)
+                    .where(BlackjackTournamentEntry.tournament_id == int(tournament_id))
+                    .with_for_update()
+                    .order_by(
+                        BlackjackTournamentEntry.chips.desc(),
+                        BlackjackTournamentEntry.registered_at_ms.asc(),
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+            eligible = [e for e in entries if int(e.status) in self.ENTRY_ELIGIBLE]
+            ineligible = [
+                e for e in entries if int(e.status) not in self.ENTRY_ELIGIBLE
+            ]
+
+            # 奖池按报名数推导（含无资格者的报名费——他们的钱留在池子里）
+            net_pool = snapshot["prize_pool_net"]
+            payouts = self._compute_tournament_payouts(
+                len(eligible), snapshot["payout_structure"], net_pool
+            )
+
+            prize_total = 0.0
+            for i, entry in enumerate(eligible):
+                entry.final_rank = i + 1
+                prize = float(payouts[i]) if i < len(payouts) else 0.0
+                entry.prize_credits = prize
+                if prize > 0:
+                    stats = (
+                        session.execute(
+                            select(Statistics)
+                            .where(Statistics.tg_id == int(entry.tg_id))
+                            .with_for_update()
+                        )
+                        .scalars()
+                        .one_or_none()
+                    )
+                    if stats:
+                        stats.credits = round(float(stats.credits) + prize, 2)
+                    else:
+                        session.add(
+                            Statistics(
+                                tg_id=int(entry.tg_id), donation=0, credits=prize
+                            )
+                        )
+                    prize_total = round(prize_total + prize, 2)
+
+            # 无资格者不排名次、不派奖，但仍写 0 以示「已结算且无派奖」，
+            # 与「尚未结算」的 NULL 区分开
+            for entry in ineligible:
+                entry.prize_credits = 0.0
+
+            session.flush()
+
+            standings = [
+                self._tournament_entry_to_dict(e) for e in eligible + ineligible
+            ]
+            champion = int(eligible[0].tg_id) if eligible else None
+
+            logger.info(
+                f"21 点锦标赛 {tournament_id} 已结算：{len(eligible)} 人具备资格"
+                f"（{len(ineligible)} 人未完赛），派奖合计 {prize_total} 积分"
+            )
+            return {
+                "settled": True,
+                "tournament": self._tournament_to_dict(tournament),
+                "standings": standings,
+                "champion_tg_id": champion,
+                "prize_total": prize_total,
+            }
 
     # ==================== Invitation Query Operations ====================
 

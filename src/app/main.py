@@ -227,6 +227,29 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每分钟播报 21 点幸运奖池中奖")
 
+    # 每分钟推进 21 点锦标赛：报名截止 → 完赛提醒 → 完赛结算
+    #
+    # **有意用周期 tick 而非 per-赛事的持久化 date 任务**：date 任务要付两笔代价
+    # ——`misfire_grace_time=None` 的陷阱（全局默认只有 60 秒，一次超过一分钟的
+    # 重启就让 APScheduler 永久丢弃任务）外加一个重启恢复函数。手牌超时值得付，
+    # 因为 15 分钟的时限要求及时性；而赛事是跨天事件，一分钟的推进延迟无人可感，
+    # 周期 tick 天然免疫任务丢失与重启，**故本任务不需要恢复函数**。
+    #
+    # 三个阶段各自以状态 CAS 门控，重复触发不会重复开赛、重复派奖或重复退款。
+    from app.webapp.routers.activities.blackjack_tournament import (
+        blackjack_tournament_tick_job,
+    )
+
+    scheduler.add_async_job(
+        func=blackjack_tournament_tick_job,
+        trigger="cron",
+        id="blackjack_tournament_tick",
+        replace_existing=True,
+        max_instances=1,  # 同一时刻只跑一份，避免两轮 tick 交叉处理同一赛事
+        minute="*",
+    )
+    logger.info("添加定时任务：每分钟推进 21 点锦标赛（报名截止/完赛提醒/完赛结算）")
+
     # 每 5 分钟检查 Premium 会员过期状态 (异步任务)
     scheduler.add_async_job(
         func=check_premium_expiry,

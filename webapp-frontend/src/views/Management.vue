@@ -1998,7 +1998,21 @@
         </v-toolbar>
 
         <div style="height: calc(100vh - 64px); overflow-y: auto;">
-          <BlackjackAdminPanel ref="blackjackAdminPanel" @show-message="showMessage" />
+          <v-tabs v-model="blackjackTab" color="pink" grow>
+            <v-tab value="cash">现金局</v-tab>
+            <v-tab value="tournament">锦标赛</v-tab>
+          </v-tabs>
+          <v-window v-model="blackjackTab">
+            <v-window-item value="cash">
+              <BlackjackAdminPanel ref="blackjackAdminPanel" @show-message="showMessage" />
+            </v-window-item>
+            <v-window-item value="tournament">
+              <BlackjackTournamentAdminPanel
+                ref="blackjackTournamentAdminPanel"
+                @show-message="showMessage"
+              />
+            </v-window-item>
+          </v-window>
         </div>
       </v-card>
     </v-dialog>
@@ -2859,6 +2873,7 @@ import AdminInviteCodeDialog from '@/components/AdminInviteCodeDialog.vue'
 import LineManagementDialog from '@/components/LineManagementDialog.vue'
 import WheelAdminPanel from '@/components/WheelAdminPanel.vue'
 import BlackjackAdminPanel from '@/components/BlackjackAdminPanel.vue'
+import BlackjackTournamentAdminPanel from '@/components/BlackjackTournamentAdminPanel.vue'
 import GiftPackAdminPanel from '@/components/GiftPackAdminPanel.vue'
 import BadgeEditorDialog from '@/components/BadgeEditorDialog.vue'
 import CustomLineManagement from '@/components/CustomLineManagement.vue'
@@ -2884,6 +2899,7 @@ export default {
     LineManagementDialog,
     WheelAdminPanel,
     BlackjackAdminPanel,
+    BlackjackTournamentAdminPanel,
     GiftPackAdminPanel,
     BadgeEditorDialog,
     CustomLineManagement
@@ -2993,6 +3009,7 @@ export default {
       ],
       showWheelManagement: false,
       showBlackjackManagement: false,
+      blackjackTab: 'cash', // 21 点管理弹窗内的现金局 / 锦标赛切换
       blackjackEnabled: false,
       showAuctionManagement: false,
       showTreasureManagement: false,

@@ -256,6 +256,13 @@ def _raise_for_value_error(e: ValueError) -> None:
         raise HTTPException(status_code=400, detail=f"积分不足，参与需至少 {need} 积分")
     if "insufficient credits" in msg_l:
         raise HTTPException(status_code=400, detail="积分不足")
+    if "hand in progress in tournament" in msg_l:
+        # 必须比下一条更早匹配：现金局的 /current 看不到赛内手牌，只说「你还有
+        # 一手牌未结束」等于让用户在现金局界面里找一张永远找不到的牌
+        raise HTTPException(
+            status_code=400,
+            detail="你在锦标赛中还有一手牌未结束，请先到锦标赛里打完",
+        )
     if "hand in progress" in msg_l:
         raise HTTPException(status_code=400, detail="你还有一手牌未结束，请先完成")
     if "hand already finished" in msg_l:
@@ -448,9 +455,16 @@ async def get_current_hand(
     request: Request,
     current_user: TelegramUser = Depends(get_telegram_user),
 ):
-    """取当前进行中的手牌，供恢复牌桌用。没有则 hand 为 null。"""
+    """取当前进行中的**现金局**手牌，供恢复牌桌用。没有则 hand 为 null。
+
+    赛内手牌不在此返回：它与现金局共用「至多一手」不变量，故 `get_current_blackjack_hand`
+    可能返回一手赛内牌，但现金局牌桌对它无能为力（所有动作端点都拒赛内手牌）。
+    把它滤掉，现金局界面正常展示下注区，赛内牌桌自会经锦标赛入口恢复。
+    """
     try:
         hand = db.get_current_blackjack_hand(tg_id=int(current_user.id))
+        if hand and hand.get("tournament_id") is not None:
+            hand = None
         return BlackjackCurrentHandResponse(
             hand=BlackjackHandResponse.from_hand(hand) if hand else None,
             current_credits=float(db.get_user_credits(int(current_user.id)) or 0),

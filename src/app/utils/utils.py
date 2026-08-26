@@ -308,18 +308,24 @@ def caculate_credits_fund(unlock_time, unlock_credits: int):
         return 0
 
 
-def get_user_info_from_tg_id(chat_id: int, token=settings.TG_API_TOKEN):
-    """Get telegram user's info
+def load_tg_user_info_cache() -> dict:
+    """读取整个 Telegram 用户信息缓存。
+
     cache format: {tg_id: {"first_name": first_name, "username": username, "added": timestamp}}
     """
     cache_file = settings.TG_USER_INFO_CACHE_PATH
-    cache = {}
     if not cache_file.exists():
         logger.warning(f"Not found {settings.TG_USER_INFO_CACHE_PATH}")
         return {}
     with open(cache_file, "rb") as f:
-        cache = pickle.load(f)
-    return cache.get(chat_id, {})
+        return pickle.load(f)
+
+
+def get_user_info_from_tg_id(chat_id: int, token=settings.TG_API_TOKEN):
+    """Get telegram user's info
+    cache format: {tg_id: {"first_name": first_name, "username": username, "added": timestamp}}
+    """
+    return load_tg_user_info_cache().get(chat_id, {})
 
 
 async def get_tg_user_photo_url(tg_id: int, token: str = settings.TG_API_TOKEN):
@@ -359,6 +365,29 @@ async def get_tg_user_photo_url(tg_id: int, token: str = settings.TG_API_TOKEN):
 def get_user_name_from_tg_id(chat_id: int, token=settings.TG_API_TOKEN):
     user_info = get_user_info_from_tg_id(chat_id, token=token)
     return user_info.get("first_name") or user_info.get("username") or chat_id
+
+
+def get_user_names_from_tg_ids(chat_ids) -> dict:
+    """批量取显示名，返回 {tg_id: 名字}。缓存文件**只读一次**。
+
+    `get_user_info_from_tg_id` 每次调用都要 open + `pickle.load` 整个缓存，逐行
+    调用等于把同一个文件反序列化 N 遍；在 async 端点里那是同步阻塞事件循环。
+    统一回落成 `str`：查不到名字时单条版本会回落成 int，直接塞进 `str` 字段会让
+    整个响应模型校验失败。
+    """
+    ids = [int(i) for i in chat_ids]
+    if not ids:
+        return {}
+    try:
+        cache = load_tg_user_info_cache()
+    except Exception as e:
+        logger.error(f"读取 Telegram 用户缓存失败: {e}")
+        cache = {}
+    names = {}
+    for tg_id in ids:
+        info = cache.get(tg_id) or {}
+        names[tg_id] = str(info.get("first_name") or info.get("username") or tg_id)
+    return names
 
 
 def get_user_avatar_from_tg_id(chat_id: int, token=settings.TG_API_TOKEN):

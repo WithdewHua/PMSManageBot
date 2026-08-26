@@ -1,0 +1,250 @@
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 牌桌绿渐变 - 主背景。与 game_king 的紫黑星空刻意区分：
+         两枚都是 21 点相关勋章，色调不同才能一眼辨认 -->
+    <radialGradient id="bcBg" cx="45%" cy="35%">
+      <stop offset="0%"   style="stop-color:#14543D;stop-opacity:1" />
+      <stop offset="32%"  style="stop-color:#0C3A2A;stop-opacity:1" />
+      <stop offset="66%"  style="stop-color:#06241A;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#02120C;stop-opacity:1" />
+    </radialGradient>
+
+    <!-- 金色边框渐变 -->
+    <linearGradient id="bcBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   style="stop-color:#FFE066;stop-opacity:1" />
+      <stop offset="35%"  style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="65%"  style="stop-color:#FFA500;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#DAA520;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- 奖杯主体渐变 -->
+    <linearGradient id="bcCup" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   style="stop-color:#FFF3A8;stop-opacity:1" />
+      <stop offset="28%"  style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="62%"  style="stop-color:#E8A317;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#B8860B;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- 奖杯底座渐变 -->
+    <linearGradient id="bcBase" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#996F00;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- 高光层 -->
+    <radialGradient id="bcHighlight" cx="40%" cy="28%">
+      <stop offset="0%"   style="stop-color:#FFFFFF;stop-opacity:0.8" />
+      <stop offset="50%"  style="stop-color:#FFFFFF;stop-opacity:0.22" />
+      <stop offset="100%" style="stop-color:#FFFFFF;stop-opacity:0" />
+    </radialGradient>
+
+    <!-- 内阴影 -->
+    <radialGradient id="bcInnerShadow" cx="50%" cy="50%">
+      <stop offset="60%"  style="stop-color:#06241A;stop-opacity:0" />
+      <stop offset="100%" style="stop-color:#000A06;stop-opacity:0.6" />
+    </radialGradient>
+
+    <!-- 金色文字渐变 -->
+    <linearGradient id="bcText" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   style="stop-color:#FFE87A;stop-opacity:1" />
+      <stop offset="50%"  style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#B8860B;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- 皇冠光晕 -->
+    <radialGradient id="bcCrownGlow" cx="50%" cy="50%">
+      <stop offset="0%"   style="stop-color:#FFD700;stop-opacity:0.5">
+        <animate attributeName="stop-opacity" values="0.5;0.9;0.5" dur="2.5s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="100%" style="stop-color:#FFD700;stop-opacity:0" />
+    </radialGradient>
+
+    <!-- 奖杯发光 -->
+    <radialGradient id="bcCupGlow" cx="50%" cy="50%">
+      <stop offset="0%"   style="stop-color:#FFD700;stop-opacity:0.32">
+        <animate attributeName="stop-opacity" values="0.32;0.62;0.32" dur="2.5s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="100%" style="stop-color:#FFD700;stop-opacity:0" />
+    </radialGradient>
+
+    <!-- 外阴影滤镜 -->
+    <filter id="bcShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="0" dy="3" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.45"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- 金色发光滤镜 -->
+    <filter id="bcGoldGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feFlood flood-color="#FFD700" flood-opacity="0.55"/>
+      <feComposite in2="coloredBlur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- 闪烁光点 -->
+    <radialGradient id="bcSparkle" cx="50%" cy="50%">
+      <stop offset="0%"   style="stop-color:#FFFFFF;stop-opacity:1">
+        <animate attributeName="stop-opacity" values="1;0.3;1" dur="3s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="100%" style="stop-color:#FFFFFF;stop-opacity:0" />
+    </radialGradient>
+  </defs>
+
+  <!-- 外层阴影 -->
+  <circle cx="60" cy="63" r="54" fill="#000A06" opacity="0.25" filter="url(#bcShadow)"/>
+
+  <!-- 主圆形背景 -->
+  <circle cx="60" cy="60" r="54" fill="url(#bcBg)" stroke="url(#bcBorder)" stroke-width="3.5"/>
+
+  <!-- 内阴影层 -->
+  <circle cx="60" cy="60" r="50" fill="url(#bcInnerShadow)"/>
+
+  <!-- 装饰圆环 -->
+  <circle cx="60" cy="60" r="48" fill="none" stroke="#FFD700" stroke-width="0.8" opacity="0.6"/>
+  <circle cx="60" cy="60" r="44" fill="none" stroke="#FFA500" stroke-width="0.4" opacity="0.35"/>
+
+  <!-- 背景星点 -->
+  <g fill="#FFFFFF">
+    <circle cx="22" cy="30" r="0.9" opacity="0.6"/>
+    <circle cx="41" cy="19" r="0.6" opacity="0.45"/>
+    <circle cx="79" cy="20" r="0.8" opacity="0.55"/>
+    <circle cx="97" cy="33" r="0.7" opacity="0.5"/>
+    <circle cx="17" cy="57" r="0.7" opacity="0.45"/>
+    <circle cx="101" cy="52" r="0.9" opacity="0.6"/>
+    <circle cx="26" cy="82" r="0.6" opacity="0.45"/>
+    <circle cx="94" cy="83" r="0.7" opacity="0.5"/>
+    <circle cx="48" cy="101" r="0.6" opacity="0.4"/>
+    <circle cx="73" cy="103" r="0.7" opacity="0.45"/>
+  </g>
+
+  <!-- 皇冠光晕 -->
+  <ellipse cx="60" cy="31" rx="19" ry="12" fill="url(#bcCrownGlow)"/>
+
+  <!-- 迷你皇冠（奖杯上方） -->
+  <g transform="translate(60, 26)" filter="url(#bcGoldGlow)">
+    <path d="M -9,4 L -7.2,-3.6 L -3.6,0.9 L 0,-6.3 L 3.6,0.9 L 7.2,-3.6 L 9,4 L 8.1,6 L -8.1,6 Z"
+          fill="url(#bcCup)" stroke="#8B6500" stroke-width="0.7"/>
+    <rect x="-8.1" y="6" width="16.2" height="2.6" rx="0.8"
+          fill="url(#bcCup)" stroke="#8B6500" stroke-width="0.4"/>
+    <circle cx="0"    cy="-5" r="1.6" fill="#FF4444" stroke="#8B6500" stroke-width="0.3"/>
+    <circle cx="-7.2" cy="-1.8" r="1.2" fill="#FFFFFF" stroke="#8B6500" stroke-width="0.3"/>
+    <circle cx="7.2"  cy="-1.8" r="1.2" fill="#FFFFFF" stroke="#8B6500" stroke-width="0.3"/>
+  </g>
+
+  <!-- 奖杯发光背景 -->
+  <ellipse cx="60" cy="62" rx="26" ry="21" fill="url(#bcCupGlow)"/>
+
+  <!-- ===== 左右花色装饰（21 点的两张牌：♠ 与 ♥） =====
+       黑桃用浅银灰而非纯白：深绿底上黑色不可见，但纯白会亮过奖杯、抢走视觉焦点 -->
+  <g opacity="0.72">
+    <!-- 左：黑桃 -->
+    <g transform="translate(28, 60) scale(0.62)" filter="url(#bcGoldGlow)">
+      <path d="M 0,-8 C -6.5,-1.5 -9,2 -9,4.8 C -9,7.4 -6.8,8.8 -4.2,8.8
+               C -2.2,8.8 -0.8,7.6 0,6.2 C 0.8,7.6 2.2,8.8 4.2,8.8
+               C 6.8,8.8 9,7.4 9,4.8 C 9,2 6.5,-1.5 0,-8 Z"
+            fill="#F2F2F2" stroke="#8B6500" stroke-width="0.9"/>
+      <path d="M -2,8.8 L 2,8.8 L 1,13 L -1,13 Z" fill="#F2F2F2" stroke="#8B6500" stroke-width="0.9"/>
+    </g>
+    <!-- 右：红桃 -->
+    <g transform="translate(92, 60) scale(0.62)" filter="url(#bcGoldGlow)">
+      <path d="M 0,10 C -7.5,3 -10,-0.8 -10,-4.2 C -10,-7.4 -7.6,-9.4 -5,-9.4
+               C -2.6,-9.4 -0.9,-7.9 0,-6.3 C 0.9,-7.9 2.6,-9.4 5,-9.4
+               C 7.6,-9.4 10,-7.4 10,-4.2 C 10,-0.8 7.5,3 0,10 Z"
+            fill="#E23B3B" stroke="#8B6500" stroke-width="0.9"/>
+    </g>
+  </g>
+
+  <!-- ===== 奖杯主体 ===== -->
+  <g transform="translate(60, 60)" filter="url(#bcGoldGlow)">
+    <!-- 左把手。先描一道深色底再压渐变：把手是细线条，只有渐变的话
+         会被 bcGoldGlow 与背后的奖杯光晕一起糊掉，看不出轮廓 -->
+    <path d="M -14.5,-13 C -22.5,-13.5 -23.5,-3.5 -15.5,-0.5"
+          fill="none" stroke="#7A5A00" stroke-width="4" stroke-linecap="round"/>
+    <path d="M -14.5,-13 C -22.5,-13.5 -23.5,-3.5 -15.5,-0.5"
+          fill="none" stroke="url(#bcCup)" stroke-width="2.4" stroke-linecap="round"/>
+    <!-- 右把手 -->
+    <path d="M 14.5,-13 C 22.5,-13.5 23.5,-3.5 15.5,-0.5"
+          fill="none" stroke="#7A5A00" stroke-width="4" stroke-linecap="round"/>
+    <path d="M 14.5,-13 C 22.5,-13.5 23.5,-3.5 15.5,-0.5"
+          fill="none" stroke="url(#bcCup)" stroke-width="2.4" stroke-linecap="round"/>
+
+    <!-- 杯身 -->
+    <path d="M -15,-17.5 L 15,-17.5 C 15,-3.5 11,6 0,6 C -11,6 -15,-3.5 -15,-17.5 Z"
+          fill="url(#bcCup)" stroke="#8B6500" stroke-width="1.1"/>
+    <!-- 杯口 -->
+    <rect x="-16.5" y="-19.5" width="33" height="3" rx="1.2"
+          fill="url(#bcBase)" stroke="#8B6500" stroke-width="0.7"/>
+    <!-- 杯身内侧高光 -->
+    <path d="M -11,-15 C -11,-5 -8.5,2 -4,3.5"
+          fill="none" stroke="#FFF8C0" stroke-width="1.4" opacity="0.5" stroke-linecap="round"/>
+
+    <!-- 杯茎 -->
+    <rect x="-2.6" y="6" width="5.2" height="7" fill="url(#bcBase)" stroke="#8B6500" stroke-width="0.6"/>
+    <!-- 底座 -->
+    <rect x="-8" y="13" width="16" height="2.8" rx="1"
+          fill="url(#bcBase)" stroke="#8B6500" stroke-width="0.6"/>
+    <rect x="-11.5" y="15.8" width="23" height="4" rx="1.4"
+          fill="url(#bcBase)" stroke="#8B6500" stroke-width="0.6"/>
+
+    <!-- 杯身刻字 21 -->
+    <text x="0" y="-4.5"
+          font-family="'Georgia', 'Times New Roman', serif"
+          font-size="14" font-weight="bold" letter-spacing="0.5"
+          fill="#5C3D00" text-anchor="middle" opacity="0.9">
+      21
+    </text>
+  </g>
+
+  <!-- 高光层 -->
+  <ellipse cx="48" cy="42" rx="28" ry="22" fill="url(#bcHighlight)" opacity="0.45"/>
+
+  <!-- 锦标冠军文字。**不套 bcGoldGlow**：game_king 的「游 戏 王」是三个大字，
+       glow 只是锦上添花；四个字挤在同样宽度里，每个字更小，发光会把笔画糊成一团。
+       改用一圈深色描边压住背景，笔画反而更清晰 -->
+  <text x="60" y="96"
+        font-family="'Microsoft YaHei', SimHei, sans-serif"
+        font-size="11.5" font-weight="bold" letter-spacing="2"
+        fill="url(#bcText)" text-anchor="middle"
+        stroke="#3A2600" stroke-width="0.55" paint-order="stroke fill">
+    锦 标 冠 军
+  </text>
+
+  <!-- 四方星装饰 -->
+  <g opacity="0.9" filter="url(#bcGoldGlow)">
+    <g transform="translate(60, 11)">
+      <polygon points="0,-5 1.4,-1.4 5,0 1.4,1.4 0,5 -1.4,1.4 -5,0 -1.4,-1.4"
+               fill="#FFD700" stroke="#FFA500" stroke-width="0.5"/>
+    </g>
+    <g transform="translate(109, 60)">
+      <polygon points="0,-4 1.2,-1.2 4,0 1.2,1.2 0,4 -1.2,1.2 -4,0 -1.2,-1.2"
+               fill="#FFD700" stroke="#FFA500" stroke-width="0.5"/>
+    </g>
+    <g transform="translate(60, 109)">
+      <polygon points="0,-4 1.2,-1.2 4,0 1.2,1.2 0,4 -1.2,1.2 -4,0 -1.2,-1.2"
+               fill="#FFD700" stroke="#FFA500" stroke-width="0.5"/>
+    </g>
+    <g transform="translate(11, 60)">
+      <polygon points="0,-4 1.2,-1.2 4,0 1.2,1.2 0,4 -1.2,1.2 -4,0 -1.2,-1.2"
+               fill="#FFD700" stroke="#FFA500" stroke-width="0.5"/>
+    </g>
+  </g>
+
+  <!-- 闪烁光点 -->
+  <g fill="url(#bcSparkle)">
+    <circle cx="25" cy="36" r="2"/>
+    <circle cx="95" cy="39" r="1.5"/>
+    <circle cx="29" cy="86" r="1.5"/>
+    <circle cx="91" cy="83" r="2"/>
+    <circle cx="60" cy="14" r="1.2"/>
+  </g>
+</svg>
