@@ -90,17 +90,18 @@ Notable disabled rules: `vue/multi-word-component-names`, `vue/valid-v-slot`.
 
 ## Tests
 
-When tests are added, the expected commands will be:
-
 ```bash
+# Install test extras (pytest)
+uv pip install ".[test]"
+
 # Run all tests
 pytest tests/
 
 # Run a single test file
-pytest tests/test_something.py
+pytest tests/test_blackjack_tournament_settle.py
 
 # Run a single test function
-pytest tests/test_something.py::test_function_name
+pytest tests/test_blackjack_tournament_settle.py::test_function_name
 
 # Run with verbose output
 pytest -v tests/

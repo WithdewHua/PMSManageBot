@@ -1249,9 +1249,10 @@ class BlackjackTournament(Base):
     )
 
     register_deadline_ms: Mapped[int] = mapped_column(BIGINT, nullable=False)
-    # 发牌端点以 `now < play_deadline_ms` 为闸门。它是个与赛事状态无关的固定
-    # 时间戳，故「先清场、后排名」的两阶段之间不可能有新手牌冒出来，无需引入
-    # 「结算中」这个中间状态
+    # 完赛最晚边界。发牌与动作仍检查 `now < play_deadline_ms`，但不得只靠它
+    # 挡新手牌：提前完赛发生在截止之前，CAS 之后靠 `status != 进行中`。
+    # 发牌与结算对进行中行做条件 UPDATE，使截止边界上尚未提交的发牌无法
+    # 插进已经派完奖的赛事；本列的固定时点不是那把锁。
     play_deadline_ms: Mapped[int] = mapped_column(BIGINT, nullable=False)
 
     # 完赛提醒的去重标记。提醒是**公平性保障而非便利**：未打满即失去派奖资格

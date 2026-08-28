@@ -330,16 +330,31 @@ async def _tick_completion_reminders(now_ms: int, tournaments: list) -> None:
 
 
 async def _tick_play_deadlines(now_ms: int, tournaments: list) -> None:
-    """阶段三：完赛截止 → 先清场，再排名派奖。
+    """阶段三：完赛截止或全员终态 → 先清场，再排名派奖。
+
+    闸门是「截止已到 **或** 已无进行中报名」。只要还有人处于 `ENTRY_PLAYING`
+    且截止未到，本场保持进行中。资格门仍只在结算里生效，不在这里提前筛人。
 
     两阶段的顺序不可颠倒：排名要读终局筹码，而一手在局的牌意味着押注已从 chips
-    扣除、赔付尚未计入，其持有者的筹码被低估。新手牌无法在两阶段之间冒出来——
-    发牌端点以 `now < play_deadline_ms` 为闸门，那是个与赛事状态无关的固定时间戳。
+    扣除、赔付尚未计入，其持有者的筹码被低估。全员终态时清场几乎总是空转
+    （报名终态写在手牌结算之后），但仍必须先跑——带着未终结手牌排名是
+    不可恢复的。不清干净不派奖，下一分钟重试。
     """
+    if not tournaments:
+        return
+
+    still_playing = db.list_blackjack_tournaments_with_playing_entries(
+        [int(t["id"]) for t in tournaments]
+    )
+    # 查询失败按「本轮每场都仍有进行中报名」处理：提前完赛关掉，
+    # 截止已到的赛事仍走清场 → 派奖。不得把失败当成空集。
+    if still_playing is None:
+        still_playing = {int(t["id"]) for t in tournaments}
+
     for t in tournaments:
-        if now_ms < int(t["play_deadline_ms"]):
-            continue
         tid = int(t["id"])
+        if now_ms < int(t["play_deadline_ms"]) and tid in still_playing:
+            continue
         try:
             # 阶段一：清场。**没清干净就不能派奖**——排名会读到被低估的筹码，
             # 而派奖的 CAS 一旦触发，这一场就再也没有第二次机会了。跳过本轮，

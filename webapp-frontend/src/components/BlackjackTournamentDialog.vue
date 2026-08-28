@@ -184,9 +184,10 @@
                条件里的 `|| hand` 不能省：决定性的那一手（打满手数或被淘汰）会把
                entry.status 从 1 改成 2/3，若只看状态，牌桌会在同一个 tick 里被
                卸载——玩家看不到那一手的庄家牌和结果，只看到牌桌凭空消失。
-               留着牌桌，由「查看赛果」把 hand 清空后再切到终结面板。 -->
+               赛事随后提前结算时 `tournament.status` 也会变成 3，同样不能收起
+               还在展示的那一手。留着牌桌，由「查看赛果」把 hand 清空后再切到终结面板。 -->
           <BlackjackTable
-            v-else-if="tournament.status === 2 && (entry.status === 1 || hand)"
+            v-else-if="(tournament.status === 2 && entry.status === 1) || hand"
             ref="table"
             :hand="hand"
             :balance="entry.chips"
@@ -203,7 +204,7 @@
             :acting="acting"
             :new-hand-label="entryTerminal ? '查看赛果' : `再来一手（剩 ${handsRemaining} 手）`"
             :show-new-hand-button="entryTerminal || handsRemaining > 0"
-            :finished-hint="handsRemaining <= 0 ? '你已打满全部手数，等待赛事结算。' : ''"
+            :finished-hint="waitingForSettlement && handsRemaining <= 0 ? '你已打满全部手数，等待赛事结算。' : ''"
             @deal="deal"
             @hit="act('hit')"
             @stand="act('stand')"
@@ -215,16 +216,16 @@
           <!-- 已报名但已终结（打完/淘汰/赛事结束）：看排名 -->
           <div v-else>
             <v-alert
-              v-if="entry.status === 2"
+              v-if="waitingForSettlement && entry.status === 2"
               type="success"
               variant="tonal"
               density="compact"
               class="mb-3"
             >
-              你已打满全部手数，等待赛事在完赛截止后结算。
+              你已打满全部手数，等待赛事结算。
             </v-alert>
             <v-alert
-              v-else-if="entry.status === 3"
+              v-else-if="waitingForSettlement && entry.status === 3"
               type="info"
               variant="tonal"
               density="compact"
@@ -240,7 +241,7 @@
               <v-icon size="small" class="mr-1">mdi-format-list-numbered</v-icon>
               <span class="text-subtitle-2">{{ tournament.status === 3 ? '最终名次' : '实时排名' }}</span>
               <v-spacer />
-              <v-btn size="x-small" variant="text" :loading="standingsLoading" @click="loadStandings">
+              <v-btn size="x-small" variant="text" :loading="standingsLoading" @click="loadStandings()">
                 刷新
               </v-btn>
             </div>
@@ -352,6 +353,9 @@ import { getUserInfo } from '../api'
 
 const STATUS_TEXT = { 1: '报名中', 2: '进行中', 3: '已结算', 4: '已取消' }
 const STATUS_COLOR = { 1: 'primary', 2: 'success', 3: 'grey', 4: 'error' }
+// tick 每分钟扫完赛条件；间隔取 15s，让「等待结算」在下一轮 tick 后很快切到赛果，
+// 又不在大厅/进行中牌桌上空转请求。
+const SETTLEMENT_POLL_MS = 15000
 
 export default {
   name: 'BlackjackTournamentDialog',
@@ -373,7 +377,9 @@ export default {
       tournament: null,
       entry: null,
       hand: null,
-      standings: []
+      standings: [],
+      settlementPollTimer: null,
+      settlementPollInFlight: false
     }
   },
   computed: {
@@ -386,6 +392,15 @@ export default {
     // 报名已进入终态（已打完 / 已淘汰）。终态下牌桌只用来展示最后一手的结果
     entryTerminal() {
       return !!this.entry && this.entry.status !== 1
+    },
+    waitingForSettlement() {
+      return (
+        this.dialog &&
+        this.view === 'table' &&
+        this.entryTerminal &&
+        this.tournament &&
+        this.tournament.status === 2
+      )
     },
     dealDisabled() {
       return (
@@ -400,11 +415,26 @@ export default {
       if (this.entry && this.entry.status === 3) {
         return '你的筹码已不足最小注，被淘汰出局，仍保留派奖资格。'
       }
-      if (this.handsRemaining <= 0) {
+      if (this.waitingForSettlement && this.handsRemaining <= 0) {
         return '你已打满全部手数，等待赛事结算。'
       }
       return ''
     }
+  },
+  watch: {
+    waitingForSettlement: {
+      immediate: true,
+      handler(waiting) {
+        if (waiting) {
+          this.startSettlementPoll()
+        } else {
+          this.stopSettlementPoll()
+        }
+      }
+    }
+  },
+  beforeUnmount() {
+    this.stopSettlementPoll()
   },
   methods: {
     open() {
@@ -415,6 +445,7 @@ export default {
 
     close() {
       this.cancelReveal()
+      this.stopSettlementPoll()
       this.dialog = false
       this.actionError = null
       this.$emit('credits-changed')
@@ -422,6 +453,7 @@ export default {
 
     backToLobby() {
       this.cancelReveal()
+      this.stopSettlementPoll()
       this.view = 'lobby'
       this.tournament = null
       this.entry = null
@@ -506,18 +538,63 @@ export default {
       }
     },
 
-    async loadStandings() {
+    async loadStandings({ silent = false } = {}) {
       if (!this.tournament) {
         return
       }
-      this.standingsLoading = true
+      if (!silent) {
+        this.standingsLoading = true
+      }
       try {
         const res = await getBlackjackTournamentStandings(this.tournament.id)
+        const status = res.data?.status
+        const previousStatus = this.tournament.status
+        if (status != null && this.tournament) {
+          this.tournament.status = status
+        }
         this.standings = res.data?.standings || []
+        if (status === 3 && previousStatus !== 3) {
+          this.refreshCredits()
+          this.$emit('credits-changed')
+        }
       } catch (err) {
         console.error('加载排名失败:', err)
       } finally {
-        this.standingsLoading = false
+        if (!silent) {
+          this.standingsLoading = false
+        }
+      }
+    },
+
+    startSettlementPoll() {
+      if (this.settlementPollTimer != null) {
+        return
+      }
+      if (!this.settlementPollInFlight) {
+        this.settlementPollInFlight = true
+        this.loadStandings({ silent: true }).finally(() => {
+          this.settlementPollInFlight = false
+        })
+      }
+      this.settlementPollTimer = setInterval(() => {
+        if (!this.waitingForSettlement) {
+          this.stopSettlementPoll()
+          return
+        }
+        if (this.settlementPollInFlight) {
+          return
+        }
+        this.settlementPollInFlight = true
+        this.loadStandings({ silent: true }).finally(() => {
+          this.settlementPollInFlight = false
+        })
+      }, SETTLEMENT_POLL_MS)
+    },
+
+    stopSettlementPoll() {
+      if (this.settlementPollTimer != null) {
+        clearInterval(this.settlementPollTimer)
+        this.settlementPollTimer = null
       }
     },
 

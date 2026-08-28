@@ -5101,6 +5101,38 @@ class DatabaseORM:
         )
         return claimed.rowcount == 1
 
+    def _lock_running_tournament(
+        self, session, tournament_id: int
+    ) -> Optional[BlackjackTournament]:
+        """钉住一场进行中的赛事直到本事务提交。
+
+        条件 UPDATE 把 `status` 写回自身：PostgreSQL 上行锁，SQLite 上库级写锁。
+        `with_for_update()` 在 SQLite 上是 no-op，不能当同步点。发牌与完赛结算
+        共用本方法，使截止边界上尚未提交的发牌无法插进已经派完奖的赛事。
+
+        抢不到返回 None（不存在，或已经不是进行中）。调用方须在事务内。
+        """
+        session.flush()
+        claimed = session.execute(
+            update(BlackjackTournament)
+            .where(
+                BlackjackTournament.id == int(tournament_id),
+                BlackjackTournament.status == self.TOURNAMENT_RUNNING,
+            )
+            .values(status=self.TOURNAMENT_RUNNING)
+        )
+        if claimed.rowcount != 1:
+            return None
+        return (
+            session.execute(
+                select(BlackjackTournament).where(
+                    BlackjackTournament.id == int(tournament_id)
+                )
+            )
+            .scalars()
+            .one_or_none()
+        )
+
     def _list_tournament_entrant_ids(self, session, tournament_id: int) -> list[int]:
         """该赛事全部报名者的 tg_id，供通知使用。"""
         rows = session.execute(
@@ -5407,6 +5439,35 @@ class DatabaseORM:
         except Exception as e:
             logger.error(f"列出 21 点锦标赛失败: {e}")
             return []
+
+    def list_blackjack_tournaments_with_playing_entries(
+        self, tournament_ids: list[int]
+    ) -> set[int] | None:
+        """批量返回仍有 `ENTRY_PLAYING` 报名的赛事 id。
+
+        给 tick 的完赛阶段用：一次 IN 查出本轮进行中赛事里谁还没打完。
+        空列表不打库。不读 `play_deadline`——截止与全员终态的取舍在调用方。
+
+        查询失败返回 None，**不得**返回空集：空集会被 tick 当成「全员终态」
+        而提前结算。
+        """
+        ids = [int(tid) for tid in tournament_ids]
+        if not ids:
+            return set()
+        try:
+            with get_session() as session:
+                rows = session.execute(
+                    select(BlackjackTournamentEntry.tournament_id)
+                    .where(
+                        BlackjackTournamentEntry.tournament_id.in_(ids),
+                        BlackjackTournamentEntry.status == self.ENTRY_PLAYING,
+                    )
+                    .distinct()
+                ).all()
+                return {int(r[0]) for r in rows}
+        except Exception as e:
+            logger.error(f"查询仍有进行中报名的锦标赛失败: {e}")
+            return None
 
     def get_blackjack_tournament_standings(self, tournament_id: int) -> list[dict]:
         """全场排名。进行中按当前筹码排序，已结算按最终名次排序。
@@ -5825,7 +5886,11 @@ class DatabaseORM:
     ) -> dict:
         """赛内发牌：校验 → 扣筹码 → 定序 → 发初始牌 → 天胡则直接结算。
 
-        锁序 entry → statistics。**为什么要锁一行自己根本不修改的 `Statistics`**：
+        锁序 tournament → entry → statistics。赛事行靠 `_lock_running_tournament`
+        的条件 UPDATE 钉住，不能用 `with_for_update()`——SQLite 上那是 no-op，
+        截止边界上发牌会与结算 CAS 交错，把新手牌插进已派奖的赛事。
+
+        **为什么还要锁一行自己根本不修改的 `Statistics`**：
         「同一用户同时至多一手非终态」这个不变量跨现金局与全部赛事共用，而现金局
         发牌正是以该用户的 `Statistics` 行锁作为串行化点。赛内若只锁 entry，一个
         用户并发发起「现金局发牌 + 赛内发牌」会各持一把互不相干的锁，双双通过
@@ -5843,24 +5908,21 @@ class DatabaseORM:
 
         config = self.get_blackjack_config_dict()
         min_interval_seconds = float(config.get("min_deal_interval_seconds", 1))
-        now_ms = int(time.time() * 1000)
 
         with get_session() as session:
-            tournament = (
-                session.execute(
-                    select(BlackjackTournament).where(
+            tournament = self._lock_running_tournament(session, int(tournament_id))
+            if not tournament:
+                exists = session.execute(
+                    select(BlackjackTournament.id).where(
                         BlackjackTournament.id == int(tournament_id)
                     )
-                )
-                .scalars()
-                .one_or_none()
-            )
-            if not tournament:
-                raise ValueError("tournament not found")
-            if int(tournament.status) != self.TOURNAMENT_RUNNING:
+                ).first()
+                if not exists:
+                    raise ValueError("tournament not found")
                 raise ValueError("tournament not running")
-            # 完赛截止是个与赛事状态无关的固定时间戳，故「先清场、后排名」的
-            # 两阶段之间不可能有新手牌冒出来——无需引入「结算中」的中间状态
+            # 截止必须用锁后的墙钟。进 session 之前冻住的 `now_ms` 若在等锁期间
+            # 已经过了完赛截止，继续用它会把新手牌送进清场与 CAS 之间。
+            now_ms = int(time.time() * 1000)
             if now_ms >= int(tournament.play_deadline_ms):
                 raise ValueError("tournament finished")
 
@@ -6004,7 +6066,10 @@ class DatabaseORM:
         if int(tournament.status) != self.TOURNAMENT_RUNNING:
             raise ValueError("tournament not running")
         if int(time.time() * 1000) >= int(tournament.play_deadline_ms):
-            # 清场任务会把它按停牌口径结算，不因截止判负
+            # 清场任务会把它按停牌口径结算，不因截止判负。
+            # 动作路径不加赛事写锁：锁序是 hand → tournament，与发牌/
+            # 结算的 tournament → entry 交错会死锁。本路径只改已存在的
+            # 手牌，未终结牌由清场按手牌事务处理。
             raise ValueError("tournament finished")
         return hand
 
@@ -6405,23 +6470,45 @@ class DatabaseORM:
         升序决胜。**未打满且未被淘汰者不参与派奖，其报名费留在奖池中**——21 点
         接近零期望，不设这道门的话「报名后什么都不做」就是占优策略。
 
-        锁序 tournament → entry → statistics。
+        锁序 tournament → entry → statistics。赛事行先用 `_lock_running_tournament`
+        钉住，再在本事务里确认没有未终结手牌，然后才 CAS。tick 的清场与本方法
+        之间仍可能有发牌提交；扫到未终结手牌则本轮不派奖，留给下一分钟先清场。
 
         Returns: {settled(bool), tournament, standings, champion_tg_id, prize_total}
         """
+        from app import blackjack_engine as engine
+
         with get_session() as session:
-            tournament = (
-                session.execute(
-                    select(BlackjackTournament).where(
-                        BlackjackTournament.id == int(tournament_id)
-                    )
-                )
-                .scalars()
-                .one_or_none()
-            )
+            tournament = self._lock_running_tournament(session, int(tournament_id))
             if not tournament:
-                raise ValueError("tournament not found")
-            if int(tournament.status) != self.TOURNAMENT_RUNNING:
+                existing = (
+                    session.execute(
+                        select(BlackjackTournament).where(
+                            BlackjackTournament.id == int(tournament_id)
+                        )
+                    )
+                    .scalars()
+                    .one_or_none()
+                )
+                if not existing:
+                    raise ValueError("tournament not found")
+                return {
+                    "settled": False,
+                    "tournament": self._tournament_to_dict(existing),
+                    "standings": [],
+                    "champion_tg_id": None,
+                    "prize_total": 0.0,
+                }
+
+            pending = session.execute(
+                select(func.count())
+                .select_from(BlackjackHand)
+                .where(
+                    BlackjackHand.tournament_id == int(tournament_id),
+                    BlackjackHand.status.notin_(engine.TERMINAL_STATUSES),
+                )
+            ).scalar_one()
+            if int(pending) > 0:
                 return {
                     "settled": False,
                     "tournament": self._tournament_to_dict(tournament),
