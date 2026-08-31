@@ -89,7 +89,10 @@ DEFAULT_BLACKJACK_CONFIG = {
     "tournament_remind_lead_hours": 6,
     # 冠军勋章加成的累积上限（天），防止持续夺冠者无限累积
     "tournament_badge_cap_days": 90,
-    # 管理员创建赛事时的默认值，仅作表单预填，每场赛事的实际参数以其自身的列为准
+    # 每周一 09:00 自动创建周赛（报名截止周三 18:00、完赛截止周日 23:59，
+    # 时点写在任务的 cron 注册与计算里，不设配置项）。赛制参数取 tournament_defaults
+    "tournament_auto_create_enabled": True,
+    # 创建赛事时的默认参数：管理员表单预填与每周自动开赛共用这一份
     "tournament_defaults": {
         "buy_in_credits": 30,
         "starting_chips": 1000,
@@ -5467,6 +5470,33 @@ class DatabaseORM:
                 return {int(r[0]) for r in rows}
         except Exception as e:
             logger.error(f"查询仍有进行中报名的锦标赛失败: {e}")
+            return None
+
+    def count_registering_blackjack_tournaments(self, now_ms: int) -> Optional[int]:
+        """统计报名尚未截止的赛事数，给每周自动开赛的去重闸门用。
+
+        只看「报名中且报名截止晚于当前」：本周自动建的周赛报名截止固定在周三
+        18:00，任务重复触发（重启补跑 / 误配双任务）时第二次会在这里被挡下；
+        管理员本周手动建的、报名仍开放的赛事同样计入——再自动建一场即形成排期
+        重叠。比较的是纯整数毫秒列，不受时区存储差异影响。
+
+        查询失败返回 None 而非 0：调用方需要区分「确认没有」与「没查到」——
+        自动创建宁可漏一期（管理员可手动补建）也不能重复建两场。
+        """
+        try:
+            with get_session() as session:
+                count = (
+                    session.execute(
+                        select(func.count(BlackjackTournament.id)).where(
+                            BlackjackTournament.status == self.TOURNAMENT_REGISTERING,
+                            BlackjackTournament.register_deadline_ms > int(now_ms),
+                        )
+                    ).scalar()
+                    or 0
+                )
+                return int(count)
+        except Exception as e:
+            logger.error(f"统计报名中的锦标赛数量失败: {e}")
             return None
 
     def get_blackjack_tournament_standings(self, tournament_id: int) -> list[dict]:

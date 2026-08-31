@@ -250,6 +250,27 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每分钟推进 21 点锦标赛（报名截止/完赛提醒/完赛结算）")
 
+    # 每周一 09:00 自动创建本周的 21 点锦标赛：报名截止周三 18:00，完赛截止周日 23:59
+    # （时点在任务函数内按本周对齐计算；去重闸门见 count_registering_blackjack_tournaments）
+    from app.webapp.routers.activities.blackjack_tournament import (
+        auto_create_blackjack_tournament_job,
+    )
+
+    scheduler.add_async_job(
+        func=auto_create_blackjack_tournament_job,
+        trigger="cron",
+        id="blackjack_tournament_auto_create",
+        replace_existing=True,
+        max_instances=1,
+        day_of_week="mon",
+        hour=9,
+        minute=0,
+    )
+    logger.info(
+        "添加定时任务：每周一 09:00 自动创建 21 点锦标赛"
+        "（周三 18:00 报名截止，周日 23:59 完赛截止）"
+    )
+
     # 每 5 分钟检查 Premium 会员过期状态 (异步任务)
     scheduler.add_async_job(
         func=check_premium_expiry,

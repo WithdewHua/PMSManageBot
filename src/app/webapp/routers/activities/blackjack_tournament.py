@@ -448,6 +448,75 @@ async def blackjack_tournament_tick_job() -> None:
 
 
 # ============================================================
+# 每周自动开赛
+# ============================================================
+
+
+async def auto_create_blackjack_tournament_job() -> None:
+    """每周一 09:00 自动创建周赛（cron 注册在 main.py）。
+
+    两个截止时点在函数内按「本周的星期几」对齐计算而非取相对偏移：任务若因
+    重启补跑或手动触发而晚于整点，截止仍应对齐周三 18:00 / 周日 23:59，
+    而不是随实际触发时刻漂移。
+
+    赛制参数取全局配置的 `tournament_defaults`（与管理员表单预填同源）；
+    名称留空走自动命名；`seeded_prize_credits` 刻意剔除——奖池补贴按约定
+    必须是管理员的显式操作，不能经定时任务增发。
+
+    去重闸门见 `count_registering_blackjack_tournaments`：已有报名未截止的
+    赛事（上一轮自动建的，或管理员手动建的）就跳过，防止重复开赛。任务体
+    吞掉异常——调度任务失败不应影响其他任务（项目约定）。
+    """
+    import datetime as _datetime
+
+    try:
+        config = db.get_blackjack_config_dict()
+        if not config.get("tournament_auto_create_enabled", False):
+            logger.info("锦标赛自动开赛未开启，跳过本周自动创建")
+            return
+        if not config.get("enabled", False):
+            logger.info("21 点活动当前未开放，跳过本周锦标赛自动创建")
+            return
+
+        now = _datetime.datetime.now(settings.TZ)
+        monday = (now - _datetime.timedelta(days=now.weekday())).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        register_deadline = monday + _datetime.timedelta(days=2, hours=18)  # 周三 18:00
+        play_deadline = monday + _datetime.timedelta(
+            days=6, hours=23, minutes=59
+        )  # 周日 23:59
+
+        now_ms = int(now.timestamp() * 1000)
+        open_count = db.count_registering_blackjack_tournaments(now_ms)
+        if open_count is None:
+            logger.error("无法确认本周是否已有报名中的锦标赛，跳过自动创建")
+            return
+        if open_count > 0:
+            logger.info(f"已有 {open_count} 场报名中的锦标赛，跳过本周自动创建")
+            return
+
+        params = {
+            **(config.get("tournament_defaults") or {}),
+            "register_deadline_ms": int(register_deadline.timestamp() * 1000),
+            "play_deadline_ms": int(play_deadline.timestamp() * 1000),
+        }
+        params.pop("title", None)
+        params.pop("seeded_prize_credits", None)
+
+        t = db.create_blackjack_tournament(params)
+        logger.info(f"已自动创建本周锦标赛：{t['title']} (id={t['id']})")
+
+        if _notify_enabled():
+            await _broadcast_group(_format_created(t), "赛事创建")
+    except ValueError as e:
+        # 参数被拒：如 tournament_defaults 被改非法，或创建瞬间活动被关闭
+        logger.error(f"自动创建锦标赛失败（参数校验未过）: {e}")
+    except Exception as e:
+        logger.error(f"自动创建锦标赛失败: {e}")
+
+
+# ============================================================
 # 异常翻译
 # ============================================================
 
