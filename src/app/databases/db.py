@@ -21,6 +21,7 @@ from app.models.models import (
     BlackjackHand,
     BlackjackTournament,
     BlackjackTournamentEntry,
+    BlackjackWeeklyCashback,
     CryptoDonationOrders,
     CustomLine,
     DonationRegistrations,
@@ -32,6 +33,7 @@ from app.models.models import (
     LineSchedule,
     LineTrafficMonthlyStats,
     LineTrafficStats,
+    LuckywheelFreeSpin,
     Overseerr,
     PlexUser,
     PredictionBet,
@@ -75,6 +77,21 @@ DEFAULT_BLACKJACK_CONFIG = {
     "jackpot_notify_enabled": True,  # 中奖时向群组播报，用于吸引更多人参与
     # 每日免抽水手数：低成本的习惯钩子，无条件发放，不需下注解锁
     "free_hands_per_day": 1,
+    # ---- 留存三机制（openspec: add-blackjack-retention）----
+    # 三项合计的目标：主力注额玩家有效期望从 ~2.3% 收窄到 ~0.5%~1%，仍是
+    # 回收器但重度玩家失血速度降至原来的 1/4~1/2。参数护栏见 openspec
+    # add-blackjack-retention/design.md D1：手数阈值 ≥ 20、周上限 ≤ 5，
+    # 任一参数或转盘奖池调整后须按预算表重算
+    "relief_enabled": True,
+    "relief_threshold": 8,  # 连败 N 手触发救济；平局与投降不改变计数
+    "relief_multiplier": 1.0,  # 补偿 = 该手基础注额 × 倍数（加倍手牌也按基础注额）
+    "cashback_enabled": True,
+    "cashback_rate": 0.15,  # 周净亏损的返还比例；返还进争霸赛余额而非积分
+    "cashback_min_payout": 1.0,  # 低于此金额不发放（避免尘埃级事务与通知）
+    "freespins_enabled": True,
+    "freespins_hand_threshold": 20,  # 每累计 N 手已结算现金局 → 1 次免费大转盘机会
+    "freespins_weekly_cap": 5,  # 每周最多获得次数（对刷量与触顶让利的双重封顶）
+    "freespins_expiry_days": 7,  # 机会有效期（自然日），过期由查询过滤作废（行保留作台账）
     # 榜单最低手数门槛：样本量不足的用户不入准确率榜与胜率榜
     "rank_min_hands": 100,
     # 游戏王勋章的 21 点双条件
@@ -3101,6 +3118,9 @@ class DatabaseORM:
             "jackpot_won": float(hand.jackpot_won)
             if hand.jackpot_won is not None
             else None,
+            "relief_credits": float(hand.relief_credits)
+            if hand.relief_credits is not None
+            else None,
             "decisions_total": int(hand.decisions_total),
             "decisions_correct": int(hand.decisions_correct),
             "rake_waived": int(hand.rake_waived) == 1,
@@ -3119,6 +3139,593 @@ class DatabaseORM:
             "created_at_ms": int(hand.created_at_ms),
             "settled_at": int(hand.settled_at) if hand.settled_at is not None else None,
         }
+
+    def _apply_blackjack_retention(
+        self,
+        session,
+        hand: BlackjackHand,
+        stats: Optional[Statistics],
+        *,
+        outcome: str,
+        config: dict,
+        now_ts: int,
+    ) -> dict:
+        """留存机制的结算钩子：连败救济 + 打满送免费大转盘机会。
+
+        仅现金局调用（赛内手牌走 `_settle_blackjack_tournament_hand`，不经过
+        此处）；调用方须已持有该用户 Statistics 的行锁，且已在结算 CAS 抢占
+        成功之后——幂等性完全继承自那两道闸门。
+
+        连败计数：判负（含爆牌）+1、判胜（含天胡）归零、平局与投降不变。
+        计数达到阈值时立即补偿「该手基础注额 × 倍数」（加倍手牌也按基础
+        注额——加倍是玩家的风险选择，救济不应随之翻倍），补偿不抽水，
+        金额落 `blackjack_hand.relief_credits` 供周结算与对账使用。触发后
+        计数归零，再次救济需重新累计满阈值。
+
+        免费机会：每结算一手现金局计数 +1，达阈值且本周配额有余时发放
+        `luckywheel_free_spins` 行并扣除阈值。周配额由「本周一以来已发放
+        行数」推导而非计数器——任何计数器都需要周界重置逻辑，而按
+        granted_at 过滤天然正确。用 while 而非 if：管理员调低阈值后，
+        存量计数可能已是新阈值的数倍，应连续转换直至配额用尽。
+
+        配置从入参读取而非现读库：调用方（含发牌路径）已在开启事务前
+        把完整配置读好传入，事务内再调 get_blackjack_config_dict() 会
+        另开一个连接，外层正持有行锁时会死锁（见 _settle_blackjack_hand
+        的注释）。阈值/开关类参数不随手牌快照——它们是留存机制的运营
+        参数而非本手牌的结算口径，调整后对下一手结算立即生效。
+
+        Returns: {relief_credits: float, freespins: [{expires_at_ms: int}]}
+        """
+        result = {"relief_credits": 0.0, "freespins": []}
+        if stats is None:
+            # 现金局发牌必先建 Statistics 行（扣注额），此处仅为防御：
+            # 行不存在时放弃两项计数，不阻断结算本身
+            return result
+
+        tg_id = int(hand.tg_id)
+        now_ms = int(now_ts) * 1000
+
+        # ---- 连败救济 ----
+        # 计数无条件维护（spec：系统 SHALL 按用户维护现金局手牌的连败计数），
+        # 只有发放受 relief_enabled 门控——否则停用期间计数冻结，重启用后
+        # 会凭陈旧计数支付玩家当前状态并不匹配的救济
+        streak = int(stats.blackjack_lose_streak or 0)
+        if outcome in ("lose", "bust"):
+            streak += 1
+            threshold = int(config.get("relief_threshold", 8) or 0)
+            multiplier = float(config.get("relief_multiplier", 1.0) or 0.0)
+            if (
+                bool(config.get("relief_enabled", True))
+                and threshold > 0
+                and multiplier > 0
+                and streak >= threshold
+            ):
+                relief = round(float(hand.bet_credits) * multiplier, 2)
+                stats.credits = round(float(stats.credits) + relief, 2)
+                session.execute(
+                    update(BlackjackHand)
+                    .where(BlackjackHand.id == int(hand.id))
+                    .values(relief_credits=float(relief))
+                )
+                session.expire(hand)
+                result["relief_credits"] = relief
+                streak = 0
+            stats.blackjack_lose_streak = streak
+        elif outcome in ("win", "blackjack"):
+            stats.blackjack_lose_streak = 0
+        # push / surrender：计数不变
+
+        # ---- 打满送免费大转盘机会 ----
+        if bool(config.get("freespins_enabled", True)):
+            # 进度累加只受总开关门控：weekly_cap/expiry_days 临时置 0 只暂停
+            # 发放，不得冻结进度（否则恢复后这段进度永久丢失，与触顶后继续
+            # 累计的行为也不一致）；各参数的有效性只门控转换
+            progress = int(stats.blackjack_hands_since_freespin or 0) + 1
+            threshold = int(config.get("freespins_hand_threshold", 20) or 0)
+            cap = int(config.get("freespins_weekly_cap", 5) or 0)
+            expiry_days = int(config.get("freespins_expiry_days", 7) or 0)
+            if threshold > 0 and cap > 0 and expiry_days > 0 and progress >= threshold:
+                granted_this_week = int(
+                    session.execute(
+                        select(func.count(LuckywheelFreeSpin.id)).where(
+                            LuckywheelFreeSpin.tg_id == tg_id,
+                            LuckywheelFreeSpin.granted_at_ms
+                            >= self._blackjack_week_start_ms(),
+                        )
+                    ).scalar_one()
+                    or 0
+                )
+                while progress >= threshold and granted_this_week < cap:
+                    expires_at_ms = now_ms + expiry_days * 86400 * 1000
+                    session.add(
+                        LuckywheelFreeSpin(
+                            tg_id=tg_id,
+                            source="blackjack",
+                            granted_at_ms=now_ms,
+                            expires_at_ms=expires_at_ms,
+                        )
+                    )
+                    result["freespins"].append({"expires_at_ms": expires_at_ms})
+                    progress -= threshold
+                    granted_this_week += 1
+            stats.blackjack_hands_since_freespin = progress
+
+        return result
+
+    # 周返还游标：system_config(config_type=blackjack) 中记录已处理到的
+    # 周起始（毫秒）。首次运行时写入锚点，此后每次运行把锚点之后的全部
+    # 完整自然周逐周结算并推进——服务器停机跨周也能补漏，不会永久跳过某周
+    CASHBACK_CURSOR_KEY = "cashback_settled_through"
+
+    def settle_blackjack_weekly_cashback(self) -> dict:
+        """结算应结而未结的全部完整自然周的 21 点损失返还。
+
+        每周一由调度任务调用，亦可手动重跑：逐周幂等（结算行带
+        UNIQUE(tg_id, week_start_ms)，撞约束即跳过）。停机跨周时本方法
+        会把错过的完整周逐周补上（游标推进），而非永久跳过。
+
+        净变动口径（spec「周损失返还与争霸赛余额」）：该周期内全部现金局
+        终态手牌的 Σ(赔付 − 投注 + 连败救济 + 奖池派彩)。锦标赛赛内手牌、
+        转盘结果、争霸赛余额变动、报名费的积分支付均不计入。
+
+        首个结算周期：首次运行把锚点写到「刚结束的完整周」（部署周），部署
+        周与其前不结算，首个结算周期为其后的第一个完整自然周。停用期间游标
+        照常推进（停用的周不结算、重启用后不回溯），与奖池播报游标同款纪律。
+
+        Returns: {
+            enabled: bool,
+            anchored: bool,          # 本次是否只做了首次锚定
+            settled_weeks: [         # 本次结算的各周期
+                {week_start_ms, users: [{tg_id, net_change, cashback,
+                                        wallet_balance}]}
+            ],
+        }
+        """
+        config = self.get_blackjack_config_dict()
+        week_ms = 7 * 86400 * 1000
+
+        if not config.get("cashback_enabled", True):
+            # 停用期间也推进游标：停用的周就是「不结算的周」。若冻结游标，
+            # 重启用后会把停用期积累的全部完整周一次性补结并逐周倾泻私信
+            # ——与「关闭即停发新让利」的语义相悖。推进到本周一起点后，
+            # 重启用的首个结算周期 = 启用后的第一个完整自然周（与上线锚定
+            # 同语义）。
+            #
+            # 已接受的代价：若「启用期间的某次周一任务没跑 + 随后停用」，
+            # 那一周的数据会被跳过——无法与停用周区分，除非记录配置翻转
+            # 历史；需要补救时管理员可在停用前手动触发本方法
+            with get_session() as session:
+                cursor_row, cursor = self._read_retention_cursor(
+                    session, self.CASHBACK_CURSOR_KEY
+                )
+                now_week_start = self._blackjack_week_start_ms()
+                if cursor < now_week_start:
+                    self._write_retention_cursor(
+                        session, cursor_row, self.CASHBACK_CURSOR_KEY, now_week_start
+                    )
+                    session.commit()
+            return {"enabled": False, "anchored": False, "settled_weeks": []}
+
+        rate = float(config.get("cashback_rate", 0.15) or 0)
+        min_payout = float(config.get("cashback_min_payout", 1.0) or 0)
+
+        with get_session() as session:
+            now_week_start = self._blackjack_week_start_ms()
+
+            cursor_row, cursor = self._read_retention_cursor(
+                session, self.CASHBACK_CURSOR_KEY, for_update=True
+            )
+            if cursor_row is None or cursor <= 0:
+                # 首次运行（或游标值损坏归零）：锚定到刚结束的那个完整周（即
+                # 部署周）。部署周与其前的一切不结算，首个结算周期为其后的
+                # 第一个完整自然周——周中部署时，部署周内部署日之前的亏损
+                # 不参与返还。
+                # 取 now − 7d 而非 now：定时任务固定周一 00:05 跑，此时刚结束
+                # 的完整周恰好是部署周；若取 now（首跑周）会把「启用后的第
+                # 一个完整自然周」整周丢弃（周一跑、周三部署的常见时序）
+                self._write_retention_cursor(
+                    session,
+                    cursor_row,
+                    self.CASHBACK_CURSOR_KEY,
+                    now_week_start - week_ms,
+                )
+                session.commit()
+                return {"enabled": True, "anchored": True, "settled_weeks": []}
+
+            settled_weeks = []
+            week_start = cursor + week_ms
+            while week_start < now_week_start:
+                users = self._settle_one_cashback_week(
+                    session, week_start, rate=rate, min_payout=min_payout
+                )
+                settled_weeks.append({"week_start_ms": week_start, "users": users})
+                self._write_retention_cursor(
+                    session, cursor_row, self.CASHBACK_CURSOR_KEY, week_start
+                )
+                session.commit()  # 逐周提交：中途失败时已结的周不丢
+                week_start += week_ms
+
+            return {
+                "enabled": True,
+                "anchored": False,
+                "settled_weeks": settled_weeks,
+            }
+
+    def _read_retention_cursor(
+        self, session, key: str, *, for_update: bool = False
+    ) -> tuple:
+        """读取 system_config(blackjack) 中的留存游标行与解析后的整数值。
+
+        供周返还（周起点）与免费机会通知（行 ID）两个游标共用。解析失败
+        按 0 处理：游标只会前移，0 意味着从头补——宁可重扫不可跳过。
+        Returns: (行对象或 None, 解析值)
+        """
+        stmt = select(SystemConfig).where(
+            SystemConfig.config_type == "blackjack",
+            SystemConfig.config_key == key,
+        )
+        if for_update:
+            stmt = stmt.with_for_update()
+        row = session.execute(stmt).scalars().one_or_none()
+        try:
+            value = int(float(row.config_value)) if row else 0
+        except (TypeError, ValueError):
+            value = 0
+        return row, value
+
+    def _write_retention_cursor(
+        self,
+        session,
+        cursor_row: Optional[SystemConfig],
+        key: str,
+        value: int,
+    ) -> None:
+        """把留存游标写入或更新到指定值。调用方须在事务内；行不存在时
+        新建（insert），存在时原地更新。"""
+        now_ts = int(time.time())
+        if cursor_row is None:
+            session.add(
+                SystemConfig(
+                    config_type="blackjack",
+                    config_key=key,
+                    config_value=str(int(value)),
+                    created_at=now_ts,
+                    updated_at=now_ts,
+                )
+            )
+        else:
+            cursor_row.config_value = str(int(value))
+            cursor_row.updated_at = now_ts
+        session.flush()
+
+    def _settle_one_cashback_week(
+        self, session, week_start_ms: int, *, rate: float, min_payout: float
+    ) -> list:
+        """结算单个自然周。返回获得返还的用户列表（供任务发通知）。
+
+        幂等：逐用户 INSERT 结算行，撞 UNIQUE(tg_id, week_start_ms) 说明该
+        周已结算过，跳过该用户（SAVEPOINT 隔离，不影响同批其他用户）。
+        """
+        week_ms = 7 * 86400 * 1000
+        start_s = int(week_start_ms) // 1000
+        end_s = (int(week_start_ms) + week_ms) // 1000
+
+        from app import blackjack_engine as engine
+
+        # 净变动 = Σ(赔付 − 投注 + 救济 + 奖池派彩)；投注含加倍的两份
+        wager = BlackjackHand.bet_credits * (1 + BlackjackHand.doubled)
+        net_expr = (
+            func.coalesce(BlackjackHand.payout_credits, 0)
+            - wager
+            + func.coalesce(BlackjackHand.relief_credits, 0)
+            + func.coalesce(BlackjackHand.jackpot_won, 0)
+        )
+        rows = session.execute(
+            select(BlackjackHand.tg_id, func.sum(net_expr).label("net_change"))
+            .where(
+                BlackjackHand.tournament_id.is_(None),
+                BlackjackHand.status.in_(engine.TERMINAL_STATUSES),
+                BlackjackHand.settled_at >= start_s,
+                BlackjackHand.settled_at < end_s,
+            )
+            .group_by(BlackjackHand.tg_id)
+        ).all()
+
+        payload = []
+        for tg_id, net_change in rows:
+            net = round(float(net_change or 0), 2)
+            if net >= 0:
+                # 净赢者（含因奖池派彩转正者）不返还
+                continue
+            cashback = round(abs(net) * rate, 2)
+            if cashback < min_payout:
+                # 低于发放门槛：不发、不通知、不留结算行
+                continue
+            try:
+                with session.begin_nested():
+                    session.add(
+                        BlackjackWeeklyCashback(
+                            tg_id=int(tg_id),
+                            week_start_ms=int(week_start_ms),
+                            net_change=net,
+                            cashback_credits=cashback,
+                            created_at_ms=int(time.time() * 1000),
+                        )
+                    )
+                    session.flush()
+            except IntegrityError:
+                # 该周该用户已结算（任务重跑）：跳过，不重复入账
+                continue
+
+            stats = (
+                session.execute(
+                    select(Statistics)
+                    .where(Statistics.tg_id == int(tg_id))
+                    .with_for_update()
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if stats is None:
+                # 现金局手牌必然来自有 Statistics 行的用户，此处为防御
+                session.add(
+                    Statistics(
+                        tg_id=int(tg_id),
+                        donation=0,
+                        credits=0,
+                        tournament_wallet_credits=cashback,
+                    )
+                )
+                wallet_balance = cashback
+            else:
+                stats.tournament_wallet_credits = round(
+                    float(stats.tournament_wallet_credits or 0) + cashback, 2
+                )
+                wallet_balance = round(float(stats.tournament_wallet_credits), 2)
+            payload.append(
+                {
+                    "tg_id": int(tg_id),
+                    "net_change": net,
+                    "cashback": cashback,
+                    "wallet_balance": wallet_balance,
+                }
+            )
+
+        if payload:
+            logger.info(
+                f"21 点周返还结算完成（week_start={week_start_ms}，"
+                f"{len(payload)} 人获得返还）"
+            )
+        return payload
+
+    def get_blackjack_tournament_wallet(self, tg_id: int) -> float:
+        """该用户的争霸赛余额（仅可支付锦标赛报名费）。"""
+        try:
+            with get_session() as session:
+                stats = session.get(Statistics, int(tg_id))
+                if stats is None:
+                    return 0.0
+                return round(float(stats.tournament_wallet_credits or 0), 2)
+        except Exception as e:
+            logger.error(f"读取争霸赛余额失败 (tg_id={tg_id}): {e}")
+            return 0.0
+
+    # 免费机会通知游标：已认领到的机会行 ID。与奖池播报游标同理——发放散落
+    # 在全部结算路径上（含超时清理等无路由参与的路径），游标轮询才能全覆盖
+    FREESPIN_NOTIFY_CURSOR_KEY = "freespin_notify_cursor"
+
+    def claim_unnotified_blackjack_freespins(self) -> list:
+        """认领尚未通知的免费机会发放，并把游标推进到本轮的安全边界。
+
+        「认领」意味着调用方必须负责发送通知——本方法一旦返回就已推进游标，
+        同一发放不会被返回第二次；发送失败只记日志、不重发，避免刷屏。
+
+        安全边界与奖池播报不同（那边用「最小进行中手牌 ID − 1」）：发放行没有
+        对应的手牌引用，改用**时间窗**——只认领 60 秒前发放的行。结算事务
+        是毫秒级的，60 秒后仍未提交意味着事务已死，不会后来提交；仍在事务内
+        的发放不会被本轮游标越过。通知延迟至多约两分钟（任务每分钟一跑），
+        对「获得通知」这种非实时消息无感。
+
+        首次运行：游标直接初始化到当前边界，不回溯历史发放（部署前发放
+        的通知没有意义，且可能一次性倾泻）。
+        """
+        try:
+            with get_session() as session:
+                cursor_row, cursor = self._read_retention_cursor(
+                    session, self.FREESPIN_NOTIFY_CURSOR_KEY
+                )
+
+                safe_before_ms = int(time.time() * 1000) - 60 * 1000
+                rows = session.execute(
+                    select(
+                        LuckywheelFreeSpin.id,
+                        LuckywheelFreeSpin.tg_id,
+                        LuckywheelFreeSpin.expires_at_ms,
+                    )
+                    .where(
+                        LuckywheelFreeSpin.id > cursor,
+                        LuckywheelFreeSpin.granted_at_ms <= safe_before_ms,
+                    )
+                    .order_by(LuckywheelFreeSpin.id)
+                ).all()
+                frontier = int(rows[-1][0]) if rows else cursor
+
+                self._write_retention_cursor(
+                    session,
+                    cursor_row,
+                    self.FREESPIN_NOTIFY_CURSOR_KEY,
+                    frontier,
+                )
+                if cursor_row is None:
+                    if frontier:
+                        logger.info(
+                            f"免费机会通知游标初始化为 {frontier}，不回溯历史发放"
+                        )
+                    return []
+
+                return [
+                    {
+                        "id": int(r[0]),
+                        "tg_id": int(r[1]),
+                        "expires_at_ms": int(r[2]),
+                    }
+                    for r in rows
+                ]
+        except Exception as e:
+            logger.error(f"认领待通知的免费机会发放失败: {e}")
+            return []
+
+    def list_expiring_blackjack_freespins(
+        self, *, within_ms: int = 86400 * 1000
+    ) -> list:
+        """列出将在时间窗内到期且未用的免费机会，按用户合并。
+
+        供每日到期提醒任务使用：同一用户多张合并为一条提醒。行不删除——
+        全部发放行永久保留作台账（与 wheel_stats 保留全部参与记录同哲学），
+        「作废」由可用性查询的过期过滤实现，无需任何清理写操作。
+        """
+        now_ms = int(time.time() * 1000)
+        try:
+            with get_session() as session:
+                rows = session.execute(
+                    select(
+                        LuckywheelFreeSpin.tg_id,
+                        LuckywheelFreeSpin.expires_at_ms,
+                    )
+                    .where(
+                        LuckywheelFreeSpin.used_at_ms.is_(None),
+                        LuckywheelFreeSpin.expires_at_ms > now_ms,
+                        LuckywheelFreeSpin.expires_at_ms <= now_ms + int(within_ms),
+                    )
+                    .order_by(LuckywheelFreeSpin.expires_at_ms)
+                ).all()
+            merged: dict = {}
+            for tg_id, expires_at_ms in rows:
+                merged.setdefault(int(tg_id), []).append(int(expires_at_ms))
+            return [
+                {"tg_id": tg_id, "expires_at_ms_list": expiries}
+                for tg_id, expiries in merged.items()
+            ]
+        except Exception as e:
+            logger.error(f"查询即将过期的免费机会失败: {e}")
+            return []
+
+    def consume_blackjack_freespin(self, tg_id: int) -> Optional[dict]:
+        """原子认领该用户最早的一张未用未过期免费机会。
+
+        条件 UPDATE（CAS）而非「查后改」：`used_at_ms IS NULL` 的条件使
+        并发的两次认领只有一次生效（SQLite 无行锁，靠库级写锁串行；
+        PostgreSQL 靠行锁后置条件复检）——与项目其余幂等纪律同源。
+
+        认领最早到期的：临近过期的机会优先用掉，最小化「攒着不用而过期」。
+
+        Returns: {id, expires_at_ms} 或 None（无可用机会）
+        """
+        now_ms = int(time.time() * 1000)
+        try:
+            with get_session() as session:
+                oldest_id = (
+                    session.execute(
+                        select(LuckywheelFreeSpin.id)
+                        .where(
+                            LuckywheelFreeSpin.tg_id == int(tg_id),
+                            LuckywheelFreeSpin.used_at_ms.is_(None),
+                            LuckywheelFreeSpin.expires_at_ms > now_ms,
+                        )
+                        .order_by(
+                            LuckywheelFreeSpin.expires_at_ms, LuckywheelFreeSpin.id
+                        )
+                        .limit(1)
+                    )
+                    .scalars()
+                    .one_or_none()
+                )
+                if oldest_id is None:
+                    return None
+                claimed = session.execute(
+                    update(LuckywheelFreeSpin)
+                    .where(
+                        LuckywheelFreeSpin.id == int(oldest_id),
+                        LuckywheelFreeSpin.used_at_ms.is_(None),
+                    )
+                    .values(used_at_ms=now_ms)
+                )
+                if claimed.rowcount == 0:
+                    return None
+                row = session.get(LuckywheelFreeSpin, int(oldest_id))
+                return {
+                    "id": int(oldest_id),
+                    "expires_at_ms": int(row.expires_at_ms),
+                    "claimed_at_ms": now_ms,
+                }
+        except Exception as e:
+            logger.error(f"认领免费大转盘机会失败 (tg_id={tg_id}): {e}")
+            return None
+
+    def release_blackjack_freespin(self, spin_id: int, *, claimed_at_ms: int) -> bool:
+        """归还误认领的免费机会（补偿路径）。
+
+        仅在 `used_at_ms` 仍等于本方写入的时戳时才回退——若已被其他流程
+        改动，不覆盖。用于：机会已认领但抽奖执行失败时，把机会还给用户。
+        """
+        try:
+            with get_session() as session:
+                released = session.execute(
+                    update(LuckywheelFreeSpin)
+                    .where(
+                        LuckywheelFreeSpin.id == int(spin_id),
+                        LuckywheelFreeSpin.used_at_ms == int(claimed_at_ms),
+                    )
+                    .values(used_at_ms=None)
+                )
+                return released.rowcount == 1
+        except Exception as e:
+            logger.error(f"归还免费大转盘机会失败 (spin_id={spin_id}): {e}")
+            return False
+
+    def get_blackjack_freespin_summary(self, tg_id: int) -> dict:
+        """该用户的免费机会概览：可用次数、各张到期时间、手数进度。
+
+        供转盘页（可用次数与到期时间）与牌桌（进度条）展示。可用性 =
+        未用且未过期——过期作废由过滤实现，无需任何用户操作。
+        """
+        now_ms = int(time.time() * 1000)
+        try:
+            config = self.get_blackjack_config_dict()
+            enabled = bool(config.get("freespins_enabled", True))
+            threshold = int(config.get("freespins_hand_threshold", 20) or 0)
+            with get_session() as session:
+                spins = (
+                    session.execute(
+                        select(LuckywheelFreeSpin.expires_at_ms)
+                        .where(
+                            LuckywheelFreeSpin.tg_id == int(tg_id),
+                            LuckywheelFreeSpin.used_at_ms.is_(None),
+                            LuckywheelFreeSpin.expires_at_ms > now_ms,
+                        )
+                        .order_by(LuckywheelFreeSpin.expires_at_ms)
+                    )
+                    .scalars()
+                    .all()
+                )
+                stats = session.get(Statistics, int(tg_id))
+                hands = int(stats.blackjack_hands_since_freespin or 0) if stats else 0
+            return {
+                "enabled": enabled,
+                "available": len(spins),
+                "expires_at_ms_list": [int(s) for s in spins],
+                "hands_since_freespin": hands,
+                "hand_threshold": threshold,
+            }
+        except Exception as e:
+            logger.error(f"读取免费机会概览失败 (tg_id={tg_id}): {e}")
+            return {
+                "enabled": False,
+                "available": 0,
+                "expires_at_ms_list": [],
+                "hands_since_freespin": 0,
+                "hand_threshold": 0,
+            }
 
     def _settle_blackjack_hand(
         self,
@@ -3332,6 +3939,19 @@ class DatabaseORM:
             )
             session.expire(hand)
 
+        # 留存钩子：连败救济与免费转盘机会。放在积分入账之后、最终 flush
+        # 之前——救济补偿也走 stats.credits，与赔付同一事务同一行锁；
+        # 两项计数写入 stats，金额写入手牌行。幂等性已由上方的结算 CAS
+        # 保证（抢不到的一方根本走不到这里）
+        retention = self._apply_blackjack_retention(
+            session,
+            hand,
+            stats,
+            outcome=outcome,
+            config=jackpot_config,
+            now_ts=now_ts,
+        )
+
         session.flush()
 
         return {
@@ -3342,6 +3962,8 @@ class DatabaseORM:
             "rake_credits": rake,
             "jackpot_won": jackpot_won,
             "jackpot_in": jackpot_in,
+            "relief_credits": retention["relief_credits"],
+            "freespins": retention["freespins"],
         }
 
     def _locked_fund_row(self, session, config_type: str, config_key: str):
@@ -3671,6 +4293,17 @@ class DatabaseORM:
             hour=0, minute=0, second=0, microsecond=0
         )
         return int(day_start.timestamp() * 1000)
+
+    def _blackjack_week_start_ms(self, *, now: Optional[datetime] = None) -> int:
+        """本周一零点（`settings.TZ`）的毫秒时间戳。
+
+        与免抽水的自然日同一口径（周一为一周之始），免费机会的周配额与
+        周损失返还的结算周期都以它为界。"""
+        now = now or datetime.now(settings.TZ)
+        week_start = (now - timedelta(days=now.weekday())).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        return int(week_start.timestamp() * 1000)
 
     def _count_blackjack_hands_today(self, session, tg_id: int) -> int:
         """该用户当日已发的**现金局**手数（含进行中）。
@@ -4132,8 +4765,15 @@ class DatabaseORM:
         回合原子地推进到庄家回合），抢不到即说明已被其他请求或超时任务处理，直接
         放弃且不做任何写入；随后的终态写入同样带 `WHERE status NOT IN (终态)`
         条件，构成第二道闸门。加锁顺序仍为手牌 → statistics。
+
+        投降对留存机制是中性的：连败计数不变（投降是策略性离场，且计入连败
+        会打开「投降凑救济」的口子），但仍计入免费机会的手数——它是已结算
+        的现金局手牌。
         """
         from app import blackjack_engine as engine
+
+        # 配置在事务外读好：事务内读会另开连接，外层正持有行锁时会死锁
+        config = self.get_blackjack_config_dict()
 
         with get_session() as session:
             hand = self._lock_blackjack_hand(session, tg_id, hand_id)
@@ -4218,6 +4858,17 @@ class DatabaseORM:
                     Statistics(tg_id=int(tg_id), donation=0, credits=float(payout))
                 )
 
+            # 留存钩子：连败计数对投降中立（钩子内 outcome='surrender'
+            # 不改计数），手数 +1 并按阈值发放免费机会
+            retention = self._apply_blackjack_retention(
+                session,
+                hand,
+                stats,
+                outcome=engine.OUTCOME_SURRENDER,
+                config=config,
+                now_ts=now_ts,
+            )
+
             session.flush()
 
             return {
@@ -4229,6 +4880,8 @@ class DatabaseORM:
                 "rake_credits": 0.0,
                 "jackpot_won": 0.0,
                 "jackpot_in": 0.0,
+                "relief_credits": retention["relief_credits"],
+                "freespins": retention["freespins"],
                 "decision": decision,
             }
 
@@ -4445,7 +5098,14 @@ class DatabaseORM:
                     (BlackjackHand.doubled == 1, BlackjackHand.bet_credits * 2),
                     else_=BlackjackHand.bet_credits,
                 )
-                net = func.coalesce(BlackjackHand.payout_credits, 0) - total_stake
+                # 救济计入净变动：它是玩家从本活动真实收到的积分，漏算会让
+                # 用户统计卡与周返还的净变动口径互相矛盾；奖池派彩仍按既有
+                # 口径单独列示（jackpot_total）不混入 net
+                net = (
+                    func.coalesce(BlackjackHand.payout_credits, 0)
+                    - total_stake
+                    + func.coalesce(BlackjackHand.relief_credits, 0)
+                )
                 win_flag = case(
                     (
                         BlackjackHand.outcome.in_(
@@ -4546,6 +5206,10 @@ class DatabaseORM:
                 jackpot = case(
                     (terminal, func.coalesce(BlackjackHand.jackpot_won, 0)), else_=0
                 )
+                # 救济与抽水/派彩同口径：终态才计，与周结算的净变动公式一致
+                relief = case(
+                    (terminal, func.coalesce(BlackjackHand.relief_credits, 0)), else_=0
+                )
 
                 row = session.execute(
                     select(
@@ -4569,6 +5233,7 @@ class DatabaseORM:
                         func.coalesce(func.sum(raked), 0),
                         func.coalesce(func.sum(paid), 0),
                         func.coalesce(func.sum(jackpot), 0),
+                        func.coalesce(func.sum(relief), 0),
                     ).where(
                         # 只统计现金局手牌。这里不是「仅展示失真」的量级：赛内的
                         # bet_credits 是**筹码**，混入会把筹码数加进以积分计价的
@@ -4580,6 +5245,7 @@ class DatabaseORM:
                 wagered = float(row[4] or 0)
                 payout = float(row[6] or 0)
                 jackpot_paid = float(row[7] or 0)
+                relief_paid = float(row[8] or 0)
                 return {
                     "total_hands": int(row[0] or 0),
                     "active_hands": int(row[1] or 0),
@@ -4587,7 +5253,11 @@ class DatabaseORM:
                     "today_hands": int(row[3] or 0),
                     "total_wagered": round(wagered, 2),
                     "total_rake": round(float(row[5] or 0), 2),
-                    "net_credits": round(payout + jackpot_paid - wagered, 2),
+                    # 救济是发放而非赢利，但同样是流出系统的积分，计入
+                    # net_credits 才能与周结算/用户统计的口径对齐
+                    "net_credits": round(
+                        payout + jackpot_paid + relief_paid - wagered, 2
+                    ),
                     "jackpot_paid": round(jackpot_paid, 2),
                     # 复用同一 session 读余额。这里若改调 get_blackjack_jackpot()
                     # 会在已开事务内再取一条连接，池子只有 DB_POOL_SIZE 条
@@ -4704,6 +5374,8 @@ class DatabaseORM:
             "prize_credits": float(e.prize_credits)
             if e.prize_credits is not None
             else None,
+            "wallet_paid_credits": round(float(e.wallet_paid_credits or 0), 2),
+            "credits_paid_credits": round(float(e.credits_paid_credits or 0), 2),
             "registered_at_ms": int(e.registered_at_ms),
         }
 
@@ -5012,7 +5684,9 @@ class DatabaseORM:
             if claimed.rowcount == 0:
                 raise ValueError("tournament full")
 
-            # 扣报名费。锁序 tournament → statistics，故此处才取积分行锁
+            # 扣报名费：争霸赛余额优先，不足部分从积分补足（拆分落 entry，
+            # 取消退款按原路退回）。锁序 tournament → statistics，故此处才取
+            # 积分行锁——争霸赛余额就在同一行上
             stats = (
                 session.execute(
                     select(Statistics)
@@ -5024,9 +5698,13 @@ class DatabaseORM:
             )
             if not stats:
                 raise ValueError("user stats not found")
-            if float(stats.credits) < float(buy_in):
+            wallet = round(float(stats.tournament_wallet_credits or 0), 2)
+            if wallet + float(stats.credits) < float(buy_in):
                 raise ValueError(f"insufficient credits: need {buy_in}")
-            stats.credits = round(float(stats.credits) - float(buy_in), 2)
+            wallet_paid = round(min(wallet, float(buy_in)), 2)
+            credits_paid = round(float(buy_in) - wallet_paid, 2)
+            stats.tournament_wallet_credits = round(wallet - wallet_paid, 2)
+            stats.credits = round(float(stats.credits) - credits_paid, 2)
 
             entry = BlackjackTournamentEntry(
                 tournament_id=int(tournament_id),
@@ -5034,6 +5712,8 @@ class DatabaseORM:
                 chips=starting_chips,
                 hands_played=0,
                 status=self.ENTRY_PLAYING,
+                wallet_paid_credits=wallet_paid,
+                credits_paid_credits=credits_paid,
                 registered_at_ms=now_ms,
             )
             session.add(entry)
@@ -5073,6 +5753,13 @@ class DatabaseORM:
                 "tournament": self._tournament_to_dict(tournament),
                 "started": started,
                 "notify_entrants": notify_entrants,
+                # 余额随结果返回：报名事务内本就持有拆分后的两项余额，
+                # 路由层再开 session 重读既多余、也引入「读取失败静默返回
+                # 0.0 导致显示错余额」的隐患
+                "current_credits": round(float(stats.credits), 2),
+                "tournament_wallet_credits": round(
+                    float(stats.tournament_wallet_credits or 0), 2
+                ),
             }
 
     def _claim_tournament_transition(
@@ -5258,6 +5945,17 @@ class DatabaseORM:
 
             refunds = []
             for entry in entries:
+                # 退款按报名时的实际支付拆分原路退回：争霸赛余额支付的部分回
+                # 争霸赛余额，积分支付的部分回积分——返还的价值不因路径改换
+                # 而意外进入可挪用的积分。
+                #
+                # 存量兼容：迁移前创建的 entry 两列均为 0，但其实际支付是全额
+                # 积分（争霸赛余额当时尚不存在），拆分之和为 0 即按全额积分退。
+                wallet_paid = round(float(entry.wallet_paid_credits or 0), 2)
+                credits_paid = round(float(entry.credits_paid_credits or 0), 2)
+                if wallet_paid + credits_paid <= 0:
+                    credits_paid = float(buy_in)
+
                 stats = (
                     session.execute(
                         select(Statistics)
@@ -5268,14 +5966,27 @@ class DatabaseORM:
                     .one_or_none()
                 )
                 if stats:
-                    stats.credits = round(float(stats.credits) + float(buy_in), 2)
+                    stats.tournament_wallet_credits = round(
+                        float(stats.tournament_wallet_credits or 0) + wallet_paid, 2
+                    )
+                    stats.credits = round(float(stats.credits) + credits_paid, 2)
                 else:
                     session.add(
                         Statistics(
-                            tg_id=int(entry.tg_id), donation=0, credits=float(buy_in)
+                            tg_id=int(entry.tg_id),
+                            donation=0,
+                            credits=credits_paid,
+                            tournament_wallet_credits=wallet_paid,
                         )
                     )
-                refunds.append({"tg_id": int(entry.tg_id), "credits": float(buy_in)})
+                refunds.append(
+                    {
+                        "tg_id": int(entry.tg_id),
+                        "credits": round(wallet_paid + credits_paid, 2),
+                        "wallet_credits": wallet_paid,
+                        "paid_credits": credits_paid,
+                    }
+                )
 
             session.flush()
             logger.info(
@@ -6771,9 +7482,19 @@ class DatabaseORM:
     # ==================== Wheel Operations ====================
 
     def add_wheel_spin_record(
-        self, tg_id: int, item_name: str, credits_change: float, cost_credits: float
+        self,
+        tg_id: int,
+        item_name: str,
+        credits_change: float,
+        cost_credits: float,
+        source: str = "paid",
     ) -> bool:
-        """记录转盘旋转记录"""
+        """记录转盘旋转记录。
+
+        source 区分参与来源：'paid'（正常付费）/ 'blackjack_free'
+        （21 点打满手数获得的免费机会）。免费机会的发放成本需要可审计，
+        不能只靠 cost_credits=0 判断——管理员把参与费调为 0 后两者会混同。
+        """
         try:
             with get_session() as session:
                 timestamp = int(time.time())
@@ -6786,6 +7507,7 @@ class DatabaseORM:
                     credits_change=credits_change,
                     timestamp=timestamp,
                     date=date,
+                    source=source,
                 )
                 session.add(wheel_record)
                 return True

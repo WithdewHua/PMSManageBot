@@ -33,3 +33,21 @@ export function formatTraffic(bytes) {
     return mb.toFixed(1) + ' MB';
   }
 }
+
+/**
+ * 格式化毫秒时间戳为「MM-DD HH:mm」（用户本地时区）
+ *
+ * 用于留存机制的到期提示（免费机会、发放通知）等轻量场景：
+ * 同一格式此前在 BlackjackDialog 与 LuckyWheel 逐字节重复实现，
+ * 收敛到一处。需要完整年月日或相对时间的场景仍各自格式化。
+ * @param {number} ms - 毫秒时间戳
+ * @returns {string} 形如 "09-08 14:30" 的本地时间
+ */
+export function formatMsShortDateTime(ms) {
+  return new Date(ms).toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}

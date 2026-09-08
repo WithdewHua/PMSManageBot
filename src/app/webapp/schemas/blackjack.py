@@ -74,6 +74,9 @@ class BlackjackHandResponse(BaseModel):
     jackpot_won: Optional[float] = Field(
         None, description="幸运奖池派彩，与赔付分别记账"
     )
+    relief_credits: Optional[float] = Field(
+        None, description="连败救济金额，与赔付/奖池分别记账；未触发为 null"
+    )
     jackpot_trigger: Optional[str] = Field(
         None,
         description=(
@@ -150,6 +153,7 @@ class BlackjackHandResponse(BaseModel):
             payout_credits=hand.get("payout_credits"),
             rake_credits=hand.get("rake_credits"),
             jackpot_won=hand.get("jackpot_won"),
+            relief_credits=hand.get("relief_credits"),
             jackpot_trigger=jackpot_trigger,
             rake_waived=bool(hand.get("rake_waived")),
             decisions_total=int(hand.get("decisions_total") or 0),
@@ -167,6 +171,14 @@ class BlackjackDecisionFeedback(BaseModel):
     correct: bool = Field(..., description="两者是否一致")
 
 
+class BlackjackFreespinGrant(BaseModel):
+    """打满手数达到阈值时发放的免费大转盘机会"""
+
+    expires_at_ms: int = Field(
+        ..., description="过期时刻（毫秒时间戳）；过期后自动作废（发放记录保留作台账）"
+    )
+
+
 class BlackjackActionResponse(BaseModel):
     """发牌与各动作的统一响应"""
 
@@ -179,6 +191,14 @@ class BlackjackActionResponse(BaseModel):
         None, description="本次动作的基本策略评判；发牌无决策，故为 null"
     )
     jackpot_balance: float = Field(0, description="幸运奖池的当前余额")
+    relief_credits: float = Field(0, description="本手触发的连败救济金额；未触发为 0")
+    freespin_grants: List[BlackjackFreespinGrant] = Field(
+        default_factory=list,
+        description=(
+            "本手结算使累计手数达到阈值而发放的免费大转盘机会；"
+            "通常至多一张（单手只 +1），管理员调低阈值后可能连发至周配额上限"
+        ),
+    )
 
 
 class BlackjackCurrentHandResponse(BaseModel):
@@ -238,6 +258,19 @@ class BlackjackPublicConfigResponse(BaseModel):
     jackpot_suited_bj_pct: float = Field(
         10, description="同花天胡派发奖池余额的百分比；三张 7 派发全额"
     )
+    relief_enabled: bool = Field(True, description="连败救济是否启用")
+    relief_threshold: int = Field(8, description="连败 N 手触发救济")
+    relief_multiplier: float = Field(
+        1.0, description="救济倍数：补偿 = 该手基础注额 × 此值"
+    )
+    cashback_enabled: bool = Field(True, description="周损失返还是否启用")
+    cashback_rate: float = Field(0.15, description="周净亏损的返还比例")
+    freespins_enabled: bool = Field(True, description="打满送免费大转盘是否启用")
+    freespins_hand_threshold: int = Field(
+        20, description="每累计 N 手已结算现金局 → 1 次免费大转盘机会"
+    )
+    freespins_weekly_cap: int = Field(5, description="每周最多获得的免费机会次数")
+    freespins_expiry_days: int = Field(7, description="免费机会有效期（自然日）")
 
 
 class BlackjackAdminConfig(BaseModel):
@@ -276,6 +309,38 @@ class BlackjackAdminConfig(BaseModel):
         True, description="中奖时是否向群组播报（需配置 TG_GROUP_ID）"
     )
     free_hands_per_day: int = Field(1, ge=0, description="每日免抽水手数")
+    # ---- 留存三机制（openspec: add-blackjack-retention）----
+    # 经济护栏（design.md D1，调整任一参数后按预算表重算）：
+    # freespins_hand_threshold 不应低于 20、freespins_weekly_cap 不应高于 5，
+    # 否则 15 分注玩家在截断区的合计让利会超过抽耗而翻正
+    relief_enabled: bool = Field(True, description="连败救济开关")
+    relief_threshold: int = Field(
+        8, ge=1, description="连败 N 手触发救济；平局与投降不改变计数"
+    )
+    relief_multiplier: float = Field(
+        1.0,
+        gt=0,
+        description="救济倍数：补偿 = 该手基础注额 × 此值（加倍手牌也按基础注额）",
+    )
+    cashback_enabled: bool = Field(True, description="周损失返还开关")
+    cashback_rate: float = Field(
+        0.15, gt=0, le=1, description="周净亏损的返还比例；返还进争霸赛余额而非积分"
+    )
+    cashback_min_payout: float = Field(
+        1.0, ge=0, description="低于此金额不发放（避免尘埃级事务与通知）"
+    )
+    freespins_enabled: bool = Field(True, description="打满送免费大转盘开关")
+    freespins_hand_threshold: int = Field(
+        20,
+        ge=1,
+        description="每累计 N 手已结算现金局 → 1 次免费大转盘机会（不应低于 20，见经济护栏）",
+    )
+    freespins_weekly_cap: int = Field(
+        5, ge=0, description="每周最多获得次数（不应高于 5，见经济护栏）"
+    )
+    freespins_expiry_days: int = Field(
+        7, ge=1, description="机会有效期（自然日），过期未用自动作废"
+    )
     rank_min_hands: int = Field(
         100, ge=1, description="入榜的最低手数（准确率榜与胜率榜）"
     )

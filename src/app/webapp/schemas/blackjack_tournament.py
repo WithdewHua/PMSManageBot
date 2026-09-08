@@ -32,6 +32,10 @@ class TournamentEntryResponse(BaseModel):
     prize_credits: Optional[float] = Field(
         None, description="派奖积分；未结算为 null，已结算但无派奖为 0"
     )
+    wallet_paid_credits: float = Field(0, description="报名费中由争霸赛余额支付的部分")
+    credits_paid_credits: float = Field(
+        0, description="报名费中由积分支付的部分；两者之和恒等于报名费全额"
+    )
     registered_at_ms: int = Field(..., description="报名时点（毫秒），并列时的决胜依据")
 
     @classmethod
@@ -44,6 +48,8 @@ class TournamentEntryResponse(BaseModel):
             eligible=bool(entry.get("eligible")),
             final_rank=entry.get("final_rank"),
             prize_credits=entry.get("prize_credits"),
+            wallet_paid_credits=float(entry.get("wallet_paid_credits") or 0),
+            credits_paid_credits=float(entry.get("credits_paid_credits") or 0),
             registered_at_ms=int(entry["registered_at_ms"]),
         )
 
@@ -155,6 +161,21 @@ class TournamentRegisterResponse(BaseModel):
     entry: TournamentEntryResponse = Field(...)
     started: bool = Field(False, description="本次报名是否触发了满员开赛")
     current_credits: float = Field(..., description="扣除报名费后的积分")
+    tournament_wallet_credits: float = Field(
+        0, description="扣除报名费后的争霸赛余额（周损失返还的发放去向）"
+    )
+
+
+class TournamentWalletResponse(BaseModel):
+    """争霸赛余额查询响应"""
+
+    tournament_wallet_credits: float = Field(
+        0,
+        description=(
+            "争霸赛余额：21 点周损失返还的发放去向，"
+            "仅可支付锦标赛报名费，不可提现、兑换或转移"
+        ),
+    )
 
 
 class TournamentDealRequest(BaseModel):

@@ -8,12 +8,13 @@
 """
 
 import json
+from datetime import datetime
 
 from app.config import settings
 from app.databases import db
 from app.databases.db_func import check_and_award_game_king_badge
 from app.log import uvicorn_logger as logger
-from app.utils.utils import get_user_name_from_tg_id
+from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.routers.admin import check_admin_permission
@@ -26,6 +27,7 @@ from app.webapp.schemas.blackjack import (
     BlackjackCurrentHandResponse,
     BlackjackDealRequest,
     BlackjackDecisionFeedback,
+    BlackjackFreespinGrant,
     BlackjackHandResponse,
     BlackjackJackpotSeedRequest,
     BlackjackPublicConfigResponse,
@@ -236,6 +238,120 @@ async def notify_blackjack_jackpot_wins_job() -> None:
         logger.error(f"21 点奖池中奖播报任务失败: {e}")
 
 
+def _fmt_credits(amount: float) -> str:
+    """积分金额的展示格式（两位小数，去尾零）。"""
+    text = f"{float(amount):.2f}"
+    return text.rstrip("0").rstrip(".") if "." in text else text
+
+
+async def notify_blackjack_freespin_grants_job() -> None:
+    """把新发放的免费大转盘机会逐用户私信。
+
+    走游标轮询而非在结算路径挂钩子：发放散落在全部结算路径上（含超时
+    清理等不经路由的路径），只有轮询能全覆盖。认领即视为已通知，发送
+    失败只记日志、不重发。发送量有界：每周每人至多周上限（5）条。
+    """
+    try:
+        grants = db.claim_unnotified_blackjack_freespins()
+        if not grants:
+            return
+        for grant in grants:
+            expires_dt = datetime.fromtimestamp(
+                grant["expires_at_ms"] / 1000, tz=settings.TZ
+            )
+            try:
+                await send_message_by_url(
+                    chat_id=int(grant["tg_id"]),
+                    text=(
+                        "🎁 打满手数奖励到账！\n"
+                        "你获得了 <b>1 次免费大转盘机会</b>（免除参与费，"
+                        "奖池与普通转盘完全一致）\n"
+                        f"有效期至 {expires_dt:%m-%d %H:%M}（{settings.TZ}），过期作废\n"
+                        "入口：WebApp 活动页 → 幸运大转盘"
+                    ),
+                    parse_mode="HTML",
+                )
+            except Exception as e:
+                logger.error(f"免费机会获得通知发送失败 (tg_id={grant['tg_id']}): {e}")
+        logger.info(f"已发送 {len(grants)} 条免费机会获得通知")
+    except Exception as e:
+        logger.error(f"免费机会获得通知任务失败: {e}")
+
+
+async def remind_blackjack_freespin_expiry_job() -> None:
+    """每日提醒：24 小时内将到期的未用免费机会，同用户合并为一条。
+
+    过期未用的机会是留存价值最高的损失——用户已付出手数，却因不知道
+    而错过。提醒让「打满手数」的奖励完整闭环。发送量有界：每日至多
+    一条/人。
+    """
+    try:
+        expiring = db.list_expiring_blackjack_freespins()
+        if not expiring:
+            return
+        for item in expiring:
+            tg_id = int(item["tg_id"])
+            expiries = item["expires_at_ms_list"]
+            times = "、".join(
+                datetime.fromtimestamp(ms / 1000, tz=settings.TZ).strftime(
+                    "%m-%d %H:%M"
+                )
+                for ms in expiries
+            )
+            try:
+                await send_message_by_url(
+                    chat_id=tg_id,
+                    text=(
+                        "⏳ 你的免费大转盘机会即将过期\n"
+                        f"共 {len(expiries)} 张未使用，将于 {times}（{settings.TZ}）作废\n"
+                        "入口：WebApp 活动页 → 幸运大转盘"
+                    ),
+                )
+            except Exception as e:
+                logger.error(f"免费机会到期提醒发送失败 (tg_id={tg_id}): {e}")
+        logger.info(f"已发送 {len(expiring)} 条免费机会到期提醒")
+    except Exception as e:
+        logger.error(f"免费机会到期提醒任务失败: {e}")
+
+
+async def blackjack_weekly_cashback_job() -> None:
+    """每周一结算上周 21 点损失返还，存入争霸赛余额并逐用户私信。
+
+    结算幂等（撞 UNIQUE 跳过）、停机跨周可补漏（游标逐周推进）。
+    业务结果先落库，通知失败只记日志——与锦标赛通知同一口径。
+    """
+    try:
+        result = db.settle_blackjack_weekly_cashback()
+        if not result.get("enabled"):
+            return
+        if result.get("anchored"):
+            logger.info("21 点周返还首次运行：已锚定未结算周期，下周开始结算")
+            return
+        notified = 0
+        for week in result.get("settled_weeks", []):
+            for user in week.get("users", []):
+                try:
+                    await send_message_by_url(
+                        chat_id=int(user["tg_id"]),
+                        text=(
+                            "💰 21 点周返还到账\n"
+                            f"上周净亏损 <b>{_fmt_credits(abs(user['net_change']))}</b> 积分，"
+                            f"按比例返还 <b>{_fmt_credits(user['cashback'])}</b> 积分\n"
+                            f"已存入你的争霸赛余额（当前 {_fmt_credits(user['wallet_balance'])}），"
+                            "仅可用于锦标赛报名费\n"
+                            "入口：WebApp 活动页 → 21 点锦标赛"
+                        ),
+                        parse_mode="HTML",
+                    )
+                    notified += 1
+                except Exception as e:
+                    logger.error(f"周返还通知发送失败 (tg_id={user['tg_id']}): {e}")
+        if notified:
+            logger.info(f"21 点周返还已结算并通知 {notified} 位用户")
+    except Exception as e:
+        logger.error(f"21 点周返还任务失败: {e}")
+
+
 def _raise_for_value_error(e: ValueError) -> None:
     """把 DB 层的 ValueError 翻译为面向用户的中文提示。"""
     msg = str(e)
@@ -304,6 +420,10 @@ def _build_action_response(
         current_credits=float(db.get_user_credits(tg_id) or 0),
         decision=BlackjackDecisionFeedback(**decision) if decision else None,
         jackpot_balance=db.get_blackjack_jackpot(),
+        relief_credits=float(result.get("relief_credits") or 0),
+        freespin_grants=[
+            BlackjackFreespinGrant(**g) for g in (result.get("freespins") or [])
+        ],
     )
 
 
@@ -520,6 +640,15 @@ async def get_public_config(
             jackpot_enabled=bool(config.get("jackpot_enabled", True)),
             jackpot_balance=db.get_blackjack_jackpot(),
             jackpot_suited_bj_pct=float(config.get("jackpot_suited_bj_pct", 10)),
+            relief_enabled=bool(config.get("relief_enabled", True)),
+            relief_threshold=int(config.get("relief_threshold", 8)),
+            relief_multiplier=float(config.get("relief_multiplier", 1.0)),
+            cashback_enabled=bool(config.get("cashback_enabled", True)),
+            cashback_rate=float(config.get("cashback_rate", 0.15)),
+            freespins_enabled=bool(config.get("freespins_enabled", True)),
+            freespins_hand_threshold=int(config.get("freespins_hand_threshold", 20)),
+            freespins_weekly_cap=int(config.get("freespins_weekly_cap", 5)),
+            freespins_expiry_days=int(config.get("freespins_expiry_days", 7)),
         )
     except Exception as e:
         logger.error(f"获取 21 点配置失败: {e}")

@@ -55,6 +55,13 @@
               <v-icon size="small" class="mr-1">mdi-star</v-icon>
               当前积分：{{ currentCredits.toFixed(2) }}
             </v-chip>
+            <v-chip size="small" variant="tonal" color="deep-purple">
+              <v-icon size="small" class="mr-1">mdi-wallet-outline</v-icon>
+              争霸赛余额：{{ tournamentWallet.toFixed(2) }}
+              <v-tooltip activator="parent" location="bottom">
+                21 点周损失返还的发放去向，仅可用于报名费；报名时优先扣除
+              </v-tooltip>
+            </v-chip>
           </div>
 
           <v-alert
@@ -149,7 +156,14 @@
 
           <!-- 未报名：报名入口 -->
           <div v-if="!entry" class="text-center py-4">
-            <p class="mb-3">报名费 <strong>{{ tournament.buy_in_credits }}</strong> 积分，换取 <strong>{{ tournament.starting_chips }}</strong> 起始筹码。</p>
+            <p class="mb-3">
+              报名费 <strong>{{ tournament.buy_in_credits }}</strong> 积分，换取
+              <strong>{{ tournament.starting_chips }}</strong> 起始筹码。
+              <span v-if="tournamentWallet > 0" class="text-caption d-block mt-1 text-deep-purple">
+                报名时优先从争霸赛余额（{{ tournamentWallet.toFixed(2) }}）扣除，不足部分扣积分；
+                赛事取消按支付来源原路退回。
+              </span>
+            </p>
             <v-alert
               v-if="tournament.status !== 1"
               type="warning"
@@ -160,23 +174,25 @@
               该赛事已{{ tournament.status === 2 ? '开赛' : '结束' }}，无法报名。
             </v-alert>
             <v-alert
-              v-else-if="currentCredits < tournament.buy_in_credits"
+              v-else-if="currentCredits + tournamentWallet < tournament.buy_in_credits"
               type="warning"
               variant="tonal"
               density="compact"
               class="mb-3"
             >
-              积分不足，报名需 {{ tournament.buy_in_credits }} 积分。
+              争霸赛余额与积分合计不足，报名需 {{ tournament.buy_in_credits }} 积分
+              （可用的争霸赛余额：{{ tournamentWallet.toFixed(2) }}）。
             </v-alert>
             <v-btn
               color="amber-darken-2"
               size="large"
               :loading="registering"
-              :disabled="tournament.status !== 1 || currentCredits < tournament.buy_in_credits"
+              :disabled="tournament.status !== 1 || currentCredits + tournamentWallet < tournament.buy_in_credits"
               @click="register"
             >
               <v-icon class="mr-1">mdi-ticket-confirmation</v-icon>
-              报名（{{ tournament.buy_in_credits }} 积分）
+              报名（{{ tournament.buy_in_credits }} 积分，
+              争霸赛余额可抵扣）
             </v-btn>
           </div>
 
@@ -342,6 +358,7 @@ import {
   doubleTournamentHand,
   getBlackjackTournament,
   getBlackjackTournamentStandings,
+  getBlackjackTournamentWallet,
   getCurrentTournamentHand,
   hitTournamentHand,
   listBlackjackTournaments,
@@ -373,6 +390,8 @@ export default {
       registering: false,
       standingsLoading: false,
       currentCredits: 0,
+      // 争霸赛余额：21 点周损失返还的发放去向，报名费优先从此扣除
+      tournamentWallet: 0,
       tournaments: [],
       tournament: null,
       entry: null,
@@ -484,6 +503,13 @@ export default {
         this.currentCredits = Number(res.data?.credits ?? this.currentCredits)
       } catch (err) {
         console.error('刷新积分失败:', err)
+      }
+      try {
+        const res = await getBlackjackTournamentWallet()
+        this.tournamentWallet = Number(res.data?.tournament_wallet_credits ?? 0)
+      } catch (err) {
+        // 钱包读失败不阻断大厅：余额显示为 0，报名校验由服务端兜底
+        console.error('刷新争霸赛余额失败:', err)
       }
     },
 
@@ -606,6 +632,7 @@ export default {
         this.tournament = res.data.tournament
         this.entry = res.data.entry
         this.currentCredits = Number(res.data.current_credits)
+        this.tournamentWallet = Number(res.data.tournament_wallet_credits ?? this.tournamentWallet)
         this.$emit('credits-changed')
         await this.loadStandings()
       } catch (err) {

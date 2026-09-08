@@ -50,20 +50,36 @@
           {{ isSpinning ? '转动中...' : (disabled ? '已用完' : '开始') }}
         </v-btn>
       </div>
+    </div>
 
-      <!-- 十连抽按钮 -->
-      <div class="ten-spin-action">
-        <v-btn
-          color="deep-purple"
-          variant="elevated"
-          :disabled="isSpinning || disabled || isTenSpinDisabled"
-          @click="spinTenTimes"
-        >
-          十连抽
-        </v-btn>
-        <div v-if="isTenSpinDisabled" class="ten-spin-hint">
-          十连抽参与条件：({{ minCreditsRequired }} + {{ costCredits }}) × 10 = {{ tenSpinRequiredCredits }}
-        </div>
+    <!-- 21 点打满手数获得的免费机会：单抽时服务端优先消耗。
+         必须是 wheel-wrapper 的兄弟节点而非子节点：wrapper 是固定 300px
+         的转盘画布（转盘本体绝对定位其中），普通流子元素会从盒子底部
+         溢出渲染、不参与父容器高度计算，最终挤压到弹窗底部
+         v-card-actions 的「当前积分」；作为兄弟节点则高度真实入流 -->
+    <div v-if="freeSpins.available > 0" class="free-spin-chip">
+      <v-chip size="small" color="deep-purple" variant="tonal">
+        <v-icon start size="small">mdi-ticket-confirmation</v-icon>
+        免费机会 × {{ freeSpins.available }}
+        <span class="text-caption ml-1">（最近 {{ freeSpinsEarliestExpiry }} 到期）</span>
+      </v-chip>
+      <div class="text-caption text-medium-emphasis mt-1">
+        单抽自动优先使用免费机会（免参与费）；十连抽不消耗
+      </div>
+    </div>
+
+    <!-- 十连抽按钮：同上，保持为 wrapper 的兄弟节点 -->
+    <div class="ten-spin-action">
+      <v-btn
+        color="deep-purple"
+        variant="elevated"
+        :disabled="isSpinning || disabled || isTenSpinDisabled"
+        @click="spinTenTimes"
+      >
+        十连抽
+      </v-btn>
+      <div v-if="isTenSpinDisabled" class="ten-spin-hint">
+        十连抽参与条件：({{ minCreditsRequired }} + {{ costCredits }}) × 10 = {{ tenSpinRequiredCredits }}
       </div>
     </div>
 
@@ -82,6 +98,10 @@
             <h2 class="mb-4">恭喜您！</h2>
             <p class="text-h5 mb-2">获得了</p>
             <p class="text-h4 text-primary font-weight-bold">{{ winResult?.name }}</p>
+            <p v-if="winResult?.used_free_spin" class="text-caption text-deep-purple mt-1">
+              <v-icon size="small" class="mr-1">mdi-ticket-confirmation</v-icon>
+              本次消耗了 21 点免费机会（免参与费）
+            </p>
           </template>
           
           <!-- 显示积分变化 -->
@@ -135,7 +155,8 @@
 </template>
 
 <script>
-import { getLuckyWheelConfig, spinLuckyWheel, spinLuckyWheelTenTimes } from '@/services/wheelService'
+import { getBlackjackFreeSpins, getLuckyWheelConfig, spinLuckyWheel, spinLuckyWheelTenTimes } from '@/services/wheelService'
+import { formatMsShortDateTime } from '@/utils/format'
 
 export default {
   name: 'LuckyWheel',
@@ -162,12 +183,15 @@ export default {
       costCredits: 10,
       minCreditsRequired: 30,
       showError: false,
-      errorMessage: ''
+      errorMessage: '',
+      // 21 点打满手数获得的免费机会 { available, expires_at_ms_list }
+      freeSpins: { available: 0, expires_at_ms_list: [] }
     }
   },
   mounted() {
     // 加载转盘配置
     this.loadWheelConfig()
+    this.refreshFreeSpins()
   },
   computed: {
     tenSpinRequiredCredits() {
@@ -178,9 +202,29 @@ export default {
         return false
       }
       return Number(this.userCredits) < this.tenSpinRequiredCredits
+    },
+    freeSpinsEarliestExpiry() {
+      const list = this.freeSpins.expires_at_ms_list || []
+      if (!list.length) {
+        return ''
+      }
+      return formatMsShortDateTime(Math.min(...list))
     }
   },
   methods: {
+    async refreshFreeSpins() {
+      try {
+        const res = await getBlackjackFreeSpins()
+        this.freeSpins = {
+          available: res.data.available || 0,
+          expires_at_ms_list: res.data.expires_at_ms_list || []
+        }
+      } catch (err) {
+        // 概览失败不影响转盘本体：角标缺席即可
+        console.error('获取免费机会概览失败:', err)
+      }
+    },
+
     // 加载转盘配置
     async loadWheelConfig() {
       try {
@@ -432,6 +476,8 @@ export default {
             credits_change: isTenSpin ? result.total_credits_change : result.credits_change,
             current_credits: result.current_credits,
             is_ten_spin: isTenSpin,
+            // 免费机会标识：单抽时服务端优先消耗免费机会
+            used_free_spin: !isTenSpin && !!result.used_free_spin,
             results: isTenSpin
               ? (result.results || []).map(item => ({
                 name: item.item?.name,
@@ -439,6 +485,10 @@ export default {
                 current_credits: item.current_credits
               }))
               : null
+          }
+          // 单抽可能消耗了一张免费机会，刷新角标
+          if (!isTenSpin) {
+            this.refreshFreeSpins()
           }
           this.showResult = true
           
@@ -692,8 +742,15 @@ export default {
   padding: 20px;
 }
 
+/* 免费机会块：wheel-wrapper 的兄弟节点（入流），高度真实参与容器
+   布局，不产生溢出 */
+.free-spin-chip {
+  text-align: center;
+  margin-top: 14px;
+}
+
 .ten-spin-action {
-  margin-top: 16px;
+  margin-top: 14px;
   display: flex;
   flex-direction: column;
   align-items: center;

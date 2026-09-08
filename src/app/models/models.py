@@ -159,6 +159,25 @@ class Statistics(Base):
     tg_id: Mapped[int] = mapped_column(BIGINT, primary_key=True)
     donation: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     credits: Mapped[float] = mapped_column(Float, default=0, nullable=False)
+    # 争霸赛余额：21 点周损失返还的发放去向，仅可支付锦标赛报名费，
+    # 不可提现、兑换或转移。与 credits 同行同事务更新——报名校验与扣款
+    # 天然一致，无需跨行锁（若独立钱包表则报名时需锁两行，收益为零）
+    tournament_wallet_credits: Mapped[float] = mapped_column(
+        Float, default=0, server_default="0", nullable=False
+    )
+    # 连败计数：自最近一次判胜以来的现金局判负手数（平局与投降不改变）。
+    # 存列而非从 blackjack_hand 回溯推导：每次结算都需读它，存储列 O(1)，
+    # 反向扫描对长连败用户成本无界。救济金额落 blackjack_hand.relief_credits，
+    # 故可离线对账
+    blackjack_lose_streak: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+    # 免费大转盘机会的累计手数（自上次转换后已结算的现金局手牌数，
+    # 不分胜负）。周配额不存计数器——由 luckywheel_free_spins 行按
+    # granted_at 推导，避免周界重置逻辑与漂移
+    blackjack_hands_since_freespin: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
 
 
 class Overseerr(Base):
@@ -183,6 +202,86 @@ class WheelStats(Base):
     credits_change: Mapped[float] = mapped_column(Float, nullable=False)
     timestamp: Mapped[int] = mapped_column(BIGINT, nullable=False, index=True)
     date: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    # 参与来源：'paid'（正常付费）/ 'blackjack_free'（21 点打满手数获得的
+    # 免费机会）。独立于 cost_credits 标识——管理员把参与费调为 0 后，
+    # 两者将无法区分，而免费机会的发放成本需要可审计
+    source: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, default="paid", server_default="paid"
+    )
+
+
+class LuckywheelFreeSpin(Base):
+    """免费大转盘机会 - 一行代表一次获得
+
+    仅由 21 点打满手数机制产生（source='blackjack'）。发放与使用都留痕：
+    used_at 为空即未用。过期作废由可用性查询的过滤实现（未用且未过期），
+    行本身永久保留作发放台账——对账脚本按周核算让利率依赖它。
+
+    周配额由「本周一以来的行数」推导而非计数器：任何计数器都需要周界
+    重置逻辑，而「按 granted_at 过滤」天然正确且无漂移。
+
+    免费机会不设使用时的最低积分门槛（普通转盘要求 ≥30）：参与费既已
+    豁免，负分奖品的余额截断已提供保护——这正是跌破 21 点参与门槛后的
+    回流路径：0 余额玩家转免费盘只会赢不会输。
+    """
+
+    __tablename__ = "luckywheel_free_spins"
+
+    # Integer 而非 BIGINT：SQLite 上 BIGINT 主键不自增（见 conftest 注释），
+    # 本表由结算事务内的生产代码插入（无显式 id），须两种方言都可自增。
+    # 行量为「发放次数」量级（周上限封顶），Integer 无溢出之虞
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tg_id: Mapped[int] = mapped_column(
+        BIGINT,
+        ForeignKey("statistics.tg_id", onupdate="CASCADE"),
+        nullable=False,
+    )
+    source: Mapped[str] = mapped_column(Text, nullable=False, default="blackjack")
+    granted_at_ms: Mapped[int] = mapped_column(BIGINT, nullable=False)
+    expires_at_ms: Mapped[int] = mapped_column(BIGINT, nullable=False)
+    used_at_ms: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
+
+    __table_args__ = (
+        # 周配额推导（tg_id + granted_at 前缀）与可用机会查询（tg_id 前缀）
+        Index("idx_luckywheel_free_spins_user", "tg_id", "granted_at_ms"),
+        # 到期提醒任务：扫次日将到期的未用行（行不删除，见类 docstring）
+        Index("idx_luckywheel_free_spins_expiry", "expires_at_ms"),
+        CheckConstraint(
+            "expires_at_ms > granted_at_ms",
+            name="ck_luckywheel_free_spins_expiry_after_grant",
+        ),
+    )
+
+
+class BlackjackWeeklyCashback(Base):
+    """21 点周损失返还结算行 - 一行代表一位用户一个自然周的结算
+
+    幂等的唯一防线：UNIQUE(tg_id, week_start_ms) 使重跑任务撞约束跳过，
+    服务重启后既不漏周期也不重复入账。net_change 为该周现金局 21 点的
+    积分净变动（含投注、赔付、抽水影响、彩池派彩与连败救济；不含转盘
+    结果与争霸赛余额变动），为负时按比率返还进争霸赛余额。
+    """
+
+    __tablename__ = "blackjack_weekly_cashback"
+
+    # Integer 理由同 luckywheel_free_spins：生产代码插入无显式 id
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tg_id: Mapped[int] = mapped_column(
+        BIGINT,
+        ForeignKey("statistics.tg_id", onupdate="CASCADE"),
+        nullable=False,
+    )
+    # 结算周期起始（该自然周一零点，settings.TZ）的毫秒时间戳
+    week_start_ms: Mapped[int] = mapped_column(BIGINT, nullable=False)
+    net_change: Mapped[float] = mapped_column(Float, nullable=False)
+    cashback_credits: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at_ms: Mapped[int] = mapped_column(BIGINT, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("tg_id", "week_start_ms", name="uq_blackjack_weekly_cashback"),
+        # 任务重跑扫描「某周期已结算了谁」
+        Index("idx_blackjack_weekly_cashback_week", "week_start_ms"),
+    )
 
 
 class Auctions(Base):
@@ -1103,6 +1202,10 @@ class BlackjackHand(Base):
         Float, nullable=True
     )  # 幸运奖池派彩，与 payout_credits 分别记账——并入会使单手最大赢利榜
     # 退化成奖池中奖者名单
+    relief_credits: Mapped[Optional[float]] = mapped_column(
+        Float, nullable=True
+    )  # 连败救济金额，与赔付/奖池分别记账：周返还的净变动口径需包含它，
+    # 且对账脚本需逐手核对发放总额；加倍手牌触发救济时按基础注额记录
 
     # 决策评判：落在手牌而非用户上，与参数快照同一哲学——每手牌自带其评判依据
     # （当时的庄家规则），用户维度的准确率由聚合得到
@@ -1164,6 +1267,10 @@ class BlackjackHand(Base):
         CheckConstraint(
             "jackpot_won IS NULL OR jackpot_won >= 0",
             name="ck_blackjack_hand_jackpot_won_nonneg",
+        ),
+        CheckConstraint(
+            "relief_credits IS NULL OR relief_credits >= 0",
+            name="ck_blackjack_hand_relief_nonneg",
         ),
         # 「找该用户进行中的手牌」
         Index("idx_blackjack_hand_user_status", "tg_id", "status"),
@@ -1372,6 +1479,16 @@ class BlackjackTournamentEntry(Base):
     final_rank: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     prize_credits: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
+    # 报名费的实际支付拆分：优先扣争霸赛余额，不足部分从积分补足。两列之和
+    # 恒等于报名费全额；取消退款按拆分原路退回（余额部分回余额，积分部分回
+    # 积分），使返还的价值不会因路径改换而意外进入可挪用的积分
+    wallet_paid_credits: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0, server_default="0"
+    )
+    credits_paid_credits: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0, server_default="0"
+    )
+
     registered_at_ms: Mapped[int] = mapped_column(BIGINT, nullable=False)
 
     tournament = relationship("BlackjackTournament", back_populates="entries")
@@ -1394,6 +1511,10 @@ class BlackjackTournamentEntry(Base):
         CheckConstraint(
             "prize_credits IS NULL OR prize_credits >= 0",
             name="ck_blackjack_tournament_entry_prize_nonneg",
+        ),
+        CheckConstraint(
+            "wallet_paid_credits >= 0 AND credits_paid_credits >= 0",
+            name="ck_blackjack_tournament_entry_paid_nonneg",
         ),
         # 排名（按 chips 降序）与「找某用户在某赛事的报名」
         Index(

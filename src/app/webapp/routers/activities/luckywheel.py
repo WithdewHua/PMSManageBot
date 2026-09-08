@@ -3,6 +3,7 @@ import re
 import secrets
 import time
 import traceback
+from typing import Optional
 
 from app.config import settings
 from app.databases import db
@@ -17,6 +18,7 @@ from app.webapp.schemas import TelegramUser
 from app.webapp.schemas.luckywheel import (
     LuckyWheelConfig,
     LuckyWheelConfigUpdateRequest,
+    LuckyWheelFreespinSummaryResponse,
     LuckyWheelItem,
     LuckyWheelSpinResult,
     LuckyWheelTenSpinResult,
@@ -211,11 +213,21 @@ def _handle_invite_code(tg_id: int = None, gen_privileged_code: bool = False) ->
 
 
 async def execute_single_spin(
-    config: LuckyWheelConfig, user_id: int, current_credits: float
+    config: LuckyWheelConfig,
+    user_id: int,
+    current_credits: float,
+    *,
+    cost_credits: Optional[float] = None,
+    source: str = "paid",
 ) -> tuple[LuckyWheelSpinResult, float, bool]:
-    """执行一次转盘抽奖并返回结果。"""
+    """执行一次转盘抽奖并返回结果。
+
+    `cost_credits` 覆盖参与费（免费机会传 0），缺省取配置值；`source`
+    落入参与记录区分来源。两者专供 21 点免费机会路径，其余调用方不变。
+    """
     # 扣除参与费用
-    new_credits = current_credits - config.cost_credits
+    cost = float(config.cost_credits) if cost_credits is None else float(cost_credits)
+    new_credits = current_credits - cost
     db.update_user_credits(credits=new_credits, tg_id=user_id)
 
     # 选择中奖奖品 - 使用增强版随机选择器
@@ -251,23 +263,35 @@ async def execute_single_spin(
 
     # 记录转盘统计数据
     db.add_wheel_spin_record(
-        user_id, winner.name, actual_credits_change, config.cost_credits
+        user_id, winner.name, actual_credits_change, cost, source=source
     )
 
-    # 发送管理员通知
+    # 发送管理员通知。必须 best-effort：它只是 FYI，若在此抛出
+    # （TG_ADMIN_CHAT_ID 里混入 URL 形态条目时，send_message_by_url 会在
+    # 重试循环之前同步抛 ValueError），抽奖的全部副作用已经落库（兑换码
+    # 创建、积分入账、参与记录）——用户会收到 500 但奖品已发；对免费
+    # 机会路径更会触发上层 spin_wheel 的补偿释放，变成「奖品与机会双收」。
+    # 逐个隔离：一个坏条目不阻断其余管理员收到通知
     if "邀请码" in winner.name:
         for chat_id in settings.TG_ADMIN_CHAT_ID:
-            await send_message_by_url(
-                chat_id=chat_id,
-                text=f"用户 {get_user_name_from_tg_id(user_id)} 在转盘中获得了{'特权' if generated_privileged_code else ''}邀请码",
-                token=settings.TG_API_TOKEN,
-            )
+            try:
+                await send_message_by_url(
+                    chat_id=chat_id,
+                    text=f"用户 {get_user_name_from_tg_id(user_id)} 在转盘中获得了{'特权' if generated_privileged_code else ''}邀请码",
+                    token=settings.TG_API_TOKEN,
+                )
+            except Exception as e:
+                logger.error(
+                    f"邀请码管理员通知发送失败 (chat_id={chat_id}，"
+                    f"不影响抽奖结果): {e}"
+                )
 
     return (
         LuckyWheelSpinResult(
             item=winner,
             credits_change=actual_credits_change,
             current_credits=final_credits,
+            used_free_spin=source == "blackjack_free",
         ),
         final_credits,
         generated_privileged_code,
@@ -338,6 +362,23 @@ async def update_config(
         )
 
 
+@router.get("/free-spins", response_model=LuckyWheelFreespinSummaryResponse)
+@require_telegram_auth
+async def get_free_spins(
+    request: Request,
+    current_user: TelegramUser = Depends(get_telegram_user),
+):
+    """21 点打满手数获得的免费机会概览：可用次数、到期时间、手数进度。"""
+    summary = db.get_blackjack_freespin_summary(int(current_user.id))
+    return LuckyWheelFreespinSummaryResponse(
+        enabled=bool(summary.get("enabled")),
+        available=int(summary.get("available") or 0),
+        expires_at_ms_list=[int(ms) for ms in summary.get("expires_at_ms_list") or []],
+        hands_since_freespin=int(summary.get("hands_since_freespin") or 0),
+        hand_threshold=int(summary.get("hand_threshold") or 0),
+    )
+
+
 @router.post("/spin", response_model=LuckyWheelSpinResult)
 @require_telegram_auth
 async def spin_wheel(
@@ -359,16 +400,37 @@ async def spin_wheel(
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"未找到用户 {user_id}"
             )
 
-        # 检查积分是否足够
-        if current_credits < config.min_credits_required:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"积分不足，需要至少 {config.min_credits_required} 积分才能参与",
-            )
+        # 21 点免费机会优先：可用则消耗，免参与费且不受最低积分限制。
+        # 参与费既已豁免，负分奖品的余额截断已提供保护——0 余额玩家转免费盘
+        # 只会赢不会输，这正是跌破 21 点门槛后的回流路径。
+        # 认领与抽奖非同一事务：若抽奖执行失败，补偿性地归还机会（只回退
+        # 本方写入的时戳），用户不会白丢一张
+        free_spin = db.consume_blackjack_freespin(user_id)
+        if free_spin is not None:
+            try:
+                spin_result, final_credits, _ = await execute_single_spin(
+                    config=config,
+                    user_id=user_id,
+                    current_credits=current_credits,
+                    cost_credits=0.0,
+                    source="blackjack_free",
+                )
+            except Exception:
+                db.release_blackjack_freespin(
+                    int(free_spin["id"]), claimed_at_ms=int(free_spin["claimed_at_ms"])
+                )
+                raise
+        else:
+            # 检查积分是否足够
+            if current_credits < config.min_credits_required:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"积分不足，需要至少 {config.min_credits_required} 积分才能参与",
+                )
 
-        spin_result, final_credits, _ = await execute_single_spin(
-            config=config, user_id=user_id, current_credits=current_credits
-        )
+            spin_result, final_credits, _ = await execute_single_spin(
+                config=config, user_id=user_id, current_credits=current_credits
+            )
 
         logger.info(
             f"用户 {get_user_name_from_tg_id(user_id)} 转盘结果: {spin_result.item.name}, 积分变化: {spin_result.credits_change}, 最终积分: {final_credits}"

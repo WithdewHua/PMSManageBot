@@ -68,6 +68,21 @@
             </span>
           </div>
 
+          <!-- 打满手数获得免费转盘机会：结算响应触发的一次性提示 -->
+          <v-alert
+            v-if="freespinGrantHint"
+            type="success"
+            variant="tonal"
+            density="compact"
+            class="mb-4"
+            closable
+            @click:close="freespinGrantHint = null"
+          >
+            <v-icon size="small" class="mr-1">mdi-ticket-confirmation</v-icon>
+            打满手数奖励：获得 {{ freespinGrantHint.count }} 次免费大转盘机会
+            （{{ freespinGrantHint.expiryText }} 前有效，到幸运大转盘使用）
+          </v-alert>
+
           <!-- 牌桌：与锦标赛赛内共用同一组件，两侧差异全部由 props 承接 -->
           <BlackjackTable
             ref="table"
@@ -81,6 +96,7 @@
             :show-rake="true"
             :free-hands-remaining="freeHandsRemaining"
             :free-hands-per-day="config.free_hands_per_day"
+            :freespin-progress="freespinProgress"
             :show-strategy-hint="true"
             :show-jackpot="true"
             :acting="acting"
@@ -190,6 +206,36 @@
             </p>
           </div>
 
+          <div v-if="config.relief_enabled" class="rules-section">
+            <div class="rules-title">连败救济</div>
+            <p>
+              现金局连败达到 <strong>{{ config.relief_threshold }} 手</strong> 时，该手结算立即补偿
+              <strong>基础注额 × {{ config.relief_multiplier }}</strong> 的积分并重新计数。
+              平局与投降不打断连败；补偿不抽水。
+            </p>
+          </div>
+
+          <div v-if="config.cashback_enabled" class="rules-section">
+            <div class="rules-title">周损失返还</div>
+            <p>
+              每周自动结算上周现金局积分净变动：净亏损时按
+              <strong>{{ (config.cashback_rate * 100).toFixed(0) }}%</strong> 返还进
+              <strong>争霸赛余额</strong>（Telegram 会私信通知）。
+              争霸赛余额只能用于锦标赛报名费，不可提现或挪作他用；净赢的周不返还。
+            </p>
+          </div>
+
+          <div v-if="config.freespins_enabled" class="rules-section">
+            <div class="rules-title">打满送免费转盘</div>
+            <p>
+              每累计 <strong>{{ config.freespins_hand_threshold }} 手</strong>已结算的现金局手牌
+              （不分胜负），获得 1 次<strong>免费大转盘机会</strong>——免参与费、奖池与普通转盘
+              完全一致，且<strong>没有最低积分限制</strong>（21 点输光了也能转）。
+              每周最多 {{ config.freespins_weekly_cap }} 次，获得后
+              {{ config.freespins_expiry_days }} 天内有效。
+            </p>
+          </div>
+
           <div class="rules-section">
             <div class="rules-title">决策反馈</div>
             <p>
@@ -232,6 +278,8 @@ import {
   standBlackjackHand,
   surrenderBlackjackHand
 } from '../services/blackjackService'
+import { getBlackjackFreeSpins } from '../services/wheelService'
+import { formatMsShortDateTime } from '../utils/format'
 
 export default {
   name: 'BlackjackDialog',
@@ -258,6 +306,10 @@ export default {
       // 本手的逐次决策评判，用于结算后逐条回放。刷新或换设备后会为空，
       // 届时只展示手牌上的累计计数，不伪造缺失的条目。
       handDecisions: [],
+      // 免费大转盘的手数进度 { current, threshold }，随结算刷新
+      freespinProgress: null,
+      // 打满手数获得机会的一次性提示 { count, expiryText }
+      freespinGrantHint: null,
       config: {
         enabled: false,
         bet_options: [],
@@ -270,7 +322,16 @@ export default {
         free_hands_per_day: 0,
         jackpot_enabled: false,
         jackpot_balance: 0,
-        jackpot_suited_bj_pct: 10
+        jackpot_suited_bj_pct: 10,
+        relief_enabled: false,
+        relief_threshold: 8,
+        relief_multiplier: 1.0,
+        cashback_enabled: false,
+        cashback_rate: 0.15,
+        freespins_enabled: false,
+        freespins_hand_threshold: 20,
+        freespins_weekly_cap: 5,
+        freespins_expiry_days: 7
       }
     }
   },
@@ -344,6 +405,7 @@ export default {
         this.freeHandsRemaining = currentRes.data.free_hands_remaining || 0
 
         this.stats = statsRes.data
+        this.refreshFreespinProgress()
       } catch (err) {
         console.error('加载 21 点数据失败:', err)
         this.loadError = err.response?.data?.detail || '加载失败'
@@ -397,6 +459,17 @@ export default {
       if (typeof data.jackpot_balance === 'number') {
         this.jackpotBalance = data.jackpot_balance
       }
+      // 打满手数获得免费机会：服务端在结算响应里带回，提示后随下一手清除
+      const grants = data.freespin_grants || []
+      if (grants.length > 0) {
+        const earliest = Math.min(...grants.map((g) => g.expires_at_ms))
+        this.freespinGrantHint = {
+          count: grants.length,
+          expiryText: formatMsShortDateTime(earliest)
+        }
+      } else {
+        this.freespinGrantHint = null
+      }
       // 发牌无决策，故 decision 为 null；要牌/停牌/加倍各贡献一条
       if (data.decision) {
         this.handDecisions.push(data.decision)
@@ -404,6 +477,7 @@ export default {
       this.$emit('credits-changed')
       if (data.settled) {
         this.refreshStats()
+        this.refreshFreespinProgress()
         // 本手已结束：回放庄家的补牌过程，而非直接甩出最终牌面。
         // 等牌面 props 落到子组件之后再启动，否则回放读到的还是上一手的牌。
         this.$nextTick(() => {
@@ -421,6 +495,24 @@ export default {
       this.cancelReveal()
       this.handDecisions = []
       this.hand = null
+    },
+
+    async refreshFreespinProgress() {
+      try {
+        const res = await getBlackjackFreeSpins()
+        const summary = res.data
+        if (!summary.enabled) {
+          this.freespinProgress = null
+          return
+        }
+        this.freespinProgress = {
+          current: summary.hands_since_freespin || 0,
+          threshold: summary.hand_threshold || 0
+        }
+      } catch (err) {
+        // 概览失败不打断牌桌：进度条缺席即可，手牌流程不受影响
+        console.error('获取免费转盘进度失败:', err)
+      }
     },
 
     async refreshStats() {

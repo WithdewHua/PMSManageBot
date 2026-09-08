@@ -308,6 +308,52 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每 1 分钟更新线路流量统计信息")
 
+    # 留存三机制的任务（openspec: add-blackjack-retention）
+    from app.webapp.routers.activities.blackjack import (
+        blackjack_weekly_cashback_job,
+        notify_blackjack_freespin_grants_job,
+        remind_blackjack_freespin_expiry_job,
+    )
+
+    # 每周一日界后 5 分钟结算上周的 21 点损失返还（存入争霸赛余额并私信）。
+    # 00:05 而非 00:00：避开零点边界与其他整点任务的碰撞；结算窗口按
+    # settled_at 落在已闭合的上一完整周，延迟无感
+    scheduler.add_async_job(
+        func=blackjack_weekly_cashback_job,
+        trigger="cron",
+        id="blackjack_weekly_cashback",
+        replace_existing=True,
+        max_instances=1,
+        day_of_week="mon",
+        hour=0,
+        minute=5,
+    )
+    logger.info("添加定时任务：每周一 00:05 结算 21 点周损失返还（争霸赛余额）")
+
+    # 每分钟轮询认领新发放的免费大转盘机会并发送私信。游标轮询而非结算路径
+    # 挂钩子：发放散落在全部结算路径（含超时清理等不经路由的路径）
+    scheduler.add_async_job(
+        func=notify_blackjack_freespin_grants_job,
+        trigger="cron",
+        id="blackjack_freespin_grant_notify",
+        replace_existing=True,
+        max_instances=1,
+        minute="*",
+    )
+    logger.info("添加定时任务：每分钟私信新发放的 21 点免费大转盘机会")
+
+    # 每日 10:00 提醒 24 小时内将到期的未用免费机会（同用户合并一条）
+    scheduler.add_async_job(
+        func=remind_blackjack_freespin_expiry_job,
+        trigger="cron",
+        id="blackjack_freespin_expiry_reminder",
+        replace_existing=True,
+        max_instances=1,
+        hour=10,
+        minute=0,
+    )
+    logger.info("添加定时任务：每天 10:00 提醒即将过期的免费大转盘机会")
+
     # 每 5min 更新一次积分信息
     scheduler.add_sync_job(
         func=rewrite_users_credits_to_redis,

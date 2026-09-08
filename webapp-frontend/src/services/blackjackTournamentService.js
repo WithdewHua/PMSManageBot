@@ -20,9 +20,15 @@ export const getBlackjackTournamentStandings = (tournamentId) => {
   return apiClient.get(`${base}/${tournamentId}/standings`)
 }
 
-// 报名：扣报名费换取赛内筹码。满员时本次报名会触发开赛
+// 报名：扣报名费换取赛内筹码。满员时本次报名会触发开赛。
+// 报名费优先从争霸赛余额扣除（21 点周损失返还的发放去向），不足部分扣积分
 export const registerBlackjackTournament = (tournamentId) => {
   return apiClient.post(`${base}/${tournamentId}/register`)
+}
+
+// 争霸赛余额：仅可支付锦标赛报名费，不可提现、兑换或转移
+export const getBlackjackTournamentWallet = () => {
+  return apiClient.get(`${base}/wallet`)
 }
 
 // 赛内当前手牌与筹码状态，用于进入牌桌时恢复

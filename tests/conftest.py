@@ -192,3 +192,77 @@ def add_pending_hand(
         session.add(hand)
         session.flush()
         return int(hand.id)
+
+
+def add_cash_hand(
+    orm: DatabaseORM,
+    tg_id: int,
+    *,
+    player_cards: str = '["KH", "5C", "9H"]',
+    dealer_cards: str = '["KD", "5C"]',
+    bet_credits: int = 15,
+    doubled: int = 0,
+    created_at_ms: int | None = None,
+    surrender_enabled: int = 1,
+    tournament_id: int | None = None,
+) -> int:
+    """插入一手未终结的现金局手牌，牌面由用例指定以控制结算结果。
+
+    常用牌面组合（庄家无需补牌、结果确定）：
+    - 判负（爆牌）：player=["KH","5C","9H"]（24 点，庄家不补牌）
+    - 判胜：player=["QH","JH"]（20）vs dealer=["KH","9H"]（19，停牌）
+    - 平局：player=["QH","9H"]（19）vs dealer=["KH","9H"]（19，停牌）
+    - 天胡：player=["AS","KH"]（natural，庄家不补牌）
+
+    `tournament_id` 非空时为赛内手牌（注额语义为筹码），供验证赛内
+    手牌不进入留存机制的计数。
+    """
+    from app.blackjack_engine import STATUS_PLAYER_TURN
+    from app.databases.session import get_session
+    from app.models.models import BlackjackHand
+
+    with get_session() as session:
+        hand = BlackjackHand(
+            id=next_id(),
+            tg_id=int(tg_id),
+            tournament_id=tournament_id,
+            status=STATUS_PLAYER_TURN,
+            bet_credits=int(bet_credits),
+            doubled=int(doubled),
+            deck_seed="00" * 16,
+            next_card_index=4,
+            player_cards=player_cards,
+            dealer_cards=dealer_cards,
+            # 抽水置零：留存测试不关心抽水，而奖池行的 SystemConfig 插入在
+            # SQLite 测试库上无自增主键会直接失败（与生产无关）
+            rake_bp_on_profit=0,
+            rake_jackpot_bp=0,
+            blackjack_payout=1.5,
+            dealer_hits_soft_17=0,
+            hand_timeout_minutes=15,
+            surrender_enabled=int(surrender_enabled),
+            rake_waived=0,
+            created_at_ms=created_at_ms or _now_ms(),
+        )
+        session.add(hand)
+        session.flush()
+        return int(hand.id)
+
+
+def get_stats(tg_id: int) -> dict:
+    """读取该用户 Statistics 行的快照（含留存机制的新列）。
+
+    返回普通字典而非 ORM 实例：get_session() 关闭后实例即脱离会话，
+    惰性刷新会抛 DetachedInstanceError。
+    """
+    from app.databases.session import get_session
+
+    with get_session() as session:
+        stats = session.get(Statistics, int(tg_id))
+        assert stats is not None
+        return {
+            "credits": float(stats.credits),
+            "tournament_wallet_credits": float(stats.tournament_wallet_credits),
+            "blackjack_lose_streak": int(stats.blackjack_lose_streak),
+            "blackjack_hands_since_freespin": int(stats.blackjack_hands_since_freespin),
+        }

@@ -22,6 +22,13 @@ export const getLuckyWheelUserStatus = () => {
   return apiClient.get('/api/luckywheel/user-status')
 }
 
+// 21 点打满手数获得的免费机会概览：可用次数、各张到期时间、手数进度。
+// 免费机会在单抽时由服务端优先消耗（免参与费、不受最低积分限制），
+// 十连抽不消耗免费机会。
+export const getBlackjackFreeSpins = () => {
+  return apiClient.get('/api/luckywheel/free-spins')
+}
+
 // 随机性测试 API
 export const getLuckyWheelRandomnessStats = (iterations = 10000) => {
   return apiClient.get(`/api/luckywheel/randomness-stats?iterations=${iterations}`)

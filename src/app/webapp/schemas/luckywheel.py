@@ -31,6 +31,29 @@ class LuckyWheelSpinResult(BaseModel):
     item: LuckyWheelItem = Field(..., description="中奖奖品")
     credits_change: float = Field(..., description="积分变化（正数为增加，负数为减少）")
     current_credits: float = Field(..., description="当前剩余积分")
+    used_free_spin: bool = Field(
+        False,
+        description=(
+            "本次是否消耗了 21 点打满手数获得的免费机会"
+            "（免参与费、不受最低积分限制）"
+        ),
+    )
+
+
+class LuckyWheelFreespinSummaryResponse(BaseModel):
+    """21 点联动免费机会概览（转盘页展示）"""
+
+    enabled: bool = Field(..., description="打满送免费机会机制是否启用")
+    available: int = Field(..., ge=0, description="当前可用次数（未用且未过期）")
+    expires_at_ms_list: List[int] = Field(
+        default_factory=list, description="各张机会的到期时间（毫秒，升序）"
+    )
+    hands_since_freespin: int = Field(
+        ..., ge=0, description="自上次转换后的已结算现金局手数（进度条分子）"
+    )
+    hand_threshold: int = Field(
+        ..., ge=0, description="打满手数阈值（进度条分母）；机制停用时为 0"
+    )
 
 
 class LuckyWheelTenSpinResult(BaseModel):

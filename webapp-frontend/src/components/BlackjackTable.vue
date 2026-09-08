@@ -16,6 +16,31 @@
         {{ dealDisabledHint }}
       </v-alert>
 
+      <!-- 免费大转盘进度：打满手数即得一次免费机会，无论胜负。
+           独立一行置于注额选择上方——与免抽水标示同挤一行在手机宽度下
+           会被截断，独立行让进度条拿到完整剩余宽度 -->
+      <div
+        v-if="freespinProgress && freespinProgress.threshold > 0"
+        class="freespin-progress-row"
+      >
+        <v-chip size="x-small" variant="tonal" color="deep-purple">
+          <v-icon start size="x-small">mdi-ticket-outline</v-icon>
+          免费转盘 {{ freespinProgress.current }}/{{ freespinProgress.threshold }} 手
+        </v-chip>
+        <v-progress-linear
+          :model-value="
+            Math.min(
+              100,
+              (freespinProgress.current / freespinProgress.threshold) * 100
+            )
+          "
+          color="deep-purple"
+          height="6"
+          rounded
+          class="freespin-progress-bar"
+        />
+      </div>
+
       <div class="d-flex align-center mb-2">
         <span class="text-subtitle-2">选择注额</span>
         <!-- 免抽水标示：仅现金局有抽水，赛内根本不产生抽水故整块隐藏 -->
@@ -191,6 +216,12 @@
           <span class="text-caption ml-1">
             （{{ jackpotTriggerText }}，独立于胜负，与本手赔付分开入账）
           </span>
+        </div>
+        <!-- 连败救济：同样与赔付分列记账，不混入净额 -->
+        <div v-if="hand.relief_credits" class="relief-hit mt-2">
+          <v-icon size="small" color="green-darken-1" class="mr-1">mdi-hand-heart-outline</v-icon>
+          连败救济 <strong>+{{ hand.relief_credits.toFixed(2) }}</strong>
+          <span class="text-caption ml-1">（极端连败补偿，不抽水）</span>
         </div>
       </v-alert>
 
@@ -385,6 +416,9 @@ export default {
     showRake: { type: Boolean, default: true },
     freeHandsRemaining: { type: Number, default: 0 },
     freeHandsPerDay: { type: Number, default: 0 },
+    // 免费大转盘的手数进度 { current, threshold }。仅现金局传入；赛内手牌
+    // 不计入进度，赛内不展示
+    freespinProgress: { type: Object, default: null },
     // 基本策略的决策反馈。赛内为 false
     showStrategyHint: { type: Boolean, default: true },
     // 幸运奖池派彩展示。赛内不触发奖池故为 false
@@ -696,6 +730,34 @@ export default {
   background: rgba(255, 143, 0, 0.14);
   color: #e65100;
   font-size: 0.875rem;
+}
+
+/* 连败救济：与奖池派彩同类的独立入账展示，绿色系与奖池的琥珀色区分 */
+.relief-hit {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(46, 125, 50, 0.12);
+  color: #1b5e20;
+  font-size: 0.875rem;
+}
+
+/* 免费大转盘进度行：独立一行置于注额选择上方。chip 不收缩，
+   进度条吃掉剩余宽度——手机窄屏下依然完整可见（与免抽水 chip 同挤
+   一行会溢出截断，故拆出） */
+.freespin-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.freespin-progress-row .v-chip {
+  flex-shrink: 0;
+}
+
+.freespin-progress-bar {
+  flex: 1 1 auto;
+  min-width: 48px;
 }
 
 .decision-row {
