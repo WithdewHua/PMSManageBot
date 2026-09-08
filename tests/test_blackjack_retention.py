@@ -994,3 +994,26 @@ async def test_admin_notification_failure_does_not_break_spin(orm, monkeypatch):
     )
     assert result.item.name == "邀请码"
     assert final_credits == 25.0  # 邀请码奖品不改变积分
+
+
+def test_wallet_route_precedes_parameterized_routes():
+    """GET /wallet 必须先于 /{tournament_id} 注册——FastAPI 按注册顺序匹配，
+    否则 "wallet" 会被当作 int 赛事 ID 解析而 422（线上实测回归）。"""
+    from app.webapp.routers.activities.blackjack_tournament import router
+    from starlette.routing import Match
+
+    scope = {
+        "type": "http",
+        "method": "GET",
+        "path": "/blackjack/tournament/wallet",
+    }
+    for route in router.routes:
+        match, _ = route.matches(scope)
+        if match == Match.FULL:
+            # 第一个全量匹配的必须是字面量路由，而非 /{tournament_id}
+            assert route.name == "get_wallet", (
+                f"/wallet 撞上了先注册的路由 {route.path!r}，"
+                f"把字面量路由移到参数化路由之前"
+            )
+            return
+    raise AssertionError("没有路由匹配 /blackjack/tournament/wallet")

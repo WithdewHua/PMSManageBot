@@ -695,6 +695,23 @@ async def list_tournaments(
     )
 
 
+# 注意注册顺序：/wallet 这类字面量单段路由必须排在 /{tournament_id} 之前——
+# FastAPI 按注册顺序匹配，否则 GET /wallet 会撞上 int 路径参数、把
+# "wallet" 当赛事 ID 解析而返回 422
+@router.get("/wallet", response_model=TournamentWalletResponse)
+@require_telegram_auth
+async def get_wallet(
+    request: Request,
+    current_user: TelegramUser = Depends(get_telegram_user),
+):
+    """争霸赛余额：21 点周损失返还的发放去向，仅可支付报名费。"""
+    return TournamentWalletResponse(
+        tournament_wallet_credits=float(
+            db.get_blackjack_tournament_wallet(current_user.id) or 0
+        )
+    )
+
+
 @router.get("/{tournament_id}", response_model=TournamentResponse)
 @require_telegram_auth
 async def get_tournament(
@@ -778,20 +795,6 @@ async def register(
         # 报名事务内返回的余额，避免二次读库（读取失败静默归零的隐患）
         current_credits=float(result.get("current_credits") or 0),
         tournament_wallet_credits=float(result.get("tournament_wallet_credits") or 0),
-    )
-
-
-@router.get("/wallet", response_model=TournamentWalletResponse)
-@require_telegram_auth
-async def get_wallet(
-    request: Request,
-    current_user: TelegramUser = Depends(get_telegram_user),
-):
-    """争霸赛余额：21 点周损失返还的发放去向，仅可支付报名费。"""
-    return TournamentWalletResponse(
-        tournament_wallet_credits=float(
-            db.get_blackjack_tournament_wallet(current_user.id) or 0
-        )
     )
 
 
