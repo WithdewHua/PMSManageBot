@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 回填脚本：为数据库中已使用的邀请码补充 plex_id 和 emby_id 字段
 
@@ -22,10 +21,11 @@ import sys
 # 将 src 目录加入 Python 路径，以便直接运行脚本
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
+from sqlalchemy import select, update
+
 from app.databases.db import db
 from app.databases.session import get_session
 from app.models.models import Invitation
-from sqlalchemy import select, update
 
 
 def backfill_invitation_ids():

@@ -9,6 +9,10 @@ from __future__ import annotations
 import time
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
 from app.databases.db import DatabaseORM
 from app.models.models import (
     Base,
@@ -16,9 +20,6 @@ from app.models.models import (
     BlackjackTournamentEntry,
     Statistics,
 )
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 
 @pytest.fixture

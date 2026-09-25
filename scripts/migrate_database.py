@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 从旧的 SQLite 数据库迁移到新的 ORM 系统
 此脚本可以帮助你从现有的 data.db 迁移到新的数据库系统

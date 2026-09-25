@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 同步下载权限脚本
 
@@ -10,13 +9,14 @@
 
 from time import time
 
+from sqlalchemy import select
+
 from app.config import settings
 from app.databases.session import get_session
 from app.log import logger
 from app.models.models import EmbyUser, PlexUser
 from app.modules.emby import Emby
 from app.modules.plex import Plex
-from sqlalchemy import select
 
 
 def get_plex_user_sync_status(plex: Plex, email: str) -> bool | None:
@@ -35,7 +35,7 @@ def get_plex_user_sync_status(plex: Plex, email: str) -> bool | None:
         if not user_info:
             return None
 
-        user_id, user = user_info
+        _, user = user_info
 
         # 管理员账户
         if email == settings.PLEX_ADMIN_EMAIL:

@@ -1,16 +1,17 @@
 from datetime import datetime, timedelta
 
+from sqlalchemy import select
+
 from app.config import settings
 from app.databases import db
 from app.databases.session import get_session
 from app.log import logger
 from app.models.models import LineTrafficStats
-from sqlalchemy import select
 
 
 def migrate_historical_traffic_data(
-    start_month: str = None,
-    end_month: str = None,
+    start_month: str | None = None,
+    end_month: str | None = None,
     batch_process: bool = True,
     confirm_cleanup: bool = False,
 ):
@@ -63,8 +64,10 @@ def migrate_historical_traffic_data(
 
         # 验证月份格式
         try:
-            start_date = datetime.strptime(start_month, "%Y-%m")
-            end_date = datetime.strptime(end_month, "%Y-%m")
+            start_date = datetime.strptime(start_month, "%Y-%m").replace(
+                tzinfo=settings.TZ
+            )
+            end_date = datetime.strptime(end_month, "%Y-%m").replace(tzinfo=settings.TZ)
         except ValueError as e:
             logger.error(f"月份格式错误: {e}")
             return results
@@ -77,7 +80,7 @@ def migrate_historical_traffic_data(
             logger.warning(f"结束月份 {end_month} 不能是当月或未来月份，调整为上个月")
             last_month = now.replace(day=1) - timedelta(days=1)
             end_month = last_month.strftime("%Y-%m")
-            end_date = datetime.strptime(end_month, "%Y-%m")
+            end_date = datetime.strptime(end_month, "%Y-%m").replace(tzinfo=settings.TZ)
 
         logger.info("开始批量处理历史流量数据迁移")
         logger.info(f"处理月份范围: {start_month} 至 {end_month}")

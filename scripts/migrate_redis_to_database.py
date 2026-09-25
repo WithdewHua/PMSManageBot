@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 数据迁移脚本：将 Redis 中的配置数据迁移到数据库
 包括：免费高级线路、线路标签、幸运大转盘配置
@@ -34,7 +33,7 @@ def migrate_free_premium_lines():
         else:
             logger.info("Redis 中没有免费高级线路数据")
     except Exception as e:
-        logger.error(f"迁移免费高级线路时出错: {str(e)}")
+        logger.error(f"迁移免费高级线路时出错: {e!s}")
 
 
 def migrate_line_tags():
@@ -64,7 +63,7 @@ def migrate_line_tags():
 
         logger.info(f"共迁移 {count} 条线路标签数据")
     except Exception as e:
-        logger.error(f"迁移线路标签时出错: {str(e)}")
+        logger.error(f"迁移线路标签时出错: {e!s}")
 
 
 def migrate_lucky_wheel_config():
@@ -97,7 +96,7 @@ def migrate_lucky_wheel_config():
         else:
             logger.info("Redis 中没有幸运大转盘随机性配置数据")
     except Exception as e:
-        logger.error(f"迁移幸运大转盘配置时出错: {str(e)}")
+        logger.error(f"迁移幸运大转盘配置时出错: {e!s}")
 
 
 def main():

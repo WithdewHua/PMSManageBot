@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """21 点留存三机制的对账与让利率周报（openspec: add-blackjack-retention）。
 
 用法：
@@ -35,11 +34,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
-from sqlalchemy import func, select  # noqa: E402
+from sqlalchemy import func, select
 
-from app.config import settings  # noqa: E402
-from app.databases.session import get_session  # noqa: E402
-from app.models.models import (  # noqa: E402
+from app.config import settings
+from app.databases.session import get_session
+from app.models.models import (
     BlackjackHand,
     BlackjackWeeklyCashback,
     LuckywheelFreeSpin,
@@ -156,7 +155,7 @@ def weekly_report(weeks: int) -> None:
             if m:
                 sign, amount = m.groups()
                 spin_ev += prob * (int(amount) if sign == "+" else -int(amount))
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"[警告] 转盘配置读取失败，EV 按未知处理: {e}")
         spin_ev = None
 

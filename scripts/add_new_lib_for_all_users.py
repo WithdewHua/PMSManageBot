@@ -1,9 +1,10 @@
+from sqlalchemy import select
+
 from app.config import settings
 from app.databases.session import get_session
 from app.models.models import EmbyUser, PlexUser
 from app.modules.emby import Emby
 from app.modules.plex import Plex
-from sqlalchemy import select
 
 settings.load_config_from_file()
 

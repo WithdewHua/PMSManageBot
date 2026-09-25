@@ -149,7 +149,9 @@ async def test_auto_create_respects_switches(orm, monkeypatch):
         {"tournament_auto_create_enabled": False},
     ):
         monkeypatch.setattr(
-            orm, "get_blackjack_config_dict", lambda: _config(**overrides)
+            orm,
+            "get_blackjack_config_dict",
+            lambda overrides=overrides: _config(**overrides),
         )
         await router.auto_create_blackjack_tournament_job()
 

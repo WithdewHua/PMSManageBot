@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 修复 PostgreSQL 表的序列问题
 当出现 "duplicate key value violates unique constraint" 错误时，
@@ -15,10 +14,11 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.config import settings
-from app.log import logger
 from sqlalchemy import create_engine, text
 from sqlalchemy import inspect as sqlalchemy_inspect
+
+from app.config import settings
+from app.log import logger
 
 
 def fix_table_sequence(table_name: str, engine):

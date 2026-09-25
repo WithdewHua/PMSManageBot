@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Tautulli 幽灵会话探针 —— 只读，不删除也不修改任何数据。
 
 在动手清理之前用它确认三件事：
@@ -15,7 +14,7 @@
 
 import sys
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from app.modules.tautulli import Tautulli
 from app.utils.tautulli_history import (
@@ -63,12 +62,14 @@ def fmt_hours(seconds) -> str:
 def fmt_ts(ts) -> str:
     if not ts:
         return "-"
-    return datetime.fromtimestamp(int(ts)).strftime("%Y-%m-%d %H:%M")
+    return (
+        datetime.fromtimestamp(int(ts), tz=UTC).astimezone().strftime("%Y-%m-%d %H:%M")
+    )
 
 
 def main() -> None:
     tautulli = Tautulli()
-    after = (datetime.now() - timedelta(days=DAYS)).strftime("%Y-%m-%d")
+    after = (datetime.now().astimezone() - timedelta(days=DAYS)).strftime("%Y-%m-%d")
 
     print(SEP)
     print("Tautulli 幽灵会话探针（只读）")
@@ -206,7 +207,7 @@ def main() -> None:
                 STATUS_UNDETERMINED: "无法判定",
             }.get(v.status, "正常")
             print(
-                f"  {str(v.row_id):>8}  {v.friendly_name[:14]:<16} {v.title[:30]:<32} "
+                f"  {v.row_id!s:>8}  {v.friendly_name[:14]:<16} {v.title[:30]:<32} "
                 f"{fmt_hours(v.raw_seconds):>8} {fmt_hours(v.media_seconds):>8} "
                 f"{v.percent_complete:>4}% {fmt_hours(v.compensated_seconds):>8}  {label}"
             )
@@ -249,7 +250,7 @@ def main() -> None:
         inflated = e["raw"] - e["comp"]
         total_inflated += inflated
         print(
-            f"  {str(user_id):>10}  {e['name'][:14]:<16} {e['count']:>4} "
+            f"  {user_id!s:>10}  {e['name'][:14]:<16} {e['count']:>4} "
             f"{fmt_hours(e['raw']):>10} {fmt_hours(e['comp']):>10} {fmt_hours(inflated):>10}"
         )
     print("  " + "-" * 70)

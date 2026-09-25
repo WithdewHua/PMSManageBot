@@ -36,6 +36,7 @@ postgres = [
 test = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
+    "import-linter>=2.0.0",
 ]
 
 [build-system]
@@ -57,3 +58,18 @@ asyncio_mode = "auto"
 # DB operations deliberately log broad failures, and FastAPI dependency injection
 # requires Depends/Body calls as parameter defaults.
 ignore = ["BLE001", "B008"]
+
+[tool.importlinter]
+root_packages = ["app"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Top-level architecture"
+type = "layers"
+layers = [
+    "(app.main)",
+    "(app.api) | (app.bot) | (app.schedule) | (app.model_registry)",
+    "(app.domains) : (app.databases)",
+    "(app.integrations)",
+    "(app.core)",
+]

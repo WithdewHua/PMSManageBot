@@ -69,12 +69,15 @@ ruff check --select I --fix src/
 # Format code
 ruff format src/
 
-# Run all pre-commit hooks (lint + sort + format)
+# Check import boundaries (after installing test extras)
+.venv/bin/lint-imports
+
+# Run all pre-commit hooks (lint + sort + format + architecture)
 pre-commit run --all-files
 ```
 
-Ruff runs with default settings — no `[tool.ruff]` block in `pyproject.toml`.
-Pre-commit hooks are defined in `.pre-commit-config.yaml` (ruff v0.6.0).
+Ruff uses default rules plus the `[tool.ruff.lint]` ignores in `pyproject.toml` (`BLE001`, `B008`).
+Pre-commit hooks are defined in `.pre-commit-config.yaml` (ruff, plus local import-linter and architecture-test hooks).
 
 ### JavaScript/Vue — ESLint
 
@@ -95,16 +98,17 @@ Notable disabled rules: `vue/multi-word-component-names`, `vue/valid-v-slot`.
 uv pip install ".[test]"
 
 # Run all tests
-pytest tests/
+.venv/bin/python -m pytest tests/
 
-# Run a single test file
-pytest tests/test_blackjack_tournament_settle.py
+# Run architecture checks
+.venv/bin/python -m pytest tests/architecture
 
-# Run a single test function
-pytest tests/test_blackjack_tournament_settle.py::test_function_name
+# Run a single test file or function
+.venv/bin/python -m pytest tests/test_blackjack_tournament_settle.py
+.venv/bin/python -m pytest tests/test_blackjack_tournament_settle.py::test_function_name
 
 # Run with verbose output
-pytest -v tests/
+.venv/bin/python -m pytest -v tests/
 ```
 
 ---
@@ -115,15 +119,14 @@ pytest -v tests/
 
 #### Imports
 
-- Use **absolute imports** with the `app.*` namespace exclusively:
+- Use **absolute imports** within `app.*`; for cross-layer or cross-domain calls import the target module, not individual functions:
   ```python
-  from app.config import settings
-  from app.databases.db import DatabaseORM
-  from app.models.models import PlexUser
-  from app.log import logger
+  from app.domains.credits import service as credits_service
+  from app.core.config import settings
   ```
+  Existing imports retain their old paths only until the corresponding B-stage relocation; don't introduce new dependencies on those paths.
 - Order: stdlib → third-party → local (enforced by ruff `I` ruleset).
-- Avoid wildcard imports (`from module import *`) except in `main.py` for handler registration.
+- Avoid wildcard imports. Bot handlers are explicitly registered in the target `app.bot.app`.
 
 #### Naming Conventions
 
@@ -157,7 +160,7 @@ pytest -v tests/
 
 #### Error Handling
 
-1. **DB operations** — wrap in `try/except Exception as e`, log with `logger.error`, return `False`/`None`:
+1. **Legacy DB operations** — existing complete-transaction methods wrap in `try/except Exception as e`, log with `logger.error`, and return `False`/`None`. Keep this behavior when mechanically moving them. `*_tx(session, …)` helpers must **not** swallow exceptions; let them propagate so the outer transaction rolls back:
    ```python
    def some_db_operation(self, ...) -> bool:
        try:
@@ -169,8 +172,7 @@ pytest -v tests/
            return False
    ```
 
-2. **Session management** — use `get_session()` context manager from `app.databases.session`;
-   it handles commit/rollback/close automatically. Never manage sessions manually.
+2. **Session management** — use the `get_session()` context manager (currently `app.databases.session`, moving to `app.core.db`) **only inside a domain repository**. It handles commit/rollback/close automatically. Cross-domain operations in one transaction must call the target domain's `*_tx(session, …)` helper, not open a second session.
 
 3. **FastAPI routes** — raise `HTTPException` with appropriate status codes. Detail messages
    follow the existing Chinese-language convention:
@@ -181,7 +183,7 @@ pytest -v tests/
    )
    ```
 
-4. **Business logic violations** — raise `ValueError` with a descriptive message; let the router catch it.
+4. **Business logic violations** — keep raising `ValueError` until the shared `DomainError` base is introduced by the first `promote-*` change that needs it; after that, new domain code uses a domain-specific `DomainError` subclass (in that domain's `exceptions.py`) with structured code and payload. Preserve existing `ValueError` handling when mechanically relocating legacy code; conversion belongs to the relevant `promote-*` change.
 
 5. **Critical operations** — include `traceback.print_exc()` alongside `logger.error` when
    a full stack trace is needed for debugging.
@@ -193,7 +195,7 @@ pytest -v tests/
 Use the project logger exclusively — never `print()` in backend code (scripts are exempt):
 
 ```python
-from app.log import logger
+from app.core.log import logger  # legacy code retains app.log until its relocation
 
 logger.info("Message")
 logger.error(f"Error doing X: {e}")
@@ -235,26 +237,36 @@ logger.warning("Warning message")
 
 ## Architecture Patterns
 
-- **`DatabaseORM` singleton** (`app.databases.db`) — all DB operations live here. Import via
-  `from app.databases import db`. Do not instantiate `DatabaseORM` elsewhere.
-- **External services** in `app/modules/` — one class per service (Plex, Emby, Tautulli, etc.).
-  Keep third-party API integrations isolated in this layer.
-- **FastAPI routers** in `app/webapp/routers/` — thin handlers that delegate to `db.*` and
-  module methods. Business logic belongs in `db.py` or modules, not in routers.
-- **Scheduler tasks** in `app/databases/db_func.py` — background/scheduled functions that
-  orchestrate DB and module calls.
-- **Singletons** — `Scheduler` uses `SingletonMeta`; `Settings` is a module-level `settings`
-  instance. Do not re-instantiate these.
-- **Authentication** — `TelegramAuthMiddleware` validates Telegram HMAC `initData` globally.
-  Use the `require_telegram_auth` decorator on individual routes that need extra enforcement.
+The domain inventory, ownership of wide-table columns, existing exceptions and manual operations are in [docs/architecture.md](docs/architecture.md).
+
+- **Invocation direction:** entry points (`router`, `admin_router`, `jobs`, `bot`) → `service` → `repository` → `models`; pure computation belongs in `rules`. Dependencies across domains flow from higher to lower tiers (T5 → T0); same-tier dependencies must not cycle. T4 domains coordinate multi-domain operations; do not create a separate application layer.
+- **Database boundary:** only domain `repository.py` (or a same-named repository package) contains business SQLAlchemy queries and transaction management. Routers, services, and jobs do not call `get_session()` or query ORM models. A cross-domain transaction calls the target domain's `*_tx(session, …)` helper; a separate session would break atomicity and may deadlock.
+- **Side effects:** network API calls, notifications and background scheduling happen in services after commit, not inside repository transactions. Lower tiers notify higher tiers with post-commit domain events, never direct upward imports. The current gift-pack privileged-code `.env` write is a documented pre-commit exception until its database migration.
+- **Credits:** change user balances only through locked delta increment/decrement operations in the credits domain, not by writing absolute balances. Do not add user state columns to `Statistics`, `PlexUser` or `EmbyUser`; put new per-user state in the owning domain's table keyed by `tg_id`.
+- **Imports:** across domains and architectural layers import modules rather than individual functions. Cross-domain calls use only the target `service` or `*_tx` repository helper; do not import foreign models, routers, jobs or notifications. T5 read-model repositories alone may read other domains' tables for aggregation and must never write them.
+- **Singletons:** keep existing Scheduler and settings instances; do not re-instantiate them. Telegram auth continues to validate HMAC `initData`, and guarded routes use `require_telegram_auth`.
+
+### Where new code goes
+
+| New work | Location |
+|---|---|
+| HTTP endpoint / Telegram command / scheduled entry | Owning domain's `router.py` or `admin_router.py` / `bot.py` / `jobs.py`; composition only in `api/`, `bot/app.py` or `schedule.py` |
+| Business workflow, especially coordination of multiple domains | Owning domain's `service.py`; multi-domain strategy in a T4 domain, **not** a new application layer |
+| SQLAlchemy query, write or transactional helper | Owning domain's `repository.py` / `repository/`; model in `models.py` |
+| Pure calculations / validation / error types | `rules.py` / `exceptions.py` in that domain |
+| External API client / common infrastructure | `integrations/` / `core/` respectively |
+| Runtime business setting / infrastructure secret | Domain `config.py` backed by `SystemConfig` / read-only `data/.env` via core.config |
+
+**Transition (B-stage mechanical move):** Existing `db.xxx()` calls remain intact. The `app.databases.db` singleton temporarily composes domain repository mixins; the facade file itself gets no new methods. A new database operation goes in its owning domain's repository mixin and may be called as `db.xxx()` from that same domain, but do not add new cross-domain `db.xxx()` calls. Move old code without altering behavior or broadly replacing existing calls; later `promote-*` changes introduce services and remove the facade. Do not add compatibility import modules for moved code. Modules exceeding 1,000 lines become same-named packages split by subtopic.
+
+A function with no codebase callers is **not necessarily dead**. Before removing one, check the manual operations list in [docs/architecture.md](docs/architecture.md) and confirm with the maintainer; `db.rebind_user_tg_id(...)` is a known manual entry point.
 
 ---
 
 ## Environment & Configuration
 
 - Copy `.env.example` to `data/.env` and fill in values before running locally.
-- `Settings` (`pydantic-settings` `BaseSettings`) in `app/config.py` loads in priority order:
-  system env → `data/.env` → defaults.
+- `Settings` (`pydantic-settings` `BaseSettings`; currently `app/config.py`, moving to `app/core/config.py`) loads in priority order: system env → `data/.env` → defaults.
 - Never hardcode secrets or service URLs — always read from `settings.*`.
 - Key variables: `TG_API_TOKEN`, `PLEX_BASE_URL`, `EMBY_BASE_URL`, `DATABASE_URL`,
   `REDIS_HOST`, `WEBAPP_URL`, `SESSION_SECRET_KEY`.
@@ -263,7 +275,7 @@ logger.warning("Warning message")
 
 ## Database Migrations
 
-- Always create a migration when changing SQLAlchemy models in `app/models/models.py`:
+- Always create a migration when changing SQLAlchemy models in a domain `models.py` (legacy models remain in `app/models/models.py` until B1):
   ```bash
   alembic revision --autogenerate -m "add column foo to plex_user"
   alembic upgrade head

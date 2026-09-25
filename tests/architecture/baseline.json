@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "cross_domain_calls": [],
+  "line_budgets": [
+    {
+      "key": "src/app/databases/db.py",
+      "owner": "restructure-backend-architecture",
+      "path": "src/app/databases/db.py",
+      "lines": 14014,
+      "budget": 1000
+    },
+    {
+      "key": "src/app/databases/db_func.py",
+      "owner": "restructure-backend-architecture",
+      "path": "src/app/databases/db_func.py",
+      "lines": 3014,
+      "budget": 1000
+    },
+    {
+      "key": "src/app/models/models.py",
+      "owner": "restructure-backend-architecture",
+      "path": "src/app/models/models.py",
+      "lines": 1542,
+      "budget": 1000
+    },
+    {
+      "key": "src/app/webapp/routers/activities/blackjack_tournament.py",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/webapp/routers/activities/blackjack_tournament.py",
+      "lines": 1095,
+      "budget": 1000
+    },
+    {
+      "key": "src/app/webapp/routers/admin.py",
+      "owner": "restructure-backend-architecture",
+      "path": "src/app/webapp/routers/admin.py",
+      "lines": 1906,
+      "budget": 1000
+    },
+    {
+      "key": "src/app/webapp/routers/user.py",
+      "owner": "restructure-backend-architecture",
+      "path": "src/app/webapp/routers/user.py",
+      "lines": 2874,
+      "budget": 1000
+    }
+  ],
+  "model_registry": [],
+  "mixin_duplicates": []
+}

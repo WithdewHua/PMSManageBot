@@ -56,7 +56,7 @@ def _assign_wheel_stats_id(mapper, connection, target):
 LOSS = '["KH", "5C", "9H"]'  # 24 点爆牌，庄家不补牌
 WIN_P, WIN_D = '["QH", "JH"]', '["KH", "9H"]'  # 20 vs 19，庄家停牌
 PUSH_P, PUSH_D = '["QH", "9H"]', '["KH", "9H"]'  # 19 vs 19
-EXPIRED_MS = lambda: int(time.time() * 1000) - 20 * 60 * 1000  # noqa: E731
+EXPIRED_MS = lambda: int(time.time() * 1000) - 20 * 60 * 1000
 
 
 def lose_once(orm, tg_id: int, *, bet: int = 15, doubled: int = 0) -> dict:
@@ -588,7 +588,7 @@ def _add_settled_hand(
 def test_cashback_first_run_only_anchors(orm, monkeypatch):
     patch_cfg(monkeypatch, orm)
     add_user(orm, 1, credits=100.0)
-    start_s, end_s = _prev_week_bounds(orm)
+    start_s, _ = _prev_week_bounds(orm)
     _add_settled_hand(1, net=-60.0, settled_at_s=start_s + 100)
 
     result = orm.settle_blackjack_weekly_cashback()
@@ -601,7 +601,7 @@ def test_cashback_first_run_only_anchors(orm, monkeypatch):
 def test_cashback_settles_net_losers(orm, monkeypatch):
     patch_cfg(monkeypatch, orm)
     add_user(orm, 1, credits=100.0)
-    start_s, end_s = _prev_week_bounds(orm)
+    start_s, _ = _prev_week_bounds(orm)
     _add_settled_hand(1, net=-60.0, settled_at_s=start_s + 100)
 
     # 首跑锚定后把游标拨回两周前，使上一完整周可结算
@@ -624,7 +624,7 @@ def test_cashback_settles_net_losers(orm, monkeypatch):
 def test_cashback_rerun_is_idempotent(orm, monkeypatch):
     patch_cfg(monkeypatch, orm)
     add_user(orm, 1, credits=100.0)
-    start_s, end_s = _prev_week_bounds(orm)
+    start_s, _ = _prev_week_bounds(orm)
     _add_settled_hand(1, net=-60.0, settled_at_s=start_s + 100)
 
     orm.settle_blackjack_weekly_cashback()
@@ -644,7 +644,7 @@ def test_cashback_skips_net_winners_and_small_amounts(orm, monkeypatch):
     patch_cfg(monkeypatch, orm)
     add_user(orm, 1, credits=100.0)  # 净赢者
     add_user(orm, 2, credits=100.0)  # 低于门槛
-    start_s, end_s = _prev_week_bounds(orm)
+    start_s, _ = _prev_week_bounds(orm)
     _add_settled_hand(1, net=40.0, settled_at_s=start_s + 100)
     _add_settled_hand(2, net=-5.0, settled_at_s=start_s + 200)
 

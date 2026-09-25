@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 回填脚本：为数据库中已使用的邀请码补充 service 字段
 
@@ -11,10 +10,11 @@
 - 两个表都无法匹配：打印出来，不做处理
 """
 
+from sqlalchemy import select, update
+
 from app.databases.db import db
 from app.databases.session import get_session
 from app.models.models import Invitation
-from sqlalchemy import select, update
 
 
 def backfill_invitation_service():
