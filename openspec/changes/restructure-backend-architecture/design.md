@@ -186,6 +186,9 @@ db = DatabaseORM()
 - **mixin 的约束**：mixin 没有 `__init__`，也没有状态，所以 MRO 顺序无关紧要。由测试保证 mixin 之间没有重名。
 - **跨领域调用照旧**：跨领域的 `self.xxx()` 调用经由组合后的类照常解析，行为不变。
 - **自引用改写**：4 处 `DatabaseORM.<name>` 改成所在 mixin 的类名。它们都在同一个模块里，工具会确认这一点，不满足就报错。
+- **B1 的 Premium 依赖桥接**：礼包 repository 的奖励发放需要 `premium.py` 中的三个同步函数。为避免搬迁后形成 `gift_pack.repository → premium → db facade → gift_pack.repository` 环，B1 同时把 `premium.py` 搬到 `domains/premium/service.py`，并把仅为避免导入环而存在的 `app.databases` 导入改为函数内延迟导入；调用时序和事务/外部副作用行为不变。`app.premium` 暂留仅含转发的兼容入口以维护持久化 APScheduler 函数路径，B3 调度迁移后删除。
+- **B1 配置文件路径**：`Settings.DATA_PATH` 原先用 `Path(__file__).parents[2]` 定位项目的 `data/`。搬到 `core/config.py` 后该路径多一层目录；搬迁工具仅对这一处已审阅的表达式改为 `parents[3]`，保持实际数据路径不变，其他 `__file__` 依赖仍拒绝预检。
+- **B1 模型注册**：`core.db.init_db()` 保留原来的 `Base.metadata.create_all()`，且不反向导入组装层；`main.py`、迁移脚本和其他入口统一调用 `model_registry.init_db()`，注册表先显式导入全部领域模型再下调 `core.db.init_db()`。逐项 AST 校验仍要求核心建表方法不变，测试验证完整 31 张表与 mapper 配置。
 - **模块级内容按所属领域分开**：db.py 模块级的常量和函数分到各领域的 `constants.py`、`rules.py` 或 `repository.py`，比如礼包的特权码锁留在礼包 repository。
 - **只删除 `_CurWrapper` / `cur` 兼容层**。其他零调用的方法照常搬迁，因为零调用不等于死代码：
   - `rebind_user_tg_id` 是管理员手动执行的 TG 换绑。它原样搬进 `tg_rebind` 的 repository mixin，B 阶段之后仍可通过 `db.rebind_user_tg_id(...)` 调用。
@@ -362,7 +365,7 @@ import-linter 表达不了的规则，放进 `tests/architecture/`，这些测�
     - 按映射改写全仓库的导入语句和字符串引用，范围包括 `src`、`tests`、`scripts`、`alembic`，覆盖函数内导入、monkeypatch 目标、uvicorn 目标与持久化任务路径；不重写不相关的普通字符串。
     - 搬迁前先做完整性预检，并在任何文件写入前拒绝：未覆盖的源码单元、父子范围重复搬运、拆开了 `global` 重绑定的名字、拆分后出现导入环或不能无歧义改写的引用。对失败的预检保持源文件和目标文件不变。
 4. **校验**：对比搬迁前的基准提交和当前工作树，以下每一项都必须一致：
-    - **逐项 AST 比对**：定义、类成员、顶层可执行语句、模块文档字符串和包导出均须覆盖；只允许三类改写：导入路径（包括把 `import *` 改成显式导入）、D4 的 4 处自引用、D8 的 2 处调度调用。新写的组装代码（api、bot、schedule、registry、门面）不做逐项比对，由后面几项快照覆盖。
+    - **逐项 AST 比对**：按审阅映射中的来源 ID 和目标模块逐一比对定义、类成员、顶层可执行语句与模块文档字符串；跨文件合并的导入项验证其名称或记录明确的重分配理由。只允许经过审阅的导入路径、D4 自引用、D8 调度调用、B1 Premium 延迟导入和 `Settings.DATA_PATH` 相对层级修正。新写的组装代码（api、bot、schedule、registry、门面）由后面几项快照覆盖，但迁入领域的模型和方法不能因位于新目录而整体跳过。
    - **导入解析**：逐个导入所有模块。用 AST 找出全部函数内导入和字符串引用（uvicorn 目标、monkeypatch 目标、任务名），逐一解析。
    - **OpenAPI 文档完全一致**。
    - **路由表顺序**：只有互不重叠的路由可以调换顺序。判断方法是把路径参数当通配段，检查同一方法下两条路由能不能匹配同一个路径。

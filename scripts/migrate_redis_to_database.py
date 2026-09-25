@@ -3,9 +3,9 @@
 包括：免费高级线路、线路标签、幸运大转盘配置
 """
 
+from app.core.log import logger
+from app.core.redis import Redis
 from app.databases.db import db
-from app.databases.redis import Redis
-from app.log import logger
 
 
 def migrate_free_premium_lines():

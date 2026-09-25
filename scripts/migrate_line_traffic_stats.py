@@ -2,11 +2,11 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import select
 
-from app.config import settings
+from app.core.config import settings
+from app.core.db import get_session
+from app.core.log import logger
 from app.databases import db
-from app.databases.session import get_session
-from app.log import logger
-from app.models.models import LineTrafficStats
+from app.domains.traffic.models import LineTrafficStats
 
 
 def migrate_historical_traffic_data(

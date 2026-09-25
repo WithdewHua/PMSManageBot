@@ -173,11 +173,12 @@ def destination(
     *,
     section_cache: dict[str, tuple[list[int], list[str]]],
     route_cache: dict[str, dict[str, str]],
+    root: Path = ROOT,
 ) -> tuple[str, str | None, str]:
     """Return target module, target class if applicable, and inference reason."""
     module, name = item.module, item.name
     if module == "app.databases.db" and name.startswith("DatabaseORM."):
-        source = ROOT / item.path
+        source = root / item.path
         numbers, labels = section_cache.setdefault(item.path, _sections(source))
         position = bisect_right(numbers, item.start_line) - 1
         section = labels[position] if position >= 0 else ""
@@ -220,7 +221,7 @@ def destination(
             return f"app.domains.{domain}.router", None, "router module name"
         if basename in {"user", "admin"} and item.kind == "function":
             route_paths = route_cache.setdefault(
-                item.path, _route_paths(ROOT / item.path)
+                item.path, _route_paths(root / item.path)
             )
             route = route_paths.get(name)
             domain = _route_domain(route) if route else None
@@ -230,7 +231,7 @@ def destination(
     return "TODO", None, "ambiguous: human review required"
 
 
-def seed(items: list[Item]) -> list[dict[str, str]]:
+def seed(items: list[Item], *, root: Path = ROOT) -> list[dict[str, str]]:
     """Generate a deterministic draft, propagating class targets to fields."""
     sections: dict[str, tuple[list[int], list[str]]] = {}
     routes: dict[str, dict[str, str]] = {}
@@ -238,7 +239,7 @@ def seed(items: list[Item]) -> list[dict[str, str]]:
     result: list[dict[str, str]] = []
     for item in items:
         target, target_class, reason = destination(
-            item, section_cache=sections, route_cache=routes
+            item, section_cache=sections, route_cache=routes, root=root
         )
         parent = item.name.rpartition(".")[0]
         if target == "TODO" and parent and f"{item.module}:{parent}" in targets:

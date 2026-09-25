@@ -4,7 +4,9 @@ import threading
 from telegram import BotCommand
 from telegram.ext import ApplicationBuilder
 
-from app.config import settings
+from app.core.config import settings
+from app.core.log import logger
+from app.core.scheduler import Scheduler
 from app.databases.db_func import (
     auto_switch_user_lines,
     check_and_award_game_king_badge,
@@ -21,9 +23,8 @@ from app.databases.db_func import (
     update_users_last_viewed,
     write_user_info_cache,
 )
-from app.databases.session import init_db
 from app.handlers import rank, start, status, user
-from app.log import logger
+from app.model_registry import init_db
 from app.modules.custom_line import (
     check_custom_line_traffic,
     check_expired_custom_lines,
@@ -34,7 +35,6 @@ from app.premium import (
     check_premium_expiry,
     get_and_send_premium_statistics,
 )
-from app.scheduler import Scheduler
 from app.utils.report import send_weekly_report
 from app.utils.utils import refresh_emby_user_info, refresh_tg_user_info
 from app.webapp.routers.gift_pack import (

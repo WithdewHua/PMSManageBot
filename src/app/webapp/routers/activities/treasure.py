@@ -1,10 +1,10 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 
-from app.config import settings
+from app.core.config import settings
+from app.core.log import uvicorn_logger as logger
+from app.core.number import normalize_external_random_b
 from app.databases import db
 from app.databases.db_func import check_and_award_game_king_badge
-from app.log import uvicorn_logger as logger
-from app.utils.number import normalize_external_random_b
 from app.utils.utils import get_user_name_from_tg_id
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
@@ -82,7 +82,7 @@ def schedule_auto_reopen_treasure_issue(*, source_issue_id: int) -> None:
     try:
         from datetime import datetime, timedelta
 
-        from app.scheduler import Scheduler
+        from app.core.scheduler import Scheduler
 
         run_date = datetime.now(settings.TZ) + timedelta(minutes=int(delay_min))
         job_id = f"treasure_auto_reopen_{int(source_issue_id)}"
@@ -109,7 +109,7 @@ def _get_group_chat_id() -> str | None:
     群组通知明确使用 TG_GROUP（可以是数字 ID 或 @username）。
     未配置则跳过群组通知。
     """
-    from app.config import settings
+    from app.core.config import settings
 
     if getattr(settings, "TG_GROUP_ID", None):
         return str(settings.TG_GROUP_ID)
@@ -230,7 +230,7 @@ async def _get_eth_latest_block_hash_int() -> int:
     """
     import aiohttp
 
-    from app.config import settings
+    from app.core.config import settings
 
     rpc_url = getattr(settings, "ETH_RPC_URL", "")
     if not rpc_url:
@@ -367,7 +367,7 @@ async def join_issue(
                         import hmac
                         import time
 
-                        from app.config import settings
+                        from app.core.config import settings
 
                         # 兜底B需要：可复现（同样输入 -> 同样输出）、不可预测（依赖服务器密钥）。
                         # 说明：这里的材料选用“触发开奖时”在服务端可确定的一组字段，

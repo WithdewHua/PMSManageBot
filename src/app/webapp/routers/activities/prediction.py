@@ -2,10 +2,10 @@ import time
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
-from app.config import settings
+from app.core.config import settings
+from app.core.log import uvicorn_logger as logger
 from app.databases import db
 from app.databases.db_func import check_and_award_game_king_badge
-from app.log import uvicorn_logger as logger
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.routers.admin import check_admin_permission
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/prediction", tags=["大预言家"])
 
 def _get_group_chat_id() -> str | None:
     """获取用于群组通知的 chat_id；未配置则跳过通知。"""
-    from app.config import settings
+    from app.core.config import settings
 
     if getattr(settings, "TG_GROUP_ID", None):
         return str(settings.TG_GROUP_ID)
@@ -46,7 +46,7 @@ async def notify_prediction_market_created(
     """新题目创建后的群组通知。"""
     from datetime import datetime
 
-    from app.config import settings
+    from app.core.config import settings
     from app.utils.utils import send_message_by_url
 
     chat_id = _get_group_chat_id()
@@ -81,7 +81,7 @@ async def notify_prediction_markets_closing_soon(
     """群组通知：押注截止时间临近的题目汇总。"""
     from datetime import datetime
 
-    from app.config import settings
+    from app.core.config import settings
     from app.utils.utils import send_message_by_url
 
     chat_id = _get_group_chat_id()
@@ -238,7 +238,7 @@ async def notify_prediction_submission_created(
     """用户提交预测题目后，通知管理员审核。"""
     from datetime import datetime
 
-    from app.config import settings
+    from app.core.config import settings
     from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 
     submitter_name = get_user_name_from_tg_id(int(submitter_tg_id)) or int(

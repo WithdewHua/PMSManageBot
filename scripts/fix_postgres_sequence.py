@@ -17,8 +17,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from sqlalchemy import create_engine, text
 from sqlalchemy import inspect as sqlalchemy_inspect
 
-from app.config import settings
-from app.log import logger
+from app.core.config import settings
+from app.core.log import logger
 
 
 def fix_table_sequence(table_name: str, engine):

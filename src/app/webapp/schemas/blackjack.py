@@ -94,7 +94,7 @@ class BlackjackHandResponse(BaseModel):
         首张明牌，点数亦不返回（否则可反推暗牌）。种子与游标不在模型字段里，
         故即使入参含有也不会进入响应。
         """
-        from app import blackjack_engine as engine
+        from app.domains.blackjack import rules as engine
 
         status = int(hand.get("status") or 0)
         player_cards = list(hand.get("player_cards") or [])

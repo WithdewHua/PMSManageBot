@@ -11,12 +11,12 @@ from time import time
 
 from sqlalchemy import select
 
-from app.config import settings
-from app.databases.session import get_session
-from app.log import logger
-from app.models.models import EmbyUser, PlexUser
-from app.modules.emby import Emby
-from app.modules.plex import Plex
+from app.core.config import settings
+from app.core.db import get_session
+from app.core.log import logger
+from app.domains.identity.models import EmbyUser, PlexUser
+from app.integrations.emby import Emby
+from app.integrations.plex import Plex
 
 
 def get_plex_user_sync_status(plex: Plex, email: str) -> bool | None:

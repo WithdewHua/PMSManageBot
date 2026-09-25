@@ -271,3 +271,16 @@ def test_bare_import_shadowing_fails_closed() -> None:
             "app.consumer",
             {"app.old": "app.new"},
         )
+
+
+def test_package_submodule_import_relocates_to_module_not_symbol() -> None:
+    source = "from app import blackjack_engine as engine\n"
+    assert (
+        rewrite_file(
+            source,
+            "app.consumer",
+            {"app.blackjack_engine": "app.domains.blackjack.rules"},
+            symbol_paths=set(),
+        )
+        == "from app.domains.blackjack import rules as engine\n"
+    )

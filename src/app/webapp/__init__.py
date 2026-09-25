@@ -6,8 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.config import settings
-from app.log import logger
+from app.core.config import settings
+from app.core.log import logger
 from app.webapp.middlewares import TelegramAuthMiddleware
 from app.webapp.routers import (
     donation_router,

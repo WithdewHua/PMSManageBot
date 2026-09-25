@@ -36,7 +36,7 @@ postgres = [
 test = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
-    "import-linter>=2.0.0",
+    "import-linter>=2.15.0",
 ]
 
 [build-system]
@@ -73,3 +73,206 @@ layers = [
     "(app.integrations)",
     "(app.core)",
 ]
+
+[[tool.importlinter.contracts]]
+name = "External integration isolation"
+type = "forbidden"
+source_modules = ["app.integrations"]
+forbidden_modules = ["app.domains", "app.databases", "app.api", "app.bot", "sqlalchemy"]
+allow_indirect_imports = true
+unmatched_ignore_imports_alerting = "error"
+
+[[tool.importlinter.contracts]]
+name = "Legacy database facade freeze"
+type = "protected"
+protected_modules = ["app.databases"]
+allowed_importers = [
+    "app.domains.premium.service", # B1 delayed import; remove in promote-line-domains
+    "app.handlers.rank", # B2 bot migration
+    "app.handlers.user", # B2 bot migration
+    "app.main", # B1 assembly and B3 scheduler migration
+    "app.modules.custom_line", # B3 line-domain migration
+    "app.webapp.routers.admin", # B2 API migration
+    "app.webapp.routers.activities.auction", # B2 API migration
+    "app.webapp.routers.activities.blackjack", # B2 API migration
+    "app.webapp.routers.activities.blackjack_tournament", # B2 API migration
+    "app.webapp.routers.activities.luckywheel", # B2 API migration
+    "app.webapp.routers.activities.prediction", # B2 API migration
+    "app.webapp.routers.activities.treasure", # B2 API migration
+    "app.webapp.routers.badge", # B2 API migration
+    "app.webapp.routers.crypto_donation", # B2 API migration
+    "app.webapp.routers.donation", # B2 API migration
+    "app.webapp.routers.gift_pack", # B2 API migration
+    "app.webapp.routers.invitation", # B2 API migration
+    "app.webapp.routers.premium", # B2 API migration
+    "app.webapp.routers.rankings", # B2 API migration
+    "app.webapp.routers.system", # B2 API migration
+    "app.webapp.routers.user", # B2 API migration
+    "app.webapp.routers.vaultwarden", # B2 API migration
+]
+unmatched_ignore_imports_alerting = "error"
+
+[[tool.importlinter.contracts]]
+name = "SQLAlchemy direct use scope"
+type = "protected"
+protected_modules = ["sqlalchemy"]
+allowed_importers = [
+    "app.core.db",
+    "app.core.kv",
+    "app.databases.db",
+    "app.domains.*.models",
+    "app.domains.*.repository",
+    "app.model_registry",
+]
+ignore_imports = [
+    # restructure-backend-architecture: B3 legacy orchestration and utilities
+    "app.databases.db_func -> sqlalchemy",
+    "app.utils.utils -> sqlalchemy",
+    # promote-line-domains: premium/custom-line service still owns SQL queries
+    "app.domains.premium.service -> sqlalchemy",
+    "app.modules.custom_line -> sqlalchemy",
+    # restructure-backend-architecture: B2 legacy API handlers
+    "app.webapp.routers.admin -> sqlalchemy",
+    "app.webapp.routers.crypto_donation -> sqlalchemy",
+    "app.webapp.routers.donation -> sqlalchemy",
+    "app.webapp.routers.system -> sqlalchemy",
+    "app.webapp.routers.user -> sqlalchemy",
+]
+unmatched_ignore_imports_alerting = "error"
+
+[[tool.importlinter.contracts]]
+name = "Database engine import scope"
+type = "protected"
+protected_modules = ["app.core.db"]
+allowed_importers = [
+    "app.core.kv",
+    "app.domains.*.models",
+    "app.domains.*.repository",
+    "app.domains.*.repository.*", # generated submodules of large repositories
+    "app.model_registry",
+    "app.models", # Transitional package exports; deleted in B3
+]
+as_packages = false
+ignore_imports = [
+    # restructure-backend-architecture: B3 orchestration/utility migration
+    "app.databases.db_func -> app.core.db",
+    "app.utils.utils -> app.core.db",
+    # promote-line-domains: SQL in legacy service
+    "app.domains.premium.service -> app.core.db",
+    "app.modules.custom_line -> app.core.db",
+    # restructure-backend-architecture: B2 API migration
+    "app.webapp.routers.admin -> app.core.db",
+    "app.webapp.routers.crypto_donation -> app.core.db",
+    "app.webapp.routers.donation -> app.core.db",
+    "app.webapp.routers.system -> app.core.db",
+    "app.webapp.routers.user -> app.core.db",
+    "app.webapp.routers.vaultwarden -> app.core.db",
+]
+unmatched_ignore_imports_alerting = "error"
+
+[[tool.importlinter.contracts]]
+name = "Domain model import scope"
+type = "protected"
+protected_modules = ["app.domains.*.models"]
+allowed_importers = [
+    "app.domains.*.models",
+    "app.domains.*.repository",
+    "app.domains.*.repository.*",
+    "app.model_registry",
+    "app.models", # Transitional package exports; deleted in B3
+]
+as_packages = false
+ignore_imports = [
+    # restructure-backend-architecture: B3 orchestration and utility migration
+    "app.databases.db_func -> app.domains.badges.models",
+    "app.databases.db_func -> app.domains.blackjack.models",
+    "app.databases.db_func -> app.domains.identity.models",
+    "app.databases.db_func -> app.domains.luckywheel.models",
+    "app.databases.db_func -> app.domains.prediction.models",
+    "app.databases.db_func -> app.domains.treasure.models",
+    "app.utils.utils -> app.domains.identity.models",
+    # promote-line-domains: remaining Premium/custom-line business logic
+    "app.domains.premium.service -> app.domains.identity.models",
+    "app.modules.custom_line -> app.domains.custom_lines.models",
+    "app.modules.custom_line -> app.domains.traffic.models",
+    # restructure-backend-architecture: B2 legacy routers
+    "app.webapp.routers.admin -> app.domains.custom_lines.models",
+    "app.webapp.routers.crypto_donation -> app.domains.crypto_donation.models",
+    "app.webapp.routers.crypto_donation -> app.domains.identity.models",
+    "app.webapp.routers.donation -> app.domains.identity.models",
+    "app.webapp.routers.system -> app.domains.identity.models",
+    "app.webapp.routers.user -> app.domains.custom_lines.models",
+    "app.webapp.routers.user -> app.domains.identity.models",
+    "app.webapp.routers.vaultwarden -> app.domains.vaultwarden.models",
+]
+unmatched_ignore_imports_alerting = "error"
+
+[[tool.importlinter.contracts]]
+name = "Six-tier domain dependencies"
+type = "layers"
+containers = ["app.domains"]
+exhaustive = false # Enable exhaustive coverage once all domains land in B3.
+layers = [
+    "rankings : reports : (profile)",
+    "watch_rewards : gift_pack : (badge_awards) : tg_rebind",
+    "(accounts) : invitation : premium : custom_lines : donation : crypto_donation : luckywheel : treasure : prediction : auction : blackjack",
+    "badges : lines : traffic : media_access : vaultwarden",
+    "credits",
+    "identity",
+]
+ignore_imports = [
+    # restructure-backend-architecture: transitional facade composition hides
+    # domain-to-domain dependencies; AST cross-domain checks still cover self/db.
+    "app.databases.db -> app.domains.auction.repository",
+    "app.databases.db -> app.domains.badges.repository",
+    "app.databases.db -> app.domains.blackjack.repository",
+    "app.databases.db -> app.domains.credits.repository",
+    "app.databases.db -> app.domains.crypto_donation.repository",
+    "app.databases.db -> app.domains.donation.repository",
+    "app.databases.db -> app.domains.gift_pack.repository",
+    "app.databases.db -> app.domains.identity.repository",
+    "app.databases.db -> app.domains.invitation.repository",
+    "app.databases.db -> app.domains.lines.repository",
+    "app.databases.db -> app.domains.luckywheel.repository",
+    "app.databases.db -> app.domains.media_access.repository",
+    "app.databases.db -> app.domains.prediction.repository",
+    "app.databases.db -> app.domains.premium.repository",
+    "app.databases.db -> app.domains.rankings.repository",
+    "app.databases.db -> app.domains.reports.repository",
+    "app.databases.db -> app.domains.tg_rebind.repository",
+    "app.databases.db -> app.domains.traffic.repository",
+    "app.databases.db -> app.domains.treasure.repository",
+    "app.databases.db -> app.domains.watch_rewards.repository",
+    # promote-line-domains: legacy traffic repository imports custom-line model
+    "app.domains.traffic.repository -> app.domains.custom_lines.models",
+]
+unmatched_ignore_imports_alerting = "error"
+
+[[tool.importlinter.contracts]]
+name = "Acyclic domain siblings"
+type = "acyclic_siblings"
+ancestors = ["app.domains"]
+ignore_imports = [
+    # restructure-backend-architecture: transitional facade composition
+    "app.databases.db -> app.domains.auction.repository",
+    "app.databases.db -> app.domains.badges.repository",
+    "app.databases.db -> app.domains.blackjack.repository",
+    "app.databases.db -> app.domains.credits.repository",
+    "app.databases.db -> app.domains.crypto_donation.repository",
+    "app.databases.db -> app.domains.donation.repository",
+    "app.databases.db -> app.domains.gift_pack.repository",
+    "app.databases.db -> app.domains.identity.repository",
+    "app.databases.db -> app.domains.invitation.repository",
+    "app.databases.db -> app.domains.lines.repository",
+    "app.databases.db -> app.domains.luckywheel.repository",
+    "app.databases.db -> app.domains.media_access.repository",
+    "app.databases.db -> app.domains.prediction.repository",
+    "app.databases.db -> app.domains.premium.repository",
+    "app.databases.db -> app.domains.rankings.repository",
+    "app.databases.db -> app.domains.reports.repository",
+    "app.databases.db -> app.domains.tg_rebind.repository",
+    "app.databases.db -> app.domains.traffic.repository",
+    "app.databases.db -> app.domains.treasure.repository",
+    "app.databases.db -> app.domains.watch_rewards.repository",
+]
+unmatched_ignore_imports_alerting = "error"

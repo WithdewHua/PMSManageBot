@@ -4,10 +4,10 @@ from uuid import NAMESPACE_URL, uuid3
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
-from app.config import settings
+from app.core.config import settings
+from app.core.log import logger
 from app.databases import db
-from app.log import logger
-from app.modules.overseerr import Overseerr
+from app.integrations.overseerr import Overseerr
 from app.utils.utils import get_user_name_from_tg_id, send_message
 
 

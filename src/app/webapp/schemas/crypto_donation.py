@@ -7,7 +7,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field, validator
 
-from app.config import settings
+from app.core.config import settings
 
 
 def get_supported_crypto_types():

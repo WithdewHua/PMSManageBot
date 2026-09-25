@@ -5,10 +5,10 @@ Premium 会员相关路由
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from app.config import settings
+from app.core.config import settings
+from app.core.log import uvicorn_logger as logger
 from app.databases import db
-from app.log import uvicorn_logger as logger
-from app.premium import update_premium_status
+from app.domains.premium.service import update_premium_status
 from app.utils.utils import (
     get_service_label,
     get_user_name_from_tg_id,

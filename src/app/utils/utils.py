@@ -2,18 +2,17 @@ import asyncio
 import pickle
 import threading
 from time import time
-from typing import ClassVar
 
 import aiohttp
 import filelock
 from sqlalchemy import select
 from telegram.ext import ContextTypes
 
-from app.config import settings
-from app.databases.session import get_session as get_db_session
-from app.log import logger
-from app.models.models import EmbyUser, Statistics
-from app.modules.emby import Emby
+from app.core.config import settings
+from app.core.db import get_session as get_db_session
+from app.core.log import logger
+from app.domains.identity.models import EmbyUser, Statistics
+from app.integrations.emby import Emby
 
 
 def format_traffic_size(bytes_size: int) -> str:
@@ -497,18 +496,6 @@ def refresh_emby_user_info(emby_username: str | None = None):
             emby.get_user_info_from_username(user)
     except Exception as e:
         logger.error(f"Refresh emby user info failed: {e}")
-
-
-class SingletonMeta(type):
-    """Singleton metaclass"""
-
-    _instances: ClassVar[dict[type, object]] = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            instance = super().__call__(*args, **kwargs)
-            cls._instances[cls] = instance
-        return cls._instances[cls]
 
 
 def is_binded_premium_line(line: str) -> bool:

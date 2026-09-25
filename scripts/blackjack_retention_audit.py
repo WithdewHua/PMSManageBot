@@ -36,15 +36,11 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
 from sqlalchemy import func, select
 
-from app.config import settings
-from app.databases.session import get_session
-from app.models.models import (
-    BlackjackHand,
-    BlackjackWeeklyCashback,
-    LuckywheelFreeSpin,
-    Statistics,
-    WheelStats,
-)
+from app.core.config import settings
+from app.core.db import get_session
+from app.domains.blackjack.models import BlackjackHand, BlackjackWeeklyCashback
+from app.domains.identity.models import Statistics
+from app.domains.luckywheel.models import LuckywheelFreeSpin, WheelStats
 
 settings.load_config_from_file()
 
@@ -65,7 +61,7 @@ def week_start_ms(now_ms: int) -> int:
 def audit_counters() -> bool:
     """对账 statistics 上的两个计数列 vs 手牌历史回溯。"""
 
-    from app import blackjack_engine as engine
+    from app.domains.blackjack import rules as engine
 
     ok = True
     with get_session() as session:
@@ -129,7 +125,7 @@ def weekly_report(weeks: int) -> None:
     """最近 N 周的让利率周报（含本期进行中的当周）。"""
     import time
 
-    from app import blackjack_engine as engine
+    from app.domains.blackjack import rules as engine
 
     now_ms = int(time.time() * 1000)
     current_week = week_start_ms(now_ms)

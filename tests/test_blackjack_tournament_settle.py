@@ -8,10 +8,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from app.databases.db import DatabaseORM
 from tests.conftest import add_entry, add_pending_hand, add_tournament, add_user
 
-# `import app.databases.db` 会拿到包上的单例 `db`，不是子模块。
-_db_mod = importlib.import_module("app.databases.db")
+# Patch the actual defining module without coupling tests to a chunk filename.
+_db_mod = importlib.import_module(
+    DatabaseORM.list_blackjack_tournaments_with_playing_entries.__module__
+)
 
 
 def _row(tournament: dict) -> dict:
@@ -159,7 +162,7 @@ def test_deal_uses_wall_clock_after_lock(orm, monkeypatch):
 
 
 def test_lock_running_misses_settled_tournament(orm):
-    from app.databases.session import get_session
+    from app.core.db import get_session
 
     t = add_tournament(orm)
     add_user(orm, 1)

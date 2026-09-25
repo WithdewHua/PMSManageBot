@@ -4,22 +4,23 @@ from time import time
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
 from sqlalchemy import select
 
-from app.config import settings
-from app.databases import db
-from app.databases.cache import (
+from app.core.cache import (
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
 )
+from app.core.config import settings
+from app.core.db import get_session
+from app.core.log import uvicorn_logger as logger
+from app.databases import db
 from app.databases.db import DatabaseORM
 from app.databases.db_func import auto_switch_user_lines
-from app.databases.session import get_session
-from app.log import uvicorn_logger as logger
-from app.models.models import CustomLine, Statistics
-from app.modules.emby import Emby
-from app.modules.plex import Plex
-from app.modules.tautulli import Tautulli
+from app.domains.custom_lines.models import CustomLine
+from app.domains.identity.models import Statistics
+from app.integrations.emby import Emby
+from app.integrations.plex import Plex
+from app.integrations.tautulli import Tautulli
 from app.utils.utils import (
     caculate_credits_fund,
     get_service_label,
@@ -659,7 +660,7 @@ async def unbind_emby_line(
         if not success:
             logger.error(f"重置用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 线路失败")
             return BaseResponse(success=False, message="重置线路失败")
-        from app.databases.cache import emby_user_defined_line_cache
+        from app.core.cache import emby_user_defined_line_cache
 
         # 删除 redis 缓存
         emby_user_defined_line_cache.delete(str(emby_username).lower())
@@ -1199,7 +1200,7 @@ async def _auth_bind_emby_line(
     line: str,
 ) -> BaseResponse:
     """认证并绑定Emby线路的内部方法"""
-    from app.databases.cache import (
+    from app.core.cache import (
         emby_last_user_defined_line_cache,
         emby_user_defined_line_cache,
     )
@@ -1251,7 +1252,7 @@ async def _auth_bind_plex_line(
     token: str | None = None,
 ) -> BaseResponse:
     """认证并绑定Plex线路的内部方法"""
-    from app.databases.cache import (
+    from app.core.cache import (
         plex_last_user_defined_line_cache,
         plex_user_defined_line_cache,
     )
@@ -2740,7 +2741,7 @@ async def online_custom_line(
 
             from datetime import datetime
 
-            from app import config
+            from app.core.config import config
 
             expire_info = (
                 "长期可用"
@@ -2849,7 +2850,7 @@ async def renew_custom_line(
 
             from datetime import datetime
 
-            from app import config
+            from app.core.config import config
 
             old_expires_str = (
                 datetime.fromtimestamp(old_expires_at, tz=config.settings.TZ).strftime(

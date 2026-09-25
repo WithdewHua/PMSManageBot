@@ -5,10 +5,10 @@ from operator import itemgetter
 
 import pytz
 
-from app.config import settings
-from app.log import logger
-from app.modules.emby import Emby
-from app.modules.tautulli import Tautulli
+from app.core.config import settings
+from app.core.log import logger
+from app.integrations.emby import Emby
+from app.integrations.tautulli import Tautulli
 from app.utils.utils import send_message_by_url
 
 # Remove library element you do not want shown. Logging before exclusion.

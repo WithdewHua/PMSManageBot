@@ -1,10 +1,10 @@
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
-from app.config import settings
+from app.core.config import settings
+from app.core.log import logger
 from app.databases import db
-from app.log import logger
-from app.modules.emby import Emby
+from app.integrations.emby import Emby
 from app.utils.report import stats_report
 from app.utils.utils import get_user_name_from_tg_id, send_message
 

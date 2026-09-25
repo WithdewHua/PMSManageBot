@@ -1,8 +1,8 @@
 from sqlalchemy import select
 
-from app.databases.session import get_session
-from app.models.models import PlexUser
-from app.modules.plex import Plex
+from app.core.db import get_session
+from app.domains.identity.models import PlexUser
+from app.integrations.plex import Plex
 
 plex = Plex()
 

@@ -15,8 +15,10 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import event, select
 
-from app.databases.session import get_session
-from app.models.models import GiftPack, GiftPackUserState, Statistics, WheelStats
+from app.core.db import get_session
+from app.domains.gift_pack.models import GiftPack, GiftPackUserState
+from app.domains.identity.models import Statistics
+from app.domains.luckywheel.models import WheelStats
 from tests.conftest import add_user, next_id
 
 
@@ -259,9 +261,9 @@ def test_upcoming_audience_is_not_locked_and_is_rechecked_when_pack_starts(
     assert _state(pack_id, 1) is None
 
     _set_credits(1, 100)
-    db_module = importlib.import_module("app.databases.db")
+    gift_pack_module = importlib.import_module(orm.get_gift_packs_for_user.__module__)
     monkeypatch.setattr(
-        db_module,
+        gift_pack_module,
         "time",
         SimpleNamespace(time=lambda: now + 101),
     )
@@ -673,10 +675,12 @@ def test_claim_rechecks_sliding_window_instead_of_trusting_previous_list(
     _add_wheel_spin(1, now - 7 * 86400 + 3)
     assert _pack_item(orm.get_gift_packs_for_user(1), pack_id)["status"] == "claimable"
 
-    # Advance only db.py's clock. Avoid patching the global time module used by
-    # SQLite, logging, pytest and the rest of the application.
-    db_module = importlib.import_module("app.databases.db")
-    monkeypatch.setattr(db_module, "time", SimpleNamespace(time=lambda: now + 5))
+    # Advance only gift-pack method modules' clocks; never patch the global
+    # time module used by SQLite, logging, pytest and the rest of the app.
+    claim_module = importlib.import_module(orm.claim_gift_pack.__module__)
+    list_module = importlib.import_module(orm.get_gift_packs_for_user.__module__)
+    for module in {claim_module, list_module}:
+        monkeypatch.setattr(module, "time", SimpleNamespace(time=lambda: now + 5))
     with pytest.raises(ValueError):
         orm.claim_gift_pack(pack_id, 1)
     item = _pack_item(orm.get_gift_packs_for_user(1), pack_id)
@@ -767,7 +771,7 @@ def test_admin_references_and_deletion_guard(orm):
 
 
 def test_admin_resolves_mixed_identifiers_and_rejects_ambiguous_match(orm, monkeypatch):
-    from app.models.models import EmbyUser, PlexUser
+    from app.domains.identity.models import EmbyUser, PlexUser
 
     for tg_id in (1, 2, 3):
         add_user(orm, tg_id)

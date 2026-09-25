@@ -80,6 +80,7 @@ class _Destinations:
                 raise RewriteError(f"invalid destination module: {destination!r}")
             normalized[original] = destination
         self.mapping = normalized
+        self.has_explicit_symbol_paths = symbol_paths is not None
         self.symbol_paths = symbol_paths or set()
         if self.symbol_paths - normalized.keys():
             raise RewriteError("symbol paths are missing from destinations")
@@ -361,18 +362,25 @@ def _rewrite_import(
             _render_replacement_lines(statements, indent=indent, newline=newline),
         )
 
-    destinations = [
-        (
-            _symbol_destination(
-                table,
-                source_module,
-                alias.name,
-                fallback_module=fallback_module,
-            ),
-            _alias_text(alias.name, alias.asname),
+    destinations: list[tuple[str, str]] = []
+    for alias in values:
+        qualified = f"{source_module}.{alias.name}"
+        destination = _symbol_destination(
+            table, source_module, alias.name, fallback_module=fallback_module
         )
-        for alias in values
-    ]
+        if (
+            table.has_explicit_symbol_paths
+            and table.exact(qualified)
+            and qualified not in table.symbol_paths
+        ):
+            # ``from app import blackjack_engine as engine`` imports a module,
+            # not a symbol named blackjack_engine in the destination module.
+            # Preserve its binding as ``from app.domains.blackjack import rules as engine``.
+            parent, leaf = destination.rsplit(".", 1)
+            binding = alias.asname or alias.name
+            destinations.append((parent, _alias_text(leaf, binding)))
+        else:
+            destinations.append((destination, _alias_text(alias.name, alias.asname)))
     if (
         not any(destination != source_module for destination, _ in destinations)
         and not force_absolute

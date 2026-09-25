@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import func, select
 
-from app.config import settings
+from app.core.config import settings
+from app.core.db import get_session
+from app.core.log import uvicorn_logger as logger
 from app.databases import db
-from app.databases.session import get_session
-from app.log import uvicorn_logger as logger
-from app.models.models import EmbyUser, PlexUser
+from app.domains.identity.models import EmbyUser, PlexUser
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import TelegramUser

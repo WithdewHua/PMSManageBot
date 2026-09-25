@@ -2,11 +2,11 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 
-from app.config import settings
+from app.core.config import settings
+from app.core.log import uvicorn_logger as logger
+from app.core.scheduler import Scheduler
 from app.databases import db
 from app.databases.db_func import finish_expired_auctions_job
-from app.log import uvicorn_logger as logger
-from app.scheduler import Scheduler
 from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth

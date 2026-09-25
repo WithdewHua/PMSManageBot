@@ -8,9 +8,30 @@ from pathlib import Path
 from scripts.refactor.relocation_refs import module_context
 
 
+def _module_scope_nodes(tree: ast.AST) -> list[ast.AST]:
+    nodes: list[ast.AST] = []
+
+    class Visitor(ast.NodeVisitor):
+        def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+            return
+
+        visit_AsyncFunctionDef = visit_FunctionDef
+
+        def visit_ClassDef(self, node: ast.ClassDef) -> None:
+            return
+
+        def generic_visit(self, node: ast.AST) -> None:
+            nodes.append(node)
+            super().generic_visit(node)
+
+    Visitor().visit(tree)
+    return nodes
+
+
 def _dependencies(module: str, source: str, known: set[str]) -> set[str]:
     dependencies: set[str] = set()
-    for node in ast.walk(ast.parse(source, filename=module)):
+    tree = ast.parse(source, filename=module)
+    for node in _module_scope_nodes(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
                 name = alias.name

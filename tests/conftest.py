@@ -14,25 +14,22 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.databases.db import DatabaseORM
-from app.models.models import (
-    Base,
-    BlackjackTournament,
-    BlackjackTournamentEntry,
-    Statistics,
-)
+from app.domains.blackjack.models import BlackjackTournament, BlackjackTournamentEntry
+from app.domains.identity.models import Statistics
+from app.model_registry import metadata
 
 
 @pytest.fixture
 def session_env():
     """每个用例一张干净的内存库，并重绑 `app.databases.session`。"""
-    import app.databases.session as session_mod
+    import app.core.db as session_mod
 
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    Base.metadata.create_all(engine)
+    metadata.create_all(engine)
     factory = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
     previous_engine = session_mod.engine
@@ -67,7 +64,7 @@ def next_id() -> int:
 
 
 def add_user(orm: DatabaseORM, tg_id: int, credits: float = 100.0) -> None:
-    from app.databases.session import get_session
+    from app.core.db import get_session
 
     with get_session() as session:
         session.add(Statistics(tg_id=int(tg_id), donation=0, credits=float(credits)))
@@ -86,7 +83,7 @@ def add_tournament(
     min_bet_chips: int = 10,
     title: str = "test tournament",
 ) -> dict:
-    from app.databases.session import get_session
+    from app.core.db import get_session
 
     now = _now_ms()
     if register_deadline_ms is None:
@@ -135,7 +132,7 @@ def add_entry(
     hands_played: int = 0,
     registered_at_ms: int | None = None,
 ) -> dict:
-    from app.databases.session import get_session
+    from app.core.db import get_session
 
     if status is None:
         status = orm.ENTRY_PLAYING
@@ -165,9 +162,9 @@ def add_pending_hand(
     bet_chips: int = 10,
 ) -> int:
     """插入一手未终结的赛内牌，供结算复检使用。"""
-    from app.blackjack_engine import STATUS_PLAYER_TURN
-    from app.databases.session import get_session
-    from app.models.models import BlackjackHand
+    from app.core.db import get_session
+    from app.domains.blackjack.models import BlackjackHand
+    from app.domains.blackjack.rules import STATUS_PLAYER_TURN
 
     with get_session() as session:
         hand = BlackjackHand(
@@ -218,9 +215,9 @@ def add_cash_hand(
     `tournament_id` 非空时为赛内手牌（注额语义为筹码），供验证赛内
     手牌不进入留存机制的计数。
     """
-    from app.blackjack_engine import STATUS_PLAYER_TURN
-    from app.databases.session import get_session
-    from app.models.models import BlackjackHand
+    from app.core.db import get_session
+    from app.domains.blackjack.models import BlackjackHand
+    from app.domains.blackjack.rules import STATUS_PLAYER_TURN
 
     with get_session() as session:
         hand = BlackjackHand(
@@ -256,7 +253,7 @@ def get_stats(tg_id: int) -> dict:
     返回普通字典而非 ORM 实例：get_session() 关闭后实例即脱离会话，
     惰性刷新会抛 DetachedInstanceError。
     """
-    from app.databases.session import get_session
+    from app.core.db import get_session
 
     with get_session() as session:
         stats = session.get(Statistics, int(tg_id))

@@ -16,8 +16,8 @@ import sys
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 
-from app.modules.tautulli import Tautulli
-from app.utils.tautulli_history import (
+from app.integrations.tautulli import Tautulli
+from app.integrations.tautulli_history import (
     COARSE_FILTER_SECONDS,
     GHOST_DURATION_RATIO,
     GHOST_DURATION_SLACK,

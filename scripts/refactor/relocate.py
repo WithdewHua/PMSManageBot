@@ -350,8 +350,23 @@ def _imports_for(
     present: set[str],
 ) -> list[tuple[str, int]]:
     required: list[tuple[str, int]] = []
+    locally_imported = {
+        alias.asname
+        or (alias.name.split(".")[0] if isinstance(node, ast.Import) else alias.name)
+        for node in ast.walk(unit.node)
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+        for alias in node.names
+        if alias.name != "*"
+    }
     for name in sorted(_references(unit.node)):
-        if name in present:
+        if (
+            name == "__file__"
+            and unit.item.id == "app.config:Settings"
+            and unit.target == "app.core.config"
+        ):
+            # DATA_PATH is adjusted when rendering the moved config module.
+            continue
+        if name in present or name in locally_imported:
             continue
         if (
             name == "DatabaseORM"
@@ -607,6 +622,13 @@ def plan(
         ordered = [entry for entry in ordered if entry not in future]
         docstring = [docstrings[module]] if module in docstrings else []
         content = "\n\n".join([*docstring, *future, *ordered]) + "\n"
+        if module == "app.core.config":
+            old_path = 'Path(__file__).parents[2] / "data"'
+            if content.count(old_path) != 1:
+                raise RelocationError(
+                    "config DATA_PATH path anchor changed unexpectedly"
+                )
+            content = content.replace(old_path, 'Path(__file__).parents[3] / "data"', 1)
         try:
             ast.parse(content, filename=str(destination))
         except SyntaxError as error:
@@ -619,6 +641,7 @@ def plan(
             staged[path] = None
     try:
         staged = rewrite_staged(root, staged, all_units)
+        staged = _remove_local_imports(root, staged)
     except ReferencePlanError as error:
         raise RelocationError(str(error)) from error
     moves, _exports = reference_map(all_units)
@@ -628,6 +651,51 @@ def plan(
             f"relocation creates an import cycle: {sorted(map(sorted, introduced))}"
         )
     return staged
+
+
+def _remove_local_imports(
+    root: Path, staged: dict[Path, str | None]
+) -> dict[Path, str | None]:
+    """Drop rewritten imports whose names are defined in their destination.
+
+    This occurs when a previously separate module (e.g. models.Base and
+    databases.session) is co-located. Never discard an import unless every
+    requested symbol is visibly defined in the same module.
+    """
+    result = dict(staged)
+    for path, content in staged.items():
+        if content is None or not path.is_relative_to(root / "src"):
+            continue
+        module = module_name(path, root)
+        tree = ast.parse(content, filename=str(path))
+        bound: set[str] = set()
+        for node in tree.body:
+            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                bound.add(node.name)
+            elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+                targets = (
+                    node.targets if isinstance(node, ast.Assign) else [node.target]
+                )
+                for target in targets:
+                    bound.update(
+                        n.id for n in ast.walk(target) if isinstance(n, ast.Name)
+                    )
+        removals: list[tuple[int, int]] = []
+        for node in tree.body:
+            if not isinstance(node, ast.ImportFrom) or node.module != module:
+                continue
+            names = {alias.name for alias in node.names}
+            if not names <= bound:
+                raise RelocationError(
+                    f"self import has no matching local definition: {path}: {names - bound}"
+                )
+            removals.append((node.lineno, node.end_lineno))
+        if removals:
+            lines = content.splitlines(keepends=True)
+            for start, end in reversed(removals):
+                del lines[start - 1 : end]
+            result[path] = "".join(lines)
+    return result
 
 
 def apply(staged: dict[Path, str | None]) -> None:

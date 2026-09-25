@@ -27,6 +27,10 @@ def module_context(path: Path, root: Path) -> str:
         module = module_name(path, root)
     else:
         module = ".".join(path.relative_to(root).with_suffix("").parts)
+        module = ".".join(
+            part if part[:1].isalpha() or part[:1] == "_" else f"_{part}"
+            for part in module.split(".")
+        )
     return module + ".__init__" if path.name == "__init__.py" else module
 
 
@@ -163,7 +167,7 @@ def rewrite_staged(
     mixin_methods = {
         unit.item.name.rsplit(".", 1)[-1]: unit.target_class
         for unit in units
-        if unit.item.kind == "method"
+        if unit.item.kind in {"method", "attribute"}
         and unit.item.name.startswith("DatabaseORM.")
         and unit.target_class
         and unit.action == "move"

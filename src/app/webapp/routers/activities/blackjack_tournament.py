@@ -20,10 +20,10 @@ tick 任务 / 任务重试），靠「记得只发一次」是不可能正确的
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
-from app.config import settings
+from app.core.config import settings
+from app.core.log import uvicorn_logger as logger
 from app.databases import db
 from app.databases.db_func import award_blackjack_champion_badge
-from app.log import uvicorn_logger as logger
 from app.utils.utils import get_user_names_from_tg_ids, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth

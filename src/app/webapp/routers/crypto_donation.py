@@ -8,12 +8,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy import delete, select
 
-from app.config import settings
+from app.core.config import settings
+from app.core.db import get_session
+from app.core.log import logger
 from app.databases import db
-from app.databases.session import get_session
-from app.log import logger
-from app.models.models import CryptoDonationOrders, EmbyUser, PlexUser
-from app.modules.upay import UPayService
+from app.domains.crypto_donation.models import CryptoDonationOrders
+from app.domains.identity.models import EmbyUser, PlexUser
+from app.integrations.upay import UPayService
 from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth

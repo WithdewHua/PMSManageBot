@@ -97,11 +97,11 @@ import json
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import create_engine
-from app.models.models import Base
+from app.model_registry import metadata
 engine = create_engine({url!r})
 with engine.connect() as connection:
     context = MigrationContext.configure(connection)
-    differences = compare_metadata(context, Base.metadata)
+    differences = compare_metadata(context, metadata)
     print(json.dumps([repr(item) for item in differences], ensure_ascii=False))
 engine.dispose()
 """

@@ -11,12 +11,12 @@ from fastapi import (
     status,
 )
 
-from app.config import settings
+from app.core.config import settings
+from app.core.db import get_session
+from app.core.log import uvicorn_logger as logger
 from app.databases import db
-from app.databases.session import get_session
-from app.log import uvicorn_logger as logger
-from app.models.models import VaultwardenRedeemRecords
-from app.modules.vaultwarden import Vaultwarden
+from app.domains.vaultwarden.models import VaultwardenRedeemRecords
+from app.integrations.vaultwarden import Vaultwarden
 from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth

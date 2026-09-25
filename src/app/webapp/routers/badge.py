@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 
+from app.core.log import uvicorn_logger as logger
 from app.databases import db
-from app.log import uvicorn_logger as logger
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.routers.admin import check_admin_permission

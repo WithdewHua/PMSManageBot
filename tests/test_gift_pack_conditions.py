@@ -14,26 +14,20 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy import event, text
 
-from app.databases.session import get_session
-from app.models.models import (
-    AuctionBids,
-    Auctions,
-    Badge,
+from app.core.db import get_session
+from app.domains.auction.models import AuctionBids, Auctions
+from app.domains.badges.models import Badge, UserBadge
+from app.domains.blackjack.models import (
     BlackjackHand,
     BlackjackTournament,
     BlackjackTournamentEntry,
-    EmbyUser,
-    GiftPack,
-    GiftPackUserState,
-    Invitation,
-    PlexUser,
-    PredictionBet,
-    PredictionMarket,
-    TreasureIssue,
-    TreasureParticipation,
-    UserBadge,
-    WheelStats,
 )
+from app.domains.gift_pack.models import GiftPack, GiftPackUserState
+from app.domains.identity.models import EmbyUser, PlexUser
+from app.domains.invitation.models import Invitation
+from app.domains.luckywheel.models import WheelStats
+from app.domains.prediction.models import PredictionBet, PredictionMarket
+from app.domains.treasure.models import TreasureIssue, TreasureParticipation
 from app.webapp.schemas.gift_pack import GiftPackCreateRequest
 from tests.conftest import add_cash_hand, add_entry, add_tournament, add_user, next_id
 

@@ -47,8 +47,19 @@ def test_router_path_overrides_ambiguous_function_name(tmp_path: Path) -> None:
 
 
 def test_mapping_draft_does_not_confuse_blackjack_with_lines(tmp_path: Path) -> None:
-    source = Path("src/app/databases/db.py")
-    records = seed(inventory([source]))
+    source = tmp_path / "src/app/databases/db.py"
+    source.parent.mkdir(parents=True)
+    source.write_text(
+        "class DatabaseORM:\n"
+        "    # ===== Blackjack (21 点) Operations =====\n"
+        "    def get_blackjack_config_dict(self):\n"
+        "        pass\n"
+        "    # ===== Line Management Operations =====\n"
+        "    def check_line_schedule_unlock(self):\n"
+        "        pass\n",
+        encoding="utf-8",
+    )
+    records = seed(inventory([source], root=tmp_path), root=tmp_path)
     lookup = {record["id"]: record for record in records}
     assert lookup["app.databases.db:DatabaseORM.get_blackjack_config_dict"][
         "target"
@@ -101,3 +112,15 @@ def test_merge_preserves_reviewed_target_and_rejects_disappeared_ids(
     assert merged[1] == fresh[1]
     with pytest.raises(ValueError, match="stale IDs"):
         merge_mapping(fresh[1:], existing)
+
+
+def test_reviewed_model_targets_do_not_leak_into_other_modules() -> None:
+    import tomllib
+
+    mapping = tomllib.loads(Path("scripts/refactor/mapping.toml").read_text())
+    items = {entry["id"]: entry for entry in mapping["items"]}
+    assert (
+        items["app.modules.custom_line:check_expired_custom_lines"]["target"] == "TODO"
+    )
+    assert items["app.utils.report:send_weekly_report"]["target"] == "TODO"
+    assert items["app.models:__all__"]["target"] == "TODO"

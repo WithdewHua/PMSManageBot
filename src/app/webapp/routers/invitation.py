@@ -12,13 +12,13 @@ from fastapi import (
     status,
 )
 
-from app.config import settings
+from app.core.config import settings
+from app.core.log import uvicorn_logger as logger
+from app.core.scheduler import Scheduler
 from app.databases import db
 from app.databases.db_func import update_plex_info
-from app.log import uvicorn_logger as logger
-from app.modules.emby import Emby
-from app.modules.plex import Plex
-from app.scheduler import Scheduler
+from app.integrations.emby import Emby
+from app.integrations.plex import Plex
 from app.utils.utils import (
     get_user_name_from_tg_id,
     refresh_emby_user_info,

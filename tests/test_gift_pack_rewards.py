@@ -13,20 +13,14 @@ from fastapi import BackgroundTasks
 from sqlalchemy import event, select
 from starlette.requests import Request
 
-from app.config import settings
+from app.core.config import settings
+from app.core.db import get_session
+from app.core.kv import SystemConfig
 from app.databases import db
-from app.databases.session import get_session
-from app.models.models import (
-    EmbyUser,
-    GiftPack,
-    GiftPackUserState,
-    Invitation,
-    LuckywheelFreeSpin,
-    PlexUser,
-    Statistics,
-    SystemConfig,
-    WheelStats,
-)
+from app.domains.gift_pack.models import GiftPack, GiftPackUserState
+from app.domains.identity.models import EmbyUser, PlexUser, Statistics
+from app.domains.invitation.models import Invitation
+from app.domains.luckywheel.models import LuckywheelFreeSpin, WheelStats
 from app.webapp.schemas import TelegramUser
 from app.webapp.schemas.invitation import RedeemInviteCodeRequest
 from tests.conftest import add_user, get_stats, next_id
@@ -163,7 +157,7 @@ def test_tournament_wallet_credited_not_credits(orm):
 def test_download_unlock_for_premium_user_sets_permanent_flag(orm, monkeypatch):
     synced = []
     monkeypatch.setattr(
-        "app.premium.apply_download_unlock_to_media",
+        "app.domains.premium.service.apply_download_unlock_to_media",
         lambda tg_id, service: synced.append((tg_id, service)),
         raising=False,
     )
@@ -335,10 +329,12 @@ async def test_privileged_invite_allows_registration_without_writing_env(
 
 def test_all_seven_reward_types_are_aggregated_in_stats(orm, monkeypatch):
     monkeypatch.setattr(
-        "app.premium.apply_download_unlock_to_media",
+        "app.domains.premium.service.apply_download_unlock_to_media",
         lambda tg_id, service: None,
     )
-    monkeypatch.setattr("app.premium.sync_media_permission", lambda *args: None)
+    monkeypatch.setattr(
+        "app.domains.premium.service.sync_media_permission", lambda *args: None
+    )
     add_user(orm, 1)
     _bind_plex(1)
     _bind_emby(1)
@@ -406,7 +402,9 @@ async def test_download_sync_failure_keeps_claim_and_notifies_admin(orm, monkeyp
         sync_attempts.append((tg_id, service))
         raise RuntimeError("media <server> unavailable")
 
-    monkeypatch.setattr("app.premium.apply_download_unlock_to_media", _fail_sync)
+    monkeypatch.setattr(
+        "app.domains.premium.service.apply_download_unlock_to_media", _fail_sync
+    )
 
     from app.webapp.routers import gift_pack as gift_pack_router
 

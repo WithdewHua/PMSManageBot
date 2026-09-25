@@ -1,9 +1,9 @@
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
-from app.config import settings
-from app.modules.emby import Emby
-from app.modules.tautulli import Tautulli
+from app.core.config import settings
+from app.integrations.emby import Emby
+from app.integrations.tautulli import Tautulli
 from app.utils.utils import send_message
 
 

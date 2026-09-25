@@ -15,13 +15,11 @@ import time
 import pytest
 from sqlalchemy import event
 
+from app.core.kv import SystemConfig
 from app.databases import db
-from app.databases.db import DEFAULT_BLACKJACK_CONFIG
-from app.models.models import (
-    BlackjackTournamentEntry,
-    SystemConfig,
-    WheelStats,
-)
+from app.domains.blackjack.models import BlackjackTournamentEntry
+from app.domains.blackjack.repository import DEFAULT_BLACKJACK_CONFIG
+from app.domains.luckywheel.models import WheelStats
 from tests.conftest import (
     add_cash_hand,
     add_entry,
@@ -71,8 +69,8 @@ def patch_cfg(monkeypatch, orm, **overrides) -> None:
 
 
 def freespins_count(orm, tg_id: int) -> int:
-    from app.databases.session import get_session
-    from app.models.models import LuckywheelFreeSpin
+    from app.core.db import get_session
+    from app.domains.luckywheel.models import LuckywheelFreeSpin
 
     with get_session() as session:
         return int(
@@ -113,8 +111,8 @@ def test_relief_requires_fresh_streak_after_payment(orm, monkeypatch):
     # 第 8 手与第 16 手各救济一次
     assert result["relief_credits"] == 15.0
 
-    from app.databases.session import get_session
-    from app.models.models import BlackjackHand
+    from app.core.db import get_session
+    from app.domains.blackjack.models import BlackjackHand
 
     with get_session() as session:
         reliefs = [
@@ -204,8 +202,8 @@ def test_timeout_loss_counts_toward_streak(orm, monkeypatch):
     swept = orm.sweep_timed_out_blackjack_hands(tg_id=1)
     assert swept == 1
 
-    from app.databases.session import get_session
-    from app.models.models import BlackjackHand
+    from app.core.db import get_session
+    from app.domains.blackjack.models import BlackjackHand
 
     with get_session() as session:
         hand = session.get(BlackjackHand, hand_id)
@@ -286,8 +284,8 @@ def test_freespin_granted_at_hand_threshold(orm, monkeypatch):
     assert get_stats(1)["blackjack_hands_since_freespin"] == 0
     assert freespins_count(orm, 1) == 1
 
-    from app.databases.session import get_session
-    from app.models.models import LuckywheelFreeSpin
+    from app.core.db import get_session
+    from app.domains.luckywheel.models import LuckywheelFreeSpin
 
     with get_session() as session:
         spin = (
@@ -405,8 +403,8 @@ def _registering_tournament(orm, **kwargs) -> dict:
 
 
 def _set_wallet(tg_id: int, wallet: float) -> None:
-    from app.databases.session import get_session
-    from app.models.models import Statistics
+    from app.core.db import get_session
+    from app.domains.identity.models import Statistics
 
     with get_session() as session:
         stats = session.get(Statistics, int(tg_id))
@@ -498,7 +496,7 @@ def test_cancel_legacy_entry_refunds_full_credits(orm, monkeypatch):
     t = _registering_tournament(orm)
 
     # 手工插入无拆分的存量报名（模拟迁移前数据）
-    from app.databases.session import get_session
+    from app.core.db import get_session
 
     with get_session() as session:
         session.add(
@@ -538,9 +536,9 @@ def _prev_week_bounds(orm) -> tuple:
 
 
 def _rewind_cashback_cursor(orm, week_start_ms: int) -> None:
+    from app.core.db import get_session
+    from app.core.kv import SystemConfig
     from app.databases.db import DatabaseORM
-    from app.databases.session import get_session
-    from app.models.models import SystemConfig
 
     with get_session() as session:
         row = (
@@ -559,9 +557,9 @@ def _add_settled_hand(
     tg_id: int, *, net: float, settled_at_s: int, bet: int = 15
 ) -> None:
     """直接插入一手已结算的现金局手牌，凑出指定净变动（聚合测试用）。"""
-    from app.blackjack_engine import STATUS_SETTLED
-    from app.databases.session import get_session
-    from app.models.models import BlackjackHand
+    from app.core.db import get_session
+    from app.domains.blackjack.models import BlackjackHand
+    from app.domains.blackjack.rules import STATUS_SETTLED
 
     with get_session() as session:
         session.add(
@@ -665,8 +663,8 @@ def test_cashback_jackpot_makes_net_winner(orm, monkeypatch):
     start_s, _ = _prev_week_bounds(orm)
     # 一手净亏 80 + 奖池派彩 200 → 周净变动 +120
     _add_settled_hand(1, net=-80.0, settled_at_s=start_s + 100)
-    from app.databases.session import get_session
-    from app.models.models import BlackjackHand
+    from app.core.db import get_session
+    from app.domains.blackjack.models import BlackjackHand
 
     with get_session() as session:
         session.query(BlackjackHand).filter(
@@ -726,8 +724,8 @@ def _add_free_spin(
 ) -> int:
     """插入一张免费机会。expires_in_ms 为负时构造「已过期」的行（回溯
     发放时间以满足 expires > granted 的 CHECK 约束）。"""
-    from app.databases.session import get_session
-    from app.models.models import LuckywheelFreeSpin
+    from app.core.db import get_session
+    from app.domains.luckywheel.models import LuckywheelFreeSpin
 
     now_ms = int(time.time() * 1000)
     expires_at = now_ms + int(expires_in_ms)
@@ -816,8 +814,8 @@ async def test_free_spin_execute_skips_cost(orm, monkeypatch):
     assert final_credits == 25.0  # 参与费分文未扣
     assert result.current_credits == 25.0
 
-    from app.databases.session import get_session
-    from app.models.models import WheelStats
+    from app.core.db import get_session
+    from app.domains.luckywheel.models import WheelStats
 
     with get_session() as session:
         record = session.query(WheelStats).filter(WheelStats.tg_id == 1).one()
@@ -988,7 +986,7 @@ async def test_admin_notification_failure_does_not_break_spin(orm, monkeypatch):
         raise ValueError("chat_id malformed")
 
     monkeypatch.setattr(lw, "send_message_by_url", _boom)
-    from app.config import settings as app_settings
+    from app.core.config import settings as app_settings
 
     monkeypatch.setattr(app_settings, "TG_ADMIN_CHAT_ID", [12345], raising=False)
 
@@ -1062,7 +1060,7 @@ def test_notify_cursor_returns_only_blackjack_and_skips_gift_rows(orm):
     assert [c["id"] for c in claimed] == [bj1, bj2]
 
     # 游标推进到扫描范围内的最大 id（含礼包行），不会重复返回
-    from app.databases.session import get_session
+    from app.core.db import get_session
 
     with get_session() as session:
         _, cursor = db._read_retention_cursor(session, db.FREESPIN_NOTIFY_CURSOR_KEY)
@@ -1120,7 +1118,7 @@ async def test_spin_records_free_spin_source(orm, spin_source, wheel_source):
     assert result.used_free_spin is True
     assert result.free_spin_source == spin_source
 
-    from app.databases.session import get_session
+    from app.core.db import get_session
 
     with get_session() as session:
         record = session.query(WheelStats).filter(WheelStats.tg_id == 1).one()
@@ -1147,7 +1145,7 @@ def _load_audit_script(monkeypatch):
     import importlib.util
     from pathlib import Path
 
-    from app.config import settings as app_settings
+    from app.core.config import settings as app_settings
 
     # 脚本导入时会读取真实 .env，测试里屏蔽掉
     monkeypatch.setattr(type(app_settings), "load_config_from_file", lambda self: None)

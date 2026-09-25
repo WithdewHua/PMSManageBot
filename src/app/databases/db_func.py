@@ -12,8 +12,7 @@ from uuid import NAMESPACE_URL, uuid3
 from sqlalchemy import distinct, func, or_, select, union
 from sqlalchemy import update as sql_update
 
-from app.config import settings
-from app.databases.cache import (
+from app.core.cache import (
     emby_api_key_cache,
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
@@ -24,24 +23,20 @@ from app.databases.cache import (
     user_credits_cache,
     user_info_cache,
 )
+from app.core.config import settings
+from app.core.db import get_session
+from app.core.log import logger
 from app.databases.db import db
-from app.databases.session import get_session
-from app.log import logger
-from app.models.models import (
-    BlackjackHand,
-    EmbyUser,
-    PlexUser,
-    PredictionBet,
-    PredictionMarket,
-    Statistics,
-    TreasureParticipation,
-    UserBadge,
-    WheelStats,
-)
-from app.modules.emby import Emby
-from app.modules.plex import Plex
-from app.modules.tautulli import Tautulli
-from app.utils.tautulli_history import (
+from app.domains.badges.models import UserBadge
+from app.domains.blackjack.models import BlackjackHand
+from app.domains.identity.models import EmbyUser, PlexUser, Statistics
+from app.domains.luckywheel.models import WheelStats
+from app.domains.prediction.models import PredictionBet, PredictionMarket
+from app.domains.treasure.models import TreasureParticipation
+from app.integrations.emby import Emby
+from app.integrations.plex import Plex
+from app.integrations.tautulli import Tautulli
+from app.integrations.tautulli_history import (
     STATUS_GHOST,
     STATUS_UNDETERMINED,
     scan_history,
@@ -1278,7 +1273,7 @@ def update_plex_info(
 
                                 # 等待当前任务执行完成
                                 time.sleep(2)
-                                from app.scheduler import Scheduler
+                                from app.core.scheduler import Scheduler
 
                                 scheduler = Scheduler()
                                 job_id = f"update_plex_info_for_{target_email}"
@@ -1420,7 +1415,7 @@ def add_redeem_code(tg_id=None, num=1, is_privileged=False):
         num: 生成数量
         is_privileged: 是否生成特权邀请码
     """
-    from app.config import settings
+    from app.core.config import settings
 
     if tg_id is None:
         with get_session() as session:
@@ -2709,7 +2704,9 @@ async def check_and_award_game_king_badge(
     BLACKJACK_HAND_THRESHOLD = int(_bj_config.get("badge_min_hands", 2000))
     BLACKJACK_ACCURACY_THRESHOLD = float(_bj_config.get("badge_min_accuracy", 80))
     # 终态集合以引擎常量为单一来源，避免与 db 层的口径各自漂移
-    from app.blackjack_engine import TERMINAL_STATUSES as BLACKJACK_TERMINAL_STATUSES
+    from app.domains.blackjack.rules import (
+        TERMINAL_STATUSES as BLACKJACK_TERMINAL_STATUSES,
+    )
 
     BADGE_TYPE = "game_king"
 
@@ -2955,7 +2952,7 @@ async def award_blackjack_champion_badge(tg_id: int) -> dict | None:
 
     Returns: 授予结果 dict，失败返回 None。
     """
-    from app.databases.db import (
+    from app.domains.blackjack.repository import (
         CHAMPION_BADGE_BONUS,
         CHAMPION_BADGE_TYPE,
         CHAMPION_BADGE_VALID_DAYS,

@@ -460,3 +460,17 @@ def test_static_star_import_is_expanded_for_moved_function(tmp_path: Path) -> No
     moved = staged[tmp_path / "src/app/new/consumer.py"]
     assert "import *" not in moved
     assert moved.count("from app.new.provider import foo") == 1
+
+
+def test_colocated_import_removed_only_for_defined_symbol(tmp_path: Path) -> None:
+    from scripts.refactor.relocate import _remove_local_imports
+
+    path = tmp_path / "src/app/core/db.py"
+    path.parent.mkdir(parents=True)
+    source = "from app.core.db import Base\nclass Base:\n    pass\n"
+    assert (
+        _remove_local_imports(tmp_path, {path: source})[path]
+        == "class Base:\n    pass\n"
+    )
+    with pytest.raises(RelocationError, match="self import has no matching"):
+        _remove_local_imports(tmp_path, {path: "from app.core.db import Missing\n"})

@@ -44,7 +44,20 @@ def test_domain_models_can_configure_mappers_independently() -> None:
     model_paths += sorted(
         (PROJECT_ROOT / "src/app/domains").glob("*/models/__init__.py")
     )
-    env = {**os.environ, "PYTHONPATH": str(PROJECT_ROOT / "src")}
+    # Settings.load_config_from_file() mirrors comma-separated list values into
+    # os.environ; Pydantic expects JSON if those inherited values are present in
+    # a fresh process. Let each subprocess read data/.env independently.
+    from typing import get_origin
+
+    from app.core.config import Settings
+
+    list_fields = {
+        name
+        for name, field in Settings.model_fields.items()
+        if field.annotation is list or get_origin(field.annotation) is list
+    }
+    env = {key: value for key, value in os.environ.items() if key not in list_fields}
+    env["PYTHONPATH"] = str(PROJECT_ROOT / "src")
     for path in model_paths:
         domain = path.relative_to(PROJECT_ROOT / "src/app/domains").parts[0]
         result = subprocess.run(
@@ -359,3 +372,24 @@ def test_allowed_model_constructor_import(tmp_path: Path) -> None:
         "def create():\n    return PlexUser()\n",
     )
     assert scan_cross_domain_calls(tmp_path) == []
+
+
+def test_app_package_does_not_merge_with_stale_installed_modules() -> None:
+    import app
+
+    assert [Path(path).resolve() for path in app.__path__] == [PROJECT_ROOT / "src/app"]
+
+
+def test_import_contract_ignore_counts_are_frozen() -> None:
+    import json
+    import tomllib
+
+    with (PROJECT_ROOT / "pyproject.toml").open("rb") as stream:
+        contracts = tomllib.load(stream)["tool"]["importlinter"]["contracts"]
+    frozen = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))[
+        "contract_ignore_counts"
+    ]
+    assert frozen == {
+        contract["name"]: len(contract.get("ignore_imports", []))
+        for contract in contracts
+    }

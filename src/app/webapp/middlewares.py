@@ -4,7 +4,7 @@ from fastapi import HTTPException, Request, status
 from fastapi.security import HTTPBearer
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.log import logger
+from app.core.log import logger
 from app.webapp.auth import verify_telegram_data
 
 security = HTTPBearer()

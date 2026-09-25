@@ -69,8 +69,8 @@ ruff check --select I --fix src/
 # Format code
 ruff format src/
 
-# Check import boundaries (after installing test extras)
-.venv/bin/lint-imports
+# Check import boundaries against the live src/ tree (after installing test extras)
+PYTHONPATH=src .venv/bin/lint-imports --no-cache
 
 # Run all pre-commit hooks (lint + sort + format + architecture)
 pre-commit run --all-files

@@ -2,11 +2,11 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from app.config import settings
+from app.core.config import settings
+from app.core.log import uvicorn_logger as logger
 from app.databases import db
-from app.log import uvicorn_logger as logger
-from app.modules.emby import Emby
-from app.modules.plex import Plex
+from app.integrations.emby import Emby
+from app.integrations.plex import Plex
 from app.utils.utils import get_user_avatar_from_tg_id, get_user_name_from_tg_id
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth

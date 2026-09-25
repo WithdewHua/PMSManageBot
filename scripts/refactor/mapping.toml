@@ -1106,133 +1106,150 @@ reason = "design D9 module / model rule"
 
 [[items]]
 id = "app.databases.db:@docstring:1"
-target = "TODO"
+target = "app.databases.db"
 kind = "docstring"
 reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.databases.db:@import:1"
-target = "TODO"
+target = "app.databases.db"
+action = "delete"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:@import:10"
-target = "TODO"
+target = "app.databases.db"
+action = "delete"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:@import:11"
-target = "TODO"
+target = "app.databases.db"
+action = "delete"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:@import:12"
-target = "TODO"
+target = "app.databases.db"
+action = "delete"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:@import:13"
-target = "TODO"
+target = "app.databases.db"
+action = "delete"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:@import:14"
-target = "TODO"
+target = "app.databases.db"
+action = "delete"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:@import:15"
-target = "TODO"
+target = "app.databases.db"
+action = "delete"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:@import:16"
-target = "TODO"
+target = "app.databases.db"
+action = "delete"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:@import:17"
-target = "TODO"
+target = "app.databases.db"
+action = "delete"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:@import:2"
-target = "TODO"
+target = "app.databases.db"
+action = "delete"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:@import:3"
-target = "TODO"
+target = "app.databases.db"
+action = "delete"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:@import:4"
-target = "TODO"
+target = "app.databases.db"
+action = "delete"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:@import:5"
-target = "TODO"
+target = "app.databases.db"
+action = "delete"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:@import:6"
-target = "TODO"
+target = "app.databases.db"
+action = "delete"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:@import:7"
-target = "TODO"
+target = "app.databases.db"
+action = "delete"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:@import:8"
-target = "TODO"
+target = "app.databases.db"
+action = "delete"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:@import:9"
-target = "TODO"
+target = "app.databases.db"
+action = "delete"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:CHAMPION_BADGE_BONUS"
-target = "TODO"
+target = "app.domains.blackjack.repository"
 kind = "assignment"
 reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.databases.db:CHAMPION_BADGE_TYPE"
-target = "TODO"
+target = "app.domains.blackjack.repository"
 kind = "assignment"
 reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.databases.db:CHAMPION_BADGE_VALID_DAYS"
-target = "TODO"
+target = "app.domains.blackjack.repository"
 kind = "assignment"
 reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.databases.db:DEFAULT_BLACKJACK_CONFIG"
-target = "TODO"
+target = "app.domains.blackjack.repository"
 kind = "assignment"
 reason = "ambiguous: human review required"
 
@@ -1350,42 +1367,49 @@ reason = "db.py section: 21 点锦标赛"
 [[items]]
 id = "app.databases.db:DatabaseORM._CurWrapper"
 target = "app.databases.db"
+action = "delete"
 kind = "class"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._CurWrapper.@statement:1"
 target = "app.databases.db"
+action = "delete"
 kind = "statement"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._CurWrapper.__init__"
 target = "app.databases.db"
+action = "delete"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._CurWrapper._prepare"
 target = "app.databases.db"
+action = "delete"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._CurWrapper.execute"
 target = "app.databases.db"
+action = "delete"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._CurWrapper.fetchall"
 target = "app.databases.db"
+action = "delete"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._CurWrapper.fetchone"
 target = "app.databases.db"
+action = "delete"
 kind = "method"
 reason = "transitional facade assembly"
 
@@ -1454,8 +1478,8 @@ reason = "db.py section: Blackjack (21 点) Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._blackjack_rank_rows"
-target = "app.domains.prediction.repository"
-class = "PredictionRepository"
+target = "app.domains.rankings.repository"
+class = "RankingsRepository"
 kind = "method"
 reason = "db.py section: Prediction Market (预测游戏) Operations"
 
@@ -1951,7 +1975,8 @@ reason = "db.py section: Blackjack (21 点) Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.add_emby_user"
-target = "app.databases.db"
+target = "app.domains.identity.repository"
+class = "IdentityRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
@@ -1971,19 +1996,22 @@ reason = "db.py section: Invitation Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.add_overseerr_user"
-target = "app.databases.db"
+target = "app.domains.identity.repository"
+class = "IdentityRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.add_plex_user"
-target = "app.databases.db"
+target = "app.domains.identity.repository"
+class = "IdentityRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.add_user_data"
-target = "app.databases.db"
+target = "app.domains.identity.repository"
+class = "IdentityRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
@@ -2284,6 +2312,7 @@ reason = "db.py section: Treasure (夺宝) Operations"
 [[items]]
 id = "app.databases.db:DatabaseORM.cur"
 target = "app.databases.db"
+action = "delete"
 kind = "method"
 reason = "transitional facade assembly"
 
@@ -2338,7 +2367,8 @@ reason = "db.py section: 线路标签相关方法"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.delete_plex_user"
-target = "app.databases.db"
+target = "app.domains.identity.repository"
+class = "IdentityRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
@@ -2484,15 +2514,15 @@ reason = "db.py section: Badge Management"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_badge_rank"
-target = "app.domains.prediction.repository"
-class = "PredictionRepository"
+target = "app.domains.rankings.repository"
+class = "RankingsRepository"
 kind = "method"
 reason = "db.py section: Prediction Market (预测游戏) Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_blackjack_accuracy_rank"
-target = "app.domains.prediction.repository"
-class = "PredictionRepository"
+target = "app.domains.rankings.repository"
+class = "RankingsRepository"
 kind = "method"
 reason = "db.py section: Prediction Market (预测游戏) Operations"
 
@@ -2540,15 +2570,15 @@ reason = "db.py section: Blackjack (21 点) Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_blackjack_max_win_rank"
-target = "app.domains.prediction.repository"
-class = "PredictionRepository"
+target = "app.domains.rankings.repository"
+class = "RankingsRepository"
 kind = "method"
 reason = "db.py section: Prediction Market (预测游戏) Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_blackjack_skill_ranks"
-target = "app.domains.prediction.repository"
-class = "PredictionRepository"
+target = "app.domains.rankings.repository"
+class = "RankingsRepository"
 kind = "method"
 reason = "db.py section: Prediction Market (预测游戏) Operations"
 
@@ -2575,15 +2605,15 @@ reason = "db.py section: Blackjack (21 点) Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_blackjack_win_rate_rank"
-target = "app.domains.prediction.repository"
-class = "PredictionRepository"
+target = "app.domains.rankings.repository"
+class = "RankingsRepository"
 kind = "method"
 reason = "db.py section: Prediction Market (预测游戏) Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_credits_rank"
-target = "app.domains.prediction.repository"
-class = "PredictionRepository"
+target = "app.domains.rankings.repository"
+class = "RankingsRepository"
 kind = "method"
 reason = "db.py section: Prediction Market (预测游戏) Operations"
 
@@ -2638,8 +2668,8 @@ reason = "db.py section: Auction Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_donation_rank"
-target = "app.domains.prediction.repository"
-class = "PredictionRepository"
+target = "app.domains.rankings.repository"
+class = "RankingsRepository"
 kind = "method"
 reason = "db.py section: Prediction Market (预测游戏) Operations"
 
@@ -2673,19 +2703,22 @@ reason = "db.py section: 下载/同步权限解锁功能相关方法"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_emby_info_by_emby_id"
-target = "app.databases.db"
+target = "app.domains.identity.repository"
+class = "IdentityRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_emby_info_by_emby_username"
-target = "app.databases.db"
+target = "app.domains.identity.repository"
+class = "IdentityRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_emby_info_by_tg_id"
-target = "app.databases.db"
+target = "app.domains.identity.repository"
+class = "IdentityRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
@@ -2698,7 +2731,8 @@ reason = "db.py section: Line Management Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_emby_premium_quota_status"
-target = "app.databases.db"
+target = "app.domains.premium.repository"
+class = "PremiumRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
@@ -2718,14 +2752,15 @@ reason = "db.py section: Line Management Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_emby_users_num"
-target = "app.databases.db"
+target = "app.domains.reports.repository"
+class = "ReportsRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_emby_watched_time_rank"
-target = "app.domains.prediction.repository"
-class = "PredictionRepository"
+target = "app.domains.rankings.repository"
+class = "RankingsRepository"
 kind = "method"
 reason = "db.py section: Prediction Market (预测游戏) Operations"
 
@@ -2801,8 +2836,8 @@ reason = "db.py section: Invitation Query Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_invitation_rank"
-target = "app.domains.prediction.repository"
-class = "PredictionRepository"
+target = "app.domains.rankings.repository"
+class = "RankingsRepository"
 kind = "method"
 reason = "db.py section: Prediction Market (预测游戏) Operations"
 
@@ -2829,7 +2864,8 @@ reason = "db.py section: Invitation Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_line_schedule_unlocked_users_num"
-target = "app.databases.db"
+target = "app.domains.reports.repository"
+class = "ReportsRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
@@ -2856,19 +2892,22 @@ reason = "db.py section: 幸运大转盘配置相关方法"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_nsfw_unlocked_users_num"
-target = "app.databases.db"
+target = "app.domains.reports.repository"
+class = "ReportsRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_overseerr_info_by_email"
-target = "app.databases.db"
+target = "app.domains.identity.repository"
+class = "IdentityRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_overseerr_info_by_tg_id"
-target = "app.databases.db"
+target = "app.domains.identity.repository"
+class = "IdentityRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
@@ -2888,25 +2927,29 @@ reason = "db.py section: Tautulli 幽灵会话清理"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_plex_info_by_plex_email"
-target = "app.databases.db"
+target = "app.domains.identity.repository"
+class = "IdentityRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_plex_info_by_plex_id"
-target = "app.databases.db"
+target = "app.domains.identity.repository"
+class = "IdentityRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_plex_info_by_plex_username"
-target = "app.databases.db"
+target = "app.domains.identity.repository"
+class = "IdentityRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_plex_info_by_tg_id"
-target = "app.databases.db"
+target = "app.domains.identity.repository"
+class = "IdentityRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
@@ -2919,7 +2962,8 @@ reason = "db.py section: Line Management Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_plex_premium_quota_status"
-target = "app.databases.db"
+target = "app.domains.premium.repository"
+class = "PremiumRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
@@ -2939,14 +2983,15 @@ reason = "db.py section: Line Management Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_plex_users_num"
-target = "app.databases.db"
+target = "app.domains.reports.repository"
+class = "ReportsRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_plex_watched_time_rank"
-target = "app.domains.prediction.repository"
-class = "PredictionRepository"
+target = "app.domains.rankings.repository"
+class = "RankingsRepository"
 kind = "method"
 reason = "db.py section: Prediction Market (预测游戏) Operations"
 
@@ -3001,7 +3046,8 @@ reason = "db.py section: Premium Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_stats_by_tg_id"
-target = "app.databases.db"
+target = "app.domains.identity.repository"
+class = "IdentityRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
@@ -3028,15 +3074,15 @@ reason = "db.py section: Treasure (夺宝) Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_treasure_win_credits_rank"
-target = "app.domains.prediction.repository"
-class = "PredictionRepository"
+target = "app.domains.rankings.repository"
+class = "RankingsRepository"
 kind = "method"
 reason = "db.py section: Prediction Market (预测游戏) Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_treasure_win_issue_rank"
-target = "app.domains.prediction.repository"
-class = "PredictionRepository"
+target = "app.domains.rankings.repository"
+class = "RankingsRepository"
 kind = "method"
 reason = "db.py section: Prediction Market (预测游戏) Operations"
 
@@ -3084,7 +3130,8 @@ reason = "db.py section: 21 点锦标赛"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_user_credits"
-target = "app.databases.db"
+target = "app.domains.credits.repository"
+class = "CreditsRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
@@ -3132,21 +3179,22 @@ reason = "db.py section: 线路调度功能相关方法"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_vaultwarden_redeemed_users_num"
-target = "app.databases.db"
+target = "app.domains.reports.repository"
+class = "ReportsRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_wheel_credits_rank"
-target = "app.domains.prediction.repository"
-class = "PredictionRepository"
+target = "app.domains.rankings.repository"
+class = "RankingsRepository"
 kind = "method"
 reason = "db.py section: Prediction Market (预测游戏) Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_wheel_invite_code_rank"
-target = "app.domains.prediction.repository"
-class = "PredictionRepository"
+target = "app.domains.rankings.repository"
+class = "RankingsRepository"
 kind = "method"
 reason = "db.py section: Prediction Market (预测游戏) Operations"
 
@@ -3292,7 +3340,8 @@ reason = "db.py section: Blackjack (21 点) Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.rebind_user_tg_id"
-target = "app.databases.db"
+target = "app.domains.tg_rebind.repository"
+class = "TgRebindRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
@@ -3466,7 +3515,8 @@ reason = "db.py section: 线路调度功能相关方法"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.update_all_lib_flag"
-target = "app.databases.db"
+target = "app.domains.media_access.repository"
+class = "MediaAccessRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
@@ -3549,19 +3599,22 @@ reason = "db.py section: Traffic Statistics Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.update_user_credits"
-target = "app.databases.db"
+target = "app.domains.credits.repository"
+class = "CreditsRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.update_user_donation"
-target = "app.databases.db"
+target = "app.domains.donation.repository"
+class = "DonationRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.update_user_tg_id"
-target = "app.databases.db"
+target = "app.domains.identity.repository"
+class = "IdentityRepository"
 kind = "method"
 reason = "transitional facade assembly"
 
@@ -3574,37 +3627,37 @@ reason = "db.py section: Invitation Query Operations"
 
 [[items]]
 id = "app.databases.db:GIFT_PACK_REWARD_TYPES"
-target = "TODO"
+target = "app.domains.gift_pack.repository"
 kind = "assignment"
 reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.databases.db:JACKPOT_CONFIG_KEY"
-target = "TODO"
+target = "app.domains.blackjack.repository"
 kind = "assignment"
 reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.databases.db:JACKPOT_CONFIG_TYPE"
-target = "TODO"
+target = "app.domains.blackjack.repository"
 kind = "assignment"
 reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.databases.db:JACKPOT_NOTIFY_CURSOR_KEY"
-target = "TODO"
+target = "app.domains.blackjack.repository"
 kind = "assignment"
 reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.databases.db:_GIFT_PACK_PRIVILEGED_CODES_LOCK"
-target = "TODO"
+target = "app.domains.gift_pack.repository"
 kind = "assignment"
 reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.databases.db:_format_gift_pack_number"
-target = "TODO"
+target = "app.domains.gift_pack.repository"
 kind = "function"
 reason = "ambiguous: human review required"
 
@@ -3616,7 +3669,7 @@ reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:gift_pack_rewards_require_binding"
-target = "TODO"
+target = "app.domains.gift_pack.repository"
 kind = "function"
 reason = "ambiguous: human review required"
 
@@ -4062,7 +4115,8 @@ reason = "design D9 module / model rule"
 id = "app.databases.session:@import:7"
 target = "app.core.db"
 kind = "import"
-reason = "design D9 module / model rule"
+reason = "Base is defined locally after session and models are co-located; remove self import"
+action = "delete"
 
 [[items]]
 id = "app.databases.session:SessionLocal"
@@ -4720,261 +4774,263 @@ reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.models.models:@docstring:1"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "docstring"
-reason = "ambiguous: human review required"
+reason = "preserve legacy model module docstring with identity models"
 
 [[items]]
 id = "app.models.models:@import:1"
-target = "TODO"
+target = "app.core.db"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "SQLAlchemy model imports are distributed to individual domain models modules"
+action = "delete"
 
 [[items]]
 id = "app.models.models:@import:2"
-target = "TODO"
+target = "app.core.db"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "ORM model imports are distributed to individual domain models modules"
+action = "delete"
 
 [[items]]
 id = "app.models.models:AuctionBids"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:AuctionBids.@statement:1"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:AuctionBids.__tablename__"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:AuctionBids.auction"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:AuctionBids.auction_id"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:AuctionBids.bid_amount"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:AuctionBids.bid_time"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:AuctionBids.bidder_id"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:AuctionBids.id"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Auctions"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Auctions.@statement:1"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Auctions.__tablename__"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Auctions.bid_count"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Auctions.bids"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Auctions.created_at"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Auctions.created_by"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Auctions.current_price"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Auctions.description"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Auctions.end_time"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Auctions.id"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Auctions.is_active"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Auctions.starting_price"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Auctions.title"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Auctions.winner_id"
-target = "TODO"
+target = "app.domains.auction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Badge"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Badge.@statement:1"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Badge.__table_args__"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Badge.__tablename__"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Badge.badge_type"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Badge.bonus_percentage"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Badge.created_at"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Badge.credits_cost"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Badge.description"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Badge.icon_url"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Badge.id"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Badge.is_enabled"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Badge.name"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Badge.updated_at"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Badge.user_badges"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Badge.valid_days"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Base"
@@ -4990,2307 +5046,2307 @@ reason = "design D9 module / model rule"
 
 [[items]]
 id = "app.models.models:BlackjackHand"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.@statement:1"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.__table_args__"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.__tablename__"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.bet_credits"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.blackjack_payout"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.created_at"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.created_at_ms"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.dealer_cards"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.dealer_hits_soft_17"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.decisions_correct"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.decisions_total"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.deck_seed"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.doubled"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.hand_timeout_minutes"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.id"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.jackpot_won"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.next_card_index"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.outcome"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.payout_credits"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.player_cards"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.rake_bp_on_profit"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.rake_credits"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.rake_jackpot_bp"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.rake_waived"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.relief_credits"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.settled_at"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.status"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.surrender_enabled"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.tg_id"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackHand.tournament_id"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.@statement:1"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.__table_args__"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.__tablename__"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.bet_step_chips"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.blackjack_payout"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.buy_in_credits"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.created_at"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.created_by"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.dealer_hits_soft_17"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.description"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.entrant_count"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.entries"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.hand_timeout_minutes"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.id"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.max_bet_chips"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.max_entrants"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.min_bet_chips"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.min_entrants"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.payout_structure"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.play_deadline_ms"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.rake_bp"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.register_deadline_ms"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.reminder_sent_at"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.seeded_prize_credits"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.settled_at"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.starting_chips"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.status"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.surrender_enabled"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.title"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournament.total_hands"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournamentEntry"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournamentEntry.@statement:1"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournamentEntry.__table_args__"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournamentEntry.__tablename__"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournamentEntry.chips"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournamentEntry.credits_paid_credits"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournamentEntry.final_rank"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournamentEntry.hands_played"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournamentEntry.id"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournamentEntry.prize_credits"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournamentEntry.registered_at_ms"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournamentEntry.status"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournamentEntry.tg_id"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournamentEntry.tournament"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournamentEntry.tournament_id"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackTournamentEntry.wallet_paid_credits"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackWeeklyCashback"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackWeeklyCashback.@statement:1"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackWeeklyCashback.__table_args__"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackWeeklyCashback.__tablename__"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackWeeklyCashback.cashback_credits"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackWeeklyCashback.created_at_ms"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackWeeklyCashback.id"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackWeeklyCashback.net_change"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackWeeklyCashback.tg_id"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:BlackjackWeeklyCashback.week_start_ms"
-target = "TODO"
+target = "app.domains.blackjack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.@statement:1"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.__table_args__"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.__tablename__"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.actual_amount"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.amount"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.block_transaction_id"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.created_at"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.crypto_type"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.expiration_time"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.id"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.note"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.order_id"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.paid_at"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.payment_address"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.payment_url"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.status"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.trade_id"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.updated_at"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CryptoDonationOrders.user_id"
-target = "TODO"
+target = "app.domains.crypto_donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.@statement:1"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.__table_args__"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.__tablename__"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.admin_note"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.approved_at"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.approved_by"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.auto_offline_reason"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.created_at"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.domain"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.expires_at"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.expiry_notified_at"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.id"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.is_permanent"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.network_info"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.price_monthly"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.price_yearly"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.status"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.tags"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.tg_id"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.total_traffic"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.traffic_limit"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.traffic_type"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.updated_at"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.user_note"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:CustomLine.valid_days"
-target = "TODO"
+target = "app.domains.custom_lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:DonationRegistrations"
-target = "TODO"
+target = "app.domains.donation.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:DonationRegistrations.@statement:1"
-target = "TODO"
+target = "app.domains.donation.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:DonationRegistrations.__table_args__"
-target = "TODO"
+target = "app.domains.donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:DonationRegistrations.__tablename__"
-target = "TODO"
+target = "app.domains.donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:DonationRegistrations.admin_note"
-target = "TODO"
+target = "app.domains.donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:DonationRegistrations.amount"
-target = "TODO"
+target = "app.domains.donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:DonationRegistrations.created_at"
-target = "TODO"
+target = "app.domains.donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:DonationRegistrations.id"
-target = "TODO"
+target = "app.domains.donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:DonationRegistrations.is_donation_registration"
-target = "TODO"
+target = "app.domains.donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:DonationRegistrations.note"
-target = "TODO"
+target = "app.domains.donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:DonationRegistrations.payment_method"
-target = "TODO"
+target = "app.domains.donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:DonationRegistrations.processed_at"
-target = "TODO"
+target = "app.domains.donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:DonationRegistrations.processed_by"
-target = "TODO"
+target = "app.domains.donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:DonationRegistrations.status"
-target = "TODO"
+target = "app.domains.donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:DonationRegistrations.user_id"
-target = "TODO"
+target = "app.domains.donation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.@statement:1"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.__tablename__"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.download_unlock_time"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.download_unlocked"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.emby_credits"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.emby_id"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.emby_is_unlock"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.emby_line"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.emby_unlock_time"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.emby_username"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.emby_watched_time"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.is_premium"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.last_viewed_at"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.line_schedule_unlock_time"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.line_schedule_unlocked"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.premium_expiry_time"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.premium_status_updated_at"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.premium_traffic_debt_bytes"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.premium_traffic_debt_updated_date"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:EmbyUser.tg_id"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.@statement:1"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.__table_args__"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.__tablename__"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.compensated"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.compensated_seconds"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.created_at"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.deleted"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.friendly_name"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.id"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.media_seconds"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.percent_complete"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.play_date"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.rating_key"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.raw_seconds"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.row_id"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.started"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.stopped"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.title"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GhostSessionLog.user_id"
-target = "TODO"
+target = "app.domains.watch_rewards.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.@statement:1"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.__table_args__"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.__tablename__"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.audience"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.claimed_count"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.created_at"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.created_by"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.description"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.eligibility"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.end_at"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.expiry_notified"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.id"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.is_enabled"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.max_prompt_count"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.max_task_prompt_count"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.notify_audience_on_start"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.requirements"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.rewards"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.start_at"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.task_end_at"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.title"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.total_quantity"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.updated_at"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPack.user_states"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPackUserState"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPackUserState.@statement:1"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPackUserState.__table_args__"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPackUserState.__tablename__"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPackUserState.audience_locked_at"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPackUserState.claimed_at"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPackUserState.id"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPackUserState.last_prompted_at"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPackUserState.last_task_prompted_at"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPackUserState.pack"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPackUserState.pack_id"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPackUserState.prompt_count"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPackUserState.reward_snapshot"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPackUserState.start_dm_sent_at"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPackUserState.task_prompt_count"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:GiftPackUserState.tg_id"
-target = "TODO"
+target = "app.domains.gift_pack.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Invitation"
-target = "TODO"
+target = "app.domains.invitation.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Invitation.@statement:1"
-target = "TODO"
+target = "app.domains.invitation.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Invitation.__tablename__"
-target = "TODO"
+target = "app.domains.invitation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Invitation.code"
-target = "TODO"
+target = "app.domains.invitation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Invitation.emby_id"
-target = "TODO"
+target = "app.domains.invitation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Invitation.is_used"
-target = "TODO"
+target = "app.domains.invitation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Invitation.owner"
-target = "TODO"
+target = "app.domains.invitation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Invitation.plex_id"
-target = "TODO"
+target = "app.domains.invitation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Invitation.service"
-target = "TODO"
+target = "app.domains.invitation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Invitation.used_by"
-target = "TODO"
+target = "app.domains.invitation.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineSchedule"
-target = "TODO"
+target = "app.domains.lines.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineSchedule.@statement:1"
-target = "TODO"
+target = "app.domains.lines.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineSchedule.__table_args__"
-target = "TODO"
+target = "app.domains.lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineSchedule.__tablename__"
-target = "TODO"
+target = "app.domains.lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineSchedule.created_at"
-target = "TODO"
+target = "app.domains.lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineSchedule.days_of_week"
-target = "TODO"
+target = "app.domains.lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineSchedule.end_time"
-target = "TODO"
+target = "app.domains.lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineSchedule.id"
-target = "TODO"
+target = "app.domains.lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineSchedule.is_enabled"
-target = "TODO"
+target = "app.domains.lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineSchedule.line"
-target = "TODO"
+target = "app.domains.lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineSchedule.priority"
-target = "TODO"
+target = "app.domains.lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineSchedule.service"
-target = "TODO"
+target = "app.domains.lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineSchedule.start_time"
-target = "TODO"
+target = "app.domains.lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineSchedule.tg_id"
-target = "TODO"
+target = "app.domains.lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineSchedule.updated_at"
-target = "TODO"
+target = "app.domains.lines.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficMonthlyStats"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficMonthlyStats.@statement:1"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficMonthlyStats.__table_args__"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficMonthlyStats.__tablename__"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficMonthlyStats.created_at"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficMonthlyStats.id"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficMonthlyStats.line"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficMonthlyStats.service"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficMonthlyStats.total_bytes"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficMonthlyStats.user_id"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficMonthlyStats.username"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficMonthlyStats.year_month"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficStats"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficStats.@statement:1"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficStats.__table_args__"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficStats.__tablename__"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficStats.event_hash"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficStats.id"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficStats.line"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficStats.request_uri"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficStats.send_bytes"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficStats.service"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficStats.timestamp"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficStats.upstream"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficStats.upstream_response_time"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficStats.user_id"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LineTrafficStats.username"
-target = "TODO"
+target = "app.domains.traffic.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LuckywheelFreeSpin"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LuckywheelFreeSpin.@statement:1"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LuckywheelFreeSpin.__table_args__"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LuckywheelFreeSpin.__tablename__"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LuckywheelFreeSpin.expires_at_ms"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LuckywheelFreeSpin.granted_at_ms"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LuckywheelFreeSpin.id"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LuckywheelFreeSpin.source"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LuckywheelFreeSpin.tg_id"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:LuckywheelFreeSpin.used_at_ms"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Overseerr"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Overseerr.@statement:1"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Overseerr.__tablename__"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Overseerr.tg_id"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Overseerr.user_email"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Overseerr.user_id"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.@statement:1"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.__tablename__"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.all_lib"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.credits"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.id"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.is_premium"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.last_viewed_at"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.line_schedule_unlock_time"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.line_schedule_unlocked"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.plex_email"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.plex_id"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.plex_line"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.plex_username"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.premium_expiry_time"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.premium_status_updated_at"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.premium_traffic_debt_bytes"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.premium_traffic_debt_updated_date"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.sync_unlock_time"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.sync_unlocked"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.tg_id"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.unlock_time"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PlexUser.watched_time"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionBet"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionBet.@statement:1"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionBet.__table_args__"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionBet.__tablename__"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionBet.amount"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionBet.created_at"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionBet.id"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionBet.market"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionBet.market_id"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionBet.option"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionBet.tg_id"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.@statement:1"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.__table_args__"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.__tablename__"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.bets"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.betting_deadline"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.created_at"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.created_by"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.description"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.fee_burn_bp"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.fee_burned"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.fee_glory_bp"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.fee_rate_bp"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.fee_to_glory"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.id"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.max_bet_per_user"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.real_no_pool"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.real_yes_pool"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.resolution_note"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.resolved_at"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.resolved_by"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.result_option"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.status"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.title"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.total_fee_collected"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.virtual_no_pool"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarket.virtual_yes_pool"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarketSubmission"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarketSubmission.@statement:1"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarketSubmission.__table_args__"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarketSubmission.__tablename__"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarketSubmission.betting_deadline"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarketSubmission.created_at"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarketSubmission.description"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarketSubmission.id"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarketSubmission.market_id"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarketSubmission.review_note"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarketSubmission.reviewed_at"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarketSubmission.reviewed_by"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarketSubmission.status"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarketSubmission.submitter_tg_id"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:PredictionMarketSubmission.title"
-target = "TODO"
+target = "app.domains.prediction.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Statistics"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Statistics.@statement:1"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Statistics.__tablename__"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Statistics.blackjack_hands_since_freespin"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Statistics.blackjack_lose_streak"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Statistics.credits"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Statistics.donation"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Statistics.tg_id"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:Statistics.tournament_wallet_credits"
-target = "TODO"
+target = "app.domains.identity.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:SystemConfig"
@@ -7354,399 +7410,399 @@ reason = "design D9 module / model rule"
 
 [[items]]
 id = "app.models.models:TreasureIssue"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.@statement:1"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.__table_args__"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.__tablename__"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.created_at"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.created_by"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.credits_per_share"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.description"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.external_random_b"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.id"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.participations"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.prize_credits"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.settled_at"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.shares_sold"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.start_number"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.status"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.title"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.total_credits_required"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.total_shares"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.winner_number"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureIssue.winner_tg_id"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureParticipation"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureParticipation.@statement:1"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureParticipation.__table_args__"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureParticipation.__tablename__"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureParticipation.cost_credits"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureParticipation.created_at"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureParticipation.created_at_ms"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureParticipation.id"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureParticipation.issue"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureParticipation.issue_id"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureParticipation.lucky_number"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:TreasureParticipation.tg_id"
-target = "TODO"
+target = "app.domains.treasure.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:UserBadge"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:UserBadge.@statement:1"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:UserBadge.__table_args__"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:UserBadge.__tablename__"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:UserBadge.badge"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:UserBadge.badge_id"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:UserBadge.credits_cost"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:UserBadge.expires_at"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:UserBadge.id"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:UserBadge.is_active"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:UserBadge.redeemed_at"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:UserBadge.tg_id"
-target = "TODO"
+target = "app.domains.badges.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:VaultwardenRedeemRecords"
-target = "TODO"
+target = "app.domains.vaultwarden.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:VaultwardenRedeemRecords.@statement:1"
-target = "TODO"
+target = "app.domains.vaultwarden.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:VaultwardenRedeemRecords.__table_args__"
-target = "TODO"
+target = "app.domains.vaultwarden.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:VaultwardenRedeemRecords.__tablename__"
-target = "TODO"
+target = "app.domains.vaultwarden.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:VaultwardenRedeemRecords.created_at"
-target = "TODO"
+target = "app.domains.vaultwarden.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:VaultwardenRedeemRecords.credits_cost"
-target = "TODO"
+target = "app.domains.vaultwarden.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:VaultwardenRedeemRecords.email"
-target = "TODO"
+target = "app.domains.vaultwarden.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:VaultwardenRedeemRecords.id"
-target = "TODO"
+target = "app.domains.vaultwarden.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:VaultwardenRedeemRecords.redeem_date"
-target = "TODO"
+target = "app.domains.vaultwarden.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:VaultwardenRedeemRecords.tg_id"
-target = "TODO"
+target = "app.domains.vaultwarden.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:WheelStats"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:WheelStats.@statement:1"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:WheelStats.__tablename__"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:WheelStats.cost_credits"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:WheelStats.credits_change"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:WheelStats.date"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:WheelStats.id"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:WheelStats.item_name"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:WheelStats.source"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:WheelStats.tg_id"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models.models:WheelStats.timestamp"
-target = "TODO"
+target = "app.domains.luckywheel.models"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.models:@docstring:1"
@@ -8670,7 +8726,8 @@ reason = "design D9 module / model rule"
 id = "app.premium:@import:4"
 target = "app.domains.premium.service"
 kind = "import"
-reason = "design D9 module / model rule"
+reason = "db facade import moves into the four callers to avoid the Premium/gift pack cycle"
+action = "delete"
 
 [[items]]
 id = "app.premium:@import:5"
@@ -8700,7 +8757,7 @@ reason = "design D9 module / model rule"
 id = "app.premium:@import:9"
 target = "app.domains.premium.service"
 kind = "import"
-reason = "design D9 module / model rule"
+reason = "reviewed Premium utility imports retained in moved service"
 
 [[items]]
 id = "app.premium:apply_download_unlock_to_media"
@@ -9328,273 +9385,279 @@ reason = "design D9 module / model rule"
 
 [[items]]
 id = "app.utils.utils:@import:1"
-target = "TODO"
+target = "app.core.http"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:@import:10"
-target = "TODO"
+target = "app.core.telegram"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:@import:11"
-target = "TODO"
+target = "app.domains.accounts.jobs"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:@import:12"
-target = "TODO"
+target = "app.core.telegram"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:@import:13"
-target = "TODO"
+target = "app.domains.accounts.jobs"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:@import:14"
-target = "TODO"
+target = "app.domains.accounts.jobs"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:@import:2"
-target = "TODO"
+target = "app.core.telegram"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:@import:3"
-target = "TODO"
+target = "app.core.http"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:@import:4"
-target = "TODO"
+target = "app.domains.premium.rules"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:@import:5"
-target = "TODO"
+target = "app.core.singleton"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:@import:6"
-target = "TODO"
+target = "app.core.http"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:@import:7"
-target = "TODO"
+target = "app.core.telegram"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:@import:8"
-target = "TODO"
+target = "app.domains.accounts.jobs"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:@import:9"
-target = "TODO"
+target = "app.core.telegram"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:HTTPSessionManager"
-target = "TODO"
+target = "app.core.http"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:HTTPSessionManager.@statement:1"
-target = "TODO"
+target = "app.core.http"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:HTTPSessionManager.__init__"
-target = "TODO"
+target = "app.core.http"
+class = "HTTPSessionManager"
 kind = "method"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:HTTPSessionManager._create_session"
-target = "TODO"
+target = "app.core.http"
+class = "HTTPSessionManager"
 kind = "method"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:HTTPSessionManager.close"
-target = "TODO"
+target = "app.core.http"
+class = "HTTPSessionManager"
 kind = "method"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:HTTPSessionManager.get_session"
-target = "TODO"
+target = "app.core.http"
+class = "HTTPSessionManager"
 kind = "method"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:SingletonMeta"
-target = "TODO"
+target = "app.core.singleton"
 kind = "class"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:SingletonMeta.@statement:1"
-target = "TODO"
+target = "app.core.singleton"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:SingletonMeta.__call__"
-target = "TODO"
+target = "app.core.singleton"
+class = "SingletonMeta"
 kind = "method"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:SingletonMeta._instances"
-target = "TODO"
+target = "app.core.singleton"
+class = "SingletonMeta"
 kind = "attribute"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:_save_tg_user_info_cache"
-target = "TODO"
+target = "app.core.telegram"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:_thread_local_session_manager"
-target = "TODO"
+target = "app.core.http"
 kind = "assignment"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:caculate_credits_fund"
-target = "TODO"
+target = "app.domains.premium.rules"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:cleanup_http_resources"
-target = "TODO"
+target = "app.core.http"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:format_traffic_size"
-target = "TODO"
+target = "app.core.formatting"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:get_service_label"
-target = "TODO"
+target = "app.core.formatting"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:get_tg_user_photo_url"
-target = "TODO"
+target = "app.core.telegram"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:get_thread_safe_session"
-target = "TODO"
+target = "app.core.http"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:get_user_avatar_from_tg_id"
-target = "TODO"
+target = "app.core.telegram"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:get_user_info_from_tg_id"
-target = "TODO"
+target = "app.core.telegram"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:get_user_name_from_tg_id"
-target = "TODO"
+target = "app.core.telegram"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:get_user_names_from_tg_ids"
-target = "TODO"
+target = "app.core.telegram"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:get_user_total_duration"
-target = "TODO"
+target = "app.utils.utils"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B3 business utility migration; keep source callable during B1"
 
 [[items]]
 id = "app.utils.utils:is_binded_premium_line"
-target = "TODO"
+target = "app.domains.premium.rules"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:load_tg_user_info_cache"
-target = "TODO"
+target = "app.core.telegram"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:normalize_line_domain"
-target = "TODO"
+target = "app.domains.lines.rules"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:notify_admins_by_url"
-target = "TODO"
+target = "app.core.telegram"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:refresh_emby_user_info"
-target = "TODO"
+target = "app.domains.accounts.jobs"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:refresh_tg_user_info"
-target = "TODO"
+target = "app.domains.accounts.jobs"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:send_message"
-target = "TODO"
+target = "app.core.telegram"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:send_message_by_url"
-target = "TODO"
+target = "app.core.telegram"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.webapp.auth:@import:1"

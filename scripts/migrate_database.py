@@ -7,23 +7,17 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from app.config import settings
-from app.databases.session import get_session, init_db
-from app.log import logger
-from app.models.models import (
-    AuctionBids,
-    Auctions,
-    CryptoDonationOrders,
-    DonationRegistrations,
-    EmbyUser,
-    Invitation,
-    LineTrafficMonthlyStats,
-    LineTrafficStats,
-    Overseerr,
-    PlexUser,
-    Statistics,
-    WheelStats,
-)
+from app.core.config import settings
+from app.core.db import get_session
+from app.core.log import logger
+from app.domains.auction.models import AuctionBids, Auctions
+from app.domains.crypto_donation.models import CryptoDonationOrders
+from app.domains.donation.models import DonationRegistrations
+from app.domains.identity.models import EmbyUser, Overseerr, PlexUser, Statistics
+from app.domains.invitation.models import Invitation
+from app.domains.luckywheel.models import WheelStats
+from app.domains.traffic.models import LineTrafficMonthlyStats, LineTrafficStats
+from app.model_registry import init_db
 
 
 def migrate_from_sqlite(old_db_path: Path):

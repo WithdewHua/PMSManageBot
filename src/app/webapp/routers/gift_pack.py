@@ -22,9 +22,9 @@ from fastapi import (
     status,
 )
 
-from app.config import settings
+from app.core.config import settings
+from app.core.log import uvicorn_logger as logger
 from app.databases import db
-from app.log import uvicorn_logger as logger
 from app.utils.utils import (
     get_user_name_from_tg_id,
     notify_admins_by_url,

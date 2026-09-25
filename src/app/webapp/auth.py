@@ -4,7 +4,7 @@ import json
 
 from fastapi import HTTPException, Request, status
 
-from app.config import settings
+from app.core.config import settings
 from app.webapp.schemas import TelegramUser
 
 

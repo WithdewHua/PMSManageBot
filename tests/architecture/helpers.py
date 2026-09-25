@@ -135,6 +135,15 @@ def write_baseline(
     for category in ARCHITECTURE_CATEGORIES:
         entries = baseline.get(category, [])
         payload[category] = sorted(entries, key=lambda item: item["key"])
+    if path == BASELINE_PATH:
+        import tomllib
+
+        with (PROJECT_ROOT / "pyproject.toml").open("rb") as stream:
+            contracts = tomllib.load(stream)["tool"]["importlinter"]["contracts"]
+        payload["contract_ignore_counts"] = {
+            contract["name"]: len(contract.get("ignore_imports", []))
+            for contract in contracts
+        }
     path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=False) + "\n",
         encoding="utf-8",

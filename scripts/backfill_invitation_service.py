@@ -12,9 +12,9 @@
 
 from sqlalchemy import select, update
 
+from app.core.db import get_session
 from app.databases.db import db
-from app.databases.session import get_session
-from app.models.models import Invitation
+from app.domains.invitation.models import Invitation
 
 
 def backfill_invitation_service():

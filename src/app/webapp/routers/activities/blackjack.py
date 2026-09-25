@@ -12,10 +12,10 @@ from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
-from app.config import settings
+from app.core.config import settings
+from app.core.log import uvicorn_logger as logger
 from app.databases import db
 from app.databases.db_func import check_and_award_game_king_badge
-from app.log import uvicorn_logger as logger
 from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
@@ -76,7 +76,7 @@ def _schedule_blackjack_timeout(*, hand_id: int, timeout_minutes: float) -> None
     try:
         from datetime import datetime, timedelta
 
-        from app.scheduler import Scheduler
+        from app.core.scheduler import Scheduler
 
         run_date = datetime.now(settings.TZ) + timedelta(
             seconds=float(timeout_minutes) * 60.0

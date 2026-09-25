@@ -6,11 +6,12 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import and_, func, select
 
-from app.config import settings
+from app.core.config import settings
+from app.core.db import get_session
+from app.core.log import logger
 from app.databases import db
-from app.databases.session import get_session
-from app.log import logger
-from app.models.models import CustomLine, LineTrafficMonthlyStats
+from app.domains.custom_lines.models import CustomLine
+from app.domains.traffic.models import LineTrafficMonthlyStats
 from app.utils.utils import normalize_line_domain, send_message_by_url
 from app.webapp.routers.admin import unbind_specified_line_for_all_users
 
@@ -613,7 +614,7 @@ async def _get_line_monthly_traffic(
 
         if from_raw_table:
             # 从原始流量表实时聚合（用于删除线路时获取当月流量）
-            from app.models.models import LineTrafficStats
+            from app.domains.traffic.models import LineTrafficStats
 
             # 计算目标月份的开始和结束时间
             month_start = datetime.strptime(f"{year_month}-01", "%Y-%m-%d").replace(

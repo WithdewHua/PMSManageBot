@@ -17,7 +17,7 @@ repos:
     hooks:
       - id: lint-imports
         name: import-linter architecture contracts
-        entry: .venv/bin/lint-imports
+        entry: env PYTHONPATH=src .venv/bin/lint-imports --no-cache
         language: system
         pass_filenames: false
         always_run: true

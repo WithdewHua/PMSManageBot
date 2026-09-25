@@ -51,15 +51,15 @@
 
 ## 3. B1 数据层
 
-- [ ] 3.1 冻结后端功能开发，把基准提交记录到 `scripts/refactor/BASE`。验证：`git status` 干净，`BASE` 指向当前主干。
-- [ ] 3.2 审阅 core 和 integrations 的映射（design D9）：
+- [x] 3.1 冻结后端功能开发，把基准提交记录到 `scripts/refactor/BASE`。验证：写入前 `git status` 干净，`BASE` 指向当前主干。
+- [x] 3.2 审阅 core 和 integrations 的映射（design D9）：
   - `config`、`log`、`scheduler`、`session` 加 `Base` → `core/db.py`，`redis`、`cache`、`utils` 的通用部分、`number`、`system` 也进入 `core/`。
   - `SystemConfig` 模型及其读写方法 → `core/kv.py`，读写方法组成 `SystemConfigRepository` mixin。
   - `modules/` 下的外部客户端、`tautulli_history`、`get_user_total_duration` → `integrations/`。
 
   验证：覆盖检查中，这些来源没有 `TODO`。
-- [ ] 3.3 审阅 31 个模型的映射，按 design D2/D3 放进各领域的 `models.py`。验证：每个模型都有归属，并与 `docs/architecture.md` 的领域表一致。
-- [ ] 3.4 审阅 `DatabaseORM` 全部成员和 db.py 模块级内容的映射：
+- [x] 3.3 审阅 31 个模型的映射，按 design D2/D3 放进各领域的 `models.py`。验证：每个模型都有归属，并与 `docs/architecture.md` 的领域表一致。
+- [x] 3.4 审阅 `DatabaseORM` 全部成员和 db.py 模块级内容的映射：
   - 21 点和礼包的 repository 按 db.py 现有分节拆成包。
   - 读模型专用的查询归读模型领域，比如各个 `get_*_rank`。
   - 转盘免费次数的消耗、释放和汇总归 `luckywheel`。
@@ -67,12 +67,12 @@
   - `rebind_user_tg_id` 映射到 `domains/tg_rebind/repository.py`。
 
   验证：覆盖检查通过，没有未映射的成员。
-- [ ] 3.5 把 `blackjack_engine.py` 映射为 `domains/blackjack/rules.py`。验证：覆盖检查通过。
-- [ ] 3.6 编写过渡门面 `app/databases/db.py`：组合全部 mixin，只导出 `db` 和 `DatabaseORM`。编写 `app/model_registry.py`：逐个显式导入 models 模块，提供 `metadata` 和 `init_db()`。把 `alembic/env.py`、`main.py`、`scripts/migrate_database.py`、`tests/conftest.py` 改为使用 `model_registry`。验证：元数据快照与基准一致。
-- [ ] 3.7 运行 B1 搬迁并完成校验：`verify.py --base` 零差异，`check_metadata_pg.py` 差异为空，`pytest`、`ruff check src/`、`ruff format --check src/` 全部通过。
-- [ ] 3.8 加入此时已经能检查的合约：SQLAlchemy 使用范围、外部客户端隔离、领域分层、领域无环、门面冻结，其中领域分层要忽略门面指向各 repository 的边。然后生成各合约的 `ignore_imports` 和 `baseline.json`，每条都标上负责的变更。验证：`lint-imports` 和 `pytest tests/architecture` 通过。
-- [ ] 3.9 冒烟检查：在一次性环境里用 uvicorn 单独启动 API（不连接 Telegram），对同一份测试数据库请求一组只读接口，返回结果与基准一致。另外在一次性库上分别执行一次 `db.rebind_user_tg_id`（换到新 ID、合并到已有 ID），数据变化与基准一致。
-- [ ] 3.10 提交 B1。验证：提交后 `pre-commit run --all-files` 通过。
+- [x] 3.5 把 `blackjack_engine.py` 映射为 `domains/blackjack/rules.py`。验证：覆盖检查通过。
+- [x] 3.6 编写过渡门面 `app/databases/db.py`：组合全部 mixin，只导出 `db` 和 `DatabaseORM`。B1 同时把礼包依赖的 `premium.py` 搬到 `domains/premium/service.py`，将 `app.databases` 依赖改为函数内延迟导入以消除搬迁环。编写 `app/model_registry.py`：逐个显式导入 models 模块，提供 `metadata` 和 `init_db()`。把 `alembic/env.py`、`main.py`、`scripts/migrate_database.py`、`tests/conftest.py` 改为使用 `model_registry`。验证：元数据快照与基准一致。
+- [x] 3.7 运行 B1 搬迁并完成校验：`verify.py --base` 零差异，`check_metadata_pg.py` 在一次性 PostgreSQL 上差异为空；全量 `pytest tests/`（228 项）、`ruff check src/`、`ruff format --check src/` 全部通过。
+- [x] 3.8 加入此时已经能检查的合约：SQLAlchemy 使用范围、外部客户端隔离、领域分层、领域无环、门面冻结，其中领域分层要忽略门面指向各 repository 的边。然后生成各合约的 `ignore_imports` 和 `baseline.json`，每条都标上负责的变更。验证：`PYTHONPATH=src .venv/bin/lint-imports --no-cache` 和 `pytest tests/architecture` 通过；实际 graph 含 196 个模块，负向非法导入探针被拒绝。
+- [x] 3.9 冒烟检查：在一次性环境里用 uvicorn 单独启动 API（不连接 Telegram），对同一份测试数据库请求一组只读接口，返回结果与基准一致。另外在一次性库上分别执行一次 `db.rebind_user_tg_id`（换到新 ID、合并到已有 ID），数据变化与基准一致。`python -m scripts.refactor.smoke_b1 --base $(tr -d '\n' < scripts/refactor/BASE)` 已验证四个只读端点均返回 HTTP 200，两个换绑场景的数据逐项一致。
+- [x] 3.10 提交 B1。验证：提交后 `pre-commit run --all-files` 通过。
 
 ## 4. B2 接口层
 

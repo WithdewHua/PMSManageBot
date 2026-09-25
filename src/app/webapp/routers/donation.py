@@ -1,11 +1,11 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy import update as sql_update
 
-from app.config import settings
+from app.core.config import settings
+from app.core.db import get_session
+from app.core.log import logger
 from app.databases import db
-from app.databases.session import get_session
-from app.log import logger
-from app.models.models import Statistics
+from app.domains.identity.models import Statistics
 from app.utils.utils import (
     get_user_name_from_tg_id,
     refresh_tg_user_info,

@@ -1,26 +1,571 @@
 {
   "version": 1,
-  "cross_domain_calls": [],
-  "line_budgets": [
+  "cross_domain_calls": [
     {
-      "key": "src/app/databases/db.py",
-      "owner": "restructure-backend-architecture",
-      "path": "src/app/databases/db.py",
-      "lines": 14014,
-      "budget": 1000
+      "key": "call|src/app/domains/gift_pack/repository/part_1.py|517|imported|premium|update_premium_status",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "line": 517,
+      "kind": "call",
+      "source_domain": "gift_pack",
+      "target_domain": "premium",
+      "target": "update_premium_status"
     },
+    {
+      "key": "call|src/app/domains/gift_pack/repository/part_2.py|610|imported|premium|apply_download_unlock_to_media",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_2.py",
+      "line": 610,
+      "kind": "call",
+      "source_domain": "gift_pack",
+      "target_domain": "premium",
+      "target": "apply_download_unlock_to_media"
+    },
+    {
+      "key": "call|src/app/domains/gift_pack/repository/part_2.py|631|imported|premium|sync_media_permission",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_2.py",
+      "line": 631,
+      "kind": "call",
+      "source_domain": "gift_pack",
+      "target_domain": "premium",
+      "target": "sync_media_permission"
+    },
+    {
+      "key": "call|src/app/domains/premium/service.py|145|facade|identity|get_plex_info_by_tg_id",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/service.py",
+      "line": 145,
+      "kind": "facade_call",
+      "source_domain": "premium",
+      "target_domain": "identity",
+      "target": "get_plex_info_by_tg_id"
+    },
+    {
+      "key": "call|src/app/domains/premium/service.py|149|facade|media_access|check_download_unlock",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/service.py",
+      "line": 149,
+      "kind": "facade_call",
+      "source_domain": "premium",
+      "target_domain": "media_access",
+      "target": "check_download_unlock"
+    },
+    {
+      "key": "call|src/app/domains/premium/service.py|166|facade|identity|get_emby_info_by_tg_id",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/service.py",
+      "line": 166,
+      "kind": "facade_call",
+      "source_domain": "premium",
+      "target_domain": "identity",
+      "target": "get_emby_info_by_tg_id"
+    },
+    {
+      "key": "call|src/app/domains/premium/service.py|169|facade|media_access|check_download_unlock",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/service.py",
+      "line": 169,
+      "kind": "facade_call",
+      "source_domain": "premium",
+      "target_domain": "media_access",
+      "target": "check_download_unlock"
+    },
+    {
+      "key": "call|src/app/domains/premium/service.py|197|facade|identity|get_plex_info_by_tg_id",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/service.py",
+      "line": 197,
+      "kind": "facade_call",
+      "source_domain": "premium",
+      "target_domain": "identity",
+      "target": "get_plex_info_by_tg_id"
+    },
+    {
+      "key": "call|src/app/domains/premium/service.py|206|facade|identity|get_emby_info_by_tg_id",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/service.py",
+      "line": 206,
+      "kind": "facade_call",
+      "source_domain": "premium",
+      "target_domain": "identity",
+      "target": "get_emby_info_by_tg_id"
+    },
+    {
+      "key": "call|src/app/domains/premium/service.py|241|facade|identity|get_plex_info_by_tg_id",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/service.py",
+      "line": 241,
+      "kind": "facade_call",
+      "source_domain": "premium",
+      "target_domain": "identity",
+      "target": "get_plex_info_by_tg_id"
+    },
+    {
+      "key": "call|src/app/domains/premium/service.py|280|facade|identity|get_emby_info_by_tg_id",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/service.py",
+      "line": 280,
+      "kind": "facade_call",
+      "source_domain": "premium",
+      "target_domain": "identity",
+      "target": "get_emby_info_by_tg_id"
+    },
+    {
+      "key": "call|src/app/domains/premium/service.py|51|facade|media_access|check_download_unlock",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/service.py",
+      "line": 51,
+      "kind": "facade_call",
+      "source_domain": "premium",
+      "target_domain": "media_access",
+      "target": "check_download_unlock"
+    },
+    {
+      "key": "call|src/app/domains/premium/service.py|538|facade|traffic|get_premium_line_traffic_statistics",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/service.py",
+      "line": 538,
+      "kind": "facade_call",
+      "source_domain": "premium",
+      "target_domain": "traffic",
+      "target": "get_premium_line_traffic_statistics"
+    },
+    {
+      "key": "call|src/app/domains/rankings/repository.py|320|self|badges|_user_badge_to_dict",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/rankings/repository.py",
+      "line": 320,
+      "kind": "self_call",
+      "source_domain": "rankings",
+      "target_domain": "badges",
+      "target": "_user_badge_to_dict"
+    },
+    {
+      "key": "import|src/app/domains/blackjack/repository/part_1.py|15|app.domains.luckywheel.models|LuckywheelFreeSpin",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_1.py",
+      "line": 15,
+      "kind": "import",
+      "source_domain": "blackjack",
+      "target_domain": "luckywheel",
+      "target_module": "app.domains.luckywheel.models",
+      "symbol": "LuckywheelFreeSpin"
+    },
+    {
+      "key": "import|src/app/domains/blackjack/repository/part_6.py|9|app.domains.badges.models|UserBadge",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_6.py",
+      "line": 9,
+      "kind": "import",
+      "source_domain": "blackjack",
+      "target_domain": "badges",
+      "target_module": "app.domains.badges.models",
+      "symbol": "UserBadge"
+    },
+    {
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|10|app.domains.badges.models|UserBadge",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "line": 10,
+      "kind": "import",
+      "source_domain": "gift_pack",
+      "target_domain": "badges",
+      "target_module": "app.domains.badges.models",
+      "symbol": "UserBadge"
+    },
+    {
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|11|app.domains.blackjack.models|BlackjackHand",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "line": 11,
+      "kind": "import",
+      "source_domain": "gift_pack",
+      "target_domain": "blackjack",
+      "target_module": "app.domains.blackjack.models",
+      "symbol": "BlackjackHand"
+    },
+    {
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|11|app.domains.blackjack.models|BlackjackTournament",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "line": 11,
+      "kind": "import",
+      "source_domain": "gift_pack",
+      "target_domain": "blackjack",
+      "target_module": "app.domains.blackjack.models",
+      "symbol": "BlackjackTournament"
+    },
+    {
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|11|app.domains.blackjack.models|BlackjackTournamentEntry",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "line": 11,
+      "kind": "import",
+      "source_domain": "gift_pack",
+      "target_domain": "blackjack",
+      "target_module": "app.domains.blackjack.models",
+      "symbol": "BlackjackTournamentEntry"
+    },
+    {
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|143|app.domains.blackjack.rules|rules",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "line": 143,
+      "kind": "import",
+      "source_domain": "gift_pack",
+      "target_domain": "blackjack",
+      "target_module": "app.domains.blackjack.rules",
+      "symbol": "rules"
+    },
+    {
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|18|app.domains.invitation.models|Invitation",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "line": 18,
+      "kind": "import",
+      "source_domain": "gift_pack",
+      "target_domain": "invitation",
+      "target_module": "app.domains.invitation.models",
+      "symbol": "Invitation"
+    },
+    {
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|19|app.domains.luckywheel.models|LuckywheelFreeSpin",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "line": 19,
+      "kind": "import",
+      "source_domain": "gift_pack",
+      "target_domain": "luckywheel",
+      "target_module": "app.domains.luckywheel.models",
+      "symbol": "LuckywheelFreeSpin"
+    },
+    {
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|19|app.domains.luckywheel.models|WheelStats",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "line": 19,
+      "kind": "import",
+      "source_domain": "gift_pack",
+      "target_domain": "luckywheel",
+      "target_module": "app.domains.luckywheel.models",
+      "symbol": "WheelStats"
+    },
+    {
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|20|app.domains.prediction.models|PredictionBet",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "line": 20,
+      "kind": "import",
+      "source_domain": "gift_pack",
+      "target_domain": "prediction",
+      "target_module": "app.domains.prediction.models",
+      "symbol": "PredictionBet"
+    },
+    {
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|21|app.domains.treasure.models|TreasureParticipation",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "line": 21,
+      "kind": "import",
+      "source_domain": "gift_pack",
+      "target_domain": "treasure",
+      "target_module": "app.domains.treasure.models",
+      "symbol": "TreasureParticipation"
+    },
+    {
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|484|app.domains.premium.service|update_premium_status",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "line": 484,
+      "kind": "import",
+      "source_domain": "gift_pack",
+      "target_domain": "premium",
+      "target_module": "app.domains.premium.service",
+      "symbol": "update_premium_status"
+    },
+    {
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|9|app.domains.auction.models|AuctionBids",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "line": 9,
+      "kind": "import",
+      "source_domain": "gift_pack",
+      "target_domain": "auction",
+      "target_module": "app.domains.auction.models",
+      "symbol": "AuctionBids"
+    },
+    {
+      "key": "import|src/app/domains/gift_pack/repository/part_2.py|608|app.domains.premium.service|apply_download_unlock_to_media",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_2.py",
+      "line": 608,
+      "kind": "import",
+      "source_domain": "gift_pack",
+      "target_domain": "premium",
+      "target_module": "app.domains.premium.service",
+      "symbol": "apply_download_unlock_to_media"
+    },
+    {
+      "key": "import|src/app/domains/gift_pack/repository/part_2.py|629|app.domains.premium.service|sync_media_permission",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_2.py",
+      "line": 629,
+      "kind": "import",
+      "source_domain": "gift_pack",
+      "target_domain": "premium",
+      "target_module": "app.domains.premium.service",
+      "symbol": "sync_media_permission"
+    },
+    {
+      "key": "import|src/app/domains/gift_pack/repository/part_2.py|9|app.domains.badges.models|Badge",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_2.py",
+      "line": 9,
+      "kind": "import",
+      "source_domain": "gift_pack",
+      "target_domain": "badges",
+      "target_module": "app.domains.badges.models",
+      "symbol": "Badge"
+    },
+    {
+      "key": "import|src/app/domains/premium/repository.py|9|app.domains.traffic.models|LineTrafficStats",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/repository.py",
+      "line": 9,
+      "kind": "import",
+      "source_domain": "premium",
+      "target_domain": "traffic",
+      "target_module": "app.domains.traffic.models",
+      "symbol": "LineTrafficStats"
+    },
+    {
+      "key": "import|src/app/domains/premium/service.py|18|app.domains.identity.models|EmbyUser",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/service.py",
+      "line": 18,
+      "kind": "import",
+      "source_domain": "premium",
+      "target_domain": "identity",
+      "target_module": "app.domains.identity.models",
+      "symbol": "EmbyUser"
+    },
+    {
+      "key": "import|src/app/domains/premium/service.py|18|app.domains.identity.models|PlexUser",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/service.py",
+      "line": 18,
+      "kind": "import",
+      "source_domain": "premium",
+      "target_domain": "identity",
+      "target_module": "app.domains.identity.models",
+      "symbol": "PlexUser"
+    },
+    {
+      "key": "import|src/app/domains/rankings/repository.py|117|app.domains.blackjack.rules|rules",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/rankings/repository.py",
+      "line": 117,
+      "kind": "import",
+      "source_domain": "rankings",
+      "target_domain": "blackjack",
+      "target_module": "app.domains.blackjack.rules",
+      "symbol": "rules"
+    },
+    {
+      "key": "import|src/app/domains/rankings/repository.py|221|app.domains.blackjack.rules|rules",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/rankings/repository.py",
+      "line": 221,
+      "kind": "import",
+      "source_domain": "rankings",
+      "target_domain": "blackjack",
+      "target_module": "app.domains.blackjack.rules",
+      "symbol": "rules"
+    },
+    {
+      "key": "import|src/app/domains/tg_rebind/repository.py|10|app.domains.custom_lines.models|CustomLine",
+      "owner": "promote-tg-rebind-domain",
+      "path": "src/app/domains/tg_rebind/repository.py",
+      "line": 10,
+      "kind": "import",
+      "source_domain": "tg_rebind",
+      "target_domain": "custom_lines",
+      "target_module": "app.domains.custom_lines.models",
+      "symbol": "CustomLine"
+    },
+    {
+      "key": "import|src/app/domains/tg_rebind/repository.py|11|app.domains.donation.models|DonationRegistrations",
+      "owner": "promote-tg-rebind-domain",
+      "path": "src/app/domains/tg_rebind/repository.py",
+      "line": 11,
+      "kind": "import",
+      "source_domain": "tg_rebind",
+      "target_domain": "donation",
+      "target_module": "app.domains.donation.models",
+      "symbol": "DonationRegistrations"
+    },
+    {
+      "key": "import|src/app/domains/tg_rebind/repository.py|13|app.domains.invitation.models|Invitation",
+      "owner": "promote-tg-rebind-domain",
+      "path": "src/app/domains/tg_rebind/repository.py",
+      "line": 13,
+      "kind": "import",
+      "source_domain": "tg_rebind",
+      "target_domain": "invitation",
+      "target_module": "app.domains.invitation.models",
+      "symbol": "Invitation"
+    },
+    {
+      "key": "import|src/app/domains/tg_rebind/repository.py|14|app.domains.lines.models|LineSchedule",
+      "owner": "promote-tg-rebind-domain",
+      "path": "src/app/domains/tg_rebind/repository.py",
+      "line": 14,
+      "kind": "import",
+      "source_domain": "tg_rebind",
+      "target_domain": "lines",
+      "target_module": "app.domains.lines.models",
+      "symbol": "LineSchedule"
+    },
+    {
+      "key": "import|src/app/domains/tg_rebind/repository.py|15|app.domains.luckywheel.models|WheelStats",
+      "owner": "promote-tg-rebind-domain",
+      "path": "src/app/domains/tg_rebind/repository.py",
+      "line": 15,
+      "kind": "import",
+      "source_domain": "tg_rebind",
+      "target_domain": "luckywheel",
+      "target_module": "app.domains.luckywheel.models",
+      "symbol": "WheelStats"
+    },
+    {
+      "key": "import|src/app/domains/tg_rebind/repository.py|16|app.domains.prediction.models|PredictionBet",
+      "owner": "promote-tg-rebind-domain",
+      "path": "src/app/domains/tg_rebind/repository.py",
+      "line": 16,
+      "kind": "import",
+      "source_domain": "tg_rebind",
+      "target_domain": "prediction",
+      "target_module": "app.domains.prediction.models",
+      "symbol": "PredictionBet"
+    },
+    {
+      "key": "import|src/app/domains/tg_rebind/repository.py|16|app.domains.prediction.models|PredictionMarket",
+      "owner": "promote-tg-rebind-domain",
+      "path": "src/app/domains/tg_rebind/repository.py",
+      "line": 16,
+      "kind": "import",
+      "source_domain": "tg_rebind",
+      "target_domain": "prediction",
+      "target_module": "app.domains.prediction.models",
+      "symbol": "PredictionMarket"
+    },
+    {
+      "key": "import|src/app/domains/tg_rebind/repository.py|16|app.domains.prediction.models|PredictionMarketSubmission",
+      "owner": "promote-tg-rebind-domain",
+      "path": "src/app/domains/tg_rebind/repository.py",
+      "line": 16,
+      "kind": "import",
+      "source_domain": "tg_rebind",
+      "target_domain": "prediction",
+      "target_module": "app.domains.prediction.models",
+      "symbol": "PredictionMarketSubmission"
+    },
+    {
+      "key": "import|src/app/domains/tg_rebind/repository.py|21|app.domains.treasure.models|TreasureIssue",
+      "owner": "promote-tg-rebind-domain",
+      "path": "src/app/domains/tg_rebind/repository.py",
+      "line": 21,
+      "kind": "import",
+      "source_domain": "tg_rebind",
+      "target_domain": "treasure",
+      "target_module": "app.domains.treasure.models",
+      "symbol": "TreasureIssue"
+    },
+    {
+      "key": "import|src/app/domains/tg_rebind/repository.py|21|app.domains.treasure.models|TreasureParticipation",
+      "owner": "promote-tg-rebind-domain",
+      "path": "src/app/domains/tg_rebind/repository.py",
+      "line": 21,
+      "kind": "import",
+      "source_domain": "tg_rebind",
+      "target_domain": "treasure",
+      "target_module": "app.domains.treasure.models",
+      "symbol": "TreasureParticipation"
+    },
+    {
+      "key": "import|src/app/domains/tg_rebind/repository.py|22|app.domains.vaultwarden.models|VaultwardenRedeemRecords",
+      "owner": "promote-tg-rebind-domain",
+      "path": "src/app/domains/tg_rebind/repository.py",
+      "line": 22,
+      "kind": "import",
+      "source_domain": "tg_rebind",
+      "target_domain": "vaultwarden",
+      "target_module": "app.domains.vaultwarden.models",
+      "symbol": "VaultwardenRedeemRecords"
+    },
+    {
+      "key": "import|src/app/domains/tg_rebind/repository.py|7|app.domains.auction.models|AuctionBids",
+      "owner": "promote-tg-rebind-domain",
+      "path": "src/app/domains/tg_rebind/repository.py",
+      "line": 7,
+      "kind": "import",
+      "source_domain": "tg_rebind",
+      "target_domain": "auction",
+      "target_module": "app.domains.auction.models",
+      "symbol": "AuctionBids"
+    },
+    {
+      "key": "import|src/app/domains/tg_rebind/repository.py|7|app.domains.auction.models|Auctions",
+      "owner": "promote-tg-rebind-domain",
+      "path": "src/app/domains/tg_rebind/repository.py",
+      "line": 7,
+      "kind": "import",
+      "source_domain": "tg_rebind",
+      "target_domain": "auction",
+      "target_module": "app.domains.auction.models",
+      "symbol": "Auctions"
+    },
+    {
+      "key": "import|src/app/domains/tg_rebind/repository.py|8|app.domains.badges.models|UserBadge",
+      "owner": "promote-tg-rebind-domain",
+      "path": "src/app/domains/tg_rebind/repository.py",
+      "line": 8,
+      "kind": "import",
+      "source_domain": "tg_rebind",
+      "target_domain": "badges",
+      "target_module": "app.domains.badges.models",
+      "symbol": "UserBadge"
+    },
+    {
+      "key": "import|src/app/domains/tg_rebind/repository.py|9|app.domains.crypto_donation.models|CryptoDonationOrders",
+      "owner": "promote-tg-rebind-domain",
+      "path": "src/app/domains/tg_rebind/repository.py",
+      "line": 9,
+      "kind": "import",
+      "source_domain": "tg_rebind",
+      "target_domain": "crypto_donation",
+      "target_module": "app.domains.crypto_donation.models",
+      "symbol": "CryptoDonationOrders"
+    },
+    {
+      "key": "import|src/app/domains/traffic/repository.py|8|app.domains.custom_lines.models|CustomLine",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/traffic/repository.py",
+      "line": 8,
+      "kind": "import",
+      "source_domain": "traffic",
+      "target_domain": "custom_lines",
+      "target_module": "app.domains.custom_lines.models",
+      "symbol": "CustomLine"
+    }
+  ],
+  "line_budgets": [
     {
       "key": "src/app/databases/db_func.py",
       "owner": "restructure-backend-architecture",
       "path": "src/app/databases/db_func.py",
-      "lines": 3014,
-      "budget": 1000
-    },
-    {
-      "key": "src/app/models/models.py",
-      "owner": "restructure-backend-architecture",
-      "path": "src/app/models/models.py",
-      "lines": 1542,
+      "lines": 3011,
       "budget": 1000
     },
     {
@@ -41,10 +586,20 @@
       "key": "src/app/webapp/routers/user.py",
       "owner": "restructure-backend-architecture",
       "path": "src/app/webapp/routers/user.py",
-      "lines": 2874,
+      "lines": 2875,
       "budget": 1000
     }
   ],
   "model_registry": [],
-  "mixin_duplicates": []
+  "mixin_duplicates": [],
+  "contract_ignore_counts": {
+    "Top-level architecture": 0,
+    "External integration isolation": 0,
+    "Legacy database facade freeze": 0,
+    "SQLAlchemy direct use scope": 9,
+    "Database engine import scope": 10,
+    "Domain model import scope": 18,
+    "Six-tier domain dependencies": 21,
+    "Acyclic domain siblings": 20
+  }
 }

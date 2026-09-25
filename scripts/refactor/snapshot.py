@@ -77,10 +77,15 @@ def _column_default(column: Any) -> Any:
 
 
 def _metadata_snapshot() -> dict[str, Any]:
-    from app.models.models import Base
+    try:
+        from app.model_registry import metadata
+    except ModuleNotFoundError:
+        from app.models.models import Base
+
+        metadata = Base.metadata
 
     tables: list[dict[str, Any]] = []
-    for table in sorted(Base.metadata.tables.values(), key=lambda item: item.name):
+    for table in sorted(metadata.tables.values(), key=lambda item: item.name):
         columns = []
         for column in table.columns:
             columns.append(
@@ -168,7 +173,11 @@ class _RecordingScheduler:
 
 def _scheduler_snapshot() -> dict[str, Any]:
     from app import main
-    from app.config import settings
+
+    try:
+        from app.core.config import settings
+    except ModuleNotFoundError:
+        from app.config import settings
 
     recorder = _RecordingScheduler()
     before = datetime(2020, 1, 1, tzinfo=settings.TZ)

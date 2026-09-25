@@ -14,7 +14,7 @@ def explicit_ids(session_env):
     """内存 SQLite 不给 BIGINT 主键自增，走真实创建路径的用例须显式补 id。"""
     from sqlalchemy import event
 
-    from app.models.models import BlackjackTournament
+    from app.domains.blackjack.models import BlackjackTournament
 
     @event.listens_for(BlackjackTournament, "before_insert")
     def _assign_id(mapper, connection, target):
@@ -27,7 +27,7 @@ def explicit_ids(session_env):
 
 
 def _config(**overrides) -> dict:
-    from app.databases.db import DEFAULT_BLACKJACK_CONFIG
+    from app.domains.blackjack.repository import DEFAULT_BLACKJACK_CONFIG
 
     config = dict(DEFAULT_BLACKJACK_CONFIG)
     config["enabled"] = True
@@ -37,7 +37,7 @@ def _config(**overrides) -> dict:
 
 def _monday_ms() -> int:
     """本周一 00:00（本地时区）的毫秒时间戳，与任务内的对齐算法独立同源。"""
-    from app.config import settings
+    from app.core.config import settings
 
     now = datetime.datetime.now(settings.TZ)
     monday = (now - datetime.timedelta(days=now.weekday())).replace(
@@ -51,7 +51,7 @@ def before_registration_deadline(monkeypatch):
     """将自动开赛测试固定在周一，避免周三报名截止后随真实日期失败。"""
     import time
 
-    from app.config import settings
+    from app.core.config import settings
 
     monday = datetime.datetime.now(settings.TZ)
     monday = (monday - datetime.timedelta(days=monday.weekday())).replace(
