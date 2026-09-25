@@ -2,8 +2,9 @@
 自定义线路管理模块
 """
 
-from datetime import datetime, timedelta
-from typing import List, Optional
+from datetime import UTC, datetime, timedelta
+
+from sqlalchemy import and_, func, select
 
 from app.config import settings
 from app.databases import db
@@ -12,7 +13,6 @@ from app.log import logger
 from app.models.models import CustomLine, LineTrafficMonthlyStats
 from app.utils.utils import normalize_line_domain, send_message_by_url
 from app.webapp.routers.admin import unbind_specified_line_for_all_users
-from sqlalchemy import and_, func, select
 
 
 async def check_expired_custom_lines():
@@ -31,7 +31,7 @@ async def check_expired_custom_lines():
         logger.info("开始检查即将过期和已过期的自定义线路")
 
         with get_session() as session:
-            current_time = int(datetime.now().timestamp())
+            current_time = int(datetime.now(tz=UTC).timestamp())
             # 1天后的时间戳（用于提前提醒）
             one_day_later = current_time + (24 * 60 * 60)
 
@@ -69,7 +69,7 @@ async def check_expired_custom_lines():
 
 async def _get_expiring_soon_lines(
     session, current_time: int, one_day_later: int
-) -> List[CustomLine]:
+) -> list[CustomLine]:
     """获取即将在1天内过期的线路"""
     stmt_expiring_soon = select(CustomLine).where(
         and_(
@@ -85,7 +85,7 @@ async def _get_expiring_soon_lines(
     return result.scalars().all()
 
 
-async def _get_expired_lines(session, current_time: int) -> List[CustomLine]:
+async def _get_expired_lines(session, current_time: int) -> list[CustomLine]:
     """获取已经过期的线路"""
     stmt_expired = select(CustomLine).where(
         and_(
@@ -100,7 +100,7 @@ async def _get_expired_lines(session, current_time: int) -> List[CustomLine]:
     return result.scalars().all()
 
 
-async def _send_expiring_soon_notifications(lines: List[CustomLine], current_time: int):
+async def _send_expiring_soon_notifications(lines: list[CustomLine], current_time: int):
     """发送即将过期的提醒通知"""
     logger.info(f"找到 {len(lines)} 条即将过期的自定义线路")
 
@@ -147,7 +147,7 @@ async def _send_expiring_soon_notifications(lines: List[CustomLine], current_tim
 
 
 async def _process_expired_lines(
-    session, lines: List[CustomLine], current_time: int, unbind_func
+    session, lines: list[CustomLine], current_time: int, unbind_func
 ):
     """处理已过期的线路"""
     for line in lines:
@@ -208,8 +208,8 @@ async def check_custom_line_traffic():
         logger.info("开始检查自定义线路流量使用情况")
 
         with get_session() as session:
-            current_time = int(datetime.now().timestamp())
-            current_month = datetime.now().strftime("%Y-%m")
+            current_time = int(datetime.now(tz=UTC).timestamp())
+            current_month = datetime.now(tz=UTC).astimezone().strftime("%Y-%m")
 
             # 获取所有已批准的自定义线路
             stmt = select(CustomLine).where(
@@ -400,7 +400,7 @@ async def check_custom_line_traffic():
 
 
 async def settle_custom_line_traffic(
-    line_domain: Optional[str] = None, force_current_month: bool = False
+    line_domain: str | None = None, force_current_month: bool = False
 ):
     """
     结算自定义线路流量积分
@@ -575,7 +575,7 @@ async def _get_line_monthly_traffic(
     session,
     line_domain: str,
     year_month: str,
-    owner_tg_id: Optional[int] = None,
+    owner_tg_id: int | None = None,
     from_raw_table: bool = False,
 ) -> float:
     """
@@ -693,15 +693,12 @@ def _is_line_valid(line: CustomLine, current_time: int) -> bool:
         return True
 
     # 有期限的线路
-    if line.expires_at and line.expires_at > current_time:
-        return True
-
-    return False
+    return bool(line.expires_at and line.expires_at > current_time)
 
 
 async def _send_admin_settlement_summary(
     settle_month: str,
-    settlement_details: List[dict],
+    settlement_details: list[dict],
     settled_count: int,
     total_credits: float,
 ):

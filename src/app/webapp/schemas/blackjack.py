@@ -7,8 +7,6 @@
 不依赖「路由里记得过滤」——那是最容易在后续改动中被绕过的写法。
 """
 
-from typing import List, Optional
-
 from pydantic import BaseModel, Field
 
 # 与 blackjack_engine / BlackjackHand.status 一致
@@ -37,13 +35,13 @@ class BlackjackHandResponse(BaseModel):
     status: int = Field(..., description="1=玩家回合 2=庄家回合 3=已结算 4=超时弃牌")
     bet_credits: int = Field(..., description="基础注额")
     doubled: bool = Field(..., description="是否已加倍")
-    player_cards: List[str] = Field(..., description="玩家牌面")
-    dealer_cards: List[str] = Field(..., description="庄家牌面；玩家回合期间仅含明牌")
+    player_cards: list[str] = Field(..., description="玩家牌面")
+    dealer_cards: list[str] = Field(..., description="庄家牌面；玩家回合期间仅含明牌")
     player_total: int = Field(..., description="玩家有效点数")
-    dealer_total: Optional[int] = Field(
+    dealer_total: int | None = Field(
         None, description="庄家有效点数；玩家回合期间为 null（暗牌未公开）"
     )
-    dealer_step_totals: List[int] = Field(
+    dealer_step_totals: list[int] = Field(
         default_factory=list,
         description=(
             "庄家每揭开一张牌后的累计点数，与 dealer_cards 一一对应。"
@@ -63,21 +61,19 @@ class BlackjackHandResponse(BaseModel):
             "前端不必自行推导——管理员中途关闭开关不影响进行中的手牌"
         ),
     )
-    outcome: Optional[str] = Field(
+    outcome: str | None = Field(
         None,
         description="blackjack / win / push / lose / bust / surrender；未结算为 null",
     )
-    payout_credits: Optional[float] = Field(
+    payout_credits: float | None = Field(
         None, description="结算入账积分（含返还本金，已扣抽水）；不含奖池派彩"
     )
-    rake_credits: Optional[float] = Field(None, description="本手抽水总额")
-    jackpot_won: Optional[float] = Field(
-        None, description="幸运奖池派彩，与赔付分别记账"
-    )
-    relief_credits: Optional[float] = Field(
+    rake_credits: float | None = Field(None, description="本手抽水总额")
+    jackpot_won: float | None = Field(None, description="幸运奖池派彩，与赔付分别记账")
+    relief_credits: float | None = Field(
         None, description="连败救济金额，与赔付/奖池分别记账；未触发为 null"
     )
-    jackpot_trigger: Optional[str] = Field(
+    jackpot_trigger: str | None = Field(
         None,
         description=(
             "命中奖池的牌型：triple_seven / suited_blackjack；未中奖为 null。"
@@ -88,7 +84,7 @@ class BlackjackHandResponse(BaseModel):
     decisions_total: int = Field(0, description="本手的决策次数")
     decisions_correct: int = Field(0, description="其中与基本策略一致的次数")
     created_at_ms: int = Field(..., description="发牌时间戳（毫秒）")
-    settled_at: Optional[int] = Field(None, description="结算时间戳（秒）")
+    settled_at: int | None = Field(None, description="结算时间戳（秒）")
 
     @classmethod
     def from_hand(cls, hand: dict) -> "BlackjackHandResponse":
@@ -187,12 +183,12 @@ class BlackjackActionResponse(BaseModel):
     hand: BlackjackHandResponse = Field(..., description="手牌状态")
     settled: bool = Field(..., description="本次操作是否已使手牌结算")
     current_credits: float = Field(..., description="操作后用户的当前积分")
-    decision: Optional[BlackjackDecisionFeedback] = Field(
+    decision: BlackjackDecisionFeedback | None = Field(
         None, description="本次动作的基本策略评判；发牌无决策，故为 null"
     )
     jackpot_balance: float = Field(0, description="幸运奖池的当前余额")
     relief_credits: float = Field(0, description="本手触发的连败救济金额；未触发为 0")
-    freespin_grants: List[BlackjackFreespinGrant] = Field(
+    freespin_grants: list[BlackjackFreespinGrant] = Field(
         default_factory=list,
         description=(
             "本手结算使累计手数达到阈值而发放的免费大转盘机会；"
@@ -204,7 +200,7 @@ class BlackjackActionResponse(BaseModel):
 class BlackjackCurrentHandResponse(BaseModel):
     """当前进行中手牌的查询响应"""
 
-    hand: Optional[BlackjackHandResponse] = Field(
+    hand: BlackjackHandResponse | None = Field(
         None, description="进行中的手牌；无则为 null"
     )
     current_credits: float = Field(..., description="用户当前积分")
@@ -237,7 +233,7 @@ class BlackjackPublicConfigResponse(BaseModel):
     """
 
     enabled: bool = Field(..., description="活动是否开放")
-    bet_options: List[int] = Field(..., description="可选注额档位")
+    bet_options: list[int] = Field(..., description="可选注额档位")
     min_credits: int = Field(..., description="参与门槛")
     blackjack_payout: float = Field(..., description="天胡赔率（净赢利倍数）")
     rake_percent_on_profit: float = Field(
@@ -277,7 +273,7 @@ class BlackjackAdminConfig(BaseModel):
     """管理员可见与可改的完整配置"""
 
     enabled: bool = Field(..., description="服务端停用开关")
-    bet_options: List[int] = Field(..., min_length=1, description="注额档位")
+    bet_options: list[int] = Field(..., min_length=1, description="注额档位")
     min_credits: int = Field(..., ge=1, description="参与门槛")
     rake_bp_on_profit: int = Field(
         ..., ge=0, le=10000, description="抽水比率（基点），仅对净赢利"

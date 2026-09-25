@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -8,9 +8,9 @@ class TelegramUser(BaseModel):
 
     id: int
     first_name: str
-    last_name: Optional[str] = None
-    username: Optional[str] = None
-    photo_url: Optional[str] = None
+    last_name: str | None = None
+    username: str | None = None
+    photo_url: str | None = None
     is_bot: bool = False
     is_premium: bool = False
 
@@ -22,10 +22,10 @@ class UserInfo(BaseModel):
     credits: float = 0
     donation: float = 0
     invitee_count: int = 0  # 邀请人数
-    invitation_codes: List[str] = []
-    plex_info: Optional[Dict[str, Any]] = None
-    emby_info: Optional[Dict[str, Any]] = None
-    overseerr_info: Optional[Dict[str, Any]] = None
+    invitation_codes: list[str] = []
+    plex_info: dict[str, Any] | None = None
+    emby_info: dict[str, Any] | None = None
+    overseerr_info: dict[str, Any] | None = None
     is_admin: bool = False
 
 
@@ -64,7 +64,7 @@ class EmbyLineInfo(BaseModel):
     """Emby线路信息模型"""
 
     name: str
-    tags: List[str] = []
+    tags: list[str] = []
     is_premium: bool = False
 
 
@@ -72,50 +72,50 @@ class PlexLineInfo(BaseModel):
     """Plex线路信息模型"""
 
     name: str
-    tags: List[str] = []
+    tags: list[str] = []
     is_premium: bool = False
 
 
 class EmbyLinesResponse(BaseResponse):
     """Emby线路列表响应模型"""
 
-    lines: List[EmbyLineInfo]
+    lines: list[EmbyLineInfo]
 
 
 class PlexLinesResponse(BaseResponse):
     """Plex线路列表响应模型"""
 
-    lines: List[PlexLineInfo]
+    lines: list[PlexLineInfo]
 
 
 class LineTagRequest(BaseModel):
     """线路标签请求模型"""
 
     line_name: str = Field(..., min_length=1)
-    tags: List[str] = Field(..., min_items=0)
+    tags: list[str] = Field(..., min_items=0)
 
 
 class LineTagResponse(BaseModel):
     """线路标签响应模型"""
 
     line_name: str
-    tags: List[str]
+    tags: list[str]
 
 
 class AllLineTagsResponse(BaseModel):
     """所有线路标签响应模型"""
 
-    lines: Dict[str, List[str]]
+    lines: dict[str, list[str]]
 
 
 class AuthBindLineRequest(BaseModel):
     """认证并绑定线路的请求模型"""
 
     username: str = Field(..., min_length=1, description="用户名或邮箱")
-    password: Optional[str] = Field(None, description="密码")
+    password: str | None = Field(None, description="密码")
     line: str = Field(..., min_length=1, description="要绑定的线路名称")
-    token: Optional[str] = Field(None, description="用户认证令牌")
-    auth_method: Optional[str] = Field(
+    token: str | None = Field(None, description="用户认证令牌")
+    auth_method: str | None = Field(
         None, description="认证方法，支持 'password' 或 'token'"
     )
 
@@ -127,7 +127,7 @@ class CreditsTransferRequest(BaseModel):
     amount: float = Field(
         ..., gt=0, le=10000, description="转移积分数量，必须大于0且不超过10000"
     )
-    note: Optional[str] = Field(None, max_length=200, description="转移备注，可选")
+    note: str | None = Field(None, max_length=200, description="转移备注，可选")
 
 
 class CreditsTransferResponse(BaseModel):
@@ -135,9 +135,9 @@ class CreditsTransferResponse(BaseModel):
 
     success: bool
     message: str
-    transferred_amount: Optional[float] = None
-    fee_amount: Optional[float] = None
-    current_credits: Optional[float] = None
+    transferred_amount: float | None = None
+    fee_amount: float | None = None
+    current_credits: float | None = None
 
 
 class CurrentLineResponse(BaseModel):
@@ -145,7 +145,7 @@ class CurrentLineResponse(BaseModel):
 
     success: bool
     message: str
-    line: Optional[str] = None
+    line: str | None = None
 
 
 class LineScheduleCreate(BaseModel):
@@ -153,7 +153,7 @@ class LineScheduleCreate(BaseModel):
 
     service: str = Field(..., description="服务类型: plex 或 emby")
     line: str = Field(..., min_length=1, description="线路名称")
-    days_of_week: List[int] = Field(
+    days_of_week: list[int] = Field(
         ..., min_items=1, max_items=7, description="星期几列表 (0=周一, 6=周日)"
     )
     start_time: str = Field(
@@ -168,18 +168,18 @@ class LineScheduleCreate(BaseModel):
 class LineScheduleUpdate(BaseModel):
     """更新线路调度请求模型"""
 
-    line: Optional[str] = Field(None, min_length=1, description="线路名称")
-    days_of_week: Optional[List[int]] = Field(
+    line: str | None = Field(None, min_length=1, description="线路名称")
+    days_of_week: list[int] | None = Field(
         None, min_items=1, max_items=7, description="星期几列表 (0=周一, 6=周日)"
     )
-    start_time: Optional[str] = Field(
+    start_time: str | None = Field(
         None, pattern=r"^([01]\d|2[0-3]):([0-5]\d)$", description="开始时间 HH:MM"
     )
-    end_time: Optional[str] = Field(
+    end_time: str | None = Field(
         None, pattern=r"^([01]\d|2[0-3]):([0-5]\d)$", description="结束时间 HH:MM"
     )
-    priority: Optional[int] = Field(None, ge=0, description="优先级")
-    is_enabled: Optional[bool] = Field(None, description="是否启用")
+    priority: int | None = Field(None, ge=0, description="优先级")
+    is_enabled: bool | None = Field(None, description="是否启用")
 
 
 class LineScheduleInfo(BaseModel):
@@ -188,7 +188,7 @@ class LineScheduleInfo(BaseModel):
     id: int
     service: str
     line: str
-    days_of_week: List[int]
+    days_of_week: list[int]
     start_time: str
     end_time: str
     priority: int
@@ -200,7 +200,7 @@ class LineScheduleInfo(BaseModel):
 class LineScheduleListResponse(BaseResponse):
     """线路调度列表响应模型"""
 
-    schedules: List[LineScheduleInfo] = []
+    schedules: list[LineScheduleInfo] = []
 
 
 class LineScheduleUnlockResponse(BaseResponse):
@@ -208,8 +208,8 @@ class LineScheduleUnlockResponse(BaseResponse):
 
     is_unlocked: bool = False
     is_premium: bool = False
-    unlock_time: Optional[int] = None
-    credits_cost: Optional[float] = None
+    unlock_time: int | None = None
+    credits_cost: float | None = None
 
 
 class LineScheduleUnlockRequest(BaseModel):
@@ -225,7 +225,7 @@ class LineScheduleStatusResponse(BaseResponse):
     is_unlocked: bool = False
     is_premium: bool = False
     has_schedules: bool = False
-    current_schedule: Optional[LineScheduleInfo] = None
+    current_schedule: LineScheduleInfo | None = None
 
 
 # ==================== 自定义线路相关模型 ====================
@@ -241,17 +241,17 @@ class CustomLineSubmitRequest(BaseModel):
         max_length=500,
         description="三网线路情况（电信/联通/移动等）",
     )
-    price_monthly: Optional[float] = Field(None, ge=0, description="月付价格")
-    price_yearly: Optional[float] = Field(None, ge=0, description="年付价格")
-    traffic_limit: Optional[float] = Field(None, ge=0, description="每月流量限制 (GB)")
+    price_monthly: float | None = Field(None, ge=0, description="月付价格")
+    price_yearly: float | None = Field(None, ge=0, description="年付价格")
+    traffic_limit: float | None = Field(None, ge=0, description="每月流量限制 (GB)")
     traffic_type: str = Field(
         default="one_way",
         description="流量计算类型: one_way=单向, two_way=双向",
     )
     total_traffic: float = Field(..., gt=0, description="总流量包 (GB)")
-    valid_days: Optional[int] = Field(None, ge=1, description="可使用天数")
+    valid_days: int | None = Field(None, ge=1, description="可使用天数")
     is_permanent: bool = Field(default=False, description="是否长期可用")
-    user_note: Optional[str] = Field(None, max_length=500, description="用户备注")
+    user_note: str | None = Field(None, max_length=500, description="用户备注")
 
 
 class CustomLineInfo(BaseModel):
@@ -261,46 +261,46 @@ class CustomLineInfo(BaseModel):
     tg_id: int
     domain: str
     network_info: str
-    price_monthly: Optional[float] = None
-    price_yearly: Optional[float] = None
-    traffic_limit: Optional[float] = None
+    price_monthly: float | None = None
+    price_yearly: float | None = None
+    traffic_limit: float | None = None
     traffic_type: str
-    valid_days: Optional[int] = None
+    valid_days: int | None = None
     is_permanent: bool
     status: str
-    admin_note: Optional[str] = None
-    user_note: Optional[str] = None
-    tags: Optional[List[str]] = None
-    approved_at: Optional[int] = None
-    approved_by: Optional[int] = None
-    expires_at: Optional[int] = None
+    admin_note: str | None = None
+    user_note: str | None = None
+    tags: list[str] | None = None
+    approved_at: int | None = None
+    approved_by: int | None = None
+    expires_at: int | None = None
     created_at: int
     updated_at: int
-    total_traffic: Optional[float] = None
+    total_traffic: float | None = None
 
 
 class CustomLineListResponse(BaseResponse):
     """自定义线路列表响应模型"""
 
-    lines: List[CustomLineInfo] = []
+    lines: list[CustomLineInfo] = []
     total: int = 0
 
 
 class CustomLineDetailResponse(BaseResponse):
     """自定义线路详情响应模型"""
 
-    line: Optional[CustomLineInfo] = None
+    line: CustomLineInfo | None = None
 
 
 class CustomLineApproveRequest(BaseModel):
     """管理员审批自定义线路请求模型"""
 
     action: str = Field(..., description="审批动作: approve=批准, reject=拒绝")
-    admin_note: Optional[str] = Field(None, max_length=500, description="管理员备注")
-    valid_days: Optional[int] = Field(
+    admin_note: str | None = Field(None, max_length=500, description="管理员备注")
+    valid_days: int | None = Field(
         None, ge=1, description="管理员设定的有效天数（覆盖用户提交的值）"
     )
-    is_permanent: Optional[bool] = Field(
+    is_permanent: bool | None = Field(
         None, description="是否设为长期可用（覆盖用户提交的值）"
     )
 
@@ -308,40 +308,40 @@ class CustomLineApproveRequest(BaseModel):
 class CustomLineUpdateRequest(BaseModel):
     """更新自定义线路请求模型（用户或管理员）"""
 
-    domain: Optional[str] = Field(
+    domain: str | None = Field(
         None, min_length=1, max_length=255, description="线路域名"
     )
-    network_info: Optional[str] = Field(
+    network_info: str | None = Field(
         None, min_length=1, max_length=500, description="三网线路情况"
     )
-    price_monthly: Optional[float] = Field(None, ge=0, description="月付价格")
-    price_yearly: Optional[float] = Field(None, ge=0, description="年付价格")
-    traffic_limit: Optional[float] = Field(None, ge=0, description="每月流量限制 (GB)")
-    traffic_type: Optional[str] = Field(None, description="流量计算类型")
-    total_traffic: Optional[float] = Field(None, ge=0, description="总流量包 (GB)")
-    valid_days: Optional[int] = Field(None, ge=1, description="可使用天数")
-    is_permanent: Optional[bool] = Field(None, description="是否长期可用")
-    user_note: Optional[str] = Field(None, max_length=500, description="用户备注")
+    price_monthly: float | None = Field(None, ge=0, description="月付价格")
+    price_yearly: float | None = Field(None, ge=0, description="年付价格")
+    traffic_limit: float | None = Field(None, ge=0, description="每月流量限制 (GB)")
+    traffic_type: str | None = Field(None, description="流量计算类型")
+    total_traffic: float | None = Field(None, ge=0, description="总流量包 (GB)")
+    valid_days: int | None = Field(None, ge=1, description="可使用天数")
+    is_permanent: bool | None = Field(None, description="是否长期可用")
+    user_note: str | None = Field(None, max_length=500, description="用户备注")
 
 
 class AdminCustomLineUpdateRequest(BaseModel):
     """管理员更新自定义线路请求模型"""
 
-    domain: Optional[str] = Field(
+    domain: str | None = Field(
         None, min_length=1, max_length=255, description="线路域名"
     )
-    network_info: Optional[str] = Field(
+    network_info: str | None = Field(
         None, min_length=1, max_length=500, description="三网线路情况"
     )
-    price_monthly: Optional[float] = Field(None, ge=0, description="月付价格")
-    price_yearly: Optional[float] = Field(None, ge=0, description="年付价格")
-    traffic_limit: Optional[float] = Field(None, ge=0, description="每月流量限制 (GB)")
-    traffic_type: Optional[str] = Field(None, description="流量计算类型")
-    total_traffic: Optional[float] = Field(None, ge=0, description="总流量包 (GB)")
-    valid_days: Optional[int] = Field(None, ge=1, description="可使用天数")
-    is_permanent: Optional[bool] = Field(None, description="是否长期可用")
-    admin_note: Optional[str] = Field(None, max_length=500, description="管理员备注")
-    status: Optional[str] = Field(
+    price_monthly: float | None = Field(None, ge=0, description="月付价格")
+    price_yearly: float | None = Field(None, ge=0, description="年付价格")
+    traffic_limit: float | None = Field(None, ge=0, description="每月流量限制 (GB)")
+    traffic_type: str | None = Field(None, description="流量计算类型")
+    total_traffic: float | None = Field(None, ge=0, description="总流量包 (GB)")
+    valid_days: int | None = Field(None, ge=1, description="可使用天数")
+    is_permanent: bool | None = Field(None, description="是否长期可用")
+    admin_note: str | None = Field(None, max_length=500, description="管理员备注")
+    status: str | None = Field(
         None,
         description="状态: pending=待审批/approved=已批准/rejected=已拒绝/offline=已下线/expired=已过期",
     )
@@ -356,7 +356,7 @@ class CustomLineRenewRequest(BaseModel):
 class CustomLineOnlineRequest(BaseModel):
     """上线自定义线路请求模型"""
 
-    traffic_limit: Optional[float] = Field(None, ge=0, description="每月流量限制 (GB)")
-    total_traffic: Optional[float] = Field(None, ge=0, description="总流量包 (GB)")
-    valid_days: Optional[int] = Field(None, ge=1, description="可使用天数")
-    is_permanent: Optional[bool] = Field(None, description="是否长期可用")
+    traffic_limit: float | None = Field(None, ge=0, description="每月流量限制 (GB)")
+    total_traffic: float | None = Field(None, ge=0, description="总流量包 (GB)")
+    valid_days: int | None = Field(None, ge=1, description="可使用天数")
+    is_permanent: bool | None = Field(None, description="是否长期可用")

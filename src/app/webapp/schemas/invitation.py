@@ -1,5 +1,3 @@
-from typing import Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -9,7 +7,7 @@ class InvitePointsResponse(BaseModel):
     required_points: int
     current_points: float
     can_generate: bool
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class GenerateInviteCodeResponse(BaseModel):
@@ -17,17 +15,17 @@ class GenerateInviteCodeResponse(BaseModel):
 
     success: bool
     message: str
-    code: Optional[str] = None
+    code: str | None = None
 
 
 class RedeemInviteCodeRequest(BaseModel):
     """兑换邀请码请求模型"""
 
     code: str
-    email: Optional[str] = None  # Plex 使用
-    username: Optional[str] = None  # Emby 使用
-    password: Optional[str] = None  # Emby 使用
-    bind_to_telegram: Optional[bool] = Field(
+    email: str | None = None  # Plex 使用
+    username: str | None = None  # Emby 使用
+    password: str | None = None  # Emby 使用
+    bind_to_telegram: bool | None = Field(
         False, alias="bindToTelegram"
     )  # 是否绑定到 Telegram 账号
 
@@ -37,7 +35,7 @@ class RedeemResponse(BaseModel):
 
     success: bool
     message: str
-    telegram_bound: Optional[bool] = None  # 是否成功绑定到 Telegram
+    telegram_bound: bool | None = None  # 是否成功绑定到 Telegram
 
 
 class CheckPrivilegedCodeRequest(BaseModel):
@@ -75,5 +73,5 @@ class RedeemForCreditsResponse(BaseModel):
 
     success: bool
     message: str
-    credits_earned: Optional[float] = None
-    current_credits: Optional[float] = None
+    credits_earned: float | None = None
+    current_credits: float | None = None

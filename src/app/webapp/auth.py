@@ -2,9 +2,10 @@ import hashlib
 import hmac
 import json
 
+from fastapi import HTTPException, Request, status
+
 from app.config import settings
 from app.webapp.schemas import TelegramUser
-from fastapi import HTTPException, Request, status
 
 
 def verify_telegram_data(data: dict) -> bool:
@@ -56,5 +57,5 @@ def get_telegram_user(request: Request) -> TelegramUser:
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"获取用户数据失败: {str(e)}",
+            detail=f"获取用户数据失败: {e!s}",
         )

@@ -1,16 +1,13 @@
-#!/usr/bin/env python3
-
-import logging
 import pickle
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Optional, Union
 
 import filelock
 import requests
-from app.config import settings
-from app.log import logger
 from plexapi.myplex import Section
 from plexapi.server import PlexServer
+
+from app.config import settings
+from app.log import logger
 
 
 class Plex:
@@ -62,7 +59,7 @@ class Plex:
             except Exception as e:
                 # 如果用户没有访问此服务器的权限,会抛出异常,跳过该用户
                 logger.info(
-                    f"用户 {user.username if hasattr(user, 'username') else user.email} 没有访问服务器的权限: {str(e)}"
+                    f"用户 {user.username if hasattr(user, 'username') else user.email} 没有访问服务器的权限: {e!s}"
                 )
                 continue
 
@@ -116,9 +113,12 @@ class Plex:
             int: 用户 ID，如果未找到则返回 0
         """
         for user in self.get_users():
-            if hasattr(user, "username") and user.username == username:
-                return user.id
-            elif hasattr(user, "title") and user.title == username:
+            if (
+                hasattr(user, "username")
+                and user.username == username
+                or hasattr(user, "title")
+                and user.title == username
+            ):
                 return user.id
         return 0
 
@@ -129,18 +129,16 @@ class Plex:
             plex = cls()
             user_avatars = plex.update_all_user_avatars()
         else:
-            with cls.cache_lock:
-                with open(cls.cache, "rb") as f:
-                    user_avatars = pickle.load(f)
+            with cls.cache_lock, open(cls.cache, "rb") as f:
+                user_avatars = pickle.load(f)
         return user_avatars.get(username, "")
 
     def update_all_user_avatars(self):
         user_avatars = {}
         for username, user in self.users_info.items():
             user_avatars[username] = user.thumb
-        with self.cache_lock:
-            with open(self.cache, "wb") as f:
-                pickle.dump(user_avatars, f)
+        with self.cache_lock, open(self.cache, "wb") as f:
+            pickle.dump(user_avatars, f)
         return user_avatars
 
     def get_user_shared_libs_by_id(self, user_id) -> list:
@@ -162,7 +160,7 @@ class Plex:
         return [
             section.title
             for section in self.plex_server.findItems(
-                data, Section, rtag="SharedServer", **{"shared": 1}
+                data, Section, rtag="SharedServer", shared=1
             )
         ]
 
@@ -171,12 +169,10 @@ class Plex:
         if self.get_username_by_user_id(user_id) == settings.PLEX_ADMIN_EMAIL:
             return True
         return (
-            True
-            if self.my_plex_account.user(user_id)
+            self.my_plex_account.user(user_id)
             .server(self.plex_server_name)
             .numLibraries
             == 6
-            else False
         )
 
     def update_user_shared_libs(self, user_id, libs: list):
@@ -194,12 +190,12 @@ class Plex:
                 )
             self.my_plex_account.inviteFriend(user, self.plex_server, sections=libs)
         except Exception as e:
-            logging.error(e)
+            logger.error(e)
             return False
         else:
             return True
 
-    def add_shared_libs_for_all_users(self, add_sections: Union[str, list]):
+    def add_shared_libs_for_all_users(self, add_sections: str | list):
         """更新所有用户的资料库权限"""
 
         if isinstance(add_sections, str):
@@ -218,12 +214,12 @@ class Plex:
                     new_libs = list(set(cur_libs))
                     self.update_user_shared_libs(user_info[0], libs=new_libs)
                 except Exception:
-                    logging.error(
+                    logger.error(
                         f"Failed to update libraries({', '.join(new_libs)}) for {user_info[1].username}"
                     )
                     continue
 
-    def add_shared_libs_for_user(self, email: str, add_sections: Union[str, list]):
+    def add_shared_libs_for_user(self, email: str, add_sections: str | list):
         """更新指定用户的资料库权限"""
 
         if isinstance(add_sections, str):
@@ -249,7 +245,7 @@ class Plex:
 
     def _authenticate_user_by_username(
         self, username: str, password: str
-    ) -> tuple[bool, Optional[int]]:
+    ) -> tuple[bool, int | None]:
         """
         验证 Plex 用户名和密码
         返回 (是否验证成功, 用户ID) 的元组
@@ -288,14 +284,14 @@ class Plex:
                 return True, user_id
 
             except Exception as auth_error:
-                logger.warning(f"Plex用户 {username} 认证失败: {str(auth_error)}")
+                logger.warning(f"Plex用户 {username} 认证失败: {auth_error!s}")
                 return False, None
 
         except Exception as e:
-            logger.error(f"Plex用户 {username} 认证时发生错误: {str(e)}")
+            logger.error(f"Plex用户 {username} 认证时发生错误: {e!s}")
             return False, None
 
-    def _authenticate_user_by_token(self, token: str) -> tuple[bool, Optional[int]]:
+    def _authenticate_user_by_token(self, token: str) -> tuple[bool, int | None]:
         """
         使用 API Token 验证 Plex 用户
         返回 (是否验证成功, 用户ID) 的元组
@@ -322,12 +318,15 @@ class Plex:
                     logger.warning(f"Plex 用户 {username} 不在当前服务器的用户列表中")
                     return False, None
         except Exception as e:
-            logger.error(f"使用 Token 验证 Plex 用户时发生错误: {str(e)}")
+            logger.error(f"使用 Token 验证 Plex 用户时发生错误: {e!s}")
             return False, None
 
     def authenticate_user(
-        self, username: str = None, password: str = None, token: str = None
-    ) -> tuple[bool, Optional[int]]:
+        self,
+        username: str | None = None,
+        password: str | None = None,
+        token: str | None = None,
+    ) -> tuple[bool, int | None]:
         """
         验证 Plex 用户
         如果提供了用户名和密码，则使用它们进行验证
@@ -342,7 +341,9 @@ class Plex:
             logger.error("必须提供用户名和密码或 API Token 进行验证")
             return False, None
 
-    def get_user_last_viewed_at(self, user_id: int = None, username: str = None) -> int:
+    def get_user_last_viewed_at(
+        self, user_id: int | None = None, username: str | None = None
+    ) -> int:
         """
         获取用户最后观看时间
 
@@ -381,7 +382,7 @@ class Plex:
             return 0
 
         except Exception as e:
-            logger.error(f"获取用户最后观看时间时发生错误: {str(e)}")
+            logger.error(f"获取用户最后观看时间时发生错误: {e!s}")
             return 0
 
     def get_all_users_last_viewed_at(self) -> dict[int, int]:
@@ -401,7 +402,7 @@ class Plex:
                 last_viewed = self.get_user_last_viewed_at(user_id=user_id)
                 return user_id, last_viewed
             except Exception as e:
-                logger.warning(f"获取用户 {user.id} 最后观看时间失败: {str(e)}")
+                logger.warning(f"获取用户 {user.id} 最后观看时间失败: {e!s}")
                 return user.id, 0
 
         try:
@@ -422,7 +423,7 @@ class Plex:
             return result
 
         except Exception as e:
-            logger.error(f"批量获取用户最后观看时间时发生错误: {str(e)}")
+            logger.error(f"批量获取用户最后观看时间时发生错误: {e!s}")
             # 如果并发失败，回退到串行查询
             logger.info("并发查询失败，回退到串行查询")
             for user in users:
@@ -430,18 +431,18 @@ class Plex:
                     result[user.id] = self.get_user_last_viewed_at(user_id=user.id)
                 except Exception as user_error:
                     logger.warning(
-                        f"获取用户 {user.id} 最后观看时间失败: {str(user_error)}"
+                        f"获取用户 {user.id} 最后观看时间失败: {user_error!s}"
                     )
                     result[user.id] = 0
             return result
 
-    def update_sync_for_user(self, email: str, allow_sync: bool = True):
-        """更新指定用户的同步（下载）权限"""
+    def update_sync_for_user(self, email: str, allow_sync: bool = True) -> bool:
+        """更新指定用户的同步（下载）权限，返回是否成功"""
 
         user_info = self.users_by_email.get(email)
         if not user_info:
             logger.error(f"无法找到 Plex 用户 {email}")
-            return
+            return False
 
         try:
             logger.info(
@@ -452,5 +453,7 @@ class Plex:
                 self.plex_server,
                 allowSync=allow_sync,
             )
+            return True
         except Exception:
             logger.error(f"无法为 Plex 用户 {user_info[1].username} 更新同步权限")
+            return False

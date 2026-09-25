@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Tautulli 幽灵会话（ghost session）识别
 
 Plex 在部分版本下不会通过 WebSocket 发送 stop 事件，Tautulli 会一直保持会话开启，
@@ -15,7 +14,6 @@ Plex 上报的播放进度 percent_complete —— 幽灵会话卡住时它停�
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 from app.log import logger
 
@@ -43,15 +41,15 @@ STATUS_UNDETERMINED = "undetermined"
 class HistoryVerdict:
     """单条 history 记录的判定结果"""
 
-    row_id: Optional[int]
-    user_id: Optional[int]
+    row_id: int | None
+    user_id: int | None
     friendly_name: str
     title: str
-    rating_key: Optional[str]
+    rating_key: str | None
     started: int
     stopped: int
     raw_seconds: int
-    media_seconds: Optional[int]
+    media_seconds: int | None
     percent_complete: int
     is_live: bool
     status: str
@@ -76,9 +74,9 @@ class MediaDurationResolver:
 
     def __init__(self, tautulli) -> None:
         self._tautulli = tautulli
-        self._cache: dict[str, Optional[int]] = {}
+        self._cache: dict[str, int | None] = {}
 
-    def get(self, rating_key) -> Optional[int]:
+    def get(self, rating_key) -> int | None:
         if not rating_key:
             return None
         key = str(rating_key)
@@ -126,7 +124,7 @@ def clamp_percent(value) -> int:
     return max(0, min(percent, 100))
 
 
-def _to_int(value) -> Optional[int]:
+def _to_int(value) -> int | None:
     try:
         return int(value)
     except (TypeError, ValueError):
@@ -144,9 +142,7 @@ def is_active_session(row: dict) -> bool:
         return True
     if not row.get("stopped"):
         return True
-    if _to_int(row.get("row_id")) is None and _to_int(row.get("id")) is None:
-        return True
-    return False
+    return _to_int(row.get("row_id")) is None and _to_int(row.get("id")) is None
 
 
 def judge_row(row: dict, resolver: MediaDurationResolver) -> HistoryVerdict:
@@ -207,10 +203,10 @@ def judge_row(row: dict, resolver: MediaDurationResolver) -> HistoryVerdict:
 
 def scan_history(
     tautulli,
-    after: str = None,
-    before: str = None,
+    after: str | None = None,
+    before: str | None = None,
     coarse_filter_seconds: int = COARSE_FILTER_SECONDS,
-    max_records: int = None,
+    max_records: int | None = None,
 ) -> tuple[int, list[HistoryVerdict]]:
     """扫描指定区间的 history，返回 (扫描总条数, 细查判定结果)
 

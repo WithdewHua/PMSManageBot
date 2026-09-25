@@ -1,3 +1,4 @@
+/* eslint-env serviceworker */
 // 自动版本控制 - 构建时会被自动更新
 const BUILD_DATE = '20260908';
 const MANUAL_VERSION = '0.2.0-1788847331792';

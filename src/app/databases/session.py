@@ -1,16 +1,16 @@
-#!/usr/bin/env python3
 """
 Database session management for SQLAlchemy
 """
 
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import settings
 from app.log import logger
 from app.models.models import Base
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
 
 # Create SQLAlchemy engine with configuration from settings
 engine = create_engine(

@@ -1,9 +1,6 @@
-#!/usr/bin/env python3
 """
 SQLAlchemy ORM models for PMSManageBot
 """
-
-from typing import Optional
 
 from sqlalchemy import (
     BIGINT,
@@ -26,8 +23,6 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 class Base(DeclarativeBase):
     """Base class for all ORM models"""
 
-    pass
-
 
 class PlexUser(Base):
     """Plex user model"""
@@ -35,50 +30,46 @@ class PlexUser(Base):
     __tablename__ = "plex_user"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    plex_id: Mapped[Optional[int]] = mapped_column(
+    plex_id: Mapped[int | None] = mapped_column(
         BIGINT, unique=True, index=True, nullable=True
     )
-    tg_id: Mapped[Optional[int]] = mapped_column(
+    tg_id: Mapped[int | None] = mapped_column(
         BIGINT, unique=True, index=True, nullable=True
     )
     credits: Mapped[float] = mapped_column(Float, default=0, nullable=False)
-    plex_email: Mapped[Optional[str]] = mapped_column(
+    plex_email: Mapped[str | None] = mapped_column(
         String, unique=True, index=True, nullable=True
     )
-    plex_username: Mapped[Optional[str]] = mapped_column(
-        String, index=True, nullable=True
-    )
+    plex_username: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
     all_lib: Mapped[int] = mapped_column(SMALLINT, default=0, nullable=False)
-    unlock_time: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    unlock_time: Mapped[str | None] = mapped_column(String, nullable=True)
     watched_time: Mapped[float] = mapped_column(Float, default=0, nullable=False)
-    plex_line: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    plex_line: Mapped[str | None] = mapped_column(String, nullable=True)
     is_premium: Mapped[int] = mapped_column(SMALLINT, default=0, nullable=False)
-    premium_expiry_time: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    premium_status_updated_at: Mapped[Optional[int]] = mapped_column(
-        BIGINT, nullable=True
-    )
+    premium_expiry_time: Mapped[str | None] = mapped_column(String, nullable=True)
+    premium_status_updated_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
     # Line schedule feature unlock
     line_schedule_unlocked: Mapped[int] = mapped_column(
         SMALLINT, default=0, nullable=False
     )  # 0=not unlocked, 1=unlocked
-    line_schedule_unlock_time: Mapped[Optional[int]] = mapped_column(
+    line_schedule_unlock_time: Mapped[int | None] = mapped_column(
         BIGINT, nullable=True
     )  # Timestamp when unlocked
     # Last viewed time
-    last_viewed_at: Mapped[Optional[int]] = mapped_column(
+    last_viewed_at: Mapped[int | None] = mapped_column(
         BIGINT, nullable=True
     )  # Timestamp of last viewing activity
     # Download/Sync permission unlock
     sync_unlocked: Mapped[int] = mapped_column(
         SMALLINT, default=0, nullable=False
     )  # 0=not unlocked, 1=unlocked
-    sync_unlock_time: Mapped[Optional[int]] = mapped_column(
+    sync_unlock_time: Mapped[int | None] = mapped_column(
         BIGINT, nullable=True
     )  # Timestamp when unlocked
     premium_traffic_debt_bytes: Mapped[int] = mapped_column(
         BIGINT, default=0, nullable=False
     )
-    premium_traffic_debt_updated_date: Mapped[Optional[str]] = mapped_column(
+    premium_traffic_debt_updated_date: Mapped[str | None] = mapped_column(
         String, nullable=True
     )
 
@@ -89,44 +80,42 @@ class EmbyUser(Base):
     __tablename__ = "emby_user"
 
     emby_username: Mapped[str] = mapped_column(String, primary_key=True)
-    emby_id: Mapped[Optional[str]] = mapped_column(
+    emby_id: Mapped[str | None] = mapped_column(
         String, unique=True, index=True, nullable=True
     )
-    tg_id: Mapped[Optional[int]] = mapped_column(
+    tg_id: Mapped[int | None] = mapped_column(
         BIGINT, unique=True, index=True, nullable=True
     )
     emby_is_unlock: Mapped[int] = mapped_column(SMALLINT, default=0, nullable=False)
-    emby_unlock_time: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
+    emby_unlock_time: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
     emby_watched_time: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     emby_credits: Mapped[float] = mapped_column(Float, default=0, nullable=False)
-    emby_line: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    emby_line: Mapped[str | None] = mapped_column(String, nullable=True)
     is_premium: Mapped[int] = mapped_column(SMALLINT, default=0, nullable=False)
-    premium_expiry_time: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    premium_status_updated_at: Mapped[Optional[int]] = mapped_column(
-        BIGINT, nullable=True
-    )
+    premium_expiry_time: Mapped[str | None] = mapped_column(String, nullable=True)
+    premium_status_updated_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
     # Line schedule feature unlock
     line_schedule_unlocked: Mapped[int] = mapped_column(
         SMALLINT, default=0, nullable=False
     )  # 0=not unlocked, 1=unlocked
-    line_schedule_unlock_time: Mapped[Optional[int]] = mapped_column(
+    line_schedule_unlock_time: Mapped[int | None] = mapped_column(
         BIGINT, nullable=True
     )  # Timestamp when unlocked
     # Last viewed time
-    last_viewed_at: Mapped[Optional[int]] = mapped_column(
+    last_viewed_at: Mapped[int | None] = mapped_column(
         BIGINT, nullable=True
     )  # Timestamp of last viewing activity
     # Download permission unlock
     download_unlocked: Mapped[int] = mapped_column(
         SMALLINT, default=0, nullable=False
     )  # 0=not unlocked, 1=unlocked
-    download_unlock_time: Mapped[Optional[int]] = mapped_column(
+    download_unlock_time: Mapped[int | None] = mapped_column(
         BIGINT, nullable=True
     )  # Timestamp when unlocked
     premium_traffic_debt_bytes: Mapped[int] = mapped_column(
         BIGINT, default=0, nullable=False
     )
-    premium_traffic_debt_updated_date: Mapped[Optional[str]] = mapped_column(
+    premium_traffic_debt_updated_date: Mapped[str | None] = mapped_column(
         String, nullable=True
     )
 
@@ -139,14 +128,14 @@ class Invitation(Base):
     code: Mapped[str] = mapped_column(String, primary_key=True)
     owner: Mapped[int] = mapped_column(BIGINT, index=True, nullable=False)
     is_used: Mapped[int] = mapped_column(SMALLINT, default=0, nullable=False)
-    used_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    service: Mapped[Optional[str]] = mapped_column(
+    used_by: Mapped[str | None] = mapped_column(String, nullable=True)
+    service: Mapped[str | None] = mapped_column(
         String, nullable=True
     )  # Service used for redemption: plex, emby; NULL if not yet used
-    plex_id: Mapped[Optional[int]] = mapped_column(
+    plex_id: Mapped[int | None] = mapped_column(
         BIGINT, nullable=True
     )  # Plex user ID after redemption
-    emby_id: Mapped[Optional[str]] = mapped_column(
+    emby_id: Mapped[str | None] = mapped_column(
         String, nullable=True
     )  # Emby user ID after redemption
 
@@ -186,8 +175,8 @@ class Overseerr(Base):
     __tablename__ = "overseerr"
 
     user_id: Mapped[int] = mapped_column(BIGINT, primary_key=True)
-    user_email: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
-    tg_id: Mapped[Optional[int]] = mapped_column(BIGINT, index=True, nullable=True)
+    user_email: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
+    tg_id: Mapped[int | None] = mapped_column(BIGINT, index=True, nullable=True)
 
 
 class WheelStats(Base):
@@ -203,9 +192,10 @@ class WheelStats(Base):
     timestamp: Mapped[int] = mapped_column(BIGINT, nullable=False, index=True)
     date: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     # 参与来源：'paid'（正常付费）/ 'blackjack_free'（21 点打满手数获得的
-    # 免费机会）。独立于 cost_credits 标识——管理员把参与费调为 0 后，
-    # 两者将无法区分，而免费机会的发放成本需要可审计
-    source: Mapped[Optional[str]] = mapped_column(
+    # 免费机会）/ 'gift_pack_free'（礼包发放的免费机会）。独立于 cost_credits
+    # 标识——管理员把参与费调为 0 后，两者将无法区分，而免费机会的发放成本
+    # 需要可审计
+    source: Mapped[str | None] = mapped_column(
         Text, nullable=True, default="paid", server_default="paid"
     )
 
@@ -213,7 +203,9 @@ class WheelStats(Base):
 class LuckywheelFreeSpin(Base):
     """免费大转盘机会 - 一行代表一次获得
 
-    仅由 21 点打满手数机制产生（source='blackjack'）。发放与使用都留痕：
+    来源由 source 区分：21 点打满手数（'blackjack'）、礼包发放（'gift_pack'）。
+    消耗、概览、到期提醒对所有来源一视同仁；只针对 21 点的逻辑（周上限、
+    获得通知、对账）按 source == 'blackjack' 过滤。发放与使用都留痕：
     used_at 为空即未用。过期作废由可用性查询的过滤实现（未用且未过期），
     行本身永久保留作发放台账——对账脚本按周核算让利率依赖它。
 
@@ -239,7 +231,7 @@ class LuckywheelFreeSpin(Base):
     source: Mapped[str] = mapped_column(Text, nullable=False, default="blackjack")
     granted_at_ms: Mapped[int] = mapped_column(BIGINT, nullable=False)
     expires_at_ms: Mapped[int] = mapped_column(BIGINT, nullable=False)
-    used_at_ms: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
+    used_at_ms: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
 
     __table_args__ = (
         # 周配额推导（tg_id + granted_at 前缀）与可用机会查询（tg_id 前缀）
@@ -298,7 +290,7 @@ class Auctions(Base):
     created_by: Mapped[int] = mapped_column(BIGINT, nullable=False)
     created_at: Mapped[int] = mapped_column(BIGINT, nullable=False, index=True)
     is_active: Mapped[int] = mapped_column(SMALLINT, default=1, nullable=False)
-    winner_id: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
+    winner_id: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
     bid_count: Mapped[int] = mapped_column(BIGINT, default=0, nullable=False)
 
     # Relationship
@@ -334,12 +326,12 @@ class LineTrafficStats(Base):
     send_bytes: Mapped[int] = mapped_column(BIGINT, nullable=False)
     service: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     username: Mapped[str] = mapped_column(Text, nullable=False, index=True)
-    user_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    user_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     timestamp: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     event_hash: Mapped[str] = mapped_column(Text, nullable=False)
-    request_uri: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    upstream: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    upstream_response_time: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    request_uri: Mapped[str | None] = mapped_column(Text, nullable=True)
+    upstream: Mapped[str | None] = mapped_column(Text, nullable=True)
+    upstream_response_time: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
         UniqueConstraint("event_hash", name="uq_line_traffic_event_hash"),
@@ -358,7 +350,7 @@ class LineTrafficMonthlyStats(Base):
     line: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     service: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     username: Mapped[str] = mapped_column(Text, nullable=False, index=True)
-    user_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    user_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     year_month: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     total_bytes: Mapped[int] = mapped_column(BIGINT, nullable=False)
     created_at: Mapped[str] = mapped_column(Text, nullable=False)
@@ -395,7 +387,7 @@ class TreasureIssue(Base):
 
     # 展示信息
     title: Mapped[str] = mapped_column(Text, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # 规则信息
     prize_credits: Mapped[int] = mapped_column(
@@ -415,14 +407,12 @@ class TreasureIssue(Base):
     shares_sold: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # 开奖结果
-    external_random_b: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
-    winner_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    winner_tg_id: Mapped[Optional[int]] = mapped_column(
-        BIGINT, nullable=True, index=True
-    )
-    settled_at: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)  # 秒时间戳
+    external_random_b: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    winner_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    winner_tg_id: Mapped[int | None] = mapped_column(BIGINT, nullable=True, index=True)
+    settled_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)  # 秒时间戳
 
-    created_by: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
+    created_by: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
     )
@@ -492,10 +482,10 @@ class PredictionMarket(Base):
 
     id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(Text, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[int] = mapped_column(SMALLINT, nullable=False, default=1, index=True)
-    result_option: Mapped[Optional[int]] = mapped_column(SMALLINT, nullable=True)
-    betting_deadline: Mapped[Optional[int]] = mapped_column(
+    result_option: Mapped[int | None] = mapped_column(SMALLINT, nullable=True)
+    betting_deadline: Mapped[int | None] = mapped_column(
         BIGINT, nullable=True, index=True
     )
 
@@ -514,10 +504,10 @@ class PredictionMarket(Base):
     fee_burned: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     fee_to_glory: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    resolution_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_by: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
-    resolved_by: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
-    resolved_at: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
+    resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    resolved_by: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    resolved_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
     )
@@ -573,14 +563,14 @@ class PredictionMarketSubmission(Base):
 
     id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(Text, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
     betting_deadline: Mapped[int] = mapped_column(BIGINT, nullable=False, index=True)
     status: Mapped[int] = mapped_column(SMALLINT, nullable=False, default=0, index=True)
     submitter_tg_id: Mapped[int] = mapped_column(BIGINT, nullable=False, index=True)
-    reviewed_by: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
-    reviewed_at: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
-    review_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    market_id: Mapped[Optional[int]] = mapped_column(
+    reviewed_by: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    reviewed_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    market_id: Mapped[int | None] = mapped_column(
         BIGINT, ForeignKey("prediction_market.id"), nullable=True, index=True
     )
     created_at: Mapped[DateTime] = mapped_column(
@@ -638,12 +628,12 @@ class DonationRegistrations(Base):
     )
     payment_method: Mapped[str] = mapped_column(Text, nullable=False)
     amount: Mapped[float] = mapped_column(Float, nullable=False)
-    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")
-    admin_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    admin_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[str] = mapped_column(Text, nullable=False, index=True)
-    processed_at: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    processed_by: Mapped[Optional[int]] = mapped_column(
+    processed_at: Mapped[str | None] = mapped_column(Text, nullable=True)
+    processed_by: Mapped[int | None] = mapped_column(
         BIGINT, ForeignKey("statistics.tg_id", onupdate="CASCADE"), nullable=True
     )
     is_donation_registration: Mapped[int] = mapped_column(
@@ -680,19 +670,19 @@ class CryptoDonationOrders(Base):
         index=True,
     )
     order_id: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
-    trade_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True, index=True)
+    trade_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)
     crypto_type: Mapped[str] = mapped_column(Text, nullable=False)
     amount: Mapped[float] = mapped_column(Float, nullable=False)
-    actual_amount: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    payment_address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    block_transaction_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    actual_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+    payment_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    block_transaction_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[int] = mapped_column(SMALLINT, nullable=False, default=1)
-    payment_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    expiration_time: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
+    payment_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    expiration_time: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
     created_at: Mapped[str] = mapped_column(Text, nullable=False, index=True)
-    updated_at: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    paid_at: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[str | None] = mapped_column(Text, nullable=True)
+    paid_at: Mapped[str | None] = mapped_column(Text, nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
         CheckConstraint("amount > 0", name="ck_crypto_amount_positive"),
@@ -908,22 +898,20 @@ class CustomLine(Base):
     network_info: Mapped[str] = mapped_column(
         Text, nullable=False
     )  # 三网线路情况（电信/联通/移动等）
-    price_monthly: Mapped[Optional[float]] = mapped_column(
+    price_monthly: Mapped[float | None] = mapped_column(
         Float, nullable=True
     )  # 月付价格
-    price_yearly: Mapped[Optional[float]] = mapped_column(
-        Float, nullable=True
-    )  # 年付价格
-    traffic_limit: Mapped[Optional[float]] = mapped_column(
+    price_yearly: Mapped[float | None] = mapped_column(Float, nullable=True)  # 年付价格
+    traffic_limit: Mapped[float | None] = mapped_column(
         Float, nullable=True
     )  # 每月流量限制 (GB)
     traffic_type: Mapped[str] = mapped_column(
         String, nullable=False, default="one_way"
     )  # 流量计算类型: one_way=单向, two_way=双向
-    total_traffic: Mapped[Optional[float]] = mapped_column(
+    total_traffic: Mapped[float | None] = mapped_column(
         Float, nullable=True
     )  # 总流量包 (GB)，用于计算流量单价
-    valid_days: Mapped[Optional[int]] = mapped_column(
+    valid_days: Mapped[int | None] = mapped_column(
         Integer, nullable=True
     )  # 可使用天数，NULL 表示长期
     is_permanent: Mapped[int] = mapped_column(
@@ -932,24 +920,22 @@ class CustomLine(Base):
     status: Mapped[str] = mapped_column(
         String, nullable=False, default="pending", index=True
     )  # 状态: pending=待审批, approved=已批准, rejected=已拒绝, expired=已过期, offline=已下线
-    auto_offline_reason: Mapped[Optional[str]] = mapped_column(
+    auto_offline_reason: Mapped[str | None] = mapped_column(
         String, nullable=True
     )  # 自动下线原因: traffic_exceeded=流量超限, None=用户主动下线或其他
-    admin_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # 管理员备注
-    user_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # 用户备注
-    tags: Mapped[Optional[list]] = mapped_column(
+    admin_note: Mapped[str | None] = mapped_column(Text, nullable=True)  # 管理员备注
+    user_note: Mapped[str | None] = mapped_column(Text, nullable=True)  # 用户备注
+    tags: Mapped[list | None] = mapped_column(
         JSON, nullable=True
     )  # 标签列表（由管理员设置）
-    approved_at: Mapped[Optional[int]] = mapped_column(
-        BIGINT, nullable=True
-    )  # 批准时间戳
-    approved_by: Mapped[Optional[int]] = mapped_column(
+    approved_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)  # 批准时间戳
+    approved_by: Mapped[int | None] = mapped_column(
         BIGINT, ForeignKey("statistics.tg_id", onupdate="CASCADE"), nullable=True
     )  # 批准管理员的 Telegram ID
-    expires_at: Mapped[Optional[int]] = mapped_column(
+    expires_at: Mapped[int | None] = mapped_column(
         BIGINT, nullable=True, index=True
     )  # 过期时间戳
-    expiry_notified_at: Mapped[Optional[int]] = mapped_column(
+    expiry_notified_at: Mapped[int | None] = mapped_column(
         BIGINT, nullable=True
     )  # 最后一次发送即将过期提醒的时间戳（用于避免重复通知）
     created_at: Mapped[int] = mapped_column(
@@ -993,9 +979,9 @@ class GhostSessionLog(Base):
     user_id: Mapped[str] = mapped_column(
         Text, nullable=False, index=True
     )  # Plex user_id
-    friendly_name: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    title: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    rating_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    friendly_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rating_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     started: Mapped[int] = mapped_column(BIGINT, nullable=False)  # 会话开始时间戳
     stopped: Mapped[int] = mapped_column(BIGINT, nullable=False)  # 会话结束时间戳
     play_date: Mapped[str] = mapped_column(
@@ -1004,7 +990,7 @@ class GhostSessionLog(Base):
     raw_seconds: Mapped[int] = mapped_column(
         BIGINT, nullable=False
     )  # Tautulli 记录的原始播放时长
-    media_seconds: Mapped[Optional[int]] = mapped_column(
+    media_seconds: Mapped[int | None] = mapped_column(
         BIGINT, nullable=True
     )  # 媒体自身时长
     percent_complete: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -1039,14 +1025,19 @@ class GiftPack(Base):
 
     id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(Text, nullable=False)  # 礼包标题
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # 礼包描述
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)  # 礼包描述
     rewards: Mapped[str] = mapped_column(
         Text, nullable=False
     )  # 奖励项 JSON: [{"type": "credits", "amount": 100}, ...]
-    eligibility: Mapped[Optional[str]] = mapped_column(
+    eligibility: Mapped[str | None] = mapped_column(
         Text, nullable=True
-    )  # 领取资格 JSON: {"min_credits": 50, "require_premium": false, "require_binding": "any"}
-    total_quantity: Mapped[Optional[int]] = mapped_column(
+    )  # 旧礼包的领取资格 JSON；只供读取兼容
+    audience: Mapped[str | None] = mapped_column(Text, nullable=True)  # 受众条件 JSON
+    requirements: Mapped[str | None] = mapped_column(
+        Text, nullable=True
+    )  # 领取条件 JSON
+    task_end_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    total_quantity: Mapped[int | None] = mapped_column(
         Integer, nullable=True
     )  # 限量份数，NULL 表示不限量
     claimed_count: Mapped[int] = mapped_column(
@@ -1060,14 +1051,20 @@ class GiftPack(Base):
     )  # 结束时间戳
     max_prompt_count: Mapped[int] = mapped_column(
         Integer, nullable=False, default=3
-    )  # 对单个用户的提醒次数上限
+    )  # 对单个用户的领取提醒次数上限
+    max_task_prompt_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )  # 旧礼包不发任务提醒；新礼包由请求 schema 默认设为 2
+    notify_audience_on_start: Mapped[int] = mapped_column(
+        SMALLINT, nullable=False, default=0, server_default="0"
+    )
     is_enabled: Mapped[int] = mapped_column(
         SMALLINT, nullable=False, default=1
     )  # 1=启用, 0=停用
     expiry_notified: Mapped[int] = mapped_column(
         SMALLINT, nullable=False, default=0
     )  # 过期汇总通知是否已发送
-    created_by: Mapped[Optional[int]] = mapped_column(
+    created_by: Mapped[int | None] = mapped_column(
         BIGINT, nullable=True
     )  # 创建管理员的 Telegram ID
     created_at: Mapped[int] = mapped_column(BIGINT, nullable=False)
@@ -1086,6 +1083,17 @@ class GiftPack(Base):
             name="ck_gift_pack_total_quantity",
         ),
         CheckConstraint("max_prompt_count > 0", name="ck_gift_pack_max_prompt_count"),
+        CheckConstraint(
+            "task_end_at IS NULL OR (task_end_at > start_at AND task_end_at <= end_at)",
+            name="ck_gift_pack_task_window",
+        ),
+        CheckConstraint(
+            "max_task_prompt_count >= 0", name="ck_gift_pack_max_task_prompt_count"
+        ),
+        CheckConstraint(
+            "notify_audience_on_start IN (0, 1)",
+            name="ck_gift_pack_notify_audience_on_start",
+        ),
         CheckConstraint("is_enabled IN (0, 1)", name="ck_gift_pack_enabled"),
         CheckConstraint(
             "expiry_notified IN (0, 1)", name="ck_gift_pack_expiry_notified"
@@ -1118,18 +1126,24 @@ class GiftPackUserState(Base):
         nullable=False,
         index=True,
     )
-    claimed_at: Mapped[Optional[int]] = mapped_column(
+    claimed_at: Mapped[int | None] = mapped_column(
         BIGINT, nullable=True
     )  # 领取时间戳，NULL 表示尚未领取
-    reward_snapshot: Mapped[Optional[str]] = mapped_column(
+    reward_snapshot: Mapped[str | None] = mapped_column(
         Text, nullable=True
     )  # 本次领取实际发放内容的 JSON 快照（审计凭据）
-    last_prompted_at: Mapped[Optional[int]] = mapped_column(
+    last_prompted_at: Mapped[int | None] = mapped_column(
         BIGINT, nullable=True
     )  # 最后一次提醒时间戳
     prompt_count: Mapped[int] = mapped_column(
         Integer, nullable=False, default=0
     )  # 已提醒次数
+    audience_locked_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    task_prompt_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    last_task_prompted_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    start_dm_sent_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
 
     # Relationship
     pack = relationship("GiftPack", back_populates="user_states")
@@ -1137,6 +1151,9 @@ class GiftPackUserState(Base):
     __table_args__ = (
         UniqueConstraint("pack_id", "tg_id", name="uq_gift_pack_user"),
         CheckConstraint("prompt_count >= 0", name="ck_gift_pack_state_prompt_count"),
+        CheckConstraint(
+            "task_prompt_count >= 0", name="ck_gift_pack_state_task_prompt_count"
+        ),
         Index("idx_gift_pack_state_user_claimed", "tg_id", "claimed_at"),
     )
 
@@ -1189,20 +1206,20 @@ class BlackjackHand(Base):
     )  # 玩家回合期间响应层须裁剪为仅首张
 
     # 结算结果
-    outcome: Mapped[Optional[str]] = mapped_column(
+    outcome: Mapped[str | None] = mapped_column(
         Text, nullable=True
     )  # blackjack / win / push / lose / bust
-    payout_credits: Mapped[Optional[float]] = mapped_column(
+    payout_credits: Mapped[float | None] = mapped_column(
         Float, nullable=True
     )  # 实际入账积分（含返还本金，已扣抽水）；**不含奖池派彩**
-    rake_credits: Mapped[Optional[float]] = mapped_column(
+    rake_credits: Mapped[float | None] = mapped_column(
         Float, nullable=True
     )  # 本手抽水总额，仅作审计记录；销毁部分不另行落账
-    jackpot_won: Mapped[Optional[float]] = mapped_column(
+    jackpot_won: Mapped[float | None] = mapped_column(
         Float, nullable=True
     )  # 幸运奖池派彩，与 payout_credits 分别记账——并入会使单手最大赢利榜
     # 退化成奖池中奖者名单
-    relief_credits: Mapped[Optional[float]] = mapped_column(
+    relief_credits: Mapped[float | None] = mapped_column(
         Float, nullable=True
     )  # 连败救济金额，与赔付/奖池分别记账：周返还的净变动口径需包含它，
     # 且对账脚本需逐手核对发放总额；加倍手牌触发救济时按基础注额记录
@@ -1233,7 +1250,7 @@ class BlackjackHand(Base):
     )  # 发牌时投降是否可用；存量手牌为 0，故其决策评判继续走不含投降的策略表
 
     # Phase 2 争霸赛预留：恒为 NULL，不设外键与索引
-    tournament_id: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
+    tournament_id: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
 
     created_at_ms: Mapped[int] = mapped_column(
         BIGINT, nullable=False
@@ -1241,7 +1258,7 @@ class BlackjackHand(Base):
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
     )
-    settled_at: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)  # 秒时间戳
+    settled_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)  # 秒时间戳
 
     __table_args__ = (
         CheckConstraint("bet_credits > 0", name="ck_blackjack_hand_bet_gt_0"),
@@ -1310,7 +1327,7 @@ class BlackjackTournament(Base):
     id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
 
     title: Mapped[str] = mapped_column(Text, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # 状态：1=报名中 2=进行中 3=已结算 4=已取消（3、4 为终态）。
     # 每次流转都靠条件 UPDATE（CAS）抢占，抢到的一方才发通知——五处通知里有三处
@@ -1364,13 +1381,13 @@ class BlackjackTournament(Base):
 
     # 完赛提醒的去重标记。提醒是**公平性保障而非便利**：未打满即失去派奖资格
     # 是一条硬规则，缺少提醒会使其等同于静默没收报名费
-    reminder_sent_at: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
+    reminder_sent_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
 
-    created_by: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)
+    created_by: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
     )
-    settled_at: Mapped[Optional[int]] = mapped_column(BIGINT, nullable=True)  # 秒时间戳
+    settled_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)  # 秒时间戳
 
     entries = relationship(
         "BlackjackTournamentEntry",
@@ -1476,8 +1493,8 @@ class BlackjackTournamentEntry(Base):
 
     # 结算后写入。并列由报名时点决胜——它不可操纵且不奖励任何行为：以手数决胜
     # 会奖励少打，以最后一手时点决胜会奖励拖到截止前
-    final_rank: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    prize_credits: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    final_rank: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    prize_credits: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # 报名费的实际支付拆分：优先扣争霸赛余额，不足部分从积分补足。两列之和
     # 恒等于报名费全额；取消退款按拆分原路退回（余额部分回余额，积分部分回

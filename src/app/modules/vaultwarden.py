@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
-
 import requests
+
 from app.config import settings
 from app.log import logger
 
@@ -56,10 +55,10 @@ class Vaultwarden:
                 return False
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"Vaultwarden 认证时发生网络错误: {str(e)}")
+            logger.error(f"Vaultwarden 认证时发生网络错误: {e!s}")
             return False
         except Exception as e:
-            logger.error(f"Vaultwarden 认证时发生未知错误: {str(e)}")
+            logger.error(f"Vaultwarden 认证时发生未知错误: {e!s}")
             return False
 
     def invite_user(self, email: str) -> bool:
@@ -74,10 +73,9 @@ class Vaultwarden:
         """
         try:
             # 如果未认证，先进行认证
-            if not self._authenticated:
-                if not self._authenticate():
-                    logger.error("无法认证 Vaultwarden 管理员")
-                    return False
+            if not self._authenticated and not self._authenticate():
+                logger.error("无法认证 Vaultwarden 管理员")
+                return False
 
             url = f"{self.base_url}/admin/invite"
 
@@ -100,8 +98,8 @@ class Vaultwarden:
                 return False
 
         except requests.exceptions.RequestException as e:
-            logger.error(f"发送 Vaultwarden 邀请时发生网络错误: {str(e)}")
+            logger.error(f"发送 Vaultwarden 邀请时发生网络错误: {e!s}")
             return False
         except Exception as e:
-            logger.error(f"发送 Vaultwarden 邀请时发生未知错误: {str(e)}")
+            logger.error(f"发送 Vaultwarden 邀请时发生未知错误: {e!s}")
             return False

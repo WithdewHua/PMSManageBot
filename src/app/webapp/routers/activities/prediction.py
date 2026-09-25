@@ -1,5 +1,7 @@
 import time
 
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+
 from app.config import settings
 from app.databases import db
 from app.databases.db_func import check_and_award_game_king_badge
@@ -22,7 +24,6 @@ from app.webapp.schemas import (
     PredictionSubmitRequest,
     TelegramUser,
 )
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 router = APIRouter(prefix="/prediction", tags=["大预言家"])
 

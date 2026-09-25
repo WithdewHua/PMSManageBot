@@ -52,7 +52,7 @@
       </div>
     </div>
 
-    <!-- 21 点打满手数获得的免费机会：单抽时服务端优先消耗。
+    <!-- 所有来源的免费机会（如 21 点与礼包）：单抽时服务端优先消耗。
          必须是 wheel-wrapper 的兄弟节点而非子节点：wrapper 是固定 300px
          的转盘画布（转盘本体绝对定位其中），普通流子元素会从盒子底部
          溢出渲染、不参与父容器高度计算，最终挤压到弹窗底部
@@ -64,7 +64,7 @@
         <span class="text-caption ml-1">（最近 {{ freeSpinsEarliestExpiry }} 到期）</span>
       </v-chip>
       <div class="text-caption text-medium-emphasis mt-1">
-        单抽自动优先使用免费机会（免参与费）；十连抽不消耗
+        单抽自动优先使用免费机会（含 21 点与礼包来源，免参与费）；十连抽不消耗
       </div>
     </div>
 
@@ -100,7 +100,7 @@
             <p class="text-h4 text-primary font-weight-bold">{{ winResult?.name }}</p>
             <p v-if="winResult?.used_free_spin" class="text-caption text-deep-purple mt-1">
               <v-icon size="small" class="mr-1">mdi-ticket-confirmation</v-icon>
-              本次消耗了 21 点免费机会（免参与费）
+              本次消耗了 {{ freeSpinSourceLabel }}（免参与费）
             </p>
           </template>
           
@@ -184,7 +184,7 @@ export default {
       minCreditsRequired: 30,
       showError: false,
       errorMessage: '',
-      // 21 点打满手数获得的免费机会 { available, expires_at_ms_list }
+      // 所有来源的免费机会 { available, expires_at_ms_list }
       freeSpins: { available: 0, expires_at_ms_list: [] }
     }
   },
@@ -194,6 +194,9 @@ export default {
     this.refreshFreeSpins()
   },
   computed: {
+    freeSpinSourceLabel() {
+      return { blackjack: '21 点免费机会', gift_pack: '礼包免费机会' }[this.winResult?.free_spin_source] || '免费机会'
+    },
     tenSpinRequiredCredits() {
       return (Number(this.minCreditsRequired) + Number(this.costCredits)) * 10
     },
@@ -478,6 +481,7 @@ export default {
             is_ten_spin: isTenSpin,
             // 免费机会标识：单抽时服务端优先消耗免费机会
             used_free_spin: !isTenSpin && !!result.used_free_spin,
+            free_spin_source: !isTenSpin ? result.free_spin_source : null,
             results: isTenSpin
               ? (result.results || []).map(item => ({
                 name: item.item?.name,

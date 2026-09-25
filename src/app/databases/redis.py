@@ -1,4 +1,5 @@
 import redis
+
 from app.config import settings
 
 

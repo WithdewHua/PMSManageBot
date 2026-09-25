@@ -8,10 +8,9 @@
 故无需考虑它的过滤。
 """
 
-from typing import List, Optional
+from pydantic import BaseModel, Field
 
 from app.webapp.schemas.blackjack import BlackjackHandResponse
-from pydantic import BaseModel, Field
 
 
 class TournamentEntryResponse(BaseModel):
@@ -28,8 +27,8 @@ class TournamentEntryResponse(BaseModel):
             "未打满且未被淘汰者不参与派奖，其报名费留在奖池中"
         ),
     )
-    final_rank: Optional[int] = Field(None, description="最终名次；未结算为 null")
-    prize_credits: Optional[float] = Field(
+    final_rank: int | None = Field(None, description="最终名次；未结算为 null")
+    prize_credits: float | None = Field(
         None, description="派奖积分；未结算为 null，已结算但无派奖为 0"
     )
     wallet_paid_credits: float = Field(0, description="报名费中由争霸赛余额支付的部分")
@@ -58,7 +57,7 @@ class TournamentStandingRow(TournamentEntryResponse):
     """排名行：在报名状态之上补展示用的昵称与临时位次"""
 
     display_name: str = Field("", description="展示用昵称")
-    provisional_rank: Optional[int] = Field(
+    provisional_rank: int | None = Field(
         None, description="进行中赛事的临时位次；已结算时为 null（以 final_rank 为准）"
     )
 
@@ -68,7 +67,7 @@ class TournamentResponse(BaseModel):
 
     id: int = Field(..., description="赛事 ID")
     title: str = Field(..., description="赛事名称")
-    description: Optional[str] = Field(None, description="赛事说明")
+    description: str | None = Field(None, description="赛事说明")
     status: int = Field(..., description="1=报名中 2=进行中 3=已结算 4=已取消")
     buy_in_credits: int = Field(..., description="报名费（积分）")
     starting_chips: int = Field(..., description="起始筹码")
@@ -79,7 +78,7 @@ class TournamentResponse(BaseModel):
     min_entrants: int = Field(..., description="最低开赛人数")
     max_entrants: int = Field(..., description="人数上限，满员即开")
     entrant_count: int = Field(..., description="当前报名人数")
-    payout_structure: List[float] = Field(
+    payout_structure: list[float] = Field(
         ..., description="派奖档位百分比；具备资格者少于档位数时截断并重新归一"
     )
     prize_pool_gross: float = Field(..., description="奖池总额（含抽水）")
@@ -98,8 +97,8 @@ class TournamentResponse(BaseModel):
     hand_timeout_minutes: int = Field(..., description="单手超时时限（分钟）")
     register_deadline_ms: int = Field(..., description="报名截止（毫秒）")
     play_deadline_ms: int = Field(..., description="完赛截止（毫秒）")
-    settled_at: Optional[int] = Field(None, description="结算时点（秒）")
-    my_entry: Optional[TournamentEntryResponse] = Field(
+    settled_at: int | None = Field(None, description="结算时点（秒）")
+    my_entry: TournamentEntryResponse | None = Field(
         None, description="当前用户的报名；未报名为 null"
     )
 
@@ -140,7 +139,7 @@ class TournamentListResponse(BaseModel):
     """赛事列表"""
 
     success: bool = Field(True)
-    tournaments: List[TournamentResponse] = Field(default_factory=list)
+    tournaments: list[TournamentResponse] = Field(default_factory=list)
 
 
 class TournamentStandingsResponse(BaseModel):
@@ -149,7 +148,7 @@ class TournamentStandingsResponse(BaseModel):
     success: bool = Field(True)
     tournament_id: int = Field(...)
     status: int = Field(..., description="赛事状态，供前端判断是临时位次还是最终名次")
-    standings: List[TournamentStandingRow] = Field(default_factory=list)
+    standings: list[TournamentStandingRow] = Field(default_factory=list)
 
 
 class TournamentRegisterResponse(BaseModel):
@@ -203,10 +202,10 @@ class TournamentActionResponse(BaseModel):
     message: str = Field("")
     hand: BlackjackHandResponse = Field(..., description="手牌状态")
     settled: bool = Field(False, description="本次操作是否使手牌结算")
-    chips: Optional[int] = Field(None, description="操作后的赛内筹码；未知则为 null")
-    hands_played: Optional[int] = Field(None, description="已打手数；未知则为 null")
-    hands_remaining: Optional[int] = Field(None, description="剩余手数；未知则为 null")
-    entry_status: Optional[int] = Field(
+    chips: int | None = Field(None, description="操作后的赛内筹码；未知则为 null")
+    hands_played: int | None = Field(None, description="已打手数；未知则为 null")
+    hands_remaining: int | None = Field(None, description="剩余手数；未知则为 null")
+    entry_status: int | None = Field(
         None, description="1=进行中 2=已打完 3=已淘汰；未知则为 null"
     )
 
@@ -217,7 +216,7 @@ class TournamentCurrentHandResponse(BaseModel):
     success: bool = Field(True)
     tournament: TournamentResponse = Field(...)
     entry: TournamentEntryResponse = Field(...)
-    hand: Optional[BlackjackHandResponse] = Field(
+    hand: BlackjackHandResponse | None = Field(
         None, description="进行中的赛内手牌；无则为 null"
     )
     hands_remaining: int = Field(..., description="剩余手数")
@@ -226,10 +225,10 @@ class TournamentCurrentHandResponse(BaseModel):
 class TournamentCreateRequest(BaseModel):
     """管理员创建赛事"""
 
-    title: Optional[str] = Field(
+    title: str | None = Field(
         None, description="赛事名称；留空则自动生成「21 点锦标赛 · 第 N 期」"
     )
-    description: Optional[str] = Field(None, description="赛事说明")
+    description: str | None = Field(None, description="赛事说明")
     buy_in_credits: int = Field(..., gt=0, description="报名费（积分）")
     starting_chips: int = Field(..., gt=0, description="起始筹码")
     total_hands: int = Field(..., gt=0, description="总手数")
@@ -242,7 +241,7 @@ class TournamentCreateRequest(BaseModel):
     seeded_prize_credits: float = Field(
         0, ge=0, description="管理员补贴，本变更的增发路径之一，须显式给出"
     )
-    payout_structure: Optional[List[float]] = Field(
+    payout_structure: list[float] | None = Field(
         None, description="派奖档位百分比，之和须为 100；不给则用默认 [50, 30, 20]"
     )
     register_deadline_ms: int = Field(..., description="报名截止（毫秒）")

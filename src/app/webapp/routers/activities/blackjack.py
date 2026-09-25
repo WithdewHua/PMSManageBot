@@ -10,6 +10,8 @@
 import json
 from datetime import datetime
 
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+
 from app.config import settings
 from app.databases import db
 from app.databases.db_func import check_and_award_game_king_badge
@@ -33,7 +35,6 @@ from app.webapp.schemas.blackjack import (
     BlackjackPublicConfigResponse,
     BlackjackUserStatsResponse,
 )
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 router = APIRouter(prefix="/blackjack", tags=["21点"])
 

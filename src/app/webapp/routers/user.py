@@ -1,6 +1,8 @@
 import asyncio
 from time import time
-from typing import Optional
+
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
+from sqlalchemy import select
 
 from app.config import settings
 from app.databases import db
@@ -61,8 +63,6 @@ from app.webapp.schemas import (
     TelegramUser,
     UserInfo,
 )
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
-from sqlalchemy import select
 
 router = APIRouter(prefix="/api/user", tags=["user"])
 
@@ -182,7 +182,7 @@ async def get_user_info(
                 )
         except Exception as e:
             logger.error(
-                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 信息失败: {str(e)}"
+                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 信息失败: {e!s}"
             )
 
         # 获取Emby信息
@@ -246,7 +246,7 @@ async def get_user_info(
                 )
         except Exception as e:
             logger.error(
-                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 信息失败: {str(e)}"
+                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 信息失败: {e!s}"
             )
 
         # 获取统计信息
@@ -263,7 +263,7 @@ async def get_user_info(
                 logger.debug(f"用户 {get_user_name_from_tg_id(tg_id)} 没有统计信息")
         except Exception as e:
             logger.error(
-                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的统计信息失败: {str(e)}"
+                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的统计信息失败: {e!s}"
             )
 
         # 获取邀请人数
@@ -276,7 +276,7 @@ async def get_user_info(
             )
         except Exception as e:
             logger.error(
-                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的邀请人数失败: {str(e)}"
+                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的邀请人数失败: {e!s}"
             )
 
         # 获取Overseerr信息
@@ -299,7 +299,7 @@ async def get_user_info(
                 )
         except Exception as e:
             logger.error(
-                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的Overseerr信息失败: {str(e)}"
+                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的Overseerr信息失败: {e!s}"
             )
 
         # 获取邀请码
@@ -315,13 +315,13 @@ async def get_user_info(
                 logger.debug(f"用户 {get_user_name_from_tg_id(tg_id)} 没有邀请码")
         except Exception as e:
             logger.error(
-                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的邀请码失败: {str(e)}"
+                f"获取用户 {get_user_name_from_tg_id(tg_id)} 的邀请码失败: {e!s}"
             )
 
         logger.info(f"用户 {user_name or user_id} 的信息获取完成")
         return user_info
     except Exception as e:
-        logger.error(f"获取用户信息时发生未预期的错误: {str(e)}")
+        logger.error(f"获取用户信息时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取用户信息失败")
 
 
@@ -404,7 +404,7 @@ async def bind_plex_account(
                 )
                 plex_credits = user_total_duration.get(plex_id, 0)
             except Exception as e:
-                logger.error(f"获取用户观看时长失败: {str(e)}")
+                logger.error(f"获取用户观看时长失败: {e!s}")
                 return BaseResponse(
                     success=False, message="获取用户观看时长失败，请稍后再试"
                 )
@@ -440,7 +440,7 @@ async def bind_plex_account(
         return BaseResponse(success=True, message=f"绑定 Plex 账户 {email} 成功！")
 
     except Exception as e:
-        logger.error(f"绑定Plex账户时发生错误: {str(e)}")
+        logger.error(f"绑定Plex账户时发生错误: {e!s}")
         return BaseResponse(success=False, message="绑定失败，发生未知错误")
 
 
@@ -512,7 +512,7 @@ async def bind_emby_account(
         )
 
     except Exception as e:
-        logger.error(f"绑定Emby账户时发生错误: {str(e)}")
+        logger.error(f"绑定Emby账户时发生错误: {e!s}")
         return BaseResponse(success=False, message="绑定失败，发生未知错误")
 
 
@@ -627,8 +627,8 @@ async def bind_emby_line(
         )
 
     except Exception as e:
-        logger.error(f"绑定Emby线路时发生错误: {str(e)}")
-        return BaseResponse(success=False, message=f"绑定失败: {str(e)}")
+        logger.error(f"绑定Emby线路时发生错误: {e!s}")
+        return BaseResponse(success=False, message=f"绑定失败: {e!s}")
 
 
 @router.post("/unbind/emby_line", response_model=BaseResponse)
@@ -668,8 +668,8 @@ async def unbind_emby_line(
         return BaseResponse(success=True, message="已切换到自动选择线路")
 
     except Exception as e:
-        logger.error(f"解绑 Emby 线路时发生错误: {str(e)}")
-        return BaseResponse(success=False, message=f"解绑失败: {str(e)}")
+        logger.error(f"解绑 Emby 线路时发生错误: {e!s}")
+        return BaseResponse(success=False, message=f"解绑失败: {e!s}")
 
 
 @router.get("/nsfw-info")
@@ -710,7 +710,7 @@ async def get_nsfw_info(
             credits_fund = caculate_credits_fund(unlock_time, settings.UNLOCK_CREDITS)
             return {"refund": credits_fund}
     except Exception as e:
-        logger.error(f"获取 NSFW 信息时发生错误: {str(e)}")
+        logger.error(f"获取 NSFW 信息时发生错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取NSFW信息失败")
 
 
@@ -766,7 +766,7 @@ async def nsfw_operation(
                 try:
                     _plex.update_user_shared_libs(plex_id, _plex.get_libraries())
                 except Exception as e:
-                    logger.error(f"更新权限失败: {str(e)}")
+                    logger.error(f"更新权限失败: {e!s}")
                     raise HTTPException(status_code=500, detail="更新权限失败")
 
                 # 解锁时间
@@ -848,7 +848,7 @@ async def nsfw_operation(
                 try:
                     _plex.update_user_shared_libs(plex_id, sections)
                 except Exception as e:
-                    logger.error(f"更新权限失败: {str(e)}")
+                    logger.error(f"更新权限失败: {e!s}")
                     raise HTTPException(status_code=500, detail="更新权限失败")
 
                 # 更新数据库
@@ -917,7 +917,7 @@ async def nsfw_operation(
         # 向上传递HTTP异常
         raise
     except Exception as e:
-        logger.error(f"执行 NSFW 操作时发生错误: {str(e)}")
+        logger.error(f"执行 NSFW 操作时发生错误: {e!s}")
         raise HTTPException(status_code=500, detail="操作失败，请稍后再试")
 
 
@@ -979,7 +979,7 @@ async def get_plex_lines(
             lines=line_infos, success=True, message="获取 Plex 线路列表成功"
         )
     except Exception as e:
-        logger.error(f"获取 Plex 线路列表时发生错误: {str(e)}")
+        logger.error(f"获取 Plex 线路列表时发生错误: {e!s}")
         return PlexLinesResponse(
             success=False, message="获取 Plex 线路列表失败", lines=[]
         )
@@ -1048,8 +1048,8 @@ async def bind_plex_line(
         )
 
     except Exception as e:
-        logger.error(f"绑定 Plex 线路时发生错误: {str(e)}")
-        return BaseResponse(success=False, message=f"绑定失败: {str(e)}")
+        logger.error(f"绑定 Plex 线路时发生错误: {e!s}")
+        return BaseResponse(success=False, message=f"绑定失败: {e!s}")
 
 
 @router.post("/unbind/plex_line", response_model=BaseResponse)
@@ -1089,8 +1089,8 @@ async def unbind_plex_line(
         return BaseResponse(success=True, message="已切换到自动选择线路")
 
     except Exception as e:
-        logger.error(f"解绑 Plex 线路时发生错误: {str(e)}")
-        return BaseResponse(success=False, message=f"解绑失败: {str(e)}")
+        logger.error(f"解绑 Plex 线路时发生错误: {e!s}")
+        return BaseResponse(success=False, message=f"解绑失败: {e!s}")
 
 
 # ==================== 通用线路管理API ====================
@@ -1186,8 +1186,8 @@ async def auth_bind_line(
                 db, tg_id, telegram_user, username, line, token=token, password=password
             )
     except Exception as e:
-        logger.error(f"认证绑定{service}线路时发生错误: {str(e)}")
-        return BaseResponse(success=False, message=f"认证绑定失败: {str(e)}")
+        logger.error(f"认证绑定{service}线路时发生错误: {e!s}")
+        return BaseResponse(success=False, message=f"认证绑定失败: {e!s}")
 
 
 async def _auth_bind_emby_line(
@@ -1247,8 +1247,8 @@ async def _auth_bind_plex_line(
     telegram_user: TelegramUser,
     username: str,
     line: str,
-    password: Optional[str] = None,
-    token: Optional[str] = None,
+    password: str | None = None,
+    token: str | None = None,
 ) -> BaseResponse:
     """认证并绑定Plex线路的内部方法"""
     from app.databases.cache import (
@@ -1358,9 +1358,9 @@ async def get_emby_lines_by_user(
         )
 
     except Exception as e:
-        logger.error(f"获取 Emby 用户 {username} 的线路列表时发生错误: {str(e)}")
+        logger.error(f"获取 Emby 用户 {username} 的线路列表时发生错误: {e!s}")
         return EmbyLinesResponse(
-            success=False, message=f"获取线路列表失败: {str(e)}", lines=[]
+            success=False, message=f"获取线路列表失败: {e!s}", lines=[]
         )
 
 
@@ -1426,9 +1426,9 @@ async def get_plex_lines_by_user(
         )
 
     except Exception as e:
-        logger.error(f"获取 Plex 用户 {email} 的线路列表时发生错误: {str(e)}")
+        logger.error(f"获取 Plex 用户 {email} 的线路列表时发生错误: {e!s}")
         return PlexLinesResponse(
-            success=False, message=f"获取线路列表失败: {str(e)}", lines=[]
+            success=False, message=f"获取线路列表失败: {e!s}", lines=[]
         )
 
 
@@ -1541,7 +1541,7 @@ async def transfer_credits(
                 parse_mode="HTML",
             )
         except Exception as e:
-            logger.warning(f"发送积分转移通知失败: {str(e)}")
+            logger.warning(f"发送积分转移通知失败: {e!s}")
 
         return CreditsTransferResponse(
             success=True,
@@ -1552,7 +1552,7 @@ async def transfer_credits(
         )
 
     except Exception as e:
-        logger.error(f"积分转移失败: {str(e)}")
+        logger.error(f"积分转移失败: {e!s}")
         return CreditsTransferResponse(
             success=False, message="转移过程出错，请稍后再试"
         )
@@ -1594,7 +1594,7 @@ async def get_all_users(
         return user_list
 
     except Exception as e:
-        logger.error(f"获取用户列表失败: {str(e)}")
+        logger.error(f"获取用户列表失败: {e!s}")
         raise HTTPException(status_code=500, detail="获取用户列表失败")
 
 
@@ -1659,9 +1659,9 @@ async def get_current_bound_line(
                 )
 
     except Exception as e:
-        logger.error(f"获取用户当前绑定线路时发生错误: {str(e)}")
+        logger.error(f"获取用户当前绑定线路时发生错误: {e!s}")
         return CurrentLineResponse(
-            success=False, message=f"获取当前绑定线路失败: {str(e)}"
+            success=False, message=f"获取当前绑定线路失败: {e!s}"
         )
 
 
@@ -2077,7 +2077,7 @@ async def unlock_download_permission(
 
     except Exception as e:
         logger.error(f"解锁下载权限失败: {e}")
-        return BaseResponse(success=False, message=f"解锁失败: {str(e)}，请联系管理员")
+        return BaseResponse(success=False, message=f"解锁失败: {e!s}，请联系管理员")
 
 
 # ==================== 自定义线路相关接口 ====================
@@ -2101,12 +2101,15 @@ async def submit_custom_line(
             return BaseResponse(success=False, message="无效的流量类型")
 
         # 验证分享限制不能大于总流量
-        if data.traffic_limit is not None and data.total_traffic is not None:
-            if data.traffic_limit > data.total_traffic:
-                return BaseResponse(
-                    success=False,
-                    message=f"分享限制 ({data.traffic_limit}GB) 不能大于总流量 ({data.total_traffic}GB)",
-                )
+        if (
+            data.traffic_limit is not None
+            and data.total_traffic is not None
+            and data.traffic_limit > data.total_traffic
+        ):
+            return BaseResponse(
+                success=False,
+                message=f"分享限制 ({data.traffic_limit}GB) 不能大于总流量 ({data.total_traffic}GB)",
+            )
 
         # 检查域名是否已存在
         with get_session() as session:
@@ -2204,7 +2207,7 @@ async def submit_custom_line(
 
     except Exception as e:
         logger.error(f"提交自定义线路失败: {e}")
-        return BaseResponse(success=False, message=f"提交失败: {str(e)}")
+        return BaseResponse(success=False, message=f"提交失败: {e!s}")
 
 
 @router.get("/custom-lines/my-lines")
@@ -2261,7 +2264,7 @@ async def get_my_custom_lines(
     except Exception as e:
         logger.error(f"获取用户自定义线路失败: {e}")
         return CustomLineListResponse(
-            success=False, message=f"获取失败: {str(e)}", lines=[], total=0
+            success=False, message=f"获取失败: {e!s}", lines=[], total=0
         )
 
 
@@ -2315,7 +2318,7 @@ async def get_approved_custom_lines(
         logger.error(f"获取已批准自定义线路失败: {e}")
         return {
             "success": False,
-            "message": f"获取失败: {str(e)}",
+            "message": f"获取失败: {e!s}",
             "lines": [],
             "total": 0,
         }
@@ -2377,7 +2380,7 @@ async def get_custom_line_detail(
     except Exception as e:
         logger.error(f"获取自定义线路详情失败: {e}")
         return CustomLineDetailResponse(
-            success=False, message=f"获取失败: {str(e)}", line=None
+            success=False, message=f"获取失败: {e!s}", line=None
         )
 
 
@@ -2449,12 +2452,15 @@ async def update_custom_line(
                 line.user_note = data.user_note
 
             # 验证分享限制不能大于总流量
-            if line.traffic_limit is not None and line.total_traffic is not None:
-                if line.traffic_limit > line.total_traffic:
-                    return BaseResponse(
-                        success=False,
-                        message=f"分享限制 ({line.traffic_limit}GB) 不能大于总流量 ({line.total_traffic}GB)",
-                    )
+            if (
+                line.traffic_limit is not None
+                and line.total_traffic is not None
+                and line.traffic_limit > line.total_traffic
+            ):
+                return BaseResponse(
+                    success=False,
+                    message=f"分享限制 ({line.traffic_limit}GB) 不能大于总流量 ({line.total_traffic}GB)",
+                )
 
             # 重新计算过期时间
             if data.is_permanent is not None or data.valid_days is not None:
@@ -2475,7 +2481,7 @@ async def update_custom_line(
 
     except Exception as e:
         logger.error(f"更新自定义线路失败: {e}")
-        return BaseResponse(success=False, message=f"更新失败: {str(e)}")
+        return BaseResponse(success=False, message=f"更新失败: {e!s}")
 
 
 @router.delete("/custom-lines/{line_id}")
@@ -2536,7 +2542,7 @@ async def delete_custom_line(
 
     except Exception as e:
         logger.error(f"删除自定义线路失败: {e}")
-        return BaseResponse(success=False, message=f"删除失败: {str(e)}")
+        return BaseResponse(success=False, message=f"删除失败: {e!s}")
 
 
 @router.post("/custom-lines/{line_id}/offline")
@@ -2608,11 +2614,14 @@ async def offline_custom_line(
             )
 
             # 发送管理员通知
-            from datetime import datetime
+            from datetime import UTC, datetime
 
             user_name = get_user_name_from_tg_id(tg_id)
-            offline_time = datetime.fromtimestamp(current_time).strftime(
-                "%Y-%m-%d %H:%M:%S"
+            # Keep the host's local time display while constructing an aware datetime.
+            offline_time = (
+                datetime.fromtimestamp(current_time, tz=UTC)
+                .astimezone()
+                .strftime("%Y-%m-%d %H:%M:%S")
             )
             admin_notification = f"""📴 自定义线路下线通知
 
@@ -2632,7 +2641,7 @@ async def offline_custom_line(
 
     except Exception as e:
         logger.error(f"下线自定义线路失败: {e}")
-        return BaseResponse(success=False, message=f"下线失败: {str(e)}")
+        return BaseResponse(success=False, message=f"下线失败: {e!s}")
 
 
 @router.post("/custom-lines/{line_id}/online")
@@ -2681,12 +2690,15 @@ async def online_custom_line(
             )
 
             # 验证分享限制不能大于总流量
-            if final_traffic_limit is not None and final_total_traffic is not None:
-                if final_traffic_limit > final_total_traffic:
-                    return BaseResponse(
-                        success=False,
-                        message=f"分享限制 ({final_traffic_limit}GB) 不能大于总流量 ({final_total_traffic}GB)",
-                    )
+            if (
+                final_traffic_limit is not None
+                and final_total_traffic is not None
+                and final_traffic_limit > final_total_traffic
+            ):
+                return BaseResponse(
+                    success=False,
+                    message=f"分享限制 ({final_traffic_limit}GB) 不能大于总流量 ({final_total_traffic}GB)",
+                )
 
             # 更新流量限制（如果提供）
             if data.traffic_limit is not None:
@@ -2728,7 +2740,7 @@ async def online_custom_line(
 
             from datetime import datetime
 
-            import app.config as config
+            from app import config
 
             expire_info = (
                 "长期可用"
@@ -2773,7 +2785,7 @@ async def online_custom_line(
 
     except Exception as e:
         logger.error(f"上线自定义线路失败: {e}")
-        return BaseResponse(success=False, message=f"上线失败: {str(e)}")
+        return BaseResponse(success=False, message=f"上线失败: {e!s}")
 
 
 @router.post("/custom-lines/{line_id}/renew")
@@ -2837,7 +2849,7 @@ async def renew_custom_line(
 
             from datetime import datetime
 
-            import app.config as config
+            from app import config
 
             old_expires_str = (
                 datetime.fromtimestamp(old_expires_at, tz=config.settings.TZ).strftime(
@@ -2859,4 +2871,4 @@ async def renew_custom_line(
 
     except Exception as e:
         logger.error(f"续期自定义线路失败: {e}")
-        return BaseResponse(success=False, message=f"续期失败: {str(e)}")
+        return BaseResponse(success=False, message=f"续期失败: {e!s}")

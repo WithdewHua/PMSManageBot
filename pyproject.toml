@@ -29,7 +29,9 @@ requires-python = ">= 3.11"
 
 [project.optional-dependencies]
 postgres = [
+    # Plain postgresql:// URLs use psycopg2; postgresql+psycopg:// URLs use psycopg 3.
     "psycopg2-binary>=2.9.11",
+    "psycopg[binary]>=3.2.0",
 ]
 test = [
     "pytest>=8.0.0",
@@ -50,3 +52,8 @@ packages = ["src/app"]
 pythonpath = [".", "src"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[tool.ruff.lint]
+# DB operations deliberately log broad failures, and FastAPI dependency injection
+# requires Depends/Body calls as parameter defaults.
+ignore = ["BLE001", "B008"]

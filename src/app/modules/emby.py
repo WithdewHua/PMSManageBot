@@ -1,15 +1,14 @@
-#! /usr/bin/env python3
-
 import asyncio
 import json
 import pickle
 from datetime import datetime, timedelta
 from time import time
-from typing import Any, Optional, Union
+from typing import Any
 
 import aiohttp
 import filelock
 import requests
+
 from app.config import settings
 from app.databases.cache import emby_api_key_cache
 from app.log import logger
@@ -93,10 +92,10 @@ class Emby:
             logger.error(f"Error changing password for {emby_id}: {e}")
             return False
 
-    def get_uid_from_username(self, username: str) -> Optional[str]:
+    def get_uid_from_username(self, username: str) -> str | None:
         return self.get_user_info_from_username(username).get("id")
 
-    def get_username_from_uid(self, user_id: str) -> Optional[str]:
+    def get_username_from_uid(self, user_id: str) -> str | None:
         return self.get_user_info_from_uid(user_id).get("name")
 
     def get_user_info_from_uid(self, user_id: str, from_emby=True) -> dict:
@@ -106,7 +105,7 @@ class Emby:
             if self.cache.exists():
                 with open(self.cache, "rb") as f:
                     cache = pickle.load(f)
-            for _, info in cache.items():
+            for info in cache.values():
                 if info.get("id") == user_id:
                     user_info = info
                     # 如果缓存中的用户信息未过期，则直接返回
@@ -295,9 +294,7 @@ class Emby:
 
         return libraries
 
-    def add_user_library(
-        self, user_id, library: Union[str, list[str]] = settings.NSFW_LIBS
-    ):
+    def add_user_library(self, user_id, library: str | list[str] = settings.NSFW_LIBS):
         if isinstance(library, str):
             library = [library]
 
@@ -446,7 +443,7 @@ class Emby:
             )
         return user_data
 
-    def update_all_users_library(self, library: Union[str, list]) -> None:
+    def update_all_users_library(self, library: str | list) -> None:
         if isinstance(library, str):
             library = [library]
         users = self.get_users()
@@ -459,7 +456,7 @@ class Emby:
 
     def authenticate_user(
         self, username: str, password: str
-    ) -> tuple[bool, Optional[str]]:
+    ) -> tuple[bool, str | None]:
         """
         验证Emby用户的用户名和密码
         返回 (是否验证成功, 用户ID) 的元组
@@ -495,37 +492,39 @@ class Emby:
                 return False, None
 
         except Exception as e:
-            logger.error(f"Emby用户 {username} 认证时发生错误: {str(e)}")
+            logger.error(f"Emby用户 {username} 认证时发生错误: {e!s}")
             return False, None
 
-    async def get_emby_username_from_api_key(self, api_key: str) -> Optional[str]:
+    async def get_emby_username_from_api_key(self, api_key: str) -> str | None:
         """
         请求 Emby API 获取用户名
         """
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
+            async with (
+                aiohttp.ClientSession() as session,
+                session.get(
                     f"{self.base_url.rstrip('/')}/Sessions?api_key={api_key}"
-                ) as response:
-                    response.raise_for_status()
-                    if response.status == 200:
-                        sessions = await response.json()
-                        usernames = set()
-                        for session in sessions:
-                            if "UserName" in session:
-                                usernames.add(session["UserName"].lower())
-                        if len(usernames) == 1:
-                            # 只有一个用户名才认为是有效的
-                            username = str(usernames.pop()).lower()
-                            logger.info(f"Got username from api_key: {username}")
-                            emby_api_key_cache.put(api_key, username)
-                            return username
-                        else:
-                            logger.info("Multi usernames found, maybe admin, skip")
+                ) as response,
+            ):
+                response.raise_for_status()
+                if response.status == 200:
+                    sessions = await response.json()
+                    usernames = set()
+                    for session in sessions:
+                        if "UserName" in session:
+                            usernames.add(session["UserName"].lower())
+                    if len(usernames) == 1:
+                        # 只有一个用户名才认为是有效的
+                        username = str(usernames.pop()).lower()
+                        logger.info(f"Got username from api_key: {username}")
+                        emby_api_key_cache.put(api_key, username)
+                        return username
                     else:
-                        logger.error(
-                            f"Failed to get username: {response.status}, {await response.text()}"
-                        )
+                        logger.info("Multi usernames found, maybe admin, skip")
+                else:
+                    logger.error(
+                        f"Failed to get username: {response.status}, {await response.text()}"
+                    )
         except Exception as e:
             logger.error(f"Error fetching Emby username: {e}")
         return None
@@ -550,7 +549,7 @@ class Emby:
                         self.get_emby_username_from_api_key(api_key), timeout=timeout
                     )
                     return api_key, (username or None)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     return api_key, self.FETCH_TIMEOUT
 
         results = await asyncio.gather(*(_one(k) for k in api_keys))
@@ -653,7 +652,7 @@ class Emby:
                 )
         return True, ranks
 
-    def get_user_last_activity(self, user_id: str) -> Optional[int]:
+    def get_user_last_activity(self, user_id: str) -> int | None:
         """
         获取用户最后活动时间（最后观看时间）
         从 PlaybackActivity 表中获取用户最后一次播放记录的时间
@@ -698,8 +697,10 @@ class Emby:
                         # 先尝试移除小数部分(如果存在)
                         if "." in last_activity_str:
                             last_activity_str = last_activity_str.split(".")[0]
-                        dt = datetime.strptime(last_activity_str, "%Y-%m-%d %H:%M:%S")
-                        # 转换为UTC时间戳
+                        dt = datetime.strptime(
+                            last_activity_str, "%Y-%m-%d %H:%M:%S"
+                        ).astimezone()
+                        # 无时区的 Emby 时间按系统本地时区解释，保持原有时间戳行为
                         timestamp = int(dt.timestamp())
                         logger.debug(
                             f"User {user_id} last activity: {last_activity_str} ({timestamp})"
@@ -718,7 +719,7 @@ class Emby:
             logger.error(f"Error fetching last activity for user {user_id}: {e}")
             return None
 
-    def get_all_users_last_activity(self) -> dict[str, Optional[int]]:
+    def get_all_users_last_activity(self) -> dict[str, int | None]:
         """
         获取所有用户的最后活动时间
 
@@ -763,7 +764,7 @@ class Emby:
                                 last_activity_str = last_activity_str.split(".")[0]
                             dt = datetime.strptime(
                                 last_activity_str, "%Y-%m-%d %H:%M:%S"
-                            )
+                            ).astimezone()
                             timestamp = int(dt.timestamp())
                             user_activities[user_id] = timestamp
                         except Exception:
@@ -829,7 +830,7 @@ class Emby:
                 return False, response.text
 
         except Exception as e:
-            logger.error(f"更新 Emby 用户 {user_id} 下载权限失败: {str(e)}")
+            logger.error(f"更新 Emby 用户 {user_id} 下载权限失败: {e!s}")
             return False, str(e)
 
     def update_download_permission_by_username(

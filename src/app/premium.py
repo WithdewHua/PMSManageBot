@@ -4,6 +4,8 @@ Premium 会员相关功能,包括检查过期状态和即将过期的用户。
 
 from datetime import datetime, timedelta
 
+from sqlalchemy import update as sql_update
+
 from app.config import settings
 from app.databases import db
 from app.databases.cache import (
@@ -21,7 +23,6 @@ from app.utils.utils import (
     is_binded_premium_line,
     send_message_by_url,
 )
-from sqlalchemy import update as sql_update
 
 
 async def check_premium_expiry():
@@ -100,7 +101,7 @@ async def check_premium_expiry():
             logger.debug("未发现过期的 Premium 用户")
 
     except Exception as e:
-        logger.error(f"检查 Premium 过期状态时出错: {str(e)}")
+        logger.error(f"检查 Premium 过期状态时出错: {e!s}")
 
 
 async def check_premium_expiring_soon(days: int = 3):
@@ -125,7 +126,7 @@ async def check_premium_expiring_soon(days: int = 3):
             logger.debug(f"未发现 {days} 天内即将过期的 Premium 用户")
 
     except Exception as e:
-        logger.error(f"检查即将过期的 Premium 用户时出错: {str(e)}")
+        logger.error(f"检查即将过期的 Premium 用户时出错: {e!s}")
 
 
 def sync_media_permission(db, tg_id: int, service: str) -> None:
@@ -178,6 +179,41 @@ def sync_media_permission(db, tg_id: int, service: str) -> None:
                 logger.info(f"已为 Premium 用户 {tg_id} 启用 Emby 下载权限")
         except Exception as e:
             logger.warning(f"为 Premium 用户 {tg_id} 启用 Emby 下载权限失败: {e}")
+
+
+def apply_download_unlock_to_media(tg_id: int, service: str) -> None:
+    """把已写入数据库的永久下载权限解锁同步到媒体服务器
+
+    与 `sync_media_permission` 不同：后者对已有 unlock_time 的用户直接返回，
+    而这里恰恰是刚解锁完、需要推送到媒体服务器的场景。
+
+    调用方须在数据库事务提交之后调用。失败时抛出 RuntimeError，由调用方
+    决定如何处置（礼包领取：不回滚，说明并通知管理员人工处理）。
+    """
+    if service == "plex":
+        user_info = db.get_plex_info_by_tg_id(tg_id)
+        plex_email = user_info[3] if user_info else None
+        if not plex_email:
+            raise RuntimeError("未找到绑定的 Plex 账号邮箱")
+        from app.modules.plex import Plex
+
+        if not Plex().update_sync_for_user(plex_email, allow_sync=True):
+            raise RuntimeError("Plex 同步权限更新失败")
+    elif service == "emby":
+        user_info = db.get_emby_info_by_tg_id(tg_id)
+        emby_id = user_info[1] if user_info else None
+        if not emby_id:
+            raise RuntimeError("未找到绑定的 Emby 账号 ID")
+        from app.modules.emby import Emby
+
+        ok, msg = Emby().update_download_permission_for_user(
+            emby_id, allow_download=True
+        )
+        if not ok:
+            raise RuntimeError(f"Emby 下载权限更新失败: {msg}")
+    else:
+        raise RuntimeError(f"未知的服务类型: {service}")
+    logger.info(f"已为用户 {tg_id} 同步 {service} 下载权限到媒体服务器")
 
 
 def update_premium_status(
@@ -535,11 +571,11 @@ async def get_and_send_premium_statistics():
                     logger.error(f"发送 Premium 统计信息给管理员 {chat_id} 失败")
 
             except Exception as e:
-                logger.error(f"发送消息给管理员 {admin_id} 时发生错误: {str(e)}")
+                logger.error(f"发送消息给管理员 {admin_id} 时发生错误: {e!s}")
 
         logger.info(
             f"Premium 统计信息发送完成，成功发送给 {success_count}/{len(admin_chat_ids)} 个管理员"
         )
 
     except Exception as e:
-        logger.error(f"获取并发送 Premium 统计信息时出错: {str(e)}")
+        logger.error(f"获取并发送 Premium 统计信息时出错: {e!s}")

@@ -6,9 +6,11 @@ import re
 import traceback
 from datetime import datetime, timedelta
 from time import time
-from typing import Optional
 from urllib.parse import parse_qs, unquote, urlparse
 from uuid import NAMESPACE_URL, uuid3
+
+from sqlalchemy import distinct, func, or_, select, union
+from sqlalchemy import update as sql_update
 
 from app.config import settings
 from app.databases.cache import (
@@ -51,8 +53,6 @@ from app.utils.utils import (
     is_binded_premium_line,
     send_message_by_url,
 )
-from sqlalchemy import distinct, func, or_, select, union
-from sqlalchemy import update as sql_update
 
 # 幽灵会话扫描窗口（天）。Tautulli 的 get_history 按 stopped 过滤，而幽灵会话
 # 落库时 stopped 即落库时刻，因此只要落库后 3 天内扫过一次就必定命中，
@@ -149,7 +149,7 @@ def _format_premium_traffic_deduction_summary(deduction_records: list[dict]) -> 
     return "\n".join(message_parts)
 
 
-def _parse_debt_date(date_str: Optional[str]) -> Optional[datetime]:
+def _parse_debt_date(date_str: str | None) -> datetime | None:
     if not date_str:
         return None
 
@@ -161,7 +161,7 @@ def _parse_debt_date(date_str: Optional[str]) -> Optional[datetime]:
 
 def _resolve_premium_status_for_settlement(
     current_is_premium: bool,
-    premium_status_updated_at: Optional[int],
+    premium_status_updated_at: int | None,
     settlement_date: datetime,
 ) -> bool:
     if not premium_status_updated_at:
@@ -183,7 +183,7 @@ def _settle_premium_traffic_usage(
     traffic_usage_premium: int,
     is_premium: bool,
     debt_bytes: int,
-    debt_updated_date: Optional[str],
+    debt_updated_date: str | None,
     settlement_date: datetime,
 ) -> dict:
     daily_limit = _get_premium_daily_limit(is_premium)
@@ -1176,7 +1176,7 @@ async def clean_ghost_sessions_job():
 
 
 def update_plex_info(
-    plex_name=True, plex_id=True, plex_avatar=True, target_email: Optional[str] = None
+    plex_name=True, plex_id=True, plex_avatar=True, target_email: str | None = None
 ):
     """更新 plex 用户信息"""
     _plex = Plex()
@@ -1626,12 +1626,12 @@ async def update_line_traffic_stats(
         backend: str,
         service: str,
         username: str,
-        user_id: Optional[str],
+        user_id: str | None,
         formatted_timestamp: str,
         decoded_uri: str,
         bytes_sent: int,
-        upstream: Optional[str],
-        upstream_response_time: Optional[str],
+        upstream: str | None,
+        upstream_response_time: str | None,
     ) -> str:
         raw = json.dumps(
             {
@@ -2269,9 +2269,7 @@ async def check_expired_crypto_donation_orders():
         logger.error(f"检查过期 crypto 捐赠订单失败: {e}")
 
 
-async def auto_switch_user_lines(
-    tg_id: Optional[int] = None, service: Optional[str] = None
-):
+async def auto_switch_user_lines(tg_id: int | None = None, service: str | None = None):
     """
     自动切换用户线路调度
 
@@ -2325,41 +2323,39 @@ async def auto_switch_user_lines(
                     continue
 
                 # 检查是否需要切换
-                if current_line != target_line:
-                    # 执行切换
-                    if db.set_plex_line(line=target_line, tg_id=user_tg_id):
-                        # 更新 Redis 缓存
-                        if plex_username:
-                            if target_line is None or target_line == "auto":
-                                # 切换到自动选择，删除 Redis 缓存
-                                plex_user_defined_line_cache.delete(
-                                    str(plex_username).lower()
+                if current_line != target_line and db.set_plex_line(
+                    line=target_line, tg_id=user_tg_id
+                ):
+                    # 更新 Redis 缓存
+                    if plex_username:
+                        if target_line is None or target_line == "auto":
+                            # 切换到自动选择，删除 Redis 缓存
+                            plex_user_defined_line_cache.delete(
+                                str(plex_username).lower()
+                            )
+                        else:
+                            # 切换到指定线路
+                            binded_line = plex_user_defined_line_cache.get(
+                                str(plex_username).lower()
+                            )
+                            if binded_line and not is_binded_premium_line(binded_line):
+                                # 满足如下条件：
+                                # 1. 缓存中存在绑定的线路，且该线路不是高级线路；
+                                # 将其记录到上一次使用的普通线路缓存中
+                                logger.debug(
+                                    f"记录用户 {plex_username} 上一次使用的普通线路 {binded_line}"
                                 )
-                            else:
-                                # 切换到指定线路
-                                binded_line = plex_user_defined_line_cache.get(
-                                    str(plex_username).lower()
+                                plex_last_user_defined_line_cache.put(
+                                    str(plex_username).lower(), binded_line
                                 )
-                                if binded_line and not is_binded_premium_line(
-                                    binded_line
-                                ):
-                                    # 满足如下条件：
-                                    # 1. 缓存中存在绑定的线路，且该线路不是高级线路；
-                                    # 将其记录到上一次使用的普通线路缓存中
-                                    logger.debug(
-                                        f"记录用户 {plex_username} 上一次使用的普通线路 {binded_line}"
-                                    )
-                                    plex_last_user_defined_line_cache.put(
-                                        str(plex_username).lower(), binded_line
-                                    )
-                                plex_user_defined_line_cache.put(
-                                    str(plex_username).lower(), target_line
-                                )
+                            plex_user_defined_line_cache.put(
+                                str(plex_username).lower(), target_line
+                            )
 
-                        switched_count += 1
-                        logger.info(
-                            f"自动切换 Plex 用户 {plex_username} 的线路: {current_line or 'AUTO'} -> {target_line if target_line != 'auto' else 'AUTO'}"
-                        )
+                    switched_count += 1
+                    logger.info(
+                        f"自动切换 Plex 用户 {plex_username} 的线路: {current_line or 'AUTO'} -> {target_line if target_line != 'auto' else 'AUTO'}"
+                    )
 
             # 处理 Emby 用户
             if "emby" in services_to_process:
@@ -2392,41 +2388,39 @@ async def auto_switch_user_lines(
                     continue
 
                 # 检查是否需要切换
-                if current_line != target_line:
-                    # 执行切换
-                    if db.set_emby_line(line=target_line, tg_id=user_tg_id):
-                        # 更新 Redis 缓存
-                        if emby_username:
-                            if target_line is None or target_line == "auto":
-                                # 切换到自动选择，删除 Redis 缓存
-                                emby_user_defined_line_cache.delete(
-                                    str(emby_username).lower()
+                if current_line != target_line and db.set_emby_line(
+                    line=target_line, tg_id=user_tg_id
+                ):
+                    # 更新 Redis 缓存
+                    if emby_username:
+                        if target_line is None or target_line == "auto":
+                            # 切换到自动选择，删除 Redis 缓存
+                            emby_user_defined_line_cache.delete(
+                                str(emby_username).lower()
+                            )
+                        else:
+                            # 切换到指定线路
+                            binded_line = emby_user_defined_line_cache.get(
+                                str(emby_username).lower()
+                            )
+                            if binded_line and not is_binded_premium_line(binded_line):
+                                # 满足如下条件：
+                                # 1. 缓存中存在绑定的线路，且该线路不是高级线路；
+                                # 将其记录到上一次使用的普通线路缓存中
+                                logger.debug(
+                                    f"记录用户 {emby_username} 上一次使用的普通线路 {binded_line}"
                                 )
-                            else:
-                                # 切换到指定线路
-                                binded_line = emby_user_defined_line_cache.get(
-                                    str(emby_username).lower()
+                                emby_last_user_defined_line_cache.put(
+                                    str(emby_username).lower(), binded_line
                                 )
-                                if binded_line and not is_binded_premium_line(
-                                    binded_line
-                                ):
-                                    # 满足如下条件：
-                                    # 1. 缓存中存在绑定的线路，且该线路不是高级线路；
-                                    # 将其记录到上一次使用的普通线路缓存中
-                                    logger.debug(
-                                        f"记录用户 {emby_username} 上一次使用的普通线路 {binded_line}"
-                                    )
-                                    emby_last_user_defined_line_cache.put(
-                                        str(emby_username).lower(), binded_line
-                                    )
-                                emby_user_defined_line_cache.put(
-                                    str(emby_username).lower(), target_line
-                                )
+                            emby_user_defined_line_cache.put(
+                                str(emby_username).lower(), target_line
+                            )
 
-                        switched_count += 1
-                        logger.info(
-                            f"自动切换 Emby 用户 {emby_username} 的线路: {current_line or 'AUTO'} -> {target_line if target_line != 'auto' else 'AUTO'}"
-                        )
+                    switched_count += 1
+                    logger.info(
+                        f"自动切换 Emby 用户 {emby_username} 的线路: {current_line or 'AUTO'} -> {target_line if target_line != 'auto' else 'AUTO'}"
+                    )
         # 生成详细的日志信息
         if tg_id is not None:
             user_info = f"用户 {get_user_name_from_tg_id(tg_id)} (ID: {tg_id})"
@@ -2522,7 +2516,7 @@ def update_users_last_viewed():
         wait([future1, future2])
 
 
-async def check_and_award_supreme_contributor_badge(user_id: int = None):
+async def check_and_award_supreme_contributor_badge(user_id: int | None = None):
     """
     检查并授予至尊贡献者勋章
 
@@ -2682,8 +2676,8 @@ async def check_and_award_supreme_contributor_badge(user_id: int = None):
 
 
 async def check_and_award_game_king_badge(
-    user_id: Optional[int] = None,
-) -> Optional[bool]:
+    user_id: int | None = None,
+) -> bool | None:
     """
     检查并授予游戏王勋章。
 
@@ -2908,12 +2902,10 @@ async def check_and_award_game_king_badge(
                     notification_tasks.append(
                         (
                             tg_id,
-                            f"🎮 恭喜获得勋章！\n"
-                            f"====================\n\n"
-                            f"勋章名称：{badge_name}\n"
-                            f"有效期限：永久\n\n"
-                            f"感谢您的热情参与！\n\n"
-                            f"====================",
+                            (
+                                f"🎮 恭喜获得勋章！\n====================\n\n勋章名称：{badge_name}\n"
+                                "有效期限：永久\n\n感谢您的热情参与！\n\n===================="
+                            ),
                         )
                     )
 
@@ -2947,7 +2939,7 @@ async def check_and_award_game_king_badge(
         return False if user_id else None
 
 
-async def award_blackjack_champion_badge(tg_id: int) -> Optional[dict]:
+async def award_blackjack_champion_badge(tg_id: int) -> dict | None:
     """给锦标赛冠军授予/续期「21 点冠军」勋章。
 
     照 `game_king` 的形状：勋章不存在时**自动创建**，故本变更不需要预置数据或

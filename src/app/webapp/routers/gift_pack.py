@@ -7,13 +7,29 @@
 """
 
 import asyncio
+import json
 from datetime import datetime
-from typing import List, Optional
+from html import escape
+from typing import Annotated
+
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    HTTPException,
+    Request,
+    status,
+)
 
 from app.config import settings
 from app.databases import db
 from app.log import uvicorn_logger as logger
-from app.utils.utils import get_user_name_from_tg_id, notify_admins_by_url
+from app.utils.utils import (
+    get_user_name_from_tg_id,
+    notify_admins_by_url,
+    send_message_by_url,
+)
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.routers.admin import check_admin_permission
@@ -32,16 +48,8 @@ from app.webapp.schemas.gift_pack import (
     GiftPackPromptItem,
     GiftPackSetEnabledRequest,
     GiftPackStatsResponse,
+    GiftPackTaskPromptItem,
     GiftPackUpdateRequest,
-)
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    Body,
-    Depends,
-    HTTPException,
-    Request,
-    status,
 )
 
 router = APIRouter(
@@ -61,7 +69,7 @@ def _format_time(timestamp: int) -> str:
     )
 
 
-def _format_rewards(rewards: List[dict]) -> str:
+def _format_rewards(rewards: list[dict]) -> str:
     return "、".join(db._gift_pack_reward_label(r) for r in rewards)
 
 
@@ -163,8 +171,8 @@ async def scan_expired_gift_packs() -> None:
                     "\n".join(
                         f"　• {item['label']}：{item['total']}"
                         + (
-                            f"（{item['grants']} 次发放，{item['skipped_lifetime']} 次因永久会员跳过）"
-                            if item.get("grants") is not None
+                            f"（{item['grants']} 次发放，{item['skipped']} 次{item['skipped_label']}）"
+                            if item.get("skipped") and item.get("skipped_label")
                             else ""
                         )
                         for item in stats["reward_totals"]
@@ -187,6 +195,71 @@ async def scan_expired_gift_packs() -> None:
         logger.error(f"扫描过期礼包任务失败: {e}")
 
 
+async def scan_gift_pack_start_dms() -> None:
+    """认领名单型礼包的开始私信，再逐条发送；失败不重新认领。"""
+    try:
+        # db 方法必须在同一事务内筛选并写入 start_dm_sent_at，提交后才返回。
+        candidates = db.claim_gift_pack_start_dm_candidates(limit=200)
+        if not candidates:
+            return
+        for index, candidate in enumerate(candidates):
+            if index:
+                await asyncio.sleep(0.5)
+            try:
+                text = (
+                    "🎁 礼包已开始！\n\n"
+                    f"礼包：{candidate['title']}\n"
+                    f"奖励：{_format_rewards(candidate['rewards'])}\n"
+                    f"领取条件：{candidate['requirements_summary'] or '无额外条件'}\n"
+                    f"领取截止：{_format_time(candidate['end_at'])}（{settings.TZ}）\n\n"
+                    "打开小程序的礼包中心领取。"
+                )
+                sent = await send_message_by_url(
+                    chat_id=int(candidate["tg_id"]), text=text, max_retries=1
+                )
+                if not sent:
+                    logger.error(
+                        f"礼包开始私信发送失败 (pack_id={candidate['pack_id']}, "
+                        f"tg_id={candidate['tg_id']})"
+                    )
+            except Exception as e:
+                logger.error(
+                    f"礼包开始私信发送异常 (pack_id={candidate.get('pack_id')}, "
+                    f"tg_id={candidate.get('tg_id')}): {e}"
+                )
+        logger.info(f"礼包开始私信本轮处理 {len(candidates)} 位用户")
+    except Exception as e:
+        logger.error(f"扫描礼包开始私信任务失败: {e}")
+
+
+async def notify_gift_pack_download_sync_failed(
+    pack_id: int, tg_id: int, failures: list[dict]
+) -> None:
+    """下载权限已在数据库解锁、但同步到媒体服务器失败——需人工处理
+
+    与「发放失败已回滚」是两回事：这里领取已经成功，不能混用文案。
+    """
+    try:
+        user_name = get_user_name_from_tg_id(tg_id) or str(tg_id)
+        pack = db.get_gift_pack_by_id(pack_id)
+        title = pack["title"] if pack else f"#{pack_id}"
+        details = "\n".join(
+            f"　• {escape(str(f['service']).capitalize())}：{escape(str(f['error']))}"
+            for f in failures
+        )
+        text = (
+            "🔧 <b>礼包下载权限同步失败 · 需人工处理</b>\n\n"
+            f"<b>礼包：</b>{escape(str(title))} (ID: {pack_id})\n"
+            f"<b>用户：</b>{escape(str(user_name))} ({tg_id})\n"
+            f"<b>失败服务：</b>\n{details}\n\n"
+            "领取已成功，数据库中下载权限已记为解锁；"
+            "请到对应媒体服务器为该用户手动开启下载权限。"
+        )
+        await notify_admins_by_url(text, parse_mode="HTML")
+    except Exception as e:
+        logger.error(f"发送礼包下载权限同步失败通知失败 (pack_id={pack_id}): {e}")
+
+
 # ==================== 用户端 ====================
 
 
@@ -201,9 +274,12 @@ async def prompt_check(
     返回空列表表示不弹窗。
     """
     try:
-        packs = db.prompt_check_gift_packs(telegram_user.id)
+        result = db.prompt_check_gift_packs(telegram_user.id)
         return GiftPackPromptCheckResponse(
-            packs=[GiftPackPromptItem(**pack) for pack in packs]
+            packs=[GiftPackPromptItem(**pack) for pack in result["packs"]],
+            task_packs=[
+                GiftPackTaskPromptItem(**pack) for pack in result["task_packs"]
+            ],
         )
     except Exception as e:
         logger.error(f"礼包提醒判定失败 (tg_id={telegram_user.id}): {e}")
@@ -242,8 +318,23 @@ async def claim_gift_pack(
     try:
         result = db.claim_gift_pack(pack_id, tg_id)
     except ValueError as e:
-        # 业务规则拒绝（已领取 / 已领完 / 窗口外 / 不满足资格）——不是异常，不通知管理员
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        # 领取条件变化时返回持锁事务内重新计算的结构化进度，供前端展示；
+        # 其余业务拒绝沿用原有的中文 detail 文本。
+        prefix = "不满足领取条件；当前进度："
+        message = str(e)
+        if message.startswith(prefix):
+            try:
+                progress = json.loads(message[len(prefix) :])
+            except (TypeError, ValueError):
+                pass
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={"message": "不满足领取条件", "requirements": progress},
+                ) from e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=message
+        ) from e
     except Exception as e:
         logger.error(f"领取礼包失败 (pack_id={pack_id}, tg_id={tg_id}): {e}")
         # 用 detached task 而非 BackgroundTasks：下面要抛 HTTPException，
@@ -252,6 +343,14 @@ async def claim_gift_pack(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="奖励发放失败，本次领取已回滚，请稍后重试或联系管理员",
+        )
+
+    # 下载权限同步失败：领取已成功，通知管理员人工补同步
+    if result.get("download_sync_failed"):
+        _notify_detached(
+            notify_gift_pack_download_sync_failed(
+                pack_id, tg_id, result["download_sync_failed"]
+            )
         )
 
     # 限量领完：里程碑通知（并发下只有一个事务能把计数加到满，只会触发一次）
@@ -280,6 +379,30 @@ async def claim_gift_pack(
 
 
 # ==================== 管理端 ====================
+
+
+@router.post("/admin/resolve-users")
+@require_telegram_auth
+async def admin_resolve_gift_pack_users(
+    request: Request,
+    text: Annotated[str, Body(embed=True, min_length=1)],
+    telegram_user: Annotated[TelegramUser, Depends(get_telegram_user)],
+) -> dict:
+    """将混合粘贴的 Telegram ID / Plex / Emby 标识解析为 tg_id。"""
+    check_admin_permission(telegram_user)
+    if not text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="名单不能为空"
+        )
+    try:
+        return db.resolve_gift_pack_users(text)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        logger.error(f"解析礼包名单失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="解析名单失败"
+        )
 
 
 @router.get("/admin/list", response_model=GiftPackAdminListResponse)
@@ -321,7 +444,13 @@ async def admin_create_gift_pack(
             start_at=data.start_at,
             end_at=data.end_at,
             description=data.description,
-            eligibility=data.eligibility.model_dump() if data.eligibility else None,
+            audience=[c.model_dump() for c in data.audience] if data.audience else None,
+            requirements=[c.model_dump() for c in data.requirements]
+            if data.requirements
+            else None,
+            task_end_at=data.task_end_at,
+            max_task_prompt_count=data.max_task_prompt_count,
+            notify_audience_on_start=data.notify_audience_on_start,
             total_quantity=data.total_quantity,
             max_prompt_count=data.max_prompt_count,
             is_enabled=data.is_enabled,
@@ -342,7 +471,7 @@ async def admin_create_gift_pack(
         )
     # 礼包上线：里程碑通知
     background_tasks.add_task(notify_gift_pack_created, pack)
-    return GiftPackAdminItem(**pack, can_delete=True)
+    return GiftPackAdminItem(**pack)
 
 
 @router.put("/admin/{pack_id}", response_model=GiftPackAdminItem)
@@ -356,18 +485,14 @@ async def admin_update_gift_pack(
     """管理员：编辑礼包"""
     check_admin_permission(telegram_user)
     try:
-        db.update_gift_pack(
-            pack_id,
-            title=data.title,
-            description=data.description,
-            rewards=[r.model_dump() for r in data.rewards] if data.rewards else None,
-            eligibility=data.eligibility.model_dump() if data.eligibility else None,
-            total_quantity=data.total_quantity,
-            start_at=data.start_at,
-            end_at=data.end_at,
-            max_prompt_count=data.max_prompt_count,
-            is_enabled=data.is_enabled,
-        )
+        fields = data.model_dump(exclude_unset=True)
+        if "rewards" in fields and data.rewards is not None:
+            fields["rewards"] = [r.model_dump() for r in data.rewards]
+        for key in ("audience", "requirements"):
+            if key in fields:
+                values = getattr(data, key)
+                fields[key] = [item.model_dump() for item in values] if values else None
+        db.update_gift_pack(pack_id, **fields)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
@@ -379,7 +504,7 @@ async def admin_update_gift_pack(
     pack = db.get_gift_pack_by_id(pack_id)
     if not pack:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="礼包不存在")
-    return GiftPackAdminItem(**pack, can_delete=pack["claimed_count"] == 0)
+    return GiftPackAdminItem(**pack)
 
 
 @router.post("/admin/{pack_id}/enabled", response_model=GiftPackAdminItem)
@@ -397,7 +522,7 @@ async def admin_set_gift_pack_enabled(
     pack = db.get_gift_pack_by_id(pack_id)
     if not pack:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="礼包不存在")
-    return GiftPackAdminItem(**pack, can_delete=pack["claimed_count"] == 0)
+    return GiftPackAdminItem(**pack)
 
 
 @router.delete("/admin/{pack_id}")
@@ -454,9 +579,9 @@ async def admin_gift_pack_records(
         records, total = db.get_gift_pack_claim_records(
             pack_id, page=page, page_size=page_size
         )
-        items: List[GiftPackClaimRecordItem] = []
+        items: list[GiftPackClaimRecordItem] = []
         for record in records:
-            username: Optional[str] = None
+            username: str | None = None
             try:
                 # 缓存未命中时该函数会退回返回 tg_id（int），统一转成字符串
                 resolved = get_user_name_from_tg_id(record["tg_id"])

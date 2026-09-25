@@ -13,7 +13,4 @@ class SystemUtils:
             return True
 
         # 检查 Podman 环境变量
-        if os.getenv("container") == "podman":
-            return True
-
-        return False
+        return os.getenv("container") == "podman"

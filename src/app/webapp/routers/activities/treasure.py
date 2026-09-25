@@ -1,3 +1,5 @@
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+
 from app.config import settings
 from app.databases import db
 from app.databases.db_func import check_and_award_game_king_badge
@@ -18,7 +20,6 @@ from app.webapp.schemas.treasure import (
     TreasureParticipationItem,
     TreasureParticipationListResponse,
 )
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 
 
 async def _auto_create_next_treasure_issue_from(*, source_issue_id: int) -> None:
@@ -77,9 +78,6 @@ def schedule_auto_reopen_treasure_issue(*, source_issue_id: int) -> None:
     """安排在开奖后 N 分钟自动开新一期。"""
 
     delay_min = 10
-    if delay_min <= 0:
-        # 允许配置为 0 表示立即创建（仍通过调度器走异步）
-        delay_min = 0
 
     try:
         from datetime import datetime, timedelta
@@ -231,6 +229,7 @@ async def _get_eth_latest_block_hash_int() -> int:
     说明：这里用最轻量的 JSON-RPC 调用，不引入额外依赖；RPC URL 从环境读取。
     """
     import aiohttp
+
     from app.config import settings
 
     rpc_url = getattr(settings, "ETH_RPC_URL", "")
@@ -245,17 +244,19 @@ async def _get_eth_latest_block_hash_int() -> int:
     }
 
     timeout = aiohttp.ClientTimeout(total=6)
-    async with aiohttp.ClientSession(timeout=timeout) as session:
-        async with session.post(rpc_url, json=payload) as resp:
-            resp.raise_for_status()
-            data = await resp.json()
-            result = data.get("result") or {}
-            block_hash = result.get("hash")
-            if not block_hash or not isinstance(block_hash, str):
-                raise RuntimeError("failed to get latest block hash")
+    async with (
+        aiohttp.ClientSession(timeout=timeout) as session,
+        session.post(rpc_url, json=payload) as resp,
+    ):
+        resp.raise_for_status()
+        data = await resp.json()
+        result = data.get("result") or {}
+        block_hash = result.get("hash")
+        if not block_hash or not isinstance(block_hash, str):
+            raise RuntimeError("failed to get latest block hash")
 
-            # hash like '0xabc...'; normalize to signed BIGINT-safe non-negative range.
-            return normalize_external_random_b(int(block_hash, 16), default=0) or 0
+        # hash like '0xabc...'; normalize to signed BIGINT-safe non-negative range.
+        return normalize_external_random_b(int(block_hash, 16), default=0) or 0
 
 
 router = APIRouter(prefix="/treasure", tags=["夺宝奇兵"])
@@ -383,7 +384,7 @@ async def join_issue(
                             f"total={int(issue.get('total_shares', 0))}|"
                             f"sold={int(issue.get('shares_sold', 0))}|"
                             f"qty={int(qty)}|tg_id={int(current_user.id)}|ts_ms={int(ts_ms)}"
-                        ).encode("utf-8")
+                        ).encode()
 
                         digest = hmac.new(
                             secret.encode("utf-8"), msg, hashlib.sha256

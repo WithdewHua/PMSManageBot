@@ -1,11 +1,12 @@
+from telegram import Update
+from telegram.ext import CommandHandler, ContextTypes
+
 from app.config import settings
 from app.databases import db
 from app.log import logger
 from app.modules.emby import Emby
 from app.utils.report import stats_report
 from app.utils.utils import get_user_name_from_tg_id, send_message
-from telegram import Update
-from telegram.ext import CommandHandler, ContextTypes
 
 
 # 积分榜
@@ -162,8 +163,8 @@ rank_24h_handler = CommandHandler("rank_24h", rank_24h)
 
 __all__ = [
     "credits_rank_handler",
-    "donation_rank_handler",
-    "watched_time_rank_handler",
     "device_rank_handler",
+    "donation_rank_handler",
     "rank_24h_handler",
+    "watched_time_rank_handler",
 ]

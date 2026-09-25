@@ -12,8 +12,9 @@ from tests.conftest import add_tournament, next_id
 @pytest.fixture
 def explicit_ids(session_env):
     """内存 SQLite 不给 BIGINT 主键自增，走真实创建路径的用例须显式补 id。"""
-    from app.models.models import BlackjackTournament
     from sqlalchemy import event
+
+    from app.models.models import BlackjackTournament
 
     @event.listens_for(BlackjackTournament, "before_insert")
     def _assign_id(mapper, connection, target):
@@ -45,8 +46,32 @@ def _monday_ms() -> int:
     return int(monday.timestamp() * 1000)
 
 
+@pytest.fixture
+def before_registration_deadline(monkeypatch):
+    """将自动开赛测试固定在周一，避免周三报名截止后随真实日期失败。"""
+    import time
+
+    from app.config import settings
+
+    monday = datetime.datetime.now(settings.TZ)
+    monday = (monday - datetime.timedelta(days=monday.weekday())).replace(
+        hour=9, minute=0, second=0, microsecond=0
+    )
+    real_datetime = datetime.datetime
+
+    class FrozenDatetime(real_datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return monday.astimezone(tz) if tz else monday.replace(tzinfo=None)
+
+    monkeypatch.setattr(datetime, "datetime", FrozenDatetime)
+    monkeypatch.setattr(time, "time", lambda: monday.timestamp())
+
+
 @pytest.mark.asyncio
-async def test_auto_create_uses_week_aligned_deadlines(orm, explicit_ids, monkeypatch):
+async def test_auto_create_uses_week_aligned_deadlines(
+    orm, explicit_ids, monkeypatch, before_registration_deadline
+):
     from app.webapp.routers.activities import blackjack_tournament as router
 
     monkeypatch.setattr(router, "db", orm)
@@ -94,7 +119,9 @@ async def test_auto_create_skips_when_registration_open(orm, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_auto_create_double_fire_is_idempotent(orm, explicit_ids, monkeypatch):
+async def test_auto_create_double_fire_is_idempotent(
+    orm, explicit_ids, monkeypatch, before_registration_deadline
+):
     """任务重复触发：第一轮建了周赛，第二轮必须被闸门挡下。"""
     from app.webapp.routers.activities import blackjack_tournament as router
 

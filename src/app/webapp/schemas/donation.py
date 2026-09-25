@@ -1,6 +1,5 @@
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Union
 
 from pydantic import BaseModel, Field, validator
 
@@ -27,7 +26,7 @@ class DonationRegistrationCreate(BaseModel):
 
     payment_method: PaymentMethod = Field(..., description="支付方式")
     amount: float = Field(..., gt=0, description="捐赠金额，必须大于0")
-    note: Optional[str] = Field(None, max_length=200, description="备注信息")
+    note: str | None = Field(None, max_length=200, description="备注信息")
     is_donation_registration: bool = Field(
         False,
         description="是否为捐赠开号，True表示只记录捐赠金额，不增加积分，并生成邀请码",
@@ -47,7 +46,7 @@ class DonationRegistrationUpdate(BaseModel):
     """更新捐赠登记请求"""
 
     approved: bool = Field(..., description="是否批准")
-    admin_note: Optional[str] = Field(None, max_length=500, description="管理员备注")
+    admin_note: str | None = Field(None, max_length=500, description="管理员备注")
 
 
 class DonationRegistrationResponse(BaseModel):
@@ -57,15 +56,15 @@ class DonationRegistrationResponse(BaseModel):
     user_id: int
     payment_method: PaymentMethod
     amount: float
-    note: Optional[str]
+    note: str | None
     status: DonationRegistrationStatus
-    admin_note: Optional[str]
+    admin_note: str | None
     created_at: datetime
-    processed_at: Optional[datetime]
-    processed_by: Optional[int]
+    processed_at: datetime | None
+    processed_by: int | None
     is_donation_registration: bool = False
-    username: Union[str, int, None]  # 用户名（从 tg_id 获取）
-    processed_by_username: Union[str, int, None]
+    username: str | int | None  # 用户名（从 tg_id 获取）
+    processed_by_username: str | int | None
 
     class Config:
         from_attributes = True

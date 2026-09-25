@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+
 from app.config import settings
 from app.databases import db
 from app.log import uvicorn_logger as logger
@@ -9,7 +11,6 @@ from app.utils.utils import get_user_avatar_from_tg_id, get_user_name_from_tg_id
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import TelegramUser
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 router = APIRouter(prefix="/api", tags=["rankings"])
 
@@ -41,14 +42,14 @@ async def get_badge_rankings(
                     if info["tg_id"] not in settings.TG_ADMIN_CHAT_ID
                 ]
         except Exception as e:
-            logger.error(f"获取勋章排行失败: {str(e)}")
+            logger.error(f"获取勋章排行失败: {e!s}")
 
         logger.info(
             f"{user.username or user.first_name or user.id} 获取勋章排行榜数据成功"
         )
         return {"badge_rank": badge_rankings}
     except Exception as e:
-        logger.error(f"获取勋章排行榜数据时发生未预期的错误: {str(e)}")
+        logger.error(f"获取勋章排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取勋章排行榜数据失败")
 
 
@@ -78,14 +79,14 @@ async def get_credits_rankings(
                     if info[0] not in settings.TG_ADMIN_CHAT_ID
                 ]
         except Exception as e:
-            logger.error(f"获取积分排行失败: {str(e)}")
+            logger.error(f"获取积分排行失败: {e!s}")
 
         logger.info(
             f"{user.username or user.first_name or user.id} 获取积分排行榜数据成功"
         )
         return {"credits_rank": credits_rankings}
     except Exception as e:
-        logger.error(f"获取积分排行榜数据时发生未预期的错误: {str(e)}")
+        logger.error(f"获取积分排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取积分排行榜数据失败")
 
 
@@ -115,14 +116,14 @@ async def get_donation_rankings(
                     if info[1] > 0
                 ]
         except Exception as e:
-            logger.error(f"获取捐赠排行失败: {str(e)}")
+            logger.error(f"获取捐赠排行失败: {e!s}")
 
         logger.info(
             f"{user.username or user.first_name or user.id} 获取捐赠排行榜数据成功"
         )
         return {"donation_rank": donation_rankings}
     except Exception as e:
-        logger.error(f"获取捐赠排行榜数据时发生未预期的错误: {str(e)}")
+        logger.error(f"获取捐赠排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取捐赠排行榜数据失败")
 
 
@@ -156,14 +157,14 @@ async def get_plex_watched_time_rankings(
                     if info[3] > 0
                 ]
         except Exception as e:
-            logger.error(f"获取Plex播放时长排行失败: {str(e)}")
+            logger.error(f"获取Plex播放时长排行失败: {e!s}")
 
         logger.info(
             f"{user.username or user.first_name or user.id} 获取Plex观看时长排行榜数据成功"
         )
         return {"watched_time_rank_plex": watched_time_rank_plex}
     except Exception as e:
-        logger.error(f"获取Plex观看时长排行榜数据时发生未预期的错误: {str(e)}")
+        logger.error(f"获取Plex观看时长排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取Plex观看时长排行榜数据失败")
 
 
@@ -202,14 +203,14 @@ async def get_emby_watched_time_rankings(
                     if info[2] > 0
                 ]
         except Exception as e:
-            logger.error(f"获取Emby播放时长排行失败: {str(e)}")
+            logger.error(f"获取Emby播放时长排行失败: {e!s}")
 
         logger.info(
             f"{user.username or user.first_name or user.id} 获取Emby观看时长排行榜数据成功"
         )
         return {"watched_time_rank_emby": watched_time_rank_emby}
     except Exception as e:
-        logger.error(f"获取Emby观看时长排行榜数据时发生未预期的错误: {str(e)}")
+        logger.error(f"获取Emby观看时长排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取Emby观看时长排行榜数据失败")
 
 
@@ -238,14 +239,14 @@ async def get_invitation_rankings(
                     if info[0] not in settings.TG_ADMIN_CHAT_ID and info[1] > 0
                 ]
         except Exception as e:
-            logger.error(f"获取邀请排行失败: {str(e)}")
+            logger.error(f"获取邀请排行失败: {e!s}")
 
         logger.info(
             f"{user.username or user.first_name or user.id} 获取邀请排行榜数据成功"
         )
         return {"invitation_rank": invitation_rankings}
     except Exception as e:
-        logger.error(f"获取邀请排行榜数据时发生未预期的错误: {str(e)}")
+        logger.error(f"获取邀请排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取邀请排行榜数据失败")
 
 
@@ -280,7 +281,7 @@ async def get_wheel_game_rankings(
                     if info[0] not in settings.TG_ADMIN_CHAT_ID
                 ]
         except Exception as e:
-            logger.error(f"获取幸运大转盘积分赚取排行失败: {str(e)}")
+            logger.error(f"获取幸运大转盘积分赚取排行失败: {e!s}")
 
         try:
             logger.debug("正在查询幸运大转盘邀请码获得排行")
@@ -298,7 +299,7 @@ async def get_wheel_game_rankings(
                     if info[0] not in settings.TG_ADMIN_CHAT_ID
                 ]
         except Exception as e:
-            logger.error(f"获取幸运大转盘邀请码获得排行失败: {str(e)}")
+            logger.error(f"获取幸运大转盘邀请码获得排行失败: {e!s}")
 
         logger.info(
             f"{user.username or user.first_name or user.id} 获取幸运大转盘排行榜数据成功"
@@ -308,7 +309,7 @@ async def get_wheel_game_rankings(
             "wheel_invite_code_rank": wheel_invite_code_rank,
         }
     except Exception as e:
-        logger.error(f"获取幸运大转盘排行榜数据时发生未预期的错误: {str(e)}")
+        logger.error(f"获取幸运大转盘排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取幸运大转盘排行榜数据失败")
 
 
@@ -342,7 +343,7 @@ async def get_treasure_game_rankings(
                     if info[0] not in settings.TG_ADMIN_CHAT_ID
                 ]
         except Exception as e:
-            logger.error(f"获取夺宝奇兵中奖期数排行失败: {str(e)}")
+            logger.error(f"获取夺宝奇兵中奖期数排行失败: {e!s}")
 
         try:
             logger.debug("正在查询夺宝奇兵中奖积分排行")
@@ -360,7 +361,7 @@ async def get_treasure_game_rankings(
                     if info[0] not in settings.TG_ADMIN_CHAT_ID
                 ]
         except Exception as e:
-            logger.error(f"获取夺宝奇兵中奖积分排行失败: {str(e)}")
+            logger.error(f"获取夺宝奇兵中奖积分排行失败: {e!s}")
 
         logger.info(
             f"{user.username or user.first_name or user.id} 获取夺宝奇兵排行榜数据成功"
@@ -370,7 +371,7 @@ async def get_treasure_game_rankings(
             "treasure_win_credits_rank": treasure_win_credits_rank,
         }
     except Exception as e:
-        logger.error(f"获取夺宝奇兵排行榜数据时发生未预期的错误: {str(e)}")
+        logger.error(f"获取夺宝奇兵排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取夺宝奇兵排行榜数据失败")
 
 
@@ -411,7 +412,7 @@ async def get_prediction_game_rankings(
                     if info["tg_id"] not in settings.TG_ADMIN_CHAT_ID
                 ]
         except Exception as e:
-            logger.error(f"获取大预言家净盈亏排行失败: {str(e)}")
+            logger.error(f"获取大预言家净盈亏排行失败: {e!s}")
 
         try:
             logger.debug("正在查询大预言家胜率排行")
@@ -436,7 +437,7 @@ async def get_prediction_game_rankings(
                     if info["tg_id"] not in settings.TG_ADMIN_CHAT_ID
                 ]
         except Exception as e:
-            logger.error(f"获取大预言家胜率排行失败: {str(e)}")
+            logger.error(f"获取大预言家胜率排行失败: {e!s}")
 
         logger.info(
             f"{user.username or user.first_name or user.id} 获取大预言家排行榜数据成功"
@@ -446,7 +447,7 @@ async def get_prediction_game_rankings(
             "prediction_win_rate_rank": prediction_win_rate_rank,
         }
     except Exception as e:
-        logger.error(f"获取大预言家排行榜数据时发生未预期的错误: {str(e)}")
+        logger.error(f"获取大预言家排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取大预言家排行榜数据失败")
 
 
@@ -479,7 +480,7 @@ async def get_blackjack_game_rankings(
             accuracy_data = skill_ranks.get("accuracy") or []
             win_rate_data = skill_ranks.get("win_rate") or []
         except Exception as e:
-            logger.error(f"获取 21 点技巧类排行失败: {str(e)}")
+            logger.error(f"获取 21 点技巧类排行失败: {e!s}")
             accuracy_data, win_rate_data = [], []
 
         try:
@@ -499,7 +500,7 @@ async def get_blackjack_game_rankings(
                     if info["tg_id"] not in settings.TG_ADMIN_CHAT_ID
                 ]
         except Exception as e:
-            logger.error(f"渲染 21 点决策准确率排行失败: {str(e)}")
+            logger.error(f"渲染 21 点决策准确率排行失败: {e!s}")
 
         try:
             if win_rate_data:
@@ -517,7 +518,7 @@ async def get_blackjack_game_rankings(
                     if info["tg_id"] not in settings.TG_ADMIN_CHAT_ID
                 ]
         except Exception as e:
-            logger.error(f"渲染 21 点胜率排行失败: {str(e)}")
+            logger.error(f"渲染 21 点胜率排行失败: {e!s}")
 
         try:
             logger.debug("正在查询 21 点单手最大赢利排行")
@@ -536,7 +537,7 @@ async def get_blackjack_game_rankings(
                     if info[0] not in settings.TG_ADMIN_CHAT_ID
                 ]
         except Exception as e:
-            logger.error(f"获取 21 点单手最大赢利排行失败: {str(e)}")
+            logger.error(f"获取 21 点单手最大赢利排行失败: {e!s}")
 
         logger.info(
             f"{user.username or user.first_name or user.id} 获取 21 点排行榜数据成功"
@@ -547,7 +548,7 @@ async def get_blackjack_game_rankings(
             "blackjack_max_win_rank": blackjack_max_win_rank,
         }
     except Exception as e:
-        logger.error(f"获取 21 点排行榜数据时发生未预期的错误: {str(e)}")
+        logger.error(f"获取 21 点排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取 21 点排行榜数据失败")
 
 
@@ -576,8 +577,10 @@ async def get_plex_traffic_rankings(
 
         if start_date:
             try:
-                parsed_start_date = datetime.strptime(start_date, "%Y-%m-%d")
-                parsed_start_date = parsed_start_date.replace(tzinfo=settings.TZ)
+                # Parse as aware to retain strict strptime validation, then use configured wall time.
+                parsed_start_date = datetime.strptime(
+                    f"{start_date} +0000", "%Y-%m-%d %z"
+                ).replace(tzinfo=settings.TZ)
             except ValueError:
                 raise HTTPException(
                     status_code=400, detail="开始日期格式错误，应为 YYYY-MM-DD"
@@ -585,10 +588,9 @@ async def get_plex_traffic_rankings(
 
         if end_date:
             try:
-                parsed_end_date = datetime.strptime(end_date, "%Y-%m-%d")
-                parsed_end_date = parsed_end_date.replace(
-                    hour=23, minute=59, second=59, tzinfo=settings.TZ
-                )
+                parsed_end_date = datetime.strptime(
+                    f"{end_date} +0000", "%Y-%m-%d %z"
+                ).replace(hour=23, minute=59, second=59, tzinfo=settings.TZ)
             except ValueError:
                 raise HTTPException(
                     status_code=400, detail="结束日期格式错误，应为 YYYY-MM-DD"
@@ -619,14 +621,14 @@ async def get_plex_traffic_rankings(
                     if info[2] > 0  # 流量大于0
                 ]
         except Exception as e:
-            logger.error(f"获取 Plex 流量排行失败: {str(e)}")
+            logger.error(f"获取 Plex 流量排行失败: {e!s}")
 
         logger.info(
             f"{user.username or user.first_name or user.id} 获取 Plex 流量排行榜数据成功"
         )
         return {"traffic_rank_plex": traffic_rank_plex}
     except Exception as e:
-        logger.error(f"获取 Plex 流量排行榜数据时发生未预期的错误: {str(e)}")
+        logger.error(f"获取 Plex 流量排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取 Plex 流量排行榜数据失败")
 
 
@@ -655,8 +657,10 @@ async def get_emby_traffic_rankings(
 
         if start_date:
             try:
-                parsed_start_date = datetime.strptime(start_date, "%Y-%m-%d")
-                parsed_start_date = parsed_start_date.replace(tzinfo=settings.TZ)
+                # Parse as aware to retain strict strptime validation, then use configured wall time.
+                parsed_start_date = datetime.strptime(
+                    f"{start_date} +0000", "%Y-%m-%d %z"
+                ).replace(tzinfo=settings.TZ)
             except ValueError:
                 raise HTTPException(
                     status_code=400, detail="开始日期格式错误，应为 YYYY-MM-DD"
@@ -664,10 +668,9 @@ async def get_emby_traffic_rankings(
 
         if end_date:
             try:
-                parsed_end_date = datetime.strptime(end_date, "%Y-%m-%d")
-                parsed_end_date = parsed_end_date.replace(
-                    hour=23, minute=59, second=59, tzinfo=settings.TZ
-                )
+                parsed_end_date = datetime.strptime(
+                    f"{end_date} +0000", "%Y-%m-%d %z"
+                ).replace(hour=23, minute=59, second=59, tzinfo=settings.TZ)
             except ValueError:
                 raise HTTPException(
                     status_code=400, detail="结束日期格式错误，应为 YYYY-MM-DD"
@@ -701,12 +704,12 @@ async def get_emby_traffic_rankings(
                     if info[2] > 0  # 流量大于0
                 ]
         except Exception as e:
-            logger.error(f"获取 Emby 流量排行失败: {str(e)}")
+            logger.error(f"获取 Emby 流量排行失败: {e!s}")
 
         logger.info(
             f"{user.username or user.first_name or user.id} 获取 Emby 流量排行榜数据成功"
         )
         return {"traffic_rank_emby": traffic_rank_emby}
     except Exception as e:
-        logger.error(f"获取 Emby 流量排行榜数据时发生未预期的错误: {str(e)}")
+        logger.error(f"获取 Emby 流量排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取 Emby 流量排行榜数据失败")

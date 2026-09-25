@@ -13,6 +13,8 @@ from __future__ import annotations
 import time
 
 import pytest
+from sqlalchemy import event
+
 from app.databases import db
 from app.databases.db import DEFAULT_BLACKJACK_CONFIG
 from app.models.models import (
@@ -20,8 +22,6 @@ from app.models.models import (
     SystemConfig,
     WheelStats,
 )
-from sqlalchemy import event
-
 from tests.conftest import (
     add_cash_hand,
     add_entry,
@@ -717,7 +717,13 @@ def test_cashback_disabled(orm, monkeypatch):
 # ------------------------------------------------------ 免费机会的消耗
 
 
-def _add_free_spin(tg_id: int, *, expires_in_ms: int = 7 * 86400 * 1000) -> int:
+def _add_free_spin(
+    tg_id: int,
+    *,
+    expires_in_ms: int = 7 * 86400 * 1000,
+    source: str = "blackjack",
+    granted_at_ms: int | None = None,
+) -> int:
     """插入一张免费机会。expires_in_ms 为负时构造「已过期」的行（回溯
     发放时间以满足 expires > granted 的 CHECK 约束）。"""
     from app.databases.session import get_session
@@ -726,10 +732,12 @@ def _add_free_spin(tg_id: int, *, expires_in_ms: int = 7 * 86400 * 1000) -> int:
     now_ms = int(time.time() * 1000)
     expires_at = now_ms + int(expires_in_ms)
     granted = now_ms if expires_in_ms > 0 else expires_at - 7 * 86400 * 1000
+    if granted_at_ms is not None:
+        granted = int(granted_at_ms)
     with get_session() as session:
         row = LuckywheelFreeSpin(
             tg_id=int(tg_id),
-            source="blackjack",
+            source=source,
             granted_at_ms=granted,
             expires_at_ms=expires_at,
         )
@@ -999,8 +1007,9 @@ async def test_admin_notification_failure_does_not_break_spin(orm, monkeypatch):
 def test_wallet_route_precedes_parameterized_routes():
     """GET /wallet 必须先于 /{tournament_id} 注册——FastAPI 按注册顺序匹配，
     否则 "wallet" 会被当作 int 赛事 ID 解析而 422（线上实测回归）。"""
-    from app.webapp.routers.activities.blackjack_tournament import router
     from starlette.routing import Match
+
+    from app.webapp.routers.activities.blackjack_tournament import router
 
     scope = {
         "type": "http",
@@ -1017,3 +1026,156 @@ def test_wallet_route_precedes_parameterized_routes():
             )
             return
     raise AssertionError("没有路由匹配 /blackjack/tournament/wallet")
+
+
+# ------------------------------------------------ 免费机会来源解耦（礼包来源）
+
+
+def test_weekly_cap_ignores_gift_pack_freespins(orm, monkeypatch):
+    """本周已持有 5 张礼包来源的机会，打满阈值仍获得 21 点来源的机会。"""
+    patch_cfg(monkeypatch, orm, freespins_hand_threshold=2, freespins_weekly_cap=5)
+    add_user(orm, 1, credits=100.0)
+    for _ in range(5):
+        _add_free_spin(1, source="gift_pack")
+
+    lose_once(orm, 1)
+    result = lose_once(orm, 1)
+
+    assert len(result["freespins"]) == 1
+    assert freespins_count(orm, 1) == 6
+
+
+def test_notify_cursor_returns_only_blackjack_and_skips_gift_rows(orm):
+    """礼包行与 21 点行交错插入：只返回 21 点行，游标越过礼包行。"""
+    add_user(orm, 1, credits=100.0)
+    old_ms = int(time.time() * 1000) - 5 * 60 * 1000  # 早于 60 秒安全边界
+
+    # 首次运行只初始化游标
+    assert db.claim_unnotified_blackjack_freespins() == []
+
+    bj1 = _add_free_spin(1, granted_at_ms=old_ms)
+    gp1 = _add_free_spin(1, source="gift_pack", granted_at_ms=old_ms)
+    bj2 = _add_free_spin(1, granted_at_ms=old_ms)
+    gp2 = _add_free_spin(1, source="gift_pack", granted_at_ms=old_ms)
+
+    claimed = db.claim_unnotified_blackjack_freespins()
+    assert [c["id"] for c in claimed] == [bj1, bj2]
+
+    # 游标推进到扫描范围内的最大 id（含礼包行），不会重复返回
+    from app.databases.session import get_session
+
+    with get_session() as session:
+        _, cursor = db._read_retention_cursor(session, db.FREESPIN_NOTIFY_CURSOR_KEY)
+    assert cursor == max(bj1, gp1, bj2, gp2)
+    assert db.claim_unnotified_blackjack_freespins() == []
+
+    # 游标后只有礼包行时也会越过，其后的 21 点行照常返回
+    gp3 = _add_free_spin(1, source="gift_pack", granted_at_ms=old_ms)
+    assert db.claim_unnotified_blackjack_freespins() == []
+    bj3 = _add_free_spin(1, granted_at_ms=old_ms)
+    assert [c["id"] for c in db.claim_unnotified_blackjack_freespins()] == [bj3]
+    assert bj3 > gp3
+
+
+def test_consume_returns_source_and_orders_by_expiry_across_sources(orm):
+    """不区分来源、最早到期优先；返回值带来源。"""
+    add_user(orm, 1, credits=100.0)
+    gift_later = _add_free_spin(1, source="gift_pack", expires_in_ms=3 * 86400 * 1000)
+    bj_sooner = _add_free_spin(1, expires_in_ms=1 * 86400 * 1000)
+
+    first = db.consume_blackjack_freespin(1)
+    assert first["id"] == bj_sooner
+    assert first["source"] == "blackjack"
+
+    second = db.consume_blackjack_freespin(1)
+    assert second["id"] == gift_later
+    assert second["source"] == "gift_pack"
+
+
+@pytest.mark.parametrize(
+    "spin_source, wheel_source",
+    [("blackjack", "blackjack_free"), ("gift_pack", "gift_pack_free")],
+)
+async def test_spin_records_free_spin_source(orm, spin_source, wheel_source):
+    """单次转盘按消耗到的机会来源映射参与记录的 source。"""
+    from app.webapp.routers.activities import luckywheel as lw
+
+    add_user(orm, 1, credits=0.0)
+    _add_free_spin(1, source=spin_source)
+    claimed = db.consume_blackjack_freespin(1)
+
+    config = lw.LuckyWheelConfig(
+        items=[lw.LuckyWheelItem(name="谢谢参与", probability=100.0)],
+        cost_credits=10,
+        min_credits_required=30,
+    )
+    result, _, _ = await lw.execute_single_spin(
+        config=config,
+        user_id=1,
+        current_credits=0.0,
+        cost_credits=0.0,
+        source=lw.wheel_source_for_free_spin(claimed["source"]),
+    )
+
+    assert result.used_free_spin is True
+    assert result.free_spin_source == spin_source
+
+    from app.databases.session import get_session
+
+    with get_session() as session:
+        record = session.query(WheelStats).filter(WheelStats.tg_id == 1).one()
+        assert record.source == wheel_source
+
+
+async def test_paid_spin_has_no_free_spin_source(orm):
+    from app.webapp.routers.activities import luckywheel as lw
+
+    add_user(orm, 1, credits=100.0)
+    config = lw.LuckyWheelConfig(
+        items=[lw.LuckyWheelItem(name="谢谢参与", probability=100.0)],
+        cost_credits=10,
+        min_credits_required=30,
+    )
+    result, _, _ = await lw.execute_single_spin(
+        config=config, user_id=1, current_credits=100.0
+    )
+    assert result.used_free_spin is False
+    assert result.free_spin_source is None
+
+
+def _load_audit_script(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+
+    from app.config import settings as app_settings
+
+    # 脚本导入时会读取真实 .env，测试里屏蔽掉
+    monkeypatch.setattr(type(app_settings), "load_config_from_file", lambda self: None)
+    path = Path(__file__).parents[1] / "scripts" / "blackjack_retention_audit.py"
+    spec = importlib.util.spec_from_file_location("_bj_audit", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_audit_script_ignores_gift_pack_freespins(orm, monkeypatch, capsys):
+    """构造礼包来源的发放与使用后，对账与周报结果与不含这些数据时一致。"""
+    audit = _load_audit_script(monkeypatch)
+    add_user(orm, 1, credits=100.0)
+    _add_free_spin(1)
+
+    def run() -> str:
+        capsys.readouterr()
+        audit.audit_counters()
+        audit.weekly_report(1)
+        return capsys.readouterr().out
+
+    baseline = run()
+
+    _add_free_spin(1, source="gift_pack")
+    _add_free_spin(1, source="gift_pack")
+    db.add_wheel_spin_record(1, "积分 +50", 50.0, 0.0, source="gift_pack_free")
+
+    assert run() == baseline
+    assert "已发放 1 张" in baseline
+    assert "免费机会：发放 1 张，已用 0 张" in baseline

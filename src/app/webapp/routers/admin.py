@@ -1,5 +1,7 @@
 import asyncio
 
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
+
 from app.config import settings
 from app.databases import db
 from app.databases.cache import (
@@ -23,7 +25,6 @@ from app.webapp.schemas import (
     LineTagResponse,
     TelegramUser,
 )
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -72,7 +73,7 @@ async def get_admin_settings(
         logger.info(f"管理员 {user.username or user.id} 获取系统设置")
         return settings_data
     except Exception as e:
-        logger.error(f"获取管理员设置失败: {str(e)}")
+        logger.error(f"获取管理员设置失败: {e!s}")
         raise HTTPException(status_code=500, detail="获取设置失败")
 
 
@@ -98,7 +99,7 @@ async def set_plex_register(
             success=True, message=f"Plex 注册已{'开启' if enabled else '关闭'}"
         )
     except Exception as e:
-        logger.error(f"设置 Plex 注册状态失败: {str(e)}")
+        logger.error(f"设置 Plex 注册状态失败: {e!s}")
         return BaseResponse(success=False, message="设置失败")
 
 
@@ -124,7 +125,7 @@ async def set_emby_register(
             success=True, message=f"Emby 注册已{'开启' if enabled else '关闭'}"
         )
     except Exception as e:
-        logger.error(f"设置 Emby 注册状态失败: {str(e)}")
+        logger.error(f"设置 Emby 注册状态失败: {e!s}")
         return BaseResponse(success=False, message="设置失败")
 
 
@@ -160,7 +161,7 @@ async def set_premium_free(
             message=f"高级线路免费使用已{'开启' if enabled else '关闭'}",
         )
     except Exception as e:
-        logger.error(f"设置高级线路免费使用状态失败: {str(e)}")
+        logger.error(f"设置高级线路免费使用状态失败: {e!s}")
         return BaseResponse(success=False, message="设置失败")
 
 
@@ -231,7 +232,7 @@ async def set_free_premium_lines(
             message=f"免费 Premium 线路设置已更新，共 {len(free_lines)} 条线路",
         )
     except Exception as e:
-        logger.error(f"设置免费 Premium 线路失败: {str(e)}")
+        logger.error(f"设置免费 Premium 线路失败: {e!s}")
         return BaseResponse(success=False, message="设置失败")
 
 
@@ -288,8 +289,8 @@ async def unbind_emby_premium_free():
 
         return True, None
     except Exception as e:
-        logger.error(f"解绑所有普通用户的 premium 线路时发生错误: {str(e)}")
-        return False, f"解绑所有普通用户的 premium 线路时发生错误: {str(e)}"
+        logger.error(f"解绑所有普通用户的 premium 线路时发生错误: {e!s}")
+        return False, f"解绑所有普通用户的 premium 线路时发生错误: {e!s}"
 
 
 async def unbind_plex_premium_free():
@@ -333,8 +334,8 @@ async def unbind_plex_premium_free():
 
         return True, None
     except Exception as e:
-        logger.error(f"解绑所有普通用户的 premium 线路时发生错误: {str(e)}")
-        return False, f"解绑所有普通用户的 premium 线路时发生错误: {str(e)}"
+        logger.error(f"解绑所有普通用户的 premium 线路时发生错误: {e!s}")
+        return False, f"解绑所有普通用户的 premium 线路时发生错误: {e!s}"
 
 
 async def handle_free_premium_lines_change(removed_lines: list | set):
@@ -423,8 +424,8 @@ async def handle_free_premium_lines_change(removed_lines: list | set):
 
         return True, None
     except Exception as e:
-        logger.error(f"处理免费高级线路变更时发生错误: {str(e)}")
-        return False, f"处理免费高级线路变更时发生错误: {str(e)}"
+        logger.error(f"处理免费高级线路变更时发生错误: {e!s}")
+        return False, f"处理免费高级线路变更时发生错误: {e!s}"
 
 
 async def unbind_specified_line_for_all_users(
@@ -483,8 +484,8 @@ async def unbind_specified_line_for_all_users(
         return True, unbind_count
 
     except Exception as e:
-        logger.error(f"解绑所有用户的 {line} 线路时发生错误: {str(e)}")
-        return False, f"解绑所有用户的 {line} 线路时发生错误: {str(e)}"
+        logger.error(f"解绑所有用户的 {line} 线路时发生错误: {e!s}")
+        return False, f"解绑所有用户的 {line} 线路时发生错误: {e!s}"
 
 
 async def disable_line_schedules_and_notify(
@@ -541,7 +542,7 @@ async def disable_line_schedules_and_notify(
                     f"已向用户 {get_user_name_from_tg_id(tg_id)} 发送线路调度禁用通知"
                 )
             except Exception as e:
-                logger.warning(f"发送线路调度禁用通知给用户 {tg_id} 失败: {str(e)}")
+                logger.warning(f"发送线路调度禁用通知给用户 {tg_id} 失败: {e!s}")
 
         return (
             True,
@@ -549,8 +550,8 @@ async def disable_line_schedules_and_notify(
         )
 
     except Exception as e:
-        logger.error(f"禁用线路 {line_name} 的调度并通知用户时发生错误: {str(e)}")
-        return False, f"禁用线路调度并通知用户时发生错误: {str(e)}"
+        logger.error(f"禁用线路 {line_name} 的调度并通知用户时发生错误: {e!s}")
+        return False, f"禁用线路调度并通知用户时发生错误: {e!s}"
 
 
 @router.post("/donation")
@@ -612,7 +613,7 @@ async def submit_donation_record(
                     parse_mode="HTML",
                 )
             except Exception as e:
-                logger.warning(f"发送捐赠通知失败: {str(e)}")
+                logger.warning(f"发送捐赠通知失败: {e!s}")
 
             # 检查并授予至尊贡献者勋章（异步后台任务）
             from app.databases.db_func import (
@@ -628,7 +629,7 @@ async def submit_donation_record(
             return BaseResponse(success=False, message="更新捐赠记录失败")
 
     except Exception as e:
-        logger.error(f"提交捐赠记录失败: {str(e)}")
+        logger.error(f"提交捐赠记录失败: {e!s}")
         return BaseResponse(success=False, message="提交失败")
 
 
@@ -659,7 +660,7 @@ async def set_line_tags(
         else:
             return BaseResponse(success=False, message="设置标签失败")
     except Exception as e:
-        logger.error(f"设置线路标签失败: {str(e)}")
+        logger.error(f"设置线路标签失败: {e!s}")
         return BaseResponse(success=False, message="设置标签失败")
 
 
@@ -677,7 +678,7 @@ async def get_line_tags_admin(
         tags = db.get_line_tags(line_name)
         return LineTagResponse(line_name=line_name, tags=tags)
     except Exception as e:
-        logger.error(f"获取线路标签失败: {str(e)}")
+        logger.error(f"获取线路标签失败: {e!s}")
         raise HTTPException(status_code=500, detail="获取标签失败")
 
 
@@ -704,7 +705,7 @@ async def get_all_line_tags(
 
         return AllLineTagsResponse(lines=lines_tags)
     except Exception as e:
-        logger.error(f"获取所有线路标签失败: {str(e)}")
+        logger.error(f"获取所有线路标签失败: {e!s}")
         raise HTTPException(status_code=500, detail="获取所有标签失败")
 
 
@@ -735,7 +736,7 @@ async def delete_line_tags(
         else:
             return BaseResponse(success=True, message=f"线路 {line_name} 没有设置标签")
     except Exception as e:
-        logger.error(f"删除线路标签失败: {str(e)}")
+        logger.error(f"删除线路标签失败: {e!s}")
         return BaseResponse(success=False, message="删除标签失败")
 
 
@@ -766,7 +767,7 @@ async def set_invitation_credits(
             success=True, message=f"邀请码生成所需积分已设置为 {credits}"
         )
     except Exception as e:
-        logger.error(f"设置邀请码积分失败: {str(e)}")
+        logger.error(f"设置邀请码积分失败: {e!s}")
         return BaseResponse(success=False, message="设置失败")
 
 
@@ -797,7 +798,7 @@ async def set_unlock_credits(
             success=True, message=f"解锁 NSFW 所需积分已设置为 {credits}"
         )
     except Exception as e:
-        logger.error(f"设置解锁积分失败: {str(e)}")
+        logger.error(f"设置解锁积分失败: {e!s}")
         return BaseResponse(success=False, message="设置失败")
 
 
@@ -828,7 +829,7 @@ async def set_premium_daily_credits(
             success=True, message=f"解锁 Premium 每日所需积分已设置为 {credits}"
         )
     except Exception as e:
-        logger.error(f"设置 Premium 每日积分失败: {str(e)}")
+        logger.error(f"设置 Premium 每日积分失败: {e!s}")
         return BaseResponse(success=False, message="设置失败")
 
 
@@ -863,7 +864,7 @@ async def set_user_traffic_limit(
             message=f"普通用户每日免费 Premium 流量额度已设置为 {traffic_limit} 字节",
         )
     except Exception as e:
-        logger.error(f"设置普通用户每日免费 Premium 流量额度失败: {str(e)}")
+        logger.error(f"设置普通用户每日免费 Premium 流量额度失败: {e!s}")
         return BaseResponse(success=False, message="设置失败")
 
 
@@ -900,7 +901,7 @@ async def set_premium_user_traffic_limit(
             message=f"高级用户每日免费 Premium 流量额度已设置为 {traffic_limit} 字节",
         )
     except Exception as e:
-        logger.error(f"设置高级用户每日免费 Premium 流量额度失败: {str(e)}")
+        logger.error(f"设置高级用户每日免费 Premium 流量额度失败: {e!s}")
         return BaseResponse(success=False, message="设置失败")
 
 
@@ -928,7 +929,7 @@ async def set_premium_unlock_enabled(
             success=True, message=f"Premium 解锁已{'开放' if enabled else '关闭'}"
         )
     except Exception as e:
-        logger.error(f"设置 Premium 解锁开放状态失败: {str(e)}")
+        logger.error(f"设置 Premium 解锁开放状态失败: {e!s}")
         return BaseResponse(success=False, message="设置失败")
 
 
@@ -956,7 +957,7 @@ async def set_credits_transfer_enabled(
             success=True, message=f"积分转移功能已{'开启' if enabled else '关闭'}"
         )
     except Exception as e:
-        logger.error(f"设置积分转移功能状态失败: {str(e)}")
+        logger.error(f"设置积分转移功能状态失败: {e!s}")
         return BaseResponse(success=False, message="设置失败")
 
 
@@ -987,7 +988,7 @@ async def set_line_schedule_unlock_credits(
             success=True, message=f"解锁线路调度功能所需积分已设置为 {credits}"
         )
     except Exception as e:
-        logger.error(f"设置解锁线路调度功能积分失败: {str(e)}")
+        logger.error(f"设置解锁线路调度功能积分失败: {e!s}")
         return BaseResponse(success=False, message="设置失败")
 
 
@@ -1018,7 +1019,7 @@ async def set_download_unlock_credits(
             success=True, message=f"解锁下载/同步功能所需积分已设置为 {credits}"
         )
     except Exception as e:
-        logger.error(f"设置解锁下载/同步功能积分失败: {str(e)}")
+        logger.error(f"设置解锁下载/同步功能积分失败: {e!s}")
         return BaseResponse(success=False, message="设置失败")
 
 
@@ -1040,7 +1041,7 @@ async def get_lines_config(
         logger.info(f"管理员 {user.username or user.id} 获取线路配置")
         return lines_data
     except Exception as e:
-        logger.error(f"获取线路配置失败: {str(e)}")
+        logger.error(f"获取线路配置失败: {e!s}")
         return BaseResponse(success=False, message="获取线路配置失败")
 
 
@@ -1090,7 +1091,7 @@ async def add_normal_line_generic(
 
         return BaseResponse(success=True, message=f"普通线路 '{line_name}' 添加成功")
     except Exception as e:
-        logger.error(f"添加普通线路失败: {str(e)}")
+        logger.error(f"添加普通线路失败: {e!s}")
         return BaseResponse(success=False, message="添加普通线路失败")
 
 
@@ -1142,7 +1143,7 @@ async def add_premium_line_generic(
 
         return BaseResponse(success=True, message=f"高级线路 '{line_name}' 添加成功")
     except Exception as e:
-        logger.error(f"添加高级线路失败: {str(e)}")
+        logger.error(f"添加高级线路失败: {e!s}")
         return BaseResponse(success=False, message="添加高级线路失败")
 
 
@@ -1176,7 +1177,7 @@ async def delete_normal_line_generic(
         logger.info(f"管理员 {user.username or user.id} 删除普通线路: {line_name}")
         return BaseResponse(success=True, message=f"普通线路 '{line_name}' 删除成功")
     except Exception as e:
-        logger.error(f"删除普通线路失败: {str(e)}")
+        logger.error(f"删除普通线路失败: {e!s}")
         return BaseResponse(success=False, message="删除普通线路失败")
 
 
@@ -1221,7 +1222,7 @@ async def delete_premium_line_generic(
         logger.info(f"管理员 {user.username or user.id} 删除高级线路: {line_name}")
         return BaseResponse(success=True, message=f"高级线路 '{line_name}' 删除成功")
     except Exception as e:
-        logger.error(f"删除高级线路失败: {str(e)}")
+        logger.error(f"删除高级线路失败: {e!s}")
         return BaseResponse(success=False, message="删除高级线路失败")
 
 
@@ -1314,8 +1315,8 @@ async def generate_admin_invite_codes(
             add_redeem_code(tg_id=tg_id, num=count, is_privileged=is_premium)
             success_count = count
         except Exception as e:
-            logger.error(f"生成邀请码失败: {str(e)}")
-            return BaseResponse(success=False, message=f"生成邀请码失败: {str(e)}")
+            logger.error(f"生成邀请码失败: {e!s}")
+            return BaseResponse(success=False, message=f"生成邀请码失败: {e!s}")
 
         # 获取用户显示名称
         user_name = get_user_name_from_tg_id(tg_id)
@@ -1340,15 +1341,15 @@ async def generate_admin_invite_codes(
                 parse_mode="HTML",
             )
         except Exception as e:
-            logger.warning(f"发送邀请码通知失败: {str(e)}")
+            logger.warning(f"发送邀请码通知失败: {e!s}")
 
         message = f"成功为 {user_name} 生成 {success_count} 个{'特权' if is_premium else '普通'}邀请码"
 
         return BaseResponse(success=True, message=message)
 
     except Exception as e:
-        logger.error(f"管理员生成邀请码失败: {str(e)}")
-        return BaseResponse(success=False, message=f"生成邀请码失败: {str(e)}")
+        logger.error(f"管理员生成邀请码失败: {e!s}")
+        return BaseResponse(success=False, message=f"生成邀请码失败: {e!s}")
 
 
 # ==================== 自定义线路管理接口 ====================
@@ -1358,7 +1359,7 @@ async def generate_admin_invite_codes(
 @require_telegram_auth
 async def get_all_custom_lines(
     request: Request,
-    status: str = None,
+    status: str | None = None,
     user: TelegramUser = Depends(get_telegram_user),
 ):
     """管理员获取所有自定义线路列表（可按状态过滤）"""
@@ -1367,10 +1368,11 @@ async def get_all_custom_lines(
     try:
         import json
 
+        from sqlalchemy import select
+
         from app.databases.session import get_session
         from app.models.models import CustomLine
         from app.webapp.schemas import CustomLineInfo, CustomLineListResponse
-        from sqlalchemy import select
 
         with get_session() as session:
             stmt = select(CustomLine)
@@ -1429,7 +1431,7 @@ async def get_all_custom_lines(
         from app.webapp.schemas import CustomLineListResponse
 
         return CustomLineListResponse(
-            success=False, message=f"获取失败: {str(e)}", lines=[], total=0
+            success=False, message=f"获取失败: {e!s}", lines=[], total=0
         )
 
 
@@ -1448,10 +1450,11 @@ async def approve_custom_line(
     try:
         from time import time
 
+        from sqlalchemy import select
+
         from app.databases.session import get_session
         from app.models.models import CustomLine
         from app.webapp.schemas import BaseResponse, CustomLineApproveRequest
-        from sqlalchemy import select
 
         # 解析请求数据
         approve_req = CustomLineApproveRequest(**data)
@@ -1580,7 +1583,7 @@ async def approve_custom_line(
         logger.error(f"审批自定义线路失败: {e}")
         from app.webapp.schemas import BaseResponse
 
-        return BaseResponse(success=False, message=f"审批失败: {str(e)}")
+        return BaseResponse(success=False, message=f"审批失败: {e!s}")
 
 
 @router.put("/custom-lines/{line_id}")
@@ -1597,10 +1600,11 @@ async def admin_update_custom_line(
     try:
         from time import time
 
+        from sqlalchemy import select
+
         from app.databases.session import get_session
         from app.models.models import CustomLine
         from app.webapp.schemas import AdminCustomLineUpdateRequest, BaseResponse
-        from sqlalchemy import select
 
         # 解析请求数据
         update_req = AdminCustomLineUpdateRequest(**data)
@@ -1682,7 +1686,7 @@ async def admin_update_custom_line(
         logger.error(f"管理员更新自定义线路失败: {e}")
         from app.webapp.schemas import BaseResponse
 
-        return BaseResponse(success=False, message=f"更新失败: {str(e)}")
+        return BaseResponse(success=False, message=f"更新失败: {e!s}")
 
 
 @router.post("/custom-lines/{line_id}/offline")
@@ -1699,10 +1703,11 @@ async def admin_offline_custom_line(
     try:
         from time import time
 
+        from sqlalchemy import select
+
         from app.databases.session import get_session
         from app.models.models import CustomLine
         from app.webapp.schemas import BaseResponse
-        from sqlalchemy import select
 
         current_time = int(time())
 
@@ -1766,7 +1771,7 @@ async def admin_offline_custom_line(
         logger.error(f"管理员下线自定义线路失败: {e}")
         from app.webapp.schemas import BaseResponse
 
-        return BaseResponse(success=False, message=f"下线失败: {str(e)}")
+        return BaseResponse(success=False, message=f"下线失败: {e!s}")
 
 
 @router.delete("/custom-lines/{line_id}")
@@ -1781,11 +1786,12 @@ async def admin_delete_custom_line(
     check_admin_permission(user)
 
     try:
+        from sqlalchemy import select
+
         from app.databases.session import get_session
         from app.models.models import CustomLine
         from app.modules.custom_line import settle_custom_line_traffic
         from app.webapp.schemas import BaseResponse
-        from sqlalchemy import select
 
         with get_session() as session:
             stmt = select(CustomLine).where(CustomLine.id == line_id)
@@ -1848,7 +1854,7 @@ async def admin_delete_custom_line(
         logger.error(f"管理员删除自定义线路失败: {e}")
         from app.webapp.schemas import BaseResponse
 
-        return BaseResponse(success=False, message=f"删除失败: {str(e)}")
+        return BaseResponse(success=False, message=f"删除失败: {e!s}")
 
 
 @router.post("/custom-lines/{line_id}/tags")
@@ -1865,10 +1871,11 @@ async def admin_set_custom_line_tags(
     try:
         from datetime import datetime
 
+        from sqlalchemy import select
+
         from app.databases.session import get_session
         from app.models.models import CustomLine
         from app.webapp.schemas import BaseResponse
-        from sqlalchemy import select
 
         with get_session() as session:
             stmt = select(CustomLine).where(CustomLine.id == line_id)
@@ -1880,7 +1887,7 @@ async def admin_set_custom_line_tags(
 
             # 更新标签
             line.tags = tags if tags else []
-            line.updated_at = int(datetime.now().timestamp())
+            line.updated_at = int(datetime.now(settings.TZ).timestamp())
 
             session.commit()
 
@@ -1896,4 +1903,4 @@ async def admin_set_custom_line_tags(
         logger.error(f"管理员设置自定义线路标签失败: {e}")
         from app.webapp.schemas import BaseResponse
 
-        return BaseResponse(success=False, message=f"设置标签失败: {str(e)}")
+        return BaseResponse(success=False, message=f"设置标签失败: {e!s}")

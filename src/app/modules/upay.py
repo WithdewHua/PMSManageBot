@@ -4,9 +4,9 @@ UPAY 支付服务模块
 
 import hashlib
 import uuid
-from typing import Dict, Optional
 
 import httpx
+
 from app.config import settings
 from app.log import logger
 
@@ -28,7 +28,7 @@ class UPayService:
         """生成订单ID"""
         return f"CRYPTO_DONATION_{uuid.uuid4().hex[:16].upper()}"
 
-    def generate_signature(self, params: Dict) -> str:
+    def generate_signature(self, params: dict) -> str:
         """生成签名"""
         try:
             # 按照 UPAY 文档要求的参数顺序
@@ -61,7 +61,7 @@ class UPayService:
             logger.error(f"生成签名失败: {e}")
             return ""
 
-    def verify_callback_signature(self, data: Dict) -> bool:
+    def verify_callback_signature(self, data: dict) -> bool:
         """验证回调签名"""
         try:
             received_signature = data.get("signature", "")
@@ -103,8 +103,8 @@ class UPayService:
         self,
         crypto_type: str,
         amount: float,
-        order_id: Optional[str] = None,
-    ) -> Optional[Dict]:
+        order_id: str | None = None,
+    ) -> dict | None:
         """创建 UPAY 订单"""
         try:
             if not order_id:

@@ -1,7 +1,8 @@
-# ruff: noqa: F403
 import datetime
 import threading
-from copy import copy
+
+from telegram import BotCommand
+from telegram.ext import ApplicationBuilder
 
 from app.config import settings
 from app.databases.db_func import (
@@ -21,10 +22,7 @@ from app.databases.db_func import (
     write_user_info_cache,
 )
 from app.databases.session import init_db
-from app.handlers.rank import *
-from app.handlers.start import *
-from app.handlers.status import *
-from app.handlers.user import *
+from app.handlers import rank, start, status, user
 from app.log import logger
 from app.modules.custom_line import (
     check_custom_line_traffic,
@@ -39,9 +37,10 @@ from app.premium import (
 from app.scheduler import Scheduler
 from app.utils.report import send_weekly_report
 from app.utils.utils import refresh_emby_user_info, refresh_tg_user_info
-from app.webapp.routers.gift_pack import scan_expired_gift_packs
-from telegram import BotCommand
-from telegram.ext import ApplicationBuilder
+from app.webapp.routers.gift_pack import (
+    scan_expired_gift_packs,
+    scan_gift_pack_start_dms,
+)
 
 
 async def set_bot_commands(application):
@@ -87,6 +86,7 @@ async def post_init_services(application):
 def start_api_server():
     """启动 WebApp API 服务器"""
     import uvicorn
+
     from app.webapp import setup_static_files
 
     # 配置静态文件
@@ -527,6 +527,19 @@ def add_init_scheduler_job():
     )
     logger.info("添加定时任务：每 10 分钟扫描过期礼包并发送领取汇总")
 
+    # 每 5 分钟认领并发送名单型礼包的开始私信；启动后补扫遗漏。
+    scheduler.add_async_job(
+        func=scan_gift_pack_start_dms,
+        trigger="interval",
+        id="scan_gift_pack_start_dms",
+        replace_existing=True,
+        max_instances=1,
+        minutes=5,
+        next_run_time=datetime.datetime.now(settings.TZ)
+        + datetime.timedelta(minutes=2),
+    )
+    logger.info("添加定时任务：每 5 分钟扫描名单型礼包开始私信")
+
     # 每 3 分钟检查自定义线路流量使用情况 (异步任务)
     scheduler.add_async_job(
         func=check_custom_line_traffic,
@@ -581,11 +594,11 @@ if __name__ == "__main__":
     application = ApplicationBuilder().token(settings.TG_API_TOKEN).build()
 
     # 注册处理程序
-    local_vars = copy(locals())
-    for var, val in local_vars.items():
-        if var.endswith("_handler"):
-            logger.info(f"Add handler: {var}")
-            application.add_handler(val)
+    for handler_module in (rank, start, status, user):
+        for name, handler in vars(handler_module).items():
+            if name.endswith("_handler"):
+                logger.info(f"Add handler: {name}")
+                application.add_handler(handler)
 
     # 在应用启动后（事件循环就绪）初始化命令与调度器
     application.post_init = post_init_services

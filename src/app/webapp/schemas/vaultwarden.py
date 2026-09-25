@@ -1,5 +1,3 @@
-from typing import Optional
-
 from pydantic import BaseModel, EmailStr
 
 
@@ -10,7 +8,7 @@ class VaultwardenRedeemInfoResponse(BaseModel):
     required_credits: int  # 兑换所需积分
     current_credits: float  # 当前用户积分
     can_redeem: bool  # 是否可以兑换
-    error_message: Optional[str] = None  # 错误信息
+    error_message: str | None = None  # 错误信息
 
 
 class VaultwardenRedeemRequest(BaseModel):
@@ -24,5 +22,5 @@ class VaultwardenRedeemResponse(BaseModel):
 
     success: bool
     message: str
-    credits_deducted: Optional[float] = None  # 扣除的积分
-    remaining_credits: Optional[float] = None  # 剩余积分
+    credits_deducted: float | None = None  # 扣除的积分
+    remaining_credits: float | None = None  # 剩余积分

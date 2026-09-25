@@ -29,7 +29,9 @@ export default {
   },
   data() {
     return {
-      activeTab: 'user-info'
+      activeTab: 'user-info',
+      giftPackPromptTimer: null,
+      giftPackPromptInFlight: false
     }
   },
   watch: {
@@ -52,6 +54,22 @@ export default {
       });
     }
     this.checkGiftPackPrompt()
+    // The MiniApp can remain open while an administrator publishes a new pack.
+    // Recheck while visible so a newly-created task pack is not missed until a
+    // full reload. The backend throttles each user's reminder counts safely.
+    document.addEventListener('visibilitychange', this.handleGiftPackVisibility)
+    window.addEventListener('focus', this.checkGiftPackPrompt)
+    this.giftPackPromptTimer = window.setInterval(() => {
+      if (!document.hidden) this.checkGiftPackPrompt()
+    }, 60 * 1000)
+  },
+  beforeUnmount() {
+    document.removeEventListener('visibilitychange', this.handleGiftPackVisibility)
+    window.removeEventListener('focus', this.checkGiftPackPrompt)
+    if (this.giftPackPromptTimer !== null) {
+      window.clearInterval(this.giftPackPromptTimer)
+      this.giftPackPromptTimer = null
+    }
   },
   methods: {
     navigateTo(route) {
@@ -66,22 +84,31 @@ export default {
      *
      * 这是一个独立请求，不与 getUserInfo / systemStatus 合并——礼包是运营活动，
      * 与用户信息、系统状态的生命周期无关，合并会让三者互相牵连。
-     * 后端在返回时已完成提醒记账；返回空数组表示不弹窗。
+      * 后端在返回时已完成提醒记账；两类礼包均为空时不弹窗。
      */
+    handleGiftPackVisibility() {
+      if (!document.hidden) this.checkGiftPackPrompt()
+    },
+
     async checkGiftPackPrompt() {
+      if (this.giftPackPromptInFlight || document.hidden) return
+      this.giftPackPromptInFlight = true
       try {
         const res = await promptCheckGiftPacks()
         const packs = res.data?.packs || []
-        if (packs.length) {
-          this.$refs.giftPackPrompt?.open(packs)
+        const taskPacks = res.data?.task_packs || []
+        if (packs.length || taskPacks.length) {
+          this.$refs.giftPackPrompt?.open(packs, taskPacks)
         }
       } catch (e) {
         // 提醒是锦上添花，失败时静默跳过，不打断启动流程
         console.warn('礼包提醒判定失败:', e)
+      } finally {
+        this.giftPackPromptInFlight = false
       }
     },
 
-    // 「前往领取」→ 关闭提醒弹窗（组件内已关闭）→ 打开礼包中心
+    // 「前往领取」或「查看礼包」→ 关闭提醒弹窗（组件内已关闭）→ 打开礼包中心
     openGiftPackCenter() {
       this.$refs.bottomMenu?.openGiftPackDialog()
     }

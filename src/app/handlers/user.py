@@ -1,13 +1,14 @@
 from time import time
 from uuid import NAMESPACE_URL, uuid3
 
+from telegram import Update
+from telegram.ext import CommandHandler, ContextTypes
+
 from app.config import settings
 from app.databases import db
 from app.log import logger
 from app.modules.overseerr import Overseerr
 from app.utils.utils import get_user_name_from_tg_id, send_message
-from telegram import Update
-from telegram.ext import CommandHandler, ContextTypes
 
 
 # 生成邀请码
@@ -47,7 +48,7 @@ async def exchange(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     await send_message(
         chat_id=chat_id,
-        text="""信息: 生成邀请码成功，邀请码为 `{}`""".format(_code),
+        text=f"""信息: 生成邀请码成功，邀请码为 `{_code}`""",
         parse_mode="markdown",
         context=context,
     )
@@ -189,7 +190,7 @@ async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
     tg_id = int(text[1])
     donation = float(text[2])
-    add_credits = True if len(text) == 3 else False
+    add_credits = len(text) == 3
     info = db.get_stats_by_tg_id(tg_id)
     if not info:
         await send_message(
@@ -233,8 +234,8 @@ exchange_handler = CommandHandler("exchange", exchange)
 create_overseerr_handler = CommandHandler("create_overseerr", create_overseerr)
 
 __all__ = [
+    "create_overseerr_handler",
+    "exchange_handler",
     "info_handler",
     "set_donation_handler",
-    "exchange_handler",
-    "create_overseerr_handler",
 ]

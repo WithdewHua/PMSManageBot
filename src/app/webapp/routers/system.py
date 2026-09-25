@@ -1,3 +1,6 @@
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy import func, select
+
 from app.config import settings
 from app.databases import db
 from app.databases.session import get_session
@@ -6,8 +9,6 @@ from app.models.models import EmbyUser, PlexUser
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import TelegramUser
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import func, select
 
 router = APIRouter(prefix="/api/system", tags=["system"])
 
@@ -79,7 +80,7 @@ async def get_system_stats(
         return stats
 
     except Exception as e:
-        logger.error(f"获取系统统计信息失败: {str(e)}")
+        logger.error(f"获取系统统计信息失败: {e!s}")
         raise HTTPException(status_code=500, detail="获取系统统计信息失败")
 
 
@@ -107,7 +108,7 @@ async def get_system_status():
         logger.info("获取系统状态信息")
         return status_data
     except Exception as e:
-        logger.error(f"获取系统状态信息失败: {str(e)}")
+        logger.error(f"获取系统状态信息失败: {e!s}")
         raise HTTPException(status_code=500, detail="获取系统状态信息失败")
 
 
@@ -129,5 +130,5 @@ async def get_traffic_overview(
             "data": traffic_stats,
         }
     except Exception as e:
-        logger.error(f"获取流量统计概览失败: {str(e)}")
+        logger.error(f"获取流量统计概览失败: {e!s}")
         raise HTTPException(status_code=500, detail="获取流量统计失败")

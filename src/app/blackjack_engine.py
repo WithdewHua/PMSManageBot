@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """21 点规则引擎 - 纯函数，无 IO、无积分概念
 
 本模块只负责牌与规则：牌靴定序、点数计算、动作合法性、庄家补牌、胜负判定。
@@ -12,7 +11,6 @@
 """
 
 import random
-from typing import Optional
 
 # 状态常量，与 BlackjackHand.status 一致
 STATUS_PLAYER_TURN = 1  # 玩家回合
@@ -251,7 +249,7 @@ def evaluate_initial_deal(
     player_cards: list[str],
     dealer_cards: list[str],
     blackjack_payout: float = 1.5,
-) -> Optional[tuple[str, float, float]]:
+) -> tuple[str, float, float] | None:
     """判定开局是否直接结算（任一方天胡）。
 
     返回 `None` 表示双方均未天胡，手牌进入玩家回合；否则返回与 `resolve`

@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 from pydantic import BaseModel, Field
 
 
@@ -13,7 +11,7 @@ class LuckyWheelItem(BaseModel):
 class LuckyWheelConfig(BaseModel):
     """幸运大转盘配置"""
 
-    items: List[LuckyWheelItem] = Field(..., description="转盘奖品列表")
+    items: list[LuckyWheelItem] = Field(..., description="转盘奖品列表")
     cost_credits: int = Field(default=10, ge=1, description="参与转盘需要的积分")
     min_credits_required: int = Field(default=30, ge=1, description="最低积分要求")
     gen_privileged_code: bool = Field(default=False, description="是否生成特权邀请码")
@@ -22,7 +20,7 @@ class LuckyWheelConfig(BaseModel):
 class LuckyWheelSpinRequest(BaseModel):
     """转盘旋转请求"""
 
-    pass  # 目前不需要额外参数
+    # 目前不需要额外参数
 
 
 class LuckyWheelSpinResult(BaseModel):
@@ -34,9 +32,13 @@ class LuckyWheelSpinResult(BaseModel):
     used_free_spin: bool = Field(
         False,
         description=(
-            "本次是否消耗了 21 点打满手数获得的免费机会"
-            "（免参与费、不受最低积分限制）"
+            "本次是否消耗了免费机会（任何来源：21 点打满手数、礼包等；"
+            "免参与费、不受最低积分限制）"
         ),
+    )
+    free_spin_source: str | None = Field(
+        None,
+        description="消耗的免费机会来源：blackjack / gift_pack；未使用免费机会时为空",
     )
 
 
@@ -45,7 +47,7 @@ class LuckyWheelFreespinSummaryResponse(BaseModel):
 
     enabled: bool = Field(..., description="打满送免费机会机制是否启用")
     available: int = Field(..., ge=0, description="当前可用次数（未用且未过期）")
-    expires_at_ms_list: List[int] = Field(
+    expires_at_ms_list: list[int] = Field(
         default_factory=list, description="各张机会的到期时间（毫秒，升序）"
     )
     hands_since_freespin: int = Field(
@@ -59,7 +61,7 @@ class LuckyWheelFreespinSummaryResponse(BaseModel):
 class LuckyWheelTenSpinResult(BaseModel):
     """转盘十连抽结果"""
 
-    results: List[LuckyWheelSpinResult] = Field(..., description="十连抽每次结果")
+    results: list[LuckyWheelSpinResult] = Field(..., description="十连抽每次结果")
     total_credits_change: float = Field(..., description="十连抽总积分变化")
     current_credits: float = Field(..., description="十连抽后当前剩余积分")
 
@@ -67,7 +69,7 @@ class LuckyWheelTenSpinResult(BaseModel):
 class LuckyWheelConfigUpdateRequest(BaseModel):
     """更新转盘配置请求"""
 
-    items: List[LuckyWheelItem] = Field(..., description="转盘奖品列表")
-    cost_credits: Optional[int] = Field(None, ge=1, description="参与转盘需要的积分")
-    min_credits_required: Optional[int] = Field(None, ge=1, description="最低积分要求")
+    items: list[LuckyWheelItem] = Field(..., description="转盘奖品列表")
+    cost_credits: int | None = Field(None, ge=1, description="参与转盘需要的积分")
+    min_credits_required: int | None = Field(None, ge=1, description="最低积分要求")
     gen_privileged_code: bool = Field(default=False, description="是否生成特权邀请码")

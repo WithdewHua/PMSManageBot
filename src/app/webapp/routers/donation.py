@@ -1,3 +1,6 @@
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from sqlalchemy import update as sql_update
+
 from app.config import settings
 from app.databases import db
 from app.databases.session import get_session
@@ -21,8 +24,6 @@ from app.webapp.schemas.donation import (
     DonationRegistrationResponse,
     DonationRegistrationUpdate,
 )
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
-from sqlalchemy import update as sql_update
 
 router = APIRouter(prefix="/api/donations", tags=["donations"])
 

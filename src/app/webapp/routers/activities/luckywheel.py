@@ -3,7 +3,9 @@ import re
 import secrets
 import time
 import traceback
-from typing import Optional
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.databases import db
@@ -23,10 +25,26 @@ from app.webapp.schemas.luckywheel import (
     LuckyWheelSpinResult,
     LuckyWheelTenSpinResult,
 )
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
-from fastapi.responses import JSONResponse
 
 router = APIRouter(prefix="/luckywheel", tags=["幸运大转盘"])
+
+# 免费机会来源 → 参与记录（wheel_stats.source）的映射。
+# blackjack 沿用既有值 blackjack_free，保持历史数据连续
+FREE_SPIN_SOURCE_TO_WHEEL_SOURCE = {
+    "blackjack": "blackjack_free",
+    "gift_pack": "gift_pack_free",
+}
+WHEEL_SOURCE_TO_FREE_SPIN_SOURCE = {
+    v: k for k, v in FREE_SPIN_SOURCE_TO_WHEEL_SOURCE.items()
+}
+
+
+def wheel_source_for_free_spin(free_spin_source: str | None) -> str:
+    """把免费机会的来源映射成参与记录的 source；未知来源按 21 点处理（历史行）"""
+    return FREE_SPIN_SOURCE_TO_WHEEL_SOURCE.get(
+        free_spin_source or "blackjack", "blackjack_free"
+    )
+
 
 # 默认转盘配置
 DEFAULT_WHEEL_CONFIG = LuckyWheelConfig(
@@ -117,7 +135,7 @@ def save_wheel_config(config: LuckyWheelConfig):
         if success:
             logger.info("转盘配置已保存到数据库")
         else:
-            raise Exception("保存配置失败")
+            raise RuntimeError("保存配置失败")
     except Exception as e:
         logger.error(f"保存转盘配置失败: {e}")
         raise HTTPException(
@@ -128,7 +146,7 @@ def save_wheel_config(config: LuckyWheelConfig):
 def calculate_credits_change(
     item_name: str,
     current_credits: float,
-    tg_id: int = None,
+    tg_id: int | None = None,
     gen_privileged_code: bool = False,
 ) -> float:
     """
@@ -201,7 +219,9 @@ def _handle_premium_reward(tg_id: int, name: str) -> float:
     return 0  # Premium 奖品不涉及积分变化
 
 
-def _handle_invite_code(tg_id: int = None, gen_privileged_code: bool = False) -> float:
+def _handle_invite_code(
+    tg_id: int | None = None, gen_privileged_code: bool = False
+) -> float:
     """处理邀请码奖品"""
     if tg_id:
         try:
@@ -217,7 +237,7 @@ async def execute_single_spin(
     user_id: int,
     current_credits: float,
     *,
-    cost_credits: Optional[float] = None,
+    cost_credits: float | None = None,
     source: str = "paid",
 ) -> tuple[LuckyWheelSpinResult, float, bool]:
     """执行一次转盘抽奖并返回结果。
@@ -253,8 +273,7 @@ async def execute_single_spin(
 
     # 更新用户积分
     final_credits = new_credits + credits_change
-    if final_credits < 0:
-        final_credits = 0  # 积分不能为负数
+    final_credits = max(final_credits, 0)  # 积分不能为负数
 
     # 计算实际生效的积分变化（处理积分下限截断）
     actual_credits_change = final_credits - new_credits
@@ -282,8 +301,7 @@ async def execute_single_spin(
                 )
             except Exception as e:
                 logger.error(
-                    f"邀请码管理员通知发送失败 (chat_id={chat_id}，"
-                    f"不影响抽奖结果): {e}"
+                    f"邀请码管理员通知发送失败 (chat_id={chat_id}，不影响抽奖结果): {e}"
                 )
 
     return (
@@ -291,7 +309,8 @@ async def execute_single_spin(
             item=winner,
             credits_change=actual_credits_change,
             current_credits=final_credits,
-            used_free_spin=source == "blackjack_free",
+            used_free_spin=source in FREE_SPIN_SOURCE_TO_WHEEL_SOURCE.values(),
+            free_spin_source=WHEEL_SOURCE_TO_FREE_SPIN_SOURCE.get(source),
         ),
         final_credits,
         generated_privileged_code,
@@ -400,7 +419,7 @@ async def spin_wheel(
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"未找到用户 {user_id}"
             )
 
-        # 21 点免费机会优先：可用则消耗，免参与费且不受最低积分限制。
+        # 免费机会（21 点、礼包等任何来源）优先：可用则消耗，免参与费且不受最低积分限制。
         # 参与费既已豁免，负分奖品的余额截断已提供保护——0 余额玩家转免费盘
         # 只会赢不会输，这正是跌破 21 点门槛后的回流路径。
         # 认领与抽奖非同一事务：若抽奖执行失败，补偿性地归还机会（只回退
@@ -413,7 +432,7 @@ async def spin_wheel(
                     user_id=user_id,
                     current_credits=current_credits,
                     cost_credits=0.0,
-                    source="blackjack_free",
+                    source=wheel_source_for_free_spin(free_spin.get("source")),
                 )
             except Exception:
                 db.release_blackjack_freespin(
@@ -608,7 +627,7 @@ def save_randomness_config(config_dict: dict):
         if success:
             logger.info("随机性配置已保存到数据库")
         else:
-            raise Exception("保存随机性配置失败")
+            raise RuntimeError("保存随机性配置失败")
     except Exception as e:
         logger.error(f"保存随机性配置失败: {e}")
         raise HTTPException(
@@ -618,7 +637,7 @@ def save_randomness_config(config_dict: dict):
 
 
 def random_select_winner(
-    items: list[LuckyWheelItem], user_id: int = None
+    items: list[LuckyWheelItem], user_id: int | None = None
 ) -> LuckyWheelItem:
     """
     增强版随机选择器，提供更好的随机性和公平性
@@ -712,7 +731,8 @@ def get_randomness_stats(items: list[LuckyWheelItem], iterations: int = 10000) -
         try:
             winner = random_select_winner(items)
             win_counts[winner.name] += 1
-        except Exception:
+        except Exception as e:
+            logger.warning(f"转盘随机性模拟单次抽取失败: {e}")
             continue
 
     # 计算实际中奖率和期望中奖率

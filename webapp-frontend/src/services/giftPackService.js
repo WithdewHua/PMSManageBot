@@ -103,6 +103,15 @@ export const adminGetGiftPackRecords = (packId, params = { page: 1, page_size: 2
   return apiClient.get(`/api/gift-packs/admin/${packId}/records`, { params })
 }
 
+/**
+ * 管理员：解析指定名单中的 Telegram ID、Plex/Emby 用户名或邮箱
+ * @param {string} text - 粘贴的混合用户标识文本
+ * @returns {Promise} { resolved: [...], unresolved: [...] }
+ */
+export const resolveGiftPackUsers = (text) => {
+  return apiClient.post('/api/gift-packs/admin/resolve-users', { text })
+}
+
 export default {
   promptCheckGiftPacks,
   getGiftPacks,
@@ -113,5 +122,6 @@ export default {
   adminSetGiftPackEnabled,
   adminDeleteGiftPack,
   adminGetGiftPackStats,
-  adminGetGiftPackRecords
+  adminGetGiftPackRecords,
+  resolveGiftPackUsers
 }

@@ -1,13 +1,13 @@
-#!/usr/bin/env python3
-#
+import sys
 
-from app.config import settings
 from requests import Session
 from requests.adapters import HTTPAdapter
 from requests.exceptions import RequestException
 
+from app.config import settings
 
-class Tautulli(object):
+
+class Tautulli:
     def __init__(
         self,
         url=settings.TAUTULLI_URL,
@@ -52,7 +52,7 @@ class Tautulli(object):
             print(
                 "Libraries have been refreshed, please wait while library stats are updated."
             )
-            exit()
+            sys.exit()
         else:
             payload["section_id"] = section_id
 
@@ -141,7 +141,9 @@ class Tautulli(object):
 
         return self._call_api("get_history", payload)
 
-    def iter_history(self, page_size: int = 1000, max_records: int = None, **kwargs):
+    def iter_history(
+        self, page_size: int = 1000, max_records: int | None = None, **kwargs
+    ):
         """分页遍历 get_history 的全部记录
 
         Tautulli 单次请求的返回条数有上限，这里按 page_size 翻页直到取完，
@@ -215,9 +217,7 @@ class Tautulli(object):
             )
         except RequestException as e:
             print(
-                "Tautulli request failed for cmd '{}'. Invalid Tautulli URL? Error: {}".format(
-                    cmd, e
-                )
+                f"Tautulli request failed for cmd '{cmd}'. Invalid Tautulli URL? Error: {e}"
             )
             return
 
@@ -225,22 +225,20 @@ class Tautulli(object):
             response_json = response.json()
         except ValueError:
             print(
-                "Failed to parse json response for Tautulli API cmd '{}': {}".format(
-                    cmd, response.content
-                )
+                f"Failed to parse json response for Tautulli API cmd '{cmd}': {response.content}"
             )
             return
 
         # print(response_json["response"])
         if response_json["response"]["result"] == "success":
             if self.debug:
-                print("Successfully called Tautulli API cmd '{}'".format(cmd))
+                print(f"Successfully called Tautulli API cmd '{cmd}'")
             if raw:
                 return response_json["response"]
             return response_json["response"]["data"]
         else:
             error_msg = response_json["response"]["message"]
-            print("Tautulli API cmd '{}' failed: {}".format(cmd, error_msg))
+            print(f"Tautulli API cmd '{cmd}' failed: {error_msg}")
             return
 
     def get_plex_current_playing_user_num(self) -> int:
@@ -254,7 +252,7 @@ class Tautulli(object):
         return num
 
 
-class Notification(object):
+class Notification:
     def __init__(self, notifier_id, subject, body, tautulli, stats=None):
         self.notifier_id = notifier_id
         self.subject = subject

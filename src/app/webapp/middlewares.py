@@ -1,10 +1,11 @@
 from functools import wraps
 
-from app.log import logger
-from app.webapp.auth import verify_telegram_data
 from fastapi import HTTPException, Request, status
 from fastapi.security import HTTPBearer
 from starlette.middleware.base import BaseHTTPMiddleware
+
+from app.log import logger
+from app.webapp.auth import verify_telegram_data
 
 security = HTTPBearer()
 
@@ -50,7 +51,7 @@ class TelegramAuthMiddleware(BaseHTTPMiddleware):
             # 继续处理请求
             return await call_next(request)
         except Exception as e:
-            logger.error(f"处理 Telegram initData 时出错: {str(e)}")
+            logger.error(f"处理 Telegram initData 时出错: {e!s}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="无法处理 Telegram 认证数据",

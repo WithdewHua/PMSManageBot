@@ -1,6 +1,11 @@
 import secrets
 from pathlib import Path
 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
+
 from app.config import settings
 from app.log import logger
 from app.webapp.middlewares import TelegramAuthMiddleware
@@ -26,10 +31,6 @@ from app.webapp.routers.invitation import router as invitation_router
 from app.webapp.routers.premium import router as premium_router
 from app.webapp.routers.vaultwarden import router as vaultwarden_router
 from app.webapp.startup.lifespan import lifespan
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from starlette.middleware.sessions import SessionMiddleware
 
 # 创建 FastAPI 应用
 app = FastAPI(

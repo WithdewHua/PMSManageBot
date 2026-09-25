@@ -2,6 +2,16 @@ import datetime
 from time import time
 from uuid import NAMESPACE_URL, uuid3
 
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    HTTPException,
+    Request,
+    status,
+)
+
 from app.config import settings
 from app.databases import db
 from app.databases.db_func import update_plex_info
@@ -29,15 +39,6 @@ from app.webapp.schemas import (
     RedeemInviteCodeRequest,
     RedeemResponse,
     TelegramUser,
-)
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    Body,
-    Depends,
-    HTTPException,
-    Request,
-    status,
 )
 
 # 创建路由器
@@ -90,7 +91,7 @@ async def get_invite_points_info(
         )
 
     except Exception as e:
-        logger.error(f"获取邀请码积分信息失败: {str(e)}")
+        logger.error(f"获取邀请码积分信息失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取邀请码积分信息失败",
@@ -161,7 +162,7 @@ async def generate_invite_code(
         )
 
     except Exception as e:
-        logger.error(f"生成邀请码失败: {str(e)}")
+        logger.error(f"生成邀请码失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="生成邀请码失败，请稍后再试",
@@ -174,7 +175,7 @@ async def get_register_status():
     try:
         return {"plex": settings.PLEX_REGISTER, "emby": settings.EMBY_REGISTER}
     except Exception as e:
-        logger.error(f"获取服务注册状态失败: {str(e)}")
+        logger.error(f"获取服务注册状态失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取服务注册状态失败",
@@ -294,7 +295,7 @@ async def redeem_plex_code(
                             f"绑定 Plex 账户到 Telegram 失败: {telegram_user_id} -> {email}"
                         )
             except Exception as e:
-                logger.error(f"绑定 Telegram 账户过程出错: {str(e)}")
+                logger.error(f"绑定 Telegram 账户过程出错: {e!s}")
                 # 删除 plex 用户记录，避免脏数据
                 db.delete_plex_user(email)
 
@@ -325,7 +326,7 @@ async def redeem_plex_code(
         )
 
     except Exception as e:
-        logger.error(f"兑换 Plex 邀请码失败: {str(e)}")
+        logger.error(f"兑换 Plex 邀请码失败: {e!s}")
         return RedeemResponse(success=False, message="兑换过程出错，请稍后再试")
 
 
@@ -431,7 +432,7 @@ async def redeem_emby_code(
             except Exception as e:
                 # 如果绑定过程出错，仍然添加 Emby 用户记录，但不绑定 TG
                 db.add_emby_user(username, emby_id=emby_id)
-                logger.error(f"绑定 Telegram 账户过程出错: {str(e)}")
+                logger.error(f"绑定 Telegram 账户过程出错: {e!s}")
         else:
             # 不绑定到 Telegram 时，添加 emby 用户信息
             db.add_emby_user(username, emby_id=emby_id)
@@ -473,7 +474,7 @@ async def redeem_emby_code(
         )
 
     except Exception as e:
-        logger.error(f"兑换 Emby 邀请码失败: {str(e)}")
+        logger.error(f"兑换 Emby 邀请码失败: {e!s}")
         return RedeemResponse(success=False, message="兑换过程出错，请稍后再试")
 
 
@@ -494,7 +495,7 @@ async def check_privileged_invite_code(
         return CheckPrivilegedCodeResponse(privileged=is_privileged)
 
     except Exception as e:
-        logger.error(f"检查特权邀请码失败: {str(e)}")
+        logger.error(f"检查特权邀请码失败: {e!s}")
         # 出错时默认返回非特权状态，避免意外授权
         return CheckPrivilegedCodeResponse(privileged=False)
 
@@ -523,7 +524,7 @@ async def batch_check_privileged_invite_codes(
         return BatchCheckPrivilegedCodesResponse(results=results)
 
     except Exception as e:
-        logger.error(f"批量检查特权邀请码失败: {str(e)}")
+        logger.error(f"批量检查特权邀请码失败: {e!s}")
         # 出错时返回所有邀请码都为非特权状态，避免意外授权
         error_results = {code: False for code in data.codes}
         return BatchCheckPrivilegedCodesResponse(results=error_results)
@@ -592,7 +593,7 @@ async def redeem_invite_code_for_credits(
         )
 
     except Exception as e:
-        logger.error(f"邀请码兑换积分失败: {str(e)}")
+        logger.error(f"邀请码兑换积分失败: {e!s}")
         return RedeemForCreditsResponse(
             success=False, message="兑换过程出错，请稍后再试"
         )

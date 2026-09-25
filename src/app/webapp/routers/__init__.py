@@ -5,9 +5,9 @@ from app.webapp.routers.system import router as system_router
 from app.webapp.routers.user import router as user_router
 
 __all__ = [
-    "user_router",
+    "donation_router",
+    "premium_router",
     "rankings_router",
     "system_router",
-    "premium_router",
-    "donation_router",
+    "user_router",
 ]

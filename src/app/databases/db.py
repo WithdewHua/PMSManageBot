@@ -1,14 +1,19 @@
-#!/usr/bin/env python3
 """
 ORM-based database operations using SQLAlchemy
 """
 
 import json
 import secrets
+import threading
 import time
 import traceback
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Tuple
+from datetime import UTC, datetime, timedelta
+from typing import ClassVar
+from uuid import uuid4
+
+from sqlalchemy import case, delete, distinct, func, select, update
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload
 
 from app.config import settings
 from app.databases.cache import user_info_cache
@@ -48,9 +53,8 @@ from app.models.models import (
     WheelStats,
 )
 from app.utils.number import normalize_external_random_b
-from sqlalchemy import case, delete, distinct, func, select, update
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import joinedload
+
+_GIFT_PACK_PRIVILEGED_CODES_LOCK = threading.Lock()
 
 # 21 点默认配置。首次读取时落库，之后由管理员在面板上调整。
 # 首次上线默认停用（enabled=False），待管理员核对配置与小范围试玩后再开放。
@@ -147,6 +151,87 @@ JACKPOT_CONFIG_KEY = "jackpot_fund"
 JACKPOT_NOTIFY_CURSOR_KEY = "jackpot_notify_cursor"
 
 
+def _format_gift_pack_number(value) -> str:
+    """整数去掉小数点，其余按 %g 输出，如 100.0 -> 100、12.5 -> 12.5"""
+    number = float(value or 0)
+    return str(int(number)) if number.is_integer() else f"{number:g}"
+
+
+# 礼包奖励类型登记表。标签渲染、自动补绑定要求、统计汇总、过期汇总通知都从这里读，
+# 不再各自写 `if type == ...`。新增奖励类型时只需在此登记并实现发放分支。
+#
+# - requires_binding：该奖励作用于已绑定的媒体服务，礼包隐含「至少绑定一个媒体账号」
+# - label：把奖励项配置渲染成人类可读的短语
+# - stat_label：统计中该类型的名称
+# - stat_field：统计时累加快照条目的哪个字段；None 表示按生效条目数计（每个服务一条）
+# - skipped_label：快照条目带 skipped 时，统计里说明跳过原因的文案
+GIFT_PACK_REWARD_TYPES: dict[str, dict] = {
+    "credits": {
+        "requires_binding": False,
+        "label": lambda r: f"{_format_gift_pack_number(r.get('amount'))} 积分",
+        "stat_label": "积分",
+        "stat_field": "amount",
+        "skipped_label": None,
+    },
+    "premium_days": {
+        "requires_binding": True,
+        "label": lambda r: f"{int(r.get('days') or 0)} 天 Premium",
+        "stat_label": "Premium 天数",
+        "stat_field": "days",
+        "skipped_label": "因永久会员跳过",
+    },
+    "wheel_free_spins": {
+        "requires_binding": False,
+        "label": lambda r: (
+            f"{int(r.get('count') or 0)} 次大转盘免费机会"
+            f"（{int(r.get('expiry_days') or 0)} 天有效）"
+        ),
+        "stat_label": "大转盘免费机会（次）",
+        "stat_field": "count",
+        "skipped_label": None,
+    },
+    "tournament_wallet": {
+        "requires_binding": False,
+        "label": lambda r: f"{_format_gift_pack_number(r.get('amount'))} 争霸赛余额",
+        "stat_label": "争霸赛余额",
+        "stat_field": "amount",
+        "skipped_label": None,
+    },
+    "invite_codes": {
+        "requires_binding": False,
+        "label": lambda r: (
+            f"{int(r.get('count') or 0)} 枚"
+            f"{'特权' if r.get('privileged') else ''}邀请码"
+        ),
+        "stat_label": "邀请码（枚）",
+        "stat_field": "count",
+        "skipped_label": None,
+    },
+    "line_schedule_unlock": {
+        "requires_binding": True,
+        "label": lambda r: "线路调度解锁",
+        "stat_label": "线路调度解锁（生效服务数）",
+        "stat_field": None,
+        "skipped_label": "因已解锁跳过",
+    },
+    "download_unlock": {
+        "requires_binding": True,
+        "label": lambda r: "下载权限解锁",
+        "stat_label": "下载权限解锁（生效服务数）",
+        "stat_field": None,
+        "skipped_label": "因已解锁跳过",
+    },
+}
+
+
+def gift_pack_rewards_require_binding(rewards: list[dict]) -> bool:
+    """奖励项中是否含作用于已绑定服务的奖励（隐含「至少绑定一个媒体账号」）"""
+    return any(
+        GIFT_PACK_REWARD_TYPES.get(r.get("type"), {}).get("requires_binding")
+        for r in rewards
+    )
+
+
 class DatabaseORM:
     """
     基于 ORM 的数据库操作类
@@ -230,17 +315,17 @@ class DatabaseORM:
 
     def add_plex_user(
         self,
-        plex_id: Optional[int] = None,
-        tg_id: Optional[int] = None,
-        plex_email: Optional[str] = None,
-        plex_username: Optional[str] = None,
+        plex_id: int | None = None,
+        tg_id: int | None = None,
+        plex_email: str | None = None,
+        plex_username: str | None = None,
         credits: float = 0,
         all_lib: int = 0,
-        unlock_time: Optional[str] = None,
+        unlock_time: str | None = None,
         watched_time: float = 0,
-        plex_line: Optional[str] = None,
+        plex_line: str | None = None,
         is_premium: int = 0,
-        premium_expiry_time: Optional[str] = None,
+        premium_expiry_time: str | None = None,
     ) -> bool:
         """添加 Plex 用户"""
         try:
@@ -299,7 +384,7 @@ class DatabaseORM:
             stmt = select(func.count(PlexUser.plex_id))
             return session.execute(stmt).scalar()
 
-    def get_plex_info_by_tg_id(self, tg_id: int) -> Optional[Tuple]:
+    def get_plex_info_by_tg_id(self, tg_id: int) -> tuple | None:
         """通过 Telegram ID 获取 Plex 用户信息"""
         with get_session() as session:
             stmt = select(PlexUser).where(PlexUser.tg_id == tg_id)
@@ -321,7 +406,7 @@ class DatabaseORM:
                 )
             return None
 
-    def get_plex_info_by_plex_id(self, plex_id: int) -> Optional[Tuple]:
+    def get_plex_info_by_plex_id(self, plex_id: int) -> tuple | None:
         """通过 Plex ID 获取用户信息"""
         with get_session() as session:
             stmt = select(PlexUser).where(PlexUser.plex_id == plex_id)
@@ -343,7 +428,7 @@ class DatabaseORM:
                 )
             return None
 
-    def get_plex_info_by_plex_username(self, plex_username: str) -> Optional[Tuple]:
+    def get_plex_info_by_plex_username(self, plex_username: str) -> tuple | None:
         """通过 Plex 用户名获取用户信息"""
         with get_session() as session:
             stmt = select(PlexUser).where(
@@ -367,7 +452,7 @@ class DatabaseORM:
                 )
             return None
 
-    def get_plex_info_by_plex_email(self, plex_email: str) -> Optional[Tuple]:
+    def get_plex_info_by_plex_email(self, plex_email: str) -> tuple | None:
         """通过 Plex 邮箱获取用户信息"""
         with get_session() as session:
             stmt = select(PlexUser).where(
@@ -396,15 +481,15 @@ class DatabaseORM:
     def add_emby_user(
         self,
         emby_username: str,
-        emby_id: Optional[str] = None,
-        tg_id: Optional[int] = None,
+        emby_id: str | None = None,
+        tg_id: int | None = None,
         emby_is_unlock: int = 0,
-        emby_unlock_time: Optional[int] = None,
+        emby_unlock_time: int | None = None,
         emby_watched_time: float = 0,
         emby_credits: float = 0,
-        emby_line: Optional[str] = None,
+        emby_line: str | None = None,
         is_premium: int = 0,
-        premium_expiry_time: Optional[str] = None,
+        premium_expiry_time: str | None = None,
     ) -> bool:
         """添加 Emby 用户"""
         try:
@@ -485,7 +570,7 @@ class DatabaseORM:
             stmt = select(func.count(VaultwardenRedeemRecords.id))
             return session.execute(stmt).scalar() or 0
 
-    def get_emby_info_by_emby_username(self, username: str) -> Optional[Tuple]:
+    def get_emby_info_by_emby_username(self, username: str) -> tuple | None:
         """通过 Emby 用户名获取用户信息"""
         with get_session() as session:
             stmt = select(EmbyUser).where(
@@ -508,7 +593,7 @@ class DatabaseORM:
                 )
             return None
 
-    def get_emby_info_by_tg_id(self, tg_id: int) -> Optional[Tuple]:
+    def get_emby_info_by_tg_id(self, tg_id: int) -> tuple | None:
         """通过 Telegram ID 获取 Emby 用户信息"""
         with get_session() as session:
             stmt = select(EmbyUser).where(EmbyUser.tg_id == tg_id)
@@ -529,7 +614,7 @@ class DatabaseORM:
                 )
             return None
 
-    def get_emby_info_by_emby_id(self, emby_id: str) -> Optional[Tuple]:
+    def get_emby_info_by_emby_id(self, emby_id: str) -> tuple | None:
         """通过 Emby ID 获取用户信息"""
         with get_session() as session:
             stmt = select(EmbyUser).where(EmbyUser.emby_id == emby_id)
@@ -665,7 +750,7 @@ class DatabaseORM:
             logger.error(f"Error adding user data: {e}")
             return False
 
-    def get_stats_by_tg_id(self, tg_id: int) -> Optional[Tuple]:
+    def get_stats_by_tg_id(self, tg_id: int) -> tuple | None:
         """通过 Telegram ID 获取统计信息"""
         with get_session() as session:
             stmt = select(Statistics).where(Statistics.tg_id == tg_id)
@@ -674,7 +759,7 @@ class DatabaseORM:
                 return (stats.tg_id, stats.donation, stats.credits)
             return None
 
-    def get_user_credits(self, tg_id: int) -> Optional[float]:
+    def get_user_credits(self, tg_id: int) -> float | None:
         """获取用户积分"""
         with get_session() as session:
             stmt = select(Statistics).where(Statistics.tg_id == tg_id)
@@ -698,7 +783,7 @@ class DatabaseORM:
     # ==================== Invitation Operations ====================
 
     def add_invitation_code(
-        self, code: str, owner: int, is_used: int = 0, used_by: Optional[int] = None
+        self, code: str, owner: int, is_used: int = 0, used_by: int | None = None
     ) -> bool:
         """添加邀请码"""
         try:
@@ -716,9 +801,9 @@ class DatabaseORM:
         self,
         code: str,
         used_by: str,
-        service: Optional[str] = None,
-        plex_id: Optional[int] = None,
-        emby_id: Optional[str] = None,
+        service: str | None = None,
+        plex_id: int | None = None,
+        emby_id: str | None = None,
     ) -> bool:
         """更新邀请码状态"""
         try:
@@ -757,7 +842,7 @@ class DatabaseORM:
             logger.error(f"Error updating invitation plex_id: {e}")
             return False
 
-    def get_inviter_tg_id_by_plex_id(self, plex_id: int) -> Optional[int]:
+    def get_inviter_tg_id_by_plex_id(self, plex_id: int) -> int | None:
         """通过被邀请人的 plex_id 查找邀请人的 tg_id"""
         with get_session() as session:
             stmt = select(Invitation.owner).where(
@@ -767,7 +852,7 @@ class DatabaseORM:
             )
             return session.execute(stmt).scalar_one_or_none()
 
-    def get_inviter_tg_id_by_emby_id(self, emby_id: str) -> Optional[int]:
+    def get_inviter_tg_id_by_emby_id(self, emby_id: str) -> int | None:
         """通过被邀请人的 emby_id 查找邀请人的 tg_id"""
         with get_session() as session:
             stmt = select(Invitation.owner).where(
@@ -790,7 +875,7 @@ class DatabaseORM:
             logger.error(f"Error adding overseerr user: {e}")
             return False
 
-    def get_overseerr_info_by_tg_id(self, tg_id: int) -> Optional[Tuple]:
+    def get_overseerr_info_by_tg_id(self, tg_id: int) -> tuple | None:
         """通过 Telegram ID 获取 Overseerr 用户信息"""
         with get_session() as session:
             stmt = select(Overseerr).where(Overseerr.tg_id == tg_id)
@@ -802,7 +887,7 @@ class DatabaseORM:
     # ==================== Update Operations ====================
 
     def update_user_tg_id(
-        self, tg_id: int, plex_id: Optional[int] = None, emby_id: Optional[str] = None
+        self, tg_id: int, plex_id: int | None = None, emby_id: str | None = None
     ) -> bool:
         """更新用户 Telegram ID"""
         try:
@@ -827,8 +912,8 @@ class DatabaseORM:
     def rebind_user_tg_id(
         self,
         new_tg_id: int,
-        plex_email: Optional[str] = None,
-        emby_username: Optional[str] = None,
+        plex_email: str | None = None,
+        emby_username: str | None = None,
     ) -> bool:
         """
         换绑用户 Telegram ID
@@ -995,9 +1080,9 @@ class DatabaseORM:
     def update_user_credits(
         self,
         credits: float,
-        plex_id: Optional[int] = None,
-        emby_id: Optional[str] = None,
-        tg_id: Optional[int] = None,
+        plex_id: int | None = None,
+        emby_id: str | None = None,
+        tg_id: int | None = None,
     ) -> bool:
         """更新用户积分"""
         try:
@@ -1031,10 +1116,10 @@ class DatabaseORM:
     def update_all_lib_flag(
         self,
         all_lib: int,
-        unlock_time: Optional[str] = None,
-        plex_id: Optional[int] = None,
-        emby_id: Optional[str] = None,
-        tg_id: Optional[int] = None,
+        unlock_time: str | None = None,
+        plex_id: int | None = None,
+        emby_id: str | None = None,
+        tg_id: int | None = None,
         media_server: str = "plex",
     ) -> bool:
         """更新全库权限标志"""
@@ -1078,7 +1163,7 @@ class DatabaseORM:
             logger.error(f"Error updating all_lib_flag: {e}")
             return False
 
-    def get_overseerr_info_by_email(self, email: str) -> Optional[Tuple]:
+    def get_overseerr_info_by_email(self, email: str) -> tuple | None:
         """通过邮箱获取 Overseerr 用户信息"""
         with get_session() as session:
             stmt = select(Overseerr).where(Overseerr.user_email == email)
@@ -1097,9 +1182,9 @@ class DatabaseORM:
         prize_credits: int,
         total_credits_required: int,
         credits_per_share: int = 10,
-        start_number: Optional[int] = None,
-        description: Optional[str] = None,
-        created_by: Optional[int] = None,
+        start_number: int | None = None,
+        description: str | None = None,
+        created_by: int | None = None,
     ) -> int:
         """创建夺宝期数，返回 issue_id。"""
         total_shares = int(total_credits_required // credits_per_share)
@@ -1123,14 +1208,14 @@ class DatabaseORM:
                     start_number = lower
                 else:
                     # 尝试避免与历史期数 start_number 完全重复（非强需求，尽量即可）
-                    used = set(
+                    used = {
                         n
                         for (n,) in session.execute(
                             select(TreasureIssue.start_number)
                             .order_by(TreasureIssue.id.desc())
                             .limit(500)
                         ).all()
-                    )
+                    }
                     for _ in range(30):
                         candidate = lower + secrets.randbelow(int(upper - lower + 1))
                         if int(candidate) not in used:
@@ -1165,7 +1250,7 @@ class DatabaseORM:
             session.flush()
             return int(issue.id)
 
-    def get_treasure_issue_by_id(self, issue_id: int) -> Optional[dict]:
+    def get_treasure_issue_by_id(self, issue_id: int) -> dict | None:
         with get_session() as session:
             stmt = select(TreasureIssue).where(TreasureIssue.id == issue_id)
             issue = session.execute(stmt).scalar_one_or_none()
@@ -1202,7 +1287,7 @@ class DatabaseORM:
 
     def list_treasure_issues(
         self, limit: int = 50, include_closed: bool = True
-    ) -> List[dict]:
+    ) -> list[dict]:
         with get_session() as session:
             active_first = case((TreasureIssue.status == 1, 1), else_=0).desc()
 
@@ -1243,7 +1328,7 @@ class DatabaseORM:
 
     def list_treasure_participations(
         self, issue_id: int, limit: int = 200
-    ) -> List[dict]:
+    ) -> list[dict]:
         from app.utils.utils import get_user_name_from_tg_id
 
         with get_session() as session:
@@ -1292,8 +1377,8 @@ class DatabaseORM:
         self,
         issue_id: int,
         tg_id: int,
-        external_random_b: Optional[int] = None,
-        timestamp_ms: Optional[int] = None,
+        external_random_b: int | None = None,
+        timestamp_ms: int | None = None,
         quantity: int = 1,
         sample_last_n_ratio: float = 0.4,
         sample_last_n_min: int = 10,
@@ -1380,14 +1465,14 @@ class DatabaseORM:
                 raise ValueError("invalid number range")
 
             # 当前已占用号码集合（在 issue FOR UPDATE 锁下读取即可）
-            existing_numbers = set(
+            existing_numbers = {
                 n
                 for (n,) in session.execute(
                     select(TreasureParticipation.lucky_number).where(
                         TreasureParticipation.issue_id == int(issue.id)
                     )
                 ).all()
-            )
+            }
 
             available = [
                 n
@@ -1417,88 +1502,88 @@ class DatabaseORM:
             winner_number = None
             winner_tg_id = None
 
-            # 满员则开奖
-            if int(issue.shares_sold) >= int(issue.total_shares):
-                # 幂等保护：再次检查 status
-                if int(issue.status) == 1:
-                    settled = True
+            # 满员且尚未开奖时结算（status 检查保证幂等）
+            if (
+                int(issue.shares_sold) >= int(issue.total_shares)
+                and int(issue.status) == 1
+            ):
+                settled = True
 
-                    # 计算采样数 N：按参与人数百分比，限定 [min,max]
-                    total = int(issue.total_shares)
-                    n = int(
-                        max(
-                            sample_last_n_min,
-                            min(sample_last_n_max, round(total * sample_last_n_ratio)),
+                # 计算采样数 N：按参与人数百分比，限定 [min,max]
+                total = int(issue.total_shares)
+                n = int(
+                    max(
+                        sample_last_n_min,
+                        min(sample_last_n_max, round(total * sample_last_n_ratio)),
+                    )
+                )
+                n = min(n, total)
+
+                # 取最后 N 条参与记录的 created_at_ms
+                last_rows = session.execute(
+                    select(
+                        TreasureParticipation.created_at_ms,
+                        TreasureParticipation.tg_id,
+                    )
+                    .where(TreasureParticipation.issue_id == int(issue.id))
+                    .order_by(TreasureParticipation.id.desc())
+                    .limit(n)
+                ).all()
+                a = sum(int(r[0]) for r in last_rows)
+                b = normalize_external_random_b(
+                    int(external_random_b)
+                    if external_random_b is not None
+                    else int(issue.external_random_b or 0),
+                    default=0,
+                )
+
+                # 中奖号码：((A+B) % total_shares) + start_number
+                offset = (a + b) % int(issue.total_shares)
+                winner_number = int(issue.start_number) + int(offset)
+
+                # 找到赢家（号码唯一）
+                win_part = (
+                    session.execute(
+                        select(TreasureParticipation).where(
+                            TreasureParticipation.issue_id == int(issue.id),
+                            TreasureParticipation.lucky_number == int(winner_number),
                         )
                     )
-                    n = min(n, total)
+                    .scalars()
+                    .one()
+                )
+                winner_tg_id = int(win_part.tg_id)
 
-                    # 取最后 N 条参与记录的 created_at_ms
-                    last_rows = session.execute(
-                        select(
-                            TreasureParticipation.created_at_ms,
-                            TreasureParticipation.tg_id,
+                # 发奖：给中奖者加 prize_credits
+                winner_stats = (
+                    session.execute(
+                        select(Statistics)
+                        .where(Statistics.tg_id == winner_tg_id)
+                        .with_for_update()
+                    )
+                    .scalars()
+                    .one_or_none()
+                )
+                if winner_stats:
+                    winner_stats.credits = round(
+                        float(winner_stats.credits) + float(issue.prize_credits), 2
+                    )
+                else:
+                    # 如果赢家没有统计记录，创建一条（兼容极端情况）
+                    session.add(
+                        Statistics(
+                            tg_id=winner_tg_id,
+                            donation=0,
+                            credits=float(issue.prize_credits),
                         )
-                        .where(TreasureParticipation.issue_id == int(issue.id))
-                        .order_by(TreasureParticipation.id.desc())
-                        .limit(n)
-                    ).all()
-                    a = sum(int(r[0]) for r in last_rows)
-                    b = normalize_external_random_b(
-                        int(external_random_b)
-                        if external_random_b is not None
-                        else int(issue.external_random_b or 0),
-                        default=0,
                     )
 
-                    # 中奖号码：((A+B) % total_shares) + start_number
-                    offset = (a + b) % int(issue.total_shares)
-                    winner_number = int(issue.start_number) + int(offset)
-
-                    # 找到赢家（号码唯一）
-                    win_part = (
-                        session.execute(
-                            select(TreasureParticipation).where(
-                                TreasureParticipation.issue_id == int(issue.id),
-                                TreasureParticipation.lucky_number
-                                == int(winner_number),
-                            )
-                        )
-                        .scalars()
-                        .one()
-                    )
-                    winner_tg_id = int(win_part.tg_id)
-
-                    # 发奖：给中奖者加 prize_credits
-                    winner_stats = (
-                        session.execute(
-                            select(Statistics)
-                            .where(Statistics.tg_id == winner_tg_id)
-                            .with_for_update()
-                        )
-                        .scalars()
-                        .one_or_none()
-                    )
-                    if winner_stats:
-                        winner_stats.credits = round(
-                            float(winner_stats.credits) + float(issue.prize_credits), 2
-                        )
-                    else:
-                        # 如果赢家没有统计记录，创建一条（兼容极端情况）
-                        session.add(
-                            Statistics(
-                                tg_id=winner_tg_id,
-                                donation=0,
-                                credits=float(issue.prize_credits),
-                            )
-                        )
-
-                    # 写回期数结果
-                    issue.status = 2
-                    issue.external_random_b = b
-                    issue.winner_number = int(winner_number)
-                    issue.winner_tg_id = int(winner_tg_id)
-                    issue.settled_at = int(time.time())
+                # 写回期数结果
+                issue.status = 2
+                issue.external_random_b = b
+                issue.winner_number = int(winner_number)
+                issue.winner_tg_id = int(winner_tg_id)
+                issue.settled_at = int(time.time())
 
             session.flush()
 
@@ -1753,7 +1838,7 @@ class DatabaseORM:
         title: str,
         betting_deadline: int,
         submitter_tg_id: int,
-        description: Optional[str] = None,
+        description: str | None = None,
     ) -> int:
         if not str(title or "").strip():
             raise ValueError("title is required")
@@ -1776,9 +1861,9 @@ class DatabaseORM:
 
     def list_prediction_submissions(
         self,
-        status: Optional[int] = None,
+        status: int | None = None,
         limit: int = 50,
-        submitter_tg_id: Optional[int] = None,
+        submitter_tg_id: int | None = None,
     ) -> list[dict]:
         with get_session() as session:
             stmt = select(PredictionMarketSubmission)
@@ -1817,10 +1902,10 @@ class DatabaseORM:
         submission_id: int,
         admin_tg_id: int,
         approved: bool,
-        review_note: Optional[str] = None,
-        title: Optional[str] = None,
-        description: Optional[str] = None,
-        betting_deadline: Optional[int] = None,
+        review_note: str | None = None,
+        title: str | None = None,
+        description: str | None = None,
+        betting_deadline: int | None = None,
     ) -> dict:
         with get_session() as session:
             submission = (
@@ -1855,7 +1940,7 @@ class DatabaseORM:
             if final_deadline <= int(now_ts):
                 raise ValueError("betting_deadline must be in the future")
 
-            market_id: Optional[int] = None
+            market_id: int | None = None
             if bool(approved):
                 market = PredictionMarket(
                     title=final_title,
@@ -1903,9 +1988,9 @@ class DatabaseORM:
     def create_prediction_market(
         self,
         title: str,
-        description: Optional[str] = None,
-        betting_deadline: Optional[int] = None,
-        created_by: Optional[int] = None,
+        description: str | None = None,
+        betting_deadline: int | None = None,
+        created_by: int | None = None,
         virtual_yes_pool: int = 500,
         virtual_no_pool: int = 500,
         fee_rate_bp: int = 500,
@@ -1995,8 +2080,8 @@ class DatabaseORM:
             return items
 
     def get_prediction_market_by_id(
-        self, market_id: int, tg_id: Optional[int] = None
-    ) -> Optional[dict]:
+        self, market_id: int, tg_id: int | None = None
+    ) -> dict | None:
         with get_session() as session:
             m = (
                 session.execute(
@@ -2271,7 +2356,7 @@ class DatabaseORM:
         market_id: int,
         result_option: int,
         resolved_by: int,
-        resolution_note: Optional[str] = None,
+        resolution_note: str | None = None,
     ) -> dict:
         if int(result_option) not in [0, 1]:
             raise ValueError("invalid result option")
@@ -2677,7 +2762,7 @@ class DatabaseORM:
                 .group_by(PredictionBet.tg_id, PredictionBet.market_id)
             ).all()
 
-            stats_map: Dict[int, dict] = {}
+            stats_map: dict[int, dict] = {}
             for tg_id_raw, market_id_raw, yes_amount_raw, no_amount_raw in positions:
                 tg_id = int(tg_id_raw)
                 market_id = int(market_id_raw)
@@ -2916,7 +3001,7 @@ class DatabaseORM:
             )
         return rows
 
-    def get_blackjack_skill_ranks(self, min_hands: Optional[int] = None) -> dict:
+    def get_blackjack_skill_ranks(self, min_hands: int | None = None) -> dict:
         """一次扫描同时算出准确率榜与胜率榜，返回 `{accuracy, win_rate}`。
 
         榜单接口两个榜都要，分别调用 `get_blackjack_accuracy_rank()` 与
@@ -2936,15 +3021,13 @@ class DatabaseORM:
                     key=lambda r: r["accuracy"],
                     reverse=True,
                 ),
-                "win_rate": sorted(
-                    list(rows), key=lambda r: r["win_rate"], reverse=True
-                ),
+                "win_rate": sorted(rows, key=lambda r: r["win_rate"], reverse=True),
             }
         except Exception as e:
             logger.error(f"获取 21 点技巧类排行失败: {e}")
             return {"accuracy": [], "win_rate": []}
 
-    def get_blackjack_accuracy_rank(self, min_hands: Optional[int] = None) -> list:
+    def get_blackjack_accuracy_rank(self, min_hands: int | None = None) -> list:
         """决策准确率排行榜——21 点游戏榜的主榜。
 
         准确率是本游戏里唯一**零方差**的口径：同一局面的基本策略建议恒定，故它
@@ -2957,7 +3040,7 @@ class DatabaseORM:
         """
         return self.get_blackjack_skill_ranks(min_hands)["accuracy"]
 
-    def get_blackjack_win_rate_rank(self, min_hands: Optional[int] = None) -> list:
+    def get_blackjack_win_rate_rank(self, min_hands: int | None = None) -> list:
         """胜率排行榜。按量归一化，故不奖励刷量；设最低手数门槛。
 
         同时需要两个榜时改用 `get_blackjack_skill_ranks()`，避免重复扫描。
@@ -3039,7 +3122,7 @@ class DatabaseORM:
             results = session.execute(stmt).fetchall()
             return [(r[0], int(r[1] or 0)) for r in results if int(r[1] or 0) > 0]
 
-    def get_badge_rank(self) -> List[dict]:
+    def get_badge_rank(self) -> list[dict]:
         """
         获取勋章排行榜数据（按用户拥有的勋章数量排序）
 
@@ -3144,7 +3227,7 @@ class DatabaseORM:
         self,
         session,
         hand: BlackjackHand,
-        stats: Optional[Statistics],
+        stats: Statistics | None,
         *,
         outcome: str,
         config: dict,
@@ -3225,10 +3308,13 @@ class DatabaseORM:
             cap = int(config.get("freespins_weekly_cap", 5) or 0)
             expiry_days = int(config.get("freespins_expiry_days", 7) or 0)
             if threshold > 0 and cap > 0 and expiry_days > 0 and progress >= threshold:
+                # 周上限只统计 21 点来源：礼包等其他来源的免费机会不占用配额。
+                # 用肯定条件而非 != 'gift_pack'，以后新增来源不会悄悄混进口径
                 granted_this_week = int(
                     session.execute(
                         select(func.count(LuckywheelFreeSpin.id)).where(
                             LuckywheelFreeSpin.tg_id == tg_id,
+                            LuckywheelFreeSpin.source == "blackjack",
                             LuckywheelFreeSpin.granted_at_ms
                             >= self._blackjack_week_start_ms(),
                         )
@@ -3376,7 +3462,7 @@ class DatabaseORM:
     def _write_retention_cursor(
         self,
         session,
-        cursor_row: Optional[SystemConfig],
+        cursor_row: SystemConfig | None,
         key: str,
         value: int,
     ) -> None:
@@ -3528,6 +3614,10 @@ class DatabaseORM:
 
         首次运行：游标直接初始化到当前边界，不回溯历史发放（部署前发放
         的通知没有意义，且可能一次性倾泻）。
+
+        只返回 21 点来源的发放（礼包等其他来源不发「打满手数」通知），但
+        游标按扫描范围内**全部行**的最大 id 推进：其他来源的行夹在中间时
+        游标也能越过它，既不会卡住，也不会漏发其后的 21 点行。
         """
         try:
             with get_session() as session:
@@ -3541,6 +3631,7 @@ class DatabaseORM:
                         LuckywheelFreeSpin.id,
                         LuckywheelFreeSpin.tg_id,
                         LuckywheelFreeSpin.expires_at_ms,
+                        LuckywheelFreeSpin.source,
                     )
                     .where(
                         LuckywheelFreeSpin.id > cursor,
@@ -3570,6 +3661,7 @@ class DatabaseORM:
                         "expires_at_ms": int(r[2]),
                     }
                     for r in rows
+                    if r[3] == "blackjack"
                 ]
         except Exception as e:
             logger.error(f"认领待通知的免费机会发放失败: {e}")
@@ -3610,7 +3702,7 @@ class DatabaseORM:
             logger.error(f"查询即将过期的免费机会失败: {e}")
             return []
 
-    def consume_blackjack_freespin(self, tg_id: int) -> Optional[dict]:
+    def consume_blackjack_freespin(self, tg_id: int) -> dict | None:
         """原子认领该用户最早的一张未用未过期免费机会。
 
         条件 UPDATE（CAS）而非「查后改」：`used_at_ms IS NULL` 的条件使
@@ -3619,7 +3711,10 @@ class DatabaseORM:
 
         认领最早到期的：临近过期的机会优先用掉，最小化「攒着不用而过期」。
 
-        Returns: {id, expires_at_ms} 或 None（无可用机会）
+        适用于**所有来源**的免费机会（21 点、礼包……），不区分来源，只按
+        到期时间排序。方法名沿用 *_blackjack_freespin 以避免大范围改名。
+
+        Returns: {id, expires_at_ms, claimed_at_ms, source} 或 None（无可用机会）
         """
         now_ms = int(time.time() * 1000)
         try:
@@ -3657,6 +3752,7 @@ class DatabaseORM:
                     "id": int(oldest_id),
                     "expires_at_ms": int(row.expires_at_ms),
                     "claimed_at_ms": now_ms,
+                    "source": row.source or "blackjack",
                 }
         except Exception as e:
             logger.error(f"认领免费大转盘机会失败 (tg_id={tg_id}): {e}")
@@ -3732,7 +3828,7 @@ class DatabaseORM:
         session,
         hand: BlackjackHand,
         abandoned: bool = False,
-        jackpot_config: Optional[dict] = None,
+        jackpot_config: dict | None = None,
     ) -> dict:
         """21 点结算的共用路径：停牌 / 加倍 / 爆牌 / 超时兜底四条入口都走这里。
 
@@ -4048,7 +4144,7 @@ class DatabaseORM:
             return 0.0
 
     def _pay_from_jackpot(
-        self, session, amount: Optional[float] = None, *, pay_all: bool = False
+        self, session, amount: float | None = None, *, pay_all: bool = False
     ) -> float:
         """从幸运奖池扣减派彩额，返回实际派发的金额。调用方须在事务内。
 
@@ -4206,7 +4302,7 @@ class DatabaseORM:
             logger.error(f"认领待播报的 21 点奖池中奖失败: {e}")
             return []
 
-    def sweep_timed_out_blackjack_hands(self, tg_id: Optional[int] = None) -> int:
+    def sweep_timed_out_blackjack_hands(self, tg_id: int | None = None) -> int:
         """结算所有已超时的进行中手牌，返回**实际结算成功**的手数。
 
         **每手牌自成一个事务**，不与调用方共用、也不彼此共用。两层理由：
@@ -4294,7 +4390,7 @@ class DatabaseORM:
         )
         return int(day_start.timestamp() * 1000)
 
-    def _blackjack_week_start_ms(self, *, now: Optional[datetime] = None) -> int:
+    def _blackjack_week_start_ms(self, *, now: datetime | None = None) -> int:
         """本周一零点（`settings.TZ`）的毫秒时间戳。
 
         与免抽水的自然日同一口径（周一为一周之始），免费机会的周配额与
@@ -5007,7 +5103,7 @@ class DatabaseORM:
                 session, hand, abandoned=True, jackpot_config=jackpot_config
             )
 
-    def get_current_blackjack_hand(self, tg_id: int) -> Optional[dict]:
+    def get_current_blackjack_hand(self, tg_id: int) -> dict | None:
         """取该用户处于非终态的手牌，供恢复牌桌用。没有则返回 None。
 
         **本方法不是纯读操作**：它先调 `sweep_timed_out_blackjack_hands`（独立
@@ -5504,7 +5600,7 @@ class DatabaseORM:
         return f"21 点锦标赛 · 第 {int(count) + 1} 期"
 
     def create_blackjack_tournament(
-        self, params: dict, created_by: Optional[int] = None
+        self, params: dict, created_by: int | None = None
     ) -> dict:
         """创建赛事。快照创建当时生效的庄家规则、天胡赔率、投降开关与单手时限。
 
@@ -5793,7 +5889,7 @@ class DatabaseORM:
 
     def _lock_running_tournament(
         self, session, tournament_id: int
-    ) -> Optional[BlackjackTournament]:
+    ) -> BlackjackTournament | None:
         """钉住一场进行中的赛事直到本事务提交。
 
         条件 UPDATE 把 `status` 写回自身：PostgreSQL 上行锁，SQLite 上库级写锁。
@@ -6066,8 +6162,8 @@ class DatabaseORM:
             return {"claimed": False, "pending": []}
 
     def get_blackjack_tournament(
-        self, tournament_id: int, tg_id: Optional[int] = None
-    ) -> Optional[dict]:
+        self, tournament_id: int, tg_id: int | None = None
+    ) -> dict | None:
         """赛事详情。给定 `tg_id` 时附带该用户的报名（没报名则为 None）。"""
         try:
             with get_session() as session:
@@ -6105,8 +6201,8 @@ class DatabaseORM:
 
     def list_blackjack_tournaments(
         self,
-        tg_id: Optional[int] = None,
-        statuses: Optional[tuple] = None,
+        tg_id: int | None = None,
+        statuses: tuple | None = None,
         limit: int = 20,
     ) -> list[dict]:
         """赛事列表。默认列出报名中与进行中的赛事，供大厅展示。
@@ -6183,7 +6279,7 @@ class DatabaseORM:
             logger.error(f"查询仍有进行中报名的锦标赛失败: {e}")
             return None
 
-    def count_registering_blackjack_tournaments(self, now_ms: int) -> Optional[int]:
+    def count_registering_blackjack_tournaments(self, now_ms: int) -> int | None:
         """统计报名尚未截止的赛事数，给每周自动开赛的去重闸门用。
 
         只看「报名中且报名截止晚于当前」：本周自动建的周赛报名截止固定在周三
@@ -6265,7 +6361,7 @@ class DatabaseORM:
 
     def get_user_blackjack_tournament_entry(
         self, tg_id: int, tournament_id: int
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """该用户在某赛事中的报名。"""
         try:
             with get_session() as session:
@@ -6308,9 +6404,7 @@ class DatabaseORM:
             logger.error(f"获取 21 点冠军次数失败 (tg_id={tg_id}): {e}")
             return 0
 
-    def check_blackjack_tournament_consistency(
-        self, tournament_id: int
-    ) -> Optional[dict]:
+    def check_blackjack_tournament_consistency(self, tournament_id: int) -> dict | None:
         """比对 `entrant_count` 与 entry 实际行数，供管理端校验。
 
         两者只在同一事务内一起变动，本不该漂移；但 `entrant_count` 是奖池推导的
@@ -6373,7 +6467,7 @@ class DatabaseORM:
     def _apply_tournament_entry_terminal_status(
         self,
         entry: BlackjackTournamentEntry,
-        tournament: Optional[BlackjackTournament],
+        tournament: BlackjackTournament | None,
     ) -> None:
         """按打完手数与剩余筹码判定报名的终态。
 
@@ -6392,7 +6486,7 @@ class DatabaseORM:
         elif min_bet and int(entry.chips) < min_bet:
             entry.status = self.ENTRY_ELIMINATED
 
-    def _tournament_total_hands(self, session, tournament_id: int) -> Optional[int]:
+    def _tournament_total_hands(self, session, tournament_id: int) -> int | None:
         """取赛事的总手数，供动作响应算「剩余手数」。
 
         动作响应里捎回它，路由层就不必为了这一个数字再开一次事务去查赛事——那次
@@ -6606,7 +6700,7 @@ class DatabaseORM:
         session,
         hand: BlackjackHand,
         abandoned: bool = False,
-        jackpot_config: Optional[dict] = None,
+        jackpot_config: dict | None = None,
     ) -> dict:
         """按 `tournament_id` 选结算适配层。
 
@@ -7095,7 +7189,7 @@ class DatabaseORM:
         tg_id: int,
         badge_id: int,
         valid_days: int,
-        cap_days: Optional[int] = None,
+        cap_days: int | None = None,
     ) -> dict:
         """授予勋章；已持有则**续期**其加成而非重置。
 
@@ -7353,7 +7447,7 @@ class DatabaseORM:
 
     # ==================== Invitation Query Operations ====================
 
-    def verify_invitation_code_is_used(self, code: str) -> Optional[Tuple]:
+    def verify_invitation_code_is_used(self, code: str) -> tuple | None:
         """验证邀请码是否已使用"""
         with get_session() as session:
             stmt = select(Invitation.is_used, Invitation.owner).where(
@@ -7394,7 +7488,7 @@ class DatabaseORM:
     # ==================== Line Management Operations ====================
 
     def set_emby_line(
-        self, line: str, tg_id: Optional[int] = None, emby_id: Optional[str] = None
+        self, line: str, tg_id: int | None = None, emby_id: str | None = None
     ) -> bool:
         """设置 Emby 线路"""
         try:
@@ -7416,7 +7510,7 @@ class DatabaseORM:
             logger.error(f"Error setting emby line: {e}")
             return False
 
-    def get_emby_line(self, tg_id: int) -> Optional[str]:
+    def get_emby_line(self, tg_id: int) -> str | None:
         """获取 Emby 线路"""
         with get_session() as session:
             stmt = select(EmbyUser.emby_line).where(EmbyUser.tg_id == tg_id)
@@ -7437,7 +7531,7 @@ class DatabaseORM:
             return [(r[0], r[1], r[2], r[3], r[4]) for r in results]
 
     def set_plex_line(
-        self, line: str, tg_id: Optional[int] = None, plex_id: Optional[int] = None
+        self, line: str, tg_id: int | None = None, plex_id: int | None = None
     ) -> bool:
         """设置 Plex 线路"""
         try:
@@ -7459,7 +7553,7 @@ class DatabaseORM:
             logger.error(f"Error setting plex line: {e}")
             return False
 
-    def get_plex_line(self, tg_id: int) -> Optional[str]:
+    def get_plex_line(self, tg_id: int) -> str | None:
         """获取 Plex 线路"""
         with get_session() as session:
             stmt = select(PlexUser.plex_line).where(PlexUser.tg_id == tg_id)
@@ -7492,7 +7586,7 @@ class DatabaseORM:
         """记录转盘旋转记录。
 
         source 区分参与来源：'paid'（正常付费）/ 'blackjack_free'
-        （21 点打满手数获得的免费机会）。免费机会的发放成本需要可审计，
+        （21 点打满手数获得的免费机会）/ 'gift_pack_free'（礼包发放的免费机会）。免费机会的发放成本需要可审计，
         不能只靠 cost_credits=0 判断——管理员把参与费调为 0 后两者会混同。
         """
         try:
@@ -8223,7 +8317,7 @@ class DatabaseORM:
         starting_price: float,
         end_time: int,
         created_by: int,
-    ) -> Optional[int]:
+    ) -> int | None:
         """创建竞拍"""
         try:
             with get_session() as session:
@@ -8245,7 +8339,7 @@ class DatabaseORM:
             logger.error(f"Error creating auction: {e}")
             return None
 
-    def get_auction_by_id(self, auction_id: int) -> Optional[dict]:
+    def get_auction_by_id(self, auction_id: int) -> dict | None:
         """根据ID获取竞拍信息"""
         try:
             with get_session() as session:
@@ -8273,7 +8367,7 @@ class DatabaseORM:
             logger.error(f"Error getting auction by id: {e}")
             return None
 
-    def get_active_auctions(self, limit: int = 50) -> List[dict]:
+    def get_active_auctions(self, limit: int = 50) -> list[dict]:
         """获取活跃竞拍列表"""
         try:
             with get_session() as session:
@@ -8348,7 +8442,7 @@ class DatabaseORM:
             logger.error(f"Error placing bid: {e}")
             return False
 
-    def get_auction_bids(self, auction_id: int, limit: int = 50) -> List[dict]:
+    def get_auction_bids(self, auction_id: int, limit: int = 50) -> list[dict]:
         """获取竞拍出价记录"""
         try:
             with get_session() as session:
@@ -8376,7 +8470,7 @@ class DatabaseORM:
             logger.error(f"Error getting auction bids: {e}")
             return []
 
-    def get_user_highest_bid(self, auction_id: int, user_id: int) -> Optional[float]:
+    def get_user_highest_bid(self, auction_id: int, user_id: int) -> float | None:
         """获取用户在特定竞拍中的最高出价"""
         try:
             with get_session() as session:
@@ -8391,8 +8485,8 @@ class DatabaseORM:
             return None
 
     def get_auction_participants(
-        self, auction_id: int, exclude_user_id: Optional[int] = None
-    ) -> List[int]:
+        self, auction_id: int, exclude_user_id: int | None = None
+    ) -> list[int]:
         """获取拍卖的所有参与者（出价者）ID列表，可排除指定用户"""
         try:
             with get_session() as session:
@@ -8411,7 +8505,7 @@ class DatabaseORM:
             logger.error(f"Error getting auction participants: {e}")
             return []
 
-    def finish_expired_auctions(self) -> List[dict]:
+    def finish_expired_auctions(self) -> list[dict]:
         """结束过期的竞拍"""
         try:
             with get_session() as session:
@@ -8536,8 +8630,8 @@ class DatabaseORM:
             }
 
     def get_all_auctions(
-        self, status: Optional[str] = None, limit: int = 50, offset: int = 0
-    ) -> List[dict]:
+        self, status: str | None = None, limit: int = 50, offset: int = 0
+    ) -> list[dict]:
         """获取所有竞拍活动（管理员用）"""
         try:
             with get_session() as session:
@@ -8584,9 +8678,7 @@ class DatabaseORM:
                     ).scalar()
 
                     # 判断状态
-                    if not auction.is_active:
-                        auction_status = "ended"
-                    elif auction.end_time <= current_time:
+                    if not auction.is_active or auction.end_time <= current_time:
                         auction_status = "ended"
                     else:
                         auction_status = "active"
@@ -8722,7 +8814,7 @@ class DatabaseORM:
             logger.error(traceback.format_exc())
             return False, str(e)
 
-    def get_user_auction_history(self, user_id: int, limit: int = 20) -> List[dict]:
+    def get_user_auction_history(self, user_id: int, limit: int = 20) -> list[dict]:
         """获取用户参与的竞拍历史"""
         try:
             with get_session() as session:
@@ -8772,7 +8864,7 @@ class DatabaseORM:
             return []
 
     def get_detailed_auction_stats(
-        self, start_date: Optional[int] = None, end_date: Optional[int] = None
+        self, start_date: int | None = None, end_date: int | None = None
     ) -> dict:
         """获取详细的竞拍统计数据"""
         try:
@@ -8847,9 +8939,9 @@ class DatabaseORM:
         user_id: str,
         timestamp: str,
         event_hash: str,
-        request_uri: Optional[str] = None,
-        upstream: Optional[str] = None,
-        upstream_response_time: Optional[str] = None,
+        request_uri: str | None = None,
+        upstream: str | None = None,
+        upstream_response_time: str | None = None,
     ) -> tuple[bool, bool]:
         """创建流量统计记录"""
         try:
@@ -9050,10 +9142,10 @@ class DatabaseORM:
 
     def get_user_daily_traffic(
         self,
-        username: Optional[str] = None,
-        user_id: Optional[str] = None,
-        service: str = None,
-        date: datetime = None,
+        username: str | None = None,
+        user_id: str | None = None,
+        service: str | None = None,
+        date: datetime | None = None,
         premium_only: bool = False,
     ) -> int:
         """获取用户指定日期的流量消耗，默认为今日"""
@@ -9255,8 +9347,7 @@ class DatabaseORM:
                 current_month_start = now_beijing.replace(
                     day=1, hour=0, minute=0, second=0, microsecond=0
                 )
-                if start_date < current_month_start:
-                    start_date = current_month_start
+                start_date = max(start_date, current_month_start)
 
             if end_date is None:
                 # 默认为今日结束
@@ -9268,8 +9359,7 @@ class DatabaseORM:
                 today_end = now_beijing.replace(
                     hour=23, minute=59, second=59, microsecond=999999
                 )
-                if end_date > today_end:
-                    end_date = today_end
+                end_date = min(end_date, today_end)
 
             # 仅当月数据，从 line_traffic_stats 表查询
             with get_session() as session:
@@ -9328,8 +9418,7 @@ class DatabaseORM:
                 current_month_start = now_beijing.replace(
                     day=1, hour=0, minute=0, second=0, microsecond=0
                 )
-                if start_date < current_month_start:
-                    start_date = current_month_start
+                start_date = max(start_date, current_month_start)
 
             if end_date is None:
                 # 默认为今日结束
@@ -9341,8 +9430,7 @@ class DatabaseORM:
                 today_end = now_beijing.replace(
                     hour=23, minute=59, second=59, microsecond=999999
                 )
-                if end_date > today_end:
-                    end_date = today_end
+                end_date = min(end_date, today_end)
 
             with get_session() as session:
                 stmt = (
@@ -9384,7 +9472,7 @@ class DatabaseORM:
             logger.error(f"Error getting Emby traffic rank: {e}")
             return []
 
-    def aggregate_monthly_traffic_data(self, target_month: str = None) -> tuple:
+    def aggregate_monthly_traffic_data(self, target_month: str | None = None) -> tuple:
         """聚合指定月份的流量数据到月度统计表"""
         try:
             if target_month is None:
@@ -9401,7 +9489,8 @@ class DatabaseORM:
 
             # 验证月份格式
             try:
-                datetime.strptime(target_month, "%Y-%m")
+                # 偏移量仅用于格式校验，实际月份范围仍按 settings.TZ 计算。
+                datetime.strptime(f"{target_month} +0000", "%Y-%m %z")
             except ValueError:
                 return False, f"月份格式错误: {target_month}，应为 YYYY-MM 格式"
 
@@ -9471,7 +9560,9 @@ class DatabaseORM:
                 from sqlalchemy import exc as sa_exc
 
                 for record in aggregated_data:
-                    line, service, username, user_id, total_bytes, record_count = record
+                    line, service, username, user_id, total_bytes, _record_count = (
+                        record
+                    )
 
                     # 为每条记录创建一个保存点
                     savepoint = session.begin_nested()
@@ -9537,20 +9628,23 @@ class DatabaseORM:
                 )
                 return (
                     True,
-                    f"成功聚合 {target_month} 月份数据: 插入了 {insert_count} 条新记录，"
-                    f"更新了 {update_count} 条记录，跳过了 {skip_count} 条重复记录",
+                    (
+                        f"成功聚合 {target_month} 月份数据: 插入了 {insert_count} 条新记录，"
+                        f"更新了 {update_count} 条记录，跳过了 {skip_count} 条重复记录"
+                    ),
                 )
 
         except Exception as e:
             logger.error(f"聚合月度流量数据失败: {e}")
-            return False, f"聚合月度流量数据失败: {str(e)}"
+            return False, f"聚合月度流量数据失败: {e!s}"
 
     def cleanup_monthly_traffic_data(self, target_month: str) -> tuple:
         """清理已聚合月份的原始流量数据"""
         try:
             # 验证月份格式
             try:
-                datetime.strptime(target_month, "%Y-%m")
+                # 偏移量仅用于格式校验，实际月份范围仍按 settings.TZ 计算。
+                datetime.strptime(f"{target_month} +0000", "%Y-%m %z")
             except ValueError:
                 return False, f"月份格式错误: {target_month}，应为 YYYY-MM 格式"
 
@@ -9611,7 +9705,7 @@ class DatabaseORM:
 
         except Exception as e:
             logger.error(f"清理月度流量数据失败: {e}")
-            return False, f"清理月度流量数据失败: {str(e)}"
+            return False, f"清理月度流量数据失败: {e!s}"
 
     def update_traffic_username(self, old_username: str, new_username: str) -> bool:
         """更新流量统计中的用户名"""
@@ -9683,7 +9777,7 @@ class DatabaseORM:
         user_id: int,
         payment_method: str,
         amount: float,
-        note: str = None,
+        note: str | None = None,
         is_donation_registration: bool = False,
     ) -> bool:
         """创建捐赠登记记录"""
@@ -9713,7 +9807,7 @@ class DatabaseORM:
             logger.error(f"创建捐赠登记失败: {e}")
             return False
 
-    def get_donation_registration_by_id(self, registration_id: int) -> Optional[dict]:
+    def get_donation_registration_by_id(self, registration_id: int) -> dict | None:
         """根据ID获取捐赠登记信息"""
         try:
             from app.utils.utils import get_user_name_from_tg_id
@@ -9754,7 +9848,7 @@ class DatabaseORM:
 
     def get_donation_registrations_by_user(
         self, user_id: int, limit: int = 20
-    ) -> List[dict]:
+    ) -> list[dict]:
         """获取用户的捐赠登记历史"""
         try:
             from app.utils.utils import get_user_name_from_tg_id
@@ -9801,7 +9895,7 @@ class DatabaseORM:
             logger.error(f"获取用户捐赠登记历史失败: {e}")
             return []
 
-    def get_pending_donation_registrations(self, limit: int = 50) -> List[dict]:
+    def get_pending_donation_registrations(self, limit: int = 50) -> list[dict]:
         """获取待处理的捐赠登记列表"""
         try:
             from app.utils.utils import get_user_name_from_tg_id
@@ -9852,8 +9946,8 @@ class DatabaseORM:
         self,
         registration_id: int,
         approved: bool,
-        admin_note: str = None,
-        processed_by: int = None,
+        admin_note: str | None = None,
+        processed_by: int | None = None,
     ) -> bool:
         """确认捐赠登记状态"""
         try:
@@ -9953,7 +10047,7 @@ class DatabaseORM:
         order_id: str,
         crypto_type: str,
         amount: float,
-        note: str = None,
+        note: str | None = None,
     ) -> bool:
         """创建 crypto 捐赠订单"""
         try:
@@ -10038,7 +10132,7 @@ class DatabaseORM:
             logger.error(f"完成 crypto 捐赠订单支付失败: {e}")
             return False
 
-    def get_crypto_donation_order_by_order_id(self, order_id: str) -> Optional[dict]:
+    def get_crypto_donation_order_by_order_id(self, order_id: str) -> dict | None:
         """根据订单ID获取 crypto 捐赠订单"""
         try:
             with get_session() as session:
@@ -10071,7 +10165,7 @@ class DatabaseORM:
             logger.error(f"获取 crypto 捐赠订单失败: {e}")
             return None
 
-    def get_crypto_donation_order_by_trade_id(self, trade_id: str) -> Optional[dict]:
+    def get_crypto_donation_order_by_trade_id(self, trade_id: str) -> dict | None:
         """根据交易ID获取 crypto 捐赠订单"""
         try:
             with get_session() as session:
@@ -10106,7 +10200,7 @@ class DatabaseORM:
 
     def get_crypto_donation_orders_by_user(
         self, user_id: int, limit: int = 20
-    ) -> List[dict]:
+    ) -> list[dict]:
         """获取用户的 crypto 捐赠订单历史"""
         try:
             with get_session() as session:
@@ -10146,8 +10240,8 @@ class DatabaseORM:
             return []
 
     def get_all_crypto_donation_orders(
-        self, limit: int = 100, offset: int = 0, status_filter: str = None
-    ) -> List[dict]:
+        self, limit: int = 100, offset: int = 0, status_filter: str | None = None
+    ) -> list[dict]:
         """获取所有 crypto 捐赠订单历史（管理员用）"""
         try:
             with get_session() as session:
@@ -10194,7 +10288,7 @@ class DatabaseORM:
             logger.error(f"获取所有 crypto 捐赠订单历史失败: {e}")
             return []
 
-    def get_crypto_donation_orders_count(self, status_filter: str = None) -> int:
+    def get_crypto_donation_orders_count(self, status_filter: str | None = None) -> int:
         """获取 crypto 捐赠订单总数（管理员用）"""
         try:
             with get_session() as session:
@@ -10211,7 +10305,7 @@ class DatabaseORM:
             logger.error(f"获取 crypto 捐赠订单总数失败: {e}")
             return 0
 
-    def get_expired_crypto_donation_orders(self) -> List[dict]:
+    def get_expired_crypto_donation_orders(self) -> list[dict]:
         """获取所有已过期但状态仍为等待支付的 crypto 捐赠订单"""
         try:
             with get_session() as session:
@@ -10288,7 +10382,7 @@ class DatabaseORM:
     # SystemConfig 配置管理相关方法
     # ============================================================
 
-    def get_system_config(self, config_type: str, config_key: str) -> Optional[str]:
+    def get_system_config(self, config_type: str, config_key: str) -> str | None:
         """
         获取系统配置
 
@@ -10309,7 +10403,7 @@ class DatabaseORM:
                 return result
         except Exception as e:
             logger.error(
-                f"获取系统配置失败 (type={config_type}, key={config_key}): {str(e)}"
+                f"获取系统配置失败 (type={config_type}, key={config_key}): {e!s}"
             )
             return None
 
@@ -10356,7 +10450,7 @@ class DatabaseORM:
                 return True
         except Exception as e:
             logger.error(
-                f"设置系统配置失败 (type={config_type}, key={config_key}): {str(e)}"
+                f"设置系统配置失败 (type={config_type}, key={config_key}): {e!s}"
             )
             return False
 
@@ -10392,7 +10486,7 @@ class DatabaseORM:
                     return True
         except Exception as e:
             logger.error(
-                f"删除系统配置失败 (type={config_type}, key={config_key}): {str(e)}"
+                f"删除系统配置失败 (type={config_type}, key={config_key}): {e!s}"
             )
             return False
 
@@ -10414,7 +10508,7 @@ class DatabaseORM:
                 results = session.execute(stmt).all()
                 return {row[0]: row[1] for row in results}
         except Exception as e:
-            logger.error(f"获取所有配置失败 (type={config_type}): {str(e)}")
+            logger.error(f"获取所有配置失败 (type={config_type}): {e!s}")
             return {}
 
     # ============================================================
@@ -10452,7 +10546,7 @@ class DatabaseORM:
             logger.info(f"设置免费高级线路成功，共 {len(lines)} 条线路")
             return True
         except Exception as e:
-            logger.error(f"设置免费高级线路失败: {str(e)}")
+            logger.error(f"设置免费高级线路失败: {e!s}")
             return False
 
     def is_free_premium_line(self, line_name: str) -> bool:
@@ -10521,7 +10615,7 @@ class DatabaseORM:
     # 幸运大转盘配置相关方法
     # ============================================================
 
-    def get_lucky_wheel_config(self, config_key: str = "config") -> Optional[str]:
+    def get_lucky_wheel_config(self, config_key: str = "config") -> str | None:
         """
         获取幸运大转盘配置
 
@@ -10550,7 +10644,7 @@ class DatabaseORM:
     # 21 点配置相关方法
     # ============================================================
 
-    def get_blackjack_config(self, config_key: str = "config") -> Optional[str]:
+    def get_blackjack_config(self, config_key: str = "config") -> str | None:
         """
         获取 21 点配置
 
@@ -10743,11 +10837,11 @@ class DatabaseORM:
         tg_id: int,
         service: str,
         line: str,
-        days_of_week: List[int],
+        days_of_week: list[int],
         start_time: str,
         end_time: str,
         priority: int = 0,
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         创建线路调度
 
@@ -10797,9 +10891,9 @@ class DatabaseORM:
     def get_user_line_schedules(
         self,
         tg_id: int,
-        service: Optional[str] = None,
+        service: str | None = None,
         enabled_only: bool = False,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """
         获取用户的线路调度列表
 
@@ -10940,10 +11034,10 @@ class DatabaseORM:
         self,
         tg_id: int,
         service: str,
-        days_of_week: List[int],
+        days_of_week: list[int],
         start_time: str,
         end_time: str,
-        exclude_id: Optional[int] = None,
+        exclude_id: int | None = None,
     ) -> bool:
         """
         检查时间段是否冲突
@@ -11008,7 +11102,7 @@ class DatabaseORM:
             logger.error(f"检查时间冲突失败: {e}")
             return True  # 出错时保守处理，返回冲突
 
-    def get_current_active_schedule(self, tg_id: int, service: str) -> Optional[dict]:
+    def get_current_active_schedule(self, tg_id: int, service: str) -> dict | None:
         """
         获取当前生效的线路调度
 
@@ -11065,7 +11159,7 @@ class DatabaseORM:
 
     def disable_schedules_by_line(
         self, line_name: str, only_non_premium: bool = False
-    ) -> tuple[bool, int, List[dict]]:
+    ) -> tuple[bool, int, list[dict]]:
         """
         禁用指定线路的所有调度，并返回受影响的用户信息
 
@@ -11093,7 +11187,7 @@ class DatabaseORM:
                 premium_users = set()
                 if only_non_premium:
                     # 获取所有相关用户的 tg_id
-                    tg_ids = list(set(schedule.tg_id for schedule in schedules))
+                    tg_ids = list({schedule.tg_id for schedule in schedules})
 
                     # 查询 Plex 用户的 premium 状态
                     plex_stmt = select(PlexUser.tg_id).where(
@@ -11151,7 +11245,7 @@ class DatabaseORM:
             logger.error(f"禁用线路 {line_name} 的调度失败: {e}")
             return False, 0, []
 
-    def get_users_with_line_schedule(self, line_name: str) -> List[dict]:
+    def get_users_with_line_schedule(self, line_name: str) -> list[dict]:
         """
         获取所有使用指定线路调度的用户信息
 
@@ -11229,7 +11323,7 @@ class DatabaseORM:
 
         return result
 
-    def get_badge_center_config(self) -> Tuple[bool, Optional[str]]:
+    def get_badge_center_config(self) -> tuple[bool, str | None]:
         """
         获取勋章中心配置
 
@@ -11242,7 +11336,7 @@ class DatabaseORM:
         return enabled, message
 
     def set_badge_center_config(
-        self, enabled: bool, message: Optional[str] = None
+        self, enabled: bool, message: str | None = None
     ) -> bool:
         """
         设置勋章中心配置
@@ -11273,7 +11367,7 @@ class DatabaseORM:
         bonus_percentage: float,
         valid_days: int = 365,
         is_enabled: int = 1,
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         创建勋章
 
@@ -11305,7 +11399,7 @@ class DatabaseORM:
             logger.error(f"创建勋章失败: {e}")
             return None
 
-    def get_badge_by_id(self, badge_id: int) -> Optional[dict]:
+    def get_badge_by_id(self, badge_id: int) -> dict | None:
         """根据ID获取勋章"""
         try:
             with get_session() as session:
@@ -11320,7 +11414,7 @@ class DatabaseORM:
             logger.error(f"获取勋章失败: {e}")
             return None
 
-    def get_badge_by_type(self, badge_type: str) -> Optional[dict]:
+    def get_badge_by_type(self, badge_type: str) -> dict | None:
         """根据类型获取勋章"""
         try:
             with get_session() as session:
@@ -11335,7 +11429,7 @@ class DatabaseORM:
             logger.error(f"获取勋章失败: {e}")
             return None
 
-    def get_all_badges(self, only_enabled: bool = False) -> List[dict]:
+    def get_all_badges(self, only_enabled: bool = False) -> list[dict]:
         """
         获取所有勋章
 
@@ -11414,9 +11508,7 @@ class DatabaseORM:
             logger.error(f"删除勋章失败: {e}")
             return False
 
-    def redeem_badge(
-        self, tg_id: int, badge_id: int
-    ) -> Tuple[bool, str, Optional[dict]]:
+    def redeem_badge(self, tg_id: int, badge_id: int) -> tuple[bool, str, dict | None]:
         """
         兑换勋章
 
@@ -11498,7 +11590,7 @@ class DatabaseORM:
             logger.error(traceback.format_exc())
             return False, "兑换失败，请稍后重试", None
 
-    def get_user_badges(self, tg_id: int, only_active: bool = True) -> List[dict]:
+    def get_user_badges(self, tg_id: int, only_active: bool = True) -> list[dict]:
         """
         获取用户拥有的勋章
 
@@ -11527,7 +11619,7 @@ class DatabaseORM:
             logger.error(f"获取用户勋章失败: {e}")
             return []
 
-    def get_user_active_badges_with_bonus(self, tg_id: int) -> List[dict]:
+    def get_user_active_badges_with_bonus(self, tg_id: int) -> list[dict]:
         """
         获取用户当前有效的勋章及其加成信息
 
@@ -11749,7 +11841,7 @@ class DatabaseORM:
 
         except Exception as e:
             logger.error(f"扣除积分失败: {e}")
-            return False, f"扣除积分失败: {str(e)}", 0
+            return False, f"扣除积分失败: {e!s}", 0
 
     def get_download_unlocked_users_num(self) -> int:
         """
@@ -11779,7 +11871,7 @@ class DatabaseORM:
     # Tautulli 幽灵会话清理
     # ------------------------------------------------------------------
 
-    def get_logged_ghost_row_ids(self, row_ids: List[int]) -> set:
+    def get_logged_ghost_row_ids(self, row_ids: list[int]) -> set:
         """查询这批 row_id 中已经留档过的部分，用于跳过重复处理"""
         if not row_ids:
             return set()
@@ -11833,7 +11925,7 @@ class DatabaseORM:
             logger.error(f"留档幽灵会话 row_id={record.get('row_id')} 失败: {e}")
             return False
 
-    def get_undeleted_ghost_row_ids(self) -> List[int]:
+    def get_undeleted_ghost_row_ids(self) -> list[int]:
         """取出已留档但尚未确认从 Tautulli 删除的 row_id
 
         用于自愈：留档成功但删除或标记环节失败时，这些记录会停在 deleted=0，
@@ -11850,7 +11942,7 @@ class DatabaseORM:
             logger.error(f"查询未删除的幽灵会话失败: {e}")
             return []
 
-    def mark_ghost_sessions_deleted(self, row_ids: List[int]) -> bool:
+    def mark_ghost_sessions_deleted(self, row_ids: list[int]) -> bool:
         """标记这批记录已从 Tautulli 删除"""
         if not row_ids:
             return True
@@ -11867,7 +11959,7 @@ class DatabaseORM:
             logger.error(f"标记幽灵会话已删除失败: {e}")
             return False
 
-    def get_pending_ghost_compensation(self) -> Dict[str, float]:
+    def get_pending_ghost_compensation(self) -> dict[str, float]:
         """取出尚未计入结算的补偿时长，返回 {plex_user_id: 小时数}
 
         只统计已确认从 Tautulli 删除的记录——没删掉的记录仍会出现在
@@ -11918,16 +12010,13 @@ class DatabaseORM:
     # ==================== Gift Pack Operations ====================
 
     @staticmethod
-    def _gift_pack_reward_label(reward: Dict) -> str:
+    def _gift_pack_reward_label(reward: dict) -> str:
         """把一个奖励项渲染成人类可读的短语，如「100 积分」「7 天 Premium」"""
         reward_type = reward.get("type")
-        if reward_type == "credits":
-            amount = float(reward.get("amount") or 0)
-            text = str(int(amount)) if amount.is_integer() else f"{amount:g}"
-            return f"{text} 积分"
-        if reward_type == "premium_days":
-            return f"{int(reward.get('days') or 0)} 天 Premium"
-        return str(reward_type)
+        meta = GIFT_PACK_REWARD_TYPES.get(reward_type)
+        if meta is None:
+            return str(reward_type)
+        return meta["label"](reward)
 
     @staticmethod
     def _gift_pack_local_date(timestamp: int) -> str:
@@ -11954,7 +12043,7 @@ class DatabaseORM:
             # 到期时间无法解析时退回标记位，避免因脏数据误判为不可领取
             return bool(is_premium)
 
-    def _load_gift_pack_user_context(self, session, tg_id: int) -> Dict:
+    def _load_gift_pack_user_context(self, session, tg_id: int) -> dict:
         """一次性载入资格判定所需的用户状态
 
         列表页要对 N 个礼包逐个判资格，集中载入避免 N 次重复查询。
@@ -11986,17 +12075,422 @@ class DatabaseORM:
         if emby is not None and self._is_premium_active(emby[0], emby[1]):
             premium_services.append("emby")
 
+        badge_ids = set(
+            session.execute(
+                select(UserBadge.badge_id).where(
+                    UserBadge.tg_id == tg_id, UserBadge.is_active == 1
+                )
+            ).scalars()
+        )
+        claimed_pack_ids = set(
+            session.execute(
+                select(GiftPackUserState.pack_id).where(
+                    GiftPackUserState.tg_id == tg_id,
+                    GiftPackUserState.claimed_at.is_not(None),
+                )
+            ).scalars()
+        )
         return {
             "has_stats": credits is not None,
             "credits": float(credits or 0),
             "bound_services": bound_services,
             "premium_services": premium_services,
+            "badge_ids": badge_ids,
+            "claimed_pack_ids": claimed_pack_ids,
+            # This cache belongs to this request/transaction, never to DatabaseORM.
+            "_session": session,
+            "_tg_id": tg_id,
+            "_metric_cache": {},
         }
 
     @staticmethod
+    def _resolve_gift_pack_conditions(pack: GiftPack) -> tuple[list[dict], list[dict]]:
+        """Read new condition JSON, or adapt an unmigrated legacy eligibility row."""
+        audience = json.loads(pack.audience) if pack.audience else []
+        if pack.requirements:
+            requirements = json.loads(pack.requirements)
+        else:
+            legacy = json.loads(pack.eligibility) if pack.eligibility else {}
+            requirements = []
+            if legacy.get("min_credits") is not None:
+                requirements.append({"type": "credits", "min": legacy["min_credits"]})
+            if legacy.get("require_premium"):
+                requirements.append({"type": "premium", "state": "active"})
+            if legacy.get("require_binding"):
+                requirements.append(
+                    {"type": "bound", "service": legacy["require_binding"]}
+                )
+        return audience, requirements
+
+    @staticmethod
+    def _gift_pack_phase_ref(pack: GiftPack, now: int) -> int:
+        """Freeze timestamped tasks at their deadline (or the pack's end)."""
+        return min(int(now), int(pack.task_end_at or pack.end_at))
+
+    @staticmethod
+    def _count_gift_pack_wheel_spins(
+        session, tg_id: int, since: int, until: int, **qualifiers
+    ) -> int:
+        stmt = select(func.count(WheelStats.id)).where(
+            WheelStats.tg_id == tg_id,
+            WheelStats.timestamp >= since,
+            WheelStats.timestamp <= until,
+        )
+        if qualifiers.get("paid_only", True):
+            stmt = stmt.where(WheelStats.source == "paid")
+        return int(session.execute(stmt).scalar_one())
+
+    @staticmethod
+    def _count_gift_pack_blackjack_hands(
+        session, tg_id: int, since: int, until: int, **qualifiers
+    ) -> int | tuple[int, float]:
+        from app import blackjack_engine as engine
+
+        stmt = select(
+            func.count(BlackjackHand.id),
+            func.coalesce(func.sum(BlackjackHand.decisions_total), 0),
+            func.coalesce(func.sum(BlackjackHand.decisions_correct), 0),
+        ).where(
+            BlackjackHand.tg_id == tg_id,
+            BlackjackHand.tournament_id.is_(None),
+            BlackjackHand.status.in_(engine.TERMINAL_STATUSES),
+            BlackjackHand.created_at_ms >= since * 1000,
+            BlackjackHand.created_at_ms <= until * 1000,
+        )
+        if qualifiers.get("min_bet") is not None:
+            stmt = stmt.where(BlackjackHand.bet_credits >= qualifiers["min_bet"])
+        count, total, correct = session.execute(stmt).one()
+        count = int(count)
+        if qualifiers.get("min_accuracy") is None:
+            return count
+        return count, (float(correct) / float(total) * 100 if total else 0.0)
+
+    @staticmethod
+    def _count_gift_pack_treasure_issues(
+        session, tg_id: int, since: int, until: int, **qualifiers
+    ) -> int:
+        return int(
+            session.execute(
+                select(func.count(distinct(TreasureParticipation.issue_id))).where(
+                    TreasureParticipation.tg_id == tg_id,
+                    TreasureParticipation.created_at_ms >= since * 1000,
+                    TreasureParticipation.created_at_ms <= until * 1000,
+                )
+            ).scalar_one()
+        )
+
+    @staticmethod
+    def _count_gift_pack_prediction_bets(
+        session, tg_id: int, since: int, until: int, **qualifiers
+    ) -> int:
+        return int(
+            session.execute(
+                select(func.count(PredictionBet.id)).where(
+                    PredictionBet.tg_id == tg_id,
+                    PredictionBet.created_at >= datetime.fromtimestamp(since, UTC),
+                    PredictionBet.created_at <= datetime.fromtimestamp(until, UTC),
+                )
+            ).scalar_one()
+        )
+
+    @staticmethod
+    def _count_gift_pack_auction_participations(
+        session, tg_id: int, since: int, until: int, **qualifiers
+    ) -> int:
+        return int(
+            session.execute(
+                select(func.count(distinct(AuctionBids.auction_id))).where(
+                    AuctionBids.bidder_id == tg_id,
+                    AuctionBids.bid_time >= since,
+                    AuctionBids.bid_time <= until,
+                )
+            ).scalar_one()
+        )
+
+    @staticmethod
+    def _count_gift_pack_tournament_entries(
+        session, tg_id: int, since: int, until: int, **qualifiers
+    ) -> int:
+        return int(
+            session.execute(
+                select(func.count(BlackjackTournamentEntry.id))
+                .join(
+                    BlackjackTournament,
+                    BlackjackTournamentEntry.tournament_id == BlackjackTournament.id,
+                )
+                .where(
+                    BlackjackTournamentEntry.tg_id == tg_id,
+                    BlackjackTournament.status != 4,
+                    BlackjackTournamentEntry.registered_at_ms >= since * 1000,
+                    BlackjackTournamentEntry.registered_at_ms <= until * 1000,
+                )
+            ).scalar_one()
+        )
+
+    @staticmethod
+    def _count_gift_pack_invitees(
+        session, tg_id: int, since: int, until: int, **qualifiers
+    ) -> int:
+        # Invitations have no event timestamp; only an all-time window is valid.
+        return int(
+            session.execute(
+                select(func.count(distinct(Invitation.used_by))).where(
+                    Invitation.owner == tg_id, Invitation.is_used == 1
+                )
+            ).scalar_one()
+        )
+
+    @staticmethod
+    def _count_gift_pack_watched_hours(
+        session, tg_id: int, since: int, until: int, **qualifiers
+    ) -> float:
+        # Aggregate totals have no history: they deliberately keep growing after task_end_at.
+        plex = session.execute(
+            select(PlexUser.watched_time).where(PlexUser.tg_id == tg_id)
+        ).scalar_one_or_none()
+        emby = session.execute(
+            select(EmbyUser.emby_watched_time).where(EmbyUser.tg_id == tg_id)
+        ).scalar_one_or_none()
+        return float(plex or 0) + float(emby or 0)
+
+    _GIFT_PACK_COUNT_METHODS: ClassVar[dict[str, str]] = {
+        "wheel_spins": "_count_gift_pack_wheel_spins",
+        "blackjack_hands": "_count_gift_pack_blackjack_hands",
+        "treasure_issues": "_count_gift_pack_treasure_issues",
+        "prediction_bets": "_count_gift_pack_prediction_bets",
+        "auction_participations": "_count_gift_pack_auction_participations",
+        "tournament_entries": "_count_gift_pack_tournament_entries",
+        "invitees": "_count_gift_pack_invitees",
+        "watched_hours": "_count_gift_pack_watched_hours",
+    }
+
+    def _gift_pack_metric_value(
+        self, item: dict, ctx: dict, pack: GiftPack, ref: int
+    ) -> int | float | tuple[int, float]:
+        window = item.get("window") or {"kind": "all"}
+        kind = window["kind"]
+        if kind == "pack":
+            since = int(pack.start_at)
+            # A pack's own window has not opened; do not issue a COUNT query.
+            if ref < since:
+                return (0, 0.0) if item.get("min_accuracy") is not None else 0
+        elif kind == "days":
+            since = ref - int(window["days"]) * 86400
+        else:
+            since = 0
+        metric = item["type"]
+        qualifiers = {
+            key: item[key]
+            for key in ("paid_only", "min_bet", "min_accuracy")
+            if key in item
+        }
+        cache_key = (metric, since, ref, tuple(sorted(qualifiers.items())))
+        cache = ctx.setdefault("_metric_cache", {})
+        if cache_key not in cache:
+            method = getattr(self, self._GIFT_PACK_COUNT_METHODS[metric])
+            cache[cache_key] = method(
+                ctx["_session"], ctx["_tg_id"], since, ref, **qualifiers
+            )
+        return cache[cache_key]
+
+    @staticmethod
+    def _gift_pack_condition_label(item: dict) -> str:
+        """Keep all user-facing and admin condition wording in one place."""
+        kind = item["type"]
+        labels = {
+            "wheel_spins": "付费转盘" if item.get("paid_only", True) else "转盘",
+            "blackjack_hands": "21 点",
+            "treasure_issues": "夺宝参与期数",
+            "prediction_bets": "大预言家下注",
+            "auction_participations": "竞拍参与场数",
+            "tournament_entries": "锦标赛参赛",
+            "invitees": "邀请人数",
+            "watched_hours": "累计观看时长（小时）",
+        }
+        if kind in labels:
+            window = item.get("window") or {"kind": "all"}
+            prefix = (
+                "礼包开始后"
+                if window["kind"] == "pack"
+                else f"最近 {window['days']} 天 "
+                if window["kind"] == "days"
+                else ""
+            )
+            suffix = ""
+            if kind == "blackjack_hands" and item.get("min_bet") is not None:
+                suffix = f"（每手 ≥ {_format_gift_pack_number(item['min_bet'])}）"
+            return f"{prefix}{labels[kind]}{suffix}"
+        if kind == "credits":
+            if item.get("max") is not None:
+                if item.get("min") is not None:
+                    return f"积分（{_format_gift_pack_number(item['min'])}–{_format_gift_pack_number(item['max'])}）"
+                return f"积分（不超过 {_format_gift_pack_number(item['max'])}）"
+            return "积分"
+        if kind == "premium":
+            return (
+                "需要 Premium 身份" if item["state"] == "active" else "无 Premium 身份"
+            )
+        if kind == "bound":
+            service = item.get("service", "any")
+            return (
+                f"绑定 {service.capitalize()} 账号"
+                if service != "any"
+                else "绑定 Plex 或 Emby 账号"
+            )
+        if kind == "badge":
+            return f"持有勋章 #{item['badge_id']}"
+        if kind == "claimed_pack":
+            return f"已领取礼包 #{item['pack_id']}"
+        if kind == "user_list":
+            return "包含名单" if item["mode"] == "include" else "排除名单"
+        raise ValueError(f"不支持的礼包条件: {kind}")
+
+    def _evaluate_conditions(
+        self, items: list[dict] | None, ctx: dict, pack: GiftPack, ref: int
+    ) -> tuple[bool, list[dict]]:
+        """Evaluate each condition once, returning eligibility and structured progress."""
+        progress = []
+        all_met = True
+        for item in items or []:
+            if item["type"] == "any_of":
+                # A group contains leaves only; evaluate all leaves for their progress.
+                children = [
+                    self._evaluate_gift_pack_condition(leaf, ctx, pack, ref)
+                    for leaf in item["items"]
+                ]
+                met = any(child["met"] for child in children)
+                progress.append(
+                    {
+                        "type": "any_of",
+                        "label": "任选其一",
+                        "met": met,
+                        "items": children,
+                    }
+                )
+            else:
+                leaf = self._evaluate_gift_pack_condition(item, ctx, pack, ref)
+                met = leaf["met"]
+                progress.append(leaf)
+            all_met = all_met and met
+        return all_met, progress
+
+    def _evaluate_gift_pack_condition(
+        self, item: dict, ctx: dict, pack: GiftPack, ref: int
+    ) -> dict:
+        kind = item["type"]
+        result = {"type": kind, "label": self._gift_pack_condition_label(item)}
+        if kind == "premium":
+            result["met"] = bool(ctx["premium_services"]) == (item["state"] == "active")
+        elif kind == "bound":
+            service = item.get("service", "any")
+            result["met"] = (
+                bool(ctx["bound_services"])
+                if service == "any"
+                else service in ctx["bound_services"]
+            )
+        elif kind == "credits":
+            current = float(ctx["credits"])
+            lower = item.get("min")
+            upper = item.get("max")
+            result.update(
+                met=(lower is None or current >= lower)
+                and (upper is None or current <= upper),
+                current=current,
+                target=lower if lower is not None else upper,
+            )
+        elif kind == "badge":
+            result["met"] = item["badge_id"] in ctx["badge_ids"]
+        elif kind == "claimed_pack":
+            result["met"] = item["pack_id"] in ctx["claimed_pack_ids"]
+        elif kind == "user_list":
+            member = ctx["_tg_id"] in item["tg_ids"]
+            result["met"] = member if item["mode"] == "include" else not member
+        elif kind in self._GIFT_PACK_COUNT_METHODS:
+            value = self._gift_pack_metric_value(item, ctx, pack, ref)
+            accuracy = None
+            if kind == "blackjack_hands" and isinstance(value, tuple):
+                value, accuracy = value
+            target = item["min"]
+            met = value >= target
+            if accuracy is not None:
+                accuracy_target = float(item["min_accuracy"])
+                met = met and accuracy >= accuracy_target
+                result["sub"] = [
+                    {
+                        "label": "准确率",
+                        "current": round(accuracy, 2),
+                        "target": accuracy_target,
+                        "met": accuracy >= accuracy_target,
+                    }
+                ]
+            result.update(met=met, current=value, target=target)
+            if kind not in ("invitees", "watched_hours"):
+                result["window"] = item.get("window") or {"kind": "all"}
+        else:
+            raise ValueError(f"不支持的礼包条件: {kind}")
+        return result
+
+    def _evaluate_gift_pack_audience(
+        self,
+        audience: list[dict] | None,
+        ctx: dict,
+        pack: GiftPack,
+        ref: int,
+        state: GiftPackUserState | None = None,
+    ) -> bool:
+        """List membership is live even when non-list criteria were locked earlier."""
+        lists = [item for item in audience or [] if item["type"] == "user_list"]
+        others = [item for item in audience or [] if item["type"] != "user_list"]
+        listed, _ = self._evaluate_conditions(lists, ctx, pack, ref)
+        if not listed:
+            return False
+        if state is not None and state.audience_locked_at is not None:
+            return True
+        return self._evaluate_conditions(others, ctx, pack, ref)[0]
+
+    def _lock_gift_pack_audience(
+        self,
+        session,
+        pack: GiftPack,
+        tg_id: int,
+        ctx: dict,
+        now: int,
+        state: GiftPackUserState | None = None,
+    ) -> bool:
+        """POST reminder helper: persist non-list audience only during an active phase.
+
+        The read-only list and claim paths must call _evaluate_gift_pack_audience
+        instead; they never create a state row or lock audience membership.
+        """
+        if not pack.is_enabled or self._gift_pack_lifecycle(pack, now) not in (
+            "active",
+            "claim_only",
+        ):
+            return False
+        if state is None:
+            state = session.execute(
+                select(GiftPackUserState).where(
+                    GiftPackUserState.pack_id == pack.id,
+                    GiftPackUserState.tg_id == tg_id,
+                )
+            ).scalar_one_or_none()
+        if state is not None and state.claimed_at is not None:
+            return False
+        audience, _ = self._resolve_gift_pack_conditions(pack)
+        visible = self._evaluate_gift_pack_audience(
+            audience, ctx, pack, self._gift_pack_phase_ref(pack, now), state
+        )
+        if visible and (state is None or state.audience_locked_at is None):
+            if state is None:
+                state = GiftPackUserState(pack_id=pack.id, tg_id=tg_id)
+                session.add(state)
+            state.audience_locked_at = now
+        return visible
+
+    @staticmethod
     def _evaluate_gift_pack_eligibility(
-        eligibility: Optional[Dict], context: Dict
-    ) -> Tuple[bool, List[str]]:
+        eligibility: dict | None, context: dict
+    ) -> tuple[bool, list[str]]:
         """判定用户是否满足礼包的领取资格
 
         :return: (是否满足, 未满足的具体原因列表)
@@ -12004,7 +12498,7 @@ class DatabaseORM:
         if not eligibility:
             return True, []
 
-        reasons: List[str] = []
+        reasons: list[str] = []
 
         min_credits = eligibility.get("min_credits")
         if min_credits is not None and context["credits"] < float(min_credits):
@@ -12020,26 +12514,35 @@ class DatabaseORM:
         if require_binding == "any":
             if not context["bound_services"]:
                 reasons.append("需先绑定 Plex 或 Emby 账号")
-        elif require_binding in ("plex", "emby"):
-            if require_binding not in context["bound_services"]:
-                reasons.append(f"需先绑定 {require_binding.capitalize()} 账号")
+        elif (
+            require_binding in ("plex", "emby")
+            and require_binding not in context["bound_services"]
+        ):
+            reasons.append(f"需先绑定 {require_binding.capitalize()} 账号")
 
         return (not reasons), reasons
 
     def _grant_gift_pack_rewards(
-        self, session, tg_id: int, rewards: List[Dict], context: Dict
-    ) -> Tuple[List[Dict], List[str]]:
+        self, session, tg_id: int, rewards: list[dict], context: dict
+    ) -> tuple[list[dict], list[str], list[str], list[str]]:
         """在调用方的事务内发放全部奖励项
 
-        任一项失败即抛出异常，由调用方回滚整个事务。
+        任一项失败即抛出异常，由调用方回滚整个事务。所有分支都复用调用方的
+        session；媒体服务器同步提交后执行，特权码配置由领取方在最后一次
+        数据库 flush 后、事务提交前写入。
 
-        :return: (发放快照, 待事务提交后同步媒体服务器权限的服务列表)
+        :return: (发放快照,
+                  待事务提交后同步 Premium 媒体服务器权限的服务列表,
+                  待事务提交后同步下载权限到媒体服务器的服务列表,
+                  待事务提交前写入配置的特权邀请码列表)
         """
         # 延迟导入：app.premium 依赖本模块，模块级导入会形成循环
         from app.premium import update_premium_status
 
-        snapshot: List[Dict] = []
-        pending_permission_sync: List[str] = []
+        snapshot: list[dict] = []
+        pending_permission_sync: list[str] = []
+        pending_download_sync: list[str] = []
+        pending_privileged_codes: list[str] = []
 
         for reward in rewards:
             reward_type = reward.get("type")
@@ -12047,17 +12550,7 @@ class DatabaseORM:
 
             if reward_type == "credits":
                 amount = float(reward.get("amount") or 0)
-                stats = (
-                    session.execute(
-                        select(Statistics)
-                        .where(Statistics.tg_id == tg_id)
-                        .with_for_update()
-                    )
-                    .scalars()
-                    .one_or_none()
-                )
-                if not stats:
-                    raise ValueError("用户积分信息不存在")
+                stats = self._lock_gift_pack_stats(session, tg_id)
                 stats.credits = round(float(stats.credits) + amount, 2)
                 snapshot.append(
                     {
@@ -12106,10 +12599,236 @@ class DatabaseORM:
                         )
                         pending_permission_sync.append(service)
 
+            elif reward_type == "wheel_free_spins":
+                snapshot.append(
+                    self._grant_wheel_free_spins_tx(session, tg_id, reward, label)
+                )
+
+            elif reward_type == "tournament_wallet":
+                snapshot.append(
+                    self._grant_tournament_wallet_tx(session, tg_id, reward, label)
+                )
+
+            elif reward_type in ("line_schedule_unlock", "download_unlock"):
+                services = context["bound_services"]
+                if not services:
+                    # 正常情况下已被 require_binding 资格拦住，这里是最后一道防线
+                    raise ValueError("请先绑定媒体账号后再领取")
+                feature = (
+                    "line_schedule"
+                    if reward_type == "line_schedule_unlock"
+                    else "download"
+                )
+                for service in services:
+                    item = self._grant_feature_unlock_tx(
+                        session, tg_id, service, feature
+                    )
+                    item["type"] = reward_type
+                    item["label"] = label
+                    snapshot.append(item)
+                    if feature == "download" and not item.get("skipped"):
+                        pending_download_sync.append(service)
+
+            elif reward_type == "invite_codes":
+                snapshot.append(
+                    self._grant_invite_codes_tx(
+                        session, tg_id, reward, label, pending_privileged_codes
+                    )
+                )
+
             else:
                 raise ValueError(f"不支持的奖励类型: {reward_type}")
 
-        return snapshot, pending_permission_sync
+        return (
+            snapshot,
+            pending_permission_sync,
+            pending_download_sync,
+            pending_privileged_codes,
+        )
+
+    @staticmethod
+    def _lock_gift_pack_stats(session, tg_id: int) -> Statistics:
+        """锁住用户的 Statistics 行（积分与争霸赛余额分支共用）
+
+        锁顺序与既有积分分支一致：先锁礼包，再锁 statistics。
+        """
+        stats = (
+            session.execute(
+                select(Statistics).where(Statistics.tg_id == tg_id).with_for_update()
+            )
+            .scalars()
+            .one_or_none()
+        )
+        if not stats:
+            raise ValueError("用户积分信息不存在")
+        return stats
+
+    @staticmethod
+    def _grant_wheel_free_spins_tx(
+        session, tg_id: int, reward: dict, label: str
+    ) -> dict:
+        """发放礼包来源的免费大转盘机会（source='gift_pack'）
+
+        与 21 点来源写入同一张表：消耗、概览、到期提醒、角标无需改动；
+        周上限、获得通知与对账按 source == 'blackjack' 过滤，不受影响。
+        """
+        count = int(reward.get("count") or 0)
+        expiry_days = int(reward.get("expiry_days") or 0)
+        if count <= 0 or expiry_days <= 0:
+            raise ValueError("免费机会的次数与有效天数必须为正")
+        now_ms = int(time.time() * 1000)
+        expires_at_ms = now_ms + expiry_days * 86400 * 1000
+        for _ in range(count):
+            session.add(
+                LuckywheelFreeSpin(
+                    tg_id=tg_id,
+                    source="gift_pack",
+                    granted_at_ms=now_ms,
+                    expires_at_ms=expires_at_ms,
+                )
+            )
+        session.flush()
+        return {
+            "type": "wheel_free_spins",
+            "label": label,
+            "success": True,
+            "count": count,
+            "days": expiry_days,
+            "expires_at": expires_at_ms // 1000,
+        }
+
+    def _grant_tournament_wallet_tx(
+        self, session, tg_id: int, reward: dict, label: str
+    ) -> dict:
+        """把数额计入争霸赛余额（不计入积分），复用积分分支的行锁"""
+        amount = float(reward.get("amount") or 0)
+        if amount <= 0:
+            raise ValueError("争霸赛余额数量必须为正")
+        stats = self._lock_gift_pack_stats(session, tg_id)
+        stats.tournament_wallet_credits = round(
+            float(stats.tournament_wallet_credits or 0) + amount, 2
+        )
+        return {
+            "type": "tournament_wallet",
+            "label": label,
+            "success": True,
+            "amount": amount,
+            "balance_after": stats.tournament_wallet_credits,
+        }
+
+    # 功能解锁的永久标记列：(模型, 标记列, 解锁时间列)
+    _GIFT_PACK_UNLOCK_COLUMNS: ClassVar[dict] = {
+        ("line_schedule", "plex"): (
+            PlexUser,
+            "line_schedule_unlocked",
+            "line_schedule_unlock_time",
+        ),
+        ("line_schedule", "emby"): (
+            EmbyUser,
+            "line_schedule_unlocked",
+            "line_schedule_unlock_time",
+        ),
+        ("download", "plex"): (PlexUser, "sync_unlocked", "sync_unlock_time"),
+        ("download", "emby"): (EmbyUser, "download_unlocked", "download_unlock_time"),
+    }
+
+    def _grant_feature_unlock_tx(
+        self, session, tg_id: int, service: str, feature: str
+    ) -> dict:
+        """在调用方事务内为一个服务永久解锁线路调度 / 下载权限（只写数据库）
+
+        「已拥有」直接读永久解锁标记列，而不是调 check_download_unlock：
+        后者把 Premium 也算作已解锁，按它判断会让 Premium 用户永远拿不到
+        永久解锁。已永久解锁的服务记为 skipped，不阻断领取。
+        """
+        key = (feature, service)
+        if key not in self._GIFT_PACK_UNLOCK_COLUMNS:
+            raise ValueError(f"不支持的解锁类型: {feature}/{service}")
+        model, flag_col, time_col = self._GIFT_PACK_UNLOCK_COLUMNS[key]
+        feature_name = "线路调度" if feature == "line_schedule" else "下载权限"
+        service_name = service.capitalize()
+
+        user = (
+            session.execute(select(model).where(model.tg_id == tg_id).with_for_update())
+            .scalars()
+            .one_or_none()
+        )
+        if user is None:
+            raise ValueError(f"未找到绑定的 {service_name} 账号")
+
+        if int(getattr(user, flag_col) or 0) == 1:
+            return {
+                "success": True,
+                "service": service,
+                "skipped": "already_unlocked",
+                "message": f"{service_name} 已解锁{feature_name}，本次未变更",
+            }
+
+        setattr(user, flag_col, 1)
+        setattr(user, time_col, int(time.time()))
+        return {
+            "success": True,
+            "service": service,
+            "message": f"{service_name} 已永久解锁{feature_name}",
+        }
+
+    @staticmethod
+    def _grant_invite_codes_tx(
+        session,
+        tg_id: int,
+        reward: dict,
+        label: str,
+        pending_privileged_codes: list[str],
+    ) -> dict:
+        """在调用方事务内为用户生成邀请码（Invitation 行）
+
+        与领取同生共死：事务回滚时不会留下可用的邀请码。
+        uuid4().hex 与既有码同为 32 位十六进制，不会重复。
+        """
+        count = int(reward.get("count") or 0)
+        if count <= 0:
+            raise ValueError("邀请码数量必须为正")
+        privileged = bool(reward.get("privileged"))
+        codes = [uuid4().hex for _ in range(count)]
+        for code in codes:
+            session.add(Invitation(code=code, owner=tg_id, is_used=0))
+        if privileged:
+            pending_privileged_codes.extend(codes)
+        session.flush()
+        return {
+            "type": "invite_codes",
+            "label": label,
+            "success": True,
+            "count": count,
+            "privileged": privileged,
+            "codes": codes,
+        }
+
+    @staticmethod
+    def _persist_privileged_invite_codes(codes: list[str]) -> None:
+        """Persist privileged invitation codes before the claim transaction commits.
+
+        The configuration file is not transactional, so callers intentionally invoke
+        this only after all database writes for the reward batch have succeeded.  A
+        write failure is raised to abort the surrounding database transaction.
+        """
+        if not codes:
+            return
+        with _GIFT_PACK_PRIVILEGED_CODES_LOCK:
+            original_codes = list(settings.PRIVILEGED_CODES)
+            new_codes = original_codes.copy()
+            for code in codes:
+                if code not in new_codes:
+                    new_codes.append(code)
+            settings.PRIVILEGED_CODES[:] = new_codes
+            try:
+                settings.save_config_to_env_file(
+                    {"PRIVILEGED_CODES": ",".join(new_codes)},
+                    raise_on_error=True,
+                )
+            except Exception:
+                settings.PRIVILEGED_CODES[:] = original_codes
+                raise
 
     @staticmethod
     def _gift_pack_lifecycle(pack: GiftPack, now: int) -> str:
@@ -12118,61 +12837,211 @@ class DatabaseORM:
             return "upcoming"
         if now > int(pack.end_at):
             return "ended"
+        if pack.task_end_at is not None and int(pack.task_end_at) < now:
+            return "claim_only"
         return "active"
 
     @staticmethod
-    def _gift_pack_remaining(pack: GiftPack) -> Optional[int]:
+    def _gift_pack_remaining(pack: GiftPack) -> int | None:
         """剩余份数；不限量时返回 None"""
         if pack.total_quantity is None:
             return None
         return max(0, int(pack.total_quantity) - int(pack.claimed_count))
 
+    @staticmethod
+    def _gift_pack_conditions_with_binding(
+        requirements: list[dict], rewards: list[dict]
+    ) -> list[dict]:
+        result = list(requirements or [])
+        if gift_pack_rewards_require_binding(rewards) and not any(
+            item["type"] == "bound" for item in result
+        ):
+            result.append({"type": "bound", "service": "any"})
+        return result
+
+    @staticmethod
+    def _gift_pack_condition_summary(items: list[dict]) -> str:
+        def label(item: dict) -> str:
+            if item["type"] == "any_of":
+                return (
+                    "（" + " 或 ".join(label(child) for child in item["items"]) + "）"
+                )
+            text = DatabaseORM._gift_pack_condition_label(item)
+            target = item.get("min")
+            if target is not None:
+                number = _format_gift_pack_number(target)
+                unit = {
+                    "wheel_spins": " 次",
+                    "blackjack_hands": " 手",
+                    "treasure_issues": " 期",
+                    "prediction_bets": " 次",
+                    "auction_participations": " 场",
+                    "tournament_entries": " 次",
+                    "invitees": " 人",
+                    "watched_hours": " 小时",
+                }.get(item["type"])
+                text += f" {number}{unit}" if unit else f" ≥ {number}"
+            return text
+
+        return " 且 ".join(label(item) for item in items or [])
+
+    @staticmethod
+    def _gift_pack_audience_size(audience: list[dict]) -> int | None:
+        include = [
+            set(item["tg_ids"])
+            for item in audience
+            if item["type"] == "user_list" and item["mode"] == "include"
+        ]
+        if not include:
+            return None
+        members = set.intersection(*include)
+        for item in audience:
+            if item["type"] == "user_list" and item["mode"] == "exclude":
+                members.difference_update(item["tg_ids"])
+        return len(members)
+
+    @staticmethod
+    def _validate_gift_pack_references(
+        session,
+        audience: list[dict],
+        requirements: list[dict],
+        pack_id: int | None = None,
+    ) -> None:
+        def leaves(items):
+            for item in items:
+                if item["type"] == "any_of":
+                    yield from item["items"]
+                else:
+                    yield item
+
+        for item in leaves(audience + requirements):
+            kind = item["type"]
+            if kind == "badge" and session.get(Badge, item["badge_id"]) is None:
+                raise ValueError(f"引用的勋章不存在: {item['badge_id']}")
+            if kind == "claimed_pack":
+                if pack_id is not None and item["pack_id"] == pack_id:
+                    raise ValueError("礼包不能引用自身作为已领取条件")
+                if session.get(GiftPack, item["pack_id"]) is None:
+                    raise ValueError(f"引用的礼包不存在: {item['pack_id']}")
+
+    @staticmethod
+    def _validate_post_start_edit(old: dict, new: dict) -> None:
+        def reject(field: str) -> None:
+            raise ValueError(f"礼包开始后不能修改 {field}；可停用后新建礼包")
+
+        for field in ("start_at", "rewards"):
+            if old[field] != new[field]:
+                reject(field if field == "start_at" else "奖励 rewards")
+
+        def skeleton(items, field):
+            def strip(item):
+                item = dict(item)
+                if field == "audience" and item["type"] == "user_list":
+                    item.pop("tg_ids", None)
+                if field == "requirements":
+                    if item["type"] == "any_of":
+                        item["items"] = [strip(child) for child in item["items"]]
+                    elif (
+                        item["type"] in DatabaseORM._GIFT_PACK_COUNT_METHODS
+                        or item["type"] == "credits"
+                    ):
+                        item.pop("min", None)
+                return item
+
+            return [strip(item) for item in items]
+
+        for field in ("audience", "requirements"):
+            old_items, new_items = old[field], new[field]
+            if skeleton(old_items, field) != skeleton(new_items, field):
+                reject(field)
+            if field == "requirements":
+
+                def targets(items):
+                    for item in items:
+                        if item["type"] == "any_of":
+                            yield from targets(item["items"])
+                        else:
+                            yield item.get("min")
+
+                for before, after in zip(targets(old_items), targets(new_items)):
+                    if before is not None and (after is None or after > before):
+                        reject(field)
+        if new["end_at"] < old["end_at"]:
+            reject("end_at")
+        old_deadline, new_deadline = old["task_end_at"], new["task_end_at"]
+        if (old_deadline is None and new_deadline is not None) or (
+            old_deadline is not None
+            and new_deadline is not None
+            and new_deadline < old_deadline
+        ):
+            reject("task_end_at")
+        old_quantity, new_quantity = old["total_quantity"], new["total_quantity"]
+        if (old_quantity is None and new_quantity is not None) or (
+            old_quantity is not None
+            and new_quantity is not None
+            and new_quantity < old_quantity
+        ):
+            reject("total_quantity")
+
     def create_gift_pack(
         self,
         title: str,
-        rewards: List[Dict],
+        rewards: list[dict],
         start_at: int,
         end_at: int,
-        description: Optional[str] = None,
-        eligibility: Optional[Dict] = None,
-        total_quantity: Optional[int] = None,
+        description: str | None = None,
+        eligibility: dict | None = None,
+        total_quantity: int | None = None,
         max_prompt_count: int = 3,
         is_enabled: bool = True,
-        created_by: Optional[int] = None,
+        created_by: int | None = None,
+        audience: list[dict] | None = None,
+        requirements: list[dict] | None = None,
+        task_end_at: int | None = None,
+        max_task_prompt_count: int = 2,
+        notify_audience_on_start: bool = False,
     ) -> int:
-        """创建礼包，返回礼包 ID
-
-        含 Premium 天数奖励时自动补「至少绑定一个媒体账号」的资格：
-        把它做成显式资格而非发放时的隐式校验，用户在列表里就能看到
-        可行动的提示，且天然不会进入提醒候选。
-        """
+        """Create a pack, normalizing legacy eligibility and binding requirements."""
         if not rewards:
             raise ValueError("礼包至少需要一项奖励")
         if end_at <= start_at:
             raise ValueError("结束时间必须晚于开始时间")
+        if task_end_at is not None and not start_at < task_end_at <= end_at:
+            raise ValueError("任务截止时间必须晚于开始时间且不晚于结束时间")
         if total_quantity is not None and total_quantity <= 0:
             raise ValueError("限量份数必须大于 0")
-
-        eligibility = dict(eligibility) if eligibility else {}
-        if any(r.get("type") == "premium_days" for r in rewards):
-            if not eligibility.get("require_binding"):
-                eligibility["require_binding"] = "any"
-
-        now = int(time.time())
+        audience = list(audience or [])
+        if requirements is None and eligibility:
+            requirements = self._legacy_gift_pack_requirements(eligibility)
+        requirements = self._gift_pack_conditions_with_binding(
+            requirements or [], rewards
+        )
+        if notify_audience_on_start and not any(
+            item["type"] == "user_list" and item["mode"] == "include"
+            for item in audience
+        ):
+            raise ValueError("开启开始通知要求受众顶层包含 include 指定名单")
         with get_session() as session:
+            self._validate_gift_pack_references(session, audience, requirements)
+            now = int(time.time())
             pack = GiftPack(
                 title=title,
                 description=description,
                 rewards=json.dumps(rewards, ensure_ascii=False),
-                eligibility=json.dumps(eligibility, ensure_ascii=False)
-                if eligibility
+                audience=json.dumps(audience, ensure_ascii=False) if audience else None,
+                requirements=json.dumps(requirements, ensure_ascii=False)
+                if requirements
                 else None,
+                eligibility=None,
                 total_quantity=total_quantity,
                 claimed_count=0,
                 start_at=int(start_at),
                 end_at=int(end_at),
+                task_end_at=task_end_at,
                 max_prompt_count=int(max_prompt_count),
-                is_enabled=1 if is_enabled else 0,
+                max_task_prompt_count=int(max_task_prompt_count),
+                notify_audience_on_start=int(bool(notify_audience_on_start)),
+                is_enabled=int(bool(is_enabled)),
                 expiry_notified=0,
                 created_by=created_by,
                 created_at=now,
@@ -12182,74 +13051,113 @@ class DatabaseORM:
             session.flush()
             return int(pack.id)
 
+    @staticmethod
+    def _legacy_gift_pack_requirements(legacy: dict) -> list[dict]:
+        result = []
+        if legacy.get("min_credits") is not None:
+            result.append({"type": "credits", "min": legacy["min_credits"]})
+        if legacy.get("require_premium"):
+            result.append({"type": "premium", "state": "active"})
+        if legacy.get("require_binding"):
+            result.append({"type": "bound", "service": legacy["require_binding"]})
+        return result
+
     def update_gift_pack(self, pack_id: int, **fields) -> bool:
-        """编辑礼包；仅更新传入的字段"""
+        """Merge partial update, enforce post-start monotonicity and references."""
         allowed = {
             "title",
             "description",
             "rewards",
-            "eligibility",
+            "audience",
+            "requirements",
             "total_quantity",
             "start_at",
             "end_at",
+            "task_end_at",
             "max_prompt_count",
+            "max_task_prompt_count",
+            "notify_audience_on_start",
             "is_enabled",
+            "eligibility",
         }
-        updates = {k: v for k, v in fields.items() if k in allowed and v is not None}
-        if not updates:
-            return True
-
+        nullable = {
+            "description",
+            "audience",
+            "requirements",
+            "total_quantity",
+            "task_end_at",
+        }
+        fields = {
+            key: val
+            for key, val in fields.items()
+            if key in allowed and (val is not None or key in nullable)
+        }
         with get_session() as session:
-            pack = (
-                session.execute(select(GiftPack).where(GiftPack.id == pack_id))
-                .scalars()
-                .one_or_none()
-            )
-            if not pack:
+            pack = session.execute(
+                select(GiftPack).where(GiftPack.id == pack_id).with_for_update()
+            ).scalar_one_or_none()
+            if pack is None:
                 raise ValueError("礼包不存在")
-
-            start_at = int(updates.get("start_at", pack.start_at))
-            end_at = int(updates.get("end_at", pack.end_at))
-            if end_at <= start_at:
-                raise ValueError("结束时间必须晚于开始时间")
-
-            rewards = updates.get("rewards")
-            if rewards is not None:
-                if not rewards:
-                    raise ValueError("礼包至少需要一项奖励")
-                # 奖励项变更后重新套用绑定资格：含 Premium 则必须绑定
-                eligibility = updates.get("eligibility")
-                if eligibility is None:
-                    eligibility = (
-                        json.loads(pack.eligibility) if pack.eligibility else {}
-                    )
-                eligibility = dict(eligibility)
-                if any(r.get("type") == "premium_days" for r in rewards):
-                    if not eligibility.get("require_binding"):
-                        eligibility["require_binding"] = "any"
-                updates["eligibility"] = eligibility
-                updates["rewards"] = json.dumps(rewards, ensure_ascii=False)
-
-            if "eligibility" in updates and not isinstance(updates["eligibility"], str):
-                value = updates["eligibility"]
-                updates["eligibility"] = (
-                    json.dumps(value, ensure_ascii=False) if value else None
+            old_audience, old_requirements = self._resolve_gift_pack_conditions(pack)
+            old = {
+                "start_at": int(pack.start_at),
+                "end_at": int(pack.end_at),
+                "task_end_at": pack.task_end_at,
+                "total_quantity": pack.total_quantity,
+                "rewards": json.loads(pack.rewards),
+                "audience": old_audience,
+                "requirements": old_requirements,
+            }
+            if "eligibility" in fields and "requirements" not in fields:
+                fields["requirements"] = self._legacy_gift_pack_requirements(
+                    fields["eligibility"] or {}
                 )
-
-            if "total_quantity" in updates:
-                total_quantity = int(updates["total_quantity"])
-                if total_quantity <= 0:
-                    raise ValueError("限量份数必须大于 0")
-                if total_quantity < int(pack.claimed_count):
-                    raise ValueError(
-                        f"限量份数不能小于已领取份数（已领 {int(pack.claimed_count)} 份）"
+            new = {**old, **{k: v for k, v in fields.items() if k in old}}
+            if not new["rewards"]:
+                raise ValueError("礼包至少需要一项奖励")
+            if new["end_at"] <= new["start_at"]:
+                raise ValueError("结束时间必须晚于开始时间")
+            if new["task_end_at"] is not None and not (
+                new["start_at"] < new["task_end_at"] <= new["end_at"]
+            ):
+                raise ValueError("任务截止时间必须晚于开始时间且不晚于结束时间")
+            if new["total_quantity"] is not None and (
+                new["total_quantity"] <= 0 or new["total_quantity"] < pack.claimed_count
+            ):
+                raise ValueError("限量份数不能小于已领取份数且必须大于 0")
+            new["audience"] = list(new["audience"] or [])
+            new["requirements"] = self._gift_pack_conditions_with_binding(
+                new["requirements"] or [], new["rewards"]
+            )
+            notify = fields.get(
+                "notify_audience_on_start", pack.notify_audience_on_start
+            )
+            if notify and not any(
+                item["type"] == "user_list" and item["mode"] == "include"
+                for item in new["audience"]
+            ):
+                raise ValueError("开启开始通知要求受众顶层包含 include 指定名单")
+            if int(time.time()) >= int(pack.start_at):
+                self._validate_post_start_edit(old, new)
+            self._validate_gift_pack_references(
+                session, new["audience"], new["requirements"], pack_id
+            )
+            for key, value in fields.items():
+                if key not in old and key != "eligibility":
+                    setattr(
+                        pack,
+                        key,
+                        int(bool(value))
+                        if key in ("is_enabled", "notify_audience_on_start")
+                        else value,
                     )
-
-            if "is_enabled" in updates:
-                updates["is_enabled"] = 1 if updates["is_enabled"] else 0
-
-            for key, value in updates.items():
+            for key, value in new.items():
+                if key in ("audience", "requirements"):
+                    value = json.dumps(value, ensure_ascii=False) if value else None
+                elif key == "rewards":
+                    value = json.dumps(value, ensure_ascii=False)
                 setattr(pack, key, value)
+            pack.eligibility = None
             pack.updated_at = int(time.time())
             return True
 
@@ -12289,6 +13197,13 @@ class DatabaseORM:
             if int(claimed) > 0 or int(pack.claimed_count) > 0:
                 raise ValueError("该礼包已有用户领取，只能停用不能删除")
 
+            references = self._gift_pack_referencing_packs(session, pack_id)
+            if references:
+                names = "、".join(f"#{pid} {title}" for pid, title in references)
+                raise ValueError(
+                    f"该礼包被其他礼包的已领取条件引用：{names}；请先移除引用"
+                )
+
             # 仅被提醒过、从未领取的状态行随礼包一并清理
             session.execute(
                 delete(GiftPackUserState).where(GiftPackUserState.pack_id == pack_id)
@@ -12296,69 +13211,111 @@ class DatabaseORM:
             session.delete(pack)
             return True
 
-    def get_gift_pack_by_id(self, pack_id: int) -> Optional[Dict]:
-        """获取单个礼包的原始定义"""
+    def _gift_pack_admin_payload(self, session, pack: GiftPack, now: int) -> dict:
+        audience, requirements = self._resolve_gift_pack_conditions(pack)
+        size = self._gift_pack_audience_size(audience)
+        prompted = session.execute(
+            select(func.count(GiftPackUserState.id)).where(
+                GiftPackUserState.pack_id == pack.id,
+                GiftPackUserState.task_prompt_count > 0,
+            )
+        ).scalar_one()
+        claimed_users = session.execute(
+            select(func.count(GiftPackUserState.id)).where(
+                GiftPackUserState.pack_id == pack.id,
+                GiftPackUserState.claimed_at.is_not(None),
+            )
+        ).scalar_one()
+        dependents = self._gift_pack_referencing_packs(session, pack.id)
+        return {
+            "id": int(pack.id),
+            "title": pack.title,
+            "description": pack.description,
+            "rewards": json.loads(pack.rewards),
+            "audience": audience or None,
+            "requirements": requirements or None,
+            "audience_summary": self._gift_pack_condition_summary(audience),
+            "requirements_summary": self._gift_pack_condition_summary(requirements),
+            "audience_size": size,
+            "claim_rate": round(int(claimed_users) / size * 100, 2) if size else None,
+            "task_prompted_users": int(prompted),
+            "total_quantity": pack.total_quantity,
+            "claimed_count": int(pack.claimed_count),
+            "remaining": self._gift_pack_remaining(pack),
+            "start_at": int(pack.start_at),
+            "end_at": int(pack.end_at),
+            "task_end_at": pack.task_end_at,
+            "max_prompt_count": int(pack.max_prompt_count),
+            "max_task_prompt_count": int(pack.max_task_prompt_count),
+            "notify_audience_on_start": bool(pack.notify_audience_on_start),
+            "is_enabled": bool(pack.is_enabled),
+            "lifecycle": self._gift_pack_lifecycle(pack, now),
+            "can_delete": int(pack.claimed_count) == 0
+            and int(claimed_users) == 0
+            and not dependents,
+            "created_by": pack.created_by,
+            "created_at": int(pack.created_at),
+            "updated_at": int(pack.updated_at),
+        }
+
+    @staticmethod
+    def _gift_pack_referencing_packs(session, pack_id: int) -> list[tuple[int, str]]:
+        """Check references semantically, including any_of, not via JSON substring."""
+        references = []
+        for pack in session.execute(
+            select(GiftPack).where(GiftPack.id != pack_id)
+        ).scalars():
+            audience, requirements = DatabaseORM._resolve_gift_pack_conditions(pack)
+
+            def refers(items):
+                return any(
+                    any(
+                        child["type"] == "claimed_pack" and child["pack_id"] == pack_id
+                        for child in item["items"]
+                    )
+                    if item["type"] == "any_of"
+                    else item["type"] == "claimed_pack" and item["pack_id"] == pack_id
+                    for item in items
+                )
+
+            if refers(audience) or refers(requirements):
+                references.append((int(pack.id), pack.title))
+        return references
+
+    def get_gift_pack_by_id(self, pack_id: int) -> dict | None:
         try:
             with get_session() as session:
-                pack = (
-                    session.execute(select(GiftPack).where(GiftPack.id == pack_id))
-                    .scalars()
-                    .one_or_none()
+                pack = session.get(GiftPack, pack_id)
+                return (
+                    self._gift_pack_admin_payload(session, pack, int(time.time()))
+                    if pack
+                    else None
                 )
-                if not pack:
-                    return None
-                now = int(time.time())
-                return {
-                    "id": int(pack.id),
-                    "title": pack.title,
-                    "description": pack.description,
-                    "rewards": json.loads(pack.rewards),
-                    "eligibility": json.loads(pack.eligibility)
-                    if pack.eligibility
-                    else None,
-                    "total_quantity": pack.total_quantity,
-                    "claimed_count": int(pack.claimed_count),
-                    "remaining": self._gift_pack_remaining(pack),
-                    "start_at": int(pack.start_at),
-                    "end_at": int(pack.end_at),
-                    "max_prompt_count": int(pack.max_prompt_count),
-                    "is_enabled": bool(pack.is_enabled),
-                    "lifecycle": self._gift_pack_lifecycle(pack, now),
-                    "created_by": pack.created_by,
-                    "created_at": int(pack.created_at),
-                    "updated_at": int(pack.updated_at),
-                }
         except Exception as e:
             logger.error(f"获取礼包失败 (pack_id={pack_id}): {e}")
             return None
 
-    def get_gift_packs_for_user(self, tg_id: int) -> List[Dict]:
-        """礼包中心列表：返回与该用户相关的礼包及其对该用户的状态
-
-        「相关」= 所有已启用的礼包，加上该用户已领取过的礼包
-        （后者即使事后被停用，用户仍应能查到自己的领取凭据）。
-        """
+    def get_gift_packs_for_user(self, tg_id: int) -> list[dict]:
+        """Read-only listing; claimed packs remain visible even after audience changes."""
         try:
             with get_session() as session:
                 now = int(time.time())
-                claimed_pack_ids = [
-                    pid
-                    for (pid,) in session.execute(
+                claimed_ids = set(
+                    session.execute(
                         select(GiftPackUserState.pack_id).where(
                             GiftPackUserState.tg_id == tg_id,
-                            GiftPackUserState.claimed_at.isnot(None),
+                            GiftPackUserState.claimed_at.is_not(None),
                         )
-                    ).all()
-                ]
+                    ).scalars()
+                )
                 condition = GiftPack.is_enabled == 1
-                if claimed_pack_ids:
-                    condition = condition | GiftPack.id.in_(claimed_pack_ids)
+                if claimed_ids:
+                    condition = condition | GiftPack.id.in_(claimed_ids)
                 packs = (
                     session.execute(select(GiftPack).where(condition)).scalars().all()
                 )
                 if not packs:
                     return []
-
                 states = {
                     state.pack_id: state
                     for state in session.execute(
@@ -12366,24 +13323,25 @@ class DatabaseORM:
                             GiftPackUserState.tg_id == tg_id,
                             GiftPackUserState.pack_id.in_([p.id for p in packs]),
                         )
-                    )
-                    .scalars()
-                    .all()
+                    ).scalars()
                 }
-                context = self._load_gift_pack_user_context(session, tg_id)
-
-                items: List[Dict] = []
+                ctx = self._load_gift_pack_user_context(session, tg_id)
+                result = []
                 for pack in packs:
-                    rewards = json.loads(pack.rewards)
-                    eligibility = (
-                        json.loads(pack.eligibility) if pack.eligibility else None
-                    )
-                    lifecycle = self._gift_pack_lifecycle(pack, now)
-                    remaining = self._gift_pack_remaining(pack)
                     state = states.get(pack.id)
-
-                    reasons: List[str] = []
-                    if state is not None and state.claimed_at:
+                    claimed = state is not None and state.claimed_at is not None
+                    audience, requirements = self._resolve_gift_pack_conditions(pack)
+                    lifecycle = self._gift_pack_lifecycle(pack, now)
+                    ref = self._gift_pack_phase_ref(pack, now)
+                    if not claimed and not self._evaluate_gift_pack_audience(
+                        audience, ctx, pack, ref, state
+                    ):
+                        continue
+                    remaining = self._gift_pack_remaining(pack)
+                    met, progress = self._evaluate_conditions(
+                        requirements, ctx, pack, ref
+                    )
+                    if claimed:
                         status = "claimed"
                     elif not pack.is_enabled:
                         status = "disabled"
@@ -12394,51 +13352,53 @@ class DatabaseORM:
                     elif remaining is not None and remaining <= 0:
                         status = "sold_out"
                     else:
-                        eligible, reasons = self._evaluate_gift_pack_eligibility(
-                            eligibility, context
-                        )
-                        status = "claimable" if eligible else "ineligible"
-
-                    items.append(
+                        status = "claimable" if met else "in_progress"
+                    result.append(
                         {
                             "id": int(pack.id),
                             "title": pack.title,
                             "description": pack.description,
                             "rewards": [
                                 {
-                                    "type": r.get("type"),
-                                    "amount": r.get("amount"),
-                                    "days": r.get("days"),
+                                    **{
+                                        key: r.get(key)
+                                        for key in (
+                                            "type",
+                                            "amount",
+                                            "days",
+                                            "count",
+                                            "expiry_days",
+                                            "privileged",
+                                        )
+                                    },
                                     "label": self._gift_pack_reward_label(r),
                                 }
-                                for r in rewards
+                                for r in json.loads(pack.rewards)
                             ],
                             "start_at": int(pack.start_at),
                             "end_at": int(pack.end_at),
+                            "task_end_at": pack.task_end_at,
                             "total_quantity": pack.total_quantity,
                             "claimed_count": int(pack.claimed_count),
                             "remaining": remaining,
                             "lifecycle": lifecycle,
                             "status": status,
-                            "ineligible_reasons": reasons,
-                            "claimed_at": int(state.claimed_at)
-                            if state is not None and state.claimed_at
-                            else None,
+                            "requirements": progress,
+                            "task_closed": lifecycle == "claim_only",
+                            "claimed_at": int(state.claimed_at) if claimed else None,
                             "reward_snapshot": json.loads(state.reward_snapshot)
                             if state is not None and state.reward_snapshot
                             else None,
                         }
                     )
-
-                # 进行中排最前，其次未开始，最后已结束；同组内按结束时间由近及远
-                order = {"active": 0, "upcoming": 1, "ended": 2}
-                items.sort(key=lambda x: (order.get(x["lifecycle"], 3), x["end_at"]))
-                return items
+                order = {"active": 0, "claim_only": 0, "upcoming": 1, "ended": 2}
+                result.sort(key=lambda x: (order.get(x["lifecycle"], 3), x["end_at"]))
+                return result
         except Exception as e:
             logger.error(f"获取用户礼包列表失败 (tg_id={tg_id}): {e}")
             return []
 
-    def claim_gift_pack(self, pack_id: int, tg_id: int) -> Dict:
+    def claim_gift_pack(self, pack_id: int, tg_id: int) -> dict:
         """领取礼包
 
         单事务内完成：锁 pack 行 → 校验启用/窗口/余量/资格/未领取 →
@@ -12459,6 +13419,22 @@ class DatabaseORM:
             )
             if not pack:
                 raise ValueError("礼包不存在")
+            # Audience is checked before exposing status, window, or inventory.
+            state = session.execute(
+                select(GiftPackUserState)
+                .where(
+                    GiftPackUserState.pack_id == pack_id,
+                    GiftPackUserState.tg_id == tg_id,
+                )
+                .with_for_update()
+            ).scalar_one_or_none()
+            context = self._load_gift_pack_user_context(session, tg_id)
+            audience, requirements = self._resolve_gift_pack_conditions(pack)
+            ref = self._gift_pack_phase_ref(pack, now)
+            if not self._evaluate_gift_pack_audience(
+                audience, context, pack, ref, state
+            ):
+                raise ValueError("礼包不存在")
             if not pack.is_enabled:
                 raise ValueError("礼包已停用")
             if now < int(pack.start_at):
@@ -12472,36 +13448,27 @@ class DatabaseORM:
             ):
                 raise ValueError("礼包已被领完")
 
-            state = (
-                session.execute(
-                    select(GiftPackUserState)
-                    .where(
-                        GiftPackUserState.pack_id == pack_id,
-                        GiftPackUserState.tg_id == tg_id,
-                    )
-                    .with_for_update()
-                )
-                .scalars()
-                .one_or_none()
-            )
-            if state is not None and state.claimed_at:
+            if state is not None and state.claimed_at is not None:
                 raise ValueError("你已领取过该礼包")
-
-            context = self._load_gift_pack_user_context(session, tg_id)
             if not context["has_stats"]:
                 raise ValueError("用户积分信息不存在")
-
-            eligibility = json.loads(pack.eligibility) if pack.eligibility else None
-            eligible, reasons = self._evaluate_gift_pack_eligibility(
-                eligibility, context
+            eligible, progress = self._evaluate_conditions(
+                requirements, context, pack, ref
             )
             if not eligible:
-                raise ValueError("；".join(reasons) or "不满足领取条件")
+                # Include both the human-readable progress and its structure in the
+                # business error; the claim route currently exposes only detail text.
+                raise ValueError(
+                    f"不满足领取条件；当前进度：{json.dumps(progress, ensure_ascii=False)}"
+                )
 
             rewards = json.loads(pack.rewards)
-            snapshot, pending_permission_sync = self._grant_gift_pack_rewards(
-                session, tg_id, rewards, context
-            )
+            (
+                snapshot,
+                pending_permission_sync,
+                pending_download_sync,
+                pending_privileged_codes,
+            ) = self._grant_gift_pack_rewards(session, tg_id, rewards, context)
 
             pack.claimed_count = int(pack.claimed_count) + 1
             snapshot_json = json.dumps(snapshot, ensure_ascii=False)
@@ -12519,9 +13486,39 @@ class DatabaseORM:
                     )
                 )
 
+            # 所有数据库行已写入且 flush 成功后，才在提交前写特权码配置；
+            # 写入失败抛异常，get_session 回滚积分、邀请码及领取记录。
+            if pending_privileged_codes:
+                session.flush()
+                self._persist_privileged_invite_codes(pending_privileged_codes)
+
             claimed_count = int(pack.claimed_count)
             remaining = self._gift_pack_remaining(pack)
             pack_title = pack.title
+
+        # 事务已提交：把下载权限解锁同步到媒体服务器。失败不回滚领取——数据库
+        # 已记为解锁、是权威状态；在响应条目中说明，并由调用方通知管理员人工处理。
+        # 已持久化的发放快照记录的是数据库状态，不受这里的说明影响
+        download_sync_failed: list[dict] = []
+        for service in pending_download_sync:
+            try:
+                from app.premium import apply_download_unlock_to_media
+
+                apply_download_unlock_to_media(tg_id, service)
+            except Exception as e:
+                logger.error(
+                    f"礼包下载权限解锁同步 {service} 失败 (pack_id={pack_id}, tg_id={tg_id}): {e}"
+                )
+                download_sync_failed.append({"service": service, "error": str(e)})
+                for item in snapshot:
+                    if (
+                        item.get("type") == "download_unlock"
+                        and item.get("service") == service
+                    ):
+                        item["message"] = (
+                            f"{service.capitalize()} 已解锁下载权限，但同步到媒体服务器"
+                            "未完成，管理员将尽快人工处理"
+                        )
 
         # 事务已提交：同步媒体服务器权限（best-effort，失败只告警不影响领取结果）
         for service in pending_permission_sync:
@@ -12535,6 +13532,7 @@ class DatabaseORM:
                 )
 
         return {
+            "success": True,
             "pack_id": int(pack_id),
             "title": pack_title,
             "results": snapshot,
@@ -12543,18 +13541,12 @@ class DatabaseORM:
             "total_quantity": total_quantity,
             "sold_out": total_quantity is not None
             and claimed_count >= int(total_quantity),
+            "download_sync_failed": download_sync_failed,
         }
 
-    def prompt_check_gift_packs(self, tg_id: int) -> List[Dict]:
-        """判定是否该向用户弹出礼包提醒，并在返回的同时记账
-
-        返回非空即表示应弹出一个汇总弹窗。候选条件（D5）：
-        进行中 ∧ 已启用 ∧ 未领取 ∧ 满足资格 ∧ 有余量
-        ∧ prompt_count < max_prompt_count ∧ 今天尚未提醒过。
-
-        空态短路：系统中不存在进行中且启用的礼包时立即返回，不做任何
-        用户维度查询、不写任何行——「当前没有活动」是运营常态。
-        """
+    def prompt_check_gift_packs(self, tg_id: int) -> dict:
+        """POST reminder check: lock audience, then throttle each reminder class separately."""
+        empty = {"packs": [], "task_packs": []}
         try:
             with get_session() as session:
                 now = int(time.time())
@@ -12569,25 +13561,12 @@ class DatabaseORM:
                     .scalars()
                     .all()
                 )
-                # 空态短路：不写库、不查用户
+                # The no-active-pack path must not query the user or write state.
                 if not packs:
-                    return []
-
-                # 有余量的礼包才值得提醒
-                packs = [
-                    p
-                    for p in packs
-                    if p.total_quantity is None
-                    or int(p.claimed_count) < int(p.total_quantity)
-                ]
-                if not packs:
-                    return []
-
-                context = self._load_gift_pack_user_context(session, tg_id)
-                if not context["has_stats"]:
-                    # 无 Statistics 记录的用户无法写入状态行（外键约束），不提醒
-                    return []
-
+                    return empty
+                ctx = self._load_gift_pack_user_context(session, tg_id)
+                if not ctx["has_stats"]:
+                    return empty
                 states = {
                     state.pack_id: state
                     for state in session.execute(
@@ -12595,78 +13574,95 @@ class DatabaseORM:
                             GiftPackUserState.tg_id == tg_id,
                             GiftPackUserState.pack_id.in_([p.id for p in packs]),
                         )
-                    )
-                    .scalars()
-                    .all()
+                    ).scalars()
                 }
                 today = self._gift_pack_local_date(now)
-
-                candidates: List[Dict] = []
+                claimable, tasks = [], []
                 for pack in packs:
                     state = states.get(pack.id)
-                    if state is not None:
-                        if state.claimed_at:
-                            continue
-                        if int(state.prompt_count) >= int(pack.max_prompt_count):
-                            continue
-                        if state.last_prompted_at and (
-                            self._gift_pack_local_date(state.last_prompted_at) == today
-                        ):
-                            continue
-
-                    eligibility = (
-                        json.loads(pack.eligibility) if pack.eligibility else None
-                    )
-                    eligible, _ = self._evaluate_gift_pack_eligibility(
-                        eligibility, context
-                    )
-                    if not eligible:
+                    if state is not None and state.claimed_at is not None:
                         continue
-
-                    # 判定通过即记账：多记一次的后果（少提醒一次）远优于漏记（反复骚扰）
-                    if state is not None:
-                        state.prompt_count = int(state.prompt_count) + 1
-                        state.last_prompted_at = now
-                    else:
-                        session.add(
-                            GiftPackUserState(
-                                pack_id=pack.id,
-                                tg_id=tg_id,
-                                prompt_count=1,
-                                last_prompted_at=now,
+                    # Lock even when sold out or both reminder quotas are exhausted.
+                    if not self._lock_gift_pack_audience(
+                        session, pack, tg_id, ctx, now, state
+                    ):
+                        continue
+                    if state is None:
+                        # _lock_gift_pack_audience inserted this row; autoflush
+                        # before selecting it in the same session.
+                        session.flush()
+                        state = session.execute(
+                            select(GiftPackUserState).where(
+                                GiftPackUserState.pack_id == pack.id,
+                                GiftPackUserState.tg_id == tg_id,
                             )
-                        )
-
-                    rewards = json.loads(pack.rewards)
-                    candidates.append(
-                        {
-                            "id": int(pack.id),
-                            "title": pack.title,
-                            "description": pack.description,
-                            "rewards": [
-                                {
-                                    "type": r.get("type"),
-                                    "amount": r.get("amount"),
-                                    "days": r.get("days"),
-                                    "label": self._gift_pack_reward_label(r),
-                                }
-                                for r in rewards
-                            ],
-                            "end_at": int(pack.end_at),
-                            "total_quantity": pack.total_quantity,
-                            "remaining": self._gift_pack_remaining(pack),
-                        }
+                        ).scalar_one()
+                        states[pack.id] = state
+                    remaining = self._gift_pack_remaining(pack)
+                    if remaining is not None and remaining <= 0:
+                        continue
+                    _, requirements = self._resolve_gift_pack_conditions(pack)
+                    met, progress = self._evaluate_conditions(
+                        requirements, ctx, pack, self._gift_pack_phase_ref(pack, now)
                     )
-
-                return candidates
+                    if met:
+                        count_field, time_field = "prompt_count", "last_prompted_at"
+                        maximum, destination = int(pack.max_prompt_count), claimable
+                    else:
+                        if self._gift_pack_lifecycle(pack, now) != "active":
+                            continue
+                        count_field, time_field = (
+                            "task_prompt_count",
+                            "last_task_prompted_at",
+                        )
+                        maximum, destination = int(pack.max_task_prompt_count), tasks
+                    last = getattr(state, time_field)
+                    if int(getattr(state, count_field) or 0) >= maximum or (
+                        last is not None and self._gift_pack_local_date(last) == today
+                    ):
+                        continue
+                    setattr(
+                        state, count_field, int(getattr(state, count_field) or 0) + 1
+                    )
+                    setattr(state, time_field, now)
+                    rewards = json.loads(pack.rewards)
+                    item = {
+                        "id": int(pack.id),
+                        "title": pack.title,
+                        "description": pack.description,
+                        "rewards": [
+                            {
+                                **{
+                                    key: r.get(key)
+                                    for key in (
+                                        "type",
+                                        "amount",
+                                        "days",
+                                        "count",
+                                        "expiry_days",
+                                        "privileged",
+                                    )
+                                },
+                                "label": self._gift_pack_reward_label(r),
+                            }
+                            for r in rewards
+                        ],
+                        "end_at": int(pack.end_at),
+                        "total_quantity": pack.total_quantity,
+                        "remaining": remaining,
+                    }
+                    if not met:
+                        item["requirements"] = progress
+                    destination.append(item)
+                return {"packs": claimable, "task_packs": tasks}
         except Exception as e:
             logger.error(f"礼包提醒判定失败 (tg_id={tg_id}): {e}")
-            return []
+            return empty
 
     def get_gift_packs_admin(
         self, page: int = 1, page_size: int = 20
-    ) -> Tuple[List[Dict], int]:
-        """管理端礼包列表（按创建时间倒序分页）"""
+    ) -> tuple[list[dict], int]:
+        """Admin list with condition summaries and audience conversion rates."""
         try:
             with get_session() as session:
                 now = int(time.time())
@@ -12681,55 +13677,14 @@ class DatabaseORM:
                     .scalars()
                     .all()
                 )
-                if not packs:
-                    return [], int(total)
-
-                claimed_counts = {
-                    pid: count
-                    for pid, count in session.execute(
-                        select(
-                            GiftPackUserState.pack_id,
-                            func.count(GiftPackUserState.id),
-                        )
-                        .where(
-                            GiftPackUserState.pack_id.in_([p.id for p in packs]),
-                            GiftPackUserState.claimed_at.isnot(None),
-                        )
-                        .group_by(GiftPackUserState.pack_id)
-                    ).all()
-                }
-
-                items = [
-                    {
-                        "id": int(pack.id),
-                        "title": pack.title,
-                        "description": pack.description,
-                        "rewards": json.loads(pack.rewards),
-                        "eligibility": json.loads(pack.eligibility)
-                        if pack.eligibility
-                        else None,
-                        "total_quantity": pack.total_quantity,
-                        "claimed_count": int(pack.claimed_count),
-                        "remaining": self._gift_pack_remaining(pack),
-                        "start_at": int(pack.start_at),
-                        "end_at": int(pack.end_at),
-                        "max_prompt_count": int(pack.max_prompt_count),
-                        "is_enabled": bool(pack.is_enabled),
-                        "lifecycle": self._gift_pack_lifecycle(pack, now),
-                        "can_delete": int(claimed_counts.get(pack.id, 0)) == 0
-                        and int(pack.claimed_count) == 0,
-                        "created_by": pack.created_by,
-                        "created_at": int(pack.created_at),
-                        "updated_at": int(pack.updated_at),
-                    }
-                    for pack in packs
-                ]
-                return items, int(total)
+                return [
+                    self._gift_pack_admin_payload(session, p, now) for p in packs
+                ], int(total)
         except Exception as e:
             logger.error(f"获取礼包管理列表失败: {e}")
             return [], 0
 
-    def get_gift_pack_stats(self, pack_id: int) -> Optional[Dict]:
+    def get_gift_pack_stats(self, pack_id: int) -> dict | None:
         """单个礼包的领取统计：领取人数、被提醒人数、各类奖励发放总量"""
         try:
             with get_session() as session:
@@ -12754,6 +13709,15 @@ class DatabaseORM:
                     )
                 ).scalar_one()
 
+                task_prompted_users = session.execute(
+                    select(func.count(GiftPackUserState.id)).where(
+                        GiftPackUserState.pack_id == pack_id,
+                        GiftPackUserState.task_prompt_count > 0,
+                    )
+                ).scalar_one()
+                audience, _ = self._resolve_gift_pack_conditions(pack)
+                audience_size = self._gift_pack_audience_size(audience)
+
                 # reward_snapshot 是 JSON 文本，聚合只能在 Python 侧做
                 snapshots = [
                     row
@@ -12764,49 +13728,58 @@ class DatabaseORM:
                         )
                     ).all()
                 ]
-                credits_total = 0.0
-                premium_days_total = 0
-                premium_grants = 0
-                premium_skipped = 0
+                aggregates: dict[str, dict] = {}
                 for raw in snapshots:
                     try:
-                        for item in json.loads(raw):
-                            if item.get("type") == "credits":
-                                credits_total += float(item.get("amount") or 0)
-                            elif item.get("type") == "premium_days":
-                                if item.get("skipped"):
-                                    premium_skipped += 1
-                                else:
-                                    premium_days_total += int(item.get("days") or 0)
-                                    premium_grants += 1
+                        items = json.loads(raw)
+                        for item in items:
+                            reward_type = item.get("type")
+                            meta = GIFT_PACK_REWARD_TYPES.get(reward_type)
+                            if meta is None:
+                                continue
+                            entry = aggregates.setdefault(
+                                reward_type,
+                                {
+                                    "type": reward_type,
+                                    "label": meta["stat_label"],
+                                    "total": 0,
+                                    "grants": 0,
+                                    "skipped": 0,
+                                },
+                            )
+                            if item.get("skipped"):
+                                entry["skipped"] += 1
+                                continue
+                            field = meta["stat_field"]
+                            entry["total"] += (
+                                float(item.get(field) or 0) if field else 1
+                            )
+                            entry["grants"] += 1
                     except (ValueError, TypeError) as e:
                         logger.warning(f"解析礼包发放快照失败 (pack_id={pack_id}): {e}")
 
                 reward_totals = []
-                if credits_total:
-                    reward_totals.append(
-                        {
-                            "type": "credits",
-                            "label": "积分",
-                            "total": round(credits_total, 2),
-                        }
-                    )
-                if premium_grants or premium_skipped:
-                    reward_totals.append(
-                        {
-                            "type": "premium_days",
-                            "label": "Premium 天数",
-                            "total": premium_days_total,
-                            "grants": premium_grants,
-                            "skipped_lifetime": premium_skipped,
-                        }
-                    )
+                for reward_type, meta in GIFT_PACK_REWARD_TYPES.items():
+                    entry = aggregates.get(reward_type)
+                    if entry is None:
+                        continue
+                    entry["total"] = round(entry["total"], 2)
+                    if meta["skipped_label"]:
+                        entry["skipped_label"] = meta["skipped_label"]
+                    if reward_type == "premium_days":
+                        entry["skipped_lifetime"] = entry["skipped"]
+                    reward_totals.append(entry)
 
                 return {
                     "pack_id": int(pack.id),
                     "title": pack.title,
                     "claimed_users": int(claimed_users),
                     "prompted_users": int(prompted_users),
+                    "task_prompted_users": int(task_prompted_users),
+                    "audience_size": audience_size,
+                    "claim_rate": round(int(claimed_users) / audience_size * 100, 2)
+                    if audience_size
+                    else None,
                     "total_quantity": pack.total_quantity,
                     "remaining": self._gift_pack_remaining(pack),
                     "reward_totals": reward_totals,
@@ -12815,9 +13788,142 @@ class DatabaseORM:
             logger.error(f"获取礼包统计失败 (pack_id={pack_id}): {e}")
             return None
 
+    def resolve_gift_pack_users(self, text: str) -> dict:
+        """Resolve mixed Telegram IDs and media usernames; never guess ambiguity."""
+        import re
+
+        from app.utils.utils import load_tg_user_info_cache
+
+        tokens = list(dict.fromkeys(t for t in re.split(r"[\s,，]+", text) if t))
+        resolved, unresolved = [], []
+        with get_session() as session:
+            tg_cache = load_tg_user_info_cache()
+            for token in tokens:
+                matches: dict[int, tuple[str, str]] = {}
+                if token.isdecimal():
+                    tg_id = int(token)
+                    if session.get(Statistics, tg_id) is not None:
+                        matches[tg_id] = ("tg_id", str(tg_id))
+                if not matches:
+                    for tg_id, username, email in session.execute(
+                        select(
+                            PlexUser.tg_id, PlexUser.plex_username, PlexUser.plex_email
+                        ).where(
+                            (func.lower(PlexUser.plex_username) == token.lower())
+                            | (func.lower(PlexUser.plex_email) == token.lower())
+                        )
+                    ):
+                        if tg_id is not None:
+                            matches[int(tg_id)] = ("plex", username or email or token)
+                    for tg_id, username in session.execute(
+                        select(EmbyUser.tg_id, EmbyUser.emby_username).where(
+                            func.lower(EmbyUser.emby_username) == token.lower()
+                        )
+                    ):
+                        if tg_id is not None:
+                            matches[int(tg_id)] = ("emby", username)
+                if token.startswith("@") and not matches:
+                    for tg_id, data in tg_cache.items():
+                        if str(data.get("username") or "").lower() == token[1:].lower():
+                            matches[int(tg_id)] = (
+                                "telegram_cache",
+                                data.get("first_name") or token,
+                            )
+                if len(matches) == 1:
+                    tg_id, (by, name) = next(iter(matches.items()))
+                    resolved.append(
+                        {
+                            "token": token,
+                            "tg_id": tg_id,
+                            "matched_by": by,
+                            "display_name": name,
+                        }
+                    )
+                else:
+                    unresolved.append(
+                        {
+                            "token": token,
+                            "reason": "匹配到多个 Telegram 用户"
+                            if matches
+                            else "未找到对应的 Telegram 用户",
+                        }
+                    )
+        return {"resolved": resolved, "unresolved": unresolved}
+
+    def claim_gift_pack_start_dm_candidates(self, limit: int = 200) -> list[dict]:
+        """Reserve active named-pack DMs before returning them to the sender."""
+        if limit <= 0:
+            return []
+        now = int(time.time())
+        result = []
+        with get_session() as session:
+            packs = (
+                session.execute(
+                    select(GiftPack)
+                    .where(
+                        GiftPack.is_enabled == 1,
+                        GiftPack.notify_audience_on_start == 1,
+                        GiftPack.start_at <= now,
+                        GiftPack.end_at >= now,
+                    )
+                    .with_for_update()
+                )
+                .scalars()
+                .all()
+            )
+            for pack in packs:
+                if self._gift_pack_lifecycle(pack, now) != "active":
+                    continue
+                audience, requirements = self._resolve_gift_pack_conditions(pack)
+                includes = [
+                    set(item["tg_ids"])
+                    for item in audience
+                    if item["type"] == "user_list" and item["mode"] == "include"
+                ]
+                if not includes:
+                    continue
+                for tg_id in sorted(set.intersection(*includes)):
+                    if len(result) >= limit:
+                        return result
+                    state = session.execute(
+                        select(GiftPackUserState)
+                        .where(
+                            GiftPackUserState.pack_id == pack.id,
+                            GiftPackUserState.tg_id == tg_id,
+                        )
+                        .with_for_update()
+                    ).scalar_one_or_none()
+                    if state is not None and (
+                        state.claimed_at is not None
+                        or state.start_dm_sent_at is not None
+                    ):
+                        continue
+                    ctx = self._load_gift_pack_user_context(session, tg_id)
+                    if not ctx["has_stats"] or not self._evaluate_gift_pack_audience(
+                        audience, ctx, pack, self._gift_pack_phase_ref(pack, now), None
+                    ):
+                        continue
+                    if state is None:
+                        state = GiftPackUserState(pack_id=pack.id, tg_id=tg_id)
+                        session.add(state)
+                    state.start_dm_sent_at = now
+                    result.append(
+                        {
+                            "pack_id": int(pack.id),
+                            "tg_id": int(tg_id),
+                            "title": pack.title,
+                            "rewards": json.loads(pack.rewards),
+                            "requirements_summary": self._gift_pack_condition_summary(
+                                requirements
+                            ),
+                            "end_at": int(pack.end_at),
+                        }
+                    )
+        return result
+
     def get_gift_pack_claim_records(
         self, pack_id: int, page: int = 1, page_size: int = 20
-    ) -> Tuple[List[Dict], int]:
+    ) -> tuple[list[dict], int]:
         """某礼包的领取记录（按领取时间倒序分页）"""
         try:
             with get_session() as session:
@@ -12856,7 +13962,7 @@ class DatabaseORM:
             logger.error(f"获取礼包领取记录失败 (pack_id={pack_id}): {e}")
             return [], 0
 
-    def get_expired_unnotified_gift_packs(self) -> List[Dict]:
+    def get_expired_unnotified_gift_packs(self) -> list[dict]:
         """扫描已过期且尚未发送汇总通知的礼包
 
         配合 mark_gift_pack_expiry_notified() 使用。用周期扫描而非 date job：

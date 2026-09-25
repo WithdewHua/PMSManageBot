@@ -1,14 +1,10 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-
 import re
 import time
-from builtins import range
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from operator import itemgetter
 
 import pytz
+
 from app.config import settings
 from app.log import logger
 from app.modules.emby import Emby
@@ -73,10 +69,8 @@ EMBY_BODY_TEXT = """
 
 
 def utc_now_iso():
-    """Get current time in ISO format"""
-    utcnow = datetime.utcnow()
-
-    return utcnow.isoformat()
+    """Get current UTC time in the legacy ISO format without an offset."""
+    return datetime.now(UTC).isoformat().removesuffix("+00:00")
 
 
 def hex_to_int(value):
@@ -91,9 +85,9 @@ def sizeof_fmt(num, suffix="B"):
     # Function found https://stackoverflow.com/a/1094933
     for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
         if abs(num) < 1024.0:
-            return "%3.1f%s%s" % (num, unit, suffix)
+            return f"{num:3.1f}{unit}{suffix}"
         num /= 1024.0
-    return "%.1f%s%s" % (num, "Yi", suffix)
+    return f"{num:.1f}Yi{suffix}"
 
 
 def date_split(to_split):
@@ -133,15 +127,15 @@ def get_user_stats(home_stats, stats_type):
                         user_stats_dict, row["friendly_name"], row["total_plays"]
                     )
 
-    idx = 0
-    for user, stat in sorted(user_stats_dict.items(), key=itemgetter(1), reverse=True):
-        idx += 1
+    for idx, (user, stat) in enumerate(
+        sorted(user_stats_dict.items(), key=itemgetter(1), reverse=True), start=1
+    ):
         if stats_type == "duration":
             user_total = timedelta(seconds=stat)
             USER_STATS = USER_STAT.format(user, user_total, idx)
         else:
             USER_STATS = USER_STAT.format(user, stat, idx)
-        user_stats_lst += ["{}".format(USER_STATS)]
+        user_stats_lst += [f"{USER_STATS}"]
 
     return user_stats_lst
 
@@ -172,9 +166,9 @@ def get_most_watched_stats(home_stats, stats_type):
                     )
 
     for media_type, media_dict in stat_id_dict_map.items():
-        idx = 0
-        for media, stat in sorted(media_dict.items(), key=itemgetter(1), reverse=True):
-            idx += 1
+        for idx, (media, stat) in enumerate(
+            sorted(media_dict.items(), key=itemgetter(1), reverse=True), start=1
+        ):
             if stats_type == "duration":
                 total = timedelta(seconds=stat)
                 stat_id_list_map.get(media_type).append(f"{idx}. {media}: {total}")
@@ -247,10 +241,10 @@ def stats_report(
     TODAY = int(time.time())
     DAYS = days
     DAYS_AGO = int(TODAY - DAYS * 24 * 60 * 60)
-    START_DATE = datetime.utcfromtimestamp(DAYS_AGO).strftime(
+    START_DATE = datetime.fromtimestamp(DAYS_AGO, tz=UTC).strftime(
         "%Y-%m-%d"
     )  # DAYS_AGO as YYYY-MM-DD
-    END_DATE = datetime.utcfromtimestamp(TODAY).strftime(
+    END_DATE = datetime.fromtimestamp(TODAY, tz=UTC).strftime(
         "%Y-%m-%d"
     )  # TODAY as YYYY-MM-DD
 
@@ -265,12 +259,8 @@ def stats_report(
     for single_date in daterange(start_date, end_date):
         dates_range_lst += [single_date.strftime("%Y-%m-%d")]
 
-    end = datetime.strptime(time.ctime(float(TODAY)), "%a %b %d %H:%M:%S %Y").strftime(
-        "%a %b %d %Y"
-    )
-    start = datetime.strptime(
-        time.ctime(float(DAYS_AGO)), "%a %b %d %H:%M:%S %Y"
-    ).strftime("%a %b %d %Y")
+    end = time.strftime("%a %b %d %Y", time.localtime(float(TODAY)))
+    start = time.strftime("%a %b %d %Y", time.localtime(float(DAYS_AGO)))
 
     sections_stats = ""
     if all_stats or library_stats:
@@ -283,7 +273,7 @@ def stats_report(
     if all_stats or user_stats or watched_stats:
         home_stats = tautulli_server.get_home_stats(days, stat, top)
         if all_stats or user_stats:
-            logger.info("Checking user stats from {:02d} days ago.".format(days))
+            logger.info(f"Checking user stats from {days:02d} days ago.")
             user_stats_lst = get_user_stats(home_stats, stat)
             user_stats_str = "\n".join(user_stats_lst)
         if all_stats or watched_stats:
@@ -325,7 +315,7 @@ def stats_report(
         )
         body_text += emby_body_text
 
-    logger.debug("Report Body Text:\n{}".format(body_text))
+    logger.debug(f"Report Body Text:\n{body_text}")
 
     return body_text
 

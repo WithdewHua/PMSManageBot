@@ -1,6 +1,16 @@
 from datetime import datetime
 from time import time
 
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    HTTPException,
+    Request,
+    status,
+)
+
 from app.config import settings
 from app.databases import db
 from app.databases.session import get_session
@@ -15,15 +25,6 @@ from app.webapp.schemas import (
     VaultwardenRedeemInfoResponse,
     VaultwardenRedeemRequest,
     VaultwardenRedeemResponse,
-)
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    Body,
-    Depends,
-    HTTPException,
-    Request,
-    status,
 )
 
 # 创建路由器
@@ -115,7 +116,7 @@ async def get_vaultwarden_redeem_info(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取 Vaultwarden 兑换信息失败: {str(e)}")
+        logger.error(f"获取 Vaultwarden 兑换信息失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取 Vaultwarden 兑换信息失败",
@@ -211,7 +212,7 @@ async def redeem_vaultwarden_account(
                 f"成功保存 Vaultwarden 兑换记录: tg_id={user_id}, email={email}"
             )
         except Exception as e:
-            logger.error(f"保存 Vaultwarden 兑换记录失败: {str(e)}")
+            logger.error(f"保存 Vaultwarden 兑换记录失败: {e!s}")
             # 不影响兑换流程，仅记录错误
 
         logger.info(
@@ -239,7 +240,7 @@ async def redeem_vaultwarden_account(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"兑换 Vaultwarden 账户失败: {str(e)}")
+        logger.error(f"兑换 Vaultwarden 账户失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="兑换 Vaultwarden 账户失败",

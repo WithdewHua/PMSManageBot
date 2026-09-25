@@ -64,8 +64,8 @@
                           :key="idx"
                           size="small"
                           variant="tonal"
-                          :color="reward.type === 'credits' ? 'amber-darken-2' : 'deep-purple'"
-                          :prepend-icon="reward.type === 'credits' ? 'mdi-circle-multiple' : 'mdi-crown'"
+                          :color="rewardColor(reward.type)"
+                          :prepend-icon="rewardIcon(reward.type)"
                         >
                           {{ reward.label }}
                         </v-chip>
@@ -85,25 +85,35 @@
                       </div>
                     </div>
 
-                    <v-alert
-                      v-if="pack.status === 'ineligible' && pack.ineligible_reasons.length"
-                      class="mt-3"
-                      type="warning"
-                      variant="tonal"
-                      density="compact"
-                    >
-                      <div v-for="(reason, idx) in pack.ineligible_reasons" :key="idx">{{ reason }}</div>
+                    <v-alert v-if="pack.status === 'upcoming'" class="mt-3" type="info" variant="tonal" density="compact">
+                      {{ formatTime(pack.start_at) }} 开始，开始前不可领取
+                      <div v-if="hasPackWindow(pack.requirements)">“礼包开始后”的任务自礼包开始时才计数，开始前的活动不计入。</div>
                     </v-alert>
+                    <v-alert v-else-if="pack.task_closed || (pack.lifecycle === 'claim_only' && pack.status === 'claimable')" class="mt-3" type="warning" variant="tonal" density="compact">
+                      任务已截止，带时间记录的活动不再计入进度。{{ pack.status === 'claimable' ? '仍可在礼包结束前领取。' : '仍可查看当前条件与进度。' }}
+                    </v-alert>
+                    <v-alert v-else-if="pack.status === 'sold_out'" class="mt-3" type="warning" variant="tonal" density="compact">礼包已领完</v-alert>
+                    <v-alert v-else-if="pack.status === 'disabled'" class="mt-3" type="info" variant="tonal" density="compact">礼包已下架</v-alert>
+                    <v-alert v-else-if="pack.status === 'ended'" class="mt-3" type="info" variant="tonal" density="compact">礼包已结束</v-alert>
 
-                    <v-alert
-                      v-else-if="pack.status === 'upcoming'"
-                      class="mt-3"
-                      type="info"
-                      variant="tonal"
-                      density="compact"
-                    >
-                      {{ formatTime(pack.start_at) }} 开始
-                    </v-alert>
+                    <div v-if="pack.status === 'in_progress' || (pack.status === 'upcoming' && pack.requirements?.length)" class="mt-3">
+                      <div class="text-subtitle-2 mb-2">领取条件与进度</div>
+                      <div v-for="(progress, index) in pack.requirements || []" :key="index" class="gift-pack-progress mb-2">
+                        <template v-if="progress.type === 'any_of'">
+                          <div class="text-body-2 font-weight-medium">任选其一 <v-icon size="small" :color="progress.met ? 'success' : 'warning'">{{ progress.met ? 'mdi-check-circle' : 'mdi-progress-clock' }}</v-icon></div>
+                          <div v-for="(item, subIndex) in progress.items" :key="subIndex" class="ml-3 mt-2">
+                            <div class="text-body-2">{{ item.met ? '✓' : '○' }} {{ item.label }}<span v-if="item.target != null"> {{ item.current ?? 0 }}/{{ item.target }}</span></div>
+                            <v-progress-linear v-if="item.target > 0" :model-value="progressPercent(item)" :color="item.met ? 'success' : 'warning'" rounded height="6" class="mt-1" />
+                            <div v-for="(extra, i) in item.sub || []" :key="i" class="text-caption text-medium-emphasis">{{ extra.label }} {{ extra.current }}/{{ extra.target }}{{ extra.met ? ' ✓' : '' }}</div>
+                          </div>
+                        </template>
+                        <template v-else>
+                          <div class="text-body-2">{{ progress.met ? '✓' : '○' }} {{ progress.label }}<span v-if="progress.target != null"> {{ progress.current ?? 0 }}/{{ progress.target }}</span></div>
+                          <v-progress-linear v-if="progress.target > 0" :model-value="progressPercent(progress)" :color="progress.met ? 'success' : 'warning'" rounded height="6" class="mt-1" />
+                          <div v-for="(extra, i) in progress.sub || []" :key="i" class="text-caption text-medium-emphasis">{{ extra.label }} {{ extra.current }}/{{ extra.target }}{{ extra.met ? ' ✓' : '' }}</div>
+                        </template>
+                      </div>
+                    </div>
 
                     <!-- 已领取：展示本次实际发放内容 -->
                     <div v-if="pack.status === 'claimed'" class="mt-3">
@@ -111,16 +121,12 @@
                       <div class="text-caption text-medium-emphasis mb-2">
                         于 {{ formatTime(pack.claimed_at) }} 领取
                       </div>
-                      <div v-for="(item, idx) in pack.reward_snapshot || []" :key="idx" class="text-body-2 mb-1">
-                        <v-icon
-                          size="small"
-                          class="mr-1"
-                          :color="item.skipped ? 'grey' : 'success'"
-                        >
-                          {{ item.skipped ? 'mdi-minus-circle-outline' : 'mdi-check-circle' }}
-                        </v-icon>
-                        {{ snapshotText(item) }}
-                      </div>
+                      <GiftPackRewardResult
+                        v-for="(item, idx) in pack.reward_snapshot || []"
+                        :key="idx"
+                        :item="item"
+                        @notify="toast"
+                      />
                     </div>
                   </v-card-text>
 
@@ -176,34 +182,12 @@
             </v-card-title>
             <v-divider />
             <v-card-text class="pa-5">
-              <div
+              <GiftPackRewardResult
                 v-for="(item, idx) in claimResult.results"
                 :key="idx"
-                class="d-flex align-start mb-3"
-              >
-                <v-icon
-                  class="mr-2 mt-1"
-                  size="small"
-                  :color="item.skipped ? 'grey' : 'success'"
-                >
-                  {{ item.skipped ? 'mdi-minus-circle-outline' : 'mdi-check-circle' }}
-                </v-icon>
-                <div>
-                  <div class="text-body-2">{{ snapshotText(item) }}</div>
-                  <div v-if="item.new_expiry" class="text-caption text-medium-emphasis">
-                    新到期时间：{{ formatIso(item.new_expiry) }}
-                  </div>
-                </div>
-              </div>
-              <v-alert
-                v-if="hasSkipped"
-                type="info"
-                variant="tonal"
-                density="compact"
-                class="mt-2"
-              >
-                永久会员无需延长 Premium，该部分未生效。
-              </v-alert>
+                :item="item"
+                @notify="toast"
+              />
             </v-card-text>
             <v-card-actions>
               <v-spacer />
@@ -222,9 +206,11 @@
 
 <script>
 import { getGiftPacks, claimGiftPack } from '@/services/giftPackService'
+import GiftPackRewardResult from '@/components/GiftPackRewardResult.vue'
 
 export default {
   name: 'GiftPackDialog',
+  components: { GiftPackRewardResult },
   data() {
     return {
       dialog: false,
@@ -249,9 +235,6 @@ export default {
     // 已结束且该用户未领取的收进折叠区
     missedPacks() {
       return this.packs.filter(p => p.lifecycle === 'ended' && p.status !== 'claimed')
-    },
-    hasSkipped() {
-      return (this.claimResult?.results || []).some(item => item.skipped)
     }
   },
   methods: {
@@ -291,7 +274,7 @@ export default {
       const map = {
         claimable: '可领取',
         claimed: '已领取',
-        ineligible: '条件未满足',
+        in_progress: '未达成',
         sold_out: '已领完',
         ended: '已结束',
         upcoming: '未开始',
@@ -303,7 +286,7 @@ export default {
       const map = {
         claimable: 'pink',
         claimed: 'success',
-        ineligible: 'warning',
+        in_progress: 'warning',
         sold_out: 'grey',
         ended: 'grey',
         upcoming: 'info',
@@ -327,33 +310,27 @@ export default {
         minute: '2-digit'
       })
     },
-    formatIso(iso) {
-      if (!iso) return '-'
-      const d = new Date(iso)
-      if (Number.isNaN(d.getTime())) return iso
-      return d.toLocaleString(undefined, {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
+    rewardColor(type) {
+      return { credits: 'amber-darken-2', wheel_free_spins: 'pink', tournament_wallet: 'teal', invite_codes: 'indigo' }[type] || 'deep-purple'
+    },
+    rewardIcon(type) {
+      return {
+        credits: 'mdi-circle-multiple', premium_days: 'mdi-crown',
+        wheel_free_spins: 'mdi-ticket-confirmation', tournament_wallet: 'mdi-wallet',
+        invite_codes: 'mdi-ticket-account', line_schedule_unlock: 'mdi-calendar-clock',
+        download_unlock: 'mdi-download'
+      }[type] || 'mdi-gift'
     },
     rewardSummary(pack) {
       return (pack.rewards || []).map(r => r.label).join('、')
     },
-    snapshotText(item) {
-      if (item.type === 'premium_days') {
-        const service = (item.service || '').toUpperCase()
-        if (item.skipped === 'lifetime') {
-          return `${service}：永久会员，${item.days} 天 Premium 未生效`
-        }
-        return `${service}：Premium 延长 ${item.days} 天`
-      }
-      if (item.type === 'credits') {
-        return `获得 ${item.amount} 积分`
-      }
-      return item.label || ''
+    progressPercent(item) {
+      return item.target > 0 ? Math.min(100, Math.max(0, Number(item.current || 0) / item.target * 100)) : 0
+    },
+    hasPackWindow(requirements) {
+      return (requirements || []).some(item => item.type === 'any_of'
+        ? (item.items || []).some(child => child.window?.kind === 'pack')
+        : item.window?.kind === 'pack')
     },
     async load() {
       try {
@@ -374,10 +351,18 @@ export default {
         this.claimResult = res.data
         this.resultDialog = true
         await this.load()
-        // 积分/Premium 已变化，通知外部刷新用户信息
+        // 积分、Premium、余额及免费机会可能变化，通知外部刷新用户信息
         this.$emit('claimed', res.data)
       } catch (e) {
-        this.toast(e.response?.data?.detail || '领取失败，请稍后重试', 'error')
+        const detail = e.response?.data?.detail
+        if (detail && typeof detail === 'object' && Array.isArray(detail.requirements)) {
+          // 领取时滑动时间窗可能刚好回落；先展示持锁复核得出的进度。
+          pack.requirements = detail.requirements
+          pack.status = 'in_progress'
+          this.toast(detail.message || '领取条件尚未达成', 'error')
+        } else {
+          this.toast(typeof detail === 'string' ? detail : '领取失败，请稍后重试', 'error')
+        }
         // 失败原因可能是余量或资格变化，刷新列表让用户看到最新状态
         await this.load()
       } finally {
@@ -439,5 +424,9 @@ export default {
 .gift-pack-card__status {
   flex: 0 0 auto;
   white-space: nowrap;
+}
+.gift-pack-progress {
+  border-left: 3px solid rgba(128, 128, 128, 0.25);
+  padding-left: 10px;
 }
 </style>

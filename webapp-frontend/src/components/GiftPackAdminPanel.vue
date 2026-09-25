@@ -181,8 +181,14 @@
                   资格与提醒
                 </div>
                 <div class="config-value">
-                  {{ eligibilitySummary(pack) || '所有人可领' }} · 提醒上限
-                  {{ pack.max_prompt_count }} 次/人
+                  <div>受众：{{ pack.audience_summary || '所有用户' }}</div>
+                  <div>领取条件：{{ pack.requirements_summary || '无额外条件' }}</div>
+                  <div>领取提醒 {{ pack.max_prompt_count }} 次/人 · 任务提醒 {{ pack.max_task_prompt_count }} 次/人</div>
+                  <div v-if="pack.task_end_at">任务截止：{{ formatServerTime(pack.task_end_at) }} {{ TZ_LABEL }}</div>
+                  <div v-if="pack.notify_audience_on_start">名单开始时私信通知</div>
+                  <div v-if="pack.audience_size !== null && pack.audience_size !== undefined">
+                    名单 {{ pack.audience_size }} 人 · 领取率 {{ formatRate(pack.claim_rate) }}
+                  </div>
                 </div>
               </div>
 
@@ -287,7 +293,7 @@
                 size="small"
                 variant="tonal"
                 color="pink-darken-1"
-                :disabled="form.rewards.length >= REWARD_TYPES.length"
+                :disabled="postStarted || form.rewards.length >= REWARD_TYPES.length"
                 @click="addReward"
               >
                 <v-icon size="16" class="mr-1">mdi-plus</v-icon>添加
@@ -316,6 +322,7 @@
                 </v-avatar>
                 <v-select
                   v-model="reward.type"
+                  :disabled="postStarted"
                   :items="availableTypes(index)"
                   item-title="label"
                   item-value="value"
@@ -330,6 +337,7 @@
                 <v-text-field
                   v-if="reward.type === 'credits'"
                   v-model.number="reward.amount"
+                  :readonly="postStarted"
                   label="积分数量"
                   type="number"
                   variant="outlined"
@@ -340,27 +348,97 @@
                 <v-text-field
                   v-else-if="reward.type === 'premium_days'"
                   v-model.number="reward.days"
+                  :readonly="postStarted"
                   label="Premium 天数"
                   type="number"
                   variant="outlined"
                   density="compact"
                   hide-details
                   min="1"
+                  max="3650"
                 />
-                <v-btn icon size="small" color="error" variant="text" @click="removeReward(index)">
+                <template v-else-if="reward.type === 'wheel_free_spins'">
+                  <v-text-field
+                    v-model.number="reward.count"
+                    :readonly="postStarted"
+                    label="免费次数"
+                    type="number"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    min="1"
+                    max="100"
+                  />
+                  <v-text-field
+                    v-model.number="reward.expiry_days"
+                    :readonly="postStarted"
+                    label="有效天数"
+                    type="number"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    min="1"
+                    max="365"
+                  />
+                </template>
+                <v-text-field
+                  v-else-if="reward.type === 'tournament_wallet'"
+                  v-model.number="reward.amount"
+                  :readonly="postStarted"
+                  label="争霸赛余额"
+                  type="number"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  min="0.01"
+                  max="100000"
+                  step="0.01"
+                />
+                <template v-else-if="reward.type === 'invite_codes'">
+                  <v-text-field
+                    v-model.number="reward.count"
+                    :readonly="postStarted"
+                    label="邀请码数量"
+                    type="number"
+                    variant="outlined"
+                    density="compact"
+                    hide-details
+                    min="1"
+                    max="20"
+                  />
+                  <v-switch
+                    v-model="reward.privileged"
+                    :disabled="postStarted"
+                    label="特权码"
+                    color="deep-purple"
+                    density="compact"
+                    hide-details
+                  />
+                </template>
+                <span v-else class="text-caption text-medium-emphasis">永久解锁，无需填写参数</span>
+                <v-btn icon size="small" color="error" variant="text" :disabled="postStarted" @click="removeReward(index)">
                   <v-icon>mdi-delete-outline</v-icon>
                 </v-btn>
               </div>
             </v-card>
 
             <v-alert
-              v-if="hasPremiumReward"
+              v-if="hasBindingReward"
               type="info"
               variant="tonal"
               density="compact"
               class="mt-2"
             >
-              含 Premium 天数奖励：会发放给用户<b>所有已绑定</b>的媒体服务，且系统已自动加上「至少绑定一个媒体账号」的领取资格。
+              含作用于媒体服务的奖励：会发放给用户<b>所有已绑定</b>的媒体服务，且系统已自动加上「至少绑定一个媒体账号」的领取资格。
+            </v-alert>
+            <v-alert
+              v-else-if="form.requirements.some(item => item.type === 'bound')"
+              type="warning"
+              variant="tonal"
+              density="compact"
+              class="mt-2"
+            >
+              当前奖励无需绑定，但领取条件仍包含「绑定账号」。若这是此前自动补充的条件，请在下方领取条件中移除后再保存。
             </v-alert>
           </v-card>
 
@@ -380,6 +458,7 @@
               <v-col cols="12" md="6">
                 <v-text-field
                   v-model="form.startLocal"
+                  :readonly="postStarted"
                   label="开始时间"
                   type="datetime-local"
                   variant="outlined"
@@ -391,6 +470,7 @@
               <v-col cols="12" md="6">
                 <v-text-field
                   v-model="form.endLocal"
+                  :min="postStarted ? originalEndLocal : undefined"
                   label="结束时间"
                   type="datetime-local"
                   variant="outlined"
@@ -400,6 +480,20 @@
                 />
               </v-col>
             </v-row>
+            <v-text-field
+              v-model="form.taskEndLocal"
+              class="mt-3"
+              label="任务截止时间（可选；留空表示任务持续到结束）"
+              type="datetime-local"
+              variant="outlined"
+              density="comfortable"
+              :suffix="TZ_LABEL"
+              :min="postStarted && originalTaskEndLocal ? originalTaskEndLocal : form.startLocal"
+              :disabled="postStarted && !originalTaskEndLocal"
+              clearable
+              hint="必须晚于开始时间且不晚于结束时间；开始后仅可延长或清空"
+              persistent-hint
+            />
           </v-card>
 
           <!-- 限量与提醒 -->
@@ -416,7 +510,8 @@
                   type="number"
                   variant="outlined"
                   density="comfortable"
-                  min="1"
+                  :min="postStarted && originalPack?.total_quantity ? originalPack.total_quantity : 1"
+                  :disabled="postStarted && originalPack?.total_quantity == null"
                   clearable
                   hide-details
                 />
@@ -434,6 +529,25 @@
                 />
               </v-col>
             </v-row>
+            <v-text-field
+              v-model.number="form.max_task_prompt_count"
+              class="mt-3"
+              label="任务提醒次数上限（每人；0 = 不提醒）"
+              type="number"
+              variant="outlined"
+              density="comfortable"
+              min="0"
+              max="100"
+            />
+            <v-switch
+              v-model="form.notify_audience_on_start"
+              label="礼包开始时私信通知指定名单用户"
+              color="primary"
+              density="compact"
+              :disabled="!hasIncludeAudience"
+              hint="仅受众包含“包含名单中的用户”时可开启"
+              persistent-hint
+            />
             <v-switch
               v-model="form.is_enabled"
               label="启用礼包"
@@ -444,50 +558,63 @@
             />
           </v-card>
 
-          <!-- 领取资格 -->
-          <v-card class="setting-card pa-3 pa-sm-4" flat>
-            <div class="d-flex align-center mb-1">
-              <v-icon class="mr-2" size="18" color="deep-purple">mdi-account-check-outline</v-icon>
-              <span class="text-subtitle-2 font-weight-bold">领取资格</span>
-            </div>
-            <div class="text-caption text-medium-emphasis mb-3">
-              全部留空 = 所有人可领
-            </div>
-            <v-row dense>
-              <v-col cols="12" md="6">
-                <v-text-field
-                  v-model.number="form.min_credits"
-                  label="最低积分"
-                  type="number"
-                  variant="outlined"
-                  density="comfortable"
-                  min="0"
-                  clearable
-                  hide-details
-                />
-              </v-col>
-              <v-col cols="12" md="6">
-                <v-select
-                  v-model="form.require_binding"
-                  :items="BINDING_OPTIONS"
-                  item-title="label"
-                  item-value="value"
-                  label="要求绑定媒体账号"
-                  variant="outlined"
-                  density="comfortable"
-                  :hint="hasPremiumReward && !form.require_binding ? '含 Premium 奖励，将自动按「不限服务」生效' : ''"
-                  persistent-hint
-                />
-              </v-col>
-            </v-row>
-            <v-switch
-              v-model="form.require_premium"
-              label="要求 Premium 会员身份"
-              color="deep-purple"
-              density="compact"
-              hide-details
-              class="mt-2"
+          <!-- 受众 / 领取条件：开始后结构锁定，放宽入口在下方 -->
+          <v-card class="setting-card pa-3 pa-sm-4 mb-4" flat>
+            <div class="text-subtitle-2 font-weight-bold mb-2">受众（决定哪些用户能看到礼包）</div>
+            <GiftPackConditionEditor
+              ref="audienceEditor"
+              v-model="form.audience"
+              mode="audience"
+              :readonly="postStarted"
             />
+          </v-card>
+          <v-card class="setting-card pa-3 pa-sm-4 mb-4" flat>
+            <div class="text-subtitle-2 font-weight-bold mb-2">领取条件（未达成者可见进度）</div>
+            <GiftPackConditionEditor
+              ref="requirementsEditor"
+              v-model="form.requirements"
+              mode="requirements"
+              :readonly="postStarted"
+            />
+            <v-alert v-if="hasBindingReward" type="info" variant="tonal" density="compact" class="mt-2">
+              含需绑定奖励时，保存后服务端会自动补充“绑定任一媒体账号”领取条件。
+            </v-alert>
+          </v-card>
+          <v-card v-if="postStarted" class="setting-card pa-3 pa-sm-4" flat>
+            <v-alert type="info" variant="tonal" density="compact" class="mb-3">
+              礼包已开始：奖励、开始时间及条件结构不可修改。这里只能降低目标、调整名单、延长截止时间和增加份数；其他变化可停用后新建礼包。
+            </v-alert>
+            <div v-for="target in relaxableTargets" :key="target.key" class="mb-2">
+              <v-text-field
+                v-model.number="target.condition.min"
+                :label="target.label"
+                type="number"
+                variant="outlined"
+                density="compact"
+                :min="target.type === 'credits' ? 0 : 1"
+                :max="target.original"
+                :step="target.type === 'watched_hours' || target.type === 'credits' ? 'any' : 1"
+                :hint="`原目标 ${target.original}；只能降低，不能提高`"
+                persistent-hint
+              />
+            </div>
+            <div v-for="list in postStartLists" :key="list.index" class="mb-4">
+              <v-textarea
+                v-model="listDrafts[list.index].text"
+                :label="`受众名单 ${list.index + 1}（${list.condition.mode === 'include' ? '包含' : '排除'}）`"
+                hint="粘贴 Telegram ID、Plex/Emby 用户名或邮箱；修改后点击解析名单才能保存"
+                persistent-hint
+                auto-grow
+                rows="2"
+                variant="outlined"
+                @update:model-value="listDrafts[list.index].status = 'dirty'"
+              />
+              <v-btn size="small" variant="tonal" color="primary" :loading="listDrafts[list.index].status === 'loading'" @click="resolvePostStartList(list)">解析名单</v-btn>
+              <v-alert v-if="listDrafts[list.index].error" type="error" density="compact" class="mt-2">{{ listDrafts[list.index].error }}</v-alert>
+              <v-alert v-if="listDrafts[list.index].unresolved.length" type="warning" density="compact" class="mt-2">
+                无法解析：{{ listDrafts[list.index].unresolved.map(item => `${item.token}（${item.reason}）`).join('、') }}
+              </v-alert>
+            </div>
           </v-card>
         </v-card-text>
 
@@ -521,7 +648,7 @@
             <v-col cols="4">
               <v-card class="stat-card pa-3 text-center" flat>
                 <div class="text-h6 font-weight-bold">{{ stats.prompted_users }}</div>
-                <div class="text-caption text-medium-emphasis">被提醒人数</div>
+                 <div class="text-caption text-medium-emphasis">领取提醒人数</div>
               </v-card>
             </v-col>
             <v-col cols="4">
@@ -534,6 +661,10 @@
             </v-col>
           </v-row>
 
+          <div class="config-item mb-2">任务提醒人数：{{ stats.task_prompted_users }}</div>
+          <div v-if="stats.audience_size !== null && stats.audience_size !== undefined" class="config-item mb-2">
+            名单人数：{{ stats.audience_size }} · 领取率：{{ formatRate(stats.claim_rate) }}
+          </div>
           <div class="text-subtitle-2 font-weight-bold mt-4 mb-2">奖励发放总量</div>
           <div v-if="!stats.reward_totals.length" class="text-body-2 text-medium-emphasis">
             暂无发放记录
@@ -632,24 +763,29 @@ import {
   adminSetGiftPackEnabled,
   adminDeleteGiftPack,
   adminGetGiftPackStats,
-  adminGetGiftPackRecords
+  adminGetGiftPackRecords,
+  resolveGiftPackUsers
 } from '@/services/giftPackService'
+import GiftPackConditionEditor from '@/components/GiftPackConditionEditor.vue'
 
 // 服务端时区固定为 UTC+8（见 src/app/config.py 的 settings.TZ）。
 // 管理端按此时区录入与展示，保证后台配置与对外公告口径一致。
 const SERVER_TZ_OFFSET_MINUTES = 8 * 60
 
 const REWARD_TYPES = [
-  { value: 'credits', label: '积分' },
-  { value: 'premium_days', label: 'Premium 天数' }
+  { value: 'credits', label: '积分', defaults: { amount: 100 } },
+  { value: 'premium_days', label: 'Premium 天数', defaults: { days: 7 }, requiresBinding: true },
+  { value: 'wheel_free_spins', label: '大转盘免费机会', defaults: { count: 1, expiry_days: 7 } },
+  { value: 'tournament_wallet', label: '争霸赛余额', defaults: { amount: 50 } },
+  { value: 'invite_codes', label: '邀请码', defaults: { count: 1, privileged: false } },
+  { value: 'line_schedule_unlock', label: '线路调度解锁', defaults: {}, requiresBinding: true },
+  { value: 'download_unlock', label: '下载权限解锁', defaults: {}, requiresBinding: true }
 ]
 
-const BINDING_OPTIONS = [
-  { value: null, label: '不要求' },
-  { value: 'any', label: '不限服务（Plex 或 Emby）' },
-  { value: 'plex', label: '仅 Plex' },
-  { value: 'emby', label: '仅 Emby' }
-]
+function newReward(type) {
+  const definition = REWARD_TYPES.find(item => item.value === type)
+  return { type, ...definition.defaults }
+}
 
 function emptyForm() {
   return {
@@ -658,22 +794,24 @@ function emptyForm() {
     rewards: [{ type: 'credits', amount: 100 }],
     startLocal: '',
     endLocal: '',
+    taskEndLocal: '',
     total_quantity: null,
     max_prompt_count: 3,
+    max_task_prompt_count: 2,
+    notify_audience_on_start: false,
     is_enabled: true,
-    min_credits: null,
-    require_premium: false,
-    require_binding: null
+    audience: [],
+    requirements: []
   }
 }
 
 export default {
   name: 'GiftPackAdminPanel',
+  components: { GiftPackConditionEditor },
   emits: ['changed'],
   data() {
     return {
       REWARD_TYPES,
-      BINDING_OPTIONS,
       TZ_LABEL: 'UTC+8',
 
       loading: false,
@@ -681,6 +819,9 @@ export default {
 
       formDialog: false,
       editingId: null,
+      originalPack: null,
+      postStarted: false,
+      listDrafts: {},
       saving: false,
       form: emptyForm(),
 
@@ -701,12 +842,37 @@ export default {
     }
   },
   computed: {
-    hasPremiumReward() {
-      return this.form.rewards.some(r => r.type === 'premium_days')
+    hasBindingReward() {
+      return this.form.rewards.some(r => REWARD_TYPES.find(t => t.value === r.type)?.requiresBinding)
+    },
+    hasIncludeAudience() {
+      return this.form.audience.some(item => item.type === 'user_list' && item.mode === 'include')
+    },
+    originalEndLocal() {
+      return this.tsToServerLocal(this.originalPack?.end_at)
+    },
+    originalTaskEndLocal() {
+      return this.tsToServerLocal(this.originalPack?.task_end_at)
+    },
+    postStartLists() {
+      return this.form.audience.flatMap((condition, index) => condition.type === 'user_list' ? [{ condition, index }] : [])
+    },
+    relaxableTargets() {
+      const targets = []
+      const countTypes = ['wheel_spins', 'blackjack_hands', 'treasure_issues', 'prediction_bets', 'auction_participations', 'tournament_entries', 'invitees', 'watched_hours']
+      const visit = (condition, original, key) => {
+        if (condition.type === 'any_of') {
+          condition.items.forEach((item, index) => visit(item, original?.items?.[index], `${key}-${index}`))
+        } else if ((condition.type === 'credits' && original?.min != null) || countTypes.includes(condition.type)) {
+          targets.push({ key, condition, original: original?.min, type: condition.type, label: `${condition.type === 'credits' ? '积分最低值' : this.conditionName(condition.type)}（条件 ${key}）` })
+        }
+      }
+      this.form.requirements.forEach((condition, index) => visit(condition, this.originalPack?.requirements?.[index], `${index + 1}`))
+      return targets
     },
     overview() {
       return {
-        active: this.packs.filter(p => p.lifecycle === 'active' && p.is_enabled).length,
+        active: this.packs.filter(p => ['active', 'claim_only'].includes(p.lifecycle) && p.is_enabled).length,
         upcoming: this.packs.filter(p => p.lifecycle === 'upcoming').length,
         claims: this.packs.reduce((sum, p) => sum + (p.claimed_count || 0), 0)
       }
@@ -756,9 +922,13 @@ export default {
     },
 
     rewardLabel(reward) {
+      if (reward.label) return reward.label
       if (reward.type === 'credits') return `${reward.amount} 积分`
       if (reward.type === 'premium_days') return `${reward.days} 天 Premium`
-      return reward.type
+      if (reward.type === 'wheel_free_spins') return `${reward.count} 次大转盘免费机会（${reward.expiry_days} 天有效）`
+      if (reward.type === 'tournament_wallet') return `${reward.amount} 争霸赛余额`
+      if (reward.type === 'invite_codes') return `${reward.count} 枚${reward.privileged ? '特权' : ''}邀请码`
+      return REWARD_TYPES.find(t => t.value === reward.type)?.label || reward.type
     },
     rewardColor(type) {
       return type === 'credits' ? 'amber-darken-2' : 'deep-purple'
@@ -776,19 +946,16 @@ export default {
       return Math.min(100, (pack.claimed_count / pack.total_quantity) * 100)
     },
     lifecycleText(lifecycle) {
-      return { upcoming: '未开始', active: '进行中', ended: '已结束' }[lifecycle] || '未知'
+      return { upcoming: '未开始', active: '进行中', claim_only: '仅可领取', ended: '已结束' }[lifecycle] || '未知'
     },
-    eligibilitySummary(pack) {
-      const e = pack.eligibility
-      if (!e) return ''
-      const parts = []
-      if (e.min_credits) parts.push(`积分 ≥ ${e.min_credits}`)
-      if (e.require_premium) parts.push('Premium 会员')
-      if (e.require_binding) {
-        const option = BINDING_OPTIONS.find(o => o.value === e.require_binding)
-        parts.push(option ? option.label : e.require_binding)
-      }
-      return parts.join('、')
+    formatRate(rate) {
+      if (rate == null) return '-'
+      const value = Number(rate)
+      // The backend already returns a percentage, not a 0–1 fraction.
+      return Number.isFinite(value) ? `${value.toFixed(1)}%` : '-'
+    },
+    conditionName(type) {
+      return { wheel_spins: '大转盘', blackjack_hands: '21 点', treasure_issues: '夺宝', prediction_bets: '大预言家', auction_participations: '竞拍', tournament_entries: '锦标赛', invitees: '邀请人数', watched_hours: '累计观看小时' }[type] || type
     },
 
     // ===== 奖励项动态配置 =====
@@ -801,24 +968,16 @@ export default {
       const taken = this.form.rewards.map(r => r.type)
       const next = REWARD_TYPES.find(t => !taken.includes(t.value))
       if (!next) return
-      this.form.rewards.push(
-        next.value === 'credits'
-          ? { type: 'credits', amount: 100 }
-          : { type: 'premium_days', days: 7 }
-      )
+      this.form.rewards.push(newReward(next.value))
     },
     removeReward(index) {
       this.form.rewards.splice(index, 1)
     },
     onRewardTypeChange(reward) {
-      // 切换类型后清掉另一类型的参数字段，避免提交多余键
-      if (reward.type === 'credits') {
-        delete reward.days
-        if (reward.amount === undefined) reward.amount = 100
-      } else {
-        delete reward.amount
-        if (reward.days === undefined) reward.days = 7
-      }
+      // 不保留旧类型的参数，特别是 credits 与 tournament_wallet 共用 amount。
+      const replacement = newReward(reward.type)
+      Object.keys(reward).forEach(key => delete reward[key])
+      Object.assign(reward, replacement)
     },
 
     async loadPacks() {
@@ -835,6 +994,9 @@ export default {
 
     openCreate() {
       this.editingId = null
+      this.originalPack = null
+      this.postStarted = false
+      this.listDrafts = {}
       this.form = emptyForm()
       const now = Math.floor(Date.now() / 1000)
       this.form.startLocal = this.tsToServerLocal(now)
@@ -843,64 +1005,184 @@ export default {
     },
     openEdit(pack) {
       this.editingId = pack.id
-      const e = pack.eligibility || {}
+      this.originalPack = JSON.parse(JSON.stringify(pack))
+      this.postStarted = Date.now() / 1000 >= pack.start_at
       this.form = {
         title: pack.title,
         description: pack.description || '',
         rewards: JSON.parse(JSON.stringify(pack.rewards || [])),
         startLocal: this.tsToServerLocal(pack.start_at),
         endLocal: this.tsToServerLocal(pack.end_at),
+        taskEndLocal: this.tsToServerLocal(pack.task_end_at),
         total_quantity: pack.total_quantity,
         max_prompt_count: pack.max_prompt_count,
+        max_task_prompt_count: pack.max_task_prompt_count,
+        notify_audience_on_start: !!pack.notify_audience_on_start,
         is_enabled: pack.is_enabled,
-        min_credits: e.min_credits ?? null,
-        require_premium: !!e.require_premium,
-        require_binding: e.require_binding ?? null
+        audience: JSON.parse(JSON.stringify(pack.audience || [])),
+        requirements: JSON.parse(JSON.stringify(pack.requirements || []))
       }
+      this.listDrafts = {}
+      this.form.audience.forEach((item, index) => {
+        if (item.type === 'user_list') {
+          this.listDrafts[index] = { text: (item.tg_ids || []).join('\n'), status: 'resolved', unresolved: [], error: '' }
+        }
+      })
       this.formDialog = true
     },
 
+    async resolvePostStartList(list) {
+      const draft = this.listDrafts[list.index]
+      draft.error = ''
+      draft.unresolved = []
+      if (!draft.text.trim()) {
+        list.condition.tg_ids = []
+        draft.status = 'resolved'
+        return
+      }
+      draft.status = 'loading'
+      try {
+        const response = await resolveGiftPackUsers(draft.text)
+        const result = response.data || {}
+        draft.unresolved = result.unresolved || []
+        if (draft.unresolved.length) {
+          draft.status = 'partial'
+          return
+        }
+        list.condition.tg_ids = [...new Set((result.resolved || []).map(item => Number(item.tg_id)))]
+        draft.status = 'resolved'
+      } catch (error) {
+        draft.status = 'failed'
+        draft.error = this.extractError(error, '解析名单失败')
+      }
+    },
+    validInteger(value, min, max) {
+      return Number.isInteger(value) && value >= min && value <= max
+    },
+    // 编辑已开始礼包时，仅目标值与名单成员可变；不依赖只读控件作为唯一防线。
+    validatePostStart(payload) {
+      const old = this.originalPack
+      if (JSON.stringify(payload.rewards) !== JSON.stringify(old.rewards) || payload.start_at !== old.start_at) {
+        throw new Error('礼包开始后不能修改奖励或开始时间；可停用后新建礼包')
+      }
+      if (payload.end_at < old.end_at) throw new Error('结束时间只能延长')
+      if (old.task_end_at == null && payload.task_end_at != null) throw new Error('礼包开始后不能新增任务截止时间')
+      if (old.task_end_at != null && payload.task_end_at != null && payload.task_end_at < old.task_end_at) {
+        throw new Error('任务截止时间只能延长或清空')
+      }
+      if (old.total_quantity == null && payload.total_quantity != null) throw new Error('不限量礼包不能改为限量')
+      if (old.total_quantity != null && payload.total_quantity != null && payload.total_quantity < old.total_quantity) {
+        throw new Error('限量份数只能增加或改为不限量')
+      }
+      if (Object.values(this.listDrafts).some(draft => draft.status !== 'resolved')) {
+        throw new Error('名单已修改，请解析并处理所有无法解析的标识后保存')
+      }
+      const structure = (items, stripTargets) => (items || []).map(item => {
+        if (item.type === 'any_of') return { ...item, items: structure(item.items, stripTargets) }
+        const copy = { ...item }
+        if (item.type === 'user_list') delete copy.tg_ids
+        if (stripTargets && (item.type === 'credits' || this.isCountType(item.type))) delete copy.min
+        return copy
+      })
+      if (JSON.stringify(structure(payload.audience, false)) !== JSON.stringify(structure(old.audience, false))) {
+        throw new Error('开始后仅可增删指定名单成员，不可修改其他受众条件')
+      }
+      if (JSON.stringify(structure(payload.requirements, true)) !== JSON.stringify(structure(old.requirements, true))) {
+        throw new Error('开始后不可更改领取条件结构或非目标参数；可停用后新建礼包')
+      }
+      for (const target of this.relaxableTargets) {
+        const raw = target.condition.min
+        const value = Number(raw)
+        const valid = raw !== null && raw !== undefined && raw !== '' && (target.type === 'credits' ? value >= 0 : value > 0 && (target.type === 'watched_hours' || Number.isInteger(value)))
+        if (!Number.isFinite(value) || !valid || value > Number(target.original)) {
+          throw new Error(`${target.label}只能降低至有效目标值，原目标为 ${target.original}`)
+        }
+      }
+    },
+    isCountType(type) {
+      return ['wheel_spins', 'blackjack_hands', 'treasure_issues', 'prediction_bets', 'auction_participations', 'tournament_entries', 'invitees', 'watched_hours'].includes(type)
+    },
     buildPayload() {
-      const startAt = this.serverLocalToTs(this.form.startLocal)
-      const endAt = this.serverLocalToTs(this.form.endLocal)
+      const startAt = this.postStarted && this.form.startLocal === this.tsToServerLocal(this.originalPack.start_at)
+        ? this.originalPack.start_at : this.serverLocalToTs(this.form.startLocal)
+      const endAt = this.postStarted && this.form.endLocal === this.originalEndLocal
+        ? this.originalPack.end_at : this.serverLocalToTs(this.form.endLocal)
+      const taskEndAt = this.postStarted && this.form.taskEndLocal === this.originalTaskEndLocal
+        ? this.originalPack.task_end_at : this.serverLocalToTs(this.form.taskEndLocal)
       if (!this.form.title?.trim()) throw new Error('请填写标题')
       if (!this.form.rewards.length) throw new Error('至少需要配置一项奖励')
       if (!startAt || !endAt) throw new Error('请填写完整的时间窗')
       if (endAt <= startAt) throw new Error('结束时间必须晚于开始时间')
+      if (taskEndAt != null && (taskEndAt <= startAt || taskEndAt > endAt)) {
+        throw new Error('任务截止时间必须晚于开始时间且不晚于结束时间')
+      }
+      if (this.form.total_quantity != null && !this.validInteger(this.form.total_quantity, 1, Number.MAX_SAFE_INTEGER)) {
+        throw new Error('限量份数必须是正整数')
+      }
+      if (!this.validInteger(this.form.max_prompt_count, 1, 100) || !this.validInteger(this.form.max_task_prompt_count, 0, 100)) {
+        throw new Error('领取提醒须为 1–100 次，任务提醒须为 0–100 次')
+      }
+      if (this.form.notify_audience_on_start && !this.hasIncludeAudience) {
+        throw new Error('开启开始通知前，请在受众顶层配置“包含”指定名单')
+      }
+      for (const ref of ['audienceEditor', 'requirementsEditor']) {
+        const errors = this.$refs[ref]?.validationErrors || []
+        if (errors.length) throw new Error(errors.join('；'))
+      }
 
+      if (new Set(this.form.rewards.map(r => r.type)).size !== this.form.rewards.length) {
+        throw new Error('同一礼包不能配置重复的奖励类型')
+      }
       for (const reward of this.form.rewards) {
-        if (reward.type === 'credits' && !(reward.amount > 0)) {
+        if (reward.type === 'credits' && !(Number.isFinite(reward.amount) && reward.amount > 0)) {
           throw new Error('积分数量必须大于 0')
         }
-        if (reward.type === 'premium_days' && !(reward.days > 0)) {
-          throw new Error('Premium 天数必须大于 0')
+        if (reward.type === 'premium_days' && !this.validInteger(reward.days, 1, 3650)) {
+          throw new Error('Premium 天数必须为 1–3650 的整数')
+        }
+        if (reward.type === 'wheel_free_spins' &&
+          (!this.validInteger(reward.count, 1, 100) || !this.validInteger(reward.expiry_days, 1, 365))) {
+          throw new Error('免费机会次数须为 1–100，有效天数须为 1–365 的整数')
+        }
+        if (reward.type === 'tournament_wallet' &&
+          !(Number.isFinite(reward.amount) && reward.amount > 0 && reward.amount <= 100000)) {
+          throw new Error('争霸赛余额须大于 0 且不超过 100000')
+        }
+        if (reward.type === 'invite_codes' && !this.validInteger(reward.count, 1, 20)) {
+          throw new Error('邀请码数量必须为 1–20 的整数')
         }
       }
 
-      const eligibility = {
-        min_credits: this.form.min_credits > 0 ? this.form.min_credits : null,
-        require_premium: !!this.form.require_premium,
-        require_binding: this.form.require_binding || null
-      }
-      const hasEligibility =
-        eligibility.min_credits !== null ||
-        eligibility.require_premium ||
-        eligibility.require_binding !== null
-
-      return {
+      const payload = {
         title: this.form.title.trim(),
         description: this.form.description?.trim() || null,
         rewards: this.form.rewards,
-        eligibility: hasEligibility ? eligibility : null,
-        total_quantity: this.form.total_quantity > 0 ? this.form.total_quantity : null,
+        audience: this.form.audience.length ? this.form.audience : null,
+        requirements: this.form.requirements.length ? this.form.requirements : null,
+        total_quantity: this.form.total_quantity,
         start_at: startAt,
         end_at: endAt,
-        max_prompt_count: this.form.max_prompt_count || 3,
+        task_end_at: taskEndAt,
+        max_prompt_count: this.form.max_prompt_count,
+        max_task_prompt_count: this.form.max_task_prompt_count,
+        notify_audience_on_start: !!this.form.notify_audience_on_start,
         is_enabled: !!this.form.is_enabled
       }
+      if (!this.postStarted) return payload
+      this.validatePostStart(payload)
+      // 部分更新保留旧值的原始精度及后端条件适配结果。
+      const changes = { title: payload.title, description: payload.description, max_prompt_count: payload.max_prompt_count,
+        max_task_prompt_count: payload.max_task_prompt_count, notify_audience_on_start: payload.notify_audience_on_start,
+        is_enabled: payload.is_enabled }
+      for (const field of ['end_at', 'task_end_at', 'total_quantity', 'audience', 'requirements']) {
+        if (JSON.stringify(payload[field]) !== JSON.stringify(this.originalPack[field] ?? null)) changes[field] = payload[field]
+      }
+      return changes
     },
 
     async save() {
+      // 对话框可能在礼包开始前打开、开始后才保存；按实际时间重新锁定编辑范围。
+      if (this.originalPack && Date.now() / 1000 >= this.originalPack.start_at) this.postStarted = true
       let payload
       try {
         payload = this.buildPayload()
@@ -1053,9 +1335,13 @@ export default {
   min-height: 64px;
 }
 
-/* 卡头按生命周期换色：进行中粉紫、未开始蓝、已结束灰 */
+/* 卡头按生命周期换色：进行中粉紫、仅可领取紫、未开始蓝、已结束灰 */
 .config-card-header--active {
   background: linear-gradient(135deg, #ec407a 0%, #7e57c2 100%);
+}
+
+.config-card-header--claim_only {
+  background: linear-gradient(135deg, #7e57c2 0%, #5e35b1 100%);
 }
 
 .config-card-header--upcoming {

@@ -1,10 +1,11 @@
-from app.config import settings
-from app.utils.utils import SingletonMeta
 from apscheduler.executors.asyncio import AsyncIOExecutor
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+from app.config import settings
+from app.utils.utils import SingletonMeta
 
 
 class Scheduler(metaclass=SingletonMeta):

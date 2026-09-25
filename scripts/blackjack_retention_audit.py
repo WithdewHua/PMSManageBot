@@ -35,6 +35,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 
+from sqlalchemy import func, select  # noqa: E402
+
 from app.config import settings  # noqa: E402
 from app.databases.session import get_session  # noqa: E402
 from app.models.models import (  # noqa: E402
@@ -44,7 +46,6 @@ from app.models.models import (  # noqa: E402
     Statistics,
     WheelStats,
 )
-from sqlalchemy import func, select  # noqa: E402
 
 settings.load_config_from_file()
 
@@ -110,7 +111,9 @@ def audit_counters() -> bool:
             grants = (
                 session.execute(
                     select(func.count(LuckywheelFreeSpin.id)).where(
-                        LuckywheelFreeSpin.tg_id == tg_id
+                        LuckywheelFreeSpin.tg_id == tg_id,
+                        # 只统计 21 点来源：礼包等其他来源与手数进度无关
+                        LuckywheelFreeSpin.source == "blackjack",
                     )
                 )
             ).scalar_one()
@@ -205,6 +208,8 @@ def weekly_report(weeks: int) -> None:
             grants = int(
                 session.execute(
                     select(func.count(LuckywheelFreeSpin.id)).where(
+                        # 让利率只核算 21 点来源的发放
+                        LuckywheelFreeSpin.source == "blackjack",
                         LuckywheelFreeSpin.granted_at_ms >= ws,
                         LuckywheelFreeSpin.granted_at_ms < we,
                     )

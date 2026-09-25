@@ -1,4 +1,5 @@
 import requests
+
 from app.config import settings
 
 

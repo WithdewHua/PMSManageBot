@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-#
-
 import logging
 from datetime import datetime
 from logging.handlers import RotatingFileHandler

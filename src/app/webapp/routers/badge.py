@@ -1,4 +1,4 @@
-from typing import List
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 
 from app.databases import db
 from app.log import uvicorn_logger as logger
@@ -17,7 +17,6 @@ from app.webapp.schemas.badge import (
     BadgeUpdate,
     UserBadgeResponse,
 )
-from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 
 # 创建路由器
 router = APIRouter(
@@ -39,7 +38,7 @@ async def get_badge_center_config(
         enabled, message = db.get_badge_center_config()
         return BadgeCenterConfigResponse(enabled=enabled, message=message)
     except Exception as e:
-        logger.error(f"获取勋章中心配置失败: {str(e)}")
+        logger.error(f"获取勋章中心配置失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取勋章中心配置失败",
@@ -75,7 +74,7 @@ async def update_badge_center_config(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"更新勋章中心配置失败: {str(e)}")
+        logger.error(f"更新勋章中心配置失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="更新勋章中心配置失败",
@@ -131,7 +130,7 @@ async def get_badges_list(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取勋章列表失败: {str(e)}")
+        logger.error(f"获取勋章列表失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取勋章列表失败",
@@ -195,14 +194,14 @@ async def redeem_badge(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"兑换勋章失败: {str(e)}")
+        logger.error(f"兑换勋章失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="兑换勋章失败",
         )
 
 
-@router.get("/my-badges", response_model=List[UserBadgeResponse])
+@router.get("/my-badges", response_model=list[UserBadgeResponse])
 @require_telegram_auth
 async def get_my_badges(
     request: Request, telegram_user: TelegramUser = Depends(get_telegram_user)
@@ -215,14 +214,14 @@ async def get_my_badges(
         user_badges = db.get_user_badges(user_id, only_active=True)
         return [UserBadgeResponse.model_validate(ub) for ub in user_badges]
     except Exception as e:
-        logger.error(f"获取用户勋章失败: {str(e)}")
+        logger.error(f"获取用户勋章失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取用户勋章失败",
         )
 
 
-@router.get("/user/{tg_id}/badges", response_model=List[UserBadgeResponse])
+@router.get("/user/{tg_id}/badges", response_model=list[UserBadgeResponse])
 @require_telegram_auth
 async def get_user_badges_by_id(
     request: Request,
@@ -236,7 +235,7 @@ async def get_user_badges_by_id(
         user_badges = db.get_user_badges(tg_id, only_active=True)
         return [UserBadgeResponse.model_validate(ub) for ub in user_badges]
     except Exception as e:
-        logger.error(f"获取用户勋章失败: {str(e)}")
+        logger.error(f"获取用户勋章失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取用户勋章失败",
@@ -279,7 +278,7 @@ async def admin_create_badge(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"创建勋章失败: {str(e)}")
+        logger.error(f"创建勋章失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="创建勋章失败",
@@ -318,14 +317,14 @@ async def admin_update_badge(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"更新勋章失败: {str(e)}")
+        logger.error(f"更新勋章失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="更新勋章失败",
         )
 
 
-@router.get("/all", response_model=List[BadgeResponse])
+@router.get("/all", response_model=list[BadgeResponse])
 @require_telegram_auth
 async def admin_get_all_badges(
     request: Request, telegram_user: TelegramUser = Depends(get_telegram_user)
@@ -340,7 +339,7 @@ async def admin_get_all_badges(
         badges = db.get_all_badges(only_enabled=False)
         return [BadgeResponse.model_validate(b) for b in badges]
     except Exception as e:
-        logger.error(f"获取所有勋章失败: {str(e)}")
+        logger.error(f"获取所有勋章失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取所有勋章失败",
@@ -371,7 +370,7 @@ async def admin_delete_badge(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"删除勋章失败: {str(e)}")
+        logger.error(f"删除勋章失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="删除勋章失败",

@@ -4,10 +4,10 @@ Crypto 捐赠相关的 Pydantic 模型定义
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional
+
+from pydantic import BaseModel, Field, validator
 
 from app.config import settings
-from pydantic import BaseModel, Field, validator
 
 
 def get_supported_crypto_types():
@@ -49,7 +49,7 @@ class CryptoDonationOrderCreate(BaseModel):
 
     crypto_type: str = Field(..., description="加密货币类型")
     amount: float = Field(..., gt=0, description="捐赠金额（CNY），必须大于0")
-    note: Optional[str] = Field(None, max_length=200, description="备注信息")
+    note: str | None = Field(None, max_length=200, description="备注信息")
 
     @validator("crypto_type")
     def validate_crypto_type(cls, v):
@@ -70,21 +70,21 @@ class CryptoDonationOrderResponse(BaseModel):
 
     id: int
     user_id: int
-    username: Optional[str] = Field(None, description="Telegram 用户名")
+    username: str | None = Field(None, description="Telegram 用户名")
     order_id: str
-    trade_id: Optional[str]
+    trade_id: str | None
     crypto_type: str
     amount: float
-    actual_amount: Optional[float]
-    payment_address: Optional[str]
-    block_transaction_id: Optional[str]
+    actual_amount: float | None
+    payment_address: str | None
+    block_transaction_id: str | None
     status: CryptoDonationOrderStatus
-    payment_url: Optional[str]
-    expiration_time: Optional[int]
+    payment_url: str | None
+    expiration_time: int | None
     created_at: datetime
-    updated_at: Optional[datetime]
-    paid_at: Optional[datetime]
-    note: Optional[str]
+    updated_at: datetime | None
+    paid_at: datetime | None
+    note: str | None
 
     class Config:
         from_attributes = True
@@ -132,7 +132,7 @@ class UPayCreateOrderResponse(BaseModel):
 
     status_code: int
     message: str
-    data: Optional[dict] = None
+    data: dict | None = None
 
 
 class UPayCallbackData(BaseModel):
@@ -143,9 +143,9 @@ class UPayCallbackData(BaseModel):
     amount: float = Field(..., description="原始订单金额（CNY）")
     actual_amount: float = Field(..., description="实际支付金额（加密货币）")
     token: str = Field(..., description="收款钱包地址")
-    block_transaction_id: Optional[str] = Field(None, description="区块链交易哈希")
+    block_transaction_id: str | None = Field(None, description="区块链交易哈希")
     status: int = Field(..., description="订单状态：2=支付成功")
-    time: Optional[str] = Field(None, description="支付完成时间")
+    time: str | None = Field(None, description="支付完成时间")
     signature: str = Field(..., description="签名")
 
     @validator("status")

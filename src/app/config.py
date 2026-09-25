@@ -1,10 +1,11 @@
 import os
 from datetime import timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
+
+from pydantic_settings import BaseSettings
 
 from app.utils.system import SystemUtils
-from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -176,9 +177,12 @@ class Settings(BaseSettings):
     @property
     def TG_USER_PROFILE_CACHE_PATH(self):
         path = Path(self.DATA_PATH) / "pics"
-        if self.WEBAPP_ENABLE and Path(self.WEBAPP_STATIC_DIR).exists():
-            if not path.exists():
-                path.mkdir(parents=True, exist_ok=True)
+        if (
+            self.WEBAPP_ENABLE
+            and Path(self.WEBAPP_STATIC_DIR).exists()
+            and not path.exists()
+        ):
+            path.mkdir(parents=True, exist_ok=True)
         return path
 
     @property
@@ -295,7 +299,9 @@ class Settings(BaseSettings):
         except Exception as e:
             print(f"加载 .env 文件失败: {e}")
 
-    def save_config_to_env_file(self, config_data: Dict[str, Any]):
+    def save_config_to_env_file(
+        self, config_data: dict[str, Any], *, raise_on_error: bool = False
+    ):
         """保存配置到 .env 文件"""
         try:
             # 读取现有的 .env 文件内容
@@ -332,14 +338,16 @@ class Settings(BaseSettings):
             # 保存到文件
             with open(self.ENV_FILE_PATH, "w", encoding="utf-8") as f:
                 f.write("\n".join(existing_lines))
-                if existing_lines and not existing_lines[-1] == "":
+                if existing_lines and existing_lines[-1] != "":
                     f.write("\n")
 
             print(f"配置已保存到: {self.ENV_FILE_PATH}")
         except Exception as e:
             print(f"保存 .env 配置文件失败: {e}")
+            if raise_on_error:
+                raise
 
-    def get_saveable_config(self) -> Dict[str, Any]:
+    def get_saveable_config(self) -> dict[str, Any]:
         """
         获取可保存的配置项（排除敏感信息）
         可以根据需要自定义哪些配置项不应该被保存

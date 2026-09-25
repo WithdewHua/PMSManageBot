@@ -4,6 +4,10 @@ Crypto 捐赠相关 API 路由
 
 import asyncio
 
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse, PlainTextResponse
+from sqlalchemy import delete, select
+
 from app.config import settings
 from app.databases import db
 from app.databases.session import get_session
@@ -23,9 +27,6 @@ from app.webapp.schemas.crypto_donation import (
     CryptoTypesResponse,
     UPayCallbackData,
 )
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import JSONResponse, PlainTextResponse
-from sqlalchemy import delete, select
 
 router = APIRouter(prefix="/api/crypto-donations", tags=["crypto-donations"])
 
@@ -183,7 +184,7 @@ async def create_crypto_donation_order(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"创建 Crypto 捐赠订单失败: {str(e)}")
+        logger.error(f"创建 Crypto 捐赠订单失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="创建订单失败",
@@ -197,7 +198,7 @@ async def get_all_crypto_donation_orders(
     user: TelegramUser = Depends(get_telegram_user),
     page: int = 1,
     per_page: int = 20,
-    status_filter: str = None,
+    status_filter: str | None = None,
 ):
     """获取所有 Crypto 捐赠订单列表（管理员专用）"""
     try:
@@ -234,7 +235,7 @@ async def get_all_crypto_donation_orders(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取所有 Crypto 捐赠订单失败: {str(e)}")
+        logger.error(f"获取所有 Crypto 捐赠订单失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取订单列表失败",
@@ -266,7 +267,7 @@ async def get_user_crypto_donation_orders(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取用户 Crypto 捐赠订单失败: {str(e)}")
+        logger.error(f"获取用户 Crypto 捐赠订单失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取订单列表失败",
@@ -308,7 +309,7 @@ async def get_crypto_donation_order(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取 Crypto 捐赠订单详情失败: {str(e)}")
+        logger.error(f"获取 Crypto 捐赠订单详情失败: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取订单详情失败",

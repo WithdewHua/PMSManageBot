@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 SIGNED_BIGINT_MAX = (1 << 63) - 1
 
 

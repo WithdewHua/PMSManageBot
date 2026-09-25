@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
 
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+
 from app.config import settings
 from app.databases import db
 from app.databases.db_func import finish_expired_auctions_job
@@ -19,7 +21,6 @@ from app.webapp.schemas import (
     PlaceBidResponse,
     TelegramUser,
 )
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 
 router = APIRouter(prefix="/auction", tags=["auction"])
 
@@ -556,7 +557,7 @@ async def finish_expired_auctions(
 async def get_all_auctions_admin(
     request: Request,
     current_user: TelegramUser = Depends(get_telegram_user),
-    status_filter: str = None,
+    status_filter: str | None = None,
     page: int = 1,
     limit: int = 20,
 ):
@@ -637,7 +638,9 @@ async def update_auction_admin(
 
         # 如果更新了时长，重新计算结束时间
         if hasattr(update_data, "duration_hours") and update_data.duration_hours:
-            new_end_time = datetime.now() + timedelta(hours=update_data.duration_hours)
+            new_end_time = datetime.now(settings.TZ) + timedelta(
+                hours=update_data.duration_hours
+            )
             update_dict["end_time"] = int(new_end_time.timestamp())
 
             # 移除旧的定时任务
@@ -916,8 +919,8 @@ async def get_user_auction_history_admin(
 async def get_detailed_auction_stats_admin(
     request: Request,
     current_user: TelegramUser = Depends(get_telegram_user),
-    start_date: int = None,
-    end_date: int = None,
+    start_date: int | None = None,
+    end_date: int | None = None,
 ):
     """获取详细竞拍统计（仅管理员）"""
     try:

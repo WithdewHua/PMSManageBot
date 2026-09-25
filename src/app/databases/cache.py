@@ -1,7 +1,6 @@
 import random
 import time
 import traceback
-from typing import Optional
 
 from app.databases.redis import Redis
 from app.log import logger
@@ -62,7 +61,7 @@ class RedisCache:
         self,
         db: int = 0,
         capacity: int = 0,
-        ttl_seconds: int = None,
+        ttl_seconds: int | None = None,
         cache_key_prefix: str = "cache:",
         cache_usage_track: bool = False,
         retry_attempts: int = 5,
@@ -95,8 +94,8 @@ class RedisCache:
         func,
         *,
         op: str,
-        key: Optional[str] = None,
-        attempts: Optional[int] = None,
+        key: str | None = None,
+        attempts: int | None = None,
         swallow: bool = False,
         default=None,
     ):
@@ -168,7 +167,7 @@ class RedisCache:
         while True:
             current_cursor = cursor
             cursor, keys = self._call_with_retry(
-                lambda: self.redis_client.scan(
+                lambda current_cursor=current_cursor: self.redis_client.scan(
                     cursor=current_cursor,
                     match=match,
                     count=self._SCAN_COUNT,
@@ -176,8 +175,7 @@ class RedisCache:
                 op="scan",
                 key=match,
             )
-            for key in keys:
-                yield key
+            yield from keys
             if cursor == 0:
                 break
 
@@ -252,7 +250,7 @@ class RedisCache:
 
         return _op()
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         """
         获取缓存值
 

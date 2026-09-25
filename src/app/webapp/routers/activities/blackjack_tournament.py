@@ -18,6 +18,8 @@ tick 任务 / 任务重试），靠「记得只发一次」是不可能正确的
 就是单点。
 """
 
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+
 from app.config import settings
 from app.databases import db
 from app.databases.db_func import award_blackjack_champion_badge
@@ -44,7 +46,6 @@ from app.webapp.schemas.blackjack_tournament import (
     TournamentUpdateRequest,
     TournamentWalletResponse,
 )
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 router = APIRouter(prefix="/blackjack/tournament", tags=["21点锦标赛"])
 

@@ -1,20 +1,19 @@
-#!/usr/bin/env python3
-
 import asyncio
 import pickle
 import threading
 from time import time
-from typing import Optional, Union
+from typing import ClassVar
 
 import aiohttp
 import filelock
+from sqlalchemy import select
+from telegram.ext import ContextTypes
+
 from app.config import settings
 from app.databases.session import get_session as get_db_session
 from app.log import logger
 from app.models.models import EmbyUser, Statistics
 from app.modules.emby import Emby
-from sqlalchemy import select
-from telegram.ext import ContextTypes
 
 
 def format_traffic_size(bytes_size: int) -> str:
@@ -45,8 +44,8 @@ class HTTPSessionManager:
     """Manages global HTTP session to avoid connection pool issues"""
 
     def __init__(self):
-        self._session: Optional[aiohttp.ClientSession] = None
-        self._connector: Optional[aiohttp.TCPConnector] = None
+        self._session: aiohttp.ClientSession | None = None
+        self._connector: aiohttp.TCPConnector | None = None
 
     async def get_session(self) -> aiohttp.ClientSession:
         """Get or create HTTP session"""
@@ -120,7 +119,7 @@ async def send_message(chat_id, text: str, context: ContextTypes.DEFAULT_TYPE, *
 
 
 async def send_message_by_url(
-    chat_id: Union[int, str],
+    chat_id: int | str,
     text: str,
     token: str = settings.TG_API_TOKEN,
     max_retries: int = 10,
@@ -142,7 +141,7 @@ async def send_message_by_url(
         ValueError: If required parameters are invalid
     """
 
-    def _normalize_chat_id(value: Union[int, str]) -> Union[int, str]:
+    def _normalize_chat_id(value: int | str) -> int | str:
         """Normalize chat_id.
 
         Accepts:
@@ -156,7 +155,7 @@ async def send_message_by_url(
             return value
         s = str(value).strip()
         # common mistake: passing an invite link like https://t.me/+xxxx
-        if s.startswith("http://") or s.startswith("https://"):
+        if s.startswith(("http://", "https://")):
             return s
         if s.startswith("@"):
             return s
@@ -172,9 +171,7 @@ async def send_message_by_url(
     if chat_id is None:
         raise ValueError("chat_id cannot be empty")
     chat_id = _normalize_chat_id(chat_id)
-    if isinstance(chat_id, str) and (
-        chat_id.startswith("http://") or chat_id.startswith("https://")
-    ):
+    if isinstance(chat_id, str) and chat_id.startswith(("http://", "https://")):
         raise ValueError(
             f"chat_id looks like a URL ({chat_id}). Telegram sendMessage requires a chat id (numeric id or @username), not a t.me link."
         )
@@ -233,11 +230,7 @@ async def send_message_by_url(
                         await asyncio.sleep(min(retry_after, 30))
                         continue
 
-        except (
-            aiohttp.ClientError,
-            aiohttp.ServerTimeoutError,
-            asyncio.TimeoutError,
-        ) as e:
+        except (TimeoutError, aiohttp.ClientError, aiohttp.ServerTimeoutError) as e:
             logger.warning(
                 f"Network error on attempt {attempt + 1}: {type(e).__name__}: {e}"
             )
@@ -321,6 +314,12 @@ def load_tg_user_info_cache() -> dict:
         return pickle.load(f)
 
 
+def _save_tg_user_info_cache(cache: dict, cache_file_lock: filelock.FileLock) -> None:
+    """Write the cache while holding its cross-process file lock (off the event loop)."""
+    with cache_file_lock, open(settings.TG_USER_INFO_CACHE_PATH, "wb") as f:
+        pickle.dump(cache, f)
+
+
 def get_user_info_from_tg_id(chat_id: int, token=settings.TG_API_TOKEN):
     """Get telegram user's info
     cache format: {tg_id: {"first_name": first_name, "username": username, "added": timestamp}}
@@ -397,7 +396,7 @@ def get_user_avatar_from_tg_id(chat_id: int, token=settings.TG_API_TOKEN):
 
 
 async def refresh_tg_user_info(
-    tg_id: Optional[int] = None, token: str = settings.TG_API_TOKEN
+    tg_id: int | None = None, token: str = settings.TG_API_TOKEN
 ):
     """刷新用户信息"""
     try:
@@ -413,29 +412,30 @@ async def refresh_tg_user_info(
             with get_db_session() as db_session:
                 stmt = select(Statistics.tg_id)
                 stats_users = [
-                    tg_id for tg_id in db_session.execute(stmt).scalars().all()
+                    user_id for user_id in db_session.execute(stmt).scalars().all()
                 ]
         else:
             stats_users = [tg_id]
-        for tg_id in stats_users:
+        for user_id in stats_users:
             if settings.TG_USER_INFO_CACHE_PATH.exists():
-                with open(settings.TG_USER_INFO_CACHE_PATH, "rb") as f:
-                    cache = pickle.load(f)
+                cache = await asyncio.to_thread(load_tg_user_info_cache)
             # 缓存保留 1 天
-            if tg_id in cache:
-                if time() - cache.get(tg_id).get("added") <= 1 * 24 * 3600:
-                    logger.info(
-                        f"{cache.get(tg_id).get('username')}({tg_id}) info is not expired, skip"
-                    )
-                    continue
+            if (
+                user_id in cache
+                and time() - cache.get(user_id).get("added") <= 24 * 3600
+            ):
+                logger.info(
+                    f"{cache.get(user_id).get('username')}({user_id}) info is not expired, skip"
+                )
+                continue
             retry = 10
             while retry > 0:
                 try:
                     async with session.get(
-                        url=f"https://api.telegram.org/bot{token}/getChat?chat_id={tg_id}",
+                        url=f"https://api.telegram.org/bot{token}/getChat?chat_id={user_id}",
                     ) as response:
                         if response.status != 200:
-                            logger.error(f"Error: failed to get info. for {tg_id}")
+                            logger.error(f"Error: failed to get info. for {user_id}")
                             break
                         result = (await response.json()).get("result", {})
                 except Exception as e:
@@ -455,34 +455,31 @@ async def refresh_tg_user_info(
                 "added": time(),
             }
             # 获取用户 photo url
-            photo_url = await get_tg_user_photo_url(tg_id, token=token)
+            photo_url = await get_tg_user_photo_url(user_id, token=token)
             if photo_url:
                 # 下载头像到本地
-                photo_path = settings.TG_USER_PROFILE_CACHE_PATH / f"{tg_id}.jpg"
+                photo_path = settings.TG_USER_PROFILE_CACHE_PATH / f"{user_id}.jpg"
                 try:
                     async with session.get(
                         photo_url,
                     ) as response:
                         if response.status == 200:
                             content = await response.read()
-                            with open(photo_path, "wb") as f:
-                                f.write(content)
+                            await asyncio.to_thread(photo_path.write_bytes, content)
                 except Exception as e:
                     logger.error(f"Error: {e}")
                 user_info["photo_url"] = (
-                    f"{settings.WEBAPP_URL.strip('/')}/pics/{tg_id}.jpg"
+                    f"{settings.WEBAPP_URL.strip('/')}/pics/{user_id}.jpg"
                 )
             # add cache
-            cache.update({tg_id: user_info})
-            logger.info(f"Updated tg user info: {user_info.get('username')}({tg_id})")
-            with cache_file_lock:
-                with open(settings.TG_USER_INFO_CACHE_PATH, "wb") as f:
-                    pickle.dump(cache, f)
+            cache.update({user_id: user_info})
+            logger.info(f"Updated tg user info: {user_info.get('username')}({user_id})")
+            await asyncio.to_thread(_save_tg_user_info_cache, cache, cache_file_lock)
     except Exception as e:
         logger.error(f"Refresh user tg info failed: {e}")
 
 
-def refresh_emby_user_info(emby_username: Optional[str] = None):
+def refresh_emby_user_info(emby_username: str | None = None):
     """刷新 emby user info"""
     emby = Emby()
     # 获取所有的 emby 用户名
@@ -505,7 +502,7 @@ def refresh_emby_user_info(emby_username: Optional[str] = None):
 class SingletonMeta(type):
     """Singleton metaclass"""
 
-    _instances = {}
+    _instances: ClassVar[dict[type, object]] = {}
 
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:

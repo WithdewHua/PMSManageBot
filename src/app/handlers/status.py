@@ -1,9 +1,10 @@
+from telegram import Update
+from telegram.ext import CommandHandler, ContextTypes
+
 from app.config import settings
 from app.modules.emby import Emby
 from app.modules.tautulli import Tautulli
 from app.utils.utils import send_message
-from telegram import Update
-from telegram.ext import CommandHandler, ContextTypes
 
 
 # 获取当前注册状态
@@ -38,9 +39,9 @@ async def set_register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         return
     if server.lower() == "plex":
-        settings.PLEX_REGISTER = True if flag != "0" else False
+        settings.PLEX_REGISTER = flag != "0"
     elif server.lower() == "emby":
-        settings.EMBY_REGISTER = True if flag != "0" else False
+        settings.EMBY_REGISTER = flag != "0"
     await send_message(
         chat_id=chat_id,
         text=f"信息: 设置 {server} 注册状态为 {'开启' if flag != '0' else '关闭'}",
@@ -70,6 +71,6 @@ get_server_status_handler = CommandHandler("server_status", get_server_status)
 
 __all__ = [
     "get_register_status_handler",
-    "set_register_handler",
     "get_server_status_handler",
+    "set_register_handler",
 ]

@@ -2,7 +2,8 @@
 Premium 会员相关路由
 """
 
-from typing import Optional
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
+from pydantic import BaseModel
 
 from app.config import settings
 from app.databases import db
@@ -16,8 +17,6 @@ from app.utils.utils import (
 from app.webapp.auth import get_telegram_user
 from app.webapp.middlewares import require_telegram_auth
 from app.webapp.schemas import BaseResponse, TelegramUser
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
-from pydantic import BaseModel
 
 
 class PremiumStatisticsResponse(BaseModel):
@@ -40,8 +39,8 @@ class PremiumUnlockRequest(BaseModel):
 class PremiumUnlockResponse(BaseResponse):
     """Premium解锁响应模型"""
 
-    current_credits: Optional[float] = None
-    premium_expiry: Optional[str] = None
+    current_credits: float | None = None
+    premium_expiry: str | None = None
 
 
 router = APIRouter(prefix="/api/premium", tags=["premium"])
@@ -106,10 +105,8 @@ async def unlock_premium(
         try:
             new_expiry = update_premium_status(db, tg_id, service, days)
         except Exception as e:
-            logger.error(f"更新 Premium 状态失败: {str(e)}")
-            raise HTTPException(
-                status_code=500, detail=f"更新 Premium 状态失败: {str(e)}"
-            )
+            logger.error(f"更新 Premium 状态失败: {e!s}")
+            raise HTTPException(status_code=500, detail=f"更新 Premium 状态失败: {e!s}")
 
         # 扣除积分
         new_credits = current_credits - total_cost
@@ -150,7 +147,7 @@ async def unlock_premium(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"解锁 Premium 失败: {str(e)}")
+        logger.error(f"解锁 Premium 失败: {e!s}")
         raise HTTPException(status_code=500, detail="解锁失败，请稍后再试")
 
 
@@ -169,7 +166,7 @@ async def get_premium_statistics(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取 Premium 统计信息失败: {str(e)}")
+        logger.error(f"获取 Premium 统计信息失败: {e!s}")
         raise HTTPException(status_code=500, detail="获取统计信息失败")
 
 
@@ -190,5 +187,5 @@ async def get_premium_line_traffic_stats(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"获取 Premium 线路流量统计失败: {str(e)}")
+        logger.error(f"获取 Premium 线路流量统计失败: {e!s}")
         raise HTTPException(status_code=500, detail="获取流量统计失败")
