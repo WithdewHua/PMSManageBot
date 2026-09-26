@@ -9,6 +9,8 @@ from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
 from app.core.telegram import get_user_name_from_tg_id, notify_admins_by_url
 from app.databases import db
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.media_access.rules import caculate_credits_fund
 from app.integrations.emby import Emby
 from app.integrations.plex import Plex
@@ -102,9 +104,6 @@ async def nsfw_operation(
                 if credits < settings.UNLOCK_CREDITS:
                     raise HTTPException(status_code=400, detail="积分不足")
 
-                # 扣除积分
-                credits -= settings.UNLOCK_CREDITS
-
                 # 更新权限
                 _plex = Plex()
                 try:
@@ -117,8 +116,14 @@ async def nsfw_operation(
                 unlock_time = time()
 
                 # 更新数据库
-                if not db.update_user_credits(credits, tg_id=tg_id):
-                    raise HTTPException(status_code=500, detail="更新积分失败")
+                try:
+                    credits = credits_service.deduct(
+                        CreditAccount.tg(int(tg_id)), settings.UNLOCK_CREDITS
+                    ).after
+                except Exception as error:
+                    raise HTTPException(
+                        status_code=500, detail="更新积分失败"
+                    ) from error
 
                 if not db.update_all_lib_flag(
                     all_lib=1, unlock_time=unlock_time, plex_id=plex_id
@@ -140,9 +145,6 @@ async def nsfw_operation(
                 if credits < settings.UNLOCK_CREDITS:
                     raise HTTPException(status_code=400, detail="积分不足")
 
-                # 扣除积分
-                credits -= settings.UNLOCK_CREDITS
-
                 # 更新权限
                 _emby = Emby()
                 flag, msg = _emby.add_user_library(user_id=emby_id)
@@ -153,8 +155,14 @@ async def nsfw_operation(
                 unlock_time = time()
 
                 # 更新数据库
-                if not db.update_user_credits(credits, tg_id=tg_id):
-                    raise HTTPException(status_code=500, detail="更新积分失败")
+                try:
+                    credits = credits_service.deduct(
+                        CreditAccount.tg(int(tg_id)), settings.UNLOCK_CREDITS
+                    ).after
+                except Exception as error:
+                    raise HTTPException(
+                        status_code=500, detail="更新积分失败"
+                    ) from error
 
                 if not db.update_all_lib_flag(
                     all_lib=1, unlock_time=unlock_time, tg_id=tg_id, media_server="emby"
@@ -196,8 +204,14 @@ async def nsfw_operation(
                     raise HTTPException(status_code=500, detail="更新权限失败")
 
                 # 更新数据库
-                if not db.update_user_credits(credits, tg_id=tg_id):
-                    raise HTTPException(status_code=500, detail="更新积分失败")
+                try:
+                    credits = credits_service.add(
+                        CreditAccount.tg(int(tg_id)), credits_fund
+                    ).after
+                except Exception as error:
+                    raise HTTPException(
+                        status_code=500, detail="更新积分失败"
+                    ) from error
 
                 if not db.update_all_lib_flag(
                     all_lib=0, unlock_time=None, plex_id=plex_id
@@ -230,8 +244,14 @@ async def nsfw_operation(
                     raise HTTPException(status_code=500, detail=f"更新权限失败: {msg}")
 
                 # 更新数据库
-                if not db.update_user_credits(credits, tg_id=tg_id):
-                    raise HTTPException(status_code=500, detail="更新积分失败")
+                try:
+                    credits = credits_service.add(
+                        CreditAccount.tg(int(tg_id)), credits_fund
+                    ).after
+                except Exception as error:
+                    raise HTTPException(
+                        status_code=500, detail="更新积分失败"
+                    ) from error
 
                 if not db.update_all_lib_flag(
                     all_lib=0, unlock_time=None, tg_id=tg_id, media_server="emby"

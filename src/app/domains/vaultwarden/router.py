@@ -18,6 +18,8 @@ from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
 from app.core.telegram import get_user_name_from_tg_id
 from app.databases import db
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.vaultwarden.models import VaultwardenRedeemRecords
 from app.domains.vaultwarden.notifications import _notify_admins_vaultwarden_redeem
 from app.domains.vaultwarden.schemas import (
@@ -158,9 +160,12 @@ async def redeem_vaultwarden_account(
             )
 
         # 扣除积分
-        new_credits = user_credits - required_credits
-        res = db.update_user_credits(new_credits, tg_id=user_id)
-        if not res:
+        try:
+            mutation = credits_service.deduct(
+                CreditAccount.tg(int(user_id)), required_credits
+            )
+            new_credits = mutation.after
+        except Exception:
             logger.error(f"更新用户 {user_id} 积分失败")
             return VaultwardenRedeemResponse(
                 success=False, message="兑换成功但更新积分失败，请联系管理员"

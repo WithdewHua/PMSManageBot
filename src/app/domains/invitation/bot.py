@@ -7,6 +7,8 @@ from telegram.ext import CommandHandler, ContextTypes
 from app.core.config import settings
 from app.core.telegram import send_message
 from app.databases import db
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 
 
 # 生成邀请码
@@ -25,8 +27,6 @@ async def exchange(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             chat_id=chat_id, text="错误：您的积分不足，无法兑换邀请码", context=context
         )
         return
-    # 减去积分
-    _credits -= settings.INVITATION_CREDITS
     # 生成邀请码
     _code = uuid3(NAMESPACE_URL, str(chat_id + time())).hex
     # 更新数据库
@@ -38,8 +38,11 @@ async def exchange(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         return
     # > 再更新积分情况
-    res = db.update_user_credits(_credits, tg_id=chat_id)
-    if not res:
+    try:
+        credits_service.deduct(
+            CreditAccount.tg(int(chat_id)), settings.INVITATION_CREDITS
+        )
+    except Exception:
         await send_message(
             chat_id=chat_id, text="错误: 更新积分失败, 请联系管理员", context=context
         )

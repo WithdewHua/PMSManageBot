@@ -12,6 +12,8 @@ from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
 from app.core.telegram import get_user_name_from_tg_id, notify_admins_by_url
 from app.databases import db
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.premium.service import update_premium_status
 
 
@@ -105,8 +107,8 @@ async def unlock_premium(
             raise HTTPException(status_code=500, detail=f"更新 Premium 状态失败: {e!s}")
 
         # 扣除积分
-        new_credits = current_credits - total_cost
-        db.update_user_credits(new_credits, tg_id=tg_id)
+        mutation = credits_service.deduct(CreditAccount.tg(int(tg_id)), total_cost)
+        new_credits = mutation.after
 
         logger.info(
             f"用户 {get_user_name_from_tg_id(tg_id)} 成功解锁 {service} Premium {days} 天"

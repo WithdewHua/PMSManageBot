@@ -13,6 +13,8 @@ from app.core.schemas import TelegramUser
 from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
 from app.domains.accounts.service import refresh_tg_user_info
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.donation.schemas import (
     DonationRegistrationConfirmResponse,
     DonationRegistrationCreate,
@@ -280,20 +282,23 @@ async def confirm_donation_registration(
             if current_stats:
                 new_donation = current_stats[1] + amount
 
-                if is_donation_registration:
-                    # 捐赠开号：只记录捐赠金额，不增加积分
-                    new_credits = current_stats[2]  # 保持积分不变
-                else:
-                    # 普通捐赠：增加捐赠积分
-                    new_credits = (
-                        current_stats[2] + amount * settings.DONATION_MULTIPLIER
-                    )  # 捐赠积分 1:DONATION_MULTIPLIER
+                # 捐赠开号只记录捐赠金额；普通捐赠的积分在事务内增量写入。
 
                 with get_session() as session:
+                    if not is_donation_registration:
+                        mutation = credits_service.apply_tx(
+                            session,
+                            CreditAccount.tg(int(user_id)),
+                            amount * settings.DONATION_MULTIPLIER,
+                        )
+                        if mutation is not None:
+                            credits_service.register_cache_invalidation(
+                                session, mutation
+                            )
                     stmt = (
                         sql_update(Statistics)
                         .where(Statistics.tg_id == user_id)
-                        .values(donation=new_donation, credits=new_credits)
+                        .values(donation=new_donation)
                     )
                     session.execute(stmt)
             else:

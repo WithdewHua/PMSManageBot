@@ -21,6 +21,8 @@ from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
 from app.domains.accounts.jobs import refresh_emby_user_info
 from app.domains.accounts.service import refresh_tg_user_info, update_plex_info
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.invitation.schemas import (
     BatchCheckPrivilegedCodesRequest,
     BatchCheckPrivilegedCodesResponse,
@@ -128,9 +130,6 @@ async def generate_invite_code(
                 message=f"积分不足，您当前积分 {user_credits}，需要 {required_points} 积分才能生成邀请码",
             )
 
-        # 减去积分
-        new_credits = user_credits - required_points
-
         # 生成邀请码
         invite_code = uuid3(NAMESPACE_URL, str(user_id + time())).hex
 
@@ -142,10 +141,9 @@ async def generate_invite_code(
             )
 
         # 然后更新积分
-        res = db.update_user_credits(new_credits, tg_id=user_id)
-        if not res:
-            # 如果更新积分失败，需要回滚邀请码
-            # 实际应用中应该有更完善的事务处理
+        try:
+            credits_service.deduct(CreditAccount.tg(int(user_id)), required_points)
+        except Exception:
             return GenerateInviteCodeResponse(
                 success=False, message="更新积分失败，请稍后再试"
             )
@@ -554,15 +552,16 @@ async def redeem_invite_code_for_credits(
                 success=False, message="用户未绑定 Plex/Emby 账户"
             )
 
-        current_credits = stats_info[2]
-
         # 计算可获得的积分 (通常是生成邀请码所需积分的一半或某个比例)
         credits_earned = settings.INVITATION_CREDITS * 0.8  # 80%的回收率
 
         # 更新积分
-        new_credits = current_credits + credits_earned
-        res = db.update_user_credits(new_credits, tg_id=user_id)
-        if not res:
+        try:
+            mutation = credits_service.add(
+                CreditAccount.tg(int(user_id)), credits_earned
+            )
+            new_credits = mutation.after
+        except Exception:
             return RedeemForCreditsResponse(
                 success=False, message="更新积分失败，请稍后再试"
             )
@@ -571,7 +570,10 @@ async def redeem_invite_code_for_credits(
         res = db.update_invitation_status(code=code, used_by=f"credits_by_{user_id}")
         if not res:
             # 如果标记失败，需要回滚积分
-            db.update_user_credits(current_credits, tg_id=user_id)
+            try:
+                credits_service.deduct(CreditAccount.tg(int(user_id)), credits_earned)
+            except Exception:
+                logger.error("邀请码状态失败后的积分回滚失败")
             return RedeemForCreditsResponse(
                 success=False, message="更新邀请码状态失败，请联系管理员"
             )
