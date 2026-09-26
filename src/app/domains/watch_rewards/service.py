@@ -8,6 +8,8 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
 from app.databases.db import db
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 from app.domains.watch_rewards.constants import (
     GHOST_SETTLEMENT_CONFIG_KEY,
@@ -372,15 +374,22 @@ def update_plex_credits():
                     )
 
             if not tg_id:
-                credits_init = res[0]
-                credits = credits_init + credits_inc - traffic_cost_credits
                 watched_time = watched_time_init + play_duration
                 with get_session() as session:
+                    mutation = credits_service.apply_tx(
+                        session,
+                        CreditAccount.plex(int(plex_id)),
+                        credits_inc - traffic_cost_credits,
+                    )
+                    if mutation is not None:
+                        credits_service.register_cache_invalidation(session, mutation)
+                        credits = mutation.after
+                    else:
+                        credits = float(res[0])
                     stmt = (
                         sql_update(PlexUser)
                         .where(PlexUser.plex_id == plex_id)
                         .values(
-                            credits=credits,
                             watched_time=watched_time,
                             premium_traffic_debt_bytes=premium_traffic_result[
                                 "next_debt_bytes"
@@ -392,15 +401,18 @@ def update_plex_credits():
                     )
                     session.execute(stmt)
             else:
-                with get_session() as session:
-                    stmt = select(Statistics.credits).where(Statistics.tg_id == tg_id)
-                    credits_init = session.execute(stmt).scalar()
-                # 加上勋章加成
-                credits = (
-                    credits_init + credits_inc + badge_bonus - traffic_cost_credits
-                )
+                # 加上勋章加成并在同一事务中更新 Telegram 账户积分和观看记录
+                credits = 0.0
                 watched_time = watched_time_init + play_duration
                 with get_session() as session:
+                    mutation = credits_service.apply_tx(
+                        session,
+                        CreditAccount.tg(int(tg_id)),
+                        credits_inc + badge_bonus - traffic_cost_credits,
+                    )
+                    if mutation is not None:
+                        credits_service.register_cache_invalidation(session, mutation)
+                        credits = mutation.after
                     stmt1 = (
                         sql_update(PlexUser)
                         .where(PlexUser.plex_id == plex_id)
@@ -414,13 +426,7 @@ def update_plex_credits():
                             ],
                         )
                     )
-                    stmt2 = (
-                        sql_update(Statistics)
-                        .where(Statistics.tg_id == tg_id)
-                        .values(credits=credits)
-                    )
                     session.execute(stmt1)
-                    session.execute(stmt2)
 
             # 邀请人奖励：被邀请人基础积分的 10%，与被邀请人是否绑定 tg 无关
             # 累积到字典，循环结束后统一发通知
@@ -509,9 +515,10 @@ Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
                     f"邀请人 {inviter_tg_id} 在 statistics 表中无记录，跳过奖励"
                 )
                 continue
-            db.update_user_credits(
-                inviter_credits_now + total_bonus, tg_id=inviter_tg_id
+            inviter_mutation = credits_service.add(
+                CreditAccount.tg(int(inviter_tg_id)), total_bonus
             )
+            inviter_credits_now = inviter_mutation.after
             logger.info(
                 f"邀请人 {inviter_tg_id} 共获得 Plex 邀请奖励积分: +{total_bonus}"
             )
@@ -707,14 +714,22 @@ def update_emby_credits():
                     )
 
             if not user[1]:
-                _credits = user[3] + credits_inc - traffic_cost_credits
                 with get_session() as session:
+                    mutation = credits_service.apply_tx(
+                        session,
+                        CreditAccount.emby(str(user[0])),
+                        credits_inc - traffic_cost_credits,
+                    )
+                    if mutation is not None:
+                        credits_service.register_cache_invalidation(session, mutation)
+                        _credits = mutation.after
+                    else:
+                        _credits = float(user[3])
                     stmt = (
                         sql_update(EmbyUser)
                         .where(EmbyUser.emby_id == user[0])
                         .values(
                             emby_watched_time=next_watched_time,
-                            emby_credits=_credits,
                             premium_traffic_debt_bytes=premium_traffic_result[
                                 "next_debt_bytes"
                             ],
@@ -725,25 +740,41 @@ def update_emby_credits():
                     )
                     session.execute(stmt)
             else:
-                stats_info = db.get_stats_by_tg_id(user[1])
-                # statistics 表中有数据
-                if stats_info:
-                    credits_init = stats_info[2]
-                    # 加上勋章加成
-                    _credits = (
-                        credits_init + credits_inc + badge_bonus - traffic_cost_credits
-                    )
-                    db.update_user_credits(_credits, tg_id=user[1])
-                else:
-                    # 清空 emby_user 表中积分信息
-                    db.update_user_credits(0, emby_id=user[0])
-                    # 在 statistic 表中增加用户数据
-                    _credits = (
-                        user[3] + credits_inc + badge_bonus - traffic_cost_credits
-                    )
-                    db.add_user_data(user[1], credits=_credits)
-                # 更新 emby_user 表中观看时间
                 with get_session() as session:
+                    stats_info = session.execute(
+                        select(Statistics).where(Statistics.tg_id == int(user[1]))
+                    ).scalar_one_or_none()
+                    if stats_info:
+                        mutation = credits_service.apply_tx(
+                            session,
+                            CreditAccount.tg(int(user[1])),
+                            credits_inc + badge_bonus - traffic_cost_credits,
+                        )
+                    else:
+                        # 将未绑定 Emby 余额转入新建的 Telegram 账户
+                        total_delta = (
+                            user[3] + credits_inc + badge_bonus - traffic_cost_credits
+                        )
+                        if user[3] > 0:
+                            credits_service.apply_tx(
+                                session,
+                                CreditAccount.emby(str(user[0])),
+                                -float(user[3]),
+                            )
+                        session.add(
+                            Statistics(tg_id=int(user[1]), donation=0, credits=0)
+                        )
+                        session.flush()
+                        mutation = credits_service.apply_tx(
+                            session,
+                            CreditAccount.tg(int(user[1])),
+                            total_delta,
+                        )
+                    if mutation is not None:
+                        credits_service.register_cache_invalidation(session, mutation)
+                        _credits = mutation.after
+                    else:
+                        _credits = 0.0
                     stmt = (
                         sql_update(EmbyUser)
                         .where(EmbyUser.emby_id == user[0])
@@ -846,9 +877,10 @@ Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
                     f"邀请人 {inviter_tg_id} 在 statistics 表中无记录，跳过奖励"
                 )
                 continue
-            db.update_user_credits(
-                inviter_credits_now + total_bonus, tg_id=inviter_tg_id
+            inviter_mutation = credits_service.add(
+                CreditAccount.tg(int(inviter_tg_id)), total_bonus
             )
+            inviter_credits_now = inviter_mutation.after
             logger.info(
                 f"邀请人 {inviter_tg_id} 共获得 Emby 邀请奖励积分: +{total_bonus}"
             )

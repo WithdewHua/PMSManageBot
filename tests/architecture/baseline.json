@@ -3366,125 +3366,124 @@
       "target": "get_stats_by_tg_id"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|243|imported|identity|isnot",
+      "key": "call|src/app/domains/watch_rewards/service.py|245|imported|identity|isnot",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 243,
+      "line": 245,
       "kind": "call",
       "source_domain": "watch_rewards",
       "target_domain": "identity",
-      "target": "isnot",
-      "b3_source_id": "app.databases.db_func:update_plex_credits"
+      "target": "isnot"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|273|imported|premium|_resolve_premium_status_for_settlement",
+      "key": "call|src/app/domains/watch_rewards/service.py|275|imported|premium|_resolve_premium_status_for_settlement",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 273,
+      "line": 275,
       "kind": "call",
       "source_domain": "watch_rewards",
       "target_domain": "premium",
-      "target": "_resolve_premium_status_for_settlement",
-      "b3_source_id": "app.databases.db_func:update_plex_credits"
+      "target": "_resolve_premium_status_for_settlement"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|279|facade|traffic|get_user_daily_traffic",
+      "key": "call|src/app/domains/watch_rewards/service.py|281|facade|traffic|get_user_daily_traffic",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 279,
+      "line": 281,
       "kind": "facade_call",
       "source_domain": "watch_rewards",
       "target_domain": "traffic",
-      "target": "get_user_daily_traffic",
-      "b3_source_id": "app.databases.db_func:update_plex_credits"
+      "target": "get_user_daily_traffic"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|286|facade|traffic|get_user_daily_traffic",
+      "key": "call|src/app/domains/watch_rewards/service.py|288|facade|traffic|get_user_daily_traffic",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 286,
+      "line": 288,
       "kind": "facade_call",
       "source_domain": "watch_rewards",
       "target_domain": "traffic",
-      "target": "get_user_daily_traffic",
-      "b3_source_id": "app.databases.db_func:update_plex_credits"
+      "target": "get_user_daily_traffic"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|293|imported|premium|_settle_premium_traffic_usage",
+      "key": "call|src/app/domains/watch_rewards/service.py|295|imported|premium|_settle_premium_traffic_usage",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 293,
+      "line": 295,
       "kind": "call",
       "source_domain": "watch_rewards",
       "target_domain": "premium",
-      "target": "_settle_premium_traffic_usage",
-      "b3_source_id": "app.databases.db_func:update_plex_credits"
+      "target": "_settle_premium_traffic_usage"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|361|facade|badges|get_user_active_badges_with_bonus",
+      "key": "call|src/app/domains/watch_rewards/service.py|363|facade|badges|get_user_active_badges_with_bonus",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 361,
+      "line": 363,
       "kind": "facade_call",
       "source_domain": "watch_rewards",
       "target_domain": "badges",
-      "target": "get_user_active_badges_with_bonus",
-      "b3_source_id": "app.databases.db_func:update_plex_credits"
+      "target": "get_user_active_badges_with_bonus"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|427|facade|invitation|get_inviter_tg_id_by_plex_id",
+      "key": "call|src/app/domains/watch_rewards/service.py|381|imported|credits|plex",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 427,
+      "line": 381,
+      "kind": "call",
+      "source_domain": "watch_rewards",
+      "target_domain": "credits",
+      "target": "plex"
+    },
+    {
+      "key": "call|src/app/domains/watch_rewards/service.py|410|imported|credits|tg",
+      "owner": "promote-reward-domains",
+      "path": "src/app/domains/watch_rewards/service.py",
+      "line": 410,
+      "kind": "call",
+      "source_domain": "watch_rewards",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/watch_rewards/service.py|433|facade|invitation|get_inviter_tg_id_by_plex_id",
+      "owner": "promote-reward-domains",
+      "path": "src/app/domains/watch_rewards/service.py",
+      "line": 433,
       "kind": "facade_call",
       "source_domain": "watch_rewards",
       "target_domain": "invitation",
-      "target": "get_inviter_tg_id_by_plex_id",
-      "b3_source_id": "app.databases.db_func:update_plex_credits"
+      "target": "get_inviter_tg_id_by_plex_id"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|506|facade|credits|get_user_credits",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 506,
-      "kind": "facade_call",
-      "source_domain": "watch_rewards",
-      "target_domain": "credits",
-      "target": "get_user_credits",
-      "b3_source_id": "app.databases.db_func:update_plex_credits"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|512|facade|credits|update_user_credits",
+      "key": "call|src/app/domains/watch_rewards/service.py|512|facade|credits|get_user_credits",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
       "line": 512,
       "kind": "facade_call",
       "source_domain": "watch_rewards",
       "target_domain": "credits",
-      "target": "update_user_credits",
-      "b3_source_id": "app.databases.db_func:update_plex_credits"
+      "target": "get_user_credits"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|607|imported|premium|_resolve_premium_status_for_settlement",
+      "key": "call|src/app/domains/watch_rewards/service.py|519|imported|credits|tg",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 607,
+      "line": 519,
+      "kind": "call",
+      "source_domain": "watch_rewards",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/watch_rewards/service.py|614|imported|premium|_resolve_premium_status_for_settlement",
+      "owner": "promote-reward-domains",
+      "path": "src/app/domains/watch_rewards/service.py",
+      "line": 614,
       "kind": "call",
       "source_domain": "watch_rewards",
       "target_domain": "premium",
-      "target": "_resolve_premium_status_for_settlement",
-      "b3_source_id": "app.databases.db_func:update_emby_credits"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|613|facade|traffic|get_user_daily_traffic",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 613,
-      "kind": "facade_call",
-      "source_domain": "watch_rewards",
-      "target_domain": "traffic",
-      "target": "get_user_daily_traffic",
-      "b3_source_id": "app.databases.db_func:update_emby_credits"
+      "target": "_resolve_premium_status_for_settlement"
     },
     {
       "key": "call|src/app/domains/watch_rewards/service.py|620|facade|traffic|get_user_daily_traffic",
@@ -3498,103 +3497,114 @@
       "b3_source_id": "app.databases.db_func:update_emby_credits"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|627|imported|premium|_settle_premium_traffic_usage",
+      "key": "call|src/app/domains/watch_rewards/service.py|627|facade|traffic|get_user_daily_traffic",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
       "line": 627,
+      "kind": "facade_call",
+      "source_domain": "watch_rewards",
+      "target_domain": "traffic",
+      "target": "get_user_daily_traffic"
+    },
+    {
+      "key": "call|src/app/domains/watch_rewards/service.py|634|imported|premium|_settle_premium_traffic_usage",
+      "owner": "promote-reward-domains",
+      "path": "src/app/domains/watch_rewards/service.py",
+      "line": 634,
       "kind": "call",
       "source_domain": "watch_rewards",
       "target_domain": "premium",
-      "target": "_settle_premium_traffic_usage",
-      "b3_source_id": "app.databases.db_func:update_emby_credits"
+      "target": "_settle_premium_traffic_usage"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|696|facade|badges|get_user_active_badges_with_bonus",
+      "key": "call|src/app/domains/watch_rewards/service.py|703|facade|badges|get_user_active_badges_with_bonus",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 696,
+      "line": 703,
       "kind": "facade_call",
       "source_domain": "watch_rewards",
       "target_domain": "badges",
-      "target": "get_user_active_badges_with_bonus",
-      "b3_source_id": "app.databases.db_func:update_emby_credits"
+      "target": "get_user_active_badges_with_bonus"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|728|facade|identity|get_stats_by_tg_id",
+      "key": "call|src/app/domains/watch_rewards/service.py|720|imported|credits|emby",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 728,
-      "kind": "facade_call",
-      "source_domain": "watch_rewards",
-      "target_domain": "identity",
-      "target": "get_stats_by_tg_id",
-      "b3_source_id": "app.databases.db_func:update_emby_credits"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|736|facade|credits|update_user_credits",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 736,
-      "kind": "facade_call",
+      "line": 720,
+      "kind": "call",
       "source_domain": "watch_rewards",
       "target_domain": "credits",
-      "target": "update_user_credits",
-      "b3_source_id": "app.databases.db_func:update_emby_credits"
+      "target": "emby"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|739|facade|credits|update_user_credits",
+      "key": "call|src/app/domains/watch_rewards/service.py|750|imported|credits|tg",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 739,
-      "kind": "facade_call",
+      "line": 750,
+      "kind": "call",
       "source_domain": "watch_rewards",
       "target_domain": "credits",
-      "target": "update_user_credits",
-      "b3_source_id": "app.databases.db_func:update_emby_credits"
+      "target": "tg"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|744|facade|identity|add_user_data",
+      "key": "call|src/app/domains/watch_rewards/service.py|761|imported|credits|emby",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 744,
-      "kind": "facade_call",
+      "line": 761,
+      "kind": "call",
+      "source_domain": "watch_rewards",
+      "target_domain": "credits",
+      "target": "emby"
+    },
+    {
+      "key": "call|src/app/domains/watch_rewards/service.py|765|imported|identity|Statistics",
+      "owner": "promote-reward-domains",
+      "path": "src/app/domains/watch_rewards/service.py",
+      "line": 765,
+      "kind": "call",
       "source_domain": "watch_rewards",
       "target_domain": "identity",
-      "target": "add_user_data",
-      "b3_source_id": "app.databases.db_func:update_emby_credits"
+      "target": "Statistics"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|764|facade|invitation|get_inviter_tg_id_by_emby_id",
+      "key": "call|src/app/domains/watch_rewards/service.py|770|imported|credits|tg",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 764,
+      "line": 770,
+      "kind": "call",
+      "source_domain": "watch_rewards",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/watch_rewards/service.py|795|facade|invitation|get_inviter_tg_id_by_emby_id",
+      "owner": "promote-reward-domains",
+      "path": "src/app/domains/watch_rewards/service.py",
+      "line": 795,
       "kind": "facade_call",
       "source_domain": "watch_rewards",
       "target_domain": "invitation",
-      "target": "get_inviter_tg_id_by_emby_id",
-      "b3_source_id": "app.databases.db_func:update_emby_credits"
+      "target": "get_inviter_tg_id_by_emby_id"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|843|facade|credits|get_user_credits",
+      "key": "call|src/app/domains/watch_rewards/service.py|874|facade|credits|get_user_credits",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 843,
+      "line": 874,
       "kind": "facade_call",
       "source_domain": "watch_rewards",
       "target_domain": "credits",
-      "target": "get_user_credits",
-      "b3_source_id": "app.databases.db_func:update_emby_credits"
+      "target": "get_user_credits"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|849|facade|credits|update_user_credits",
+      "key": "call|src/app/domains/watch_rewards/service.py|881|imported|credits|tg",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 849,
-      "kind": "facade_call",
+      "line": 881,
+      "kind": "call",
       "source_domain": "watch_rewards",
       "target_domain": "credits",
-      "target": "update_user_credits",
-      "b3_source_id": "app.databases.db_func:update_emby_credits"
+      "target": "tg"
     },
     {
       "key": "import|src/app/domains/accounts/jobs.py|21|app.domains.identity.models|EmbyUser",
@@ -5566,64 +5576,70 @@
       "symbol": "CreditAccount"
     },
     {
-      "key": "import|src/app/domains/watch_rewards/service.py|11|app.domains.identity.models|EmbyUser",
+      "key": "import|src/app/domains/watch_rewards/service.py|12|app.domains.credits.types|CreditAccount",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 11,
+      "line": 12,
+      "kind": "import",
+      "source_domain": "watch_rewards",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
+    },
+    {
+      "key": "import|src/app/domains/watch_rewards/service.py|13|app.domains.identity.models|EmbyUser",
+      "owner": "promote-reward-domains",
+      "path": "src/app/domains/watch_rewards/service.py",
+      "line": 13,
       "kind": "import",
       "source_domain": "watch_rewards",
       "target_domain": "identity",
       "target_module": "app.domains.identity.models",
-      "symbol": "EmbyUser",
-      "b3_source_id": "app.databases.db_func:@import:20"
+      "symbol": "EmbyUser"
     },
     {
-      "key": "import|src/app/domains/watch_rewards/service.py|11|app.domains.identity.models|PlexUser",
+      "key": "import|src/app/domains/watch_rewards/service.py|13|app.domains.identity.models|PlexUser",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 11,
+      "line": 13,
       "kind": "import",
       "source_domain": "watch_rewards",
       "target_domain": "identity",
       "target_module": "app.domains.identity.models",
-      "symbol": "PlexUser",
-      "b3_source_id": "app.databases.db_func:@import:20"
+      "symbol": "PlexUser"
     },
     {
-      "key": "import|src/app/domains/watch_rewards/service.py|11|app.domains.identity.models|Statistics",
+      "key": "import|src/app/domains/watch_rewards/service.py|13|app.domains.identity.models|Statistics",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 11,
+      "line": 13,
       "kind": "import",
       "source_domain": "watch_rewards",
       "target_domain": "identity",
       "target_module": "app.domains.identity.models",
-      "symbol": "Statistics",
-      "b3_source_id": "app.databases.db_func:@import:20"
+      "symbol": "Statistics"
     },
     {
-      "key": "import|src/app/domains/watch_rewards/service.py|202|app.domains.premium.rules|_resolve_premium_status_for_settlement",
+      "key": "import|src/app/domains/watch_rewards/service.py|204|app.domains.premium.rules|_resolve_premium_status_for_settlement",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 202,
+      "line": 204,
       "kind": "import",
       "source_domain": "watch_rewards",
       "target_domain": "premium",
       "target_module": "app.domains.premium.rules",
-      "symbol": "_resolve_premium_status_for_settlement",
-      "b3_source_id": "app.databases.db_func:_resolve_premium_status_for_settlement"
+      "symbol": "_resolve_premium_status_for_settlement"
     },
     {
-      "key": "import|src/app/domains/watch_rewards/service.py|202|app.domains.premium.rules|_settle_premium_traffic_usage",
+      "key": "import|src/app/domains/watch_rewards/service.py|204|app.domains.premium.rules|_settle_premium_traffic_usage",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 202,
+      "line": 204,
       "kind": "import",
       "source_domain": "watch_rewards",
       "target_domain": "premium",
       "target_module": "app.domains.premium.rules",
-      "symbol": "_settle_premium_traffic_usage",
-      "b3_source_id": "app.databases.db_func:_settle_premium_traffic_usage"
+      "symbol": "_settle_premium_traffic_usage"
     }
   ],
   "line_budgets": [],
