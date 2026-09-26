@@ -1,8 +1,9 @@
 from sqlalchemy import select
-from sqlalchemy import update as sql_update
 
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
 
 
@@ -23,18 +24,12 @@ def update_donation_credits(old_multiplier, new_multiplier):
             donations = session.execute(stmt).fetchall()
 
         for tg_id, donation, credits in donations:
-            # 计算新的积分
-            new_credits = round(
-                credits + donation * (new_multiplier - old_multiplier), 2
-            )
-            # 更新数据库
-            with get_session() as session:
-                stmt = (
-                    sql_update(Statistics)
-                    .where(Statistics.tg_id == tg_id)
-                    .values(credits=new_credits)
-                )
-                session.execute(stmt)
+            delta = round(donation * (new_multiplier - old_multiplier), 2)
+            if delta > 0:
+                credits_service.add(CreditAccount.tg(int(tg_id)), delta)
+            elif delta < 0:
+                credits_service.deduct(CreditAccount.tg(int(tg_id)), -delta)
+            new_credits = round(credits + delta, 2)
             logger.info(
                 f"用户 {tg_id} 捐赠：{donation}, 更新积分: {credits} -> {new_credits}"
             )

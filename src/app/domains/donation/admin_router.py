@@ -12,6 +12,8 @@ from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
 from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -41,17 +43,14 @@ async def submit_donation_record(
 
         current_donation = stats_info[1] if stats_info[1] else 0
         new_donation = round(current_donation + float(amount), 2)
-        current_credits = stats_info[2] if stats_info[2] else 0
-        new_credits = round(
-            current_credits + float(amount) * settings.DONATION_MULTIPLIER, 2
-        )  # 捐赠金额的倍数作为积分
-
         # 更新捐赠金额
         success = db.update_user_donation(new_donation, tg_id)
 
         if success:
-            # 更新积分
-            db.update_user_credits(new_credits, tg_id=tg_id)
+            credits_service.add(
+                CreditAccount.tg(int(tg_id)),
+                float(amount) * settings.DONATION_MULTIPLIER,
+            )
 
             # 获取用户显示名称
             user_name = get_user_name_from_tg_id(tg_id)

@@ -6,6 +6,9 @@ from sqlalchemy import func, select, update
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.credits import repository as credits_repository
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 
 
@@ -221,13 +224,11 @@ class MediaAccessRepository:
                     )
 
                 # 扣除积分
-                new_credits = credits - required_credits
-                stmt = (
-                    update(Statistics)
-                    .where(Statistics.tg_id == tg_id)
-                    .values(credits=new_credits)
+                mutation = credits_repository.deduct_tx(
+                    session, CreditAccount.tg(int(tg_id)), required_credits
                 )
-                session.execute(stmt)
+                credits_service.register_cache_invalidation(session, mutation)
+                new_credits = mutation.after
 
                 logger.info(
                     f"用户 {tg_id} 扣除 {required_credits} 积分用于解锁下载权限"

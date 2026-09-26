@@ -6,7 +6,8 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
 from app.core.telegram import send_message_by_url
-from app.databases import db
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.custom_lines.models import CustomLine
 
 
@@ -219,10 +220,9 @@ async def settle_custom_line_traffic(
 
                 # 赠送积分给线路所有者
                 try:
-                    # 获取当前积分
-                    current_credits = db.get_user_credits(line.tg_id)
-                    new_credits = round(current_credits + credits_to_reward, 2)
-                    db.update_user_credits(new_credits, tg_id=line.tg_id)
+                    credits_service.add(
+                        CreditAccount.tg(int(line.tg_id)), credits_to_reward
+                    )
                     settled_count += 1
                     total_credits += credits_to_reward
 

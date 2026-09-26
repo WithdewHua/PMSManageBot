@@ -566,15 +566,14 @@
       "target": "CreditsTransferResponse"
     },
     {
-      "key": "call|src/app/domains/crypto_donation/router.py|378|facade|identity|get_stats_by_tg_id",
+      "key": "call|src/app/domains/crypto_donation/router.py|380|facade|identity|get_stats_by_tg_id",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 378,
+      "line": 380,
       "kind": "facade_call",
       "source_domain": "crypto_donation",
       "target_domain": "identity",
-      "target": "get_stats_by_tg_id",
-      "b2_source_id": "app.webapp.routers.crypto_donation:upay_payment_callback"
+      "target": "get_stats_by_tg_id"
     },
     {
       "key": "call|src/app/domains/crypto_donation/router.py|395|facade|donation|update_user_donation",
@@ -588,26 +587,34 @@
       "b2_source_id": "app.webapp.routers.crypto_donation:upay_payment_callback"
     },
     {
-      "key": "call|src/app/domains/crypto_donation/router.py|396|facade|credits|update_user_credits",
+      "key": "call|src/app/domains/crypto_donation/router.py|397|imported|credits|add",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 396,
-      "kind": "facade_call",
+      "line": 397,
+      "kind": "call",
       "source_domain": "crypto_donation",
       "target_domain": "credits",
-      "target": "update_user_credits",
-      "b2_source_id": "app.webapp.routers.crypto_donation:upay_payment_callback"
+      "target": "add"
     },
     {
-      "key": "call|src/app/domains/crypto_donation/router.py|475|imported|badge_awards|check_and_award_supreme_contributor_badge",
+      "key": "call|src/app/domains/crypto_donation/router.py|398|imported|credits|tg",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 475,
+      "line": 398,
+      "kind": "call",
+      "source_domain": "crypto_donation",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/crypto_donation/router.py|483|imported|badge_awards|check_and_award_supreme_contributor_badge",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/crypto_donation/router.py",
+      "line": 483,
       "kind": "call",
       "source_domain": "crypto_donation",
       "target_domain": "badge_awards",
-      "target": "check_and_award_supreme_contributor_badge",
-      "b3_source_id": "app.domains.crypto_donation.router:upay_payment_callback"
+      "target": "check_and_award_supreme_contributor_badge"
     },
     {
       "key": "call|src/app/domains/custom_lines/admin_router.py|120|imported|profile|CustomLineApproveRequest",
@@ -841,92 +848,94 @@
       "b2_source_id": "app.webapp.routers.user:offline_custom_line"
     },
     {
-      "key": "call|src/app/domains/custom_lines/service.py|178|imported|traffic|_get_line_monthly_traffic",
+      "key": "call|src/app/domains/custom_lines/service.py|179|imported|traffic|_get_line_monthly_traffic",
       "owner": "promote-line-domains",
       "path": "src/app/domains/custom_lines/service.py",
-      "line": 178,
+      "line": 179,
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "traffic",
-      "target": "_get_line_monthly_traffic",
-      "b3_source_id": "app.modules.custom_line:settle_custom_line_traffic"
+      "target": "_get_line_monthly_traffic"
     },
     {
-      "key": "call|src/app/domains/custom_lines/service.py|223|facade|credits|get_user_credits",
+      "key": "call|src/app/domains/custom_lines/service.py|224|imported|credits|tg",
       "owner": "promote-line-domains",
       "path": "src/app/domains/custom_lines/service.py",
-      "line": 223,
-      "kind": "facade_call",
+      "line": 224,
+      "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "credits",
-      "target": "get_user_credits",
-      "b3_source_id": "app.modules.custom_line:settle_custom_line_traffic"
+      "target": "tg"
     },
     {
-      "key": "call|src/app/domains/custom_lines/service.py|225|facade|credits|update_user_credits",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/service.py",
-      "line": 225,
-      "kind": "facade_call",
-      "source_domain": "custom_lines",
-      "target_domain": "credits",
-      "target": "update_user_credits",
-      "b3_source_id": "app.modules.custom_line:settle_custom_line_traffic"
-    },
-    {
-      "key": "call|src/app/domains/donation/admin_router.py|38|facade|identity|get_stats_by_tg_id",
+      "key": "call|src/app/domains/donation/admin_router.py|40|facade|identity|get_stats_by_tg_id",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/donation/admin_router.py",
-      "line": 38,
+      "line": 40,
       "kind": "facade_call",
       "source_domain": "donation",
       "target_domain": "identity",
-      "target": "get_stats_by_tg_id",
-      "b2_source_id": "app.webapp.routers.admin:submit_donation_record"
+      "target": "get_stats_by_tg_id"
     },
     {
-      "key": "call|src/app/domains/donation/admin_router.py|54|facade|credits|update_user_credits",
+      "key": "call|src/app/domains/donation/admin_router.py|50|imported|credits|add",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/donation/admin_router.py",
-      "line": 54,
-      "kind": "facade_call",
+      "line": 50,
+      "kind": "call",
       "source_domain": "donation",
       "target_domain": "credits",
-      "target": "update_user_credits",
-      "b2_source_id": "app.webapp.routers.admin:submit_donation_record"
+      "target": "add"
     },
     {
-      "key": "call|src/app/domains/donation/admin_router.py|85|imported|badge_awards|check_and_award_supreme_contributor_badge",
+      "key": "call|src/app/domains/donation/admin_router.py|51|imported|credits|tg",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/donation/admin_router.py",
-      "line": 85,
+      "line": 51,
+      "kind": "call",
+      "source_domain": "donation",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/donation/admin_router.py|84|imported|badge_awards|check_and_award_supreme_contributor_badge",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/donation/admin_router.py",
+      "line": 84,
       "kind": "call",
       "source_domain": "donation",
       "target_domain": "badge_awards",
-      "target": "check_and_award_supreme_contributor_badge",
-      "b3_source_id": "app.domains.donation.admin_router:submit_donation_record"
+      "target": "check_and_award_supreme_contributor_badge"
     },
     {
-      "key": "call|src/app/domains/donation/bot.py|25|facade|identity|get_stats_by_tg_id",
+      "key": "call|src/app/domains/donation/bot.py|27|facade|identity|get_stats_by_tg_id",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/donation/bot.py",
-      "line": 25,
+      "line": 27,
       "kind": "facade_call",
       "source_domain": "donation",
       "target_domain": "identity",
-      "target": "get_stats_by_tg_id",
-      "b2_source_id": "app.handlers.user:set_donation"
+      "target": "get_stats_by_tg_id"
     },
     {
-      "key": "call|src/app/domains/donation/bot.py|42|facade|credits|update_user_credits",
+      "key": "call|src/app/domains/donation/bot.py|43|imported|credits|add",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/donation/bot.py",
-      "line": 42,
-      "kind": "facade_call",
+      "line": 43,
+      "kind": "call",
       "source_domain": "donation",
       "target_domain": "credits",
-      "target": "update_user_credits",
-      "b2_source_id": "app.handlers.user:set_donation"
+      "target": "add"
+    },
+    {
+      "key": "call|src/app/domains/donation/bot.py|44|imported|credits|tg",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/donation/bot.py",
+      "line": 44,
+      "kind": "call",
+      "source_domain": "donation",
+      "target_domain": "credits",
+      "target": "tg"
     },
     {
       "key": "call|src/app/domains/donation/router.py|279|facade|identity|get_stats_by_tg_id",
@@ -971,6 +980,26 @@
       "target_domain": "invitation",
       "target": "add_redeem_code",
       "b3_source_id": "app.domains.donation.router:confirm_donation_registration"
+    },
+    {
+      "key": "call|src/app/domains/donation/service.py|29|imported|credits|tg",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/donation/service.py",
+      "line": 29,
+      "kind": "call",
+      "source_domain": "donation",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/donation/service.py|31|imported|credits|tg",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/donation/service.py",
+      "line": 31,
+      "kind": "call",
+      "source_domain": "donation",
+      "target_domain": "credits",
+      "target": "tg"
     },
     {
       "key": "call|src/app/domains/gift_pack/repository/part_1.py|517|imported|premium|update_premium_status",
@@ -2092,6 +2121,26 @@
       "b2_source_id": "app.webapp.routers.activities.luckywheel:get_user_status"
     },
     {
+      "key": "call|src/app/domains/media_access/repository.py|228|imported|credits|tg",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/media_access/repository.py",
+      "line": 228,
+      "kind": "call",
+      "source_domain": "media_access",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/media_access/repository.py|230|imported|credits|register_cache_invalidation",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/media_access/repository.py",
+      "line": 230,
+      "kind": "call",
+      "source_domain": "media_access",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
       "key": "call|src/app/domains/media_access/router.py|120|facade|credits|update_user_credits",
       "owner": "promote-line-domains",
       "path": "src/app/domains/media_access/router.py",
@@ -2235,37 +2284,45 @@
       "b2_source_id": "app.webapp.routers.user:nsfw_operation"
     },
     {
-      "key": "call|src/app/domains/prediction/router.py|307|facade|credits|get_user_credits",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/prediction/router.py",
-      "line": 307,
-      "kind": "facade_call",
-      "source_domain": "prediction",
-      "target_domain": "credits",
-      "target": "get_user_credits",
-      "b2_source_id": "app.webapp.routers.activities.prediction:review_submission"
-    },
-    {
-      "key": "call|src/app/domains/prediction/router.py|309|facade|identity|add_user_data",
+      "key": "call|src/app/domains/prediction/router.py|309|facade|credits|get_user_credits",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/prediction/router.py",
       "line": 309,
       "kind": "facade_call",
       "source_domain": "prediction",
-      "target_domain": "identity",
-      "target": "add_user_data",
-      "b2_source_id": "app.webapp.routers.activities.prediction:review_submission"
+      "target_domain": "credits",
+      "target": "get_user_credits"
     },
     {
-      "key": "call|src/app/domains/prediction/router.py|316|facade|credits|update_user_credits",
+      "key": "call|src/app/domains/prediction/router.py|310|facade|identity|add_user_data",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/prediction/router.py",
+      "line": 310,
+      "kind": "facade_call",
+      "source_domain": "prediction",
+      "target_domain": "identity",
+      "target": "add_user_data",
+      "b2_source_id": "app.webapp.routers.donation:confirm_donation_registration"
+    },
+    {
+      "key": "call|src/app/domains/prediction/router.py|316|imported|credits|add",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/prediction/router.py",
       "line": 316,
-      "kind": "facade_call",
+      "kind": "call",
       "source_domain": "prediction",
       "target_domain": "credits",
-      "target": "update_user_credits",
-      "b2_source_id": "app.webapp.routers.activities.prediction:review_submission"
+      "target": "add"
+    },
+    {
+      "key": "call|src/app/domains/prediction/router.py|316|imported|credits|tg",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/prediction/router.py",
+      "line": 316,
+      "kind": "call",
+      "source_domain": "prediction",
+      "target_domain": "credits",
+      "target": "tg"
     },
     {
       "key": "call|src/app/domains/premium/admin_router.py|316|facade|lines|get_free_premium_lines",
@@ -3327,40 +3384,59 @@
       "symbol": "CreditsTransferResponse"
     },
     {
-      "key": "import|src/app/domains/crypto_donation/router.py|31|app.domains.identity.models|EmbyUser",
+      "key": "import|src/app/domains/crypto_donation/router.py|22|app.domains.credits.service|service",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 31,
+      "line": 22,
+      "kind": "import",
+      "source_domain": "crypto_donation",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/crypto_donation/router.py|23|app.domains.credits.types|CreditAccount",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/crypto_donation/router.py",
+      "line": 23,
+      "kind": "import",
+      "source_domain": "crypto_donation",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
+    },
+    {
+      "key": "import|src/app/domains/crypto_donation/router.py|33|app.domains.identity.models|EmbyUser",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/crypto_donation/router.py",
+      "line": 33,
       "kind": "import",
       "source_domain": "crypto_donation",
       "target_domain": "identity",
       "target_module": "app.domains.identity.models",
-      "symbol": "EmbyUser",
-      "b2_source_id": "app.webapp.routers.crypto_donation:@import:10"
+      "symbol": "EmbyUser"
     },
     {
-      "key": "import|src/app/domains/crypto_donation/router.py|31|app.domains.identity.models|PlexUser",
+      "key": "import|src/app/domains/crypto_donation/router.py|33|app.domains.identity.models|PlexUser",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 31,
+      "line": 33,
       "kind": "import",
       "source_domain": "crypto_donation",
       "target_domain": "identity",
       "target_module": "app.domains.identity.models",
-      "symbol": "PlexUser",
-      "b2_source_id": "app.webapp.routers.crypto_donation:@import:10"
+      "symbol": "PlexUser"
     },
     {
-      "key": "import|src/app/domains/crypto_donation/router.py|471|app.domains.badge_awards.jobs|check_and_award_supreme_contributor_badge",
+      "key": "import|src/app/domains/crypto_donation/router.py|479|app.domains.badge_awards.jobs|check_and_award_supreme_contributor_badge",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 471,
+      "line": 479,
       "kind": "import",
       "source_domain": "crypto_donation",
       "target_domain": "badge_awards",
       "target_module": "app.domains.badge_awards.jobs",
-      "symbol": "check_and_award_supreme_contributor_badge",
-      "b3_source_id": "app.databases.db_func:check_and_award_supreme_contributor_badge"
+      "symbol": "check_and_award_supreme_contributor_badge"
     },
     {
       "key": "import|src/app/domains/custom_lines/admin_router.py|117|app.domains.profile.schemas|CustomLineApproveRequest",
@@ -3579,28 +3655,81 @@
       "b2_source_id": "app.webapp.routers.user:offline_custom_line"
     },
     {
-      "key": "import|src/app/domains/custom_lines/service.py|109|app.domains.traffic.repository|_get_line_monthly_traffic",
+      "key": "import|src/app/domains/custom_lines/service.py|10|app.domains.credits.types|CreditAccount",
       "owner": "promote-line-domains",
       "path": "src/app/domains/custom_lines/service.py",
-      "line": 109,
+      "line": 10,
+      "kind": "import",
+      "source_domain": "custom_lines",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
+    },
+    {
+      "key": "import|src/app/domains/custom_lines/service.py|110|app.domains.traffic.repository|_get_line_monthly_traffic",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/custom_lines/service.py",
+      "line": 110,
       "kind": "import",
       "source_domain": "custom_lines",
       "target_domain": "traffic",
       "target_module": "app.domains.traffic.repository",
-      "symbol": "_get_line_monthly_traffic",
-      "b3_source_id": "app.modules.custom_line:_get_line_monthly_traffic"
+      "symbol": "_get_line_monthly_traffic"
     },
     {
-      "key": "import|src/app/domains/donation/admin_router.py|81|app.domains.badge_awards.jobs|check_and_award_supreme_contributor_badge",
+      "key": "import|src/app/domains/donation/admin_router.py|15|app.domains.credits.service|service",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/donation/admin_router.py",
-      "line": 81,
+      "line": 15,
+      "kind": "import",
+      "source_domain": "donation",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/donation/admin_router.py|16|app.domains.credits.types|CreditAccount",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/donation/admin_router.py",
+      "line": 16,
+      "kind": "import",
+      "source_domain": "donation",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
+    },
+    {
+      "key": "import|src/app/domains/donation/admin_router.py|80|app.domains.badge_awards.jobs|check_and_award_supreme_contributor_badge",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/donation/admin_router.py",
+      "line": 80,
       "kind": "import",
       "source_domain": "donation",
       "target_domain": "badge_awards",
       "target_module": "app.domains.badge_awards.jobs",
-      "symbol": "check_and_award_supreme_contributor_badge",
-      "b3_source_id": "app.databases.db_func:check_and_award_supreme_contributor_badge"
+      "symbol": "check_and_award_supreme_contributor_badge"
+    },
+    {
+      "key": "import|src/app/domains/donation/bot.py|7|app.domains.credits.service|service",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/donation/bot.py",
+      "line": 7,
+      "kind": "import",
+      "source_domain": "donation",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/donation/bot.py|8|app.domains.credits.types|CreditAccount",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/donation/bot.py",
+      "line": 8,
+      "kind": "import",
+      "source_domain": "donation",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
     },
     {
       "key": "import|src/app/domains/donation/router.py|15|app.domains.accounts.service|refresh_tg_user_info",
@@ -3651,16 +3780,26 @@
       "b3_source_id": "app.databases.db_func:check_and_award_supreme_contributor_badge"
     },
     {
-      "key": "import|src/app/domains/donation/service.py|6|app.domains.identity.models|Statistics",
+      "key": "import|src/app/domains/donation/service.py|6|app.domains.credits.types|CreditAccount",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/donation/service.py",
       "line": 6,
       "kind": "import",
       "source_domain": "donation",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
+    },
+    {
+      "key": "import|src/app/domains/donation/service.py|7|app.domains.identity.models|Statistics",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/donation/service.py",
+      "line": 7,
+      "kind": "import",
+      "source_domain": "donation",
       "target_domain": "identity",
       "target_module": "app.domains.identity.models",
-      "symbol": "Statistics",
-      "b3_source_id": "app.databases.db_func:@import:20"
+      "symbol": "Statistics"
     },
     {
       "key": "import|src/app/domains/gift_pack/repository/part_1.py|10|app.domains.badges.models|UserBadge",
@@ -4140,6 +4279,28 @@
       "b2_source_id": "app.webapp.routers.activities.luckywheel:@import:12"
     },
     {
+      "key": "import|src/app/domains/media_access/repository.py|10|app.domains.credits.service|service",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/media_access/repository.py",
+      "line": 10,
+      "kind": "import",
+      "source_domain": "media_access",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/media_access/repository.py|11|app.domains.credits.types|CreditAccount",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/media_access/repository.py",
+      "line": 11,
+      "kind": "import",
+      "source_domain": "media_access",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
+    },
+    {
       "key": "import|src/app/domains/media_access/service.py|5|app.domains.identity.models|PlexUser",
       "owner": "promote-line-domains",
       "path": "src/app/domains/media_access/service.py",
@@ -4162,6 +4323,28 @@
       "target_module": "app.domains.badge_awards.jobs",
       "symbol": "check_and_award_game_king_badge",
       "b3_source_id": "app.databases.db_func:check_and_award_game_king_badge"
+    },
+    {
+      "key": "import|src/app/domains/prediction/router.py|15|app.domains.credits.service|service",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/prediction/router.py",
+      "line": 15,
+      "kind": "import",
+      "source_domain": "prediction",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/prediction/router.py|16|app.domains.credits.types|CreditAccount",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/prediction/router.py",
+      "line": 16,
+      "kind": "import",
+      "source_domain": "prediction",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
     },
     {
       "key": "import|src/app/domains/premium/admin_router.py|13|app.domains.lines.service|disable_line_schedules_and_notify",

@@ -12,6 +12,8 @@ from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
 from app.databases import db
 from app.domains.badge_awards.jobs import check_and_award_game_king_badge
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.prediction.notifications import (
     notify_prediction_bet_placed,
     notify_prediction_market_created,
@@ -305,19 +307,14 @@ async def review_submission(
                 submitter_tg_id = int(res.get("submitter_tg_id") or 0)
                 if submitter_tg_id > 0:
                     current_credits = db.get_user_credits(submitter_tg_id)
-                    if current_credits is None:
-                        if db.add_user_data(
-                            tg_id=submitter_tg_id,
-                            credits=1,
-                            donation=0,
-                        ):
-                            reward_credits = 1
-                    else:
-                        if db.update_user_credits(
-                            credits=round(float(current_credits) + 1, 2),
-                            tg_id=submitter_tg_id,
-                        ):
-                            reward_credits = 1
+                    if current_credits is None and not db.add_user_data(
+                        tg_id=submitter_tg_id,
+                        credits=0,
+                        donation=0,
+                    ):
+                        raise RuntimeError("failed to initialize submitter credits")
+                    credits_service.add(CreditAccount.tg(submitter_tg_id), 1)
+                    reward_credits = 1
             except Exception as e:
                 logger.warning(f"Prediction submission reward credits failed: {e}")
 

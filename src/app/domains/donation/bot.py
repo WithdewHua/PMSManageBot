@@ -4,6 +4,8 @@ from telegram.ext import CommandHandler, ContextTypes
 from app.core.config import settings
 from app.core.telegram import get_user_name_from_tg_id, send_message
 from app.databases import db
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 
 
 # 管理员命令: 设置捐赠信息
@@ -28,9 +30,7 @@ async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             chat_id=chat_id, text=f"错误：用户 {tg_id} 不存在，请确认", context=context
         )
         return
-    _credits = info[2]
     _donation = info[1]
-    credits = _credits + donation * settings.DONATION_MULTIPLIER
     donate = _donation + donation
     res = db.update_user_donation(donate, tg_id=tg_id)
     if not res:
@@ -39,8 +39,12 @@ async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         )
         return
     if add_credits:
-        res = db.update_user_credits(credits, tg_id=tg_id)
-        if not res:
+        try:
+            credits_service.add(
+                CreditAccount.tg(int(tg_id)),
+                donation * settings.DONATION_MULTIPLIER,
+            )
+        except Exception:
             await send_message(
                 chat_id=chat_id, text="错误：更新积分失败，请检查", context=context
             )

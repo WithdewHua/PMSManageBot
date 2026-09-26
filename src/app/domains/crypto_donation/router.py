@@ -19,6 +19,8 @@ from app.core.log import logger
 from app.core.schemas import TelegramUser
 from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.crypto_donation.models import CryptoDonationOrders
 from app.domains.crypto_donation.schemas import (
     CryptoDonationOrderCreate,
@@ -389,11 +391,17 @@ async def upay_payment_callback(request: Request):
             credits_reward = round(
                 donation_amount_cny * settings.DONATION_MULTIPLIER, 2
             )
-            new_credits = round(current_credits + credits_reward, 2)
-
             # 更新用户捐赠金额和积分
             donation_success = db.update_user_donation(new_donation, user_id)
-            credits_success = db.update_user_credits(new_credits, user_id)
+            try:
+                mutation = credits_service.add(
+                    CreditAccount.tg(int(user_id)), credits_reward
+                )
+                new_credits = mutation.after
+                credits_success = True
+            except Exception:
+                credits_success = False
+                new_credits = current_credits
 
             if donation_success and credits_success:
                 logger.info(
