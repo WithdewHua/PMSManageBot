@@ -122,6 +122,10 @@ B2 过渡基线以 `scripts/refactor/B2_BASE` 中的 B1 提交为来源。B3 机
 
 `make-credit-changes-atomic` 的 AST inventory 保存在 `scripts/refactor/credit_inventory.json`；当前候选写入数为 0，说明所有已审阅的绝对值 writer、属性赋值和 `.values()` 写入均已迁移。`scripts/refactor/check_credit_migration.py` 与 `credit_migration.toml` 在严格模式下持续拒绝新 writer；inventory 是迁移清单，不把 `profile` 响应对象等非持久化候选直接视为数据库写入。旧的 58 条初始盘点可从 Git 历史恢复审计。
 
+## 积分生产形态彩排证据
+
+从 `quince` 加密流式导入了完整 `pmsmanagebot` PostgreSQL 副本到本地 PostgreSQL 18.3 隔离容器（33 张 public 表、224 条 `statistics` 记录），未写回 quince。使用 `app.api.app:app`、`--lifespan off` 和空外部配置进行只读 API 彩排：`/health=200`、`/openapi.json=200`、未认证 `/api/rankings/credits=401`；应用日志无数据库或启动错误。测试后容器、数据卷和临时配置全部删除。
+
 ## 积分并发验证证据
 
 `scripts/refactor/smoke_credit_concurrency.py` 在一次性 PostgreSQL 16 容器中执行了 100 次竞争扣款、100 次并发增减、20 次相反方向转账以及 40 次未绑定 Plex/Emby 增量。结果为 `tg_1001=112.5`、转账账户合计 `1990.0`、Plex `20.0`、Emby `10.0`；未出现丢失更新、负余额或死锁。容器和数据库在验证后删除；pytest 通过 `CREDITS_TEST_DATABASE_URL` 可重复运行同一检查。

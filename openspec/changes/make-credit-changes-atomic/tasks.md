@@ -35,6 +35,6 @@
 ## 6. Concurrency and Integration Verification
 
 - [x] 6.1 Add disposable-PostgreSQL concurrency tests for competing deductions, concurrent gains and costs, opposite-direction transfers, unbound-account updates, and a representative blackjack or gift settlement; verify no lost updates, no negative balances, and conserved transfer totals.
-- [ ] 6.2 Run API and domain behavior smoke tests against a production-shaped disposable PostgreSQL copy; verify response shapes, two-decimal rounding, cache invalidation, and rollback behavior match the pre-change snapshots.
-- [ ] 6.3 Run `ruff check`, `ruff format --check`, `PYTHONPATH=src .venv/bin/lint-imports --no-cache`, architecture tests, the full backend regression suite, and PostgreSQL metadata comparison; verify all pass with no schema drift.
-- [ ] 6.4 Update the change documentation with the final mutation inventory, concurrency evidence, deployment/rollback notes, and remaining follow-up ownership; verify `openspec validate make-credit-changes-atomic --strict` and a clean working tree.
+- [x] 6.2 Run API and domain behavior smoke tests against a production-shaped disposable PostgreSQL copy; verify response shapes, two-decimal rounding, cache invalidation, and rollback behavior match the pre-change snapshots.
+- [x] 6.3 Run `ruff check`, `ruff format --check`, `PYTHONPATH=src .venv/bin/lint-imports --no-cache`, architecture tests, the full backend regression suite, and PostgreSQL metadata comparison; verify all pass with no schema drift.
+- [x] 6.4 Update the change documentation with the final mutation inventory, concurrency evidence, deployment/rollback notes, and remaining follow-up ownership; verify `openspec validate make-credit-changes-atomic --strict` and a clean working tree.
