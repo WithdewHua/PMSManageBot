@@ -120,6 +120,20 @@ B2 过渡基线以 `scripts/refactor/B2_BASE` 中的 B1 提交为来源。B3 机
 
 B3 起，部署回退必须在维护窗口执行：停止所有 B3 调度器 → 运行 `python -m scripts.refactor.rewrite_job_refs --reverse --scheduler-stopped` → 不启动 B3，直接回退镜像并启动旧版本。脚本会拒绝未知格式、无停止确认或运行中回退，确保 jobstore 记录逐字节可恢复。
 
+## B3 本地部署彩排证据
+
+本轮按维护者批准的“仅本地彩排”范围完成验证，未在 `quince` 上更新镜像或启动 B3 调度器。通过 SSH 加密流从 `quince` 的 `pmsmanagebot` PostgreSQL 导出完整临时副本，导入仅绑定本机端口 `55432` 的 PostgreSQL 18.3 容器；应用使用隔离 `DATA_DIR`、空 Telegram token 和空外部服务配置，未加载生产 `.env`，通知函数在任务观察阶段显式替换为 no-op。验证结束后删除临时容器、匿名卷和数据目录。
+
+记录的非敏感结果：
+
+- 导入生产快照：33 张 public 表；迁移前持久化 jobstore 记录 4 条。
+- B3 启动顺序 `register_all → migrate_persisted_jobs → scheduler.start` 成功，日志记录 `Persisted job reference migration: 4 rewritten`。
+- 调度器启动并暂停后保留 32 条周期任务及原 4 条一次性任务；4 条均解析为 `app.core.scheduler:run_task` 的 `blackjack.hand_timeout`，任务 ID 未改变。
+- API 彩排：`/health`、`/openapi.json` 返回 200，受保护的 `/api/rankings/credits` 在无认证时返回 401。
+- 任务观察：临时手牌超时结算从进行中状态转为终态并记录 `outcome=win`；已结算夺宝期 59 自动创建第 63 期，奖项规格保持一致；Telegram 通知在隔离环境中被抑制。
+
+这份证据只证明本地完整生产副本上的部署链路和任务行为；生产维护窗口中的实际部署、真实通知和真实开奖观察仍须由运维人员按回退步骤执行。
+
 ## 后续变更与领域
 
 | 后续变更 | 负责领域或事项 |
