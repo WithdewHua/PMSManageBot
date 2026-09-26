@@ -8,10 +8,10 @@
 
 ## 2. Credits Primitives
 
-- [ ] 2.1 Add `credits.exceptions.InsufficientCredits` and a typed account reference/result model; verify invalid account references, non-positive amounts, NaN/infinite values, and structured insufficient-funds context with unit tests.
-- [ ] 2.2 Implement repository `get_tx`, `add_tx`, and `deduct_tx` helpers for Telegram, Plex, and Emby balances using row locks, SQL-side deltas, and conditional deductions; verify sequential behavior and rollback on a disposable PostgreSQL database.
-- [ ] 2.3 Implement standalone wrappers and post-commit cache invalidation using mutation results; verify successful updates invalidate affected keys while rolled-back updates do not alter the cache.
-- [ ] 2.4 Implement `credits.service.transfer` with deterministic row-lock ordering, the existing 5% fee, one transaction, and preserved response/error behavior; verify successful, insufficient, self-transfer, and opposite-direction transfer cases.
+- [x] 2.1 Add `credits.exceptions.InsufficientCredits` and a typed account reference/result model; verify invalid account references, non-positive amounts, NaN/infinite values, and structured insufficient-funds context with unit tests.
+- [x] 2.2 Implement repository `get_tx`, `add_tx`, and `deduct_tx` helpers for Telegram, Plex, and Emby balances using row locks, SQL-side deltas, and conditional deductions; verify sequential behavior and rollback on a disposable PostgreSQL database.
+- [x] 2.3 Implement standalone wrappers and post-commit cache invalidation using mutation results; verify successful updates invalidate affected keys while rolled-back updates do not alter the cache.
+- [x] 2.4 Implement `credits.service.transfer` with deterministic row-lock ordering, the existing 5% fee, one transaction, and preserved response/error behavior; verify successful, insufficient, self-transfer, and opposite-direction transfer cases.
 
 ## 3. Standalone Caller Migration
 

@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 
 from scripts.refactor.check_credit_migration import check, check_report, load_mapping
-from scripts.refactor.credit_inventory import build_report
 
 ROOT = Path(__file__).parents[2]
 MAPPING = ROOT / "scripts/refactor/credit_migration.toml"
@@ -13,7 +12,8 @@ MAPPING = ROOT / "scripts/refactor/credit_migration.toml"
 def test_credit_mapping_covers_the_frozen_inventory() -> None:
     errors = check(ROOT, MAPPING)
     assert errors == []
-    assert len(load_mapping(MAPPING)) == build_report(ROOT)["total"]
+    frozen = json.loads((ROOT / "scripts/refactor/credit_inventory.json").read_text())
+    assert len(load_mapping(MAPPING)) == frozen["total"]
 
 
 def test_strict_mode_rejects_unmigrated_writers() -> None:

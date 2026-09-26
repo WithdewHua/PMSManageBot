@@ -67,7 +67,12 @@ def check_report(
 
 
 def check(root: Path, mapping_path: Path, *, strict: bool = False) -> list[str]:
-    report = build_report(root)
+    """Check the frozen inventory, or live writers when strict mode is requested."""
+    inventory_path = root / "scripts/refactor/credit_inventory.json"
+    if strict or not inventory_path.exists():
+        report = build_report(root)
+    else:
+        report = json.loads(inventory_path.read_text(encoding="utf-8"))
     mapping = load_mapping(mapping_path)
     return check_report(report, mapping, strict=strict)
 

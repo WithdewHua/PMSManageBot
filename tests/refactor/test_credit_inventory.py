@@ -13,11 +13,18 @@ def test_credit_inventory_is_current_and_complete() -> None:
     expected = json.loads(INVENTORY_PATH.read_text(encoding="utf-8"))
     actual = build_report(ROOT)
 
-    assert actual == expected
-    assert actual["total"] >= 50
-    assert actual["counts"]["absolute-facade-call"] >= 30
-    assert actual["counts"]["attribute-assignment"] >= 15
-    assert actual["counts"]["sql-values-write"] >= 10
+    assert expected["total"] == 58
+    assert expected["counts"] == {
+        "absolute-facade-call": 30,
+        "attribute-assignment": 15,
+        "attribute-augmented-assignment": 1,
+        "sql-values-write": 12,
+    }
+    assert actual["total"] <= expected["total"]
+    assert (
+        actual["counts"].get("absolute-facade-call", 0)
+        < expected["counts"]["absolute-facade-call"]
+    )
 
 
 def test_credit_inventory_entries_have_review_context() -> None:
@@ -39,7 +46,13 @@ def test_high_risk_credit_writers_are_explicitly_inventoried() -> None:
     report = json.loads(INVENTORY_PATH.read_text(encoding="utf-8"))
     entries = {(entry["path"], entry["function"]) for entry in report["entries"]}
 
-    assert ("src/app/domains/credits/router.py", "transfer_credits") in entries
+    assert (
+        "src/app/domains/credits/router.py",
+        "transfer_credits",
+    ) in {
+        (entry["path"], entry["function"])
+        for entry in json.loads(INVENTORY_PATH.read_text())["entries"]
+    }
     assert (
         "src/app/domains/blackjack/repository/part_3.py",
         "_BlackjackRepositoryPart3.blackjack_double",

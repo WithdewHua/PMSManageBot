@@ -475,92 +475,74 @@
       "b3_source_id": "app.databases.db_func:award_blackjack_champion_badge"
     },
     {
-      "key": "call|src/app/domains/credits/router.py|125|imported|profile|CreditsTransferResponse",
+      "key": "call|src/app/domains/credits/router.py|107|imported|profile|CreditsTransferResponse",
       "owner": "make-credit-changes-atomic",
       "path": "src/app/domains/credits/router.py",
-      "line": 125,
+      "line": 107,
       "kind": "call",
       "source_domain": "credits",
       "target_domain": "profile",
-      "target": "CreditsTransferResponse",
-      "b2_source_id": "app.webapp.routers.user:transfer_credits"
+      "target": "CreditsTransferResponse"
     },
     {
-      "key": "call|src/app/domains/credits/router.py|135|imported|profile|CreditsTransferResponse",
+      "key": "call|src/app/domains/credits/router.py|30|imported|profile|CreditsTransferResponse",
       "owner": "make-credit-changes-atomic",
       "path": "src/app/domains/credits/router.py",
-      "line": 135,
+      "line": 30,
       "kind": "call",
       "source_domain": "credits",
       "target_domain": "profile",
-      "target": "CreditsTransferResponse",
-      "b2_source_id": "app.webapp.routers.user:transfer_credits"
+      "target": "CreditsTransferResponse"
     },
     {
-      "key": "call|src/app/domains/credits/router.py|29|imported|profile|CreditsTransferResponse",
+      "key": "call|src/app/domains/credits/router.py|39|imported|profile|CreditsTransferResponse",
       "owner": "make-credit-changes-atomic",
       "path": "src/app/domains/credits/router.py",
-      "line": 29,
+      "line": 39,
       "kind": "call",
       "source_domain": "credits",
       "target_domain": "profile",
-      "target": "CreditsTransferResponse",
-      "b2_source_id": "app.webapp.routers.user:transfer_credits"
+      "target": "CreditsTransferResponse"
     },
     {
-      "key": "call|src/app/domains/credits/router.py|38|imported|profile|CreditsTransferResponse",
+      "key": "call|src/app/domains/credits/router.py|43|imported|profile|CreditsTransferResponse",
       "owner": "make-credit-changes-atomic",
       "path": "src/app/domains/credits/router.py",
-      "line": 38,
+      "line": 43,
       "kind": "call",
       "source_domain": "credits",
       "target_domain": "profile",
-      "target": "CreditsTransferResponse",
-      "b2_source_id": "app.webapp.routers.user:transfer_credits"
+      "target": "CreditsTransferResponse"
     },
     {
-      "key": "call|src/app/domains/credits/router.py|42|imported|profile|CreditsTransferResponse",
+      "key": "call|src/app/domains/credits/router.py|48|imported|profile|CreditsTransferResponse",
       "owner": "make-credit-changes-atomic",
       "path": "src/app/domains/credits/router.py",
-      "line": 42,
+      "line": 48,
       "kind": "call",
       "source_domain": "credits",
       "target_domain": "profile",
-      "target": "CreditsTransferResponse",
-      "b2_source_id": "app.webapp.routers.user:transfer_credits"
+      "target": "CreditsTransferResponse"
     },
     {
-      "key": "call|src/app/domains/credits/router.py|47|imported|profile|CreditsTransferResponse",
+      "key": "call|src/app/domains/credits/router.py|57|imported|profile|CreditsTransferResponse",
       "owner": "make-credit-changes-atomic",
       "path": "src/app/domains/credits/router.py",
-      "line": 47,
+      "line": 57,
       "kind": "call",
       "source_domain": "credits",
       "target_domain": "profile",
-      "target": "CreditsTransferResponse",
-      "b2_source_id": "app.webapp.routers.user:transfer_credits"
+      "target": "CreditsTransferResponse"
     },
     {
-      "key": "call|src/app/domains/credits/router.py|52|facade|identity|get_stats_by_tg_id",
+      "key": "call|src/app/domains/credits/router.py|63|imported|profile|CreditsTransferResponse",
       "owner": "make-credit-changes-atomic",
       "path": "src/app/domains/credits/router.py",
-      "line": 52,
-      "kind": "facade_call",
-      "source_domain": "credits",
-      "target_domain": "identity",
-      "target": "get_stats_by_tg_id",
-      "b2_source_id": "app.webapp.routers.user:transfer_credits"
-    },
-    {
-      "key": "call|src/app/domains/credits/router.py|54|imported|profile|CreditsTransferResponse",
-      "owner": "make-credit-changes-atomic",
-      "path": "src/app/domains/credits/router.py",
-      "line": 54,
+      "line": 63,
       "kind": "call",
       "source_domain": "credits",
       "target_domain": "profile",
-      "target": "CreditsTransferResponse",
-      "b2_source_id": "app.webapp.routers.user:transfer_credits"
+      "target": "CreditsTransferResponse"
     },
     {
       "key": "call|src/app/domains/credits/router.py|66|imported|profile|CreditsTransferResponse",
@@ -574,48 +556,14 @@
       "b2_source_id": "app.webapp.routers.user:transfer_credits"
     },
     {
-      "key": "call|src/app/domains/credits/router.py|72|facade|identity|get_stats_by_tg_id",
+      "key": "call|src/app/domains/credits/router.py|97|imported|profile|CreditsTransferResponse",
       "owner": "make-credit-changes-atomic",
       "path": "src/app/domains/credits/router.py",
-      "line": 72,
-      "kind": "facade_call",
-      "source_domain": "credits",
-      "target_domain": "identity",
-      "target": "get_stats_by_tg_id",
-      "b2_source_id": "app.webapp.routers.user:transfer_credits"
-    },
-    {
-      "key": "call|src/app/domains/credits/router.py|74|imported|profile|CreditsTransferResponse",
-      "owner": "make-credit-changes-atomic",
-      "path": "src/app/domains/credits/router.py",
-      "line": 74,
+      "line": 97,
       "kind": "call",
       "source_domain": "credits",
       "target_domain": "profile",
-      "target": "CreditsTransferResponse",
-      "b2_source_id": "app.webapp.routers.user:transfer_credits"
-    },
-    {
-      "key": "call|src/app/domains/credits/router.py|87|imported|profile|CreditsTransferResponse",
-      "owner": "make-credit-changes-atomic",
-      "path": "src/app/domains/credits/router.py",
-      "line": 87,
-      "kind": "call",
-      "source_domain": "credits",
-      "target_domain": "profile",
-      "target": "CreditsTransferResponse",
-      "b2_source_id": "app.webapp.routers.user:transfer_credits"
-    },
-    {
-      "key": "call|src/app/domains/credits/router.py|96|imported|profile|CreditsTransferResponse",
-      "owner": "make-credit-changes-atomic",
-      "path": "src/app/domains/credits/router.py",
-      "line": 96,
-      "kind": "call",
-      "source_domain": "credits",
-      "target_domain": "profile",
-      "target": "CreditsTransferResponse",
-      "b2_source_id": "app.webapp.routers.user:transfer_credits"
+      "target": "CreditsTransferResponse"
     },
     {
       "key": "call|src/app/domains/crypto_donation/router.py|378|facade|identity|get_stats_by_tg_id",
@@ -3357,28 +3305,26 @@
       "b3_source_id": "app.databases.db_func:@import:20"
     },
     {
-      "key": "import|src/app/domains/credits/router.py|9|app.domains.profile.schemas|CreditsTransferRequest",
+      "key": "import|src/app/domains/credits/router.py|10|app.domains.profile.schemas|CreditsTransferRequest",
       "owner": "make-credit-changes-atomic",
       "path": "src/app/domains/credits/router.py",
-      "line": 9,
+      "line": 10,
       "kind": "import",
       "source_domain": "credits",
       "target_domain": "profile",
       "target_module": "app.domains.profile.schemas",
-      "symbol": "CreditsTransferRequest",
-      "b2_source_id": "app.webapp.routers.user:@import:20"
+      "symbol": "CreditsTransferRequest"
     },
     {
-      "key": "import|src/app/domains/credits/router.py|9|app.domains.profile.schemas|CreditsTransferResponse",
+      "key": "import|src/app/domains/credits/router.py|10|app.domains.profile.schemas|CreditsTransferResponse",
       "owner": "make-credit-changes-atomic",
       "path": "src/app/domains/credits/router.py",
-      "line": 9,
+      "line": 10,
       "kind": "import",
       "source_domain": "credits",
       "target_domain": "profile",
       "target_module": "app.domains.profile.schemas",
-      "symbol": "CreditsTransferResponse",
-      "b2_source_id": "app.webapp.routers.user:@import:20"
+      "symbol": "CreditsTransferResponse"
     },
     {
       "key": "import|src/app/domains/crypto_donation/router.py|31|app.domains.identity.models|EmbyUser",
@@ -4700,10 +4646,9 @@
     "SQLAlchemy direct use scope": 19,
     "Database engine import scope": 20,
     "Domain model import scope": 21,
-    "Six-tier domain dependencies": 67,
+    "Six-tier domain dependencies": 66,
     "Acyclic domain siblings": 20,
     "Domain internal layering": 8,
-    "Domain entry points do not touch data layer": 83
-  },
-  "b2_source_commit": "a0d3af510257ca80c277574d91ece353cc04e502"
+    "Domain entry points do not touch data layer": 82
+  }
 }

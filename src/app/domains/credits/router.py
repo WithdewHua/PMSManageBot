@@ -5,7 +5,8 @@ from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
 from app.core.telegram import send_message_by_url
-from app.databases import db
+from app.domains.credits import exceptions as credits_exceptions
+from app.domains.credits import service as credits_service
 from app.domains.profile.schemas import CreditsTransferRequest, CreditsTransferResponse
 
 router = APIRouter(prefix="/api/user", tags=["user"])
@@ -48,54 +49,25 @@ async def transfer_credits(
                 success=False, message="单次转移积分不能超过10000"
             )
 
-        # 获取发送方当前积分
-        sender_stats = db.get_stats_by_tg_id(sender_id)
-        if not sender_stats:
-            return CreditsTransferResponse(
-                success=False, message="您尚未绑定 Plex/Emby 账户"
-            )
-
-        sender_credits = sender_stats[2]
-
-        # 计算手续费 (5%)
-        fee_amount = amount * 0.05
-        total_deduction = amount + fee_amount
-
-        # 检查余额是否足够
-        if sender_credits < total_deduction:
+        # The service locks both statistics rows in ascending TG-ID order and
+        # commits the debit and credit together.
+        try:
+            transfer = credits_service.transfer(sender_id, target_tg_id, amount)
+        except credits_exceptions.InsufficientCredits as error:
             return CreditsTransferResponse(
                 success=False,
-                message=f"积分不足，需要 {total_deduction:.2f} 积分（包含 {fee_amount:.2f} 手续费）",
+                message=f"积分不足，需要 {error.requested:.2f} 积分（包含 {error.requested - amount:.2f} 手续费）",
             )
-
-        # 获取接收方信息
-        target_stats = db.get_stats_by_tg_id(target_tg_id)
-        if not target_stats:
+        except credits_exceptions.CreditAccountNotFound as error:
+            if error.account == f"tg:{sender_id}":
+                return CreditsTransferResponse(
+                    success=False, message="您尚未绑定 Plex/Emby 账户"
+                )
             return CreditsTransferResponse(
                 success=False, message="目标用户不存在或未绑定账户"
             )
 
-        target_credits = target_stats[2]
-
-        # 执行转移
-        new_sender_credits = sender_credits - total_deduction
-        new_target_credits = target_credits + amount
-
-        # 更新发送方积分
-        sender_success = db.update_user_credits(new_sender_credits, tg_id=sender_id)
-        if not sender_success:
-            return CreditsTransferResponse(
-                success=False, message="更新发送方积分失败，请稍后再试"
-            )
-
-        # 更新接收方积分
-        target_success = db.update_user_credits(new_target_credits, tg_id=target_tg_id)
-        if not target_success:
-            # 如果接收方更新失败，回滚发送方积分
-            db.update_user_credits(sender_credits, tg_id=sender_id)
-            return CreditsTransferResponse(
-                success=False, message="更新接收方积分失败，操作已回滚"
-            )
+        fee_amount = transfer.fee
 
         # 记录转移日志
         from app.core.telegram import get_user_name_from_tg_id
@@ -127,7 +99,7 @@ async def transfer_credits(
             message=f"成功转移 {amount} 积分给用户 {target_name}",
             transferred_amount=amount,
             fee_amount=fee_amount,
-            current_credits=new_sender_credits,
+            current_credits=transfer.current_sender_balance,
         )
 
     except Exception as e:

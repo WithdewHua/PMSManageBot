@@ -61,8 +61,15 @@ def get_session() -> Generator[Session, None, None]:
     try:
         yield session
         session.commit()
+        callbacks = session.info.pop("post_commit_callbacks", [])
+        for callback in callbacks:
+            try:
+                callback()
+            except Exception as error:  # pragma: no cover - side-effect failure
+                logger.warning(f"Post-commit callback failed: {error}")
     except Exception:
         session.rollback()
+        session.info.pop("post_commit_callbacks", None)
         raise
     finally:
         session.close()

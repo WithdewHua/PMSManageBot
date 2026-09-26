@@ -105,7 +105,6 @@ allowed_importers = [
     "app.domains.blackjack.jobs.tournament", # promote-blackjack-domain (B2 inherited)
     "app.domains.blackjack.notifications.tournament", # promote-blackjack-domain (B2 inherited)
     "app.domains.blackjack.router.tournament_admin", # promote-blackjack-domain (B2 inherited)
-    "app.domains.credits.router", # make-credit-changes-atomic (B2 inherited)
 
     "app.domains.crypto_donation.router", # promote-remaining-domains (B2 inherited)
 
@@ -363,7 +362,6 @@ ignore_imports = [
     "app.domains.blackjack.jobs.tournament -> app.databases.db", # promote-blackjack-domain (B2 inherited)
     "app.domains.blackjack.notifications.tournament -> app.databases.db", # promote-blackjack-domain (B2 inherited)
 
-    "app.domains.credits.router -> app.databases.db", # make-credit-changes-atomic (B2 inherited)
 
     "app.domains.credits.router -> app.domains.profile.schemas", # make-credit-changes-atomic (B2 inherited)
 
@@ -526,7 +524,6 @@ ignore_imports = [
     "app.domains.accounts.router -> app.databases.db", # promote-account-domains (B2 inherited)
     "app.domains.auction.router -> app.databases.db", # promote-activity-domains (B2 inherited)
     "app.domains.badges.router -> app.databases.db", # promote-reward-domains (B2 inherited)
-    "app.domains.credits.router -> app.databases.db", # make-credit-changes-atomic (B2 inherited)
     "app.domains.crypto_donation.router -> app.core.db", # promote-remaining-domains (B2 inherited)
     "app.domains.crypto_donation.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
     "app.domains.crypto_donation.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
