@@ -12,6 +12,9 @@ from app.core.log import logger
 from app.domains.blackjack.models import (
     BlackjackHand,
 )
+from app.domains.credits import repository as credits_repository
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
 
 from . import (
@@ -220,7 +223,10 @@ class _BlackjackRepositoryPart2:
         credited = round(payout + jackpot_won, 2)
         if credited > 0:
             if stats:
-                stats.credits = round(float(stats.credits) + credited, 2)
+                mutation = credits_repository.add_tx(
+                    session, CreditAccount.tg(tg_id), credited
+                )
+                credits_service.register_cache_invalidation(session, mutation)
             else:
                 session.add(
                     Statistics(tg_id=tg_id, donation=0, credits=float(credited))

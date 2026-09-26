@@ -1,12 +1,15 @@
 import time
 import traceback
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select
 from sqlalchemy.orm import joinedload
 
 from app.core.db import get_session
 from app.core.log import logger
 from app.domains.badges.models import Badge, UserBadge
+from app.domains.credits import repository as credits_repository
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
 
 
@@ -279,12 +282,10 @@ class BadgesRepository:
                     return False, f"积分不足，需要 {badge.credits_cost} 积分", None
 
                 # 4. 扣除积分（在同一个事务中）
-                new_credits = stats.credits - badge.credits_cost
-                session.execute(
-                    update(Statistics)
-                    .where(Statistics.tg_id == tg_id)
-                    .values(credits=new_credits)
+                mutation = credits_repository.deduct_tx(
+                    session, CreditAccount.tg(int(tg_id)), float(badge.credits_cost)
                 )
+                credits_service.register_cache_invalidation(session, mutation)
 
                 # 5. 创建用户勋章记录
                 current_time = int(time.time())

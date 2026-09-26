@@ -4,6 +4,9 @@ from sqlalchemy import case, func, select
 
 from app.core.db import get_session
 from app.core.kv import SystemConfig
+from app.domains.credits import repository as credits_repository
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
 from app.domains.prediction.models import (
     PredictionBet,
@@ -399,7 +402,10 @@ class _PredictionRepositoryPart1:
             if float(stats.credits) < float(amount):
                 raise ValueError("insufficient credits")
 
-            stats.credits = round(float(stats.credits) - float(amount), 2)
+            mutation = credits_repository.deduct_tx(
+                session, CreditAccount.tg(int(tg_id)), float(amount)
+            )
+            credits_service.register_cache_invalidation(session, mutation)
 
             bet = PredictionBet(
                 market_id=int(market.id),
@@ -668,8 +674,11 @@ class _PredictionRepositoryPart1:
                     for uid, payout in payout_map.items():
                         stats = stats_map.get(int(uid))
                         if stats:
-                            stats.credits = round(
-                                float(stats.credits) + float(payout), 2
+                            mutation = credits_repository.add_tx(
+                                session, CreditAccount.tg(int(uid)), float(payout)
+                            )
+                            credits_service.register_cache_invalidation(
+                                session, mutation
                             )
                         else:
                             session.add(

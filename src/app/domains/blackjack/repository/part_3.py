@@ -9,6 +9,9 @@ from app.core.log import logger
 from app.domains.blackjack.models import (
     BlackjackHand,
 )
+from app.domains.credits import repository as credits_repository
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
 
 
@@ -116,7 +119,10 @@ class _BlackjackRepositoryPart3:
             if credits_before < float(bet_credits):
                 raise ValueError("insufficient credits")
 
-            stats.credits = round(credits_before - float(bet_credits), 2)
+            mutation = credits_repository.deduct_tx(
+                session, CreditAccount.tg(int(tg_id)), float(bet_credits)
+            )
+            credits_service.register_cache_invalidation(session, mutation)
 
             # 每日首手免抽水：低成本的习惯钩子，无条件发放，不需下注解锁。
             # 判定用当日零点（settings.TZ）之后的手数，走已有的
@@ -399,7 +405,10 @@ class _BlackjackRepositoryPart3:
                 session, hand_id, action=engine.ACTION_DOUBLE, **ctx
             )
 
-            stats.credits = round(float(stats.credits) - float(bet), 2)
+            mutation = credits_repository.deduct_tx(
+                session, CreditAccount.tg(int(tg_id)), float(bet)
+            )
+            credits_service.register_cache_invalidation(session, mutation)
 
             player_cards = json.loads(hand.player_cards or "[]")
             deck = engine.build_deck(str(hand.deck_seed))
@@ -522,7 +531,10 @@ class _BlackjackRepositoryPart3:
                 .one_or_none()
             )
             if stats:
-                stats.credits = round(float(stats.credits) + payout, 2)
+                mutation = credits_repository.add_tx(
+                    session, CreditAccount.tg(int(tg_id)), payout
+                )
+                credits_service.register_cache_invalidation(session, mutation)
             else:
                 session.add(
                     Statistics(tg_id=int(tg_id), donation=0, credits=float(payout))

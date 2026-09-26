@@ -11,6 +11,9 @@ from app.domains.blackjack.models import (
     BlackjackHand,
     BlackjackWeeklyCashback,
 )
+from app.domains.credits import repository as credits_repository
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
 from app.domains.luckywheel.models import LuckywheelFreeSpin
 
@@ -126,7 +129,10 @@ class _BlackjackRepositoryPart1:
                 and streak >= threshold
             ):
                 relief = round(float(hand.bet_credits) * multiplier, 2)
-                stats.credits = round(float(stats.credits) + relief, 2)
+                mutation = credits_repository.add_tx(
+                    session, CreditAccount.tg(tg_id), relief
+                )
+                credits_service.register_cache_invalidation(session, mutation)
                 session.execute(
                     update(BlackjackHand)
                     .where(BlackjackHand.id == int(hand.id))

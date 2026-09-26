@@ -6,7 +6,10 @@ from sqlalchemy import delete, func, select, update
 from app.core.db import get_session
 from app.core.log import logger
 from app.domains.auction.models import AuctionBids, Auctions
-from app.domains.identity.models import Statistics
+from app.domains.credits import exceptions as credit_exceptions
+from app.domains.credits import repository as credits_repository
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 
 
 class AuctionRepository:
@@ -237,22 +240,21 @@ class AuctionRepository:
                     if winner_id and highest_bid:
                         final_price = highest_bid[1]
 
-                        # 获取用户当前积分
-                        stats = session.execute(
-                            select(Statistics).where(Statistics.tg_id == winner_id)
-                        ).scalar_one_or_none()
-
-                        if stats and stats.credits >= final_price:
-                            session.execute(
-                                update(Statistics)
-                                .where(Statistics.tg_id == winner_id)
-                                .values(credits=Statistics.credits - final_price)
+                        try:
+                            mutation = credits_repository.deduct_tx(
+                                session, CreditAccount.tg(int(winner_id)), final_price
+                            )
+                            credits_service.register_cache_invalidation(
+                                session, mutation
                             )
                             credits_reduced = True
                             logger.info(
                                 f"Auction {auction_id} finished: deducted {final_price} credits from winner {winner_id}"
                             )
-                        else:
+                        except (
+                            credit_exceptions.CreditAccountNotFound,
+                            credit_exceptions.InsufficientCredits,
+                        ):
                             logger.warning(
                                 f"Winner {winner_id} has insufficient credits for auction {auction_id} (price: {final_price})"
                             )
@@ -483,17 +485,19 @@ class AuctionRepository:
                     final_price = highest_bid[1]
 
                     # 扣除获胜者的积分
-                    stats = session.execute(
-                        select(Statistics).where(Statistics.tg_id == winner_id)
-                    ).scalar_one_or_none()
-
-                    if stats and stats.credits >= final_price:
-                        session.execute(
-                            update(Statistics)
-                            .where(Statistics.tg_id == winner_id)
-                            .values(credits=Statistics.credits - final_price)
+                    try:
+                        mutation = credits_repository.deduct_tx(
+                            session, CreditAccount.tg(int(winner_id)), final_price
                         )
+                        credits_service.register_cache_invalidation(session, mutation)
                         credits_reduced = True
+                    except (
+                        credit_exceptions.CreditAccountNotFound,
+                        credit_exceptions.InsufficientCredits,
+                    ):
+                        logger.warning(
+                            f"Winner {winner_id} has insufficient credits for auction {auction_id} (price: {final_price})"
+                        )
 
                 # 更新竞拍状态
                 session.execute(

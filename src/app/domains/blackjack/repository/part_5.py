@@ -9,6 +9,9 @@ from app.domains.blackjack.models import (
     BlackjackTournament,
     BlackjackTournamentEntry,
 )
+from app.domains.credits import repository as credits_repository
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
 
 
@@ -159,7 +162,11 @@ class _BlackjackRepositoryPart5:
                     stats.tournament_wallet_credits = round(
                         float(stats.tournament_wallet_credits or 0) + wallet_paid, 2
                     )
-                    stats.credits = round(float(stats.credits) + credits_paid, 2)
+                    if credits_paid > 0:
+                        mutation = credits_repository.add_tx(
+                            session, CreditAccount.tg(int(entry.tg_id)), credits_paid
+                        )
+                        credits_service.register_cache_invalidation(session, mutation)
                 else:
                     session.add(
                         Statistics(

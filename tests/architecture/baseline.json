@@ -299,6 +299,46 @@
       "b3_source_id": "app.databases.db_func:update_plex_info"
     },
     {
+      "key": "call|src/app/domains/auction/repository.py|245|imported|credits|tg",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/auction/repository.py",
+      "line": 245,
+      "kind": "call",
+      "source_domain": "auction",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/auction/repository.py|247|imported|credits|register_cache_invalidation",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/auction/repository.py",
+      "line": 247,
+      "kind": "call",
+      "source_domain": "auction",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
+      "key": "call|src/app/domains/auction/repository.py|490|imported|credits|tg",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/auction/repository.py",
+      "line": 490,
+      "kind": "call",
+      "source_domain": "auction",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/auction/repository.py|492|imported|credits|register_cache_invalidation",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/auction/repository.py",
+      "line": 492,
+      "kind": "call",
+      "source_domain": "auction",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
       "key": "call|src/app/domains/auction/router.py|302|facade|credits|get_user_credits",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/auction/router.py",
@@ -398,6 +438,26 @@
       "b3_source_id": "app.databases.db_func:check_and_award_supreme_contributor_badge"
     },
     {
+      "key": "call|src/app/domains/badges/repository.py|286|imported|credits|tg",
+      "owner": "promote-reward-domains",
+      "path": "src/app/domains/badges/repository.py",
+      "line": 286,
+      "kind": "call",
+      "source_domain": "badges",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/badges/repository.py|288|imported|credits|register_cache_invalidation",
+      "owner": "promote-reward-domains",
+      "path": "src/app/domains/badges/repository.py",
+      "line": 288,
+      "kind": "call",
+      "source_domain": "badges",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
       "key": "call|src/app/domains/badges/router.py|109|facade|identity|get_stats_by_tg_id",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/badges/router.py",
@@ -429,6 +489,166 @@
       "target_domain": "credits",
       "target": "get_user_credits",
       "b2_source_id": "app.webapp.routers.badge:redeem_badge"
+    },
+    {
+      "key": "call|src/app/domains/blackjack/repository/part_1.py|133|imported|credits|tg",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_1.py",
+      "line": 133,
+      "kind": "call",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/blackjack/repository/part_1.py|135|imported|credits|register_cache_invalidation",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_1.py",
+      "line": 135,
+      "kind": "call",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
+      "key": "call|src/app/domains/blackjack/repository/part_2.py|227|imported|credits|tg",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_2.py",
+      "line": 227,
+      "kind": "call",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/blackjack/repository/part_2.py|229|imported|credits|register_cache_invalidation",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_2.py",
+      "line": 229,
+      "kind": "call",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
+      "key": "call|src/app/domains/blackjack/repository/part_3.py|123|imported|credits|tg",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_3.py",
+      "line": 123,
+      "kind": "call",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/blackjack/repository/part_3.py|125|imported|credits|register_cache_invalidation",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_3.py",
+      "line": 125,
+      "kind": "call",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
+      "key": "call|src/app/domains/blackjack/repository/part_3.py|409|imported|credits|tg",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_3.py",
+      "line": 409,
+      "kind": "call",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/blackjack/repository/part_3.py|411|imported|credits|register_cache_invalidation",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_3.py",
+      "line": 411,
+      "kind": "call",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
+      "key": "call|src/app/domains/blackjack/repository/part_3.py|535|imported|credits|tg",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_3.py",
+      "line": 535,
+      "kind": "call",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/blackjack/repository/part_3.py|537|imported|credits|register_cache_invalidation",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_3.py",
+      "line": 537,
+      "kind": "call",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
+      "key": "call|src/app/domains/blackjack/repository/part_4.py|641|imported|credits|tg",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_4.py",
+      "line": 641,
+      "kind": "call",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/blackjack/repository/part_4.py|643|imported|credits|register_cache_invalidation",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_4.py",
+      "line": 643,
+      "kind": "call",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
+      "key": "call|src/app/domains/blackjack/repository/part_5.py|167|imported|credits|tg",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_5.py",
+      "line": 167,
+      "kind": "call",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/blackjack/repository/part_5.py|169|imported|credits|register_cache_invalidation",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_5.py",
+      "line": 169,
+      "kind": "call",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
+      "key": "call|src/app/domains/blackjack/repository/part_7.py|169|imported|credits|tg",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_7.py",
+      "line": 169,
+      "kind": "call",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/blackjack/repository/part_7.py|171|imported|credits|register_cache_invalidation",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_7.py",
+      "line": 171,
+      "kind": "call",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
     },
     {
       "key": "call|src/app/domains/blackjack/router/cash.py|111|facade|credits|get_user_credits",
@@ -1002,10 +1222,30 @@
       "target": "tg"
     },
     {
-      "key": "call|src/app/domains/gift_pack/repository/part_1.py|517|imported|premium|update_premium_status",
+      "key": "call|src/app/domains/gift_pack/repository/part_1.py|502|imported|credits|tg",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/part_1.py",
-      "line": 517,
+      "line": 502,
+      "kind": "call",
+      "source_domain": "gift_pack",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/gift_pack/repository/part_1.py|504|imported|credits|register_cache_invalidation",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "line": 504,
+      "kind": "call",
+      "source_domain": "gift_pack",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
+      "key": "call|src/app/domains/gift_pack/repository/part_1.py|523|imported|premium|update_premium_status",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "line": 523,
       "kind": "call",
       "source_domain": "gift_pack",
       "target_domain": "premium",
@@ -2284,6 +2524,46 @@
       "b2_source_id": "app.webapp.routers.user:nsfw_operation"
     },
     {
+      "key": "call|src/app/domains/prediction/repository/part_1.py|406|imported|credits|tg",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/prediction/repository/part_1.py",
+      "line": 406,
+      "kind": "call",
+      "source_domain": "prediction",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/prediction/repository/part_1.py|408|imported|credits|register_cache_invalidation",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/prediction/repository/part_1.py",
+      "line": 408,
+      "kind": "call",
+      "source_domain": "prediction",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
+      "key": "call|src/app/domains/prediction/repository/part_1.py|678|imported|credits|tg",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/prediction/repository/part_1.py",
+      "line": 678,
+      "kind": "call",
+      "source_domain": "prediction",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/prediction/repository/part_1.py|680|imported|credits|register_cache_invalidation",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/prediction/repository/part_1.py",
+      "line": 680,
+      "kind": "call",
+      "source_domain": "prediction",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
       "key": "call|src/app/domains/prediction/router.py|309|facade|credits|get_user_credits",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/prediction/router.py",
@@ -2908,6 +3188,66 @@
       "b3_source_id": "app.modules.custom_line:_get_line_monthly_traffic"
     },
     {
+      "key": "call|src/app/domains/treasure/repository.py|293|imported|credits|tg",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/treasure/repository.py",
+      "line": 293,
+      "kind": "call",
+      "source_domain": "treasure",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/treasure/repository.py|295|imported|credits|register_cache_invalidation",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/treasure/repository.py",
+      "line": 295,
+      "kind": "call",
+      "source_domain": "treasure",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
+      "key": "call|src/app/domains/treasure/repository.py|411|imported|credits|tg",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/treasure/repository.py",
+      "line": 411,
+      "kind": "call",
+      "source_domain": "treasure",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/treasure/repository.py|414|imported|credits|register_cache_invalidation",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/treasure/repository.py",
+      "line": 414,
+      "kind": "call",
+      "source_domain": "treasure",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
+      "key": "call|src/app/domains/treasure/repository.py|532|imported|credits|tg",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/treasure/repository.py",
+      "line": 532,
+      "kind": "call",
+      "source_domain": "treasure",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/treasure/repository.py|534|imported|credits|register_cache_invalidation",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/treasure/repository.py",
+      "line": 534,
+      "kind": "call",
+      "source_domain": "treasure",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
       "key": "call|src/app/domains/vaultwarden/router.py|128|facade|identity|get_stats_by_tg_id",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/vaultwarden/router.py",
@@ -3208,6 +3548,39 @@
       "b3_source_id": "app.databases.db_func:@import:20"
     },
     {
+      "key": "import|src/app/domains/auction/repository.py|11|app.domains.credits.service|service",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/auction/repository.py",
+      "line": 11,
+      "kind": "import",
+      "source_domain": "auction",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/auction/repository.py|12|app.domains.credits.types|CreditAccount",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/auction/repository.py",
+      "line": 12,
+      "kind": "import",
+      "source_domain": "auction",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
+    },
+    {
+      "key": "import|src/app/domains/auction/repository.py|9|app.domains.credits.exceptions|exceptions",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/auction/repository.py",
+      "line": 9,
+      "kind": "import",
+      "source_domain": "auction",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.exceptions",
+      "symbol": "exceptions"
+    },
+    {
       "key": "import|src/app/domains/badge_awards/jobs.py|10|app.domains.badges.models|UserBadge",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/badge_awards/jobs.py",
@@ -3292,15 +3665,147 @@
       "b3_source_id": "app.databases.db_func:check_and_award_game_king_badge"
     },
     {
-      "key": "import|src/app/domains/blackjack/repository/part_1.py|15|app.domains.luckywheel.models|LuckywheelFreeSpin",
+      "key": "import|src/app/domains/badges/repository.py|11|app.domains.credits.service|service",
+      "owner": "promote-reward-domains",
+      "path": "src/app/domains/badges/repository.py",
+      "line": 11,
+      "kind": "import",
+      "source_domain": "badges",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/badges/repository.py|12|app.domains.credits.types|CreditAccount",
+      "owner": "promote-reward-domains",
+      "path": "src/app/domains/badges/repository.py",
+      "line": 12,
+      "kind": "import",
+      "source_domain": "badges",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
+    },
+    {
+      "key": "import|src/app/domains/blackjack/repository/part_1.py|15|app.domains.credits.service|service",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_1.py",
       "line": 15,
       "kind": "import",
       "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/blackjack/repository/part_1.py|16|app.domains.credits.types|CreditAccount",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_1.py",
+      "line": 16,
+      "kind": "import",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
+    },
+    {
+      "key": "import|src/app/domains/blackjack/repository/part_1.py|18|app.domains.luckywheel.models|LuckywheelFreeSpin",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_1.py",
+      "line": 18,
+      "kind": "import",
+      "source_domain": "blackjack",
       "target_domain": "luckywheel",
       "target_module": "app.domains.luckywheel.models",
       "symbol": "LuckywheelFreeSpin"
+    },
+    {
+      "key": "import|src/app/domains/blackjack/repository/part_2.py|16|app.domains.credits.service|service",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_2.py",
+      "line": 16,
+      "kind": "import",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/blackjack/repository/part_2.py|17|app.domains.credits.types|CreditAccount",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_2.py",
+      "line": 17,
+      "kind": "import",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
+    },
+    {
+      "key": "import|src/app/domains/blackjack/repository/part_3.py|13|app.domains.credits.service|service",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_3.py",
+      "line": 13,
+      "kind": "import",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/blackjack/repository/part_3.py|14|app.domains.credits.types|CreditAccount",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_3.py",
+      "line": 14,
+      "kind": "import",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
+    },
+    {
+      "key": "import|src/app/domains/blackjack/repository/part_4.py|15|app.domains.credits.service|service",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_4.py",
+      "line": 15,
+      "kind": "import",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/blackjack/repository/part_4.py|16|app.domains.credits.types|CreditAccount",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_4.py",
+      "line": 16,
+      "kind": "import",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
+    },
+    {
+      "key": "import|src/app/domains/blackjack/repository/part_5.py|13|app.domains.credits.service|service",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_5.py",
+      "line": 13,
+      "kind": "import",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/blackjack/repository/part_5.py|14|app.domains.credits.types|CreditAccount",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_5.py",
+      "line": 14,
+      "kind": "import",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
     },
     {
       "key": "import|src/app/domains/blackjack/repository/part_6.py|9|app.domains.badges.models|UserBadge",
@@ -3312,6 +3817,28 @@
       "target_domain": "badges",
       "target_module": "app.domains.badges.models",
       "symbol": "UserBadge"
+    },
+    {
+      "key": "import|src/app/domains/blackjack/repository/part_7.py|13|app.domains.credits.service|service",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_7.py",
+      "line": 13,
+      "kind": "import",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/blackjack/repository/part_7.py|14|app.domains.credits.types|CreditAccount",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_7.py",
+      "line": 14,
+      "kind": "import",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
     },
     {
       "key": "import|src/app/domains/blackjack/router/cash.py|22|app.domains.badge_awards.jobs|check_and_award_game_king_badge",
@@ -3846,10 +4373,10 @@
       "symbol": "BlackjackTournamentEntry"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/part_1.py|143|app.domains.blackjack.rules|rules",
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|146|app.domains.blackjack.rules|rules",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/part_1.py",
-      "line": 143,
+      "line": 146,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "blackjack",
@@ -3857,10 +4384,32 @@
       "symbol": "rules"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/part_1.py|18|app.domains.invitation.models|Invitation",
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|17|app.domains.credits.service|service",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "line": 17,
+      "kind": "import",
+      "source_domain": "gift_pack",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|18|app.domains.credits.types|CreditAccount",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/part_1.py",
       "line": 18,
+      "kind": "import",
+      "source_domain": "gift_pack",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
+    },
+    {
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|21|app.domains.invitation.models|Invitation",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "line": 21,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "invitation",
@@ -3868,10 +4417,10 @@
       "symbol": "Invitation"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/part_1.py|19|app.domains.luckywheel.models|LuckywheelFreeSpin",
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|22|app.domains.luckywheel.models|LuckywheelFreeSpin",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/part_1.py",
-      "line": 19,
+      "line": 22,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "luckywheel",
@@ -3879,10 +4428,10 @@
       "symbol": "LuckywheelFreeSpin"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/part_1.py|19|app.domains.luckywheel.models|WheelStats",
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|22|app.domains.luckywheel.models|WheelStats",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/part_1.py",
-      "line": 19,
+      "line": 22,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "luckywheel",
@@ -3890,10 +4439,10 @@
       "symbol": "WheelStats"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/part_1.py|20|app.domains.prediction.models|PredictionBet",
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|23|app.domains.prediction.models|PredictionBet",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/part_1.py",
-      "line": 20,
+      "line": 23,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "prediction",
@@ -3901,10 +4450,10 @@
       "symbol": "PredictionBet"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/part_1.py|21|app.domains.treasure.models|TreasureParticipation",
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|24|app.domains.treasure.models|TreasureParticipation",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/part_1.py",
-      "line": 21,
+      "line": 24,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "treasure",
@@ -3912,10 +4461,10 @@
       "symbol": "TreasureParticipation"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/part_1.py|484|app.domains.premium.service|update_premium_status",
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|487|app.domains.premium.service|update_premium_status",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/part_1.py",
-      "line": 484,
+      "line": 487,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "premium",
@@ -4311,6 +4860,28 @@
       "target_module": "app.domains.identity.models",
       "symbol": "PlexUser",
       "b3_source_id": "app.databases.db_func:@import:20"
+    },
+    {
+      "key": "import|src/app/domains/prediction/repository/part_1.py|8|app.domains.credits.service|service",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/prediction/repository/part_1.py",
+      "line": 8,
+      "kind": "import",
+      "source_domain": "prediction",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/prediction/repository/part_1.py|9|app.domains.credits.types|CreditAccount",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/prediction/repository/part_1.py",
+      "line": 9,
+      "kind": "import",
+      "source_domain": "prediction",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
     },
     {
       "key": "import|src/app/domains/prediction/router.py|14|app.domains.badge_awards.jobs|check_and_award_game_king_badge",
@@ -4745,6 +5316,28 @@
       "target_module": "app.domains.identity.service",
       "symbol": "service",
       "b3_source_id": "app.modules.custom_line:_get_line_monthly_traffic"
+    },
+    {
+      "key": "import|src/app/domains/treasure/repository.py|10|app.domains.credits.service|service",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/treasure/repository.py",
+      "line": 10,
+      "kind": "import",
+      "source_domain": "treasure",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/treasure/repository.py|11|app.domains.credits.types|CreditAccount",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/treasure/repository.py",
+      "line": 11,
+      "kind": "import",
+      "source_domain": "treasure",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
     },
     {
       "key": "import|src/app/domains/treasure/router.py|13|app.domains.badge_awards.jobs|check_and_award_game_king_badge",

@@ -6,6 +6,9 @@ from sqlalchemy import case, delete, distinct, func, select
 from app.core.db import get_session
 from app.core.log import logger
 from app.core.number import normalize_external_random_b
+from app.domains.credits import repository as credits_repository
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
 from app.domains.treasure.models import TreasureIssue, TreasureParticipation
 
@@ -286,7 +289,10 @@ class TreasureRepository:
                 raise ValueError("user stats not found")
             if float(stats.credits) < float(total_cost):
                 raise ValueError("insufficient credits")
-            stats.credits = round(float(stats.credits) - float(total_cost), 2)
+            mutation = credits_repository.deduct_tx(
+                session, CreditAccount.tg(int(tg_id)), total_cost
+            )
+            credits_service.register_cache_invalidation(session, mutation)
 
             participations: list[TreasureParticipation] = []
             lucky_numbers: list[int] = []
@@ -400,9 +406,12 @@ class TreasureRepository:
                     .one_or_none()
                 )
                 if winner_stats:
-                    winner_stats.credits = round(
-                        float(winner_stats.credits) + float(issue.prize_credits), 2
+                    mutation = credits_repository.add_tx(
+                        session,
+                        CreditAccount.tg(winner_tg_id),
+                        float(issue.prize_credits),
                     )
+                    credits_service.register_cache_invalidation(session, mutation)
                 else:
                     # 如果赢家没有统计记录，创建一条（兼容极端情况）
                     session.add(
@@ -519,7 +528,10 @@ class TreasureRepository:
                     .one_or_none()
                 )
                 if stats:
-                    stats.credits = round(float(stats.credits) + refund, 2)
+                    mutation = credits_repository.add_tx(
+                        session, CreditAccount.tg(int(tg_id)), refund
+                    )
+                    credits_service.register_cache_invalidation(session, mutation)
                 else:
                     session.add(
                         Statistics(

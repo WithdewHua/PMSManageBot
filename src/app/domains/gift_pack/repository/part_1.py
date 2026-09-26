@@ -13,6 +13,9 @@ from app.domains.blackjack.models import (
     BlackjackTournament,
     BlackjackTournamentEntry,
 )
+from app.domains.credits import repository as credits_repository
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 from app.domains.invitation.models import Invitation
@@ -494,15 +497,18 @@ class _GiftPackRepositoryPart1:
 
             if reward_type == "credits":
                 amount = float(reward.get("amount") or 0)
-                stats = self._lock_gift_pack_stats(session, tg_id)
-                stats.credits = round(float(stats.credits) + amount, 2)
+                self._lock_gift_pack_stats(session, tg_id)
+                mutation = credits_repository.add_tx(
+                    session, CreditAccount.tg(int(tg_id)), amount
+                )
+                credits_service.register_cache_invalidation(session, mutation)
                 snapshot.append(
                     {
                         "type": "credits",
                         "label": label,
                         "success": True,
                         "amount": amount,
-                        "balance_after": stats.credits,
+                        "balance_after": mutation.after,
                     }
                 )
 
