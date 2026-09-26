@@ -116,6 +116,12 @@ B2 过渡基线以 `scripts/refactor/B2_BASE` 中的 B1 提交为来源。B3 机
 
 当前 import-linter ignore 数：SQLAlchemy 范围 24、数据库引擎范围 26、模型范围 29、六层领域依赖 67、无环兄弟领域 20、领域内分层 8、入口不碰数据层 83；其余合约 0。B3 去环没有新增 `Acyclic domain siblings` 豁免；任何新增豁免必须有冻结来源单元和行为测试证明。
 
+## 积分账本写入规则
+
+`credits` 是 `statistics.credits`、未绑定 `plex_user.credits` 和未绑定 `emby_user.emby_credits` 的唯一增减入口。新代码不得读取余额后计算绝对值再写回，也不得调用已废弃的 `update_user_credits`；必须使用 credits repository 的 SQL 增量操作。跨领域事务必须传递调用方 session 使用 `*_tx`，不得为积分变更另开 session，以避免丢失更新和行锁死锁。转账按稳定的账户 ID 顺序锁定双方，缓存只在外层事务提交后失效。
+
+`make-credit-changes-atomic` 的初始 AST inventory 保存在 `scripts/refactor/credit_inventory.json`，当前记录 58 个候选写入点（30 个绝对值 facade 调用、15 个属性赋值、1 个增量属性赋值、12 个 `.values()` 写入）。`scripts/refactor/check_credit_migration.py` 与 `credit_migration.toml` 要求每个候选都有事务所有者、缓存键和替代方案；严格模式在任一旧写入未迁移时失败。inventory 是迁移清单，不把 `profile` 响应对象等非持久化候选直接视为数据库写入，须在逐项审阅中标记。
+
 ## 部署回退
 
 B3 起，部署回退必须在维护窗口执行：停止所有 B3 调度器 → 运行 `python -m scripts.refactor.rewrite_job_refs --reverse --scheduler-stopped` → 不启动 B3，直接回退镜像并启动旧版本。脚本会拒绝未知格式、无停止确认或运行中回退，确保 jobstore 记录逐字节可恢复。

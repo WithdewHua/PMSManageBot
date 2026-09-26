@@ -1,0 +1,407 @@
+version = 1
+
+[[entries]]
+id = "src/app/domains/accounts/router.py|74|12|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/accounts/router.py|121|12|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/accounts/router.py|181|12|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/accounts/router.py|191|12|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/auction/repository.py|247|32|sql-values-write|credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["review-required"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/auction/repository.py|492|28|sql-values-write|credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["review-required"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/badges/repository.py|284|20|sql-values-write|credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["review-required"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/blackjack/repository/part_1.py|129|16|attribute-assignment|stats.credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["plex:<username>", "emby:<username>"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/blackjack/repository/part_2.py|223|16|attribute-assignment|stats.credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["plex:<username>", "emby:<username>"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/blackjack/repository/part_3.py|119|12|attribute-assignment|stats.credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["plex:<username>", "emby:<username>"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/blackjack/repository/part_3.py|402|12|attribute-assignment|stats.credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["plex:<username>", "emby:<username>"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/blackjack/repository/part_3.py|525|16|attribute-assignment|stats.credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["plex:<username>", "emby:<username>"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/blackjack/repository/part_4.py|636|12|attribute-assignment|stats.credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["plex:<username>", "emby:<username>"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/blackjack/repository/part_5.py|162|20|attribute-assignment|stats.credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["plex:<username>", "emby:<username>"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/blackjack/repository/part_7.py|165|24|attribute-assignment|stats.credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["plex:<username>", "emby:<username>"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/credits/repository.py|28|24|sql-values-write|credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["review-required"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/credits/repository.py|34|24|sql-values-write|credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["review-required"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/credits/repository.py|40|24|sql-values-write|emby_credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["emby:<username>"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/credits/router.py|85|25|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/credits/router.py|92|25|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/credits/router.py|95|12|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/crypto_donation/router.py|396|30|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/custom_lines/service.py|225|20|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/donation/admin_router.py|54|12|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/donation/bot.py|42|14|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/donation/router.py|294|24|sql-values-write|credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["review-required"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/donation/service.py|33|20|sql-values-write|credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["review-required"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/gift_pack/repository/part_1.py|498|16|attribute-assignment|stats.credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["plex:<username>", "emby:<username>"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/invitation/bot.py|41|10|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/invitation/router.py|145|14|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/invitation/router.py|564|14|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/invitation/router.py|574|12|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/lines/router.py|734|15|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/lines/router.py|740|12|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/luckywheel/router.py|254|4|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/luckywheel/router.py|284|4|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/media_access/repository.py|226|20|sql-values-write|credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["review-required"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/media_access/router.py|120|23|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/media_access/router.py|156|23|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/media_access/router.py|199|23|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/media_access/router.py|233|23|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/prediction/repository/part_1.py|402|12|attribute-assignment|stats.credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["plex:<username>", "emby:<username>"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/prediction/repository/part_1.py|671|28|attribute-assignment|stats.credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["plex:<username>", "emby:<username>"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/prediction/router.py|316|27|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/premium/router.py|109|8|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/profile/router.py|170|16|attribute-assignment|user_info.credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["review-required"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/tg_rebind/repository.py|164|28|attribute-augmented-assignment|new_stat.credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["plex:<username>", "emby:<username>"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/treasure/repository.py|289|12|attribute-assignment|stats.credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["plex:<username>", "emby:<username>"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/treasure/repository.py|403|20|attribute-assignment|winner_stats.credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["plex:<username>", "emby:<username>"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/treasure/repository.py|522|20|attribute-assignment|stats.credits"
+replacement = ""
+transaction_owner = "repository"
+cache_keys = ["plex:<username>", "emby:<username>"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/vaultwarden/router.py|162|14|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/watch_rewards/service.py|380|24|sql-values-write|credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["review-required"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/watch_rewards/service.py|418|24|sql-values-write|credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["review-required"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/watch_rewards/service.py|512|12|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/watch_rewards/service.py|713|24|sql-values-write|emby_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["emby:<username>"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/watch_rewards/service.py|736|20|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/watch_rewards/service.py|739|20|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"
+
+[[entries]]
+id = "src/app/domains/watch_rewards/service.py|849|12|absolute-facade-call|DatabaseORM.update_user_credits"
+replacement = ""
+transaction_owner = "caller-owned-or-unknown"
+cache_keys = ["derived-from-account-reference"]
+status = "pending-review"

@@ -1,0 +1,840 @@
+{
+  "counts": {
+    "absolute-facade-call": 30,
+    "attribute-assignment": 15,
+    "attribute-augmented-assignment": 1,
+    "sql-values-write": 12
+  },
+  "entries": [
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 12,
+      "expression_kind": "absolute",
+      "function": "bind_plex_account",
+      "kind": "absolute-facade-call",
+      "line": 74,
+      "path": "src/app/domains/accounts/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 12,
+      "expression_kind": "absolute",
+      "function": "bind_plex_account",
+      "kind": "absolute-facade-call",
+      "line": 121,
+      "path": "src/app/domains/accounts/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 12,
+      "expression_kind": "absolute",
+      "function": "bind_emby_account",
+      "kind": "absolute-facade-call",
+      "line": 181,
+      "path": "src/app/domains/accounts/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 12,
+      "expression_kind": "absolute",
+      "function": "bind_emby_account",
+      "kind": "absolute-facade-call",
+      "line": 191,
+      "path": "src/app/domains/accounts/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "review-required"
+      ],
+      "column": 32,
+      "expression_kind": "delta-expression",
+      "function": "AuctionRepository.finish_expired_auctions",
+      "kind": "sql-values-write",
+      "line": 247,
+      "path": "src/app/domains/auction/repository.py",
+      "review_status": "pending-migration",
+      "target": "credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "review-required"
+      ],
+      "column": 28,
+      "expression_kind": "delta-expression",
+      "function": "AuctionRepository.finish_auction_by_id",
+      "kind": "sql-values-write",
+      "line": 492,
+      "path": "src/app/domains/auction/repository.py",
+      "review_status": "pending-migration",
+      "target": "credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "review-required"
+      ],
+      "column": 20,
+      "expression_kind": "absolute",
+      "function": "BadgesRepository.redeem_badge",
+      "kind": "sql-values-write",
+      "line": 284,
+      "path": "src/app/domains/badges/repository.py",
+      "review_status": "pending-migration",
+      "target": "credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "plex:<username>",
+        "emby:<username>"
+      ],
+      "column": 16,
+      "expression_kind": "delta-expression",
+      "function": "_BlackjackRepositoryPart1._apply_blackjack_retention",
+      "kind": "attribute-assignment",
+      "line": 129,
+      "path": "src/app/domains/blackjack/repository/part_1.py",
+      "review_status": "pending-migration",
+      "target": "stats.credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "plex:<username>",
+        "emby:<username>"
+      ],
+      "column": 16,
+      "expression_kind": "delta-expression",
+      "function": "_BlackjackRepositoryPart2._settle_blackjack_hand",
+      "kind": "attribute-assignment",
+      "line": 223,
+      "path": "src/app/domains/blackjack/repository/part_2.py",
+      "review_status": "pending-migration",
+      "target": "stats.credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "plex:<username>",
+        "emby:<username>"
+      ],
+      "column": 12,
+      "expression_kind": "absolute",
+      "function": "_BlackjackRepositoryPart3.create_blackjack_hand",
+      "kind": "attribute-assignment",
+      "line": 119,
+      "path": "src/app/domains/blackjack/repository/part_3.py",
+      "review_status": "pending-migration",
+      "target": "stats.credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "plex:<username>",
+        "emby:<username>"
+      ],
+      "column": 12,
+      "expression_kind": "delta-expression",
+      "function": "_BlackjackRepositoryPart3.blackjack_double",
+      "kind": "attribute-assignment",
+      "line": 402,
+      "path": "src/app/domains/blackjack/repository/part_3.py",
+      "review_status": "pending-migration",
+      "target": "stats.credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "plex:<username>",
+        "emby:<username>"
+      ],
+      "column": 16,
+      "expression_kind": "delta-expression",
+      "function": "_BlackjackRepositoryPart3.blackjack_surrender",
+      "kind": "attribute-assignment",
+      "line": 525,
+      "path": "src/app/domains/blackjack/repository/part_3.py",
+      "review_status": "pending-migration",
+      "target": "stats.credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "plex:<username>",
+        "emby:<username>"
+      ],
+      "column": 12,
+      "expression_kind": "delta-expression",
+      "function": "_BlackjackRepositoryPart4.register_blackjack_tournament",
+      "kind": "attribute-assignment",
+      "line": 636,
+      "path": "src/app/domains/blackjack/repository/part_4.py",
+      "review_status": "pending-migration",
+      "target": "stats.credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "plex:<username>",
+        "emby:<username>"
+      ],
+      "column": 20,
+      "expression_kind": "delta-expression",
+      "function": "_BlackjackRepositoryPart5.cancel_blackjack_tournament",
+      "kind": "attribute-assignment",
+      "line": 162,
+      "path": "src/app/domains/blackjack/repository/part_5.py",
+      "review_status": "pending-migration",
+      "target": "stats.credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "plex:<username>",
+        "emby:<username>"
+      ],
+      "column": 24,
+      "expression_kind": "delta-expression",
+      "function": "_BlackjackRepositoryPart7.settle_blackjack_tournament",
+      "kind": "attribute-assignment",
+      "line": 165,
+      "path": "src/app/domains/blackjack/repository/part_7.py",
+      "review_status": "pending-migration",
+      "target": "stats.credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "review-required"
+      ],
+      "column": 24,
+      "expression_kind": "absolute",
+      "function": "CreditsRepository.update_user_credits",
+      "kind": "sql-values-write",
+      "line": 28,
+      "path": "src/app/domains/credits/repository.py",
+      "review_status": "pending-migration",
+      "target": "credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "review-required"
+      ],
+      "column": 24,
+      "expression_kind": "absolute",
+      "function": "CreditsRepository.update_user_credits",
+      "kind": "sql-values-write",
+      "line": 34,
+      "path": "src/app/domains/credits/repository.py",
+      "review_status": "pending-migration",
+      "target": "credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "emby:<username>"
+      ],
+      "column": 24,
+      "expression_kind": "absolute",
+      "function": "CreditsRepository.update_user_credits",
+      "kind": "sql-values-write",
+      "line": 40,
+      "path": "src/app/domains/credits/repository.py",
+      "review_status": "pending-migration",
+      "target": "emby_credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 25,
+      "expression_kind": "absolute",
+      "function": "transfer_credits",
+      "kind": "absolute-facade-call",
+      "line": 85,
+      "path": "src/app/domains/credits/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 25,
+      "expression_kind": "absolute",
+      "function": "transfer_credits",
+      "kind": "absolute-facade-call",
+      "line": 92,
+      "path": "src/app/domains/credits/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 12,
+      "expression_kind": "absolute",
+      "function": "transfer_credits",
+      "kind": "absolute-facade-call",
+      "line": 95,
+      "path": "src/app/domains/credits/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 30,
+      "expression_kind": "absolute",
+      "function": "upay_payment_callback",
+      "kind": "absolute-facade-call",
+      "line": 396,
+      "path": "src/app/domains/crypto_donation/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 20,
+      "expression_kind": "absolute",
+      "function": "settle_custom_line_traffic",
+      "kind": "absolute-facade-call",
+      "line": 225,
+      "path": "src/app/domains/custom_lines/service.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 12,
+      "expression_kind": "absolute",
+      "function": "submit_donation_record",
+      "kind": "absolute-facade-call",
+      "line": 54,
+      "path": "src/app/domains/donation/admin_router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 14,
+      "expression_kind": "absolute",
+      "function": "set_donation",
+      "kind": "absolute-facade-call",
+      "line": 42,
+      "path": "src/app/domains/donation/bot.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "review-required"
+      ],
+      "column": 24,
+      "expression_kind": "absolute",
+      "function": "confirm_donation_registration",
+      "kind": "sql-values-write",
+      "line": 294,
+      "path": "src/app/domains/donation/router.py",
+      "review_status": "pending-migration",
+      "target": "credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "review-required"
+      ],
+      "column": 20,
+      "expression_kind": "absolute",
+      "function": "update_donation_credits",
+      "kind": "sql-values-write",
+      "line": 33,
+      "path": "src/app/domains/donation/service.py",
+      "review_status": "pending-migration",
+      "target": "credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "plex:<username>",
+        "emby:<username>"
+      ],
+      "column": 16,
+      "expression_kind": "delta-expression",
+      "function": "_GiftPackRepositoryPart1._grant_gift_pack_rewards",
+      "kind": "attribute-assignment",
+      "line": 498,
+      "path": "src/app/domains/gift_pack/repository/part_1.py",
+      "review_status": "pending-migration",
+      "target": "stats.credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 10,
+      "expression_kind": "absolute",
+      "function": "exchange",
+      "kind": "absolute-facade-call",
+      "line": 41,
+      "path": "src/app/domains/invitation/bot.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 14,
+      "expression_kind": "absolute",
+      "function": "generate_invite_code",
+      "kind": "absolute-facade-call",
+      "line": 145,
+      "path": "src/app/domains/invitation/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 14,
+      "expression_kind": "absolute",
+      "function": "redeem_invite_code_for_credits",
+      "kind": "absolute-facade-call",
+      "line": 564,
+      "path": "src/app/domains/invitation/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 12,
+      "expression_kind": "absolute",
+      "function": "redeem_invite_code_for_credits",
+      "kind": "absolute-facade-call",
+      "line": 574,
+      "path": "src/app/domains/invitation/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 15,
+      "expression_kind": "absolute",
+      "function": "unlock_line_schedule",
+      "kind": "absolute-facade-call",
+      "line": 734,
+      "path": "src/app/domains/lines/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 12,
+      "expression_kind": "absolute",
+      "function": "unlock_line_schedule",
+      "kind": "absolute-facade-call",
+      "line": 740,
+      "path": "src/app/domains/lines/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 4,
+      "expression_kind": "absolute",
+      "function": "execute_single_spin",
+      "kind": "absolute-facade-call",
+      "line": 254,
+      "path": "src/app/domains/luckywheel/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 4,
+      "expression_kind": "absolute",
+      "function": "execute_single_spin",
+      "kind": "absolute-facade-call",
+      "line": 284,
+      "path": "src/app/domains/luckywheel/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "review-required"
+      ],
+      "column": 20,
+      "expression_kind": "absolute",
+      "function": "MediaAccessRepository.deduct_credits_for_download_unlock",
+      "kind": "sql-values-write",
+      "line": 226,
+      "path": "src/app/domains/media_access/repository.py",
+      "review_status": "pending-migration",
+      "target": "credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 23,
+      "expression_kind": "absolute",
+      "function": "nsfw_operation",
+      "kind": "absolute-facade-call",
+      "line": 120,
+      "path": "src/app/domains/media_access/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 23,
+      "expression_kind": "absolute",
+      "function": "nsfw_operation",
+      "kind": "absolute-facade-call",
+      "line": 156,
+      "path": "src/app/domains/media_access/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 23,
+      "expression_kind": "absolute",
+      "function": "nsfw_operation",
+      "kind": "absolute-facade-call",
+      "line": 199,
+      "path": "src/app/domains/media_access/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 23,
+      "expression_kind": "absolute",
+      "function": "nsfw_operation",
+      "kind": "absolute-facade-call",
+      "line": 233,
+      "path": "src/app/domains/media_access/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "plex:<username>",
+        "emby:<username>"
+      ],
+      "column": 12,
+      "expression_kind": "delta-expression",
+      "function": "_PredictionRepositoryPart1.place_prediction_bet",
+      "kind": "attribute-assignment",
+      "line": 402,
+      "path": "src/app/domains/prediction/repository/part_1.py",
+      "review_status": "pending-migration",
+      "target": "stats.credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "plex:<username>",
+        "emby:<username>"
+      ],
+      "column": 28,
+      "expression_kind": "delta-expression",
+      "function": "_PredictionRepositoryPart1.resolve_prediction_market",
+      "kind": "attribute-assignment",
+      "line": 671,
+      "path": "src/app/domains/prediction/repository/part_1.py",
+      "review_status": "pending-migration",
+      "target": "stats.credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 27,
+      "expression_kind": "absolute",
+      "function": "review_submission",
+      "kind": "absolute-facade-call",
+      "line": 316,
+      "path": "src/app/domains/prediction/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 8,
+      "expression_kind": "absolute",
+      "function": "unlock_premium",
+      "kind": "absolute-facade-call",
+      "line": 109,
+      "path": "src/app/domains/premium/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "review-required"
+      ],
+      "column": 16,
+      "expression_kind": "absolute",
+      "function": "get_user_info",
+      "kind": "attribute-assignment",
+      "line": 170,
+      "path": "src/app/domains/profile/router.py",
+      "review_status": "pending-migration",
+      "target": "user_info.credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "plex:<username>",
+        "emby:<username>"
+      ],
+      "column": 28,
+      "expression_kind": "delta-expression",
+      "function": "TgRebindRepository.rebind_user_tg_id",
+      "kind": "attribute-augmented-assignment",
+      "line": 164,
+      "path": "src/app/domains/tg_rebind/repository.py",
+      "review_status": "pending-migration",
+      "target": "new_stat.credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "plex:<username>",
+        "emby:<username>"
+      ],
+      "column": 12,
+      "expression_kind": "delta-expression",
+      "function": "TreasureRepository.join_treasure_issue",
+      "kind": "attribute-assignment",
+      "line": 289,
+      "path": "src/app/domains/treasure/repository.py",
+      "review_status": "pending-migration",
+      "target": "stats.credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "plex:<username>",
+        "emby:<username>"
+      ],
+      "column": 20,
+      "expression_kind": "delta-expression",
+      "function": "TreasureRepository.join_treasure_issue",
+      "kind": "attribute-assignment",
+      "line": 403,
+      "path": "src/app/domains/treasure/repository.py",
+      "review_status": "pending-migration",
+      "target": "winner_stats.credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "plex:<username>",
+        "emby:<username>"
+      ],
+      "column": 20,
+      "expression_kind": "delta-expression",
+      "function": "TreasureRepository.cancel_treasure_issue",
+      "kind": "attribute-assignment",
+      "line": 522,
+      "path": "src/app/domains/treasure/repository.py",
+      "review_status": "pending-migration",
+      "target": "stats.credits",
+      "transaction_owner": "repository"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 14,
+      "expression_kind": "absolute",
+      "function": "redeem_vaultwarden_account",
+      "kind": "absolute-facade-call",
+      "line": 162,
+      "path": "src/app/domains/vaultwarden/router.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "review-required"
+      ],
+      "column": 24,
+      "expression_kind": "absolute",
+      "function": "update_plex_credits",
+      "kind": "sql-values-write",
+      "line": 380,
+      "path": "src/app/domains/watch_rewards/service.py",
+      "review_status": "pending-migration",
+      "target": "credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "review-required"
+      ],
+      "column": 24,
+      "expression_kind": "absolute",
+      "function": "update_plex_credits",
+      "kind": "sql-values-write",
+      "line": 418,
+      "path": "src/app/domains/watch_rewards/service.py",
+      "review_status": "pending-migration",
+      "target": "credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 12,
+      "expression_kind": "absolute",
+      "function": "update_plex_credits",
+      "kind": "absolute-facade-call",
+      "line": 512,
+      "path": "src/app/domains/watch_rewards/service.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "emby:<username>"
+      ],
+      "column": 24,
+      "expression_kind": "absolute",
+      "function": "update_emby_credits",
+      "kind": "sql-values-write",
+      "line": 713,
+      "path": "src/app/domains/watch_rewards/service.py",
+      "review_status": "pending-migration",
+      "target": "emby_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 20,
+      "expression_kind": "absolute",
+      "function": "update_emby_credits",
+      "kind": "absolute-facade-call",
+      "line": 736,
+      "path": "src/app/domains/watch_rewards/service.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 20,
+      "expression_kind": "absolute",
+      "function": "update_emby_credits",
+      "kind": "absolute-facade-call",
+      "line": 739,
+      "path": "src/app/domains/watch_rewards/service.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    },
+    {
+      "cache_keys": [
+        "derived-from-account-reference"
+      ],
+      "column": 12,
+      "expression_kind": "absolute",
+      "function": "update_emby_credits",
+      "kind": "absolute-facade-call",
+      "line": 849,
+      "path": "src/app/domains/watch_rewards/service.py",
+      "review_status": "pending-migration",
+      "target": "DatabaseORM.update_user_credits",
+      "transaction_owner": "caller-owned-or-unknown"
+    }
+  ],
+  "schema_version": 1,
+  "source_root": "src/app",
+  "total": 58
+}
