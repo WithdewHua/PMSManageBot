@@ -290,3 +290,33 @@ class DonationRepository:
                 "rejected_registrations": 0,
                 "total_approved_amount": 0.0,
             }
+
+
+def update_donation_credits(old_multiplier: float, new_multiplier: float) -> None:
+    """Reprice all donation credits in one caller-owned transaction."""
+    from app.domains.credits import repository as credits_repository
+    from app.domains.credits import service as credits_service
+    from app.domains.credits.types import CreditAccount
+
+    with get_session() as session:
+        donations = session.execute(
+            select(Statistics.tg_id, Statistics.donation, Statistics.credits)
+            .where(Statistics.donation > 0)
+            .with_for_update()
+        ).all()
+        for tg_id, donation, credits in donations:
+            delta = round(float(donation) * (new_multiplier - old_multiplier), 2)
+            if delta > 0:
+                mutation = credits_repository.add_tx(
+                    session, CreditAccount.tg(int(tg_id)), delta
+                )
+            elif delta < 0:
+                mutation = credits_repository.deduct_tx(
+                    session, CreditAccount.tg(int(tg_id)), -delta
+                )
+            else:
+                continue
+            credits_service.register_cache_invalidation(session, mutation)
+            logger.info(
+                f"用户 {tg_id} 捐赠：{donation}, 更新积分: {credits} -> {mutation.after}"
+            )

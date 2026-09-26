@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from math import isfinite
+
 from sqlalchemy import select, update
 
 from app.core.db import get_session
@@ -62,15 +64,16 @@ def add_tx(session, account: CreditAccount, amount: float) -> CreditMutation:
     if row is None:
         raise CreditAccountNotFound(account.label)
     before = float(getattr(row, credit_column.key))
+    after = round(before + delta, 2)
     session.execute(
         update(model)
         .where(key_column == account.identifier)
-        .values({credit_column: credit_column + delta})
+        .values({credit_column: credit_column + (after - before)})
     )
     return CreditMutation(
         account=account,
         before=before,
-        after=round(before + delta, 2),
+        after=after,
         delta=delta,
         cache_keys=_cache_keys(session, account, row),
     )
@@ -87,15 +90,16 @@ def deduct_tx(session, account: CreditAccount, amount: float) -> CreditMutation:
     before = float(getattr(row, credit_column.key))
     if before < delta:
         raise InsufficientCredits(account.label, delta, before)
+    after = round(before - delta, 2)
     session.execute(
         update(model)
         .where(key_column == account.identifier)
-        .values({credit_column: credit_column - delta})
+        .values({credit_column: credit_column + (after - before)})
     )
     return CreditMutation(
         account=account,
         before=before,
-        after=round(before - delta, 2),
+        after=after,
         delta=-delta,
         cache_keys=_cache_keys(session, account, row),
     )
@@ -162,7 +166,10 @@ def transfer(
     if int(sender_tg_id) == int(recipient_tg_id):
         raise ValueError("cannot transfer credits to yourself")
     transfer_amount = validate_amount(amount)
-    fee = transfer_amount * float(fee_rate)
+    normalized_fee_rate = float(fee_rate)
+    if not isfinite(normalized_fee_rate) or normalized_fee_rate < 0:
+        raise ValueError("fee rate must be finite and non-negative")
+    fee = transfer_amount * normalized_fee_rate
     sender = CreditAccount.tg(int(sender_tg_id))
     recipient = CreditAccount.tg(int(recipient_tg_id))
     accounts = sorted((sender, recipient), key=lambda account: int(account.identifier))

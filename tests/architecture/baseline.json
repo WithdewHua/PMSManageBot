@@ -9,8 +9,7 @@
       "kind": "facade_call",
       "source_domain": "accounts",
       "target_domain": "identity",
-      "target": "add_overseerr_user",
-      "b2_source_id": "app.handlers.user:create_overseerr"
+      "target": "add_overseerr_user"
     },
     {
       "key": "call|src/app/domains/accounts/bot.py|80|facade|identity|get_emby_info_by_tg_id",
@@ -20,8 +19,7 @@
       "kind": "facade_call",
       "source_domain": "accounts",
       "target_domain": "identity",
-      "target": "get_emby_info_by_tg_id",
-      "b2_source_id": "app.handlers.user:create_overseerr"
+      "target": "get_emby_info_by_tg_id"
     },
     {
       "key": "call|src/app/domains/accounts/bot.py|81|facade|identity|get_plex_info_by_tg_id",
@@ -31,8 +29,7 @@
       "kind": "facade_call",
       "source_domain": "accounts",
       "target_domain": "identity",
-      "target": "get_plex_info_by_tg_id",
-      "b2_source_id": "app.handlers.user:create_overseerr"
+      "target": "get_plex_info_by_tg_id"
     },
     {
       "key": "call|src/app/domains/accounts/bot.py|82|facade|identity|get_overseerr_info_by_tg_id",
@@ -42,8 +39,7 @@
       "kind": "facade_call",
       "source_domain": "accounts",
       "target_domain": "identity",
-      "target": "get_overseerr_info_by_tg_id",
-      "b2_source_id": "app.handlers.user:create_overseerr"
+      "target": "get_overseerr_info_by_tg_id"
     },
     {
       "key": "call|src/app/domains/accounts/bot.py|83|facade|identity|get_overseerr_info_by_email",
@@ -53,251 +49,137 @@
       "kind": "facade_call",
       "source_domain": "accounts",
       "target_domain": "identity",
-      "target": "get_overseerr_info_by_email",
-      "b2_source_id": "app.handlers.user:create_overseerr"
+      "target": "get_overseerr_info_by_email"
     },
     {
-      "key": "call|src/app/domains/accounts/router.py|101|facade|identity|add_plex_user",
+      "key": "call|src/app/domains/accounts/repository.py|30|imported|credits|plex",
       "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 101,
-      "kind": "facade_call",
-      "source_domain": "accounts",
-      "target_domain": "identity",
-      "target": "add_plex_user",
-      "b2_source_id": "app.webapp.routers.user:bind_plex_account"
-    },
-    {
-      "key": "call|src/app/domains/accounts/router.py|118|facade|identity|get_stats_by_tg_id",
-      "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 118,
-      "kind": "facade_call",
-      "source_domain": "accounts",
-      "target_domain": "identity",
-      "target": "get_stats_by_tg_id",
-      "b2_source_id": "app.webapp.routers.user:bind_emby_account"
-    },
-    {
-      "key": "call|src/app/domains/accounts/router.py|119|facade|identity|add_user_data",
-      "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 119,
-      "kind": "facade_call",
-      "source_domain": "accounts",
-      "target_domain": "identity",
-      "target": "add_user_data",
-      "b2_source_id": "app.webapp.routers.user:bind_emby_account"
-    },
-    {
-      "key": "call|src/app/domains/accounts/router.py|121|imported|credits|move",
-      "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 121,
-      "kind": "call",
-      "source_domain": "accounts",
-      "target_domain": "credits",
-      "target": "move"
-    },
-    {
-      "key": "call|src/app/domains/accounts/router.py|122|imported|credits|plex",
-      "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 122,
+      "path": "src/app/domains/accounts/repository.py",
+      "line": 30,
       "kind": "call",
       "source_domain": "accounts",
       "target_domain": "credits",
       "target": "plex"
     },
     {
-      "key": "call|src/app/domains/accounts/router.py|122|imported|credits|tg",
+      "key": "call|src/app/domains/accounts/repository.py|31|imported|credits|tg",
       "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 122,
+      "path": "src/app/domains/accounts/repository.py",
+      "line": 31,
       "kind": "call",
       "source_domain": "accounts",
       "target_domain": "credits",
       "target": "tg"
     },
     {
-      "key": "call|src/app/domains/accounts/router.py|125|imported|credits|add",
+      "key": "call|src/app/domains/accounts/repository.py|33|imported|credits|register_cache_invalidation",
       "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 125,
+      "path": "src/app/domains/accounts/repository.py",
+      "line": 33,
       "kind": "call",
       "source_domain": "accounts",
       "target_domain": "credits",
-      "target": "add"
+      "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/accounts/router.py|125|imported|credits|tg",
+      "key": "call|src/app/domains/accounts/repository.py|48|imported|credits|tg",
       "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 125,
+      "path": "src/app/domains/accounts/repository.py",
+      "line": 48,
       "kind": "call",
       "source_domain": "accounts",
       "target_domain": "credits",
       "target": "tg"
     },
     {
-      "key": "call|src/app/domains/accounts/router.py|154|facade|identity|get_emby_info_by_tg_id",
+      "key": "call|src/app/domains/accounts/repository.py|50|imported|credits|register_cache_invalidation",
       "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 154,
-      "kind": "facade_call",
-      "source_domain": "accounts",
-      "target_domain": "identity",
-      "target": "get_emby_info_by_tg_id",
-      "b2_source_id": "app.webapp.routers.user:bind_emby_account"
-    },
-    {
-      "key": "call|src/app/domains/accounts/router.py|169|facade|identity|get_emby_info_by_emby_username",
-      "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 169,
-      "kind": "facade_call",
-      "source_domain": "accounts",
-      "target_domain": "identity",
-      "target": "get_emby_info_by_emby_username",
-      "b2_source_id": "app.webapp.routers.user:bind_emby_account"
-    },
-    {
-      "key": "call|src/app/domains/accounts/router.py|181|facade|identity|update_user_tg_id",
-      "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 181,
-      "kind": "facade_call",
-      "source_domain": "accounts",
-      "target_domain": "identity",
-      "target": "update_user_tg_id",
-      "b2_source_id": "app.webapp.routers.user:bind_plex_account"
-    },
-    {
-      "key": "call|src/app/domains/accounts/router.py|186|facade|identity|add_emby_user",
-      "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 186,
-      "kind": "facade_call",
-      "source_domain": "accounts",
-      "target_domain": "identity",
-      "target": "add_emby_user",
-      "b2_source_id": "app.webapp.routers.user:bind_emby_account"
-    },
-    {
-      "key": "call|src/app/domains/accounts/router.py|189|facade|identity|get_stats_by_tg_id",
-      "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 189,
-      "kind": "facade_call",
-      "source_domain": "accounts",
-      "target_domain": "identity",
-      "target": "get_stats_by_tg_id",
-      "b2_source_id": "app.webapp.routers.user:bind_emby_account"
-    },
-    {
-      "key": "call|src/app/domains/accounts/router.py|190|facade|identity|add_user_data",
-      "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 190,
-      "kind": "facade_call",
-      "source_domain": "accounts",
-      "target_domain": "identity",
-      "target": "add_user_data",
-      "b2_source_id": "app.webapp.routers.user:bind_emby_account"
-    },
-    {
-      "key": "call|src/app/domains/accounts/router.py|192|imported|credits|move",
-      "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 192,
+      "path": "src/app/domains/accounts/repository.py",
+      "line": 50,
       "kind": "call",
       "source_domain": "accounts",
       "target_domain": "credits",
-      "target": "move"
+      "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/accounts/router.py|193|imported|credits|emby",
+      "key": "call|src/app/domains/accounts/repository.py|67|imported|credits|emby",
       "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 193,
+      "path": "src/app/domains/accounts/repository.py",
+      "line": 67,
       "kind": "call",
       "source_domain": "accounts",
       "target_domain": "credits",
       "target": "emby"
     },
     {
-      "key": "call|src/app/domains/accounts/router.py|193|imported|credits|tg",
+      "key": "call|src/app/domains/accounts/repository.py|68|imported|credits|tg",
       "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 193,
-      "kind": "call",
-      "source_domain": "accounts",
-      "target_domain": "credits",
-      "target": "tg"
-    },
-    {
-      "key": "call|src/app/domains/accounts/router.py|196|imported|credits|add",
-      "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 196,
-      "kind": "call",
-      "source_domain": "accounts",
-      "target_domain": "credits",
-      "target": "add"
-    },
-    {
-      "key": "call|src/app/domains/accounts/router.py|196|imported|credits|tg",
-      "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 196,
-      "kind": "call",
-      "source_domain": "accounts",
-      "target_domain": "credits",
-      "target": "tg"
-    },
-    {
-      "key": "call|src/app/domains/accounts/router.py|33|facade|identity|get_plex_info_by_tg_id",
-      "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 33,
-      "kind": "facade_call",
-      "source_domain": "accounts",
-      "target_domain": "identity",
-      "target": "get_plex_info_by_tg_id",
-      "b2_source_id": "app.webapp.routers.user:bind_plex_account"
-    },
-    {
-      "key": "call|src/app/domains/accounts/router.py|54|facade|identity|get_plex_info_by_plex_id",
-      "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 54,
-      "kind": "facade_call",
-      "source_domain": "accounts",
-      "target_domain": "identity",
-      "target": "get_plex_info_by_plex_id",
-      "b2_source_id": "app.webapp.routers.user:bind_plex_account"
-    },
-    {
-      "key": "call|src/app/domains/accounts/router.py|56|facade|identity|get_plex_info_by_plex_email",
-      "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 56,
-      "kind": "facade_call",
-      "source_domain": "accounts",
-      "target_domain": "identity",
-      "target": "get_plex_info_by_plex_email",
-      "b2_source_id": "app.webapp.routers.user:bind_plex_account"
-    },
-    {
-      "key": "call|src/app/domains/accounts/router.py|68|facade|identity|update_user_tg_id",
-      "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
+      "path": "src/app/domains/accounts/repository.py",
       "line": 68,
+      "kind": "call",
+      "source_domain": "accounts",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/accounts/repository.py|70|imported|credits|register_cache_invalidation",
+      "owner": "promote-account-domains",
+      "path": "src/app/domains/accounts/repository.py",
+      "line": 70,
+      "kind": "call",
+      "source_domain": "accounts",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
+      "key": "call|src/app/domains/accounts/router.py|132|facade|identity|get_emby_info_by_tg_id",
+      "owner": "promote-account-domains",
+      "path": "src/app/domains/accounts/router.py",
+      "line": 132,
       "kind": "facade_call",
       "source_domain": "accounts",
       "target_domain": "identity",
-      "target": "update_user_tg_id",
-      "b2_source_id": "app.webapp.routers.user:bind_plex_account"
+      "target": "get_emby_info_by_tg_id"
+    },
+    {
+      "key": "call|src/app/domains/accounts/router.py|147|facade|identity|get_emby_info_by_emby_username",
+      "owner": "promote-account-domains",
+      "path": "src/app/domains/accounts/router.py",
+      "line": 147,
+      "kind": "facade_call",
+      "source_domain": "accounts",
+      "target_domain": "identity",
+      "target": "get_emby_info_by_emby_username"
+    },
+    {
+      "key": "call|src/app/domains/accounts/router.py|32|facade|identity|get_plex_info_by_tg_id",
+      "owner": "promote-account-domains",
+      "path": "src/app/domains/accounts/router.py",
+      "line": 32,
+      "kind": "facade_call",
+      "source_domain": "accounts",
+      "target_domain": "identity",
+      "target": "get_plex_info_by_tg_id"
+    },
+    {
+      "key": "call|src/app/domains/accounts/router.py|53|facade|identity|get_plex_info_by_plex_id",
+      "owner": "promote-account-domains",
+      "path": "src/app/domains/accounts/router.py",
+      "line": 53,
+      "kind": "facade_call",
+      "source_domain": "accounts",
+      "target_domain": "identity",
+      "target": "get_plex_info_by_plex_id"
+    },
+    {
+      "key": "call|src/app/domains/accounts/router.py|55|facade|identity|get_plex_info_by_plex_email",
+      "owner": "promote-account-domains",
+      "path": "src/app/domains/accounts/router.py",
+      "line": 55,
+      "kind": "facade_call",
+      "source_domain": "accounts",
+      "target_domain": "identity",
+      "target": "get_plex_info_by_plex_email"
     },
     {
       "key": "call|src/app/domains/accounts/service.py|172|facade|identity|add_plex_user",
@@ -530,8 +412,7 @@
       "kind": "facade_call",
       "source_domain": "badges",
       "target_domain": "identity",
-      "target": "get_stats_by_tg_id",
-      "b2_source_id": "app.webapp.routers.badge:redeem_badge"
+      "target": "get_stats_by_tg_id"
     },
     {
       "key": "call|src/app/domains/badges/router.py|169|facade|identity|get_stats_by_tg_id",
@@ -541,8 +422,7 @@
       "kind": "facade_call",
       "source_domain": "badges",
       "target_domain": "identity",
-      "target": "get_stats_by_tg_id",
-      "b2_source_id": "app.webapp.routers.badge:redeem_badge"
+      "target": "get_stats_by_tg_id"
     },
     {
       "key": "call|src/app/domains/badges/router.py|183|imported|credits|read_optional",
@@ -864,8 +744,7 @@
       "kind": "call",
       "source_domain": "credits",
       "target_domain": "profile",
-      "target": "CreditsTransferResponse",
-      "b2_source_id": "app.webapp.routers.user:transfer_credits"
+      "target": "CreditsTransferResponse"
     },
     {
       "key": "call|src/app/domains/credits/router.py|97|imported|profile|CreditsTransferResponse",
@@ -895,8 +774,7 @@
       "kind": "facade_call",
       "source_domain": "crypto_donation",
       "target_domain": "donation",
-      "target": "update_user_donation",
-      "b2_source_id": "app.webapp.routers.crypto_donation:upay_payment_callback"
+      "target": "update_user_donation"
     },
     {
       "key": "call|src/app/domains/crypto_donation/router.py|397|imported|credits|add",
@@ -936,8 +814,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "profile",
-      "target": "CustomLineApproveRequest",
-      "b2_source_id": "app.webapp.routers.admin:approve_custom_line"
+      "target": "CustomLineApproveRequest"
     },
     {
       "key": "call|src/app/domains/custom_lines/admin_router.py|271|imported|profile|AdminCustomLineUpdateRequest",
@@ -947,8 +824,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "profile",
-      "target": "AdminCustomLineUpdateRequest",
-      "b2_source_id": "app.webapp.routers.admin:admin_update_custom_line"
+      "target": "AdminCustomLineUpdateRequest"
     },
     {
       "key": "call|src/app/domains/custom_lines/admin_router.py|397|imported|lines|unbind_specified_line_for_all_users",
@@ -958,8 +834,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "lines",
-      "target": "unbind_specified_line_for_all_users",
-      "b2_source_id": "app.webapp.routers.admin:admin_delete_custom_line"
+      "target": "unbind_specified_line_for_all_users"
     },
     {
       "key": "call|src/app/domains/custom_lines/admin_router.py|42|imported|profile|CustomLineListResponse",
@@ -969,8 +844,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "profile",
-      "target": "CustomLineListResponse",
-      "b2_source_id": "app.webapp.routers.admin:get_all_custom_lines"
+      "target": "CustomLineListResponse"
     },
     {
       "key": "call|src/app/domains/custom_lines/admin_router.py|474|imported|lines|unbind_specified_line_for_all_users",
@@ -980,8 +854,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "lines",
-      "target": "unbind_specified_line_for_all_users",
-      "b2_source_id": "app.webapp.routers.admin:admin_delete_custom_line"
+      "target": "unbind_specified_line_for_all_users"
     },
     {
       "key": "call|src/app/domains/custom_lines/admin_router.py|52|imported|profile|CustomLineInfo",
@@ -991,8 +864,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "profile",
-      "target": "CustomLineInfo",
-      "b2_source_id": "app.webapp.routers.admin:get_all_custom_lines"
+      "target": "CustomLineInfo"
     },
     {
       "key": "call|src/app/domains/custom_lines/admin_router.py|81|imported|profile|CustomLineListResponse",
@@ -1002,8 +874,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "profile",
-      "target": "CustomLineListResponse",
-      "b2_source_id": "app.webapp.routers.admin:get_all_custom_lines"
+      "target": "CustomLineListResponse"
     },
     {
       "key": "call|src/app/domains/custom_lines/admin_router.py|92|imported|profile|CustomLineListResponse",
@@ -1013,8 +884,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "profile",
-      "target": "CustomLineListResponse",
-      "b2_source_id": "app.webapp.routers.admin:get_all_custom_lines"
+      "target": "CustomLineListResponse"
     },
     {
       "key": "call|src/app/domains/custom_lines/jobs.py|118|imported|traffic|_get_line_monthly_traffic",
@@ -1057,8 +927,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "profile",
-      "target": "CustomLineInfo",
-      "b2_source_id": "app.webapp.routers.user:get_custom_line_detail"
+      "target": "CustomLineInfo"
     },
     {
       "key": "call|src/app/domains/custom_lines/router.py|197|imported|profile|CustomLineListResponse",
@@ -1068,8 +937,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "profile",
-      "target": "CustomLineListResponse",
-      "b2_source_id": "app.webapp.routers.user:get_my_custom_lines"
+      "target": "CustomLineListResponse"
     },
     {
       "key": "call|src/app/domains/custom_lines/router.py|206|imported|profile|CustomLineListResponse",
@@ -1079,8 +947,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "profile",
-      "target": "CustomLineListResponse",
-      "b2_source_id": "app.webapp.routers.user:get_my_custom_lines"
+      "target": "CustomLineListResponse"
     },
     {
       "key": "call|src/app/domains/custom_lines/router.py|284|imported|profile|CustomLineDetailResponse",
@@ -1090,8 +957,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "profile",
-      "target": "CustomLineDetailResponse",
-      "b2_source_id": "app.webapp.routers.user:get_custom_line_detail"
+      "target": "CustomLineDetailResponse"
     },
     {
       "key": "call|src/app/domains/custom_lines/router.py|290|imported|profile|CustomLineDetailResponse",
@@ -1101,8 +967,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "profile",
-      "target": "CustomLineDetailResponse",
-      "b2_source_id": "app.webapp.routers.user:get_custom_line_detail"
+      "target": "CustomLineDetailResponse"
     },
     {
       "key": "call|src/app/domains/custom_lines/router.py|294|imported|profile|CustomLineInfo",
@@ -1112,8 +977,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "profile",
-      "target": "CustomLineInfo",
-      "b2_source_id": "app.webapp.routers.user:get_custom_line_detail"
+      "target": "CustomLineInfo"
     },
     {
       "key": "call|src/app/domains/custom_lines/router.py|316|imported|profile|CustomLineDetailResponse",
@@ -1123,8 +987,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "profile",
-      "target": "CustomLineDetailResponse",
-      "b2_source_id": "app.webapp.routers.user:get_custom_line_detail"
+      "target": "CustomLineDetailResponse"
     },
     {
       "key": "call|src/app/domains/custom_lines/router.py|322|imported|profile|CustomLineDetailResponse",
@@ -1134,8 +997,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "profile",
-      "target": "CustomLineDetailResponse",
-      "b2_source_id": "app.webapp.routers.user:get_custom_line_detail"
+      "target": "CustomLineDetailResponse"
     },
     {
       "key": "call|src/app/domains/custom_lines/router.py|532|imported|lines|unbind_specified_line_for_all_users",
@@ -1145,8 +1007,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "lines",
-      "target": "unbind_specified_line_for_all_users",
-      "b2_source_id": "app.webapp.routers.user:offline_custom_line"
+      "target": "unbind_specified_line_for_all_users"
     },
     {
       "key": "call|src/app/domains/custom_lines/router.py|544|imported|lines|disable_line_schedules_and_notify",
@@ -1156,8 +1017,7 @@
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "lines",
-      "target": "disable_line_schedules_and_notify",
-      "b2_source_id": "app.webapp.routers.user:offline_custom_line"
+      "target": "disable_line_schedules_and_notify"
     },
     {
       "key": "call|src/app/domains/custom_lines/service.py|179|imported|traffic|_get_line_monthly_traffic",
@@ -1250,6 +1110,36 @@
       "target": "tg"
     },
     {
+      "key": "call|src/app/domains/donation/repository.py|311|imported|credits|tg",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/donation/repository.py",
+      "line": 311,
+      "kind": "call",
+      "source_domain": "donation",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/donation/repository.py|315|imported|credits|tg",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/donation/repository.py",
+      "line": 315,
+      "kind": "call",
+      "source_domain": "donation",
+      "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/donation/repository.py|319|imported|credits|register_cache_invalidation",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/donation/repository.py",
+      "line": 319,
+      "kind": "call",
+      "source_domain": "donation",
+      "target_domain": "credits",
+      "target": "register_cache_invalidation"
+    },
+    {
       "key": "call|src/app/domains/donation/router.py|284|facade|identity|get_stats_by_tg_id",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/donation/router.py",
@@ -1320,26 +1210,6 @@
       "target": "add_redeem_code"
     },
     {
-      "key": "call|src/app/domains/donation/service.py|29|imported|credits|tg",
-      "owner": "promote-remaining-domains",
-      "path": "src/app/domains/donation/service.py",
-      "line": 29,
-      "kind": "call",
-      "source_domain": "donation",
-      "target_domain": "credits",
-      "target": "tg"
-    },
-    {
-      "key": "call|src/app/domains/donation/service.py|31|imported|credits|tg",
-      "owner": "promote-remaining-domains",
-      "path": "src/app/domains/donation/service.py",
-      "line": 31,
-      "kind": "call",
-      "source_domain": "donation",
-      "target_domain": "credits",
-      "target": "tg"
-    },
-    {
       "key": "call|src/app/domains/gift_pack/repository/part_1.py|502|imported|credits|tg",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/part_1.py",
@@ -1397,8 +1267,7 @@
       "kind": "facade_call",
       "source_domain": "invitation",
       "target_domain": "identity",
-      "target": "get_stats_by_tg_id",
-      "b2_source_id": "app.webapp.routers.admin:generate_admin_invite_codes"
+      "target": "get_stats_by_tg_id"
     },
     {
       "key": "call|src/app/domains/invitation/bot.py|17|facade|identity|get_stats_by_tg_id",
@@ -1678,8 +1547,7 @@
       "kind": "call",
       "source_domain": "lines",
       "target_domain": "profile",
-      "target": "LineTagResponse",
-      "b2_source_id": "app.webapp.routers.admin:get_line_tags_admin"
+      "target": "LineTagResponse"
     },
     {
       "key": "call|src/app/domains/lines/admin_router.py|93|imported|profile|AllLineTagsResponse",
@@ -1689,8 +1557,7 @@
       "kind": "call",
       "source_domain": "lines",
       "target_domain": "profile",
-      "target": "AllLineTagsResponse",
-      "b2_source_id": "app.webapp.routers.admin:get_all_line_tags"
+      "target": "AllLineTagsResponse"
     },
     {
       "key": "call|src/app/domains/lines/repository.py|290|imported|credits|tg",
@@ -2670,8 +2537,7 @@
       "kind": "facade_call",
       "source_domain": "media_access",
       "target_domain": "identity",
-      "target": "get_plex_info_by_tg_id",
-      "b2_source_id": "app.webapp.routers.user:get_user_info"
+      "target": "get_plex_info_by_tg_id"
     },
     {
       "key": "call|src/app/domains/media_access/router.py|50|facade|identity|get_emby_info_by_tg_id",
@@ -2771,8 +2637,7 @@
       "kind": "facade_call",
       "source_domain": "prediction",
       "target_domain": "identity",
-      "target": "add_user_data",
-      "b2_source_id": "app.webapp.routers.donation:confirm_donation_registration"
+      "target": "add_user_data"
     },
     {
       "key": "call|src/app/domains/prediction/router.py|318|imported|credits|add",
@@ -2802,8 +2667,7 @@
       "kind": "facade_call",
       "source_domain": "premium",
       "target_domain": "lines",
-      "target": "get_free_premium_lines",
-      "b2_source_id": "app.webapp.routers.admin:set_free_premium_lines"
+      "target": "get_free_premium_lines"
     },
     {
       "key": "call|src/app/domains/premium/admin_router.py|319|facade|lines|set_free_premium_lines",
@@ -2813,8 +2677,7 @@
       "kind": "facade_call",
       "source_domain": "premium",
       "target_domain": "lines",
-      "target": "set_free_premium_lines",
-      "b2_source_id": "app.webapp.routers.admin:set_free_premium_lines"
+      "target": "set_free_premium_lines"
     },
     {
       "key": "call|src/app/domains/premium/admin_router.py|322|facade|lines|delete_line_tags",
@@ -2824,8 +2687,7 @@
       "kind": "facade_call",
       "source_domain": "premium",
       "target_domain": "lines",
-      "target": "delete_line_tags",
-      "b2_source_id": "app.webapp.routers.admin:delete_premium_line_generic"
+      "target": "delete_line_tags"
     },
     {
       "key": "call|src/app/domains/premium/admin_router.py|325|imported|lines|unbind_specified_line_for_all_users",
@@ -2835,8 +2697,7 @@
       "kind": "call",
       "source_domain": "premium",
       "target_domain": "lines",
-      "target": "unbind_specified_line_for_all_users",
-      "b2_source_id": "app.webapp.routers.admin:delete_premium_line_generic"
+      "target": "unbind_specified_line_for_all_users"
     },
     {
       "key": "call|src/app/domains/premium/admin_router.py|327|imported|lines|disable_line_schedules_and_notify",
@@ -2846,8 +2707,7 @@
       "kind": "call",
       "source_domain": "premium",
       "target_domain": "lines",
-      "target": "disable_line_schedules_and_notify",
-      "b2_source_id": "app.webapp.routers.admin:delete_premium_line_generic"
+      "target": "disable_line_schedules_and_notify"
     },
     {
       "key": "call|src/app/domains/premium/admin_router.py|93|facade|lines|get_free_premium_lines",
@@ -2857,8 +2717,7 @@
       "kind": "facade_call",
       "source_domain": "premium",
       "target_domain": "lines",
-      "target": "get_free_premium_lines",
-      "b2_source_id": "app.webapp.routers.admin:set_free_premium_lines"
+      "target": "get_free_premium_lines"
     },
     {
       "key": "call|src/app/domains/premium/admin_router.py|94|facade|lines|set_free_premium_lines",
@@ -2868,8 +2727,7 @@
       "kind": "facade_call",
       "source_domain": "premium",
       "target_domain": "lines",
-      "target": "set_free_premium_lines",
-      "b2_source_id": "app.webapp.routers.admin:set_free_premium_lines"
+      "target": "set_free_premium_lines"
     },
     {
       "key": "call|src/app/domains/premium/router.py|110|imported|credits|deduct",
@@ -3030,8 +2888,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "identity",
-      "target": "get_plex_info_by_tg_id",
-      "b2_source_id": "app.handlers.user:info"
+      "target": "get_plex_info_by_tg_id"
     },
     {
       "key": "call|src/app/domains/profile/bot.py|12|facade|identity|get_emby_info_by_tg_id",
@@ -3041,8 +2898,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "identity",
-      "target": "get_emby_info_by_tg_id",
-      "b2_source_id": "app.handlers.user:info"
+      "target": "get_emby_info_by_tg_id"
     },
     {
       "key": "call|src/app/domains/profile/bot.py|13|facade|identity|get_stats_by_tg_id",
@@ -3052,8 +2908,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "identity",
-      "target": "get_stats_by_tg_id",
-      "b2_source_id": "app.handlers.user:info"
+      "target": "get_stats_by_tg_id"
     },
     {
       "key": "call|src/app/domains/profile/bot.py|14|facade|invitation|get_invitation_code_by_owner",
@@ -3063,8 +2918,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "invitation",
-      "target": "get_invitation_code_by_owner",
-      "b2_source_id": "app.handlers.user:info"
+      "target": "get_invitation_code_by_owner"
     },
     {
       "key": "call|src/app/domains/profile/router.py|104|facade|identity|get_emby_info_by_tg_id",
@@ -3074,8 +2928,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "identity",
-      "target": "get_emby_info_by_tg_id",
-      "b2_source_id": "app.webapp.routers.user:get_user_info"
+      "target": "get_emby_info_by_tg_id"
     },
     {
       "key": "call|src/app/domains/profile/router.py|107|facade|traffic|get_user_daily_traffic",
@@ -3085,8 +2938,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "traffic",
-      "target": "get_user_daily_traffic",
-      "b2_source_id": "app.webapp.routers.user:get_user_info"
+      "target": "get_user_daily_traffic"
     },
     {
       "key": "call|src/app/domains/profile/router.py|111|facade|traffic|get_user_daily_traffic",
@@ -3096,8 +2948,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "traffic",
-      "target": "get_user_daily_traffic",
-      "b2_source_id": "app.webapp.routers.user:get_user_info"
+      "target": "get_user_daily_traffic"
     },
     {
       "key": "call|src/app/domains/profile/router.py|115|facade|media_access|check_download_unlock",
@@ -3107,8 +2958,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "media_access",
-      "target": "check_download_unlock",
-      "b2_source_id": "app.webapp.routers.user:get_user_info"
+      "target": "check_download_unlock"
     },
     {
       "key": "call|src/app/domains/profile/router.py|116|facade|premium|get_emby_premium_quota_status",
@@ -3118,8 +2968,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "premium",
-      "target": "get_emby_premium_quota_status",
-      "b2_source_id": "app.webapp.routers.user:get_user_info"
+      "target": "get_emby_premium_quota_status"
     },
     {
       "key": "call|src/app/domains/profile/router.py|168|facade|identity|get_stats_by_tg_id",
@@ -3129,8 +2978,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "identity",
-      "target": "get_stats_by_tg_id",
-      "b2_source_id": "app.webapp.routers.user:get_user_info"
+      "target": "get_stats_by_tg_id"
     },
     {
       "key": "call|src/app/domains/profile/router.py|185|facade|invitation|get_invitee_count_by_owner",
@@ -3140,8 +2988,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "invitation",
-      "target": "get_invitee_count_by_owner",
-      "b2_source_id": "app.webapp.routers.user:get_user_info"
+      "target": "get_invitee_count_by_owner"
     },
     {
       "key": "call|src/app/domains/profile/router.py|200|facade|identity|get_overseerr_info_by_tg_id",
@@ -3151,8 +2998,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "identity",
-      "target": "get_overseerr_info_by_tg_id",
-      "b2_source_id": "app.webapp.routers.user:get_user_info"
+      "target": "get_overseerr_info_by_tg_id"
     },
     {
       "key": "call|src/app/domains/profile/router.py|221|facade|invitation|get_invitation_code_by_owner",
@@ -3162,8 +3008,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "invitation",
-      "target": "get_invitation_code_by_owner",
-      "b2_source_id": "app.webapp.routers.user:get_user_info"
+      "target": "get_invitation_code_by_owner"
     },
     {
       "key": "call|src/app/domains/profile/router.py|45|facade|identity|get_plex_info_by_tg_id",
@@ -3173,8 +3018,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "identity",
-      "target": "get_plex_info_by_tg_id",
-      "b2_source_id": "app.webapp.routers.user:get_user_info"
+      "target": "get_plex_info_by_tg_id"
     },
     {
       "key": "call|src/app/domains/profile/router.py|48|facade|traffic|get_user_daily_traffic",
@@ -3184,8 +3028,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "traffic",
-      "target": "get_user_daily_traffic",
-      "b2_source_id": "app.webapp.routers.user:get_user_info"
+      "target": "get_user_daily_traffic"
     },
     {
       "key": "call|src/app/domains/profile/router.py|52|facade|traffic|get_user_daily_traffic",
@@ -3195,8 +3038,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "traffic",
-      "target": "get_user_daily_traffic",
-      "b2_source_id": "app.webapp.routers.user:get_user_info"
+      "target": "get_user_daily_traffic"
     },
     {
       "key": "call|src/app/domains/profile/router.py|56|facade|media_access|check_download_unlock",
@@ -3206,8 +3048,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "media_access",
-      "target": "check_download_unlock",
-      "b2_source_id": "app.webapp.routers.user:get_user_info"
+      "target": "check_download_unlock"
     },
     {
       "key": "call|src/app/domains/profile/router.py|57|facade|premium|get_plex_premium_quota_status",
@@ -3217,8 +3058,7 @@
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "premium",
-      "target": "get_plex_premium_quota_status",
-      "b2_source_id": "app.webapp.routers.user:get_user_info"
+      "target": "get_plex_premium_quota_status"
     },
     {
       "key": "call|src/app/domains/rankings/bot.py|144|imported|reports|stats_report",
@@ -3249,8 +3089,7 @@
       "kind": "facade_call",
       "source_domain": "rankings",
       "target_domain": "traffic",
-      "target": "get_plex_traffic_rank",
-      "b2_source_id": "app.webapp.routers.rankings:get_plex_traffic_rankings"
+      "target": "get_plex_traffic_rank"
     },
     {
       "key": "call|src/app/domains/rankings/router.py|684|facade|traffic|get_emby_traffic_rank",
@@ -3260,8 +3099,7 @@
       "kind": "facade_call",
       "source_domain": "rankings",
       "target_domain": "traffic",
-      "target": "get_emby_traffic_rank",
-      "b2_source_id": "app.webapp.routers.rankings:get_emby_traffic_rankings"
+      "target": "get_emby_traffic_rank"
     },
     {
       "key": "call|src/app/domains/reports/admin_router.py|26|facade|lines|get_free_premium_lines",
@@ -3271,8 +3109,7 @@
       "kind": "facade_call",
       "source_domain": "reports",
       "target_domain": "lines",
-      "target": "get_free_premium_lines",
-      "b2_source_id": "app.webapp.routers.admin:get_admin_settings"
+      "target": "get_free_premium_lines"
     },
     {
       "key": "call|src/app/domains/reports/router.py|40|facade|media_access|get_download_unlocked_users_num",
@@ -3282,8 +3119,7 @@
       "kind": "facade_call",
       "source_domain": "reports",
       "target_domain": "media_access",
-      "target": "get_download_unlocked_users_num",
-      "b2_source_id": "app.webapp.routers.system:get_system_stats"
+      "target": "get_download_unlocked_users_num"
     },
     {
       "key": "call|src/app/domains/reports/router.py|45|imported|identity|isnot",
@@ -3293,8 +3129,7 @@
       "kind": "call",
       "source_domain": "reports",
       "target_domain": "identity",
-      "target": "isnot",
-      "b2_source_id": "app.webapp.routers.system:get_system_stats"
+      "target": "isnot"
     },
     {
       "key": "call|src/app/domains/reports/router.py|46|imported|identity|isnot",
@@ -3304,8 +3139,7 @@
       "kind": "call",
       "source_domain": "reports",
       "target_domain": "identity",
-      "target": "isnot",
-      "b2_source_id": "app.webapp.routers.system:get_system_stats"
+      "target": "isnot"
     },
     {
       "key": "call|src/app/domains/reports/router.py|58|imported|identity|is_",
@@ -3315,8 +3149,7 @@
       "kind": "call",
       "source_domain": "reports",
       "target_domain": "identity",
-      "target": "is_",
-      "b2_source_id": "app.webapp.routers.system:get_system_stats"
+      "target": "is_"
     },
     {
       "key": "call|src/app/domains/reports/router.py|63|imported|identity|is_",
@@ -3326,8 +3159,7 @@
       "kind": "call",
       "source_domain": "reports",
       "target_domain": "identity",
-      "target": "is_",
-      "b2_source_id": "app.webapp.routers.system:get_system_stats"
+      "target": "is_"
     },
     {
       "key": "call|src/app/domains/tg_rebind/repository.py|179|imported|credits|add_tx",
@@ -3768,26 +3600,26 @@
       "b3_source_id": "app.utils.utils:refresh_emby_user_info"
     },
     {
-      "key": "import|src/app/domains/accounts/router.py|10|app.domains.credits.types|CreditAccount",
+      "key": "import|src/app/domains/accounts/repository.py|7|app.domains.credits.service|service",
       "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 10,
-      "kind": "import",
-      "source_domain": "accounts",
-      "target_domain": "credits",
-      "target_module": "app.domains.credits.types",
-      "symbol": "CreditAccount"
-    },
-    {
-      "key": "import|src/app/domains/accounts/router.py|9|app.domains.credits.service|service",
-      "owner": "promote-account-domains",
-      "path": "src/app/domains/accounts/router.py",
-      "line": 9,
+      "path": "src/app/domains/accounts/repository.py",
+      "line": 7,
       "kind": "import",
       "source_domain": "accounts",
       "target_domain": "credits",
       "target_module": "app.domains.credits.service",
       "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/accounts/repository.py|8|app.domains.credits.types|CreditAccount",
+      "owner": "promote-account-domains",
+      "path": "src/app/domains/accounts/repository.py",
+      "line": 8,
+      "kind": "import",
+      "source_domain": "accounts",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
     },
     {
       "key": "import|src/app/domains/accounts/service.py|8|app.domains.identity.models|EmbyUser",
@@ -4306,8 +4138,7 @@
       "source_domain": "custom_lines",
       "target_domain": "profile",
       "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineApproveRequest",
-      "b2_source_id": "app.webapp.routers.admin:approve_custom_line"
+      "symbol": "CustomLineApproveRequest"
     },
     {
       "key": "import|src/app/domains/custom_lines/admin_router.py|12|app.domains.lines.service|unbind_specified_line_for_all_users",
@@ -4318,8 +4149,7 @@
       "source_domain": "custom_lines",
       "target_domain": "lines",
       "target_module": "app.domains.lines.service",
-      "symbol": "unbind_specified_line_for_all_users",
-      "b2_source_id": "app.webapp.routers.admin:unbind_specified_line_for_all_users"
+      "symbol": "unbind_specified_line_for_all_users"
     },
     {
       "key": "import|src/app/domains/custom_lines/admin_router.py|268|app.domains.profile.schemas|AdminCustomLineUpdateRequest",
@@ -4330,8 +4160,7 @@
       "source_domain": "custom_lines",
       "target_domain": "profile",
       "target_module": "app.domains.profile.schemas",
-      "symbol": "AdminCustomLineUpdateRequest",
-      "b2_source_id": "app.webapp.routers.admin:admin_update_custom_line"
+      "symbol": "AdminCustomLineUpdateRequest"
     },
     {
       "key": "import|src/app/domains/custom_lines/admin_router.py|34|app.domains.profile.schemas|CustomLineInfo",
@@ -4342,8 +4171,7 @@
       "source_domain": "custom_lines",
       "target_domain": "profile",
       "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineInfo",
-      "b2_source_id": "app.webapp.routers.admin:get_all_custom_lines"
+      "symbol": "CustomLineInfo"
     },
     {
       "key": "import|src/app/domains/custom_lines/admin_router.py|34|app.domains.profile.schemas|CustomLineListResponse",
@@ -4354,8 +4182,7 @@
       "source_domain": "custom_lines",
       "target_domain": "profile",
       "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineListResponse",
-      "b2_source_id": "app.webapp.routers.admin:get_all_custom_lines"
+      "symbol": "CustomLineListResponse"
     },
     {
       "key": "import|src/app/domains/custom_lines/admin_router.py|90|app.domains.profile.schemas|CustomLineListResponse",
@@ -4366,8 +4193,7 @@
       "source_domain": "custom_lines",
       "target_domain": "profile",
       "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineListResponse",
-      "b2_source_id": "app.webapp.routers.admin:get_all_custom_lines"
+      "symbol": "CustomLineListResponse"
     },
     {
       "key": "import|src/app/domains/custom_lines/jobs.py|167|app.domains.lines.service|disable_line_schedules_and_notify",
@@ -4414,8 +4240,7 @@
       "source_domain": "custom_lines",
       "target_domain": "profile",
       "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineDetailResponse",
-      "b2_source_id": "app.webapp.routers.user:@import:20"
+      "symbol": "CustomLineDetailResponse"
     },
     {
       "key": "import|src/app/domains/custom_lines/router.py|13|app.domains.profile.schemas|CustomLineInfo",
@@ -4426,8 +4251,7 @@
       "source_domain": "custom_lines",
       "target_domain": "profile",
       "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineInfo",
-      "b2_source_id": "app.webapp.routers.user:@import:20"
+      "symbol": "CustomLineInfo"
     },
     {
       "key": "import|src/app/domains/custom_lines/router.py|13|app.domains.profile.schemas|CustomLineListResponse",
@@ -4438,8 +4262,7 @@
       "source_domain": "custom_lines",
       "target_domain": "profile",
       "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineListResponse",
-      "b2_source_id": "app.webapp.routers.user:@import:20"
+      "symbol": "CustomLineListResponse"
     },
     {
       "key": "import|src/app/domains/custom_lines/router.py|13|app.domains.profile.schemas|CustomLineOnlineRequest",
@@ -4450,8 +4273,7 @@
       "source_domain": "custom_lines",
       "target_domain": "profile",
       "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineOnlineRequest",
-      "b2_source_id": "app.webapp.routers.user:@import:20"
+      "symbol": "CustomLineOnlineRequest"
     },
     {
       "key": "import|src/app/domains/custom_lines/router.py|13|app.domains.profile.schemas|CustomLineRenewRequest",
@@ -4462,8 +4284,7 @@
       "source_domain": "custom_lines",
       "target_domain": "profile",
       "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineRenewRequest",
-      "b2_source_id": "app.webapp.routers.user:@import:20"
+      "symbol": "CustomLineRenewRequest"
     },
     {
       "key": "import|src/app/domains/custom_lines/router.py|13|app.domains.profile.schemas|CustomLineSubmitRequest",
@@ -4474,8 +4295,7 @@
       "source_domain": "custom_lines",
       "target_domain": "profile",
       "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineSubmitRequest",
-      "b2_source_id": "app.webapp.routers.user:@import:20"
+      "symbol": "CustomLineSubmitRequest"
     },
     {
       "key": "import|src/app/domains/custom_lines/router.py|13|app.domains.profile.schemas|CustomLineUpdateRequest",
@@ -4486,8 +4306,7 @@
       "source_domain": "custom_lines",
       "target_domain": "profile",
       "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineUpdateRequest",
-      "b2_source_id": "app.webapp.routers.user:@import:20"
+      "symbol": "CustomLineUpdateRequest"
     },
     {
       "key": "import|src/app/domains/custom_lines/router.py|528|app.domains.lines.service|unbind_specified_line_for_all_users",
@@ -4498,8 +4317,7 @@
       "source_domain": "custom_lines",
       "target_domain": "lines",
       "target_module": "app.domains.lines.service",
-      "symbol": "unbind_specified_line_for_all_users",
-      "b2_source_id": "app.webapp.routers.user:offline_custom_line"
+      "symbol": "unbind_specified_line_for_all_users"
     },
     {
       "key": "import|src/app/domains/custom_lines/router.py|542|app.domains.lines.service|disable_line_schedules_and_notify",
@@ -4510,8 +4328,7 @@
       "source_domain": "custom_lines",
       "target_domain": "lines",
       "target_module": "app.domains.lines.service",
-      "symbol": "disable_line_schedules_and_notify",
-      "b2_source_id": "app.webapp.routers.user:offline_custom_line"
+      "symbol": "disable_line_schedules_and_notify"
     },
     {
       "key": "import|src/app/domains/custom_lines/service.py|10|app.domains.credits.types|CreditAccount",
@@ -4591,6 +4408,28 @@
       "symbol": "CreditAccount"
     },
     {
+      "key": "import|src/app/domains/donation/repository.py|298|app.domains.credits.service|service",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/donation/repository.py",
+      "line": 298,
+      "kind": "import",
+      "source_domain": "donation",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/donation/repository.py|299|app.domains.credits.types|CreditAccount",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/donation/repository.py",
+      "line": 299,
+      "kind": "import",
+      "source_domain": "donation",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.types",
+      "symbol": "CreditAccount"
+    },
+    {
       "key": "import|src/app/domains/donation/router.py|19|app.domains.credits.service|service",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/donation/router.py",
@@ -4644,28 +4483,6 @@
       "target_domain": "badge_awards",
       "target_module": "app.domains.badge_awards.jobs",
       "symbol": "check_and_award_supreme_contributor_badge"
-    },
-    {
-      "key": "import|src/app/domains/donation/service.py|6|app.domains.credits.types|CreditAccount",
-      "owner": "promote-remaining-domains",
-      "path": "src/app/domains/donation/service.py",
-      "line": 6,
-      "kind": "import",
-      "source_domain": "donation",
-      "target_domain": "credits",
-      "target_module": "app.domains.credits.types",
-      "symbol": "CreditAccount"
-    },
-    {
-      "key": "import|src/app/domains/donation/service.py|7|app.domains.identity.models|Statistics",
-      "owner": "promote-remaining-domains",
-      "path": "src/app/domains/donation/service.py",
-      "line": 7,
-      "kind": "import",
-      "source_domain": "donation",
-      "target_domain": "identity",
-      "target_module": "app.domains.identity.models",
-      "symbol": "Statistics"
     },
     {
       "key": "import|src/app/domains/gift_pack/repository/part_1.py|10|app.domains.badges.models|UserBadge",
@@ -4943,8 +4760,7 @@
       "source_domain": "lines",
       "target_domain": "profile",
       "target_module": "app.domains.profile.schemas",
-      "symbol": "AllLineTagsResponse",
-      "b2_source_id": "app.webapp.routers.admin:@import:10"
+      "symbol": "AllLineTagsResponse"
     },
     {
       "key": "import|src/app/domains/lines/admin_router.py|17|app.domains.profile.schemas|LineTagRequest",
@@ -4955,8 +4771,7 @@
       "source_domain": "lines",
       "target_domain": "profile",
       "target_module": "app.domains.profile.schemas",
-      "symbol": "LineTagRequest",
-      "b2_source_id": "app.webapp.routers.admin:@import:10"
+      "symbol": "LineTagRequest"
     },
     {
       "key": "import|src/app/domains/lines/admin_router.py|17|app.domains.profile.schemas|LineTagResponse",
@@ -4967,8 +4782,7 @@
       "source_domain": "lines",
       "target_domain": "profile",
       "target_module": "app.domains.profile.schemas",
-      "symbol": "LineTagResponse",
-      "b2_source_id": "app.webapp.routers.admin:@import:10"
+      "symbol": "LineTagResponse"
     },
     {
       "key": "import|src/app/domains/lines/jobs.py|16|app.domains.identity.models|EmbyUser",
@@ -5369,8 +5183,7 @@
       "source_domain": "premium",
       "target_domain": "lines",
       "target_module": "app.domains.lines.service",
-      "symbol": "disable_line_schedules_and_notify",
-      "b2_source_id": "app.webapp.routers.admin:disable_line_schedules_and_notify"
+      "symbol": "disable_line_schedules_and_notify"
     },
     {
       "key": "import|src/app/domains/premium/admin_router.py|13|app.domains.lines.service|handle_free_premium_lines_change",
@@ -5381,8 +5194,7 @@
       "source_domain": "premium",
       "target_domain": "lines",
       "target_module": "app.domains.lines.service",
-      "symbol": "handle_free_premium_lines_change",
-      "b2_source_id": "app.webapp.routers.admin:handle_free_premium_lines_change"
+      "symbol": "handle_free_premium_lines_change"
     },
     {
       "key": "import|src/app/domains/premium/admin_router.py|13|app.domains.lines.service|unbind_emby_premium_free",
@@ -5393,8 +5205,7 @@
       "source_domain": "premium",
       "target_domain": "lines",
       "target_module": "app.domains.lines.service",
-      "symbol": "unbind_emby_premium_free",
-      "b2_source_id": "app.webapp.routers.admin:unbind_emby_premium_free"
+      "symbol": "unbind_emby_premium_free"
     },
     {
       "key": "import|src/app/domains/premium/admin_router.py|13|app.domains.lines.service|unbind_plex_premium_free",
@@ -5405,8 +5216,7 @@
       "source_domain": "premium",
       "target_domain": "lines",
       "target_module": "app.domains.lines.service",
-      "symbol": "unbind_plex_premium_free",
-      "b2_source_id": "app.webapp.routers.admin:unbind_plex_premium_free"
+      "symbol": "unbind_plex_premium_free"
     },
     {
       "key": "import|src/app/domains/premium/admin_router.py|13|app.domains.lines.service|unbind_specified_line_for_all_users",
@@ -5417,8 +5227,7 @@
       "source_domain": "premium",
       "target_domain": "lines",
       "target_module": "app.domains.lines.service",
-      "symbol": "unbind_specified_line_for_all_users",
-      "b2_source_id": "app.webapp.routers.admin:unbind_specified_line_for_all_users"
+      "symbol": "unbind_specified_line_for_all_users"
     },
     {
       "key": "import|src/app/domains/premium/repository.py|9|app.domains.traffic.models|LineTrafficStats",
@@ -5496,8 +5305,7 @@
       "source_domain": "profile",
       "target_domain": "identity",
       "target_module": "app.domains.identity.models",
-      "symbol": "Statistics",
-      "b2_source_id": "app.webapp.routers.user:@import:13"
+      "symbol": "Statistics"
     },
     {
       "key": "import|src/app/domains/rankings/bot.py|8|app.domains.reports.service|stats_report",
@@ -5542,8 +5350,7 @@
       "source_domain": "reports",
       "target_domain": "identity",
       "target_module": "app.domains.identity.models",
-      "symbol": "EmbyUser",
-      "b2_source_id": "app.webapp.routers.system:@import:7"
+      "symbol": "EmbyUser"
     },
     {
       "key": "import|src/app/domains/reports/router.py|10|app.domains.identity.models|PlexUser",
@@ -5554,8 +5361,7 @@
       "source_domain": "reports",
       "target_domain": "identity",
       "target_module": "app.domains.identity.models",
-      "symbol": "PlexUser",
-      "b2_source_id": "app.webapp.routers.system:@import:7"
+      "symbol": "PlexUser"
     },
     {
       "key": "import|src/app/domains/tg_rebind/repository.py|10|app.domains.credits.types|CreditAccount",
@@ -5922,9 +5728,9 @@
     "Top-level architecture": 0,
     "External integration isolation": 0,
     "Legacy database facade freeze": 0,
-    "SQLAlchemy direct use scope": 19,
-    "Database engine import scope": 20,
-    "Domain model import scope": 21,
+    "SQLAlchemy direct use scope": 18,
+    "Database engine import scope": 19,
+    "Domain model import scope": 20,
     "Six-tier domain dependencies": 65,
     "Acyclic domain siblings": 19,
     "Domain internal layering": 8,

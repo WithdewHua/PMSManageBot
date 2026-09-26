@@ -88,7 +88,7 @@ The check will record each migrated source unit and the selected `*_tx` or servi
 - **[Risk]** Row-level locks can reduce throughput under hot users. → **Mitigation:** use one conditional SQL update for simple deltas, keep transactions short, and use deterministic transfer ordering.
 - **[Risk]** A cache invalidation may be missed by a newly migrated caller. → **Mitigation:** require mutation-result handling in the migration check and add cache assertions to representative standalone and transaction-owned tests.
 - **[Risk]** PostgreSQL locking behavior differs from SQLite. → **Mitigation:** run concurrency tests against a disposable PostgreSQL instance; SQLite remains only a functional smoke-test backend.
-- **[Risk]** Rolling back code after some new delta operations have run could expose an old absolute writer. → **Mitigation:** do not deploy until all 45 writes are migrated and the completeness check passes; no database schema change is involved, so rollback is a code/image rollback only.
+- **[Risk]** Rolling back code after some new delta operations have run could expose an old absolute writer. → **Mitigation:** do not deploy until the frozen credit inventory reports zero unresolved writers and the completeness check passes; no database schema change is involved, so rollback is a code/image rollback only.
 
 ## Migration Plan
 

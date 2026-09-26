@@ -241,3 +241,17 @@ def update_plex_users_last_viewed_at():
 
     except Exception as e:
         logger.error(f"更新 Plex 用户最后观看时间失败: {e}")
+
+
+def bind_plex_account(**kwargs) -> None:
+    """Commit Plex binding and balance transfer atomically."""
+    from app.domains.accounts import repository as accounts_repository
+
+    accounts_repository.bind_plex_account(**kwargs)
+
+
+def bind_emby_account(**kwargs) -> None:
+    """Commit Emby binding and balance transfer atomically."""
+    from app.domains.accounts import repository as accounts_repository
+
+    accounts_repository.bind_emby_account(**kwargs)

@@ -76,14 +76,16 @@ def transfer(sender_tg_id: int, recipient_tg_id: int, amount: float) -> CreditTr
     return result
 
 
-def collect_cache_keys(*mutations: CreditMutation) -> tuple[str, ...]:
+def collect_cache_keys(*mutations: CreditMutation | CreditTransfer) -> tuple[str, ...]:
     """Collect unique keys for invalidation after a caller-owned transaction."""
     return tuple(
         dict.fromkeys(key for mutation in mutations for key in mutation.cache_keys)
     )
 
 
-def register_cache_invalidation(session, *mutations: CreditMutation) -> None:
+def register_cache_invalidation(
+    session, *mutations: CreditMutation | CreditTransfer
+) -> None:
     """Schedule cache invalidation for the generic post-commit hook."""
     keys = collect_cache_keys(*mutations)
     if not keys:

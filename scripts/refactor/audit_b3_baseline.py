@@ -22,6 +22,8 @@ BASELINE = ROOT / "tests/architecture/baseline.json"
 MAPPING = ROOT / "scripts/refactor/mapping.toml"
 B3_BASE = ROOT / "scripts/refactor/B3_BASE"
 CREDIT_MIGRATION_PATHS = {
+    "src/app/domains/accounts/repository.py",
+    "src/app/domains/donation/repository.py",
     "src/app/domains/accounts/router.py",
     "src/app/domains/auction/router.py",
     "src/app/domains/badges/router.py",

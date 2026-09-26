@@ -207,7 +207,6 @@ ignore_imports = [
     "app.domains.traffic.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.accounts.service -> sqlalchemy", # B3 mechanical relocation; audit in 5.6
     "app.domains.custom_lines.service -> sqlalchemy", # B3 mechanical relocation; audit in 5.6
-    "app.domains.donation.service -> sqlalchemy", # B3 mechanical relocation; audit in 5.6
     "app.domains.invitation.service -> sqlalchemy", # B3 mechanical relocation; audit in 5.6
     "app.domains.media_access.service -> sqlalchemy", # B3 mechanical relocation; audit in 5.6
     "app.domains.watch_rewards.service -> sqlalchemy", # B3 mechanical relocation; audit in 5.6
@@ -251,7 +250,6 @@ ignore_imports = [
     "app.domains.credits.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.custom_lines.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.custom_lines.service -> app.core.db", # B3 mechanical relocation; audit in 5.6
-    "app.domains.donation.service -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.invitation.service -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.lines.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.media_access.service -> app.core.db", # B3 mechanical relocation; audit in 5.6
@@ -298,7 +296,6 @@ ignore_imports = [
     "app.domains.accounts.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.accounts.service -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.credits.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
-    "app.domains.donation.service -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.invitation.service -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.lines.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.media_access.service -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6

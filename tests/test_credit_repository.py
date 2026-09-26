@@ -47,6 +47,27 @@ def test_delta_helpers_cover_all_three_account_kinds(session_env) -> None:
     assert emby.cache_keys == ("emby:emby-user",)
 
 
+def test_delta_persists_two_decimal_rounding(session_env) -> None:
+    _add_credit_rows()
+    with get_session() as session:
+        session.add(Statistics(tg_id=303, donation=0, credits=1.0))
+
+    with get_session() as session:
+        mutation = repository.add_tx(session, CreditAccount.tg(303), 0.005)
+
+    assert mutation.after == 1.0
+    assert service.read(CreditAccount.tg(303)) == 1.0
+
+
+def test_transfer_rejects_invalid_fee_rate(session_env) -> None:
+    _add_credit_rows()
+
+    with pytest.raises(ValueError, match="fee rate"):
+        repository.transfer(101, 202, 1, fee_rate=-1)
+    with pytest.raises(ValueError, match="fee rate"):
+        repository.transfer(101, 202, 1, fee_rate=float("inf"))
+
+
 def test_deduction_rejects_insufficient_balance_without_mutating(session_env) -> None:
     _add_credit_rows()
 

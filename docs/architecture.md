@@ -110,17 +110,19 @@ core/（公共设施）
 
 ## 基线计数
 
-B2 过渡基线以 `scripts/refactor/B2_BASE` 中的 B1 提交为来源。B3 机械搬迁以 `scripts/refactor/B3_BASE`（B2 提交 `1b49ea8273253ee7b1b35e13056ca047f9ce45bc`）为冻结来源。`tests/architecture/baseline.json` 当前封存 419 条跨域调用／导入，全部新增条目记录 `b3_source_id`；`scripts/refactor/audit_b3_baseline.py` 只接受冻结源码中的实际来源单元及逐项 `b3_key`，并拒绝仅凭目标领域候选、同名导入换目标或新增领域环封存。B3 为调度器去环及 CLI 组装登记的 AST 差异分别记录 `b3_ast_exception` 和实际存在的行为测试。
+B2 过渡基线以 `scripts/refactor/B2_BASE` 中的 B1 提交为来源。B3 机械搬迁以 `scripts/refactor/B3_BASE`（B2 提交 `1b49ea8273253ee7b1b35e13056ca047f9ce45bc`）为冻结来源。`tests/architecture/baseline.json` 当前封存 547 条跨域调用／导入，其中 58 条 B3 条目记录 `b3_source_id`；`scripts/refactor/audit_b3_baseline.py` 只接受冻结源码中的实际来源单元及逐项 `b3_key`，并拒绝仅凭目标领域候选、同名导入换目标或新增领域环封存。B3 为调度器去环及 CLI 组装登记的 AST 差异分别记录 `b3_ast_exception` 和实际存在的行为测试。
 
-按清理责任分组的 B3 封存计数由 `audit_b3_baseline.py` 输出；当前 B3 provenance 封存 58 条，架构基线共 556 条，其中后续 credits 迁移条目由 `make-credit-changes-atomic` 负责，不冒充 B3 遗留债务。B3 条目只允许来源于 `db_func.py`、`premium.py`、`modules/custom_line.py`、`utils/report.py` 和 `utils/utils.py` 的冻结单元。
+按清理责任分组的 B3 封存计数由 `audit_b3_baseline.py` 输出；当前 B3 provenance 封存 58 条，架构基线共 547 条，其中后续 credits 迁移条目由 `make-credit-changes-atomic` 负责，不冒充 B3 遗留债务。B3 条目只允许来源于 `db_func.py`、`premium.py`、`modules/custom_line.py`、`utils/report.py` 和 `utils/utils.py` 的冻结单元。
 
-当前 import-linter ignore 数：SQLAlchemy 范围 19、数据库引擎范围 20、模型范围 21、六层领域依赖 65、无环兄弟领域 19、领域内分层 8、入口不碰数据层 82；其余合约 0。B3 去环没有新增 `Acyclic domain siblings` 豁免；任何新增豁免必须有冻结来源单元和行为测试证明。
+当前 import-linter ignore 数：SQLAlchemy 范围 18、数据库引擎范围 19、模型范围 20、六层领域依赖 65、无环兄弟领域 19、领域内分层 8、入口不碰数据层 82；其余合约 0。B3 去环没有新增 `Acyclic domain siblings` 豁免；任何新增豁免必须有冻结来源单元和行为测试证明。
 
 ## 积分账本写入规则
 
-`credits` 是 `statistics.credits`、未绑定 `plex_user.credits` 和未绑定 `emby_user.emby_credits` 的唯一增减入口。新代码不得读取余额后计算绝对值再写回，也不得调用已废弃的 `update_user_credits`；必须使用 credits repository 的 SQL 增量操作。跨领域事务必须传递调用方 session 使用 `*_tx`，不得为积分变更另开 session，以避免丢失更新和行锁死锁。转账按稳定的账户 ID 顺序锁定双方，缓存只在外层事务提交后失效。
+`credits` 是 `statistics.credits`、未绑定 `plex_user.credits` 和未绑定 `emby_user.emby_credits` 的唯一增减入口。每个 delta 在锁定当前行后先按既有 Python 两位小数规则计算有效增量，再以 `column + effective_delta` 的 SQL 表达式写回，避免返回值与持久化值不一致。新代码不得读取余额后计算绝对值再写回，也不得调用已废弃的 `update_user_credits`；必须使用 credits repository 的 SQL 增量操作。跨领域事务必须传递调用方 session 使用 `*_tx`，不得为积分变更另开 session，以避免丢失更新和行锁死锁。转账按稳定的账户 ID 顺序锁定双方，缓存只在外层事务提交后失效。
 
 `make-credit-changes-atomic` 的 AST inventory 保存在 `scripts/refactor/credit_inventory.json`；当前候选写入数为 0，说明所有已审阅的绝对值 writer、属性赋值和 `.values()` 写入均已迁移。`scripts/refactor/check_credit_migration.py` 与 `credit_migration.toml` 在严格模式下持续拒绝新 writer；inventory 是迁移清单，不把 `profile` 响应对象等非持久化候选直接视为数据库写入。旧的 58 条初始盘点可从 Git 历史恢复审计。
+
+绑定 Plex/Emby 与余额转移现在由 accounts repository 在同一事务中完成；如果目标统计行、绑定写入或积分转移任一步失败，账户绑定和余额均回滚。捐赠倍率重算也在一个事务中处理全部用户，后续用户余额不足时不会留下前面用户的部分更新。转账费率额外拒绝负数和非有限值。
 
 ## 积分生产形态彩排证据
 

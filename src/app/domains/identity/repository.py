@@ -356,3 +356,77 @@ class IdentityRepository:
         """Return Telegram IDs represented in the statistics table."""
         with get_session() as session:
             return list(session.execute(select(Statistics.tg_id)).scalars().all())
+
+
+def ensure_statistics_tx(session, tg_id: int) -> Statistics:
+    """Return the TG statistics row, creating it inside the caller transaction."""
+    stats = session.execute(
+        select(Statistics).where(Statistics.tg_id == int(tg_id)).with_for_update()
+    ).scalar_one_or_none()
+    if stats is None:
+        stats = Statistics(tg_id=int(tg_id), credits=0, donation=0)
+        session.add(stats)
+        session.flush()
+    return stats
+
+
+def bind_plex_user_tx(session, *, tg_id: int, plex_id: int) -> None:
+    """Bind an existing Plex row without opening a nested session."""
+    result = session.execute(
+        update(PlexUser)
+        .where(PlexUser.plex_id == int(plex_id), PlexUser.tg_id.is_(None))
+        .values(tg_id=int(tg_id))
+    )
+    if result.rowcount != 1:
+        raise ValueError("Plex account is missing or already bound")
+
+
+def create_plex_user_tx(
+    session,
+    *,
+    plex_id: int,
+    tg_id: int,
+    plex_email: str,
+    plex_username: str | None,
+    credits: float,
+    all_lib: int,
+    watched_time: float,
+) -> PlexUser:
+    """Create a Plex row inside the caller-owned transaction."""
+    user = PlexUser(
+        plex_id=int(plex_id),
+        tg_id=int(tg_id),
+        credits=float(credits),
+        plex_email=plex_email,
+        plex_username=plex_username,
+        all_lib=int(all_lib),
+        watched_time=float(watched_time),
+    )
+    session.add(user)
+    session.flush()
+    return user
+
+
+def bind_emby_user_tx(session, *, tg_id: int, emby_id: str) -> None:
+    """Bind an existing Emby row without opening a nested session."""
+    result = session.execute(
+        update(EmbyUser)
+        .where(EmbyUser.emby_id == str(emby_id), EmbyUser.tg_id.is_(None))
+        .values(tg_id=int(tg_id))
+    )
+    if result.rowcount != 1:
+        raise ValueError("Emby account is missing or already bound")
+
+
+def create_emby_user_tx(
+    session, *, emby_username: str, emby_id: str, tg_id: int
+) -> EmbyUser:
+    """Create an Emby row inside the caller-owned transaction."""
+    user = EmbyUser(
+        emby_username=emby_username,
+        emby_id=str(emby_id),
+        tg_id=int(tg_id),
+    )
+    session.add(user)
+    session.flush()
+    return user
