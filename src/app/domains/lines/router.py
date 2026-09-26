@@ -21,6 +21,7 @@ from app.domains.lines.service import (
     _auth_bind_emby_line,
     _auth_bind_plex_line,
     check_line_permission,
+    unlock_line_schedule_with_credit,
 )
 from app.domains.profile.schemas import (
     AuthBindLineRequest,
@@ -729,16 +730,12 @@ async def unlock_line_schedule(
                 message=f"积分不足，需要 {credits_needed} 积分，当前仅有 {current_credits} 积分",
             )
 
-        # 扣除积分
-        new_credits = current_credits - credits_needed
-        if not db.update_user_credits(new_credits, tg_id=user.id):
-            return LineScheduleUnlockResponse(success=False, message="更新积分失败")
-
-        # 解锁线路调度功能
-        if not db.unlock_line_schedule(user.id, service):
-            # 回滚积分
-            db.update_user_credits(current_credits, tg_id=user.id)
+        # 解锁线路调度功能并在同一事务中扣除积分
+        try:
+            unlock_line_schedule_with_credit(user.id, service, credits_needed)
+        except Exception:
             return LineScheduleUnlockResponse(success=False, message="解锁失败")
+        new_credits = current_credits - credits_needed
 
         logger.info(
             f"用户 {get_user_name_from_tg_id(user.id)} 消耗 {credits_needed} 积分解锁 {service} 线路调度功能"

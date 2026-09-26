@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 CREDIT_ATTRIBUTES = {"credits", "emby_credits"}
+NON_PERSISTED_OUTPUTS = {"user_info"}
 
 
 @dataclass(frozen=True)
@@ -47,6 +48,8 @@ class Mutation:
 def _attribute_target(node: ast.AST) -> str | None:
     if isinstance(node, ast.Attribute) and node.attr in CREDIT_ATTRIBUTES:
         if isinstance(node.value, ast.Name):
+            if node.value.id in NON_PERSISTED_OUTPUTS:
+                return None
             return f"{node.value.id}.{node.attr}"
         return node.attr
     return None

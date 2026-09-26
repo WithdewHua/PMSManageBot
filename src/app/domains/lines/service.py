@@ -10,9 +10,17 @@ from app.core.schemas import BaseResponse, TelegramUser
 from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
 from app.databases.db import DatabaseORM
+from app.domains.lines import repository as lines_repository
 from app.domains.lines.rules import is_binded_premium_line
 from app.integrations.emby import Emby
 from app.integrations.plex import Plex
+
+
+def unlock_line_schedule_with_credit(tg_id: int, service: str, cost: float) -> bool:
+    """Charge credits and unlock line scheduling atomically."""
+    return lines_repository.LinesRepository().unlock_line_schedule_with_credit(
+        tg_id, service, cost
+    )
 
 
 async def unbind_emby_premium_free():

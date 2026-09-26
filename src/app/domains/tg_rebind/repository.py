@@ -6,6 +6,8 @@ from app.core.db import get_session
 from app.core.log import logger
 from app.domains.auction.models import AuctionBids, Auctions
 from app.domains.badges.models import UserBadge
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.crypto_donation.models import CryptoDonationOrders
 from app.domains.custom_lines.models import CustomLine
 from app.domains.donation.models import DonationRegistrations
@@ -143,8 +145,19 @@ class TgRebindRepository:
                         if old_tg_id == new_tg_id:
                             continue
 
-                        old_stat = session.get(Statistics, old_tg_id)
-                        new_stat = session.get(Statistics, new_tg_id)
+                        locked_ids = sorted({int(old_tg_id), int(new_tg_id)})
+                        locked_stats = {
+                            tg_id: session.execute(
+                                select(Statistics)
+                                .where(Statistics.tg_id == tg_id)
+                                .with_for_update()
+                            )
+                            .scalars()
+                            .one_or_none()
+                            for tg_id in locked_ids
+                        }
+                        old_stat = locked_stats.get(int(old_tg_id))
+                        new_stat = locked_stats.get(int(new_tg_id))
                         merging = old_stat is not None and new_stat is not None
 
                         # 无外键约束的列在任何场景都需显式迁移
@@ -161,7 +174,16 @@ class TgRebindRepository:
                         elif merging:
                             # 目标 ID 已存在：合并积分；外键列不触发级联，需显式迁移
                             new_stat.donation += old_stat.donation
-                            new_stat.credits += old_stat.credits
+                            old_credits = float(old_stat.credits or 0)
+                            if old_credits > 0:
+                                mutation = credits_service.add_tx(
+                                    session,
+                                    CreditAccount.tg(int(new_tg_id)),
+                                    old_credits,
+                                )
+                                credits_service.register_cache_invalidation(
+                                    session, mutation
+                                )
                             session.flush()
                             columns_to_migrate += fk_ref_columns
 

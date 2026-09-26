@@ -18,6 +18,8 @@ from app.core.schemas import TelegramUser
 from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
 from app.domains.badge_awards.jobs import check_and_award_game_king_badge
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.invitation.service import add_redeem_code
 from app.domains.luckywheel.schemas import (
     LuckyWheelConfig,
@@ -250,8 +252,10 @@ async def execute_single_spin(
     """
     # 扣除参与费用
     cost = float(config.cost_credits) if cost_credits is None else float(cost_credits)
-    new_credits = current_credits - cost
-    db.update_user_credits(credits=new_credits, tg_id=user_id)
+    if cost > 0:
+        new_credits = credits_service.deduct(CreditAccount.tg(int(user_id)), cost).after
+    else:
+        new_credits = float(current_credits)
 
     # 选择中奖奖品 - 使用增强版随机选择器
     winner = random_select_winner(config.items, user_id=user_id)
@@ -281,7 +285,12 @@ async def execute_single_spin(
     # 计算实际生效的积分变化（处理积分下限截断）
     actual_credits_change = final_credits - new_credits
 
-    db.update_user_credits(credits=final_credits, tg_id=user_id)
+    actual_delta = final_credits - new_credits
+    if actual_delta > 0:
+        credits_service.add(CreditAccount.tg(int(user_id)), actual_delta)
+    elif actual_delta < 0:
+        credits_service.deduct(CreditAccount.tg(int(user_id)), -actual_delta)
+    final_credits = credits_service.read(CreditAccount.tg(int(user_id)))
 
     # 记录转盘统计数据
     db.add_wheel_spin_record(

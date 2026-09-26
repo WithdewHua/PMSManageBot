@@ -6,6 +6,9 @@ from sqlalchemy import select, update
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.credits import repository as credits_repository
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import EmbyUser, PlexUser
 from app.domains.lines.models import LineSchedule
 
@@ -277,6 +280,40 @@ class LinesRepository:
                 f"检查用户 {get_user_name_from_tg_id(tg_id)} 的 {service} 线路调度解锁状态失败: {e}"
             )
             return {"is_unlocked": False, "is_premium": False, "unlock_time": None}
+
+    def unlock_line_schedule_with_credit(
+        self, tg_id: int, service: str, cost: float
+    ) -> bool:
+        """Unlock line scheduling and charge the account in one transaction."""
+        with get_session() as session:
+            mutation = credits_repository.deduct_tx(
+                session, CreditAccount.tg(int(tg_id)), cost
+            )
+            if service == "plex":
+                stmt = (
+                    update(PlexUser)
+                    .where(PlexUser.tg_id == tg_id)
+                    .values(
+                        line_schedule_unlocked=1,
+                        line_schedule_unlock_time=int(time.time()),
+                    )
+                )
+            elif service == "emby":
+                stmt = (
+                    update(EmbyUser)
+                    .where(EmbyUser.tg_id == tg_id)
+                    .values(
+                        line_schedule_unlocked=1,
+                        line_schedule_unlock_time=int(time.time()),
+                    )
+                )
+            else:
+                raise ValueError(f"未知的服务类型: {service}")
+            result = session.execute(stmt)
+            if result.rowcount != 1:
+                raise ValueError(f"用户未绑定 {service} 账户")
+            credits_service.register_cache_invalidation(session, mutation)
+            return True
 
     def unlock_line_schedule(self, tg_id: int, service: str) -> bool:
         """
