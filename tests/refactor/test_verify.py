@@ -116,6 +116,9 @@ def test_mapping_verifier_detects_changed_or_missing_moved_method(
     moved = current / "src/app/domains/credits/repository.py"
     original.parent.mkdir(parents=True)
     moved.parent.mkdir(parents=True)
+    facade = current / "src/app/databases/db.py"
+    facade.parent.mkdir(parents=True)
+    facade.write_text("class DatabaseORM:\n    pass\n")
     original.write_text(
         "class DatabaseORM:\n    def reserve(self, delta):\n        return delta + 1\n"
     )
@@ -221,6 +224,7 @@ def test_snapshot_verification_leaves_no_files_in_checkout(
             and node.func.id == "Path"
             and node.args
             and isinstance(node.args[0], ast.Constant)
+            and isinstance(node.args[0].value, str)
         ]
         next(path for path in paths if path.name == "snapshot.json").write_text("{}")
         next(
@@ -231,3 +235,236 @@ def test_snapshot_verification_leaves_no_files_in_checkout(
     monkeypatch.setattr(subprocess, "run", fake_run)
     assert _run_snapshot(tmp_path, tmp_path) == {}
     assert list(tmp_path.iterdir()) == []
+
+
+def test_b2_retained_definition_cannot_be_disguised_as_deletion(tmp_path: Path) -> None:
+    from scripts.refactor.verify import compare_inventory
+
+    base, current = tmp_path / "base", tmp_path / "current"
+    for root in (base, current):
+        file = root / "src/app/webapp/routers/user.py"
+        file.parent.mkdir(parents=True)
+        file.write_text("def route():\n    return 1\n")
+    mapping = tmp_path / "mapping.toml"
+    mapping.write_text(
+        '[[items]]\nid = "app.webapp.routers.user:route"\n'
+        'target = "app.api.app"\nkind = "function"\n'
+        'reason = "pretend to delete"\naction = "delete"\n'
+    )
+    assert any(
+        "retained B2 unit marked deleted" in error
+        for error in compare_inventory(base, current, mapping)
+    )
+
+
+def test_b2_unrelated_function_cannot_be_disguised_as_assembly(tmp_path: Path) -> None:
+    from scripts.refactor.verify import compare_inventory
+
+    base, current = tmp_path / "base", tmp_path / "current"
+    old = base / "src/app/webapp/routers/user.py"
+    old.parent.mkdir(parents=True)
+    old.write_text("def important():\n    return 1\n")
+    assembled = current / "src/app/api/app.py"
+    assembled.parent.mkdir(parents=True)
+    assembled.write_text("def important():\n    return 2\n")
+    mapping = tmp_path / "mapping.toml"
+    mapping.write_text(
+        '[[items]]\nid = "app.webapp.routers.user:important"\n'
+        'target = "app.api.app"\nkind = "function"\n'
+        'reason = "pretend to assemble"\naction = "assemble"\n'
+    )
+    assert any(
+        "unreviewed assembly unit" in error
+        for error in compare_inventory(base, current, mapping)
+    )
+
+
+def test_b2_import_redistribution_must_preserve_each_binding(tmp_path: Path) -> None:
+    from scripts.refactor.verify import compare_inventory
+
+    base, current = tmp_path / "base", tmp_path / "current"
+    old = base / "src/app/webapp/routers/user.py"
+    old.parent.mkdir(parents=True)
+    old.write_text("from fastapi import Depends\n", encoding="utf-8")
+    target = current / "src/app/domains/profile/router.py"
+    target.parent.mkdir(parents=True)
+    target.write_text("from fastapi import Depends\n", encoding="utf-8")
+    assembly = current / "src/app/api/app.py"
+    assembly.parent.mkdir(parents=True)
+    assembly.write_text("from fastapi import FastAPI\n", encoding="utf-8")
+    mapping = tmp_path / "mapping.toml"
+    mapping.write_text(
+        '[[items]]\nid = "app.webapp.routers.user:@import:1"\n'
+        'target = "app.api.app"\nkind = "import"\n'
+        'reason = "B2 reviewed import redistribution: Depends"\n'
+        'redistributed_to = ["app.domains.profile.router"]\n',
+        encoding="utf-8",
+    )
+    assert compare_inventory(base, current, mapping) == []
+    target.write_text("from fastapi import HTTPException\n", encoding="utf-8")
+    assert any(
+        "missing import bindings" in error
+        for error in compare_inventory(base, current, mapping)
+    )
+
+
+def test_b2_moved_function_cannot_drop_local_import(tmp_path: Path) -> None:
+    from scripts.refactor.verify import compare_inventory
+
+    base, current = tmp_path / "base", tmp_path / "current"
+    old = base / "src/app/webapp/routers/user.py"
+    new = current / "src/app/domains/profile/router.py"
+    old.parent.mkdir(parents=True)
+    new.parent.mkdir(parents=True)
+    old.write_text(
+        "def route():\n    from app.webapp.schemas import UserInfo\n    return UserInfo\n",
+        encoding="utf-8",
+    )
+    new.write_text("def route():\n    return UserInfo\n", encoding="utf-8")
+    mapping = tmp_path / "mapping.toml"
+    mapping.write_text(
+        '[[items]]\nid = "app.webapp.routers.user:route"\n'
+        'target = "app.domains.profile.router"\nkind = "function"\n'
+        'reason = "B2 moved route"\n',
+        encoding="utf-8",
+    )
+    assert any(
+        "AST changed" in error for error in compare_inventory(base, current, mapping)
+    )
+
+
+def test_mapping_verifier_rejects_unreviewed_current_only_or_stale_id(
+    tmp_path: Path,
+) -> None:
+    from scripts.refactor.verify import compare_inventory
+
+    base, current = tmp_path / "base", tmp_path / "current"
+    old = base / "src/app/example.py"
+    new = current / "src/app/example.py"
+    old.parent.mkdir(parents=True)
+    new.parent.mkdir(parents=True)
+    old.write_text("def present():\n    return 1\n", encoding="utf-8")
+    new.write_text(
+        "def present():\n    return 1\n\ndef added():\n    return 2\n", encoding="utf-8"
+    )
+    mapping = tmp_path / "mapping.toml"
+    prefix = (
+        '[[items]]\nid = "app.example:present"\n'
+        'target = "app.example"\nkind = "function"\nreason = "keep"\n'
+    )
+    current_only = (
+        '[[items]]\nid = "app.example:added"\n'
+        'target = "app.example"\nkind = "function"\nreason = "current"\n'
+    )
+    mapping.write_text(prefix + current_only, encoding="utf-8")
+    assert any("current-only" in x for x in compare_inventory(base, current, mapping))
+    mapping.write_text(prefix + current_only + 'source_state = "current"\n')
+    assert compare_inventory(base, current, mapping) == []
+    mapping.write_text(
+        prefix
+        + current_only
+        + 'source_state = "current"\n'
+        + '[[items]]\nid = "app.example:missing"\n'
+        + 'target = "app.example"\nkind = "function"\n'
+        + 'reason = "not actually present"\nsource_state = "current"\n'
+    )
+    assert any("stale" in x for x in compare_inventory(base, current, mapping))
+
+
+def test_reviewed_field_default_normalization_rejects_added_constraints(
+    tmp_path: Path,
+) -> None:
+    from scripts.refactor.verify import compare_inventory
+
+    base, current = tmp_path / "base", tmp_path / "current"
+    old = base / "src/app/webapp/schemas/user.py"
+    new = current / "src/app/domains/profile/schemas.py"
+    old.parent.mkdir(parents=True)
+    new.parent.mkdir(parents=True)
+    old.write_text(
+        "class CustomLineListResponse:\n    lines: list[str] = []\n",
+        encoding="utf-8",
+    )
+    new.write_text(
+        "class CustomLineListResponse:\n    lines: list[str] = Field(default=[])\n",
+        encoding="utf-8",
+    )
+    mapping = tmp_path / "mapping.toml"
+    mapping.write_text(
+        '[[items]]\nid = "app.webapp.schemas.user:CustomLineListResponse"\n'
+        'target = "app.domains.profile.schemas"\nkind = "class"\nreason = "move"\n'
+        '[[items]]\nid = "app.webapp.schemas.user:CustomLineListResponse.lines"\n'
+        'target = "app.domains.profile.schemas"\nkind = "attribute"\nreason = "move"\n',
+        encoding="utf-8",
+    )
+    assert compare_inventory(base, current, mapping) == []
+    new.write_text(
+        "class CustomLineListResponse:\n"
+        "    lines: list[str] = Field(default=[], min_length=1)\n",
+        encoding="utf-8",
+    )
+    assert any(
+        "AST changed" in error for error in compare_inventory(base, current, mapping)
+    )
+
+
+def test_blackjack_timeout_persisted_ref_normalization_is_exact() -> None:
+    import ast
+    from dataclasses import replace
+
+    from scripts.refactor.inventory import Item
+    from scripts.refactor.verify import _normalized
+
+    item = Item(
+        id="app.webapp.routers.activities.blackjack:_schedule_blackjack_timeout",
+        module="app.webapp.routers.activities.blackjack",
+        name="_schedule_blackjack_timeout",
+        kind="function",
+        path="blackjack.py",
+        start_line=1,
+        end_line=1,
+        ast="",
+    )
+    original = ast.parse(
+        "def schedule():\n    scheduler.add_async_job(func=_settle_blackjack_hand_on_timeout)\n"
+    ).body[0]
+    preserved = ast.parse(
+        'def schedule():\n    scheduler.add_async_job(func="app.webapp.routers.activities.blackjack:_settle_blackjack_hand_on_timeout")\n'
+    ).body[0]
+    altered = ast.parse(
+        'def schedule():\n    scheduler.add_async_job(func="app.domains.blackjack.jobs.cash:_settle_blackjack_hand_on_timeout")\n'
+    ).body[0]
+    assert _normalized(item, original) == _normalized(item, preserved)
+    assert _normalized(item, original) != _normalized(item, altered)
+    assert _normalized(replace(item, id="unrelated:call"), original) != _normalized(
+        replace(item, id="unrelated:call"), preserved
+    )
+
+
+def test_treasure_auto_reopen_persisted_ref_normalization_is_exact() -> None:
+    import ast
+
+    from scripts.refactor.inventory import Item
+    from scripts.refactor.verify import _normalized
+
+    item = Item(
+        id="app.webapp.routers.activities.treasure:schedule_auto_reopen_treasure_issue",
+        module="app.webapp.routers.activities.treasure",
+        name="schedule_auto_reopen_treasure_issue",
+        kind="function",
+        path="treasure.py",
+        start_line=1,
+        end_line=1,
+        ast="",
+    )
+    original = ast.parse(
+        "def schedule():\n    Scheduler().add_async_job(func=_auto_create_next_treasure_issue_from)\n"
+    ).body[0]
+    preserved = ast.parse(
+        'def schedule():\n    Scheduler().add_async_job(func="app.webapp.routers.activities.treasure:_auto_create_next_treasure_issue_from")\n'
+    ).body[0]
+    changed = ast.parse(
+        'def schedule():\n    Scheduler().add_async_job(func="app.domains.treasure.jobs:_auto_create_next_treasure_issue_from")\n'
+    ).body[0]
+    assert _normalized(item, original) == _normalized(item, preserved)
+    assert _normalized(item, original) != _normalized(item, changed)

@@ -1506,7 +1506,7 @@ async def check_prediction_markets_closing_soon_job() -> list[dict]:
                 logger.info("大预言家截止提醒检查完成：未来 6 小时内无押注截止题目")
                 return []
 
-        from app.webapp.routers.activities.prediction import (
+        from app.domains.prediction.notifications import (
             notify_prediction_markets_closing_soon,
         )
 

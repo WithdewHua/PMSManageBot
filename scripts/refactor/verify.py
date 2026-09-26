@@ -64,8 +64,14 @@ def _nodes(root: Path, items: list[Item]) -> dict[str, ast.stmt]:
     return result
 
 
-def _normalized(item: Item, node: ast.stmt, *, target_class: str = "") -> str:
-    """Normalize only import paths, D4 self references, B1 lazy db and config path."""
+def _normalized(
+    item: Item,
+    node: ast.stmt,
+    *,
+    target_class: str = "",
+    allow_import_reorder: bool = False,
+) -> str:
+    """Normalize import paths, relocation self-references, and known path anchors."""
     import copy
 
     node = copy.deepcopy(node)
@@ -73,7 +79,7 @@ def _normalized(item: Item, node: ast.stmt, *, target_class: str = "") -> str:
         node.body = [ast.Pass()]  # Every class member is compared separately.
 
     class Normalizer(ast.NodeTransformer):
-        def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.AST:
+        def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.AST | None:
             if node.module in {"app", "app.domains.blackjack"}:
                 for alias in node.names:
                     if (node.module, alias.name) in {
@@ -85,10 +91,59 @@ def _normalized(item: Item, node: ast.stmt, *, target_class: str = "") -> str:
                 node.module = "__IMPORT_PATH__"
             return node
 
-        def visit_Import(self, node: ast.Import) -> ast.AST:
+        def visit_Import(self, node: ast.Import) -> ast.AST | None:
             for alias in node.names:
                 if alias.name.startswith("app."):
                     alias.name = "__IMPORT_PATH__"
+            return node
+
+        def visit_Call(self, node: ast.Call) -> ast.AST:
+            self.generic_visit(node)
+            persisted = {
+                "app.webapp.routers.activities.blackjack:_schedule_blackjack_timeout": (
+                    "_settle_blackjack_hand_on_timeout",
+                    "app.webapp.routers.activities.blackjack:_settle_blackjack_hand_on_timeout",
+                ),
+                "app.webapp.routers.activities.treasure:schedule_auto_reopen_treasure_issue": (
+                    "_auto_create_next_treasure_issue_from",
+                    "app.webapp.routers.activities.treasure:_auto_create_next_treasure_issue_from",
+                ),
+            }
+            if (
+                item.id in persisted
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "add_async_job"
+            ):
+                original_name, original_path = persisted[item.id]
+                for keyword in node.keywords:
+                    if keyword.arg != "func":
+                        continue
+                    if (
+                        isinstance(keyword.value, ast.Name)
+                        and keyword.value.id == original_name
+                    ):
+                        keyword.value = ast.Constant(value="__B1_PERSISTED_TASK__")
+                    elif (
+                        isinstance(keyword.value, ast.Constant)
+                        and keyword.value.value == original_path
+                    ):
+                        keyword.value.value = "__B1_PERSISTED_TASK__"
+
+            if (
+                item.id
+                in {
+                    "app.webapp.schemas.user:CustomLineListResponse.lines",
+                    "app.webapp.schemas.user:LineScheduleListResponse.schedules",
+                }
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "Field"
+                and not node.args
+                and len(node.keywords) == 1
+                and node.keywords[0].arg == "default"
+                and isinstance(node.keywords[0].value, ast.List)
+                and not node.keywords[0].value.elts
+            ):
+                return ast.List(elts=[], ctx=ast.Load())
             return node
 
         def visit_Attribute(self, node: ast.Attribute) -> ast.AST:
@@ -122,6 +177,66 @@ def _normalized(item: Item, node: ast.stmt, *, target_class: str = "") -> str:
             return node
 
     node = Normalizer().visit(node)
+    if allow_import_reorder:
+
+        class SortLocalImports(ast.NodeTransformer):
+            def generic_visit(self, node: ast.AST) -> ast.AST:
+                super().generic_visit(node)
+                for field, statements in ast.iter_fields(node):
+                    if field not in {"body", "orelse", "finalbody"} or not isinstance(
+                        statements, list
+                    ):
+                        continue
+                    start = 0
+                    while start < len(statements):
+                        if not isinstance(
+                            statements[start], (ast.Import, ast.ImportFrom)
+                        ):
+                            start += 1
+                            continue
+                        end = start + 1
+                        while end < len(statements) and isinstance(
+                            statements[end], (ast.Import, ast.ImportFrom)
+                        ):
+                            end += 1
+                        group = statements[start:end]
+                        relocated = [
+                            import_node
+                            for import_node in group
+                            if isinstance(import_node, ast.ImportFrom)
+                            and import_node.module == "__IMPORT_PATH__"
+                        ]
+                        if relocated:
+                            group = [
+                                import_node
+                                for import_node in group
+                                if import_node not in relocated
+                            ]
+                            group.append(
+                                ast.ImportFrom(
+                                    module="__IMPORT_PATH__",
+                                    names=sorted(
+                                        (
+                                            alias
+                                            for import_node in relocated
+                                            for alias in import_node.names
+                                        ),
+                                        key=lambda alias: (
+                                            alias.name,
+                                            alias.asname or "",
+                                        ),
+                                    ),
+                                    level=0,
+                                )
+                            )
+                        group.sort(
+                            key=lambda value: ast.dump(value, include_attributes=False)
+                        )
+                        statements[start:end] = group
+                        start += len(group)
+                return node
+
+        node = SortLocalImports().visit(node)
     if (
         item.module == "app.premium"
         and item.name in _PREMIUM_LAZY
@@ -153,6 +268,9 @@ def compare_inventory(
 ) -> list[str]:
     """Compare each inventoried base unit at its mapping-reviewed destination."""
     base_items = inventory((base_root / "src/app").rglob("*.py"), root=base_root)
+    current_items = inventory(
+        (current_root / "src/app").rglob("*.py"), root=current_root
+    )
     if mapping_file is None:
         candidate = current_root / "scripts/refactor/mapping.toml"
         mapping_file = candidate if candidate.is_file() else None
@@ -165,7 +283,12 @@ def compare_inventory(
                 entries[entry["id"]] = entry
     errors: list[str] = []
     base_ids = {item.id for item in base_items}
-    errors.extend(f"stale mapping: {key}" for key in sorted(entries.keys() - base_ids))
+    current_ids = {item.id for item in current_items}
+    for key in sorted(entries.keys() - base_ids):
+        # B2/B3 can add imports or package docstrings to still-active modules.
+        # Require each current-only inventory item to be explicitly reviewed.
+        if key not in current_ids or entries[key].get("source_state") != "current":
+            errors.append(f"stale or unreviewed current-only mapping: {key}")
     source_nodes = _nodes(base_root, base_items)
     target_cache: dict[str, tuple[list[Item], dict[str, ast.stmt]]] = {}
 
@@ -187,9 +310,51 @@ def compare_inventory(
         if action == "delete":
             if not entry.get("reason", "").strip():
                 errors.append(f"deletion without reason: {item.id}")
+            if item.id in current_ids and item.module.startswith(
+                ("app.webapp", "app.handlers")
+            ):
+                errors.append(f"retained B2 unit marked deleted: {item.id}")
             continue
         if action == "assemble":
-            continue  # Facade container only; its children must still match.
+            approved = (
+                item.id == "app.databases.db:DatabaseORM"
+                or item.id
+                in {
+                    "app.main:set_bot_commands",
+                    "app.main:start_api_server",
+                    "app.webapp:setup_static_files",
+                }
+                or item.kind
+                in {"import", "package_import", "statement", "docstring", "export"}
+                and item.module
+                in {
+                    "app.main",
+                    "app.webapp",
+                    "app.webapp.routers",
+                    "app.webapp.schemas",
+                    "app.webapp.schemas.blackjack_tournament",
+                    "app.handlers",
+                }
+                or item.id == "app.webapp.schemas.blackjack_tournament:@import:2"
+                and entry.get("target") == "app.domains.blackjack.schemas"
+                and any(
+                    candidate.name == "BlackjackHandResponse"
+                    and candidate.kind == "class"
+                    for candidate in destination("app.domains.blackjack.schemas")[0]
+                )
+                or item.name == "__all__"
+                and item.module
+                in {"app.handlers.status", "app.handlers.user", "app.webapp.routers"}
+                or item.name == "router"
+                and item.module
+                in {"app.webapp.routers.user", "app.webapp.routers.admin"}
+            )
+            target = entry.get("target")
+            if not approved or not entry.get("reason", "").strip():
+                errors.append(f"unreviewed assembly unit: {item.id}")
+            elif not isinstance(target, str) or not _module_paths(current_root, target):
+                errors.append(f"missing assembly destination: {item.id} -> {target}")
+            continue
         module = entry.get("target")
         if module == "TODO":
             module = item.module  # Unmoved B2/B3 items still must match.
@@ -228,16 +393,38 @@ def compare_inventory(
             and (not item.parent_id or candidate.name.rsplit(".", 1)[0] in parents)
         ]
         source_node = source_nodes[item.id]
+        allow_import_reorder = entry.get("normalize_local_import_order") is True
+        if allow_import_reorder and item.id not in {
+            "app.webapp.routers.admin:admin_delete_custom_line",
+            "app.webapp.routers.admin:admin_offline_custom_line",
+            "app.webapp.routers.admin:admin_set_custom_line_tags",
+            "app.webapp.routers.admin:admin_update_custom_line",
+            "app.webapp.routers.admin:approve_custom_line",
+        }:
+            errors.append(f"unreviewed local import normalization: {item.id}")
+            continue
         if item.kind in {"import", "package_import"}:
-            # Imports may be consolidated or distributed; check bound names.
             bindings = _bindings(source_node)
-            imported = set().union(
-                *(
-                    _bindings(target_nodes[x.id])
-                    for x in target_items
-                    if x.kind in {"import", "package_import"}
+            relocated = entry.get("redistributed_to", [])
+            if not isinstance(relocated, list) or any(
+                not isinstance(other, str) or not other.startswith("app.")
+                for other in relocated
+            ):
+                errors.append(f"invalid import redistribution: {item.id}")
+                continue
+            if relocated and not entry.get("reason", "").startswith(
+                "B2 reviewed import redistribution:"
+            ):
+                errors.append(f"unreviewed import redistribution: {item.id}")
+            imported = set()
+            for importing_module in [module, *relocated]:
+                imported_items, importing_nodes = destination(importing_module)
+                imported.update(
+                    binding
+                    for imported_item in imported_items
+                    if imported_item.kind in {"import", "package_import"}
+                    for binding in _bindings(importing_nodes[imported_item.id])
                 )
-            )
             if bindings - imported and "*" not in bindings:
                 errors.append(
                     f"missing import bindings: {item.id} -> {module}: {sorted(bindings - imported)}"
@@ -245,7 +432,12 @@ def compare_inventory(
             continue
         if item.kind in {"statement", "docstring"}:
             anonymous[(module, target_class, item.kind)][
-                _normalized(item, source_node, target_class=target_class)
+                _normalized(
+                    item,
+                    source_node,
+                    target_class=target_class,
+                    allow_import_reorder=allow_import_reorder,
+                )
             ] += 1
             continue
         if not matches:
@@ -253,8 +445,18 @@ def compare_inventory(
                 f"missing moved {item.kind}: {item.id} -> {module}{'.' + target_class if target_class else ''}"
             )
         elif not any(
-            _normalized(item, source_node, target_class=target_class)
-            == _normalized(item, target_nodes[match.id], target_class=target_class)
+            _normalized(
+                item,
+                source_node,
+                target_class=target_class,
+                allow_import_reorder=allow_import_reorder,
+            )
+            == _normalized(
+                item,
+                target_nodes[match.id],
+                target_class=target_class,
+                allow_import_reorder=allow_import_reorder,
+            )
             for match in matches
         ):
             errors.append(

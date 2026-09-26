@@ -4338,7 +4338,9 @@ reason = "design D9 module / model rule"
 id = "app.handlers.status:@import:3"
 target = "app.domains.reports.bot"
 kind = "import"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed import redistribution: settings"
+
+redistributed_to = ["app.domains.accounts.bot"]
 
 [[items]]
 id = "app.handlers.status:@import:4"
@@ -4356,25 +4358,29 @@ reason = "design D9 module / model rule"
 id = "app.handlers.status:@import:6"
 target = "app.domains.reports.bot"
 kind = "import"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed import redistribution: send_message"
+
+redistributed_to = ["app.domains.accounts.bot"]
 
 [[items]]
 id = "app.handlers.status:__all__"
-target = "app.domains.reports.bot"
+target = "app.bot.app"
 kind = "assignment"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.handlers.status:__all__"
+
+action = "assemble"
 
 [[items]]
 id = "app.handlers.status:get_register_status"
-target = "app.domains.reports.bot"
+target = "app.domains.accounts.bot"
 kind = "function"
-reason = "design D9 module / model rule"
+reason = "B2 Bot command ownership review"
 
 [[items]]
 id = "app.handlers.status:get_register_status_handler"
-target = "app.domains.reports.bot"
+target = "app.domains.accounts.bot"
 kind = "assignment"
-reason = "design D9 module / model rule"
+reason = "B2 Bot command ownership review"
 
 [[items]]
 id = "app.handlers.status:get_server_status"
@@ -4390,123 +4396,139 @@ reason = "design D9 module / model rule"
 
 [[items]]
 id = "app.handlers.status:set_register"
-target = "app.domains.reports.bot"
+target = "app.domains.accounts.bot"
 kind = "function"
-reason = "design D9 module / model rule"
+reason = "B2 Bot command ownership review"
 
 [[items]]
 id = "app.handlers.status:set_register_handler"
-target = "app.domains.reports.bot"
+target = "app.domains.accounts.bot"
 kind = "assignment"
-reason = "design D9 module / model rule"
+reason = "B2 Bot command ownership review"
 
 [[items]]
 id = "app.handlers.user:@import:1"
-target = "TODO"
+target = "app.bot.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: time"
+
+redistributed_to = ["app.domains.invitation.bot"]
 
 [[items]]
 id = "app.handlers.user:@import:2"
-target = "TODO"
+target = "app.bot.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: NAMESPACE_URL, uuid3"
+
+redistributed_to = ["app.domains.invitation.bot"]
 
 [[items]]
 id = "app.handlers.user:@import:3"
-target = "TODO"
+target = "app.bot.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: Update"
+
+redistributed_to = ["app.domains.profile.bot"]
 
 [[items]]
 id = "app.handlers.user:@import:4"
-target = "TODO"
+target = "app.bot.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: CommandHandler, ContextTypes"
+
+redistributed_to = ["app.domains.profile.bot"]
 
 [[items]]
 id = "app.handlers.user:@import:5"
-target = "TODO"
+target = "app.bot.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 Bot command ownership review"
 
 [[items]]
 id = "app.handlers.user:@import:6"
-target = "TODO"
+target = "app.bot.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: db"
+
+redistributed_to = ["app.domains.profile.bot"]
 
 [[items]]
 id = "app.handlers.user:@import:7"
-target = "TODO"
+target = "app.bot.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 Bot command ownership review"
 
 [[items]]
 id = "app.handlers.user:@import:8"
-target = "TODO"
+target = "app.bot.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: Overseerr"
+
+redistributed_to = ["app.domains.accounts.bot"]
 
 [[items]]
 id = "app.handlers.user:@import:9"
-target = "TODO"
+target = "app.bot.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: get_user_name_from_tg_id, send_message"
+
+redistributed_to = ["app.domains.donation.bot"]
 
 [[items]]
 id = "app.handlers.user:__all__"
-target = "TODO"
+target = "app.bot.app"
 kind = "assignment"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assemble destination for app.handlers.user:__all__"
+
+action = "assemble"
 
 [[items]]
 id = "app.handlers.user:create_overseerr"
-target = "TODO"
+target = "app.domains.accounts.bot"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 Bot command ownership review"
 
 [[items]]
 id = "app.handlers.user:create_overseerr_handler"
-target = "TODO"
+target = "app.domains.accounts.bot"
 kind = "assignment"
-reason = "ambiguous: human review required"
+reason = "B2 Bot command ownership review"
 
 [[items]]
 id = "app.handlers.user:exchange"
-target = "TODO"
+target = "app.domains.invitation.bot"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 Bot command ownership review"
 
 [[items]]
 id = "app.handlers.user:exchange_handler"
-target = "TODO"
+target = "app.domains.invitation.bot"
 kind = "assignment"
-reason = "ambiguous: human review required"
+reason = "B2 Bot command ownership review"
 
 [[items]]
 id = "app.handlers.user:info"
-target = "TODO"
+target = "app.domains.profile.bot"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 Bot command ownership review"
 
 [[items]]
 id = "app.handlers.user:info_handler"
-target = "TODO"
+target = "app.domains.profile.bot"
 kind = "assignment"
-reason = "ambiguous: human review required"
+reason = "B2 Bot command ownership review"
 
 [[items]]
 id = "app.handlers.user:set_donation"
-target = "TODO"
+target = "app.domains.donation.bot"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 Bot command ownership review"
 
 [[items]]
 id = "app.handlers.user:set_donation_handler"
-target = "TODO"
+target = "app.domains.donation.bot"
 kind = "assignment"
-reason = "ambiguous: human review required"
+reason = "B2 Bot command ownership review"
 
 [[items]]
 id = "app.log:@import:1"
@@ -4696,9 +4718,11 @@ reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.main:@import:3"
-target = "TODO"
+target = "app.bot.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assemble destination for app.main:@import:3"
+
+action = "assemble"
 
 [[items]]
 id = "app.main:@import:4"
@@ -4726,9 +4750,11 @@ reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.main:@import:8"
-target = "TODO"
+target = "app.bot.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assemble destination for app.main:@import:8"
+
+action = "assemble"
 
 [[items]]
 id = "app.main:@import:9"
@@ -4738,9 +4764,11 @@ reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.main:@statement:1"
-target = "TODO"
+target = "app.main"
 kind = "statement"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assemble destination for app.main:@statement:1"
+
+action = "assemble"
 
 [[items]]
 id = "app.main:add_init_scheduler_job"
@@ -4756,15 +4784,19 @@ reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.main:set_bot_commands"
-target = "TODO"
+target = "app.bot.app"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assemble destination for app.main:set_bot_commands"
+
+action = "assemble"
 
 [[items]]
 id = "app.main:start_api_server"
-target = "TODO"
+target = "app.main"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assemble destination for app.main:start_api_server"
+
+action = "assemble"
 
 [[items]]
 id = "app.main:start_bot"
@@ -9711,7 +9743,9 @@ reason = "design D9 module / model rule"
 id = "app.webapp.middlewares:@import:1"
 target = "app.api.middlewares"
 kind = "import"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed import redistribution: wraps"
+
+redistributed_to = ["app.core.auth"]
 
 [[items]]
 id = "app.webapp.middlewares:@import:2"
@@ -9763,9 +9797,11 @@ reason = "design D9 module / model rule"
 
 [[items]]
 id = "app.webapp.middlewares:require_telegram_auth"
-target = "app.api.middlewares"
+target = "app.core.auth"
 kind = "function"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed move destination for app.webapp.middlewares:require_telegram_auth"
+
+action = "move"
 
 [[items]]
 id = "app.webapp.middlewares:security"
@@ -9871,9 +9907,9 @@ reason = "router module name"
 
 [[items]]
 id = "app.webapp.routers.activities.auction:finish_single_auction_job"
-target = "app.domains.auction.router"
+target = "app.domains.auction.jobs"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed jobs role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.auction:get_all_auctions_admin"
@@ -9925,9 +9961,9 @@ reason = "router module name"
 
 [[items]]
 id = "app.webapp.routers.activities.auction:restore_auction_schedules"
-target = "app.domains.auction.router"
+target = "app.domains.auction.jobs"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed jobs role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.auction:router"
@@ -9937,15 +9973,15 @@ reason = "router module name"
 
 [[items]]
 id = "app.webapp.routers.activities.auction:send_bid_notifications"
-target = "app.domains.auction.router"
+target = "app.domains.auction.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.auction:send_channel_auction_notification"
-target = "app.domains.auction.router"
+target = "app.domains.auction.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.auction:update_auction_admin"
@@ -9955,561 +9991,577 @@ reason = "router module name"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:@docstring:1"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "docstring"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:@import:1"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "import"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:@import:10"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "import"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:@import:11"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "import"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:@import:12"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "import"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:@import:13"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "import"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:@import:2"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "import"
-reason = "router module name"
+reason = "B2 reviewed import redistribution: datetime"
+
+redistributed_to = ["app.domains.blackjack.jobs.cash"]
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:@import:3"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "import"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:@import:4"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "import"
-reason = "router module name"
+reason = "B2 reviewed import redistribution: settings"
+
+redistributed_to = ["app.domains.blackjack.jobs.cash", "app.domains.blackjack.notifications.cash"]
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:@import:5"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "import"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:@import:6"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "import"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:@import:7"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "import"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:@import:8"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "import"
-reason = "router module name"
+reason = "B2 reviewed import redistribution: get_user_name_from_tg_id, send_message_by_url"
+
+redistributed_to = ["app.domains.blackjack.jobs.cash", "app.domains.blackjack.notifications.cash"]
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:@import:9"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "import"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:_build_action_response"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:_fmt_credits"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.notifications.cash"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notification role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:_format_jackpot_win"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.notifications.cash"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notification role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:_get_group_chat_id"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.notifications.cash"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notification role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:_raise_for_value_error"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:_schedule_blackjack_timeout"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.jobs.cash"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed job role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:_settle_blackjack_hand_on_timeout"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.jobs.cash"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed job role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:blackjack_weekly_cashback_job"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.jobs.cash"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed job role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:deal"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:double"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:get_admin_config"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:get_admin_stats"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:get_current_hand"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:get_public_config"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:get_user_stats"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:hit"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:notify_blackjack_freespin_grants_job"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.jobs.cash"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed job role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:notify_blackjack_jackpot_wins_job"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.jobs.cash"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed job role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:remind_blackjack_freespin_expiry_job"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.jobs.cash"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed job role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:restore_blackjack_timeouts"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.jobs.cash"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed job role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:router"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "assignment"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:seed_jackpot"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:stand"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:surrender"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:sweep_expired_blackjack_hands_job"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.jobs.cash"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed job role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack:update_config"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.cash"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack cash-game subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:@docstring:1"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "docstring"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:@import:1"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "import"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:@import:10"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "import"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:@import:11"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "import"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:@import:12"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "import"
-reason = "router module name"
+reason = "B2 reviewed import redistribution: TournamentAdminResponse, TournamentConsistencyResponse, TournamentCreateRequest, TournamentUpdateRequest"
+
+redistributed_to = ["app.domains.blackjack.router.tournament_admin"]
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:@import:2"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "import"
-reason = "router module name"
+reason = "B2 reviewed import redistribution: settings"
+
+redistributed_to = ["app.domains.blackjack.jobs.tournament", "app.domains.blackjack.notifications.tournament"]
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:@import:3"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "import"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:@import:4"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "import"
-reason = "router module name"
+reason = "B2 reviewed import redistribution: award_blackjack_champion_badge"
+
+redistributed_to = ["app.domains.blackjack.jobs.tournament"]
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:@import:5"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "import"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:@import:6"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "import"
-reason = "router module name"
+reason = "B2 reviewed import redistribution: send_message_by_url"
+
+redistributed_to = ["app.domains.blackjack.jobs.tournament", "app.domains.blackjack.notifications.tournament"]
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:@import:7"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "import"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:@import:8"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "import"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:@import:9"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "import"
-reason = "router module name"
+reason = "B2 reviewed import redistribution: check_admin_permission"
+
+redistributed_to = ["app.domains.blackjack.router.tournament_admin"]
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_TICK_LIST_LIMIT"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "assignment"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_action_response"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_broadcast_group"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.notifications.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notification role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_fmt_ts"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.notifications.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notification role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_format_cancelled"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.notifications.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notification role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_format_created"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.notifications.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notification role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_format_reminder"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.notifications.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notification role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_format_result_dm"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.notifications.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notification role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_format_result_group"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.notifications.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notification role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_format_started"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.notifications.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notification role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_group_chat_id"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.notifications.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notification role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_hands_remaining"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_notify_enabled"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.notifications.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notification role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_raise_for_value_error"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_run_hand_action"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_schedule_tournament_hand_timeout"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.jobs.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed job role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_send_many"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.notifications.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notification role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_tick_completion_reminders"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.jobs.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed job role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_tick_play_deadlines"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.jobs.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed job role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:_tick_registration_deadlines"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.jobs.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed job role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:admin_cancel"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament_admin"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:admin_consistency"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament_admin"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:admin_create"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament_admin"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:admin_update"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament_admin"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:auto_create_blackjack_tournament_job"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.jobs.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed job role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:blackjack_tournament_tick_job"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.jobs.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed job role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:deal"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:double"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:get_current"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:get_standings"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:get_tournament"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:get_wallet"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:hit"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:len_or_dash"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.notifications.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notification role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:list_tournaments"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:notify_tournament_started"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.notifications.tournament"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notification role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:register"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:router"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "assignment"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:stand"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.blackjack_tournament:surrender"
-target = "app.domains.blackjack.router"
+target = "app.domains.blackjack.router.tournament"
 kind = "function"
-reason = "router module name"
+reason = "D6 blackjack tournament subrouter"
 
 [[items]]
 id = "app.webapp.routers.activities.luckywheel:@import:1"
@@ -10891,9 +10943,9 @@ reason = "router module name"
 
 [[items]]
 id = "app.webapp.routers.activities.prediction:_get_group_chat_id"
-target = "app.domains.prediction.router"
+target = "app.domains.prediction.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.prediction:close_market_betting"
@@ -10939,45 +10991,45 @@ reason = "router module name"
 
 [[items]]
 id = "app.webapp.routers.activities.prediction:notify_prediction_bet_placed"
-target = "app.domains.prediction.router"
+target = "app.domains.prediction.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.prediction:notify_prediction_market_created"
-target = "app.domains.prediction.router"
+target = "app.domains.prediction.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.prediction:notify_prediction_market_resolved"
-target = "app.domains.prediction.router"
+target = "app.domains.prediction.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.prediction:notify_prediction_markets_closing_soon"
-target = "app.domains.prediction.router"
+target = "app.domains.prediction.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.prediction:notify_prediction_submission_created"
-target = "app.domains.prediction.router"
+target = "app.domains.prediction.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.prediction:notify_prediction_submission_reviewed"
-target = "app.domains.prediction.router"
+target = "app.domains.prediction.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.prediction:notify_prediction_user_settlement"
-target = "app.domains.prediction.router"
+target = "app.domains.prediction.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.prediction:place_bet"
@@ -11067,7 +11119,9 @@ reason = "router module name"
 id = "app.webapp.routers.activities.treasure:@import:7"
 target = "app.domains.treasure.router"
 kind = "import"
-reason = "router module name"
+reason = "B2 reviewed import redistribution: get_user_name_from_tg_id"
+
+redistributed_to = ["app.domains.treasure.notifications"]
 
 [[items]]
 id = "app.webapp.routers.activities.treasure:@import:8"
@@ -11083,9 +11137,9 @@ reason = "router module name"
 
 [[items]]
 id = "app.webapp.routers.activities.treasure:_auto_create_next_treasure_issue_from"
-target = "app.domains.treasure.router"
+target = "app.domains.treasure.jobs"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed jobs role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.treasure:_get_eth_latest_block_hash_int"
@@ -11095,9 +11149,9 @@ reason = "router module name"
 
 [[items]]
 id = "app.webapp.routers.activities.treasure:_get_group_chat_id"
-target = "app.domains.treasure.router"
+target = "app.domains.treasure.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.treasure:cancel_issue"
@@ -11143,21 +11197,21 @@ reason = "router module name"
 
 [[items]]
 id = "app.webapp.routers.activities.treasure:notify_treasure_issue_created"
-target = "app.domains.treasure.router"
+target = "app.domains.treasure.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.treasure:notify_treasure_not_full_after_join"
-target = "app.domains.treasure.router"
+target = "app.domains.treasure.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.treasure:notify_treasure_settled"
-target = "app.domains.treasure.router"
+target = "app.domains.treasure.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.activities.treasure:router"
@@ -11167,69 +11221,87 @@ reason = "router module name"
 
 [[items]]
 id = "app.webapp.routers.activities.treasure:schedule_auto_reopen_treasure_issue"
-target = "app.domains.treasure.router"
+target = "app.domains.treasure.jobs"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed jobs role extraction"
 
 [[items]]
 id = "app.webapp.routers.admin:@import:1"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: asyncio"
+
+redistributed_to = ["app.domains.donation.admin_router"]
 
 [[items]]
 id = "app.webapp.routers.admin:@import:10"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: AllLineTagsResponse, BaseResponse, LineTagRequest, LineTagResponse, TelegramUser"
+
+redistributed_to = ["app.domains.lines.admin_router"]
 
 [[items]]
 id = "app.webapp.routers.admin:@import:2"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: BackgroundTasks, Body, Depends, HTTPException, Request"
+
+redistributed_to = ["app.domains.lines.admin_router"]
 
 [[items]]
 id = "app.webapp.routers.admin:@import:3"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 API assembly redistributes router imports/exports"
 
 [[items]]
 id = "app.webapp.routers.admin:@import:4"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: db"
+
+redistributed_to = ["app.domains.reports.admin_router"]
 
 [[items]]
 id = "app.webapp.routers.admin:@import:5"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: emby_last_user_defined_line_cache, emby_user_defined_line_cache, plex_last_user_defined_line_cache, plex_user_defined_line_cache"
+
+redistributed_to = ["app.domains.lines.service"]
 
 [[items]]
 id = "app.webapp.routers.admin:@import:6"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: logger"
+
+redistributed_to = ["app.domains.traffic.admin_router"]
 
 [[items]]
 id = "app.webapp.routers.admin:@import:7"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: get_user_name_from_tg_id, is_binded_premium_line, send_message_by_url"
+
+redistributed_to = ["app.domains.lines.service"]
 
 [[items]]
 id = "app.webapp.routers.admin:@import:8"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: get_telegram_user"
+
+redistributed_to = ["app.domains.traffic.admin_router"]
 
 [[items]]
 id = "app.webapp.routers.admin:@import:9"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: require_telegram_auth"
+
+redistributed_to = ["app.domains.traffic.admin_router"]
 
 [[items]]
 id = "app.webapp.routers.admin:add_normal_line"
@@ -11257,39 +11329,49 @@ reason = "route path: /lines/premium"
 
 [[items]]
 id = "app.webapp.routers.admin:admin_delete_custom_line"
-target = "TODO"
+target = "app.domains.custom_lines.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 moved route; Ruff reordered the same consecutive local imports"
+
+normalize_local_import_order = true
 
 [[items]]
 id = "app.webapp.routers.admin:admin_offline_custom_line"
-target = "TODO"
+target = "app.domains.custom_lines.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 moved route; Ruff reordered the same consecutive local imports"
+
+normalize_local_import_order = true
 
 [[items]]
 id = "app.webapp.routers.admin:admin_set_custom_line_tags"
-target = "TODO"
+target = "app.domains.custom_lines.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 moved route; Ruff reordered the same consecutive local imports"
+
+normalize_local_import_order = true
 
 [[items]]
 id = "app.webapp.routers.admin:admin_update_custom_line"
-target = "TODO"
+target = "app.domains.custom_lines.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed split of local BaseResponse import into core.schemas and profile.schemas"
 
+
+normalize_local_import_order = true
 [[items]]
 id = "app.webapp.routers.admin:approve_custom_line"
-target = "TODO"
+target = "app.domains.custom_lines.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 moved route; Ruff reordered the same consecutive local imports"
+
+normalize_local_import_order = true
 
 [[items]]
 id = "app.webapp.routers.admin:check_admin_permission"
-target = "TODO"
+target = "app.core.auth"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:delete_line_tags"
@@ -11323,33 +11405,33 @@ reason = "route path: /lines/premium/{line_name}"
 
 [[items]]
 id = "app.webapp.routers.admin:disable_line_schedules_and_notify"
-target = "TODO"
+target = "app.domains.lines.service"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:generate_admin_invite_codes"
-target = "TODO"
+target = "app.domains.invitation.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:get_admin_settings"
-target = "TODO"
+target = "app.domains.reports.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:get_all_custom_lines"
-target = "TODO"
+target = "app.domains.custom_lines.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:get_all_line_tags"
-target = "TODO"
+target = "app.domains.lines.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:get_emby_lines"
@@ -11371,63 +11453,65 @@ reason = "route path: /lines"
 
 [[items]]
 id = "app.webapp.routers.admin:handle_free_premium_lines_change"
-target = "TODO"
+target = "app.domains.lines.service"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:router"
-target = "TODO"
+target = "app.api.app"
 kind = "assignment"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assemble destination for app.webapp.routers.admin:router"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp.routers.admin:set_credits_transfer_enabled"
-target = "TODO"
+target = "app.domains.credits.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:set_download_unlock_credits"
-target = "TODO"
+target = "app.domains.media_access.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:set_emby_free_premium_lines"
-target = "TODO"
+target = "app.domains.premium.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:set_emby_premium_free"
-target = "TODO"
+target = "app.domains.premium.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:set_emby_register"
-target = "TODO"
+target = "app.domains.accounts.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:set_free_premium_lines"
-target = "TODO"
+target = "app.domains.premium.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:set_invitation_credits"
-target = "TODO"
+target = "app.domains.invitation.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:set_line_schedule_unlock_credits"
-target = "TODO"
+target = "app.domains.lines.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:set_line_tags"
@@ -11437,45 +11521,45 @@ reason = "route path: /line_tags"
 
 [[items]]
 id = "app.webapp.routers.admin:set_plex_register"
-target = "TODO"
+target = "app.domains.accounts.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:set_premium_daily_credits"
-target = "TODO"
+target = "app.domains.premium.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:set_premium_free"
-target = "TODO"
+target = "app.domains.premium.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:set_premium_unlock_enabled"
-target = "TODO"
+target = "app.domains.premium.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:set_premium_user_traffic_limit"
-target = "TODO"
+target = "app.domains.premium.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:set_unlock_credits"
-target = "TODO"
+target = "app.domains.media_access.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:set_user_traffic_limit"
-target = "TODO"
+target = "app.domains.traffic.admin_router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:submit_donation_record"
@@ -11485,21 +11569,21 @@ reason = "route path: /donation"
 
 [[items]]
 id = "app.webapp.routers.admin:unbind_emby_premium_free"
-target = "TODO"
+target = "app.domains.lines.service"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:unbind_plex_premium_free"
-target = "TODO"
+target = "app.domains.lines.service"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.admin:unbind_specified_line_for_all_users"
-target = "TODO"
+target = "app.domains.lines.service"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.badge:@import:1"
@@ -11901,13 +11985,17 @@ reason = "router module name"
 id = "app.webapp.routers.gift_pack:@import:1"
 target = "app.domains.gift_pack.router"
 kind = "import"
-reason = "router module name"
+reason = "B2 reviewed import redistribution: asyncio"
+
+redistributed_to = ["app.domains.gift_pack.notifications", "app.domains.gift_pack.jobs"]
 
 [[items]]
 id = "app.webapp.routers.gift_pack:@import:10"
 target = "app.domains.gift_pack.router"
 kind = "import"
-reason = "router module name"
+reason = "B2 reviewed import redistribution: notify_admins_by_url, send_message_by_url"
+
+redistributed_to = ["app.domains.gift_pack.notifications", "app.domains.gift_pack.jobs"]
 
 [[items]]
 id = "app.webapp.routers.gift_pack:@import:11"
@@ -11949,13 +12037,17 @@ reason = "router module name"
 id = "app.webapp.routers.gift_pack:@import:3"
 target = "app.domains.gift_pack.router"
 kind = "import"
-reason = "router module name"
+reason = "B2 reviewed import redistribution: datetime"
+
+redistributed_to = ["app.domains.gift_pack.notifications"]
 
 [[items]]
 id = "app.webapp.routers.gift_pack:@import:4"
 target = "app.domains.gift_pack.router"
 kind = "import"
-reason = "router module name"
+reason = "B2 reviewed import redistribution: escape"
+
+redistributed_to = ["app.domains.gift_pack.notifications"]
 
 [[items]]
 id = "app.webapp.routers.gift_pack:@import:5"
@@ -11973,7 +12065,9 @@ reason = "router module name"
 id = "app.webapp.routers.gift_pack:@import:7"
 target = "app.domains.gift_pack.router"
 kind = "import"
-reason = "router module name"
+reason = "B2 reviewed import redistribution: settings"
+
+redistributed_to = ["app.domains.gift_pack.notifications", "app.domains.gift_pack.jobs"]
 
 [[items]]
 id = "app.webapp.routers.gift_pack:@import:8"
@@ -11989,27 +12083,27 @@ reason = "router module name"
 
 [[items]]
 id = "app.webapp.routers.gift_pack:_format_rewards"
-target = "app.domains.gift_pack.router"
+target = "app.domains.gift_pack.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.gift_pack:_format_time"
-target = "app.domains.gift_pack.router"
+target = "app.domains.gift_pack.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.gift_pack:_notify_detached"
-target = "app.domains.gift_pack.router"
+target = "app.domains.gift_pack.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.gift_pack:_pending_notifications"
-target = "app.domains.gift_pack.router"
+target = "app.domains.gift_pack.notifications"
 kind = "assignment"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.gift_pack:admin_create_gift_pack"
@@ -12073,27 +12167,27 @@ reason = "router module name"
 
 [[items]]
 id = "app.webapp.routers.gift_pack:notify_gift_pack_claim_failed"
-target = "app.domains.gift_pack.router"
+target = "app.domains.gift_pack.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.gift_pack:notify_gift_pack_created"
-target = "app.domains.gift_pack.router"
+target = "app.domains.gift_pack.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.gift_pack:notify_gift_pack_download_sync_failed"
-target = "app.domains.gift_pack.router"
+target = "app.domains.gift_pack.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.gift_pack:notify_gift_pack_sold_out"
-target = "app.domains.gift_pack.router"
+target = "app.domains.gift_pack.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.gift_pack:prompt_check"
@@ -12109,15 +12203,15 @@ reason = "router module name"
 
 [[items]]
 id = "app.webapp.routers.gift_pack:scan_expired_gift_packs"
-target = "app.domains.gift_pack.router"
+target = "app.domains.gift_pack.jobs"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed jobs role extraction"
 
 [[items]]
 id = "app.webapp.routers.gift_pack:scan_gift_pack_start_dms"
-target = "app.domains.gift_pack.router"
+target = "app.domains.gift_pack.jobs"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed jobs role extraction"
 
 [[items]]
 id = "app.webapp.routers.invitation:@import:1"
@@ -12673,135 +12767,171 @@ reason = "router module name"
 
 [[items]]
 id = "app.webapp.routers.user:@import:1"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: asyncio"
+
+redistributed_to = ["app.domains.lines.router"]
 
 [[items]]
 id = "app.webapp.routers.user:@import:10"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: get_session"
+
+redistributed_to = ["app.domains.profile.router"]
 
 [[items]]
 id = "app.webapp.routers.user:@import:11"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: logger"
+
+redistributed_to = ["app.domains.profile.router"]
 
 [[items]]
 id = "app.webapp.routers.user:@import:12"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: CustomLine, Statistics"
+
+redistributed_to = ["app.domains.custom_lines.router", "app.domains.profile.router"]
 
 [[items]]
 id = "app.webapp.routers.user:@import:13"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: Emby"
+
+redistributed_to = ["app.domains.profile.router"]
 
 [[items]]
 id = "app.webapp.routers.user:@import:14"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: Plex"
+
+redistributed_to = ["app.domains.media_access.router"]
 
 [[items]]
 id = "app.webapp.routers.user:@import:15"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: Tautulli"
+
+redistributed_to = ["app.domains.accounts.router"]
 
 [[items]]
 id = "app.webapp.routers.user:@import:16"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: caculate_credits_fund, get_service_label, get_user_info_from_tg_id, get_user_name_from_tg_id, get_user_total_duration, is_binded_premium_line, notify_admins_by_url, refresh_tg_user_info, send_message_by_url"
+
+redistributed_to = ["app.domains.accounts.router", "app.domains.lines.service", "app.domains.media_access.router", "app.domains.profile.router"]
 
 [[items]]
 id = "app.webapp.routers.user:@import:17"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: get_telegram_user"
+
+redistributed_to = ["app.domains.profile.router"]
 
 [[items]]
 id = "app.webapp.routers.user:@import:18"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: require_telegram_auth"
+
+redistributed_to = ["app.domains.profile.router"]
 
 [[items]]
 id = "app.webapp.routers.user:@import:19"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: AuthBindLineRequest, BaseResponse, BindEmbyRequest, BindPlexRequest, CreditsTransferRequest, CreditsTransferResponse, CurrentLineResponse, CustomLineDetailResponse, CustomLineInfo, CustomLineListResponse, CustomLineOnlineRequest, CustomLineRenewRequest, CustomLineSubmitRequest, CustomLineUpdateRequest, EmbyLineInfo, EmbyLineRequest, EmbyLinesResponse, LineScheduleCreate, LineScheduleListResponse, LineScheduleStatusResponse, LineScheduleUnlockRequest, LineScheduleUnlockResponse, LineScheduleUpdate, PlexLineInfo, PlexLineRequest, PlexLinesResponse, TelegramUser, UserInfo"
+
+redistributed_to = ["app.domains.accounts.router", "app.domains.credits.router", "app.domains.custom_lines.router", "app.domains.lines.router", "app.domains.profile.router"]
 
 [[items]]
 id = "app.webapp.routers.user:@import:2"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: time"
+
+redistributed_to = ["app.domains.media_access.router"]
 
 [[items]]
 id = "app.webapp.routers.user:@import:3"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: BackgroundTasks, Body, Depends, HTTPException, Request"
+
+redistributed_to = ["app.domains.media_access.router"]
 
 [[items]]
 id = "app.webapp.routers.user:@import:4"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: select"
+
+redistributed_to = ["app.domains.profile.router"]
 
 [[items]]
 id = "app.webapp.routers.user:@import:5"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 API assembly redistributes router imports/exports"
 
 [[items]]
 id = "app.webapp.routers.user:@import:6"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: db"
+
+redistributed_to = ["app.domains.profile.router"]
 
 [[items]]
 id = "app.webapp.routers.user:@import:7"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: emby_last_user_defined_line_cache, emby_user_defined_line_cache, plex_last_user_defined_line_cache, plex_user_defined_line_cache"
+
+redistributed_to = ["app.domains.lines.service"]
 
 [[items]]
 id = "app.webapp.routers.user:@import:8"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: DatabaseORM"
+
+redistributed_to = ["app.domains.lines.service"]
 
 [[items]]
 id = "app.webapp.routers.user:@import:9"
-target = "TODO"
+target = "app.api.app"
 kind = "import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed import redistribution: auto_switch_user_lines"
+
+redistributed_to = ["app.domains.lines.router"]
 
 [[items]]
 id = "app.webapp.routers.user:_auth_bind_emby_line"
-target = "TODO"
+target = "app.domains.lines.service"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:_auth_bind_plex_line"
-target = "TODO"
+target = "app.domains.lines.service"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:auth_bind_line"
-target = "TODO"
+target = "app.domains.lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:bind_emby_account"
@@ -12811,9 +12941,9 @@ reason = "route path: /bind/emby"
 
 [[items]]
 id = "app.webapp.routers.user:bind_emby_line"
-target = "app.domains.accounts.router"
+target = "app.domains.lines.router"
 kind = "function"
-reason = "route path: /bind/emby_line"
+reason = "B2 line binding route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:bind_line_generic"
@@ -12829,51 +12959,51 @@ reason = "route path: /bind/plex"
 
 [[items]]
 id = "app.webapp.routers.user:bind_plex_line"
-target = "app.domains.accounts.router"
+target = "app.domains.lines.router"
 kind = "function"
-reason = "route path: /bind/plex_line"
+reason = "B2 line binding route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:check_line_permission"
-target = "TODO"
+target = "app.domains.lines.service"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:check_line_schedule_unlock_status"
-target = "TODO"
+target = "app.domains.lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:create_line_schedule"
-target = "TODO"
+target = "app.domains.lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:delete_custom_line"
-target = "TODO"
+target = "app.domains.custom_lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:delete_line_schedule"
-target = "TODO"
+target = "app.domains.lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:get_all_users"
-target = "TODO"
+target = "app.domains.profile.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:get_approved_custom_lines"
-target = "TODO"
+target = "app.domains.custom_lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:get_current_bound_line"
@@ -12883,15 +13013,15 @@ reason = "route path: /lines/{service}/current"
 
 [[items]]
 id = "app.webapp.routers.user:get_custom_line_detail"
-target = "TODO"
+target = "app.domains.custom_lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:get_download_permission_status"
-target = "TODO"
+target = "app.domains.media_access.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:get_emby_lines"
@@ -12907,15 +13037,15 @@ reason = "route path: /lines/emby/available"
 
 [[items]]
 id = "app.webapp.routers.user:get_line_schedule_status"
-target = "TODO"
+target = "app.domains.lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:get_line_schedules"
-target = "TODO"
+target = "app.domains.lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:get_lines_generic"
@@ -12925,15 +13055,15 @@ reason = "route path: /lines/{service}"
 
 [[items]]
 id = "app.webapp.routers.user:get_my_custom_lines"
-target = "TODO"
+target = "app.domains.custom_lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:get_nsfw_info"
-target = "TODO"
+target = "app.domains.media_access.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:get_plex_lines"
@@ -12955,51 +13085,53 @@ reason = "route path: /info"
 
 [[items]]
 id = "app.webapp.routers.user:nsfw_operation"
-target = "TODO"
+target = "app.domains.media_access.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:offline_custom_line"
-target = "TODO"
+target = "app.domains.custom_lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:online_custom_line"
-target = "TODO"
+target = "app.domains.custom_lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:renew_custom_line"
-target = "TODO"
+target = "app.domains.custom_lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:router"
-target = "TODO"
+target = "app.api.app"
 kind = "assignment"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assemble destination for app.webapp.routers.user:router"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp.routers.user:submit_custom_line"
-target = "TODO"
+target = "app.domains.custom_lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:transfer_credits"
-target = "TODO"
+target = "app.domains.credits.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:unbind_emby_line"
-target = "TODO"
+target = "app.domains.lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:unbind_line_generic"
@@ -13009,33 +13141,33 @@ reason = "route path: /lines/{service}/unbind"
 
 [[items]]
 id = "app.webapp.routers.user:unbind_plex_line"
-target = "TODO"
+target = "app.domains.lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:unlock_download_permission"
-target = "TODO"
+target = "app.domains.media_access.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:unlock_line_schedule"
-target = "TODO"
+target = "app.domains.lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:update_custom_line"
-target = "TODO"
+target = "app.domains.custom_lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.user:update_line_schedule"
-target = "TODO"
+target = "app.domains.lines.router"
 kind = "function"
-reason = "ambiguous: human review required"
+reason = "B2 route ownership review"
 
 [[items]]
 id = "app.webapp.routers.vaultwarden:@import:1"
@@ -13047,7 +13179,9 @@ reason = "router module name"
 id = "app.webapp.routers.vaultwarden:@import:10"
 target = "app.domains.vaultwarden.router"
 kind = "import"
-reason = "router module name"
+reason = "B2 reviewed import redistribution: send_message_by_url"
+
+redistributed_to = ["app.domains.vaultwarden.notifications"]
 
 [[items]]
 id = "app.webapp.routers.vaultwarden:@import:11"
@@ -13117,9 +13251,9 @@ reason = "router module name"
 
 [[items]]
 id = "app.webapp.routers.vaultwarden:_notify_admins_vaultwarden_redeem"
-target = "app.domains.vaultwarden.router"
+target = "app.domains.vaultwarden.notifications"
 kind = "function"
-reason = "router module name"
+reason = "B2 reviewed notifications role extraction"
 
 [[items]]
 id = "app.webapp.routers.vaultwarden:get_vaultwarden_redeem_info"
@@ -13141,39 +13275,43 @@ reason = "router module name"
 
 [[items]]
 id = "app.webapp.routers:@package_import:1"
-target = "TODO"
+target = "app.api.app"
 kind = "package_import"
-reason = "ambiguous: human review required"
+reason = "B2 API assembly redistributes router imports/exports"
 
 [[items]]
 id = "app.webapp.routers:@package_import:2"
-target = "TODO"
+target = "app.api.app"
 kind = "package_import"
-reason = "ambiguous: human review required"
+reason = "B2 API assembly redistributes router imports/exports"
 
 [[items]]
 id = "app.webapp.routers:@package_import:3"
-target = "TODO"
+target = "app.api.app"
 kind = "package_import"
-reason = "ambiguous: human review required"
+reason = "B2 API assembly redistributes router imports/exports"
 
 [[items]]
 id = "app.webapp.routers:@package_import:4"
-target = "TODO"
+target = "app.api.app"
 kind = "package_import"
-reason = "ambiguous: human review required"
+reason = "B2 API assembly redistributes router imports/exports"
 
 [[items]]
 id = "app.webapp.routers:@package_import:5"
-target = "TODO"
+target = "app.api.app"
 kind = "package_import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assembly: user_router split into ordered domain routers in app.api.app"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp.routers:__all__"
-target = "TODO"
+target = "app.api.app"
 kind = "assignment"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assemble destination for app.webapp.routers:__all__"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp.schemas.auction:@import:1"
@@ -14739,7 +14877,9 @@ reason = "schema module name"
 id = "app.webapp.schemas.blackjack_tournament:@docstring:1"
 target = "app.domains.blackjack.schemas"
 kind = "docstring"
-reason = "schema module name"
+reason = "B2 reviewed assembly replacement for app.webapp.schemas.blackjack_tournament:@docstring:1"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp.schemas.blackjack_tournament:@import:1"
@@ -14751,7 +14891,9 @@ reason = "schema module name"
 id = "app.webapp.schemas.blackjack_tournament:@import:2"
 target = "app.domains.blackjack.schemas"
 kind = "import"
-reason = "schema module name"
+reason = "B2 reviewed assembly: BlackjackHandResponse defined in combined blackjack schemas"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp.schemas.blackjack_tournament:TournamentActionResponse"
@@ -19585,27 +19727,27 @@ reason = "schema module name"
 
 [[items]]
 id = "app.webapp.schemas.user:BaseResponse"
-target = "app.domains.profile.schemas"
+target = "app.core.schemas"
 kind = "class"
-reason = "schema module name"
+reason = "D6 shared auth/response schema"
 
 [[items]]
 id = "app.webapp.schemas.user:BaseResponse.@statement:1"
-target = "app.domains.profile.schemas"
+target = "app.core.schemas"
 kind = "statement"
-reason = "schema module name"
+reason = "D6 shared auth/response schema"
 
 [[items]]
 id = "app.webapp.schemas.user:BaseResponse.message"
-target = "app.domains.profile.schemas"
+target = "app.core.schemas"
 kind = "attribute"
-reason = "schema module name"
+reason = "D6 shared auth/response schema"
 
 [[items]]
 id = "app.webapp.schemas.user:BaseResponse.success"
-target = "app.domains.profile.schemas"
+target = "app.core.schemas"
 kind = "attribute"
-reason = "schema module name"
+reason = "D6 shared auth/response schema"
 
 [[items]]
 id = "app.webapp.schemas.user:BindEmbyRequest"
@@ -20617,57 +20759,57 @@ reason = "schema module name"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser"
-target = "app.domains.profile.schemas"
+target = "app.core.schemas"
 kind = "class"
-reason = "schema module name"
+reason = "D6 shared auth/response schema"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser.@statement:1"
-target = "app.domains.profile.schemas"
+target = "app.core.schemas"
 kind = "statement"
-reason = "schema module name"
+reason = "D6 shared auth/response schema"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser.first_name"
-target = "app.domains.profile.schemas"
+target = "app.core.schemas"
 kind = "attribute"
-reason = "schema module name"
+reason = "D6 shared auth/response schema"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser.id"
-target = "app.domains.profile.schemas"
+target = "app.core.schemas"
 kind = "attribute"
-reason = "schema module name"
+reason = "D6 shared auth/response schema"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser.is_bot"
-target = "app.domains.profile.schemas"
+target = "app.core.schemas"
 kind = "attribute"
-reason = "schema module name"
+reason = "D6 shared auth/response schema"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser.is_premium"
-target = "app.domains.profile.schemas"
+target = "app.core.schemas"
 kind = "attribute"
-reason = "schema module name"
+reason = "D6 shared auth/response schema"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser.last_name"
-target = "app.domains.profile.schemas"
+target = "app.core.schemas"
 kind = "attribute"
-reason = "schema module name"
+reason = "D6 shared auth/response schema"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser.photo_url"
-target = "app.domains.profile.schemas"
+target = "app.core.schemas"
 kind = "attribute"
-reason = "schema module name"
+reason = "D6 shared auth/response schema"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser.username"
-target = "app.domains.profile.schemas"
+target = "app.core.schemas"
 kind = "attribute"
-reason = "schema module name"
+reason = "D6 shared auth/response schema"
 
 [[items]]
 id = "app.webapp.schemas.user:UserInfo"
@@ -20839,63 +20981,83 @@ reason = "schema module name"
 
 [[items]]
 id = "app.webapp.schemas:@docstring:1"
-target = "TODO"
+target = "app.api.app"
 kind = "docstring"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assembly replacement for app.webapp.schemas:@docstring:1"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp.schemas:@package_import:1"
-target = "TODO"
+target = "app.api.app"
 kind = "package_import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assembly replacement for app.webapp.schemas:@package_import:1"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp.schemas:@package_import:2"
-target = "TODO"
+target = "app.api.app"
 kind = "package_import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assembly replacement for app.webapp.schemas:@package_import:2"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp.schemas:@package_import:3"
-target = "TODO"
+target = "app.api.app"
 kind = "package_import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assembly replacement for app.webapp.schemas:@package_import:3"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp.schemas:@package_import:4"
-target = "TODO"
+target = "app.api.app"
 kind = "package_import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assembly replacement for app.webapp.schemas:@package_import:4"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp.schemas:@package_import:5"
-target = "TODO"
+target = "app.api.app"
 kind = "package_import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assembly replacement for app.webapp.schemas:@package_import:5"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp.schemas:@package_import:6"
-target = "TODO"
+target = "app.api.app"
 kind = "package_import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assembly replacement for app.webapp.schemas:@package_import:6"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp.schemas:@package_import:7"
-target = "TODO"
+target = "app.api.app"
 kind = "package_import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assembly replacement for app.webapp.schemas:@package_import:7"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp.schemas:@package_import:8"
-target = "TODO"
+target = "app.api.app"
 kind = "package_import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assembly replacement for app.webapp.schemas:@package_import:8"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp.schemas:@package_import:9"
-target = "TODO"
+target = "app.api.app"
 kind = "package_import"
-reason = "ambiguous: human review required"
+reason = "B2 reviewed assembly replacement for app.webapp.schemas:@package_import:9"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp.startup.lifespan:@import:1"
@@ -20937,7 +21099,9 @@ reason = "design D9 module / model rule"
 id = "app.webapp:@package_import:10"
 target = "app.api.app"
 kind = "package_import"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@package_import:10"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@package_import:11"
@@ -20979,7 +21143,9 @@ reason = "design D9 module / model rule"
 id = "app.webapp:@package_import:17"
 target = "app.api.app"
 kind = "package_import"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@package_import:17"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@package_import:18"
@@ -20997,7 +21163,9 @@ reason = "design D9 module / model rule"
 id = "app.webapp:@package_import:2"
 target = "app.api.app"
 kind = "package_import"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed import redistribution: Path"
+
+redistributed_to = ["app.api.static"]
 
 [[items]]
 id = "app.webapp:@package_import:20"
@@ -21045,7 +21213,9 @@ reason = "design D9 module / model rule"
 id = "app.webapp:@package_import:5"
 target = "app.api.app"
 kind = "package_import"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed import redistribution: StaticFiles"
+
+redistributed_to = ["app.api.static"]
 
 [[items]]
 id = "app.webapp:@package_import:6"
@@ -21063,7 +21233,9 @@ reason = "design D9 module / model rule"
 id = "app.webapp:@package_import:8"
 target = "app.api.app"
 kind = "package_import"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed import redistribution: logger"
+
+redistributed_to = ["app.api.static"]
 
 [[items]]
 id = "app.webapp:@package_import:9"
@@ -21075,121 +21247,161 @@ reason = "design D9 module / model rule"
 id = "app.webapp:@statement:1"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:1"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:10"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:10"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:11"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:11"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:12"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:12"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:13"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:13"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:14"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:14"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:15"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:15"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:16"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:16"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:17"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:17"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:18"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:18"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:19"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:19"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:2"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:2"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:20"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:20"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:3"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:3"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:4"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:4"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:5"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:5"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:6"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:6"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:7"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:7"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:8"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:8"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:@statement:9"
 target = "app.api.app"
 kind = "statement"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed assemble destination for app.webapp:@statement:9"
+
+action = "assemble"
 
 [[items]]
 id = "app.webapp:app"
@@ -21205,6 +21417,42 @@ reason = "design D9 module / model rule"
 
 [[items]]
 id = "app.webapp:setup_static_files"
-target = "app.api.app"
+target = "app.api.static"
 kind = "function"
-reason = "design D9 module / model rule"
+reason = "B2 reviewed static-file mounting assembly; tested against legacy API surface"
+
+action = "assemble"
+
+[[items]]
+id = "app.webapp.routers.activities:@docstring:1"
+target = "TODO"
+kind = "docstring"
+reason = "B2 activities package replaced by explicit API assembly"
+action = "delete"
+
+source_state = "current"
+
+[[items]]
+id = "app.webapp.routers.crypto_donation:@import:17"
+target = "app.api.app"
+kind = "import"
+reason = "B2 API assembly redistributes newly discovered router import"
+
+source_state = "current"
+
+[[items]]
+id = "app.webapp.routers.user:@import:20"
+target = "app.api.app"
+kind = "import"
+reason = "B2 API assembly redistributes newly discovered router import"
+
+source_state = "current"
+
+[[items]]
+id = "app.handlers:@docstring:1"
+target = "app.bot.app"
+kind = "docstring"
+reason = "B2 reviewed assembly replacement for app.handlers:@docstring:1"
+action = "assemble"
+
+source_state = "current"

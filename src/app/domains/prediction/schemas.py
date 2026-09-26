@@ -1,0 +1,105 @@
+from datetime import datetime
+
+from pydantic import BaseModel, Field
+
+
+class PredictionMarketItem(BaseModel):
+    id: int
+    title: str
+    description: str | None = None
+    status: int
+    result_option: int | None = None
+    betting_deadline: int | None = None
+    real_yes_pool: int
+    real_no_pool: int
+    virtual_yes_pool: int
+    virtual_no_pool: int
+    yes_odds: float
+    no_odds: float
+    max_bet_per_user: int
+    created_at: datetime
+
+
+class PredictionMarketListResponse(BaseModel):
+    markets: list[PredictionMarketItem]
+    total: int
+
+
+class PredictionMarketDetailResponse(BaseModel):
+    market: PredictionMarketItem
+    my_yes_amount: int = 0
+    my_no_amount: int = 0
+    fee_rate_bp: int
+    fee_burn_bp: int
+    fee_glory_bp: int
+    resolution_note: str | None = None
+    total_fee_collected: int
+    fee_burned: int
+    fee_to_glory: int
+
+
+class PredictionBetItem(BaseModel):
+    id: int
+    market_id: int
+    tg_id: int
+    tg_username: str | None = None
+    option: int
+    amount: int
+    created_at: datetime
+
+
+class PredictionBetListResponse(BaseModel):
+    bets: list[PredictionBetItem]
+    total: int
+
+
+class PredictionCreateMarketRequest(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    description: str | None = Field(None, max_length=2000)
+    betting_deadline: int = Field(..., description="押注截止时间（Unix秒时间戳）")
+    virtual_yes_pool: int = Field(500, ge=0)
+    virtual_no_pool: int = Field(500, ge=0)
+    max_bet_per_user: int = Field(500, gt=0)
+
+
+class PredictionBetRequest(BaseModel):
+    option: int = Field(..., ge=0, le=1, description="1=YES, 0=NO")
+    amount: int = Field(..., gt=0, le=500)
+
+
+class PredictionResolveRequest(BaseModel):
+    result_option: int = Field(..., ge=0, le=1)
+    resolution_note: str | None = Field(None, max_length=2000)
+
+
+class PredictionSubmitRequest(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    description: str | None = Field(None, max_length=2000)
+    betting_deadline: int = Field(..., description="押注截止时间（Unix秒时间戳）")
+
+
+class PredictionSubmissionItem(BaseModel):
+    id: int
+    title: str
+    description: str | None = None
+    betting_deadline: int
+    status: int
+    submitter_tg_id: int
+    reviewed_by: int | None = None
+    reviewed_at: int | None = None
+    review_note: str | None = None
+    market_id: int | None = None
+    created_at: datetime
+
+
+class PredictionSubmissionListResponse(BaseModel):
+    submissions: list[PredictionSubmissionItem]
+    total: int
+
+
+class PredictionSubmissionReviewRequest(BaseModel):
+    approved: bool
+    review_note: str | None = Field(None, max_length=2000)
+    title: str | None = Field(None, min_length=1, max_length=200)
+    description: str | None = Field(None, max_length=2000)
+    betting_deadline: int | None = Field(None, description="审核时可修改截止时间")

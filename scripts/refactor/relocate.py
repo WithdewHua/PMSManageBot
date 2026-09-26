@@ -232,14 +232,14 @@ def _module_writes(unit: Unit) -> set[str]:
 
 
 def _validate_globals(units: list[Unit]) -> None:
-    assignments: dict[str, set[str]] = defaultdict(set)
+    assignments: dict[tuple[Path, str], set[str]] = defaultdict(set)
     for unit in units:
         for name in _module_writes(unit):
-            assignments[name].add(unit.target)
-    for name, targets in assignments.items():
+            assignments[(unit.source, name)].add(unit.target)
+    for (source, name), targets in assignments.items():
         if len(targets) > 1:
             raise RelocationError(
-                f"split module-level rebinding {name}: {sorted(targets)}"
+                f"split module-level rebinding {source}:{name}: {sorted(targets)}"
             )
     for unit in units:
         if unit.action != "move":
@@ -248,9 +248,11 @@ def _validate_globals(units: list[Unit]) -> None:
             if not isinstance(node, ast.Global):
                 continue
             for name in node.names:
-                if name in assignments and unit.target not in assignments[name]:
+                key = (unit.source, name)
+                if key in assignments and unit.target not in assignments[key]:
                     raise RelocationError(
-                        f"split global rebinding {name}: {unit.item.id} vs {sorted(assignments[name])}"
+                        f"split global rebinding {name}: {unit.item.id} vs "
+                        f"{sorted(assignments[key])}"
                     )
 
 

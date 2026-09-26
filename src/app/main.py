@@ -1,9 +1,9 @@
 import datetime
 import threading
 
-from telegram import BotCommand
 from telegram.ext import ApplicationBuilder
 
+from app.bot.app import register_handlers
 from app.core.config import settings
 from app.core.log import logger
 from app.core.scheduler import Scheduler
@@ -23,7 +23,6 @@ from app.databases.db_func import (
     update_users_last_viewed,
     write_user_info_cache,
 )
-from app.handlers import rank, start, status, user
 from app.model_registry import init_db
 from app.modules.custom_line import (
     check_custom_line_traffic,
@@ -44,30 +43,10 @@ from app.webapp.routers.gift_pack import (
 
 
 async def set_bot_commands(application):
-    """设置机器人命令列表"""
-    commands = [
-        BotCommand("start", "开始使用机器人"),
-        BotCommand("info", "查看个人信息"),
-        BotCommand("server_status", "查看服务器在线人数/状态"),
-        BotCommand("rank_24h", "查看24小时观看时长榜"),
-        BotCommand("exchange", f"生成邀请码(消耗 {settings.INVITATION_CREDITS} 积分)"),
-        BotCommand("credits_rank", "查看积分榜"),
-        BotCommand("donation_rank", "查看捐赠榜"),
-        BotCommand("play_duration_rank", "查看观看时长榜"),
-        BotCommand("device_rank", "查看设备榜"),
-        BotCommand("register_status", "查看 Plex/Emby 是否可注册"),
-        BotCommand("create_overseerr", "创建 Overseerr 账户"),
-        # 管理员命令
-        BotCommand("set_donation", "设置捐赠金额 (管理员)"),
-        BotCommand("update_database", "更新数据库 (管理员)"),
-        BotCommand("set_register", "设置可注册状态 (管理员)"),
-    ]
+    """Compatibility alias for the bot assembly command menu."""
+    from app.bot.app import set_bot_commands as configure_commands
 
-    try:
-        await application.bot.set_my_commands(commands)
-        logger.info("机器人命令列表设置成功")
-    except Exception as e:
-        logger.error(f"设置机器人命令列表失败: {e}")
+    await configure_commands(application)
 
 
 async def post_init_services(application):
@@ -87,15 +66,11 @@ def start_api_server():
     """启动 WebApp API 服务器"""
     import uvicorn
 
-    from app.webapp import setup_static_files
-
-    # 配置静态文件
-    if not setup_static_files():
-        logger.warning("WebApp 静态文件配置失败，仅 API 端点可用")
+    # Static files are mounted by app.api.app after all API routes.
 
     # 启动 FastAPI 服务
     uvicorn.run(
-        "app.webapp:app",
+        "app.api.app:app",
         host=settings.WEBAPP_HOST,
         port=settings.WEBAPP_PORT,
         reload=False,
@@ -456,7 +431,7 @@ def add_init_scheduler_job():
 
     # 恢复现有竞拍的定时任务
     try:
-        from app.webapp.routers.activities.auction import restore_auction_schedules
+        from app.domains.auction.jobs import restore_auction_schedules
 
         restore_auction_schedules()
     except Exception as e:
@@ -593,12 +568,8 @@ if __name__ == "__main__":
     # 初始化 Telegram Bot 应用
     application = ApplicationBuilder().token(settings.TG_API_TOKEN).build()
 
-    # 注册处理程序
-    for handler_module in (rank, start, status, user):
-        for name, handler in vars(handler_module).items():
-            if name.endswith("_handler"):
-                logger.info(f"Add handler: {name}")
-                application.add_handler(handler)
+    # 注册处理程序（显式列表，顺序由 bot/app.py 固定）
+    register_handlers(application)
 
     # 在应用启动后（事件循环就绪）初始化命令与调度器
     application.post_init = post_init_services

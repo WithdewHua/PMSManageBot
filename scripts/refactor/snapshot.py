@@ -13,6 +13,7 @@ import asyncio
 import importlib.util
 import json
 import re
+from contextlib import nullcontext
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -49,18 +50,17 @@ def _route_snapshot(app: Any) -> dict[str, Any]:
     for order, route in enumerate(app.routes):
         methods = sorted(getattr(route, "methods", set()) or set())
         endpoint = getattr(route, "endpoint", None)
+        response_model = getattr(route, "response_model", None)
         routes.append(
             {
                 "order": order,
                 "path": getattr(route, "path", None),
                 "methods": methods,
                 "name": getattr(route, "name", None),
-                "endpoint": (
-                    f"{endpoint.__module__}:{endpoint.__qualname__}"
-                    if endpoint is not None
-                    else None
-                ),
-                "response_model": _json_value(getattr(route, "response_model", None)),
+                # Domain relocation changes module-qualified symbols but not
+                # the callable behavior represented by the route.
+                "endpoint": getattr(endpoint, "__name__", None),
+                "response_model": getattr(response_model, "__name__", None),
             }
         )
     return {"openapi": app.openapi(), "routes": routes}
@@ -171,7 +171,7 @@ class _RecordingScheduler:
         )
 
 
-def _scheduler_snapshot() -> dict[str, Any]:
+def _scheduler_snapshot(root: Path = ROOT) -> dict[str, Any]:
     from app import main
 
     try:
@@ -199,6 +199,11 @@ def _scheduler_snapshot() -> dict[str, Any]:
             SimpleNamespace(datetime=FrozenDateTime, timedelta=timedelta),
         ),
         patch("app.webapp.routers.activities.auction.restore_auction_schedules"),
+        (
+            patch("app.domains.auction.jobs.restore_auction_schedules")
+            if (root / "src/app/domains/auction/jobs.py").is_file()
+            else nullcontext()
+        ),
         patch("app.webapp.routers.activities.blackjack.restore_blackjack_timeouts"),
     ):
         main.add_init_scheduler_job()
@@ -240,28 +245,35 @@ async def _commands() -> list[dict[str, str]]:
 
 
 def _bot_snapshot() -> dict[str, Any]:
-    from app.handlers import rank, start, status, user
+    try:
+        from app.bot.app import HANDLERS
 
-    handlers = []
-    for module in (rank, start, status, user):
-        for name, handler in vars(module).items():
-            if not name.endswith("_handler"):
-                continue
-            callback = getattr(handler, "callback", None)
-            handlers.append(
-                {
-                    "module": module.__name__,
-                    "name": name,
-                    "type": type(handler).__name__,
-                    "callback": (
-                        f"{callback.__module__}:{callback.__qualname__}"
-                        if callback is not None
-                        else None
-                    ),
-                    "commands": sorted(getattr(handler, "commands", set()) or set()),
-                }
-            )
-    return {"handlers": handlers, "commands": asyncio.run(_commands())}
+        handlers = list(HANDLERS)
+    except ModuleNotFoundError:
+        from app.handlers import rank, start, status, user
+
+        handlers = [
+            handler
+            for module in (rank, start, status, user)
+            for name, handler in vars(module).items()
+            if name.endswith("_handler")
+        ]
+
+    serialized = []
+    for handler in handlers:
+        callback = getattr(handler, "callback", None)
+        callback_name = getattr(callback, "__name__", None)
+        serialized.append(
+            {
+                # Module paths are intentionally omitted: B2 changes only the
+                # registration location, not the command callback behavior.
+                "name": f"{callback_name}_handler" if callback_name else None,
+                "type": type(handler).__name__,
+                "callback": callback_name,
+                "commands": sorted(getattr(handler, "commands", set()) or set()),
+            }
+        )
+    return {"handlers": serialized, "commands": asyncio.run(_commands())}
 
 
 def _facade_snapshot() -> dict[str, Any]:
@@ -417,13 +429,16 @@ def _static_reference_snapshot(root: Path) -> dict[str, Any]:
 def build_snapshot(root: Path = ROOT) -> dict[str, Any]:
     """Build a JSON-serializable snapshot without writing application state."""
     root = root.resolve()
-    from app.webapp import app
+    try:
+        from app.api.app import app
+    except ModuleNotFoundError:
+        from app.webapp import app
 
     return {
         "schema": 1,
         "openapi": _route_snapshot(app),
         "metadata": _metadata_snapshot(),
-        "scheduler": _scheduler_snapshot(),
+        "scheduler": _scheduler_snapshot(root),
         "bot": _bot_snapshot(),
         "facade": _facade_snapshot(),
         "references": _static_reference_snapshot(root),

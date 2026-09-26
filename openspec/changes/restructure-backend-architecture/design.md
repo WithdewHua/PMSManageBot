@@ -340,11 +340,12 @@ import-linter 表达不了的规则，放进 `tests/architecture/`，这些测�
 
 - **现存违规登记在两处**：import-linter 的违规写进各合约的 `ignore_imports`，AST 测试的违规写进 `tests/architecture/baseline.json`。
 - **每条都标负责的变更**：`ignore_imports` 按负责变更分组，用注释标出；baseline.json 里直接记录负责变更。负责变更按领域对应，见 Migration Plan 之后的表。
+- **B2 迁入旧违规的唯一例外**：原先位于 `webapp/`、`handlers/` 的接口搬到领域后，原来的 `db` 调用、SQL 查询和跨领域调用才进入领域扫描范围。B2 可增加基线条目，但每一条都必须绑定基准提交的来源模块/源码单元 ID、搬迁映射、目标位置及负责后续清理的变更；核对搬迁前后该调用的规范化 AST 一致。不能仅因条目落在新文件就视为旧债；找不到来源、修改了调用或新写的逻辑必须失败。禁止整领域/整目录豁免；迁入的门面导入只允许精确到导入者，`ignore_imports` 精确到实际导入边，条目必须登记负责变更并受 unmatched 检查。此例外不授权新代码调用门面。
 - **只减不增**：
-  - 新增违规会让检查失败。
+  - B2 完成逐条来源审计并重新封存后，新增违规会让检查失败；B2 审计期间也拒绝来源不明或调用发生变化的新增条目。
   - 违规修好后如果条目还留着，检查同样失败：import-linter 设 `unmatched_ignore_imports_alerting = "error"`，AST 测试也照此处理。
   - 各合约的 ignore 条数与 baseline.json 里封存的数字一致，所以修掉违规时要在同一个提交里下调封存数。
-- **封存时机**：B 阶段搬迁过程中，基线每批重新生成一次，B3 结束时封存。
+- **封存时机**：B1 保留既有封存数；B2 只对已审计的迁入旧违规重新封存；B3 随剩余代码搬迁复核并封存最终基线。每一批仍要执行新增违规和已修复条目的拒绝测试。
 
 两个本地 pre-commit hook 分别运行 `lint-imports` 和 `pytest tests/architecture`，都用项目虚拟环境。
 
@@ -365,7 +366,8 @@ import-linter 表达不了的规则，放进 `tests/architecture/`，这些测�
     - 按映射改写全仓库的导入语句和字符串引用，范围包括 `src`、`tests`、`scripts`、`alembic`，覆盖函数内导入、monkeypatch 目标、uvicorn 目标与持久化任务路径；不重写不相关的普通字符串。
     - 搬迁前先做完整性预检，并在任何文件写入前拒绝：未覆盖的源码单元、父子范围重复搬运、拆开了 `global` 重绑定的名字、拆分后出现导入环或不能无歧义改写的引用。对失败的预检保持源文件和目标文件不变。
 4. **校验**：对比搬迁前的基准提交和当前工作树，以下每一项都必须一致：
-    - **逐项 AST 比对**：按审阅映射中的来源 ID 和目标模块逐一比对定义、类成员、顶层可执行语句与模块文档字符串；跨文件合并的导入项验证其名称或记录明确的重分配理由。只允许经过审阅的导入路径、D4 自引用、D8 调度调用、B1 Premium 延迟导入和 `Settings.DATA_PATH` 相对层级修正。新写的组装代码（api、bot、schedule、registry、门面）由后面几项快照覆盖，但迁入领域的模型和方法不能因位于新目录而整体跳过。
+    - **逐项 AST 比对**：按审阅映射中的来源 ID 和目标模块逐一比对定义、类成员、顶层可执行语句与模块文档字符串；跨文件合并的导入项验证其名称或在映射中为该来源 ID 记录明确的重分配目标及理由。只允许经过审阅的导入路径、D4 自引用、D8 调度调用、B1 Premium 延迟导入和 `Settings.DATA_PATH` 相对层级修正。B2 因 Ruff 禁止可变默认值而将 Pydantic 字段的 `=[]` 改为 `Field(default=[])` 时，只允许针对审阅过的确切字段做 AST 规范化，并用构造/序列化测试证明等价。新写的组装代码（api、bot、schedule、registry、门面）由后面几项快照覆盖；`action = "assemble"` 仅适用于被组装替代的源单元，并保留来源与目标的审阅记录；`action = "delete"` 只适用于已从运行路径移除、确实获准删除的单元，不能用来绕过保留的源定义。迁入领域的模型、方法和路由函数不能因位于新目录，或来自整个 `webapp/handlers` 目录，而整体跳过。用故意修改目标函数体、删除导入绑定或错误标记保留定义为删除的反例测试确保校验失败。
+   - **B2 持久化超时路径例外**：`app.webapp.routers.activities.blackjack:_schedule_blackjack_timeout` 搬入 `blackjack/jobs/` 后继续向 SQLAlchemy jobstore 提交原始 `app.webapp.routers.activities.blackjack:_settle_blackjack_hand_on_timeout` 字符串引用，不能产生新函数路径的记录；B3 在删除旧模块前按 D8 迁移。夺宝自动续期同理：`app.webapp.routers.activities.treasure:schedule_auto_reopen_treasure_issue` 继续持久化原始 `app.webapp.routers.activities.treasure:_auto_create_next_treasure_issue_from`，直至 B3 迁移。只对这两个明确列出的调度调用的 `func=` 参数允许“B1 可调用对象 → 完全相同的 B1 字符串路径”的 AST 规范化，路径必须逐字匹配；测试须覆盖正常目标、错误目标被拒绝及 APScheduler 可解析旧路径。
    - **导入解析**：逐个导入所有模块。用 AST 找出全部函数内导入和字符串引用（uvicorn 目标、monkeypatch 目标、任务名），逐一解析。
    - **OpenAPI 文档完全一致**。
    - **路由表顺序**：只有互不重叠的路由可以调换顺序。判断方法是把路径参数当通配段，检查同一方法下两条路由能不能匹配同一个路径。

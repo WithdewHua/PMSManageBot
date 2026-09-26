@@ -76,7 +76,7 @@
 
 ## 4. B2 接口层
 
-- [ ] 4.1 审阅路由的映射：
+- [x] 4.1 审阅路由的映射：
   - `user.py` 和 `admin.py` 按接口逐个分到所属领域。
   - 其余路由整体归属。
   - 路由里夹带的任务、编排和通知函数，按角色放进 `jobs.py`、`service.py`、`notifications.py`。
@@ -85,19 +85,19 @@
   - 凭码注册和注册状态接口留在 `invitation`。
 
   验证：覆盖检查中，`webapp/routers/` 没有 `TODO`。
-- [ ] 4.2 审阅 schemas 和鉴权部件的映射：各领域的 `schemas.py`；`TelegramUser`、`BaseResponse` → `core/schemas.py`；`verify_telegram_data`、`get_telegram_user`、`require_telegram_auth`、`check_admin_permission` → `core/auth.py`；删除 schemas 的汇总模块。验证：覆盖检查通过。
-- [ ] 4.3 审阅 Bot 命令的映射：`handlers/*.py` → 各领域的 `bot.py`，`/start` → `bot/start.py`。验证：覆盖检查通过。
-- [ ] 4.4 编写 API 和 Bot 的组装代码：
+- [x] 4.2 审阅 schemas 和鉴权部件的映射：各领域的 `schemas.py`；`TelegramUser`、`BaseResponse` → `core/schemas.py`；`verify_telegram_data`、`get_telegram_user`、`require_telegram_auth`、`check_admin_permission` → `core/auth.py`；删除 schemas 的汇总模块。验证：覆盖检查通过。
+- [x] 4.3 审阅 Bot 命令的映射：`handlers/*.py` → 各领域的 `bot.py`，`/start` → `bot/start.py`。验证：覆盖检查通过。
+- [x] 4.4 编写 API 和 Bot 的组装代码：
   - `api/app.py`：中间件顺序、挂载顺序和 `/api` 前缀与原来一致，静态文件最后挂载。
   - `api/middlewares.py`、`api/lifespan.py`、`api/static.py`。
   - `bot/app.py`：显式列出 handler，顺序与原来一致，加上 `set_bot_commands`。
   - 把 `main.py` 的 uvicorn 目标改成 `"app.api.app:app"`，handler 注册改为读取 `bot/app.py`。
 
   验证：OpenAPI、路由和 Bot 快照都与基准一致。
-- [ ] 4.5 运行 B2 搬迁并完成校验：`verify.py --base` 零差异，包括路由换序重叠检查和 Bot 快照。失效的 monkeypatch 目标按新位置修正。验证：`pytest` 和 `ruff` 通过。
-- [ ] 4.6 加入领域内分层合约和"入口不碰数据层"合约，重新生成 ignore 列表和基线。验证：`lint-imports` 和 `pytest tests/architecture` 通过。
-- [ ] 4.7 冒烟检查：用 `uvicorn app.api.app:app` 启动，对同一份测试数据库请求一组接口，包括需要 initData 的用户接口和管理员接口，返回结果与基准一致。
-- [ ] 4.8 提交 B2。验证：`pre-commit run --all-files` 通过。
+- [x] 4.5 运行 B2 搬迁并完成校验：按映射逐项对比迁入的路由、Bot、schemas 和鉴权定义，审阅组装单元及每条跨文件导入重分配；禁止通过将保留的单元标记 `delete`、整目录忽略或未批准的 AST 规范化取得零差异。为保留的旧路径与组装目标逐项记理由，并添加故意改动迁入函数、遗漏导入及伪造删除的反例测试。`verify.py --base` 零差异，包括路由换序重叠检查和 Bot 快照；失效的 monkeypatch 目标按新位置修正。验证：`pytest`、`ruff` 和反例测试通过。
+- [x] 4.6 加入领域内分层合约和“入口不碰数据层”合约；仅对能由基准提交的来源 ID、未变调用 AST 和目标映射证明的迁入旧违规逐条登记豁免及负责变更。审计 B1→B2 每条新增的跨领域调用、门面导入、SQL/模型直接导入和超预算文件；查不到来源或调用有变化的项不得进入基线。重新封存 ignore 列表与 baseline.json 的条数，增加故意新增违规、删除已修复豁免以及伪造来源的拒绝测试。验证：`lint-imports`、`pytest tests/architecture` 和来源审计全通过；从 B2 提交后恢复严格只减不增。
+- [x] 4.7 冒烟检查：分别用 `uvicorn app.webapp:app`（基准）与 `uvicorn app.api.app:app`（当前）启动，对同一份测试数据库的独立副本请求一组接口，包括需要 initData 的用户接口和管理员接口；逐项核对预期状态码及响应与基准一致，不能让两个相同的 404/500 算通过。
+- [x] 4.8 提交 B2。验证：`pre-commit run --all-files` 通过。
 
 ## 5. B3 编排层
 

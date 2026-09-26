@@ -109,6 +109,76 @@ allowed_importers = [
     "app.webapp.routers.system", # B2 API migration
     "app.webapp.routers.user", # B2 API migration
     "app.webapp.routers.vaultwarden", # B2 API migration
+
+    "app.domains.accounts.bot", # promote-account-domains (B2 inherited)
+
+    "app.domains.accounts.router", # promote-account-domains (B2 inherited)
+
+    "app.domains.auction.router", # promote-activity-domains (B2 inherited)
+
+    "app.domains.badges.router", # promote-reward-domains (B2 inherited)
+
+    "app.domains.blackjack.router.cash", # promote-blackjack-domain (B2 inherited)
+
+    "app.domains.blackjack.router.tournament", # promote-blackjack-domain (B2 inherited)
+    "app.domains.blackjack.jobs.cash", # promote-blackjack-domain (B2 inherited)
+    "app.domains.blackjack.jobs.tournament", # promote-blackjack-domain (B2 inherited)
+    "app.domains.blackjack.notifications.tournament", # promote-blackjack-domain (B2 inherited)
+    "app.domains.blackjack.router.tournament_admin", # promote-blackjack-domain (B2 inherited)
+    "app.domains.credits.router", # make-credit-changes-atomic (B2 inherited)
+
+    "app.domains.crypto_donation.router", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.donation.admin_router", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.donation.bot", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.donation.router", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.gift_pack.router", # promote-gift-pack-domain (B2 inherited)
+
+    "app.domains.invitation.admin_router", # promote-account-domains (B2 inherited)
+
+    "app.domains.invitation.bot", # promote-account-domains (B2 inherited)
+
+    "app.domains.invitation.router", # promote-account-domains (B2 inherited)
+
+    "app.domains.lines.admin_router", # promote-line-domains (B2 inherited)
+
+    "app.domains.lines.router", # promote-line-domains (B2 inherited)
+
+    "app.domains.lines.service", # promote-line-domains (B2 inherited)
+
+    "app.domains.luckywheel.router", # promote-activity-domains (B2 inherited)
+
+    "app.domains.media_access.router", # promote-line-domains (B2 inherited)
+
+    "app.domains.prediction.router", # promote-activity-domains (B2 inherited)
+
+    "app.domains.premium.admin_router", # promote-line-domains (B2 inherited)
+
+    "app.domains.premium.router", # promote-line-domains (B2 inherited)
+
+    "app.domains.profile.bot", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.profile.router", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.rankings.bot", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.rankings.router", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.reports.admin_router", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.reports.router", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.treasure.router", # promote-activity-domains (B2 inherited)
+
+    "app.domains.vaultwarden.router", # promote-remaining-domains (B2 inherited)
+    "app.domains.auction.jobs", # promote-activity-domains (B2 inherited)
+    "app.domains.auction.notifications", # promote-activity-domains (B2 inherited)
+    "app.domains.gift_pack.jobs", # promote-gift-pack-domain (B2 inherited)
+    "app.domains.gift_pack.notifications", # promote-gift-pack-domain (B2 inherited)
+    "app.domains.treasure.jobs", # promote-activity-domains (B2 inherited)
 ]
 unmatched_ignore_imports_alerting = "error"
 
@@ -137,9 +207,20 @@ ignore_imports = [
     "app.webapp.routers.donation -> sqlalchemy",
     "app.webapp.routers.system -> sqlalchemy",
     "app.webapp.routers.user -> sqlalchemy",
+
+    "app.domains.crypto_donation.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.custom_lines.admin_router -> sqlalchemy", # promote-line-domains (B2 inherited)
+
+    "app.domains.custom_lines.router -> sqlalchemy", # promote-line-domains (B2 inherited)
+
+    "app.domains.donation.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.profile.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.reports.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
 ]
 unmatched_ignore_imports_alerting = "error"
-
 [[tool.importlinter.contracts]]
 name = "Database engine import scope"
 type = "protected"
@@ -167,6 +248,20 @@ ignore_imports = [
     "app.webapp.routers.system -> app.core.db",
     "app.webapp.routers.user -> app.core.db",
     "app.webapp.routers.vaultwarden -> app.core.db",
+
+    "app.domains.crypto_donation.router -> app.core.db", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.custom_lines.admin_router -> app.core.db", # promote-line-domains (B2 inherited)
+
+    "app.domains.custom_lines.router -> app.core.db", # promote-line-domains (B2 inherited)
+
+    "app.domains.donation.router -> app.core.db", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.profile.router -> app.core.db", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.reports.router -> app.core.db", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.vaultwarden.router -> app.core.db", # promote-remaining-domains (B2 inherited)
 ]
 unmatched_ignore_imports_alerting = "error"
 
@@ -204,6 +299,22 @@ ignore_imports = [
     "app.webapp.routers.user -> app.domains.custom_lines.models",
     "app.webapp.routers.user -> app.domains.identity.models",
     "app.webapp.routers.vaultwarden -> app.domains.vaultwarden.models",
+
+    "app.domains.crypto_donation.router -> app.domains.crypto_donation.models", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.crypto_donation.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.custom_lines.admin_router -> app.domains.custom_lines.models", # promote-line-domains (B2 inherited)
+
+    "app.domains.custom_lines.router -> app.domains.custom_lines.models", # promote-line-domains (B2 inherited)
+
+    "app.domains.donation.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.profile.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.reports.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.vaultwarden.router -> app.domains.vaultwarden.models", # promote-remaining-domains (B2 inherited)
 ]
 unmatched_ignore_imports_alerting = "error"
 
@@ -245,6 +356,122 @@ ignore_imports = [
     "app.databases.db -> app.domains.watch_rewards.repository",
     # promote-line-domains: legacy traffic repository imports custom-line model
     "app.domains.traffic.repository -> app.domains.custom_lines.models",
+
+    "app.domains.accounts.bot -> app.databases.db", # promote-account-domains (B2 inherited)
+
+    "app.domains.accounts.router -> app.databases.db", # promote-account-domains (B2 inherited)
+
+    "app.domains.accounts.router -> app.domains.profile.schemas", # promote-account-domains (B2 inherited)
+
+    "app.domains.auction.router -> app.databases.db", # promote-activity-domains (B2 inherited)
+
+    "app.domains.auction.router -> app.databases.db_func", # promote-activity-domains (B2 inherited)
+
+    "app.domains.badges.router -> app.databases.db", # promote-reward-domains (B2 inherited)
+
+    "app.domains.blackjack.router.cash -> app.databases.db", # promote-blackjack-domain (B2 inherited)
+    "app.domains.blackjack.jobs.cash -> app.databases.db", # promote-blackjack-domain (B2 inherited)
+
+    "app.domains.blackjack.router.cash -> app.databases.db_func", # promote-blackjack-domain (B2 inherited)
+
+    "app.domains.blackjack.router.tournament -> app.databases.db", # promote-blackjack-domain (B2 inherited)
+    "app.domains.blackjack.jobs.tournament -> app.databases.db", # promote-blackjack-domain (B2 inherited)
+    "app.domains.blackjack.notifications.tournament -> app.databases.db", # promote-blackjack-domain (B2 inherited)
+
+    "app.domains.blackjack.jobs.tournament -> app.databases.db_func", # promote-blackjack-domain (B2 inherited)
+    "app.domains.credits.router -> app.databases.db", # make-credit-changes-atomic (B2 inherited)
+
+    "app.domains.credits.router -> app.domains.profile.schemas", # make-credit-changes-atomic (B2 inherited)
+
+    "app.domains.crypto_donation.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.crypto_donation.router -> app.databases.db_func", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.crypto_donation.router -> app.domains.crypto_donation.models", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.crypto_donation.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.custom_lines.admin_router -> app.domains.custom_lines.models", # promote-line-domains (B2 inherited)
+
+    "app.domains.custom_lines.admin_router -> app.domains.profile.schemas", # promote-line-domains (B2 inherited)
+
+    "app.domains.custom_lines.router -> app.domains.custom_lines.models", # promote-line-domains (B2 inherited)
+
+    "app.domains.custom_lines.router -> app.domains.profile.schemas", # promote-line-domains (B2 inherited)
+
+    "app.domains.donation.admin_router -> app.databases.db", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.donation.admin_router -> app.databases.db_func", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.donation.bot -> app.databases.db", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.donation.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.donation.router -> app.databases.db_func", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.donation.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.gift_pack.router -> app.databases.db", # promote-gift-pack-domain (B2 inherited)
+
+    "app.domains.invitation.admin_router -> app.databases.db", # promote-account-domains (B2 inherited)
+
+    "app.domains.invitation.admin_router -> app.databases.db_func", # promote-account-domains (B2 inherited)
+
+    "app.domains.invitation.bot -> app.databases.db", # promote-account-domains (B2 inherited)
+
+    "app.domains.invitation.router -> app.databases.db", # promote-account-domains (B2 inherited)
+
+    "app.domains.invitation.router -> app.databases.db_func", # promote-account-domains (B2 inherited)
+
+    "app.domains.lines.admin_router -> app.databases.db", # promote-line-domains (B2 inherited)
+
+    "app.domains.lines.admin_router -> app.domains.profile.schemas", # promote-line-domains (B2 inherited)
+
+    "app.domains.lines.router -> app.databases.db", # promote-line-domains (B2 inherited)
+
+    "app.domains.lines.router -> app.databases.db_func", # promote-line-domains (B2 inherited)
+
+    "app.domains.lines.router -> app.domains.profile.schemas", # promote-line-domains (B2 inherited)
+
+    "app.domains.lines.service -> app.databases.db", # promote-line-domains (B2 inherited)
+
+    "app.domains.luckywheel.router -> app.databases.db", # promote-activity-domains (B2 inherited)
+
+    "app.domains.luckywheel.router -> app.databases.db_func", # promote-activity-domains (B2 inherited)
+
+    "app.domains.media_access.router -> app.databases.db", # promote-line-domains (B2 inherited)
+
+    "app.domains.prediction.router -> app.databases.db", # promote-activity-domains (B2 inherited)
+
+    "app.domains.prediction.router -> app.databases.db_func", # promote-activity-domains (B2 inherited)
+
+    "app.domains.premium.admin_router -> app.databases.db", # promote-line-domains (B2 inherited)
+
+    "app.domains.premium.router -> app.databases.db", # promote-line-domains (B2 inherited)
+
+    "app.domains.profile.bot -> app.databases.db", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.profile.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.profile.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.rankings.bot -> app.databases.db", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.rankings.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.reports.admin_router -> app.databases.db", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.reports.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.reports.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.treasure.router -> app.databases.db", # promote-activity-domains (B2 inherited)
+
+    "app.domains.treasure.router -> app.databases.db_func", # promote-activity-domains (B2 inherited)
+
+    "app.domains.vaultwarden.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
+
+    "app.domains.vaultwarden.router -> app.domains.vaultwarden.models", # promote-remaining-domains (B2 inherited)
 ]
 unmatched_ignore_imports_alerting = "error"
 
@@ -274,5 +501,122 @@ ignore_imports = [
     "app.databases.db -> app.domains.traffic.repository",
     "app.databases.db -> app.domains.treasure.repository",
     "app.databases.db -> app.domains.watch_rewards.repository",
+]
+unmatched_ignore_imports_alerting = "error"
+[[tool.importlinter.contracts]]
+name = "Domain internal layering"
+type = "layers"
+containers = ["app.domains.*"]
+exhaustive = false
+layers = [
+    "(router) | (admin_router) | (bot) | (jobs)",
+    "(service)",
+    "(notifications) | (repository)",
+    "(models)",
+]
+ignore_imports = [
+    "app.domains.auction.router -> app.domains.auction.jobs", # promote-activity-domains (B2 inherited)
+    "app.domains.blackjack.router.cash -> app.domains.blackjack.jobs.cash", # promote-blackjack-domain (B2 inherited)
+    "app.domains.blackjack.router.tournament -> app.domains.blackjack.jobs.tournament", # promote-blackjack-domain (B2 inherited)
+    "app.domains.treasure.router -> app.domains.treasure.jobs", # promote-activity-domains (B2 inherited)
+    "app.domains.auction.notifications -> app.databases.db", # promote-activity-domains (B2 inherited)
+    "app.domains.gift_pack.notifications -> app.databases.db", # promote-gift-pack-domain (B2 inherited)
+    "app.domains.blackjack.notifications.tournament -> app.databases.db", # promote-blackjack-domain (B2 inherited)
+]
+unmatched_ignore_imports_alerting = "error"
+
+[[tool.importlinter.contracts]]
+name = "Domain entry points do not touch data layer"
+type = "forbidden"
+source_modules = [
+    "app.domains.*.router",
+    "app.domains.*.router.*",
+    "app.domains.*.admin_router",
+    "app.domains.*.bot",
+    "app.domains.*.jobs",
+    "app.domains.*.notifications",
+]
+forbidden_modules = [
+    "app.core.db",
+    "app.databases",
+    "sqlalchemy",
+    "app.domains.*.repository",
+    "app.domains.*.models",
+]
+allow_indirect_imports = true
+ignore_imports = [
+    # B2 mechanical relocation retains direct legacy data access.
+    "app.domains.accounts.bot -> app.databases.db", # promote-account-domains (B2 inherited)
+    "app.domains.accounts.router -> app.databases.db", # promote-account-domains (B2 inherited)
+    "app.domains.auction.router -> app.databases.db", # promote-activity-domains (B2 inherited)
+    "app.domains.auction.router -> app.databases.db_func", # promote-activity-domains (B2 inherited)
+    "app.domains.badges.router -> app.databases.db", # promote-reward-domains (B2 inherited)
+    "app.domains.credits.router -> app.databases.db", # make-credit-changes-atomic (B2 inherited)
+    "app.domains.crypto_donation.router -> app.core.db", # promote-remaining-domains (B2 inherited)
+    "app.domains.crypto_donation.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
+    "app.domains.crypto_donation.router -> app.databases.db_func", # promote-remaining-domains (B2 inherited)
+    "app.domains.crypto_donation.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
+    "app.domains.custom_lines.admin_router -> app.core.db", # promote-line-domains (B2 inherited)
+    "app.domains.custom_lines.admin_router -> sqlalchemy", # promote-line-domains (B2 inherited)
+    "app.domains.custom_lines.router -> app.core.db", # promote-line-domains (B2 inherited)
+    "app.domains.custom_lines.router -> sqlalchemy", # promote-line-domains (B2 inherited)
+    "app.domains.donation.admin_router -> app.databases.db", # promote-remaining-domains (B2 inherited)
+    "app.domains.donation.admin_router -> app.databases.db_func", # promote-remaining-domains (B2 inherited)
+    "app.domains.donation.bot -> app.databases.db", # promote-remaining-domains (B2 inherited)
+    "app.domains.donation.router -> app.core.db", # promote-remaining-domains (B2 inherited)
+    "app.domains.donation.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
+    "app.domains.donation.router -> app.databases.db_func", # promote-remaining-domains (B2 inherited)
+    "app.domains.donation.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
+    "app.domains.gift_pack.router -> app.databases.db", # promote-gift-pack-domain (B2 inherited)
+    "app.domains.invitation.admin_router -> app.databases.db", # promote-account-domains (B2 inherited)
+    "app.domains.invitation.admin_router -> app.databases.db_func", # promote-account-domains (B2 inherited)
+    "app.domains.invitation.bot -> app.databases.db", # promote-account-domains (B2 inherited)
+    "app.domains.invitation.router -> app.databases.db", # promote-account-domains (B2 inherited)
+    "app.domains.invitation.router -> app.databases.db_func", # promote-account-domains (B2 inherited)
+    "app.domains.lines.admin_router -> app.databases.db", # promote-line-domains (B2 inherited)
+    "app.domains.lines.router -> app.databases.db", # promote-line-domains (B2 inherited)
+    "app.domains.lines.router -> app.databases.db_func", # promote-line-domains (B2 inherited)
+    "app.domains.luckywheel.router -> app.databases.db", # promote-activity-domains (B2 inherited)
+    "app.domains.luckywheel.router -> app.databases.db_func", # promote-activity-domains (B2 inherited)
+    "app.domains.media_access.router -> app.databases.db", # promote-line-domains (B2 inherited)
+    "app.domains.prediction.router -> app.databases.db", # promote-activity-domains (B2 inherited)
+    "app.domains.prediction.router -> app.databases.db_func", # promote-activity-domains (B2 inherited)
+    "app.domains.premium.admin_router -> app.databases.db", # promote-line-domains (B2 inherited)
+    "app.domains.premium.router -> app.databases.db", # promote-line-domains (B2 inherited)
+    "app.domains.profile.bot -> app.databases.db", # promote-remaining-domains (B2 inherited)
+    "app.domains.profile.router -> app.core.db", # promote-remaining-domains (B2 inherited)
+    "app.domains.profile.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
+    "app.domains.profile.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
+    "app.domains.rankings.bot -> app.databases.db", # promote-remaining-domains (B2 inherited)
+    "app.domains.rankings.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
+    "app.domains.reports.admin_router -> app.databases.db", # promote-remaining-domains (B2 inherited)
+    "app.domains.reports.router -> app.core.db", # promote-remaining-domains (B2 inherited)
+    "app.domains.reports.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
+    "app.domains.reports.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
+    "app.domains.treasure.router -> app.databases.db", # promote-activity-domains (B2 inherited)
+    "app.domains.treasure.router -> app.databases.db_func", # promote-activity-domains (B2 inherited)
+    "app.domains.vaultwarden.router -> app.core.db", # promote-remaining-domains (B2 inherited)
+    "app.domains.vaultwarden.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
+    "app.domains.blackjack.router.cash -> app.databases.db", # promote-blackjack-domain (B2 inherited)
+    "app.domains.blackjack.jobs.cash -> app.databases.db", # promote-blackjack-domain (B2 inherited)
+    "app.domains.blackjack.router.cash -> app.databases.db_func", # promote-blackjack-domain (B2 inherited)
+    "app.domains.blackjack.router.tournament -> app.databases.db", # promote-blackjack-domain (B2 inherited)
+    "app.domains.blackjack.jobs.tournament -> app.databases.db", # promote-blackjack-domain (B2 inherited)
+    "app.domains.blackjack.notifications.tournament -> app.databases.db", # promote-blackjack-domain (B2 inherited)
+    "app.domains.blackjack.jobs.tournament -> app.databases.db_func", # promote-blackjack-domain (B2 inherited)
+    "app.domains.blackjack.router.tournament_admin -> app.databases.db", # promote-blackjack-domain (B2 inherited)
+    "app.domains.crypto_donation.router -> app.domains.crypto_donation.models", # promote-remaining-domains (B2 inherited)
+    "app.domains.custom_lines.admin_router -> app.domains.custom_lines.models", # promote-line-domains (B2 inherited)
+    "app.domains.custom_lines.router -> app.domains.custom_lines.models", # promote-line-domains (B2 inherited)
+    "app.domains.crypto_donation.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
+    "app.domains.donation.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
+    "app.domains.profile.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
+    "app.domains.reports.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
+    "app.domains.vaultwarden.router -> app.domains.vaultwarden.models", # promote-remaining-domains (B2 inherited)
+    "app.domains.auction.jobs -> app.databases.db", # promote-activity-domains (B2 inherited)
+    "app.domains.auction.notifications -> app.databases.db", # promote-activity-domains (B2 inherited)
+    "app.domains.gift_pack.jobs -> app.databases.db", # promote-gift-pack-domain (B2 inherited)
+    "app.domains.gift_pack.notifications -> app.databases.db", # promote-gift-pack-domain (B2 inherited)
+    "app.domains.treasure.jobs -> app.databases.db", # promote-activity-domains (B2 inherited)
 ]
 unmatched_ignore_imports_alerting = "error"

@@ -110,7 +110,11 @@ core/（公共设施）
 
 ## 基线计数
 
-B3 封存时填写：import-linter 各合约的 ignore 条数、`tests/architecture/baseline.json` 的条数，以及按负责变更分组的计数。修复违规须同时减少基线和封存数；清理后的 ignore 条目也会使检查失败。
+B2 过渡基线以 `scripts/refactor/B2_BASE` 中的 B1 提交为来源。`tests/architecture/baseline.json` 当前封存 323 条跨域调用／导入、4 个仅存于旧路径的超预算文件；其中 271 条因接口机械搬迁才进入领域扫描范围，逐条记录 `b2_source_id`。`scripts/refactor/audit_b2_baseline.py` 将每个新增条目映射到 B1 源码单元并校验规范化 AST，拒绝无法溯源的调用、新增超预算文件和未经来源证明的 import-linter 豁免；`tests/architecture/test_b2_provenance.py` 在提交前和后续 hook 中持续执行此审计。
+
+按清理责任分组的 323 条跨域条目：`promote-line-domains` 159、`promote-remaining-domains` 49、`promote-account-domains` 48、`promote-gift-pack-domain` 18、`make-credit-changes-atomic` 15、`promote-tg-rebind-domain` 15、`promote-activity-domains` 12、`promote-blackjack-domain` 4、`promote-reward-domains` 3。
+
+B2 import-linter ignore 数：SQLAlchemy 范围 15、数据库引擎范围 17、模型范围 26、六层领域依赖 81、无环兄弟领域 20、领域内分层 7、入口不碰数据层 72；其余合约 0。新增豁免按精确导入边标有负责后续变更的注释，门面导入者按模块精确列出。B2 提交后基线严格只减不增：修复违规时须在同一提交删除对应豁免并下调封存数。B3 对剩余旧路径再次复核，封存最终基线。
 
 ## 部署回退
 
