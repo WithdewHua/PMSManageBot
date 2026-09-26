@@ -652,8 +652,11 @@ def _run_snapshot(tool_root: Path, target_root: Path) -> dict[str, Any]:
         import_errors = Path(temporary) / "module-import-errors.json"
         env = os.environ.copy()
         env["DATA_DIR"] = str(tool_root / "data")
+        # Put the checked-out target source first so base snapshots import the
+        # frozen modules rather than resolving the current checkout's ``app``.
+        # Keep tool_root second so the verifier itself remains importable.
         env["PYTHONPATH"] = os.pathsep.join(
-            [str(tool_root), str(target_root / "src"), env.get("PYTHONPATH", "")]
+            [str(target_root / "src"), str(tool_root), env.get("PYTHONPATH", "")]
         )
         code = f"""
 import importlib
