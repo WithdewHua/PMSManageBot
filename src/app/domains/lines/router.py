@@ -15,6 +15,8 @@ from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
 from app.core.telegram import get_user_name_from_tg_id, notify_admins_by_url
 from app.databases import db
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.lines.jobs import auto_switch_user_lines
 from app.domains.lines.rules import is_binded_premium_line
 from app.domains.lines.service import (
@@ -719,7 +721,7 @@ async def unlock_line_schedule(
 
         # 检查积分是否足够
         credits_needed = settings.LINE_SCHEDULE_UNLOCK_CREDITS
-        current_credits = db.get_user_credits(tg_id=user.id)
+        current_credits = credits_service.read_optional(CreditAccount.tg(int(user.id)))
         if not current_credits:
             return LineScheduleUnlockResponse(
                 success=False, message="您尚未绑定 Plex/Emby 账户"

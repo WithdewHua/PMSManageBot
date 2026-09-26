@@ -509,7 +509,9 @@ Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
         for inviter_tg_id, reward_info in inviter_rewards.items():
             total_bonus = reward_info["total_bonus"]
             details = reward_info["details"]
-            inviter_credits_now = db.get_user_credits(inviter_tg_id)
+            inviter_credits_now = credits_service.read_optional(
+                CreditAccount.tg(int(inviter_tg_id))
+            )
             if inviter_credits_now is None:
                 logger.warning(
                     f"邀请人 {inviter_tg_id} 在 statistics 表中无记录，跳过奖励"
@@ -871,7 +873,9 @@ Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
         for inviter_tg_id, reward_info in inviter_rewards.items():
             total_bonus = reward_info["total_bonus"]
             details = reward_info["details"]
-            inviter_credits_now = db.get_user_credits(inviter_tg_id)
+            inviter_credits_now = credits_service.read_optional(
+                CreditAccount.tg(int(inviter_tg_id))
+            )
             if inviter_credits_now is None:
                 logger.warning(
                     f"邀请人 {inviter_tg_id} 在 statistics 表中无记录，跳过奖励"

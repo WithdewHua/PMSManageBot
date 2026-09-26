@@ -3,7 +3,6 @@ from __future__ import annotations
 from sqlalchemy import select, update
 
 from app.core.db import get_session
-from app.core.log import logger
 from app.domains.credits.exceptions import CreditAccountNotFound, InsufficientCredits
 from app.domains.credits.types import (
     CreditAccount,
@@ -12,51 +11,6 @@ from app.domains.credits.types import (
     validate_amount,
 )
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
-
-
-class CreditsRepository:
-    def get_user_credits(self, tg_id: int) -> float | None:
-        """获取用户积分"""
-        with get_session() as session:
-            stmt = select(Statistics).where(Statistics.tg_id == tg_id)
-            stats = session.execute(stmt).scalar_one_or_none()
-            return stats.credits if stats else None
-
-    def update_user_credits(
-        self,
-        credits: float,
-        plex_id: int | None = None,
-        emby_id: str | None = None,
-        tg_id: int | None = None,
-    ) -> bool:
-        """更新用户积分"""
-        try:
-            with get_session() as session:
-                if tg_id is not None:
-                    session.execute(
-                        update(Statistics)
-                        .where(Statistics.tg_id == tg_id)
-                        .values(credits=credits)
-                    )
-                elif plex_id is not None:
-                    session.execute(
-                        update(PlexUser)
-                        .where(PlexUser.plex_id == plex_id)
-                        .values(credits=credits)
-                    )
-                elif emby_id is not None:
-                    session.execute(
-                        update(EmbyUser)
-                        .where(EmbyUser.emby_id == emby_id)
-                        .values(emby_credits=credits)
-                    )
-                else:
-                    logger.error("Error: there is no enough params")
-                    return False
-                return True
-        except Exception as e:
-            logger.error(f"Error updating user credits: {e}")
-            return False
 
 
 def _account_model(account: CreditAccount):
@@ -145,6 +99,36 @@ def deduct_tx(session, account: CreditAccount, amount: float) -> CreditMutation:
         delta=-delta,
         cache_keys=_cache_keys(session, account, row),
     )
+
+
+def move_tx(session, source: CreditAccount, target: CreditAccount) -> CreditTransfer:
+    """Move the entire source balance to another account under one transaction."""
+    if source == target:
+        raise ValueError("cannot move credits to the same account")
+    ordered = sorted((source, target), key=lambda account: account.label)
+    locked = {
+        account.label: get_tx(session, account, for_update=True) for account in ordered
+    }
+    amount = locked[source.label][0]
+    source_keys = locked[source.label][1]
+    target_keys = locked[target.label][1]
+    if amount > 0:
+        deduct_tx(session, source, amount)
+        add_tx(session, target, amount)
+    return CreditTransfer(
+        sender=source,
+        recipient=target,
+        amount=amount,
+        fee=0.0,
+        current_sender_balance=0.0,
+        cache_keys=tuple(dict.fromkeys((*source_keys, *target_keys))),
+    )
+
+
+def move(source: CreditAccount, target: CreditAccount) -> CreditTransfer:
+    """Move an entire balance in a repository-owned transaction."""
+    with get_session() as session:
+        return move_tx(session, source, target)
 
 
 def add(account: CreditAccount, amount: float) -> CreditMutation:

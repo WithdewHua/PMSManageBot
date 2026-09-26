@@ -3600,13 +3600,6 @@ kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
 [[items]]
-id = "app.databases.db:DatabaseORM.update_user_credits"
-target = "app.domains.credits.repository"
-class = "CreditsRepository"
-kind = "method"
-reason = "transitional facade assembly"
-
-[[items]]
 id = "app.databases.db:DatabaseORM.update_user_donation"
 target = "app.domains.donation.repository"
 class = "DonationRepository"

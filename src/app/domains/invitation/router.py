@@ -17,10 +17,14 @@ from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.scheduler import Scheduler
 from app.core.schemas import TelegramUser
-from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
+from app.core.telegram import (
+    get_user_name_from_tg_id,
+    refresh_tg_user_profile,
+    send_message_by_url,
+)
 from app.databases import db
 from app.domains.accounts.jobs import refresh_emby_user_info
-from app.domains.accounts.service import refresh_tg_user_info, update_plex_info
+from app.domains.accounts.service import update_plex_info
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.invitation.schemas import (
@@ -192,7 +196,7 @@ async def redeem_plex_code(
         is_privileged = code in settings.PRIVILEGED_CODES
 
         # 创建后台任务以刷新 tg 用户信息
-        background_tasks.add_task(refresh_tg_user_info, tg_id=telegram_user_id)
+        background_tasks.add_task(refresh_tg_user_profile, tg_id=telegram_user_id)
 
         # 检查是否允许注册
         if not settings.PLEX_REGISTER and not is_privileged:
@@ -341,7 +345,7 @@ async def redeem_emby_code(
         is_privileged = code in settings.PRIVILEGED_CODES
 
         # 创建后台任务以刷新 tg 用户信息
-        background_tasks.add_task(refresh_tg_user_info, tg_id=telegram_user_id)
+        background_tasks.add_task(refresh_tg_user_profile, tg_id=telegram_user_id)
 
         # 检查是否允许注册（特权码跳过检查）
         if not settings.EMBY_REGISTER and not is_privileged:

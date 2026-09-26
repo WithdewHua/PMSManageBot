@@ -16,7 +16,7 @@ from app.core.scheduler import (
     schedule_task,
 )
 from app.domains.accounts.jobs import refresh_emby_user_info, update_users_last_viewed
-from app.domains.accounts.service import refresh_tg_user_info, update_plex_info
+from app.domains.accounts.service import update_plex_info
 from app.domains.auction.jobs import (
     finish_expired_auctions_job,
     restore_auction_schedules,
@@ -53,6 +53,7 @@ from app.domains.premium.service import (
     check_premium_expiry,
     get_and_send_premium_statistics,
 )
+from app.domains.profile.jobs import refresh_tg_user_info
 from app.domains.reports.jobs import send_weekly_report
 from app.domains.traffic.jobs import (
     monthly_traffic_data_migration,

@@ -6,6 +6,8 @@ from app.core.schemas import BaseResponse, TelegramUser
 from app.core.telegram import get_user_name_from_tg_id
 from app.databases import db
 from app.domains.accounts.schemas import BindEmbyRequest, BindPlexRequest
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.integrations.emby import Emby
 from app.integrations.plex import Plex
 from app.integrations.tautulli import Tautulli, get_user_total_duration
@@ -70,9 +72,7 @@ async def bind_plex_account(
                 )
                 return BaseResponse(success=False, message="数据库更新失败，请稍后再试")
 
-            # 清空 plex 用户表中积分信息
-            db.update_user_credits(0, plex_id=plex_info[0])
-            plex_credits = plex_info[2]
+            plex_credits = float(plex_info[2] or 0)
         else:
             # 添加新用户
             plex_username = _plex.get_username_by_user_id(plex_id)
@@ -114,13 +114,15 @@ async def bind_plex_account(
                 )
                 return BaseResponse(success=False, message="数据库更新失败，请稍后再试")
 
-        # 获取用户数据表信息并更新积分
-        stats_info = db.get_stats_by_tg_id(tg_id)
-        if stats_info:
-            tg_user_credits = stats_info[2] + plex_credits
-            db.update_user_credits(tg_user_credits, tg_id=tg_id)
-        else:
-            db.add_user_data(tg_id, credits=plex_credits)
+        # 将未绑定 Plex 账户余额安全转入 Telegram 账户
+        if not db.get_stats_by_tg_id(tg_id):
+            db.add_user_data(tg_id, credits=0)
+        if plex_info:
+            credits_service.move(
+                CreditAccount.plex(int(plex_info[0])), CreditAccount.tg(int(tg_id))
+            )
+        elif plex_credits > 0:
+            credits_service.add(CreditAccount.tg(int(tg_id)), plex_credits)
 
         logger.info(
             f"用户 {get_user_name_from_tg_id(tg_id)} 成功绑定 Plex 账户 {email}"
@@ -177,20 +179,21 @@ async def bind_emby_account(
             # 更新tg_id
             emby_credits = emby_info[6]
             db.update_user_tg_id(tg_id, emby_id=uid)
-            # 清空emby用户表中的积分信息
-            db.update_user_credits(0, emby_id=uid)
+            # 未绑定 Emby 余额将在绑定完成后原子转入 Telegram 账户
         else:
             # 添加新用户
             emby_credits = 0
             db.add_emby_user(emby_username, emby_id=uid, tg_id=tg_id)
 
-        # 更新用户数据表中的积分
-        stats_info = db.get_stats_by_tg_id(tg_id)
-        if stats_info:
-            tg_user_credits = stats_info[2] + emby_credits
-            db.update_user_credits(tg_user_credits, tg_id=tg_id)
-        else:
-            db.add_user_data(tg_id, credits=emby_credits)
+        # 将未绑定 Emby 账户余额安全转入 Telegram 账户
+        if not db.get_stats_by_tg_id(tg_id):
+            db.add_user_data(tg_id, credits=0)
+        if emby_info:
+            credits_service.move(
+                CreditAccount.emby(str(uid)), CreditAccount.tg(int(tg_id))
+            )
+        elif emby_credits > 0:
+            credits_service.add(CreditAccount.tg(int(tg_id)), emby_credits)
 
         logger.info(
             f"用户 {get_user_name_from_tg_id(tg_id)} 成功绑定Emby账户 {emby_username}"

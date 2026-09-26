@@ -425,7 +425,7 @@ async def spin_wheel(
         config = get_wheel_config()
 
         # 获取用户当前积分
-        current_credits = db.get_user_credits(user_id)
+        current_credits = credits_service.read_optional(CreditAccount.tg(int(user_id)))
         if current_credits is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"未找到用户 {user_id}"
@@ -498,7 +498,7 @@ async def spin_wheel_ten_times(
         config = get_wheel_config()
 
         # 获取用户当前积分
-        current_credits = db.get_user_credits(user_id)
+        current_credits = credits_service.read_optional(CreditAccount.tg(int(user_id)))
         if current_credits is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"未找到用户 {user_id}"
@@ -574,7 +574,7 @@ async def get_user_status(
         config = get_wheel_config()
 
         # 获取用户当前积分
-        current_credits = db.get_user_credits(user_id)
+        current_credits = credits_service.read_optional(CreditAccount.tg(int(user_id)))
         if current_credits is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail=f"未找到用户 {user_id}"

@@ -19,6 +19,8 @@ from app.domains.badges.schemas import (
     BadgeUpdate,
     UserBadgeResponse,
 )
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 
 # 创建路由器
 router = APIRouter(
@@ -178,7 +180,9 @@ async def redeem_badge(
             return BadgeRedeemResponse(success=False, message=msg)
 
         # 获取剩余积分
-        remaining_credits = db.get_user_credits(user_id)
+        remaining_credits = credits_service.read_optional(
+            CreditAccount.tg(int(user_id))
+        )
 
         # 转换为响应模型
         user_badge_response = (

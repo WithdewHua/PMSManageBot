@@ -306,7 +306,9 @@ async def review_submission(
             try:
                 submitter_tg_id = int(res.get("submitter_tg_id") or 0)
                 if submitter_tg_id > 0:
-                    current_credits = db.get_user_credits(submitter_tg_id)
+                    current_credits = credits_service.read_optional(
+                        CreditAccount.tg(submitter_tg_id)
+                    )
                     if current_credits is None and not db.add_user_data(
                         tg_id=submitter_tg_id,
                         credits=0,

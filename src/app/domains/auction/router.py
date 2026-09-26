@@ -30,6 +30,8 @@ from app.domains.auction.schemas import (
     PlaceBidRequest,
     PlaceBidResponse,
 )
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 
 router = APIRouter(prefix="/auction", tags=["auction"])
 
@@ -299,7 +301,9 @@ async def place_bid(
             )
 
         # 检查用户积分是否足够
-        user_credits = db.get_user_credits(current_user.id)
+        user_credits = credits_service.read_optional(
+            CreditAccount.tg(int(current_user.id))
+        )
         if not user_credits:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="无法获取用户积分信息"

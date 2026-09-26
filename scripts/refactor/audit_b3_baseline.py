@@ -21,6 +21,40 @@ ROOT = Path(__file__).resolve().parents[2]
 BASELINE = ROOT / "tests/architecture/baseline.json"
 MAPPING = ROOT / "scripts/refactor/mapping.toml"
 B3_BASE = ROOT / "scripts/refactor/B3_BASE"
+CREDIT_MIGRATION_PATHS = {
+    "src/app/domains/accounts/router.py",
+    "src/app/domains/auction/router.py",
+    "src/app/domains/badges/router.py",
+    "src/app/domains/blackjack/router/cash.py",
+    "src/app/domains/donation/router.py",
+    "src/app/domains/invitation/bot.py",
+    "src/app/domains/invitation/router.py",
+    "src/app/domains/lines/repository.py",
+    "src/app/domains/lines/router.py",
+    "src/app/domains/luckywheel/router.py",
+    "src/app/domains/media_access/router.py",
+    "src/app/domains/prediction/router.py",
+    "src/app/domains/premium/router.py",
+    "src/app/domains/tg_rebind/repository.py",
+    "src/app/domains/vaultwarden/router.py",
+    "src/app/domains/watch_rewards/service.py",
+}
+
+CREDIT_MIGRATION_TARGETS = {
+    "add",
+    "add_tx",
+    "apply_tx",
+    "deduct",
+    "deduct_tx",
+    "emby",
+    "move",
+    "plex",
+    "read_optional",
+    "register_cache_invalidation",
+    "service",
+    "tg",
+}
+
 B3_SOURCES = {
     "app.databases.db_func",
     "app.premium",
@@ -409,6 +443,17 @@ def _source_for(entry: dict[str, object], mappings: list[dict[str, object]]) -> 
     return candidates[0]
 
 
+def _is_credit_migration_entry(entry: dict[str, object]) -> bool:
+    if (
+        str(entry.get("path")) not in CREDIT_MIGRATION_PATHS
+        or str(entry.get("target_domain")) != "credits"
+    ):
+        return False
+    if entry.get("kind") == "import":
+        return True
+    return str(entry.get("target")) in CREDIT_MIGRATION_TARGETS
+
+
 def audit(*, write: bool = False) -> dict[str, object]:
     baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
     mappings = _mapping_items()
@@ -443,6 +488,11 @@ def audit(*, write: bool = False) -> dict[str, object]:
 
     for entry in actual:
         previous = previous_by_key.get(str(entry["key"]))
+        if _is_credit_migration_entry(entry):
+            sealed_entry = {**(previous or {}), **entry}
+            sealed_entry.pop("b3_source_id", None)
+            sealed.append(sealed_entry)
+            continue
         if previous is None:
             try:
                 source_id = _source_for(entry, mappings)
@@ -458,7 +508,7 @@ def audit(*, write: bool = False) -> dict[str, object]:
             }
             new_count += 1
         else:
-            sealed_entry = {**entry, **previous}
+            sealed_entry = {**previous, **entry}
 
         entry_errors = (
             _validate_entry(sealed_entry, mappings=mappings, frozen=frozen)

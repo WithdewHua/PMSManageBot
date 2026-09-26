@@ -10,9 +10,12 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
 from app.core.schemas import TelegramUser
-from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
+from app.core.telegram import (
+    get_user_name_from_tg_id,
+    refresh_tg_user_profile,
+    send_message_by_url,
+)
 from app.databases import db
-from app.domains.accounts.service import refresh_tg_user_info
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.donation.schemas import (
@@ -45,7 +48,7 @@ async def create_donation_registration(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="用户信息不完整"
             )
         # 创建后台任务以刷新用户信息
-        background_tasks.add_task(refresh_tg_user_info, tg_id=user_id)
+        background_tasks.add_task(refresh_tg_user_profile, tg_id=user_id)
 
         # 创建捐赠登记记录
         success = db.create_donation_registration(

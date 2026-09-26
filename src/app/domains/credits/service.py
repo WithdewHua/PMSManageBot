@@ -7,6 +7,7 @@ from collections.abc import Iterable
 from app.core.cache import user_credits_cache
 from app.core.log import logger
 from app.domains.credits import repository
+from app.domains.credits.exceptions import CreditAccountNotFound
 from app.domains.credits.types import (
     CreditAccount,
     CreditMutation,
@@ -47,6 +48,21 @@ def deduct(account: CreditAccount, amount: float) -> CreditMutation:
     return mutation
 
 
+def read_optional(account: CreditAccount) -> float | None:
+    """Read a balance, returning None when the account row does not exist."""
+    try:
+        return read(account)
+    except CreditAccountNotFound:
+        return None
+
+
+def move(source: CreditAccount, target: CreditAccount) -> CreditTransfer:
+    """Move a whole unbound account balance and invalidate after commit."""
+    result = repository.move(source, target)
+    invalidate_cache_keys(result.cache_keys)
+    return result
+
+
 def read(account: CreditAccount, *, for_update: bool = False) -> float:
     """Read a credit balance in a short standalone transaction."""
     balance, _ = repository.read(account, for_update=for_update)
@@ -82,7 +98,9 @@ __all__ = [
     "collect_cache_keys",
     "deduct",
     "invalidate_cache_keys",
+    "move",
     "read",
+    "read_optional",
     "register_cache_invalidation",
     "transfer",
     "validate_amount",

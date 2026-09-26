@@ -26,9 +26,9 @@ def entry_id(entry: dict[str, Any]) -> str:
 
 def load_mapping(path: Path) -> list[dict[str, Any]]:
     data = tomllib.loads(path.read_text(encoding="utf-8"))
-    entries = data.get("entries")
+    entries = data.get("entries", [])
     if not isinstance(entries, list):
-        raise TypeError("credit mapping must contain [[entries]]")
+        raise TypeError("credit mapping entries must be an array")
     return entries
 
 

@@ -1,5 +1,6 @@
 import asyncio
 import pickle
+from time import time
 
 import aiohttp
 import filelock
@@ -195,6 +196,61 @@ def _save_tg_user_info_cache(cache: dict, cache_file_lock: filelock.FileLock) ->
     """Write the cache while holding its cross-process file lock (off the event loop)."""
     with cache_file_lock, open(settings.TG_USER_INFO_CACHE_PATH, "wb") as f:
         pickle.dump(cache, f)
+
+
+async def refresh_tg_user_profile(
+    tg_id: int, token: str = settings.TG_API_TOKEN
+) -> None:
+    """Refresh one Telegram profile cache entry."""
+    try:
+        cache_file_lock = filelock.FileLock(
+            str(settings.TG_USER_INFO_CACHE_PATH) + ".lock"
+        )
+        cache = await asyncio.to_thread(load_tg_user_info_cache)
+        cached = cache.get(tg_id)
+        if cached and time() - cached.get("added", 0) <= 24 * 3600:
+            return
+        session = await get_thread_safe_session()
+        retry = 10
+        result = {}
+        while retry > 0:
+            try:
+                async with session.get(
+                    url=f"https://api.telegram.org/bot{token}/getChat?chat_id={tg_id}"
+                ) as response:
+                    if response.status != 200:
+                        break
+                    result = (await response.json()).get("result", {})
+            except Exception as error:
+                logger.error(f"Error: {error}, retrying in 1 seconds...")
+                await asyncio.sleep(1)
+                retry -= 1
+                continue
+            break
+        if retry == 0:
+            return
+        user_info = {
+            "first_name": result.get("first_name"),
+            "username": result.get("username"),
+            "added": time(),
+        }
+        photo_url = await get_tg_user_photo_url(tg_id, token=token)
+        if photo_url:
+            photo_path = settings.TG_USER_PROFILE_CACHE_PATH / f"{tg_id}.jpg"
+            try:
+                async with session.get(photo_url) as response:
+                    if response.status == 200:
+                        content = await response.read()
+                        await asyncio.to_thread(photo_path.write_bytes, content)
+            except Exception as error:
+                logger.error(f"Error: {error}")
+            user_info["photo_url"] = (
+                f"{settings.WEBAPP_URL.strip('/')}/pics/{tg_id}.jpg"
+            )
+        cache[tg_id] = user_info
+        await asyncio.to_thread(_save_tg_user_info_cache, cache, cache_file_lock)
+    except Exception as error:
+        logger.error(f"Refresh Telegram profile failed: {error}")
 
 
 def get_user_info_from_tg_id(chat_id: int, token=settings.TG_API_TOKEN):
