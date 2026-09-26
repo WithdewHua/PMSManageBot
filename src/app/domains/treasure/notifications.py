@@ -1,7 +1,7 @@
 """Treasure group and winner notifications."""
 
 from app.core.log import uvicorn_logger as logger
-from app.utils.utils import get_user_name_from_tg_id
+from app.core.telegram import get_user_name_from_tg_id
 
 
 def _get_group_chat_id() -> str | None:
@@ -27,7 +27,7 @@ async def notify_treasure_issue_created(
 ) -> None:
     """新期数创建后群组通知（若 TG_GROUP 未配置则跳过）。"""
 
-    from app.utils.utils import send_message_by_url
+    from app.core.telegram import send_message_by_url
 
     chat_id = _get_group_chat_id()
     if not chat_id:
@@ -56,7 +56,7 @@ async def notify_treasure_settled(
 ) -> None:
     """开奖结算后的通知：中奖者私聊 + 群组公告（若 TG_GROUP 未配置则跳过）。"""
 
-    from app.utils.utils import send_message_by_url
+    from app.core.telegram import send_message_by_url
 
     # 1) 通知中奖者（私聊）
     try:
@@ -98,7 +98,7 @@ async def notify_treasure_not_full_after_join(
 ) -> None:
     """用户参与后，若未满员则群组通知当前进度与距离开奖剩余人数/份数。"""
 
-    from app.utils.utils import send_message_by_url
+    from app.core.telegram import send_message_by_url
 
     chat_id = _get_group_chat_id()
     if not chat_id:

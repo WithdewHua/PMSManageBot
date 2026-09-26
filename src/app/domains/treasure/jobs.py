@@ -44,9 +44,9 @@ async def _auto_create_next_treasure_issue_from(*, source_issue_id: int) -> None
                 await notify_treasure_issue_created(
                     issue_id=int(issue_id),
                     title=str(created.get("title")),
-                    total_shares=int(created.get("total_shares")),
-                    credits_per_share=int(created.get("credits_per_share")),
-                    prize_credits=int(created.get("prize_credits")),
+                    total_shares=int(created.get("total_shares") or 0),
+                    credits_per_share=int(created.get("credits_per_share") or 0),
+                    prize_credits=int(created.get("prize_credits") or 0),
                 )
         except Exception as e:
             logger.warning(f"Treasure auto reopen notify failed: {e}")
@@ -66,20 +66,18 @@ def schedule_auto_reopen_treasure_issue(*, source_issue_id: int) -> None:
     try:
         from datetime import datetime, timedelta
 
-        from app.core.scheduler import Scheduler
+        from app.core.scheduler import schedule_task
 
         run_date = datetime.now(settings.TZ) + timedelta(minutes=int(delay_min))
         job_id = f"treasure_auto_reopen_{int(source_issue_id)}"
-        Scheduler().add_async_job(
-            # B2 keeps the B1 persisted callable path until B3 jobstore migration.
-            func="app.webapp.routers.activities.treasure:_auto_create_next_treasure_issue_from",
-            trigger="date",
-            id=job_id,
+        schedule_task(
+            "treasure.open_next_issue",
+            run_date=run_date,
+            job_id=job_id,
+            kwargs={"source_issue_id": int(source_issue_id)},
+            misfire_grace_time=60,
             replace_existing=True,
             max_instances=1,
-            run_date=run_date,
-            kwargs={"source_issue_id": int(source_issue_id)},
-            jobstore="sqlalchemy",  # 使用持久化存储，避免服务重启导致任务丢失
         )
         logger.info(
             f"Treasure auto reopen scheduled: source={source_issue_id}, delay_min={delay_min}"

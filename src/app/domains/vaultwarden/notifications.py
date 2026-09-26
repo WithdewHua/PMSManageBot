@@ -2,7 +2,7 @@
 
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
-from app.utils.utils import send_message_by_url
+from app.core.telegram import send_message_by_url
 
 
 async def _notify_admins_vaultwarden_redeem(

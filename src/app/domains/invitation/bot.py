@@ -5,8 +5,8 @@ from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
 from app.core.config import settings
+from app.core.telegram import send_message
 from app.databases import db
-from app.utils.utils import send_message
 
 
 # 生成邀请码

@@ -4,9 +4,9 @@ import asyncio
 
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
+from app.core.telegram import notify_admins_by_url, send_message_by_url
 from app.databases import db
 from app.domains.gift_pack.notifications import _format_rewards, _format_time
-from app.utils.utils import notify_admins_by_url, send_message_by_url
 
 
 async def scan_expired_gift_packs() -> None:

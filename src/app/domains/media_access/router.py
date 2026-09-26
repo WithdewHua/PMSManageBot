@@ -4,17 +4,14 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Re
 
 from app.core.auth import get_telegram_user, require_telegram_auth
 from app.core.config import settings
+from app.core.formatting import get_service_label
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
+from app.core.telegram import get_user_name_from_tg_id, notify_admins_by_url
 from app.databases import db
+from app.domains.media_access.rules import caculate_credits_fund
 from app.integrations.emby import Emby
 from app.integrations.plex import Plex
-from app.utils.utils import (
-    caculate_credits_fund,
-    get_service_label,
-    get_user_name_from_tg_id,
-    notify_admins_by_url,
-)
 
 router = APIRouter(prefix="/api/user", tags=["user"])
 

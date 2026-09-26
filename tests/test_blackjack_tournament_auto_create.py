@@ -72,7 +72,7 @@ def before_registration_deadline(monkeypatch):
 async def test_auto_create_uses_week_aligned_deadlines(
     orm, explicit_ids, monkeypatch, before_registration_deadline
 ):
-    from app.webapp.routers.activities import blackjack_tournament as router
+    from app.domains.blackjack.jobs import tournament as router
 
     monkeypatch.setattr(router, "db", orm)
     monkeypatch.setattr(router, "_notify_enabled", lambda: False)
@@ -99,7 +99,7 @@ async def test_auto_create_skips_when_registration_open(orm, monkeypatch):
     """去重闸门：已有报名未截止的赛事（无论谁建）就不再重复建。"""
     import time
 
-    from app.webapp.routers.activities import blackjack_tournament as router
+    from app.domains.blackjack.jobs import tournament as router
 
     add_tournament(
         orm,
@@ -123,7 +123,7 @@ async def test_auto_create_double_fire_is_idempotent(
     orm, explicit_ids, monkeypatch, before_registration_deadline
 ):
     """任务重复触发：第一轮建了周赛，第二轮必须被闸门挡下。"""
-    from app.webapp.routers.activities import blackjack_tournament as router
+    from app.domains.blackjack.jobs import tournament as router
 
     monkeypatch.setattr(router, "db", orm)
     monkeypatch.setattr(router, "_notify_enabled", lambda: False)
@@ -139,7 +139,7 @@ async def test_auto_create_double_fire_is_idempotent(
 @pytest.mark.asyncio
 async def test_auto_create_respects_switches(orm, monkeypatch):
     """活动总开关或自动开赛开关任一关闭，都不创建。"""
-    from app.webapp.routers.activities import blackjack_tournament as router
+    from app.domains.blackjack.jobs import tournament as router
 
     monkeypatch.setattr(router, "db", orm)
     monkeypatch.setattr(router, "_notify_enabled", lambda: False)
@@ -161,7 +161,7 @@ async def test_auto_create_respects_switches(orm, monkeypatch):
 @pytest.mark.asyncio
 async def test_auto_create_skips_when_count_unavailable(orm, monkeypatch):
     """闸门查询失败返回 None 时按「无法确认」跳过，宁可漏一期也不重复建。"""
-    from app.webapp.routers.activities import blackjack_tournament as router
+    from app.domains.blackjack.jobs import tournament as router
 
     monkeypatch.setattr(router, "db", orm)
     monkeypatch.setattr(orm, "get_blackjack_config_dict", lambda: _config())

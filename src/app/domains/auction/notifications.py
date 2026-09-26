@@ -1,7 +1,7 @@
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
+from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
-from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 
 
 async def send_channel_auction_notification(text: str):

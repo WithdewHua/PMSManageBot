@@ -47,6 +47,100 @@ def test_source_slices_include_comment_decorator_import_and_execution(
     assert not original.exists()
 
 
+def test_existing_destination_is_merged_without_overwriting(tmp_path: Path) -> None:
+    original = _source(tmp_path, "app.old", "def moved():\n    return 2\n")
+    destination = _source(
+        tmp_path,
+        "app.new",
+        "from pathlib import Path\n\ndef existing():\n    return Path('.')\n",
+    )
+    staged = plan(tmp_path, [original], _mapping(original, "app.new", tmp_path))
+    content = staged[destination]
+    assert content is not None
+    assert "def existing" in content
+    assert "def moved" in content
+    assert "from pathlib import Path" in content
+    apply(staged)
+    assert "def existing" in destination.read_text(encoding="utf-8")
+    assert not original.exists()
+
+
+def test_existing_destination_import_binding_collision_refuses_without_changes(
+    tmp_path: Path,
+) -> None:
+    original = _source(
+        tmp_path, "app.old", "from b import value\n\ndef moved():\n    return value\n"
+    )
+    destination = _source(
+        tmp_path,
+        "app.new",
+        "from a import value\n\ndef existing():\n    return value\n",
+    )
+    with pytest.raises(RelocationError, match="binding collision"):
+        plan(tmp_path, [original], _mapping(original, "app.new", tmp_path))
+    assert original.exists()
+    assert destination.read_text(encoding="utf-8").startswith("from a import value")
+
+
+def test_existing_destination_rejects_new_future_directive(tmp_path: Path) -> None:
+    original = _source(
+        tmp_path,
+        "app.old",
+        "from __future__ import annotations\n\ndef moved(value: int):\n    return value\n",
+    )
+    destination = _source(
+        tmp_path, "app.new", "def existing(value: int):\n    return value\n"
+    )
+    with pytest.raises(RelocationError, match="future directive"):
+        plan(tmp_path, [original], _mapping(original, "app.new", tmp_path))
+    assert original.exists()
+    assert destination.read_text(encoding="utf-8") == (
+        "def existing(value: int):\n    return value\n"
+    )
+
+
+def test_existing_destination_deduplicates_matching_future_directive(
+    tmp_path: Path,
+) -> None:
+    original = _source(
+        tmp_path,
+        "app.old",
+        "from __future__ import annotations\n\ndef moved():\n    return 2\n",
+    )
+    destination = _source(
+        tmp_path,
+        "app.new",
+        "from __future__ import annotations\n\ndef existing():\n    return 1\n",
+    )
+    staged = plan(tmp_path, [original], _mapping(original, "app.new", tmp_path))
+    content = staged[destination]
+    assert content is not None
+    assert content.count("from __future__ import annotations") == 1
+    compile(content, str(destination), "exec")
+
+
+def test_existing_destination_symbol_collision_refuses_without_changes(
+    tmp_path: Path,
+) -> None:
+    original = _source(tmp_path, "app.old", "def same():\n    return 2\n")
+    destination = _source(tmp_path, "app.new", "def same():\n    return 1\n")
+    with pytest.raises(RelocationError, match="symbol collision"):
+        plan(tmp_path, [original], _mapping(original, "app.new", tmp_path))
+    assert original.exists()
+    assert destination.read_text(encoding="utf-8") == "def same():\n    return 1\n"
+
+
+def test_existing_destination_executable_nodes_refuse_without_changes(
+    tmp_path: Path,
+) -> None:
+    original = _source(tmp_path, "app.old", "def moved():\n    return 2\n")
+    destination = _source(tmp_path, "app.new", "if True:\n    value = 1\n")
+    with pytest.raises(RelocationError, match="executable nodes"):
+        plan(tmp_path, [original], _mapping(original, "app.new", tmp_path))
+    assert original.exists()
+    assert destination.read_text(encoding="utf-8") == "if True:\n    value = 1\n"
+
+
 def test_global_rebinding_split_refuses_without_changes(tmp_path: Path) -> None:
     original = _source(
         tmp_path,
@@ -155,13 +249,12 @@ def test_package_exports_and_try_block_are_not_dropped(tmp_path: Path) -> None:
     assert staged[cache] is None
 
 
-def test_existing_destination_is_not_overwritten(tmp_path: Path) -> None:
+def test_existing_destination_is_merged(tmp_path: Path) -> None:
     source = _source(tmp_path, "app.old", "value = 1\n")
     destination = _source(tmp_path, "app.new", "valuable = 2\n")
-    with pytest.raises(RelocationError, match="already exists"):
-        plan(tmp_path, [source], _mapping(source, "app.new", tmp_path))
+    staged = plan(tmp_path, [source], _mapping(source, "app.new", tmp_path))
+    assert staged[destination] == "valuable = 2\n\nvalue = 1\n"
     assert source.read_text() == "value = 1\n"
-    assert destination.read_text() == "valuable = 2\n"
 
 
 def test_moved_module_keeps_docstring_and_future_import_first(tmp_path: Path) -> None:

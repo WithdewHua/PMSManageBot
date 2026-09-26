@@ -23,12 +23,12 @@ from app.domains.blackjack.models import (
     BlackjackTournamentEntry,
 )
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
+from app.domains.gift_pack.schemas import GiftPackCreateRequest
 from app.domains.identity.models import EmbyUser, PlexUser
 from app.domains.invitation.models import Invitation
 from app.domains.luckywheel.models import WheelStats
 from app.domains.prediction.models import PredictionBet, PredictionMarket
 from app.domains.treasure.models import TreasureIssue, TreasureParticipation
-from app.webapp.schemas.gift_pack import GiftPackCreateRequest
 from tests.conftest import add_cash_hand, add_entry, add_tournament, add_user, next_id
 
 

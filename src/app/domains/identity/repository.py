@@ -351,3 +351,8 @@ class IdentityRepository:
             if user:
                 return (user.user_id, user.user_email, user.tg_id)
             return None
+
+    def _list_statistics_tg_ids(self) -> list[int]:
+        """Return Telegram IDs represented in the statistics table."""
+        with get_session() as session:
+            return list(session.execute(select(Statistics.tg_id)).scalars().all())

@@ -81,11 +81,11 @@ def _run_worker(
 def _create_baseline(tool_root: Path, base_root: Path, url: str) -> None:
     code = f"""
 from sqlalchemy import create_engine
-from app.models.models import Base
+from app.model_registry import metadata
 engine = create_engine({url!r})
 with engine.begin() as connection:
-    Base.metadata.drop_all(connection)
-    Base.metadata.create_all(connection)
+    metadata.drop_all(connection)
+    metadata.create_all(connection)
 engine.dispose()
 """
     _run_worker(tool_root, base_root, code, url=url)
@@ -115,10 +115,10 @@ engine.dispose()
 def _cleanup_baseline(tool_root: Path, base_root: Path, url: str) -> None:
     code = f"""
 from sqlalchemy import create_engine
-from app.models.models import Base
+from app.model_registry import metadata
 engine = create_engine({url!r})
 with engine.begin() as connection:
-    Base.metadata.drop_all(connection)
+    metadata.drop_all(connection)
 engine.dispose()
 """
     _run_worker(tool_root, base_root, code, url=url)

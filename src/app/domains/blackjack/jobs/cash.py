@@ -11,13 +11,13 @@ from datetime import datetime
 
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
+from app.core.telegram import send_message_by_url
 from app.databases import db
 from app.domains.blackjack.notifications.cash import (
     _fmt_credits,
     _format_jackpot_win,
     _get_group_chat_id,
 )
-from app.utils.utils import send_message_by_url
 
 # router declaration belongs to the HTTP assembly(prefix="/blackjack", tags=["21点"])
 
@@ -59,22 +59,19 @@ def _schedule_blackjack_timeout(*, hand_id: int, timeout_minutes: float) -> None
     try:
         from datetime import datetime, timedelta
 
-        from app.core.scheduler import Scheduler
+        from app.core.scheduler import schedule_task
 
         run_date = datetime.now(settings.TZ) + timedelta(
             seconds=float(timeout_minutes) * 60.0
         )
-        Scheduler().add_async_job(
-            # Keep the persisted B1 callable path until B3 migrates jobstore rows.
-            func="app.webapp.routers.activities.blackjack:_settle_blackjack_hand_on_timeout",
-            trigger="date",
-            id=f"blackjack_timeout_{int(hand_id)}",
+        schedule_task(
+            "blackjack.hand_timeout",
+            run_date=run_date,
+            job_id=f"blackjack_timeout_{int(hand_id)}",
+            kwargs={"hand_id": int(hand_id)},
+            misfire_grace_time=None,
             replace_existing=True,
             max_instances=1,
-            misfire_grace_time=None,
-            run_date=run_date,
-            kwargs={"hand_id": int(hand_id)},
-            jobstore="sqlalchemy",
         )
         logger.info(
             f"Blackjack timeout scheduled: hand={hand_id}, minutes={timeout_minutes}"
@@ -161,7 +158,7 @@ async def notify_blackjack_jackpot_wins_job() -> None:
         if not wins:
             return
 
-        from app.utils.utils import send_message_by_url
+        from app.core.telegram import send_message_by_url
 
         # 余额对本批所有消息都一样，查一次即可，不要每条消息各开一次会话
         jackpot_balance = db.get_blackjack_jackpot()

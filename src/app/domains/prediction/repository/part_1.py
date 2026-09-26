@@ -468,7 +468,7 @@ class _PredictionRepositoryPart1:
             }
 
     def list_prediction_bets(self, market_id: int, limit: int = 100) -> list[dict]:
-        from app.utils.utils import get_user_name_from_tg_id
+        from app.core.telegram import get_user_name_from_tg_id
 
         with get_session() as session:
             rows = (

@@ -75,7 +75,7 @@ class MediaAccessRepository:
                 'unlock_time': int,   # 解锁时间戳
             }
         """
-        from app.utils.utils import get_user_name_from_tg_id
+        from app.core.telegram import get_user_name_from_tg_id
 
         try:
             with get_session() as session:

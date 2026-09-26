@@ -21,7 +21,6 @@ tick 任务 / 任务重试），靠「记得只发一次」是不可能正确的
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.databases import db
-from app.databases.db_func import award_blackjack_champion_badge
 from app.domains.blackjack.notifications.tournament import (
     _broadcast_group,
     _format_cancelled,
@@ -33,6 +32,7 @@ from app.domains.blackjack.notifications.tournament import (
     _send_many,
     notify_tournament_started,
 )
+from app.domains.blackjack.service import award_blackjack_champion_badge
 
 # router declaration belongs to the HTTP assembly(prefix="/blackjack/tournament", tags=["21点锦标赛"])
 

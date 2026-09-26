@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
+from app.core.telegram import get_user_name_from_tg_id
 from app.databases import db
 from app.domains.vaultwarden.models import VaultwardenRedeemRecords
 from app.domains.vaultwarden.notifications import _notify_admins_vaultwarden_redeem
@@ -25,7 +26,6 @@ from app.domains.vaultwarden.schemas import (
     VaultwardenRedeemResponse,
 )
 from app.integrations.vaultwarden import Vaultwarden
-from app.utils.utils import get_user_name_from_tg_id
 
 # 创建路由器
 router = APIRouter(

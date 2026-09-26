@@ -204,7 +204,7 @@ class LinesRepository:
                 'unlock_time': int,   # 解锁时间戳
             }
         """
-        from app.utils.utils import get_user_name_from_tg_id
+        from app.core.telegram import get_user_name_from_tg_id
 
         try:
             with get_session() as session:
@@ -289,7 +289,7 @@ class LinesRepository:
         Returns:
             是否成功
         """
-        from app.utils.utils import get_user_name_from_tg_id
+        from app.core.telegram import get_user_name_from_tg_id
 
         try:
             with get_session() as session:
@@ -352,7 +352,7 @@ class LinesRepository:
         Returns:
             创建的调度 ID，失败返回 None
         """
-        from app.utils.utils import get_user_name_from_tg_id
+        from app.core.telegram import get_user_name_from_tg_id
 
         try:
             with get_session() as session:
@@ -448,7 +448,7 @@ class LinesRepository:
         Returns:
             是否成功
         """
-        from app.utils.utils import get_user_name_from_tg_id
+        from app.core.telegram import get_user_name_from_tg_id
 
         try:
             with get_session() as session:
@@ -499,7 +499,7 @@ class LinesRepository:
         Returns:
             是否成功
         """
-        from app.utils.utils import get_user_name_from_tg_id
+        from app.core.telegram import get_user_name_from_tg_id
 
         try:
             with get_session() as session:

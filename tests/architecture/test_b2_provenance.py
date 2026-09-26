@@ -47,10 +47,41 @@ def b1_tree(tmp_path_factory: pytest.TempPathFactory):
         )
 
 
-def test_b2_baseline_and_ignore_edges_have_b1_provenance(b1_tree: Path) -> None:
-    assert not audit(b1_tree, PROJECT_ROOT)
+@pytest.fixture(scope="module")
+def b2_tree(tmp_path_factory: pytest.TempPathFactory):
+    """B2's sealed commit, not the evolving B3 worktree, is the B2 audit target."""
+    base = tmp_path_factory.mktemp("b2-provenance-current") / "b2"
+    commit = (PROJECT_ROOT / "scripts/refactor/B3_BASE").read_text().strip()
+    git_env = os.environ.copy()
+    git_env.pop("GIT_INDEX_FILE", None)
+    result = subprocess.run(
+        ["git", "worktree", "add", "--detach", str(base), commit],
+        cwd=PROJECT_ROOT,
+        env=git_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    try:
+        yield base
+    finally:
+        subprocess.run(
+            ["git", "worktree", "remove", "--force", str(base)],
+            cwd=PROJECT_ROOT,
+            env=git_env,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+
+def test_b2_baseline_and_ignore_edges_have_b1_provenance(
+    b1_tree: Path, b2_tree: Path
+) -> None:
+    assert not audit(b1_tree, b2_tree)
     baseline = json.loads(
-        (PROJECT_ROOT / "tests/architecture/baseline.json").read_text(encoding="utf-8")
+        (b2_tree / "tests/architecture/baseline.json").read_text(encoding="utf-8")
     )
     assert any("b2_source_id" in row for row in baseline["cross_domain_calls"])
 

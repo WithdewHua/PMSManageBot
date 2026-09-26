@@ -6,10 +6,10 @@ from app.core.auth import get_telegram_user, require_telegram_auth
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
+from app.core.telegram import get_user_avatar_from_tg_id, get_user_name_from_tg_id
 from app.databases import db
 from app.integrations.emby import Emby
 from app.integrations.plex import Plex
-from app.utils.utils import get_user_avatar_from_tg_id, get_user_name_from_tg_id
 
 router = APIRouter(prefix="/api", tags=["rankings"])
 

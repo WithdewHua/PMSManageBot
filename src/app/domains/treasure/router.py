@@ -10,7 +10,7 @@ from app.core.log import uvicorn_logger as logger
 from app.core.number import normalize_external_random_b
 from app.core.schemas import TelegramUser
 from app.databases import db
-from app.databases.db_func import check_and_award_game_king_badge
+from app.domains.badge_awards.jobs import check_and_award_game_king_badge
 from app.domains.treasure.jobs import schedule_auto_reopen_treasure_issue
 from app.domains.treasure.notifications import (
     notify_treasure_issue_created,

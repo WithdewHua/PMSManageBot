@@ -8,11 +8,8 @@ from app.core.auth import (
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
+from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
-from app.utils.utils import (
-    get_user_name_from_tg_id,
-    send_message_by_url,
-)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -68,7 +65,7 @@ async def generate_admin_invite_codes(
             return BaseResponse(success=False, message="参数错误")
 
         # 导入生成邀请码的函数
-        from app.databases.db_func import add_redeem_code
+        from app.domains.invitation.service import add_redeem_code
 
         # 检查目标用户是否存在
         stats_info = db.get_stats_by_tg_id(tg_id)

@@ -11,7 +11,7 @@ from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
 from app.databases import db
-from app.databases.db_func import check_and_award_game_king_badge
+from app.domains.badge_awards.jobs import check_and_award_game_king_badge
 from app.domains.prediction.notifications import (
     notify_prediction_bet_placed,
     notify_prediction_market_created,

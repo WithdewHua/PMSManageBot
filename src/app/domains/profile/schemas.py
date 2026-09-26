@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 from app.core.schemas import BaseResponse
 
@@ -17,18 +17,6 @@ class UserInfo(BaseModel):
     emby_info: dict[str, Any] | None = None
     overseerr_info: dict[str, Any] | None = None
     is_admin: bool = False
-
-
-class BindPlexRequest(BaseModel):
-    """绑定Plex请求模型"""
-
-    email: EmailStr
-
-
-class BindEmbyRequest(BaseModel):
-    """绑定Emby请求模型"""
-
-    username: str = Field(..., min_length=2)
 
 
 class EmbyLineRequest(BaseModel):

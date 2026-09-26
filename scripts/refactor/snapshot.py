@@ -13,10 +13,9 @@ import asyncio
 import importlib.util
 import json
 import re
-from contextlib import nullcontext
+from contextlib import ExitStack
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -158,6 +157,9 @@ class _RecordingScheduler:
     def add_sync_job(self, func: Any, *args: Any, **kwargs: Any) -> None:
         self._record("sync", func, args, kwargs)
 
+    def enable_named_persistent_tasks(self) -> None:
+        return None
+
     def _record(
         self, executor: str, func: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
     ) -> None:
@@ -173,6 +175,11 @@ class _RecordingScheduler:
 
 def _scheduler_snapshot(root: Path = ROOT) -> dict[str, Any]:
     from app import main
+
+    try:
+        from app import schedule
+    except ImportError:
+        schedule = None
 
     try:
         from app.core.config import settings
@@ -191,21 +198,33 @@ def _scheduler_snapshot(root: Path = ROOT) -> dict[str, Any]:
 
     # Startup also restores jobs from live DB state. Record the hooks but never
     # call them: a snapshot must neither require nor mutate a database.
-    with (
-        patch.object(main, "Scheduler", return_value=recorder),
-        patch.object(
-            main,
-            "datetime",
-            SimpleNamespace(datetime=FrozenDateTime, timedelta=timedelta),
-        ),
-        patch("app.webapp.routers.activities.auction.restore_auction_schedules"),
-        (
-            patch("app.domains.auction.jobs.restore_auction_schedules")
-            if (root / "src/app/domains/auction/jobs.py").is_file()
-            else nullcontext()
-        ),
-        patch("app.webapp.routers.activities.blackjack.restore_blackjack_timeouts"),
-    ):
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(main, "Scheduler", return_value=recorder))
+        if schedule is not None:
+            stack.enter_context(patch.object(schedule, "datetime", FrozenDateTime))
+            stack.enter_context(
+                patch.object(schedule, "ON_STARTUP", [lambda: None, lambda: None])
+            )
+        else:
+            stack.enter_context(
+                patch.object(
+                    main,
+                    "datetime",
+                    type(
+                        "FrozenModule",
+                        (),
+                        {"datetime": FrozenDateTime, "timedelta": timedelta},
+                    ),
+                )
+            )
+            stack.enter_context(
+                patch("app.webapp.routers.activities.auction.restore_auction_schedules")
+            )
+            stack.enter_context(
+                patch(
+                    "app.webapp.routers.activities.blackjack.restore_blackjack_timeouts"
+                )
+            )
         main.add_init_scheduler_job()
     jobs = []
     for job in recorder.jobs:

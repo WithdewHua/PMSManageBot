@@ -175,7 +175,7 @@ def test_lock_running_misses_settled_tournament(orm):
 
 @pytest.mark.asyncio
 async def test_tick_settles_all_terminal_before_deadline(orm, monkeypatch):
-    from app.webapp.routers.activities import blackjack_tournament as router
+    from app.domains.blackjack.jobs import tournament as router
 
     t = add_tournament(orm)
     add_user(orm, 1)
@@ -197,7 +197,7 @@ async def test_tick_settles_all_terminal_before_deadline(orm, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_tick_does_not_settle_while_someone_is_playing(orm, monkeypatch):
-    from app.webapp.routers.activities import blackjack_tournament as router
+    from app.domains.blackjack.jobs import tournament as router
 
     t = add_tournament(orm)
     add_user(orm, 1)
@@ -216,7 +216,7 @@ async def test_tick_does_not_settle_while_someone_is_playing(orm, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_tick_settles_at_deadline_even_with_playing_entry(orm, monkeypatch):
-    from app.webapp.routers.activities import blackjack_tournament as router
+    from app.domains.blackjack.jobs import tournament as router
 
     t = add_tournament(orm, play_deadline_ms=int(time.time() * 1000) - 1000)
     add_user(orm, 1)
@@ -237,7 +237,7 @@ async def test_tick_settles_at_deadline_even_with_playing_entry(orm, monkeypatch
 
 @pytest.mark.asyncio
 async def test_tick_query_none_does_not_early_settle(orm, monkeypatch):
-    from app.webapp.routers.activities import blackjack_tournament as router
+    from app.domains.blackjack.jobs import tournament as router
 
     t = add_tournament(orm)
     add_user(orm, 1)
@@ -256,7 +256,7 @@ async def test_tick_query_none_does_not_early_settle(orm, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_tick_skips_settle_when_clear_fails(orm, monkeypatch):
-    from app.webapp.routers.activities import blackjack_tournament as router
+    from app.domains.blackjack.jobs import tournament as router
 
     t = add_tournament(orm)
     add_user(orm, 1)

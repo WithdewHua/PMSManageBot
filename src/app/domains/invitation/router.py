@@ -17,8 +17,10 @@ from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.scheduler import Scheduler
 from app.core.schemas import TelegramUser
+from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
-from app.databases.db_func import update_plex_info
+from app.domains.accounts.jobs import refresh_emby_user_info
+from app.domains.accounts.service import refresh_tg_user_info, update_plex_info
 from app.domains.invitation.schemas import (
     BatchCheckPrivilegedCodesRequest,
     BatchCheckPrivilegedCodesResponse,
@@ -33,12 +35,6 @@ from app.domains.invitation.schemas import (
 )
 from app.integrations.emby import Emby
 from app.integrations.plex import Plex
-from app.utils.utils import (
-    get_user_name_from_tg_id,
-    refresh_emby_user_info,
-    refresh_tg_user_info,
-    send_message_by_url,
-)
 
 # 创建路由器
 router = APIRouter(

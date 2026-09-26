@@ -41,7 +41,7 @@
 
 - 不重命名函数、类、常量，也不改签名。调用方式和导入风格保持不变：`db.xxx()` 保留，已有的按名导入也保留。
 - 不拆宽表，不改表结构，也不改 Redis 键。
-- 本变更只登记现存的跨层调用和依赖环，并写明由哪个后续变更负责，不在这里消除。
+- B2 冻结提交中已存在的跨层调用和依赖环只登记并交给后续变更；B3 搬迁新增的依赖环不是现存债务，须在本变更内消除，不得列入 `Acyclic domain siblings` 的 ignore。去环仅限导致新增环的调用面，不顺带重构其他业务。
 - 不引入运行时依赖。import-linter 只加进 test extra。
 
 ## Decisions
@@ -51,6 +51,7 @@
 ```
 src/app/
   main.py             process entry: init db, build bot, start api thread, start scheduler
+  manage.py           manual operational CLI assembly: legacy sync, reports, TG rebind
   schedule.py         declarative job table: recurring jobs, named tasks, startup hooks
   model_registry.py   imports every models module; exposes metadata and init_db()
   core/               shared kernel, no business rules
@@ -280,7 +281,7 @@ LEGACY_TASK_REFS = {  # old persisted func paths -> task name; removed by retire
   - 在 `scheduler.start()` 之前，把 jobstore 里旧函数路径的记录改写为具名任务。
   - 改写只动 pickle 状态里的 `func`、`args` 和 `name`，`id`、触发时间、`misfire_grace_time`、`kwargs` 都不变。
   - 迁移是幂等的，会在日志里打印改写条数。
-  - 反向改写由 `scripts/refactor/rewrite_job_refs.py --reverse` 完成，回退部署前使用。
+  - 反向改写由 `scripts/refactor/rewrite_job_refs.py --reverse --scheduler-stopped` 完成；脚本必须显式确认所有使用该 jobstore 的 B3 调度器进程已停止，否则拒绝执行。反向脚本完成后不得重新启动 B3 调度器，必须直接回退镜像并启动旧进程。
 - **B 阶段只转换持久化任务**：竞拍结束任务在内存 jobstore 里，不受代码路径影响，本变更不做转换。
 
 备选方案：
@@ -318,10 +319,12 @@ import-linter 的配置写在 `pyproject.toml` 里（`root_packages = ["app"]`�
 | 领域无环 | acyclic_siblings，`ancestors = ["app.domains"]` | 同层领域之间也不能成环 |
 | 领域内分层 | layers，`containers = ["app.domains.*"]`，各层可选 | `router \| admin_router \| jobs \| bot` > `service` > `notifications \| repository` > `models` |
 | 入口不碰数据层 | forbidden | 入口和 notifications 不得导入 repository、models、`sqlalchemy`、`app.core.db` |
-| SQLAlchemy 的使用范围 | forbidden | 只有 repository、models、`core/db.py`、`core/kv.py`、门面和 `model_registry` 可以导入 `sqlalchemy`、`app.core.db` 和各领域 models |
+| SQLAlchemy 的使用范围 | forbidden | 只有 repository、models、`core/db.py`、`core/kv.py`、门面和 `model_registry` 可以导入 `sqlalchemy`、`app.core.db` 和各领域 models；另精确允许 `app.core.scheduler → app.core.db` 用于 jobstore 引用迁移的事务助手，不允许 `app.core.scheduler` 直接导入 `sqlalchemy` |
 | rules 是纯函数 | forbidden | `rules` 不得导入数据库、网络、Telegram、Redis、调度器、integrations、门面和其他角色模块 |
 | 外部客户端隔离 | forbidden | `integrations` 不得导入领域、门面、`api`、`bot` 和 `sqlalchemy` |
 | 门面冻结 | protected | 只有现有模块可以导入 `app.databases`，新模块不行 |
+
+调度器的持久化任务迁移只在 `core/scheduler.py` 编排 pickle 引用转换，SQL 查询、行锁和原子更新由 `core/db.py` 的专用 jobstore 基础设施助手执行。D10 的唯一新增基础设施导入者是 `app.core.scheduler`；不得借此开放领域 service、jobs 或其他 core 模块访问数据库引擎，合约和测试须验证此边界。
 
 import-linter 表达不了的规则，放进 `tests/architecture/`，这些测试只做 AST 扫描：
 
@@ -345,7 +348,7 @@ import-linter 表达不了的规则，放进 `tests/architecture/`，这些测�
   - B2 完成逐条来源审计并重新封存后，新增违规会让检查失败；B2 审计期间也拒绝来源不明或调用发生变化的新增条目。
   - 违规修好后如果条目还留着，检查同样失败：import-linter 设 `unmatched_ignore_imports_alerting = "error"`，AST 测试也照此处理。
   - 各合约的 ignore 条数与 baseline.json 里封存的数字一致，所以修掉违规时要在同一个提交里下调封存数。
-- **封存时机**：B1 保留既有封存数；B2 只对已审计的迁入旧违规重新封存；B3 随剩余代码搬迁复核并封存最终基线。每一批仍要执行新增违规和已修复条目的拒绝测试。
+- **封存时机**：B1 保留既有封存数；B2 只对已审计的接口迁入旧违规重新封存；B3 以冻结的 B2 提交为来源，逐项审计 `db_func.py`、`modules/custom_line.py`、`utils/report.py` 和剩余工具函数机械迁入领域后才首次可见的旧 SQL、门面和跨域调用。每条 B3 新条目必须登记 B2 来源单元 ID、未变调用 AST、目标映射和负责后续清理的变更，import-linter 只允许与源导入绑定相符的精确豁免；不得把新增代码或改动调用混入基线，也不得修改 B2 来源提交来洗白违规。审计须从冻结提交读取真实来源单元，比较对应目标单元的调用 AST、导入路径及实际使用的绑定，并拒绝仅凭目标领域有候选映射就推定继承；对去环而改变的调用逐项记理由和行为等价测试，但不能标为未变旧债。B3 新增的领域环不得豁免；特别检查 `premium→lines`、`profile→accounts`、`traffic→custom_lines` 和 `traffic→lines` 四条新增循环边。B3 封存后最终基线严格只减不增。每一批仍要执行新增违规、伪造来源和已修复条目的拒绝测试。
 
 两个本地 pre-commit hook 分别运行 `lint-imports` 和 `pytest tests/architecture`，都用项目虚拟环境。
 
@@ -362,12 +365,13 @@ import-linter 表达不了的规则，放进 `tests/architecture/`，这些测�
 2. **映射**：`mapping.toml` 为每个需要保留的项指定目标模块（mixin 方法还要指定目标类），可标记为删除并写明原因；不确定项标记 `TODO`。顶层可执行语句和包的导入/导出声明也必须有明确去向或保留在组装层，不得靠猜测分配。允许把一个类整体搬到一个目标；要按成员拆分时，父类必须显式标记为组装项，不得同时复制整类与其子项。例如 `DatabaseORM` 的组合类由 B1 的门面组装，旧方法各归 repository mixin。生成初稿后人工审阅；有未映射、未审阅的 `TODO`、冲突的父子目标或无理由删除时，搬迁工具拒绝执行。审阅映射表比审阅四万行的 diff 容易得多，它是这次搬迁的主要 review 对象。
 3. **搬迁**：
     - 按源码行切片，连同装饰器和前导注释一起搬，不重排版。把顶层语句、模块文档字符串与包导出作为必须保留的单元处理，顺序和导入副作用不能凭空丢失；若一个语句或赋值同时牵涉多个目标且不能安全拆分，则拒绝执行。
-    - 按每项用到的名字生成导入语句；模块内 `import *` 展开为显式导入，并检查别名与包导出。检查目标模块内导入环和未解析的依赖，不能仅凭生成文件能通过语法检查就视为成功。
+    - 按每项用到的名字生成导入语句；模块内 `import *` 展开为显式导入，并检查别名与包导出。合并到已有目标模块时须在写入前拒绝定义重名、来源不同的同名导入绑定、重复可执行 AST 或导入副作用被改写；保留已有定义和新定义的执行顺序。检查目标模块内导入环和未解析的依赖，不能仅凭生成文件能通过语法检查就视为成功。
     - 按映射改写全仓库的导入语句和字符串引用，范围包括 `src`、`tests`、`scripts`、`alembic`，覆盖函数内导入、monkeypatch 目标、uvicorn 目标与持久化任务路径；不重写不相关的普通字符串。
-    - 搬迁前先做完整性预检，并在任何文件写入前拒绝：未覆盖的源码单元、父子范围重复搬运、拆开了 `global` 重绑定的名字、拆分后出现导入环或不能无歧义改写的引用。对失败的预检保持源文件和目标文件不变。
+    - 搬迁前先做完整性预检，并在任何文件写入前拒绝：未覆盖的源码单元、父子范围重复搬运、拆开了 `global` 重绑定的名字、拆分后出现导入环或不能无歧义改写的引用。B3 的四条新领域循环边不允许靠增加 `ignore_imports` 通过；逐条调整归属或调用后重新检查无环。`_get_line_monthly_traffic` 去环不得改变 B2 的查询结果、会话／事务边界、异常传播和副作用顺序；用同一份一次性数据库分别运行 B2 与 B3 代码比较。对失败的预检保持源文件和目标文件不变。
 4. **校验**：对比搬迁前的基准提交和当前工作树，以下每一项都必须一致：
     - **逐项 AST 比对**：按审阅映射中的来源 ID 和目标模块逐一比对定义、类成员、顶层可执行语句与模块文档字符串；跨文件合并的导入项验证其名称或在映射中为该来源 ID 记录明确的重分配目标及理由。只允许经过审阅的导入路径、D4 自引用、D8 调度调用、B1 Premium 延迟导入和 `Settings.DATA_PATH` 相对层级修正。B2 因 Ruff 禁止可变默认值而将 Pydantic 字段的 `=[]` 改为 `Field(default=[])` 时，只允许针对审阅过的确切字段做 AST 规范化，并用构造/序列化测试证明等价。新写的组装代码（api、bot、schedule、registry、门面）由后面几项快照覆盖；`action = "assemble"` 仅适用于被组装替代的源单元，并保留来源与目标的审阅记录；`action = "delete"` 只适用于已从运行路径移除、确实获准删除的单元，不能用来绕过保留的源定义。迁入领域的模型、方法和路由函数不能因位于新目录，或来自整个 `webapp/handlers` 目录，而整体跳过。用故意修改目标函数体、删除导入绑定或错误标记保留定义为删除的反例测试确保校验失败。
    - **B2 持久化超时路径例外**：`app.webapp.routers.activities.blackjack:_schedule_blackjack_timeout` 搬入 `blackjack/jobs/` 后继续向 SQLAlchemy jobstore 提交原始 `app.webapp.routers.activities.blackjack:_settle_blackjack_hand_on_timeout` 字符串引用，不能产生新函数路径的记录；B3 在删除旧模块前按 D8 迁移。夺宝自动续期同理：`app.webapp.routers.activities.treasure:schedule_auto_reopen_treasure_issue` 继续持久化原始 `app.webapp.routers.activities.treasure:_auto_create_next_treasure_issue_from`，直至 B3 迁移。只对这两个明确列出的调度调用的 `func=` 参数允许“B1 可调用对象 → 完全相同的 B1 字符串路径”的 AST 规范化，路径必须逐字匹配；测试须覆盖正常目标、错误目标被拒绝及 APScheduler 可解析旧路径。
+   - **手动入口组装**：`db_func.py` 与 `utils/report.py` 的两个 `if __name__ == "__main__"` 语句是获审阅的 CLI 组装单元，不可标记为无理由删除。B3 在 `app.manage` 中提供显式 `legacy-credit-sync` 与 `report` 子命令：前者按原顺序执行 Plex 积分更新、Plex 信息更新、Emby 积分更新；后者保留 `--days`、`--top`、`--stat`、`--refresh`、`--all_stats`、`--library_stats`、`--user_stats`、`--watched_stats`、`--emby` 的参数、默认值及不打印返回报表的原行为。旧模块路径按 D1 删除，但须记录新调用方式并在一次性环境中对比命令解析、调用顺序和副作用。仅这两个守卫可用带来源、目标和行为对比的手动组装标记；搬迁器跳过原守卫切片不等于等价性校验可跳过，不能用无审计的删除或整目录忽略取代。
    - **导入解析**：逐个导入所有模块。用 AST 找出全部函数内导入和字符串引用（uvicorn 目标、monkeypatch 目标、任务名），逐一解析。
    - **OpenAPI 文档完全一致**。
    - **路由表顺序**：只有互不重叠的路由可以调换顺序。判断方法是把路径参数当通配段，检查同一方法下两条路由能不能匹配同一个路径。
@@ -385,14 +389,14 @@ import-linter 表达不了的规则，放进 `tests/architecture/`，这些测�
 |---|---|---|
 | B1 数据层 | `core/`、`model_registry`、各领域 `models.py`、db.py 拆成 mixin 加门面、`integrations/`、`blackjack/rules.py` | 路由仍在 `webapp/`，通过门面照常运行 |
 | B2 接口层 | `webapp/` 和 `handlers/` 的全部内容，包括路由里夹带的任务和编排函数；`api/`、`bot/` 组装 | uvicorn 目标切换 |
-| B3 编排层 | `db_func.py`、`premium.py`、`modules/custom_line.py`、`utils/` 的剩余部分；`schedule.py`、具名任务、jobstore 迁移；删除旧包 | 基线封存 |
+| B3 编排层 | `db_func.py`、`premium.py`、`modules/custom_line.py`、`utils/` 的剩余部分；`schedule.py`、`manage.py` 手动子命令、具名任务、jobstore 迁移；删除旧包 | 来源审计后封存最终基线 |
 
 每批都经过完整的校验再提交，提交后应用可以启动。
 
 ### D13 文档分工
 
 - **AGENTS.md**：只写规则和"新代码放哪"清单，保持简短，因为它会进入每个 agent 的上下文。过渡期规则也写在这里：新的数据库操作写进所属领域的 repository mixin，并通过 `db` 调用；不得新增跨领域的 `db` 调用。原来的"业务逻辑放在 db.py 或 modules"一类约定全部删除。另外写明：没有调用方的函数不一定是死代码，删除前先查手动运维清单，并和维护者确认。
-- **`docs/architecture.md`**：写给人看的参考资料，包括分层图、领域表、列归属表、例外清单（读模型读表、特权码提交前写 `.env`、门面）、手动运维操作清单（每项写明入口和调用方式，目前只有 TG 换绑）、配置分类、基线计数和各条目的负责变更。AGENTS.md 链接到这里。
+- **`docs/architecture.md`**：写给人看的参考资料，包括分层图、领域表、列归属表、例外清单（读模型读表、特权码提交前写 `.env`、门面）、手动运维操作清单（逐项记录 `manage.py` 的 TG 换绑、旧版积分／用户信息同步与报表子命令及原有调用路径）、配置分类、基线计数和各条目的负责变更。AGENTS.md 链接到这里。
 
 ## Risks / Trade-offs
 
@@ -401,7 +405,7 @@ import-linter 表达不了的规则，放进 `tests/architecture/`，这些测�
 - **[有些断裂只在运行时暴露]** → 导入解析覆盖函数内导入和字符串引用，再加上全量测试。每批结束后在一次性环境里启动应用，访问几个接口，并核对调度器的任务列表。
 - **[拆分路由后匹配顺序变化]** → 路由顺序检查只放行不重叠的换序。非 `admin.py` 路由里的管理员接口，B 阶段不挪。
 - **[按名导入加上拆模块，让 monkeypatch 失效]** → 测试会失败，按新位置修正 patch 目标。这属于允许的测试改动。
-- **[jobstore 迁移出错，或回退后丢任务]** → 迁移是幂等的，在调度器启动前执行，并记录日志。回退部署前先运行反向脚本。即使 21 点超时任务丢了，也会被启动恢复和兜底扫描补上；夺宝自动开期没有补救，所以回退时反向脚本必须运行。
+- **[jobstore 迁移出错，或回退后丢任务]** → 迁移是幂等的，在调度器启动前执行，并记录日志。回退必须先停止所有 B3 调度器，再以 `--scheduler-stopped` 运行反向脚本，确认完成后立即回退镜像；禁止让仍运行的 B3 进程加载已反向的旧路径。即使 21 点超时任务丢了，也会被启动恢复和兜底扫描补上；夺宝自动开期没有补救，所以这个停止—反向—回退顺序是硬性要求。
 - **[列归属只靠文档约束]** → 本变更不做机器检查，review 时对照列归属表。以后可以按"对写入列名做 AST 检查"的思路补上。
 - **[基线很长，看起来像默许违规]** → 每条都标了负责变更，`docs/architecture.md` 公布计数。每个 promote 变更的验收条件之一，是清空自己名下的条目。
 - **[没有调用方的手动运维入口在搬迁中丢失]** → 门面公开方法清单纳入校验。B1 冒烟时在一次性库上执行一次 `db.rebind_user_tg_id`，数据变化与基准一致。
@@ -417,7 +421,7 @@ import-linter 表达不了的规则，放进 `tests/architecture/`，这些测�
    - 调度器任务列表和部署前一致。
    - 接口冒烟测试通过。
    - 等到一局 21 点超时、一期夺宝开奖，确认相应任务正常执行。
-6. 回退：先运行 `python -m scripts.refactor.rewrite_job_refs --reverse`，再回退镜像。代码层面直接 revert 即可。
+6. 回退（维护窗口）：停止所有 B3 调度器进程；运行 `python -m scripts.refactor.rewrite_job_refs --reverse --scheduler-stopped`；确认反向改写条数和日志后，不得启动 B3，直接回退镜像并启动旧版本。
 
 基线条目按违规来源所在的领域，分派给负责提升该领域的后续变更。D3 列出的三处环例外，分别由 D3 中写明的变更负责。
 

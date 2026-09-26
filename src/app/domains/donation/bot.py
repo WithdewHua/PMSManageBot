@@ -2,8 +2,8 @@ from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
 from app.core.config import settings
+from app.core.telegram import get_user_name_from_tg_id, send_message
 from app.databases import db
-from app.utils.utils import get_user_name_from_tg_id, send_message
 
 
 # 管理员命令: 设置捐赠信息

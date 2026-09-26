@@ -8,6 +8,7 @@ from app.core.auth import (
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
+from app.core.telegram import send_message_by_url
 from app.databases import db
 from app.domains.lines.service import (
     disable_line_schedules_and_notify,
@@ -17,9 +18,6 @@ from app.domains.profile.schemas import (
     AllLineTagsResponse,
     LineTagRequest,
     LineTagResponse,
-)
-from app.utils.utils import (
-    send_message_by_url,
 )
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])

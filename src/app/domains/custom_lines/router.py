@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
+from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.domains.custom_lines.models import CustomLine
 from app.domains.profile.schemas import (
     CustomLineDetailResponse,
@@ -17,10 +18,6 @@ from app.domains.profile.schemas import (
     CustomLineRenewRequest,
     CustomLineSubmitRequest,
     CustomLineUpdateRequest,
-)
-from app.utils.utils import (
-    get_user_name_from_tg_id,
-    send_message_by_url,
 )
 
 router = APIRouter(prefix="/api/user", tags=["user"])
@@ -465,7 +462,9 @@ async def delete_custom_line(
             if line_status in ["offline", "expired"]:
                 logger.info(f"开始为删除的线路 {domain} 结算当月流量积分")
                 try:
-                    from app.modules.custom_line import settle_custom_line_traffic
+                    from app.domains.custom_lines.service import (
+                        settle_custom_line_traffic,
+                    )
 
                     await settle_custom_line_traffic(
                         line_domain=domain, force_current_month=True

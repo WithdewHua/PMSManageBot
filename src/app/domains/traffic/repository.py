@@ -5,7 +5,7 @@ from sqlalchemy import delete, func, select, update
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
-from app.domains.custom_lines.models import CustomLine
+from app.domains.identity import service as identity_service
 from app.domains.identity.models import EmbyUser, PlexUser
 from app.domains.traffic.models import LineTrafficMonthlyStats, LineTrafficStats
 
@@ -287,130 +287,6 @@ class TrafficRepository:
                 f"Error getting user daily traffic for {username or user_id}: {e}"
             )
             return 0
-
-    def get_traffic_statistics(self) -> dict:
-        """获取全面的流量统计信息，包括今日/本周/本月，按服务类型和线路分类"""
-        try:
-            now = datetime.now(settings.TZ)
-            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            week_start = today_start - timedelta(days=now.weekday())
-            month_start = today_start.replace(day=1)
-
-            periods = [
-                ("today", today_start.isoformat()),
-                ("week", week_start.isoformat()),
-                ("month", month_start.isoformat()),
-            ]
-
-            result = {}
-
-            with get_session() as session:
-                # 获取所有已批准的自定义线路域名
-                approved_custom_lines = (
-                    session.execute(
-                        select(CustomLine.domain).where(CustomLine.status == "approved")
-                    )
-                    .scalars()
-                    .all()
-                )
-
-                for period_name, start_time in periods:
-                    # 查询按服务类型分组的流量统计
-                    service_results = session.execute(
-                        select(
-                            LineTrafficStats.service,
-                            func.coalesce(
-                                func.sum(LineTrafficStats.send_bytes), 0
-                            ).label("total_traffic"),
-                        )
-                        .where(LineTrafficStats.timestamp >= start_time)
-                        .group_by(LineTrafficStats.service)
-                    ).fetchall()
-
-                    # 查询按线路分组的流量统计
-                    line_results = session.execute(
-                        select(
-                            LineTrafficStats.line,
-                            func.coalesce(
-                                func.sum(LineTrafficStats.send_bytes), 0
-                            ).label("total_traffic"),
-                        )
-                        .where(LineTrafficStats.timestamp >= start_time)
-                        .group_by(LineTrafficStats.line)
-                        .order_by(func.sum(LineTrafficStats.send_bytes).desc())
-                    ).fetchall()
-
-                    # 计算总流量
-                    total_traffic = session.execute(
-                        select(
-                            func.coalesce(func.sum(LineTrafficStats.send_bytes), 0)
-                        ).where(LineTrafficStats.timestamp >= start_time)
-                    ).scalar()
-
-                    # 构建期间数据
-                    period_data = {
-                        "total": total_traffic,
-                        "emby": 0,
-                        "plex": 0,
-                        "lines": [],
-                        "custom_lines": [],  # 新增：自定义线路统计
-                    }
-
-                    for service, traffic in service_results:
-                        if service.lower() == "emby":
-                            period_data["emby"] = traffic
-                        elif service.lower() == "plex":
-                            period_data["plex"] = traffic
-
-                    # 添加线路数据
-                    for line, traffic in line_results:
-                        is_known_line = False
-                        # 检查是否是已知线路
-                        for _line in (
-                            settings.STREAM_BACKEND + settings.PREMIUM_STREAM_BACKEND
-                        ):
-                            if line.lower() in _line.lower():
-                                period_data["lines"].append(
-                                    {"line": line, "traffic": traffic}
-                                )
-                                is_known_line = True
-                                break
-
-                        # 如果不是已知线路，检查是否是已批准的自定义线路
-                        if not is_known_line and line in approved_custom_lines:
-                            period_data["custom_lines"].append(
-                                {"line": line, "traffic": traffic, "is_custom": True}
-                            )
-
-                    result[period_name] = period_data
-
-            return result
-
-        except Exception as e:
-            logger.error(f"Error getting comprehensive traffic statistics: {e}")
-            return {
-                "today": {
-                    "total": 0,
-                    "emby": 0,
-                    "plex": 0,
-                    "lines": [],
-                    "custom_lines": [],
-                },
-                "week": {
-                    "total": 0,
-                    "emby": 0,
-                    "plex": 0,
-                    "lines": [],
-                    "custom_lines": [],
-                },
-                "month": {
-                    "total": 0,
-                    "emby": 0,
-                    "plex": 0,
-                    "lines": [],
-                    "custom_lines": [],
-                },
-            }
 
     def get_plex_traffic_rank(self, start_date=None, end_date=None) -> list:
         """获取 Plex 流量排行榜"""
@@ -850,3 +726,116 @@ class TrafficRepository:
         except Exception as e:
             logger.error(f"更新流量统计用户名失败: {e}")
             return False
+
+
+from datetime import datetime
+
+from sqlalchemy import and_
+
+from app.domains.lines.rules import normalize_line_domain
+
+
+async def _get_line_monthly_traffic(
+    session,
+    line_domain: str,
+    year_month: str,
+    owner_tg_id: int | None = None,
+    from_raw_table: bool = False,
+) -> float:
+    """
+    获取指定线路在指定月份的总流量（GB）
+
+    Args:
+        session: 数据库会话
+        line_domain: 线路域名（支持带协议前缀或路径后缀，内部会自动规范化为纯主机名）
+        year_month: 年月，格式：YYYY-MM
+        owner_tg_id: 线路所有者的 tg_id，传入时排除该所有者产生的流量（用于结算），
+                     None 表示包含所有用户流量（用于流量检查）
+        from_raw_table: 是否从原始流量表(line_traffic_stats)实时聚合，用于删除线路时获取当月未聚合的流量
+
+    Returns:
+        总流量（GB）
+    """
+    try:
+        # 规范化 line_domain，去除协议前缀和路径后缀，与数据库中存储的纯主机名格式对齐
+        normalized_domain = normalize_line_domain(line_domain)
+        if normalized_domain != line_domain:
+            logger.debug(f"线路域名规范化: {line_domain!r} -> {normalized_domain!r}")
+        # 获取线路所有者的用户名（Plex 和 Emby）
+        owner_usernames = set()
+
+        if owner_tg_id is not None:
+            # Preserve B2's two independent identity lookup sessions. The
+            # aggregation query below still uses the caller's session.
+            plex_user = identity_service.get_plex_info_by_tg_id(owner_tg_id)
+            if plex_user and plex_user[4]:  # plex_username (索引4)
+                owner_usernames.add(plex_user[4].lower())
+
+            emby_user = identity_service.get_emby_info_by_tg_id(owner_tg_id)
+            if emby_user and emby_user[0]:  # emby_username
+                owner_usernames.add(emby_user[0].lower())
+
+        if from_raw_table:
+            # 从原始流量表实时聚合（用于删除线路时获取当月流量）
+            from app.domains.traffic.models import LineTrafficStats
+
+            # 计算目标月份的开始和结束时间
+            month_start = datetime.strptime(f"{year_month}-01", "%Y-%m-%d").replace(
+                tzinfo=settings.TZ
+            )
+            if month_start.month == 12:
+                next_month_start = month_start.replace(
+                    year=month_start.year + 1, month=1
+                )
+            else:
+                next_month_start = month_start.replace(month=month_start.month + 1)
+
+            month_start_str = month_start.isoformat()
+            next_month_start_str = next_month_start.isoformat()
+
+            # 从原始流量表实时聚合
+            stmt = select(func.sum(LineTrafficStats.send_bytes)).where(
+                and_(
+                    LineTrafficStats.line == normalized_domain,
+                    LineTrafficStats.timestamp >= month_start_str,
+                    LineTrafficStats.timestamp < next_month_start_str,
+                    ~LineTrafficStats.username.in_([u.lower() for u in owner_usernames])
+                    if owner_usernames
+                    else True,
+                )
+            )
+
+            result = session.execute(stmt)
+            total_bytes = result.scalar() or 0
+
+            logger.info(
+                f"从原始流量表聚合线路 {normalized_domain} {year_month} 流量: {total_bytes} bytes"
+            )
+        else:
+            # 从月度流量统计表查询（用于正常月初结算）
+            stmt = select(func.sum(LineTrafficMonthlyStats.total_bytes)).where(
+                and_(
+                    LineTrafficMonthlyStats.line == normalized_domain,
+                    LineTrafficMonthlyStats.year_month == year_month,
+                    ~LineTrafficMonthlyStats.username.in_(
+                        [u.lower() for u in owner_usernames]
+                    )
+                    if owner_usernames
+                    else True,
+                )
+            )
+
+            result = session.execute(stmt)
+            total_bytes = result.scalar() or 0
+
+        # 转换为 GB
+        total_gb = total_bytes / (1024**3)
+
+        return total_gb
+
+    except Exception as e:
+        logger.error(
+            f"获取线路 {line_domain} 月流量失败 (月份: {year_month}, 原始表: {from_raw_table}): {e}",
+            exc_info=True,
+        )
+        return 0.0

@@ -3,15 +3,12 @@ from fastapi import APIRouter, Body, Depends, Request
 from app.core.auth import get_telegram_user, require_telegram_auth
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
+from app.core.telegram import get_user_name_from_tg_id
 from app.databases import db
-from app.domains.profile.schemas import BindEmbyRequest, BindPlexRequest
+from app.domains.accounts.schemas import BindEmbyRequest, BindPlexRequest
 from app.integrations.emby import Emby
 from app.integrations.plex import Plex
-from app.integrations.tautulli import Tautulli
-from app.utils.utils import (
-    get_user_name_from_tg_id,
-    get_user_total_duration,
-)
+from app.integrations.tautulli import Tautulli, get_user_total_duration
 
 router = APIRouter(prefix="/api/user", tags=["user"])
 

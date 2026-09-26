@@ -8,11 +8,8 @@ from app.core.auth import (
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
+from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.domains.lines.service import unbind_specified_line_for_all_users
-from app.utils.utils import (
-    get_user_name_from_tg_id,
-    send_message_by_url,
-)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -455,7 +452,7 @@ async def admin_delete_custom_line(
         from app.core.db import get_session
         from app.core.schemas import BaseResponse
         from app.domains.custom_lines.models import CustomLine
-        from app.modules.custom_line import settle_custom_line_traffic
+        from app.domains.custom_lines.service import settle_custom_line_traffic
 
         with get_session() as session:
             stmt = select(CustomLine).where(CustomLine.id == line_id)

@@ -14,14 +14,11 @@ from app.core.cache import (
 )
 from app.core.config import settings
 from app.core.db import get_session
+from app.core.formatting import format_traffic_size
 from app.core.log import logger
+from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.domains.identity.models import EmbyUser, PlexUser
-from app.utils.utils import (
-    format_traffic_size,
-    get_user_name_from_tg_id,
-    is_binded_premium_line,
-    send_message_by_url,
-)
+from app.domains.lines.rules import is_binded_premium_line
 
 
 async def check_premium_expiry():

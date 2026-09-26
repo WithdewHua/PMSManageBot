@@ -4,8 +4,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.core.http import cleanup_http_resources
 from app.core.log import logger
-from app.utils.utils import cleanup_http_resources
 
 
 @asynccontextmanager

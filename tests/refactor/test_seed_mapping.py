@@ -120,7 +120,11 @@ def test_reviewed_model_targets_do_not_leak_into_other_modules() -> None:
     mapping = tomllib.loads(Path("scripts/refactor/mapping.toml").read_text())
     items = {entry["id"]: entry for entry in mapping["items"]}
     assert (
-        items["app.modules.custom_line:check_expired_custom_lines"]["target"] == "TODO"
+        items["app.modules.custom_line:check_expired_custom_lines"]["target"]
+        == "app.domains.custom_lines.jobs"
     )
-    assert items["app.utils.report:send_weekly_report"]["target"] == "TODO"
+    assert (
+        items["app.utils.report:send_weekly_report"]["target"]
+        == "app.domains.reports.jobs"
+    )
     assert items["app.models:__all__"]["target"] == "TODO"

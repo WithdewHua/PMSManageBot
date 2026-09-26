@@ -101,16 +101,16 @@
 
 ## 5. B3 编排层
 
-- [ ] 5.1 审阅 `db_func.py`、`premium.py`、`modules/custom_line.py`、`utils/report.py` 和 `utils/utils.py` 剩余部分的映射（design D9），比如 `refresh_tg_user_info` → `accounts/jobs.py`，`caculate_credits_fund` → `media_access/rules.py`。验证：覆盖检查中，这些来源没有 `TODO`。
-- [ ] 5.2 在 `core/scheduler.py` 里实现具名任务：任务注册表、`schedule_task(name, …)`、分发函数 `run_task(name, /, **kwargs)`，以及拒绝向持久化 jobstore 加入非具名任务的检查。验证：单元测试覆盖注册、分发、未注册任务报错，以及非具名任务被拒绝。
-- [ ] 5.3 实现持久化任务引用的迁移：在 `core/scheduler.py` 里实现正向和反向改写，`scripts/refactor/rewrite_job_refs.py` 封装同一套逻辑，供手工和回退时使用。验证：测试先在 SQLite jobstore 里写入两条旧格式记录，迁移后由调度器加载，确认 `func` 解析到 `run_task`，任务名、`id`、`kwargs`、`next_run_time` 和 `misfire_grace_time` 都不变；重复迁移不产生变化；反向改写后与原始记录逐字节一致。
-- [ ] 5.4 编写 `app/schedule.py`：32 个周期任务、`TASKS`、`ON_STARTUP`、`LEGACY_TASK_REFS` 和 `register_all()`。`main.py` 改为在 `scheduler.start()` 之前迁移任务引用并注册任务。21 点和夺宝的调度调用改为 `schedule_task`。验证：调度任务快照与基准一致（id、触发器、选项、executor、jobstore、相对 `next_run_time`），任务日志的文案不变。
-- [ ] 5.5 运行 B3 搬迁并完成校验，然后删除旧模块：`webapp/`、`handlers/`、`modules/`、`utils/`、`models/`、`premium.py`、`config.py`、`log.py`、`scheduler.py`、`blackjack_engine.py`，以及 `databases/` 下除门面以外的文件。验证：`verify.py --base` 零差异，`src/app` 的顶层只剩 design D1 列出的条目。
-- [ ] 5.6 加入 rules 纯函数合约，把领域分层合约改为 `exhaustive = true`。重新生成并封存基线：`ignore_imports` 按负责变更分组并加注释，`baseline.json` 记录负责变更和封存计数。验证：`lint-imports` 和 `pytest tests/architecture` 通过；删掉任意一条仍在生效的 ignore 会让检查失败；故意加入一个新违规也会失败。
-- [ ] 5.7 在 `docs/architecture.md` 里填入按负责变更统计的基线计数，并写明回退步骤：先运行反向脚本，再回退镜像。验证：文档中的计数与 `baseline.json` 一致。
-- [ ] 5.8 从最初的基准提交开始做端到端校验：`verify.py --base "$(cat scripts/refactor/BASE)"` 零差异，`check_metadata_pg.py` 差异为空，`pytest`、`ruff`、`lint-imports`、`pre-commit run --all-files` 全部通过。
-- [ ] 5.9 冒烟检查持久化任务：在一次性环境的 jobstore 里预置旧格式的 21 点超时和夺宝开期记录，启动调度器。验证：日志打印出正确的迁移条数，任务按原定时间触发，并调用了正确的函数。
-- [ ] 5.10 提交 B3。验证：`pre-commit run --all-files` 通过。
+- [x] 5.1 审阅 `db_func.py`、`premium.py`、`modules/custom_line.py`、`utils/report.py` 和 `utils/utils.py` 剩余部分的映射（design D9），比如 `refresh_tg_user_info` → `accounts/jobs.py`，`caculate_credits_fund` → `media_access/rules.py`。逐一清点两个 `__main__` 手动入口及源码变化后新增的导入单元，标注导入重分配与目标命令；不能把守卫标为删除。验证：覆盖检查中，这些来源无遗漏、无 `TODO`。
+- [x] 5.2 在 `core/scheduler.py` 里实现具名任务：任务注册表、`schedule_task(name, …)`、分发函数 `run_task(name, /, **kwargs)`，以及拒绝向持久化 jobstore 加入非具名任务的检查。验证：单元测试覆盖注册、分发、未注册任务报错，以及非具名任务被拒绝。
+- [x] 5.3 实现持久化任务引用的迁移：在 `core/scheduler.py` 里实现正向和反向改写，`scripts/refactor/rewrite_job_refs.py` 封装同一套逻辑，供手工和回退时使用。反向脚本必须要求 `--scheduler-stopped`，没有维护窗口确认时拒绝执行。验证：测试先在 SQLite jobstore 里写入两条旧格式记录，迁移后由调度器加载，确认 `func` 解析到 `run_task`，任务名、`id`、`kwargs`、`next_run_time` 和 `misfire_grace_time` 都不变；重复迁移不产生变化；反向改写后与原始记录逐字节一致；缺少停止确认时不改写任何记录。
+- [x] 5.4 编写 `app/schedule.py`：32 个周期任务、`TASKS`、`ON_STARTUP`、`LEGACY_TASK_REFS` 和 `register_all()`。`main.py` 改为在 `scheduler.start()` 之前迁移任务引用并注册任务。21 点和夺宝的调度调用改为 `schedule_task`。验证：调度任务快照与基准一致（id、触发器、选项、executor、jobstore、相对 `next_run_time`），任务日志的文案不变。
+- [x] 5.5 运行 B3 搬迁并完成校验；向已有目标模块安全合并时预检同名定义／导入绑定冲突、重复可执行 AST 和导入副作用，拒绝后不得写文件。B3 只对机械搬迁新增的四条领域循环边（`premium→lines`、`profile→accounts`、`traffic→custom_lines`、`traffic→lines`）做必要的归属／调用调整，不能新增无环豁免；`_get_line_monthly_traffic` 的查询结果、会话／事务边界、异常传播和副作用顺序须在一次性数据库中对比 B2 冻结版本。新增 `app/manage.py` 的 `legacy-credit-sync` 和 `report` 子命令，保留两个旧 `__main__` 手动操作的执行顺序、参数默认值和副作用。然后删除旧模块：`webapp/`、`handlers/`、`modules/`、`utils/`、`models/`、`premium.py`、`config.py`、`log.py`、`scheduler.py`、`blackjack_engine.py`，以及 `databases/` 下除门面以外的文件。验证：`verify.py --base` 零差异；CLI 解析、行为与原命令对比通过，无法通过标记删除守卫或跳过 AST 逃避校验；`src/app` 的顶层只剩 design D1 列出的条目。
+- [x] 5.6 加入 rules 纯函数合约，把领域分层合约改为 `exhaustive = true`。以冻结 B2 提交为来源，逐项审计 B3 机械搬迁后首次可见的旧违规并封存最终基线：审计须读取冻结源码的实际来源单元、证明目标映射及未变调用 AST、原导入绑定与目标实际使用者相符，不能用同领域候选映射代替证明；为去环而调整的调用须另列等价性证据，不得冒充未变旧债。`ignore_imports` 精确到原有导入边、按负责变更分组并加注释，不得豁免新增领域环；`baseline.json` 记录源单元 ID、负责变更和封存计数；新增逻辑或改动调用不得豁免。验证：`lint-imports`、`pytest tests/architecture` 与 B3 来源审计通过；删除仍在生效的 ignore、伪造来源、同名导入换目标、改动调用或故意加入新违规均被拒绝。
+- [x] 5.7 在 `docs/architecture.md` 里填入按负责变更统计的基线计数，登记两项手动运维子命令的旧／新调用方式，并写明回退步骤：停止所有 B3 调度器 → `rewrite_job_refs.py --reverse --scheduler-stopped` → 不启动 B3，直接回退镜像并启动旧版本。验证：文档中的计数与 `baseline.json` 一致，手动操作清单能定位 `app.manage` 的对应子命令。
+- [x] 5.8 从最初的基准提交开始做端到端校验：`verify.py --base "$(cat scripts/refactor/BASE)"` 零差异（含逐项审阅的去环 AST 例外），`check_metadata_pg.py` 差异为空，四条新增领域循环边均已消除且无新增 ignore，`_get_line_monthly_traffic` 在一次性 B2/B3 数据库中查询、会话／事务、异常及副作用行为相符，`pytest`、`ruff`、`lint-imports`、`pre-commit run --all-files` 全部通过。用一次性配置比较旧 `db_func.py` 手动同步与新子命令的三步顺序、异常传播；比较旧报表 CLI 与新子命令的全部参数默认值、调用参数及输出／副作用。
+- [x] 5.9 冒烟检查持久化任务：在一次性环境的 jobstore 里预置旧格式的 21 点超时和夺宝开期记录，启动调度器。验证：日志打印出正确的迁移条数，任务按原定时间触发，并调用了正确的函数。
+- [x] 5.10 提交 B3。验证：`pre-commit run --all-files` 通过。
 
 ## 6. 部署与收尾
 

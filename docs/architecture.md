@@ -110,15 +110,15 @@ core/（公共设施）
 
 ## 基线计数
 
-B2 过渡基线以 `scripts/refactor/B2_BASE` 中的 B1 提交为来源。`tests/architecture/baseline.json` 当前封存 323 条跨域调用／导入、4 个仅存于旧路径的超预算文件；其中 271 条因接口机械搬迁才进入领域扫描范围，逐条记录 `b2_source_id`。`scripts/refactor/audit_b2_baseline.py` 将每个新增条目映射到 B1 源码单元并校验规范化 AST，拒绝无法溯源的调用、新增超预算文件和未经来源证明的 import-linter 豁免；`tests/architecture/test_b2_provenance.py` 在提交前和后续 hook 中持续执行此审计。
+B2 过渡基线以 `scripts/refactor/B2_BASE` 中的 B1 提交为来源。B3 机械搬迁以 `scripts/refactor/B3_BASE`（B2 提交 `1b49ea8273253ee7b1b35e13056ca047f9ce45bc`）为冻结来源。`tests/architecture/baseline.json` 当前封存 419 条跨域调用／导入，全部新增条目记录 `b3_source_id`；`scripts/refactor/audit_b3_baseline.py` 只接受冻结源码中的实际来源单元及逐项 `b3_key`，并拒绝仅凭目标领域候选、同名导入换目标或新增领域环封存。B3 为调度器去环及 CLI 组装登记的 AST 差异分别记录 `b3_ast_exception` 和实际存在的行为测试。
 
-按清理责任分组的 323 条跨域条目：`promote-line-domains` 159、`promote-remaining-domains` 49、`promote-account-domains` 48、`promote-gift-pack-domain` 18、`make-credit-changes-atomic` 15、`promote-tg-rebind-domain` 15、`promote-activity-domains` 12、`promote-blackjack-domain` 4、`promote-reward-domains` 3。
+按清理责任分组的 B3 封存计数由 `audit_b3_baseline.py` 输出；B3 新增 3 条，当前总数 419 条。B3 新增条目只允许来源于 `db_func.py`、`premium.py`、`modules/custom_line.py`、`utils/report.py` 和 `utils/utils.py` 的冻结单元。
 
-B2 import-linter ignore 数：SQLAlchemy 范围 15、数据库引擎范围 17、模型范围 26、六层领域依赖 81、无环兄弟领域 20、领域内分层 7、入口不碰数据层 72；其余合约 0。新增豁免按精确导入边标有负责后续变更的注释，门面导入者按模块精确列出。B2 提交后基线严格只减不增：修复违规时须在同一提交删除对应豁免并下调封存数。B3 对剩余旧路径再次复核，封存最终基线。
+当前 import-linter ignore 数：SQLAlchemy 范围 24、数据库引擎范围 26、模型范围 29、六层领域依赖 67、无环兄弟领域 20、领域内分层 8、入口不碰数据层 83；其余合约 0。B3 去环没有新增 `Acyclic domain siblings` 豁免；任何新增豁免必须有冻结来源单元和行为测试证明。
 
 ## 部署回退
 
-B3 起，部署回退时须先运行 `python -m scripts.refactor.rewrite_job_refs --reverse`，再回退镜像，否则持久化任务可能丢失。该脚本在 B3 中创建，此前不存在。
+B3 起，部署回退必须在维护窗口执行：停止所有 B3 调度器 → 运行 `python -m scripts.refactor.rewrite_job_refs --reverse --scheduler-stopped` → 不启动 B3，直接回退镜像并启动旧版本。脚本会拒绝未知格式、无停止确认或运行中回退，确保 jobstore 记录逐字节可恢复。
 
 ## 后续变更与领域
 

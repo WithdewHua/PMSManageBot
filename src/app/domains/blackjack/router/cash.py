@@ -19,7 +19,7 @@ from app.core.auth import (
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
 from app.databases import db
-from app.databases.db_func import check_and_award_game_king_badge
+from app.domains.badge_awards.jobs import check_and_award_game_king_badge
 from app.domains.blackjack.schemas import (
     BlackjackActionResponse,
     BlackjackAdminConfig,

@@ -15,8 +15,10 @@ from app.core.auth import (
 from app.core.config import settings
 from app.core.log import logger
 from app.core.schemas import TelegramUser
+from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
-from app.databases.db_func import add_redeem_code, check_and_award_game_king_badge
+from app.domains.badge_awards.jobs import check_and_award_game_king_badge
+from app.domains.invitation.service import add_redeem_code
 from app.domains.luckywheel.schemas import (
     LuckyWheelConfig,
     LuckyWheelConfigUpdateRequest,
@@ -26,7 +28,6 @@ from app.domains.luckywheel.schemas import (
     LuckyWheelTenSpinResult,
 )
 from app.domains.premium.service import update_premium_status
-from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 
 router = APIRouter(prefix="/luckywheel", tags=["幸运大转盘"])
 

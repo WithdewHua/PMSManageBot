@@ -10,7 +10,9 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
 from app.core.schemas import TelegramUser
+from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
+from app.domains.accounts.service import refresh_tg_user_info
 from app.domains.donation.schemas import (
     DonationRegistrationConfirmResponse,
     DonationRegistrationCreate,
@@ -21,11 +23,6 @@ from app.domains.donation.schemas import (
     DonationRegistrationUpdate,
 )
 from app.domains.identity.models import Statistics
-from app.utils.utils import (
-    get_user_name_from_tg_id,
-    refresh_tg_user_info,
-    send_message_by_url,
-)
 
 router = APIRouter(prefix="/api/donations", tags=["donations"])
 
@@ -318,7 +315,7 @@ async def confirm_donation_registration(
 
             # 如果是捐赠开号，生成一个普通邀请码
             if is_donation_registration:
-                from app.databases.db_func import add_redeem_code
+                from app.domains.invitation.service import add_redeem_code
 
                 try:
                     add_redeem_code(tg_id=user_id, num=1, is_privileged=False)
@@ -327,7 +324,7 @@ async def confirm_donation_registration(
                     logger.error(f"为捐赠开号用户 {user_id} 生成邀请码失败: {e}")
 
             # 检查并授予至尊贡献者勋章（异步后台任务）
-            from app.databases.db_func import (
+            from app.domains.badge_awards.jobs import (
                 check_and_award_supreme_contributor_badge,
             )
 

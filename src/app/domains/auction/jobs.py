@@ -3,9 +3,9 @@ from datetime import datetime
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.scheduler import Scheduler
+from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
 from app.domains.auction.notifications import send_channel_auction_notification
-from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 
 
 async def finish_single_auction_job(auction_id: int):
@@ -109,3 +109,25 @@ def restore_auction_schedules():
 
     except Exception as e:
         logger.error(f"恢复竞拍定时任务失败: {e}")
+
+
+async def finish_expired_auctions_job():
+    """定时任务：结束过期的竞拍活动"""
+    try:
+        finished_auctions = db.finish_expired_auctions()
+        # 通知用户
+        for autction in finished_auctions:
+            await send_message_by_url(
+                autction.get("winner_id"),
+                f"恭喜你，竞拍 {autction['title']} 获胜！最终出价为 {autction['final_price']} 积分",
+            )
+            if not autction.get("credits_reduced", False):
+                # 如果未扣除积分，通知管理员
+                for chat_id in settings.TG_ADMIN_CHAT_ID:
+                    await send_message_by_url(
+                        chat_id=chat_id,
+                        text=f"用户 {autction.get('winner_id')} 在竞拍 {autction['title']} 中获胜，但未扣除积分。",
+                    )
+        return finished_auctions
+    except Exception as e:
+        logger.error(f"自动结束过期竞拍失败: {e}")

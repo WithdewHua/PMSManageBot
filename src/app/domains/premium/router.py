@@ -7,15 +7,12 @@ from pydantic import BaseModel
 
 from app.core.auth import get_telegram_user, require_telegram_auth
 from app.core.config import settings
+from app.core.formatting import get_service_label
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
+from app.core.telegram import get_user_name_from_tg_id, notify_admins_by_url
 from app.databases import db
 from app.domains.premium.service import update_premium_status
-from app.utils.utils import (
-    get_service_label,
-    get_user_name_from_tg_id,
-    notify_admins_by_url,
-)
 
 
 class PremiumStatisticsResponse(BaseModel):

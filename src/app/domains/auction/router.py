@@ -11,9 +11,12 @@ from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.scheduler import Scheduler
 from app.core.schemas import TelegramUser
+from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
-from app.databases.db_func import finish_expired_auctions_job
-from app.domains.auction.jobs import finish_single_auction_job
+from app.domains.auction.jobs import (
+    finish_expired_auctions_job,
+    finish_single_auction_job,
+)
 from app.domains.auction.notifications import (
     send_bid_notifications,
     send_channel_auction_notification,
@@ -27,7 +30,6 @@ from app.domains.auction.schemas import (
     PlaceBidRequest,
     PlaceBidResponse,
 )
-from app.utils.utils import get_user_name_from_tg_id, send_message_by_url
 
 router = APIRouter(prefix="/auction", tags=["auction"])
 

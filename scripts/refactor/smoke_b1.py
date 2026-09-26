@@ -37,8 +37,13 @@ def _environment(root: Path, database: Path, data_dir: Path) -> dict[str, str]:
 
 def _seed(base: Path, database: Path, data_dir: Path) -> None:
     code = """
-from app.databases.session import engine
-from app.models.models import Base, Overseerr, PlexUser, Statistics
+try:
+    from app.core.db import engine
+    from app.core.db import Base
+    from app.domains.identity.models import Overseerr, PlexUser, Statistics
+except ModuleNotFoundError:
+    from app.databases.session import engine
+    from app.models.models import Base, Overseerr, PlexUser, Statistics
 from sqlalchemy.orm import Session
 Base.metadata.create_all(bind=engine)
 with Session(engine) as session:
@@ -86,13 +91,18 @@ def _serve(root: Path, database: Path, data_dir: Path) -> dict[str, tuple[int, o
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         port = sock.getsockname()[1]
+    application = (
+        "app.api.app:app"
+        if (root / "src/app/api/app.py").exists()
+        else "app.webapp:app"
+    )
     with tempfile.TemporaryFile(mode="w+t") as log:
         process = subprocess.Popen(
             [
                 sys.executable,
                 "-m",
                 "uvicorn",
-                "app.webapp:app",
+                application,
                 "--host",
                 "127.0.0.1",
                 "--port",
@@ -108,8 +118,10 @@ def _serve(root: Path, database: Path, data_dir: Path) -> dict[str, tuple[int, o
         try:
             for _ in range(80):
                 if process.poll() is not None:
+                    log.seek(0)
+                    output = log.read()[-1800:]
                     raise SmokeError(
-                        f"API exited early for {root} (code {process.returncode})"
+                        f"API exited early for {root} (code {process.returncode}): {output}"
                     )
                 try:
                     _get(port, "/health")
@@ -151,9 +163,10 @@ from sqlalchemy import select
 from app.databases import db
 try:
     from app.core.db import get_session
+    from app.domains.identity.models import Overseerr, PlexUser, Statistics
 except ModuleNotFoundError:
     from app.databases.session import get_session
-from app.models import Overseerr, PlexUser, Statistics
+    from app.models import Overseerr, PlexUser, Statistics
 results = [
     db.rebind_user_tg_id(103, plex_email='smoke-new@example.invalid'),
     db.rebind_user_tg_id(202, plex_email='smoke-merge@example.invalid'),

@@ -10,10 +10,13 @@ from app.core.cache import (
     plex_user_defined_line_cache,
 )
 from app.core.config import settings
+from app.core.formatting import get_service_label
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
+from app.core.telegram import get_user_name_from_tg_id, notify_admins_by_url
 from app.databases import db
-from app.databases.db_func import auto_switch_user_lines
+from app.domains.lines.jobs import auto_switch_user_lines
+from app.domains.lines.rules import is_binded_premium_line
 from app.domains.lines.service import (
     _auth_bind_emby_line,
     _auth_bind_plex_line,
@@ -34,12 +37,6 @@ from app.domains.profile.schemas import (
     PlexLineInfo,
     PlexLineRequest,
     PlexLinesResponse,
-)
-from app.utils.utils import (
-    get_service_label,
-    get_user_name_from_tg_id,
-    is_binded_premium_line,
-    notify_admins_by_url,
 )
 
 router = APIRouter(prefix="/api/user", tags=["user"])

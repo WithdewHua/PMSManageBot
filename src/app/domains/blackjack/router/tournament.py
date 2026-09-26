@@ -23,6 +23,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from app.core.auth import get_telegram_user, require_telegram_auth
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
+from app.core.telegram import get_user_names_from_tg_ids
 from app.databases import db
 from app.domains.blackjack.schemas import (
     BlackjackHandResponse,
@@ -37,7 +38,6 @@ from app.domains.blackjack.schemas import (
     TournamentStandingsResponse,
     TournamentWalletResponse,
 )
-from app.utils.utils import get_user_names_from_tg_ids
 
 router = APIRouter(prefix="/blackjack/tournament", tags=["21点锦标赛"])
 

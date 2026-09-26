@@ -62,7 +62,7 @@ class DonationRepository:
     def get_donation_registration_by_id(self, registration_id: int) -> dict | None:
         """根据ID获取捐赠登记信息"""
         try:
-            from app.utils.utils import get_user_name_from_tg_id
+            from app.core.telegram import get_user_name_from_tg_id
 
             with get_session() as session:
                 stmt = select(DonationRegistrations).where(
@@ -103,7 +103,7 @@ class DonationRepository:
     ) -> list[dict]:
         """获取用户的捐赠登记历史"""
         try:
-            from app.utils.utils import get_user_name_from_tg_id
+            from app.core.telegram import get_user_name_from_tg_id
 
             with get_session() as session:
                 stmt = (
@@ -150,7 +150,7 @@ class DonationRepository:
     def get_pending_donation_registrations(self, limit: int = 50) -> list[dict]:
         """获取待处理的捐赠登记列表"""
         try:
-            from app.utils.utils import get_user_name_from_tg_id
+            from app.core.telegram import get_user_name_from_tg_id
 
             with get_session() as session:
                 stmt = (

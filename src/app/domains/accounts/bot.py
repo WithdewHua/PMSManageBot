@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
 from app.core.config import settings
-from app.utils.utils import send_message
+from app.core.telegram import send_message
 
 
 async def get_register_status(

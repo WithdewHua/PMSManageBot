@@ -6,15 +6,12 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
+from app.core.telegram import get_user_info_from_tg_id, get_user_name_from_tg_id
 from app.databases import db
+from app.domains.accounts.service import refresh_tg_user_info
 from app.domains.identity.models import Statistics
 from app.domains.profile.schemas import UserInfo
 from app.integrations.emby import Emby
-from app.utils.utils import (
-    get_user_info_from_tg_id,
-    get_user_name_from_tg_id,
-    refresh_tg_user_info,
-)
 
 router = APIRouter(prefix="/api/user", tags=["user"])
 

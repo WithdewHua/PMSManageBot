@@ -133,8 +133,10 @@ def _units(path: Path, root: Path, mapping: dict[str, dict]) -> list[Unit]:
             and (not isinstance(target, str) or not target.startswith("app."))
         ):
             raise RelocationError(f"unreviewed item: {members[0].id}")
-        if action not in {"move", "delete", "assemble"}:
+        if action not in {"move", "delete", "assemble", "manual"}:
             raise RelocationError(f"unknown action: {members[0].id}: {action}")
+        if action == "manual":
+            continue
         if action == "delete" and not all(
             record.get("reason", "").strip() for record in instructions
         ):
@@ -389,6 +391,140 @@ def _imports_for(
     return required
 
 
+def _top_level_names(node: ast.stmt) -> set[str]:
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        return {node.name}
+    if isinstance(node, (ast.Assign, ast.AnnAssign)):
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        return {
+            name.id
+            for target in targets
+            for name in ast.walk(target)
+            if isinstance(name, ast.Name)
+        }
+    return set()
+
+
+def _module_import_bindings(tree: ast.Module) -> dict[str, str]:
+    bindings: dict[str, str] = {}
+    for node in tree.body:
+        if not isinstance(node, (ast.Import, ast.ImportFrom)):
+            continue
+        if isinstance(node, ast.ImportFrom) and node.module == "__future__":
+            continue
+        for alias in node.names:
+            name = alias.asname or (
+                alias.name.split(".")[0] if isinstance(node, ast.Import) else alias.name
+            )
+            statement = ast.unparse(node)
+            if name in bindings and bindings[name] != statement:
+                raise RelocationError(
+                    f"ambiguous import binding {name}: {bindings[name]} / {statement}"
+                )
+            bindings[name] = statement
+    return bindings
+
+
+def _merge_existing_destination(
+    destination: Path, existing: str, generated: str
+) -> str:
+    existing_tree = ast.parse(existing, filename=str(destination))
+    generated_tree = ast.parse(generated, filename=str(destination))
+    # A future import is a module-wide compiler directive, not an ordinary
+    # runtime import. Adding it after existing definitions is invalid Python;
+    # moving it to the top would change their annotation/evaluation semantics.
+    existing_future = {
+        alias.name
+        for node in existing_tree.body
+        if isinstance(node, ast.ImportFrom) and node.module == "__future__"
+        for alias in node.names
+    }
+    generated_future = {
+        alias.name
+        for node in generated_tree.body
+        if isinstance(node, ast.ImportFrom) and node.module == "__future__"
+        for alias in node.names
+    }
+    if generated_future - existing_future:
+        raise RelocationError(
+            f"new future directive would change existing module {destination}: "
+            f"{sorted(generated_future - existing_future)}"
+        )
+    old_bindings = _module_import_bindings(existing_tree)
+    new_bindings = _module_import_bindings(generated_tree)
+    conflicting_bindings = {
+        name: (old_bindings[name], new_bindings[name])
+        for name in old_bindings.keys() & new_bindings.keys()
+        if old_bindings[name] != new_bindings[name]
+    }
+    if conflicting_bindings:
+        raise RelocationError(
+            f"destination import binding collision in {destination}: {conflicting_bindings}"
+        )
+    existing_names = set().union(
+        *(_top_level_names(node) for node in existing_tree.body)
+    )
+    generated_names = set().union(
+        *(_top_level_names(node) for node in generated_tree.body)
+    )
+    conflicts = sorted(existing_names & generated_names)
+    if conflicts:
+        raise RelocationError(
+            f"destination symbol collision in {destination}: {conflicts}"
+        )
+    unsupported = [
+        type(node).__name__
+        for node in existing_tree.body
+        if not isinstance(
+            node,
+            (
+                ast.Import,
+                ast.ImportFrom,
+                ast.Assign,
+                ast.AnnAssign,
+                ast.ClassDef,
+                ast.FunctionDef,
+                ast.AsyncFunctionDef,
+                ast.Expr,
+            ),
+        )
+    ]
+    if unsupported:
+        raise RelocationError(
+            f"cannot safely merge executable nodes into {destination}: {unsupported}"
+        )
+    existing_imports = {
+        ast.unparse(node)
+        for node in existing_tree.body
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+    }
+    imports = [
+        ast.unparse(node)
+        for node in generated_tree.body
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+        and not (isinstance(node, ast.ImportFrom) and node.module == "__future__")
+        and ast.unparse(node) not in existing_imports
+    ]
+    generated_lines = generated.splitlines()
+    definitions = []
+    for node in generated_tree.body:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            continue
+        if (
+            isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        ):
+            continue
+        definitions.append(
+            "\n".join(generated_lines[node.lineno - 1 : node.end_lineno])
+        )
+    additions = [*imports, *definitions]
+    if not additions:
+        return existing
+    return existing.rstrip() + "\n\n" + "\n\n".join(additions) + "\n"
+
+
 def plan(
     root: Path, sources: list[Path], mapping: dict[str, dict]
 ) -> dict[Path, str | None]:
@@ -596,10 +732,9 @@ def plan(
     for module in sorted(set(rendered) | set(docstrings)):
         chunks = rendered[module]
         destination = _target_path(root, module)
+        existing = None
         if destination.exists() and destination not in source_paths:
-            raise RelocationError(
-                f"target already exists and would be overwritten: {destination}"
-            )
+            existing = destination.read_text(encoding="utf-8")
         ordered = [
             text.rstrip("\n") for _, text in sorted(chunks, key=lambda chunk: chunk[0])
         ]
@@ -624,6 +759,8 @@ def plan(
         ordered = [entry for entry in ordered if entry not in future]
         docstring = [docstrings[module]] if module in docstrings else []
         content = "\n\n".join([*docstring, *future, *ordered]) + "\n"
+        if existing is not None:
+            content = _merge_existing_destination(destination, existing, content)
         if module == "app.core.config":
             old_path = 'Path(__file__).parents[2] / "data"'
             if content.count(old_path) != 1:

@@ -6,8 +6,8 @@ from html import escape
 
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
+from app.core.telegram import get_user_name_from_tg_id, notify_admins_by_url
 from app.databases import db
-from app.utils.utils import get_user_name_from_tg_id, notify_admins_by_url
 
 
 def _format_time(timestamp: int) -> str:

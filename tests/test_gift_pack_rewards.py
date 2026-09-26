@@ -16,13 +16,13 @@ from starlette.requests import Request
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.kv import SystemConfig
+from app.core.schemas import TelegramUser
 from app.databases import db
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 from app.domains.invitation.models import Invitation
+from app.domains.invitation.schemas import RedeemInviteCodeRequest
 from app.domains.luckywheel.models import LuckywheelFreeSpin, WheelStats
-from app.webapp.schemas import TelegramUser
-from app.webapp.schemas.invitation import RedeemInviteCodeRequest
 from tests.conftest import add_user, get_stats, next_id
 
 
@@ -285,7 +285,7 @@ async def test_privileged_invite_allows_registration_without_writing_env(
     monkeypatch.setattr(type(settings), "save_config_to_env_file", _capture_save)
     code = orm.claim_gift_pack(pack, 1)["results"][0]["codes"][0]
 
-    from app.webapp.routers import invitation
+    from app.domains.invitation import router as invitation
 
     class FakeEmby:
         def get_uid_from_username(self, username):
@@ -406,13 +406,14 @@ async def test_download_sync_failure_keeps_claim_and_notifies_admin(orm, monkeyp
         "app.domains.premium.service.apply_download_unlock_to_media", _fail_sync
     )
 
-    from app.webapp.routers import gift_pack as gift_pack_router
+    from app.domains.gift_pack import notifications as gift_pack_notifications
+    from app.domains.gift_pack import router as gift_pack_router
 
     detached = []
     admin_messages = []
     monkeypatch.setattr(gift_pack_router, "_notify_detached", detached.append)
     monkeypatch.setattr(
-        gift_pack_router,
+        gift_pack_notifications,
         "get_user_name_from_tg_id",
         lambda tg_id: "test<user>",
     )
@@ -421,7 +422,7 @@ async def test_download_sync_failure_keeps_claim_and_notifies_admin(orm, monkeyp
         admin_messages.append(text)
 
     monkeypatch.setattr(
-        gift_pack_router,
+        gift_pack_notifications,
         "notify_admins_by_url",
         _capture_admin_message,
     )

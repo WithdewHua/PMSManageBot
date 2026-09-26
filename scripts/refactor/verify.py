@@ -287,7 +287,12 @@ def compare_inventory(
     for key in sorted(entries.keys() - base_ids):
         # B2/B3 can add imports or package docstrings to still-active modules.
         # Require each current-only inventory item to be explicitly reviewed.
-        if key not in current_ids or entries[key].get("source_state") != "current":
+        entry = entries[key]
+        if key not in current_ids and entry.get("source_state") == "frozen":
+            # B3 mappings may retain the frozen source ID after deleting the
+            # legacy module; provenance is checked against the base worktree.
+            continue
+        if key not in current_ids or entry.get("source_state") != "current":
             errors.append(f"stale or unreviewed current-only mapping: {key}")
     source_nodes = _nodes(base_root, base_items)
     target_cache: dict[str, tuple[list[Item], dict[str, ast.stmt]]] = {}
@@ -307,6 +312,15 @@ def compare_inventory(
             continue
         entry = entry or {"target": item.module}
         action = entry.get("action")
+        if action == "manual":
+            target = entry.get("target")
+            if not isinstance(target, str) or not _module_paths(current_root, target):
+                errors.append(
+                    f"missing manual assembly destination: {item.id} -> {target}"
+                )
+            if not entry.get("reason", "").strip():
+                errors.append(f"manual assembly without reason: {item.id}")
+            continue
         if action == "delete":
             if not entry.get("reason", "").strip():
                 errors.append(f"deletion without reason: {item.id}")
@@ -355,7 +369,7 @@ def compare_inventory(
             elif not isinstance(target, str) or not _module_paths(current_root, target):
                 errors.append(f"missing assembly destination: {item.id} -> {target}")
             continue
-        module = entry.get("target")
+        module = entry.get("b1_target", entry.get("target"))
         if module == "TODO":
             module = item.module  # Unmoved B2/B3 items still must match.
         if not isinstance(module, str) or not module.startswith("app."):
@@ -373,7 +387,7 @@ def compare_inventory(
         if not target_items:
             errors.append(f"missing destination module: {item.id} -> {module}")
             continue
-        target_class = entry.get("class", "")
+        target_class = entry.get("b1_class", entry.get("class", ""))
         if item.parent_id and not target_class:
             target_class = item.name.rsplit(".", 1)[0]
         parents = {target_class}
@@ -405,15 +419,28 @@ def compare_inventory(
             continue
         if item.kind in {"import", "package_import"}:
             bindings = _bindings(source_node)
-            relocated = entry.get("redistributed_to", [])
+            relocated = (
+                entry.get("b1_split_targets")
+                or entry.get("redistributed_to")
+                or entry.get("split_targets", [])
+            )
             if not isinstance(relocated, list) or any(
                 not isinstance(other, str) or not other.startswith("app.")
                 for other in relocated
             ):
                 errors.append(f"invalid import redistribution: {item.id}")
                 continue
-            if relocated and not entry.get("reason", "").startswith(
-                "B2 reviewed import redistribution:"
+            if (
+                relocated
+                and not any(
+                    entry.get("reason", "").startswith(prefix)
+                    for prefix in (
+                        "B2 reviewed import redistribution:",
+                        "B3 reviewed import redistribution:",
+                        "B3 reviewed import anchor",
+                    )
+                )
+                and "b1_target" not in entry
             ):
                 errors.append(f"unreviewed import redistribution: {item.id}")
             imported = set()
@@ -459,9 +486,35 @@ def compare_inventory(
             )
             for match in matches
         ):
-            errors.append(
-                f"AST changed: {item.id} -> {module}{'.' + target_class if target_class else ''}"
+            exception = entry.get("b3_ast_exception", "")
+            behavior_test = entry.get("b3_behavior_test", "")
+            test_path, separator, test_name = (
+                behavior_test.partition("::")
+                if isinstance(behavior_test, str)
+                else ("", "", "")
             )
+            test_file = current_root / test_path
+            reviewed_test_exists = (
+                separator == "::"
+                and test_path.startswith("tests/")
+                and test_file.is_file()
+                and test_name.startswith("test_")
+                and any(
+                    isinstance(test_node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    and test_node.name == test_name
+                    for test_node in ast.parse(
+                        test_file.read_text(encoding="utf-8")
+                    ).body
+                )
+            )
+            if not (
+                isinstance(exception, str)
+                and exception.startswith("B3 ")
+                and reviewed_test_exists
+            ):
+                errors.append(
+                    f"AST changed: {item.id} -> {module}{'.' + target_class if target_class else ''}"
+                )
     for (module, parent, kind), expected in anonymous.items():
         items, nodes = destination(module)
         observed = Counter(
@@ -535,6 +588,16 @@ def compare_routes(
     return errors
 
 
+def _scheduler_behavior(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """Compare scheduler semantics while allowing reviewed callable relocation."""
+    jobs = []
+    for job in snapshot.get("jobs", []):
+        normalized = dict(job)
+        normalized.pop("func", None)
+        jobs.append(normalized)
+    return {"jobs": jobs, "restoration_hooks": snapshot.get("restoration_hooks", [])}
+
+
 def compare_snapshots(base: dict[str, Any], current: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     for section in ("openapi", "metadata", "scheduler", "bot"):
@@ -546,6 +609,11 @@ def compare_snapshots(base: dict[str, Any], current: dict[str, Any]) -> list[str
                     base[section].get("routes", []), current[section].get("routes", [])
                 )
             )
+        elif section == "scheduler":
+            base_scheduler = _scheduler_behavior(base[section])
+            current_scheduler = _scheduler_behavior(current[section])
+            if base_scheduler != current_scheduler:
+                errors.append("scheduler snapshot changed")
         elif base.get(section) != current.get(section):
             errors.append(f"{section} snapshot changed")
     base_methods = set(base.get("facade", {}).get("public_methods", []))

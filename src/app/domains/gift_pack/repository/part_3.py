@@ -262,7 +262,7 @@ class _GiftPackRepositoryPart3:
         """Resolve mixed Telegram IDs and media usernames; never guess ambiguity."""
         import re
 
-        from app.utils.utils import load_tg_user_info_cache
+        from app.core.telegram import load_tg_user_info_cache
 
         tokens = list(dict.fromkeys(t for t in re.split(r"[\s,，]+", text) if t))
         resolved, unresolved = [], []

@@ -785,7 +785,7 @@ def test_release_freespin_restores_availability(orm):
 
 async def test_free_spin_execute_skips_cost(orm, monkeypatch):
     """免费机会走 execute_single_spin：不扣参与费、记录来源。"""
-    from app.webapp.routers.activities.luckywheel import (
+    from app.domains.luckywheel.router import (
         LuckyWheelConfig,
         LuckyWheelItem,
         execute_single_spin,
@@ -825,7 +825,7 @@ async def test_free_spin_execute_skips_cost(orm, monkeypatch):
 
 async def test_free_spin_negative_prize_truncates_at_zero(orm, monkeypatch):
     """0 余额玩家的免费盘：负分奖品截断为 0，不会出现负积分。"""
-    from app.webapp.routers.activities.luckywheel import (
+    from app.domains.luckywheel.router import (
         LuckyWheelConfig,
         LuckyWheelItem,
         execute_single_spin,
@@ -941,7 +941,7 @@ def test_hand_response_forwards_relief_credits(orm, monkeypatch):
         result = lose_once(orm, 1)
     assert result["relief_credits"] == 15.0
 
-    from app.webapp.schemas.blackjack import BlackjackHandResponse
+    from app.domains.blackjack.schemas import BlackjackHandResponse
 
     resp = BlackjackHandResponse.from_hand(result["hand"])
     assert resp.relief_credits == 15.0
@@ -969,7 +969,7 @@ def test_user_and_admin_stats_include_relief(orm, monkeypatch):
 async def test_admin_notification_failure_does_not_break_spin(orm, monkeypatch):
     """邀请码的管理员通知抛异常不得影响抽奖结果——否则免费机会路径会
     触发补偿释放，变成「奖品与机会双收」（review 第二轮 #1）。"""
-    from app.webapp.routers.activities import luckywheel as lw
+    from app.domains.luckywheel import router as lw
 
     add_user(orm, 1, credits=25.0)
     _add_free_spin(1)
@@ -1007,7 +1007,7 @@ def test_wallet_route_precedes_parameterized_routes():
     否则 "wallet" 会被当作 int 赛事 ID 解析而 422（线上实测回归）。"""
     from starlette.routing import Match
 
-    from app.webapp.routers.activities.blackjack_tournament import router
+    from app.domains.blackjack.router.tournament import router
 
     scope = {
         "type": "http",
@@ -1096,7 +1096,7 @@ def test_consume_returns_source_and_orders_by_expiry_across_sources(orm):
 )
 async def test_spin_records_free_spin_source(orm, spin_source, wheel_source):
     """单次转盘按消耗到的机会来源映射参与记录的 source。"""
-    from app.webapp.routers.activities import luckywheel as lw
+    from app.domains.luckywheel import router as lw
 
     add_user(orm, 1, credits=0.0)
     _add_free_spin(1, source=spin_source)
@@ -1126,7 +1126,7 @@ async def test_spin_records_free_spin_source(orm, spin_source, wheel_source):
 
 
 async def test_paid_spin_has_no_free_spin_source(orm):
-    from app.webapp.routers.activities import luckywheel as lw
+    from app.domains.luckywheel import router as lw
 
     add_user(orm, 1, credits=100.0)
     config = lw.LuckyWheelConfig(

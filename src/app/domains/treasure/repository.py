@@ -164,7 +164,7 @@ class TreasureRepository:
     def list_treasure_participations(
         self, issue_id: int, limit: int = 200
     ) -> list[dict]:
-        from app.utils.utils import get_user_name_from_tg_id
+        from app.core.telegram import get_user_name_from_tg_id
 
         with get_session() as session:
             issue_seq = (

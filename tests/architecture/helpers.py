@@ -194,6 +194,7 @@ def owner_for_domain(domain: str | None) -> str:
         "accounts": "promote-account-domains",
         "auction": "promote-activity-domains",
         "badges": "promote-reward-domains",
+        "badge_awards": "promote-reward-domains",
         "blackjack": "promote-blackjack-domain",
         "credits": "make-credit-changes-atomic",
         "crypto_donation": "promote-remaining-domains",

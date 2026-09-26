@@ -10,11 +10,8 @@ from app.core.auth import (
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
+from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
-from app.utils.utils import (
-    get_user_name_from_tg_id,
-    send_message_by_url,
-)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -81,7 +78,7 @@ async def submit_donation_record(
                 logger.warning(f"发送捐赠通知失败: {e!s}")
 
             # 检查并授予至尊贡献者勋章（异步后台任务）
-            from app.databases.db_func import (
+            from app.domains.badge_awards.jobs import (
                 check_and_award_supreme_contributor_badge,
             )
 

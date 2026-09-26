@@ -134,7 +134,7 @@ def weekly_report(weeks: int) -> None:
     amplifying = False
     spin_ev = 0.0
     try:
-        from app.webapp.routers.activities.luckywheel import get_wheel_config
+        from app.domains.luckywheel.router import get_wheel_config
 
         config = get_wheel_config()
         for item in config.items:
