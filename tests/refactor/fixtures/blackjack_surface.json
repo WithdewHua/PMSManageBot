@@ -2731,7 +2731,7 @@
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
+        "module": "app.domains.gift_pack.repository.conditions",
         "module_target": "app.domains.blackjack",
         "resolved": true,
         "scope": "module",

@@ -137,6 +137,9 @@
 **配套工作**：
 
 - **基线键**：搬移会移动基线键，由脚本按搬移映射把旧的 `path|line` 改写为新位置。脚本还要校验两点：条目总数不变；按 `(owner, kind, source_domain, target_domain, target/symbol)` 统计的多重集合不变。
+  - 搬移映射是 `scripts/refactor/baseline_moves.toml`：每个源文件逐符号登记新模块（模块级条目用 `package_level` 声明所属包，因为同一份导入会按使用位置散到多个模块），目标反过来与 `mapping.toml` 的 `planned_target` 逐条对比。
+  - **例外（一个子主题共用同一个模型的导入）**：拆成两个 mixin 后，两个子主题各自要用同一个外域模型时，一次导入必然变成两条边。这种增加只能在搬移映射里用 `[[addition]]` 显式声明，并且必须点名它重复的那条原条目；脚本校验两者身份相同、原条目确实在旧基线里，新条目继承原条目的 `owner`。除声明之外任何条目增减都被拒绝。
+  - **组合类声明**：`mapping.toml` 新增 `[repository_mixins]`，按包登记组合的 mixin 类名。`verify.py` 用它把搬移后的类成员按“定义类”归位（不再依赖 `part_<n>` 命名），并校验声明的 mixin 真实存在；成员具体落在哪个子主题模块，由 `tests/refactor/test_gift_pack_split.py` 按 `planned_target` 固定。
 - **21 点冻结夹具**：`tests/refactor/fixtures/blackjack_surface.json` 和 `scripts/refactor/blackjack_inventory.json` 如果届时仍在，就在同一个提交里按映射更新，diff 只允许路径变化。
 - **序号模块检查**：在 `tests/architecture` 新增一项，`src/app/domains/**/part_<数字>.py` 出现即失败。在 `baseline.json` 新增 `numbered_modules` 类别，登记 `prediction/repository/part_1.py`、`part_2.py`，负责变更为 `promote-activity-domains`。只减不增的规则与其他类别相同。
 - **文档**：更新 `docs/architecture.md` 的提升模板，写明三条：角色文件改成包时按子主题拆分；搬移和语义改造分开提交；禁止序号模块。

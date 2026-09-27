@@ -261,303 +261,65 @@
         "module": "app.domains.gift_pack.repository",
         "resolved": true,
         "scope": "module",
-        "target": "json"
-      },
-      {
-        "kind": "import",
-        "module": "app.domains.gift_pack.repository",
-        "resolved": true,
-        "scope": "module",
         "target": "threading"
       },
       {
         "kind": "from",
         "module": "app.domains.gift_pack.repository",
-        "module_target": "sqlalchemy",
+        "module_target": "app.domains.gift_pack.repository.claims",
         "resolved": true,
         "scope": "module",
-        "target": "sqlalchemy.select"
+        "target": "app.domains.gift_pack.repository.claims._GiftPackRepositoryClaims"
       },
       {
         "kind": "from",
         "module": "app.domains.gift_pack.repository",
-        "module_target": "app.domains.gift_pack.models",
+        "module_target": "app.domains.gift_pack.repository.conditions",
         "resolved": true,
         "scope": "module",
-        "target": "app.domains.gift_pack.models.GiftPack"
+        "target": "app.domains.gift_pack.repository.conditions._GiftPackRepositoryConditions"
       },
       {
         "kind": "from",
         "module": "app.domains.gift_pack.repository",
-        "module_target": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.gift_pack.repository.notices",
         "resolved": true,
         "scope": "module",
-        "target": "app.domains.gift_pack.repository.part_1._GiftPackRepositoryPart1"
+        "target": "app.domains.gift_pack.repository.notices._GiftPackRepositoryNotices"
       },
       {
         "kind": "from",
         "module": "app.domains.gift_pack.repository",
-        "module_target": "app.domains.gift_pack.repository.part_2",
+        "module_target": "app.domains.gift_pack.repository.packs",
         "resolved": true,
         "scope": "module",
-        "target": "app.domains.gift_pack.repository.part_2._GiftPackRepositoryPart2"
+        "target": "app.domains.gift_pack.repository.packs._GiftPackRepositoryPacks"
       },
       {
         "kind": "from",
         "module": "app.domains.gift_pack.repository",
-        "module_target": "app.domains.gift_pack.repository.part_3",
+        "module_target": "app.domains.gift_pack.repository.rewards",
         "resolved": true,
         "scope": "module",
-        "target": "app.domains.gift_pack.repository.part_3._GiftPackRepositoryPart3"
+        "target": "app.domains.gift_pack.repository.rewards._GiftPackRepositoryRewards"
       },
       {
         "kind": "import",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "resolved": true,
-        "scope": "module",
-        "target": "time"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "datetime",
-        "resolved": true,
-        "scope": "module",
-        "target": "datetime.UTC"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "datetime",
-        "resolved": true,
-        "scope": "module",
-        "target": "datetime.datetime"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "typing",
-        "resolved": true,
-        "scope": "module",
-        "target": "typing.ClassVar"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "uuid",
-        "resolved": true,
-        "scope": "module",
-        "target": "uuid.uuid4"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "sqlalchemy",
-        "resolved": true,
-        "scope": "module",
-        "target": "sqlalchemy.distinct"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "sqlalchemy",
-        "resolved": true,
-        "scope": "module",
-        "target": "sqlalchemy.func"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "sqlalchemy",
-        "resolved": true,
-        "scope": "module",
-        "target": "sqlalchemy.select"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.core.config",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.config.settings"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.auction.models",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.auction.models.AuctionBids"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.badges.models",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.badges.models.UserBadge"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.blackjack",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.service"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.credits",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.credits.repository"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.credits",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.credits.service"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.credits.types",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.credits.types.CreditAccount"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.gift_pack.models",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.gift_pack.models.GiftPack"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.gift_pack.models",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.gift_pack.models.GiftPackUserState"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.identity.models",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.identity.models.EmbyUser"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.identity.models",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.identity.models.PlexUser"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.identity.models",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.identity.models.Statistics"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.invitation.models",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.invitation.models.Invitation"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.luckywheel",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.luckywheel.repository"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.luckywheel.models",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.luckywheel.models.WheelStats"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.prediction.models",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.prediction.models.PredictionBet"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.treasure.models",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.treasure.models.TreasureParticipation"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.gift_pack.repository",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.gift_pack.repository.GIFT_PACK_REWARD_TYPES"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.premium.service",
-        "resolved": true,
-        "scope": "function",
-        "target": "app.domains.premium.service.update_premium_status"
-      },
-      {
-        "kind": "import",
-        "module": "app.domains.gift_pack.repository.part_2",
+        "module": "app.domains.gift_pack.repository.claims",
         "resolved": true,
         "scope": "module",
         "target": "json"
       },
       {
         "kind": "import",
-        "module": "app.domains.gift_pack.repository.part_2",
+        "module": "app.domains.gift_pack.repository.claims",
         "resolved": true,
         "scope": "module",
         "target": "time"
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_2",
-        "module_target": "sqlalchemy",
-        "resolved": true,
-        "scope": "module",
-        "target": "sqlalchemy.delete"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_2",
-        "module_target": "sqlalchemy",
-        "resolved": true,
-        "scope": "module",
-        "target": "sqlalchemy.func"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_2",
+        "module": "app.domains.gift_pack.repository.claims",
         "module_target": "sqlalchemy",
         "resolved": true,
         "scope": "module",
@@ -565,23 +327,7 @@
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_2",
-        "module_target": "sqlalchemy",
-        "resolved": true,
-        "scope": "module",
-        "target": "sqlalchemy.update"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_2",
-        "module_target": "app.core.config",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.config.settings"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_2",
+        "module": "app.domains.gift_pack.repository.claims",
         "module_target": "app.core.db",
         "resolved": true,
         "scope": "module",
@@ -589,7 +335,7 @@
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_2",
+        "module": "app.domains.gift_pack.repository.claims",
         "module_target": "app.core.log",
         "resolved": true,
         "scope": "module",
@@ -597,15 +343,7 @@
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_2",
-        "module_target": "app.domains.badges.models",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.badges.models.Badge"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_2",
+        "module": "app.domains.gift_pack.repository.claims",
         "module_target": "app.domains.gift_pack.models",
         "resolved": true,
         "scope": "module",
@@ -613,7 +351,7 @@
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_2",
+        "module": "app.domains.gift_pack.repository.claims",
         "module_target": "app.domains.gift_pack.models",
         "resolved": true,
         "scope": "module",
@@ -621,23 +359,7 @@
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_2",
-        "module_target": "app.domains.gift_pack.repository",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.gift_pack.repository._GIFT_PACK_PRIVILEGED_CODES_LOCK"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_2",
-        "module_target": "app.domains.gift_pack.repository",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.gift_pack.repository.gift_pack_rewards_require_binding"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_2",
+        "module": "app.domains.gift_pack.repository.claims",
         "module_target": "app.domains.premium.service",
         "resolved": true,
         "scope": "function",
@@ -645,7 +367,7 @@
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_2",
+        "module": "app.domains.gift_pack.repository.claims",
         "module_target": "app.domains.premium.service",
         "resolved": true,
         "scope": "function",
@@ -653,21 +375,46 @@
       },
       {
         "kind": "import",
-        "module": "app.domains.gift_pack.repository.part_3",
+        "module": "app.domains.gift_pack.repository.conditions",
         "resolved": true,
         "scope": "module",
         "target": "json"
       },
       {
-        "kind": "import",
-        "module": "app.domains.gift_pack.repository.part_3",
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "datetime",
         "resolved": true,
         "scope": "module",
-        "target": "time"
+        "target": "datetime.UTC"
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_3",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "datetime",
+        "resolved": true,
+        "scope": "module",
+        "target": "datetime.datetime"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "typing",
+        "resolved": true,
+        "scope": "module",
+        "target": "typing.ClassVar"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.distinct"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.conditions",
         "module_target": "sqlalchemy",
         "resolved": true,
         "scope": "module",
@@ -675,7 +422,7 @@
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_3",
+        "module": "app.domains.gift_pack.repository.conditions",
         "module_target": "sqlalchemy",
         "resolved": true,
         "scope": "module",
@@ -683,31 +430,39 @@
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_3",
-        "module_target": "sqlalchemy",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "app.core.config",
         "resolved": true,
         "scope": "module",
-        "target": "sqlalchemy.update"
+        "target": "app.core.config.settings"
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_3",
-        "module_target": "app.core.db",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "app.domains.auction.models",
         "resolved": true,
         "scope": "module",
-        "target": "app.core.db.get_session"
+        "target": "app.domains.auction.models.AuctionBids"
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_3",
-        "module_target": "app.core.log",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "app.domains.badges.models",
         "resolved": true,
         "scope": "module",
-        "target": "app.core.log.logger"
+        "target": "app.domains.badges.models.UserBadge"
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_3",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "app.domains.blackjack",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.service"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.conditions",
         "module_target": "app.domains.gift_pack.models",
         "resolved": true,
         "scope": "module",
@@ -715,7 +470,7 @@
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_3",
+        "module": "app.domains.gift_pack.repository.conditions",
         "module_target": "app.domains.gift_pack.models",
         "resolved": true,
         "scope": "module",
@@ -723,7 +478,7 @@
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_3",
+        "module": "app.domains.gift_pack.repository.conditions",
         "module_target": "app.domains.identity.models",
         "resolved": true,
         "scope": "module",
@@ -731,7 +486,7 @@
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_3",
+        "module": "app.domains.gift_pack.repository.conditions",
         "module_target": "app.domains.identity.models",
         "resolved": true,
         "scope": "module",
@@ -739,7 +494,7 @@
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_3",
+        "module": "app.domains.gift_pack.repository.conditions",
         "module_target": "app.domains.identity.models",
         "resolved": true,
         "scope": "module",
@@ -747,26 +502,365 @@
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_3",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "app.domains.invitation.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.invitation.models.Invitation"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "app.domains.luckywheel.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.luckywheel.models.WheelStats"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "app.domains.prediction.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.prediction.models.PredictionBet"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "app.domains.treasure.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.treasure.models.TreasureParticipation"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "app.domains.gift_pack.repository",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.repository._format_gift_pack_number"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "app.domains.gift_pack.repository",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.repository.gift_pack_rewards_require_binding"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.repository.notices",
+        "resolved": true,
+        "scope": "module",
+        "target": "json"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.repository.notices",
+        "resolved": true,
+        "scope": "module",
+        "target": "time"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.notices",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.select"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.notices",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.update"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.notices",
+        "module_target": "app.core.db",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.db.get_session"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.notices",
+        "module_target": "app.core.log",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.log.logger"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.notices",
+        "module_target": "app.domains.gift_pack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.models.GiftPack"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.notices",
+        "module_target": "app.domains.gift_pack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.models.GiftPackUserState"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.repository.packs",
+        "resolved": true,
+        "scope": "module",
+        "target": "json"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.repository.packs",
+        "resolved": true,
+        "scope": "module",
+        "target": "time"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.packs",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.delete"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.packs",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.func"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.packs",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.select"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.packs",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.update"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.packs",
+        "module_target": "app.core.db",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.db.get_session"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.packs",
+        "module_target": "app.core.log",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.log.logger"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.packs",
+        "module_target": "app.domains.badges.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.badges.models.Badge"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.packs",
+        "module_target": "app.domains.gift_pack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.models.GiftPack"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.packs",
+        "module_target": "app.domains.gift_pack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.models.GiftPackUserState"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.packs",
+        "module_target": "app.domains.identity.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.identity.models.EmbyUser"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.packs",
+        "module_target": "app.domains.identity.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.identity.models.PlexUser"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.packs",
+        "module_target": "app.domains.identity.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.identity.models.Statistics"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.packs",
         "module_target": "app.domains.gift_pack.repository",
         "resolved": true,
         "scope": "module",
         "target": "app.domains.gift_pack.repository.GIFT_PACK_REWARD_TYPES"
       },
       {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.packs",
+        "module_target": "app.domains.gift_pack.repository.conditions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.repository.conditions._GiftPackRepositoryConditions"
+      },
+      {
         "kind": "import",
-        "module": "app.domains.gift_pack.repository.part_3",
+        "module": "app.domains.gift_pack.repository.packs",
         "resolved": true,
         "scope": "function",
         "target": "re"
       },
       {
         "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_3",
+        "module": "app.domains.gift_pack.repository.packs",
         "module_target": "app.core.telegram",
         "resolved": true,
         "scope": "function",
         "target": "app.core.telegram.load_tg_user_info_cache"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.repository.rewards",
+        "resolved": true,
+        "scope": "module",
+        "target": "time"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "typing",
+        "resolved": true,
+        "scope": "module",
+        "target": "typing.ClassVar"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "uuid",
+        "resolved": true,
+        "scope": "module",
+        "target": "uuid.uuid4"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.select"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "app.core.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.config.settings"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "app.domains.credits",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.credits.repository"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "app.domains.credits",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.credits.service"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "app.domains.credits.types",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.credits.types.CreditAccount"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "app.domains.identity.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.identity.models.EmbyUser"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "app.domains.identity.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.identity.models.PlexUser"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "app.domains.invitation.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.invitation.models.Invitation"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "app.domains.luckywheel",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.luckywheel.repository"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "app.domains.gift_pack.repository",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.repository._GIFT_PACK_PRIVILEGED_CODES_LOCK"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "app.domains.premium.service",
+        "resolved": true,
+        "scope": "function",
+        "target": "app.domains.premium.service.update_premium_status"
       },
       {
         "kind": "import",

@@ -107,9 +107,9 @@ BLACKJACK_SERVICE_REBINDINGS = {
 # service boundary. The edges predate promote-blackjack-domain (their B3 baseline
 # entries carried no b3_source_id), so they keep their original owning change.
 REVIEWED_BOUNDARY_REPLACEMENTS = {
-    "call|src/app/domains/gift_pack/repository/part_1.py|143|imported|blackjack|count_eligible_cash_hands_tx": "promote-gift-pack-domain",
-    "call|src/app/domains/gift_pack/repository/part_1.py|198|imported|blackjack|count_tournament_entries_tx": "promote-gift-pack-domain",
-    "import|src/app/domains/gift_pack/repository/part_1.py|11|app.domains.blackjack.service|service": "promote-gift-pack-domain",
+    "call|src/app/domains/gift_pack/repository/conditions.py|129|imported|blackjack|count_eligible_cash_hands_tx": "promote-gift-pack-domain",
+    "call|src/app/domains/gift_pack/repository/conditions.py|184|imported|blackjack|count_tournament_entries_tx": "promote-gift-pack-domain",
+    "import|src/app/domains/gift_pack/repository/conditions.py|12|app.domains.blackjack.service|service": "promote-gift-pack-domain",
     "call|src/app/domains/rankings/repository.py|189|imported|blackjack|get_blackjack_skill_ranks": "promote-remaining-domains",
     "call|src/app/domains/rankings/repository.py|193|imported|blackjack|get_blackjack_max_win_rank": "promote-remaining-domains",
     "import|src/app/domains/rankings/repository.py|7|app.domains.blackjack.service|service": "promote-remaining-domains",

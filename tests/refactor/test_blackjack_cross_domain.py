@@ -22,7 +22,7 @@ def _domain_python_files() -> list[Path]:
 def test_cross_domain_callers_use_blackjack_service_boundaries() -> None:
     expected = {
         "src/app/domains/badge_awards/jobs.py": "blackjack_service",
-        "src/app/domains/gift_pack/repository/part_1.py": "blackjack_service",
+        "src/app/domains/gift_pack/repository/conditions.py": "blackjack_service",
         "src/app/domains/rankings/repository.py": "blackjack_service",
     }
     for relative, binding in expected.items():

@@ -1,7 +1,8 @@
-import time
+"""礼包 repository：用户上下文、条件与受众的取数和求值（由 part_1–part_3 与门面机械拆分）。"""
+
+import json
 from datetime import UTC, datetime
 from typing import ClassVar
-from uuid import uuid4
 
 from sqlalchemy import distinct, func, select
 
@@ -9,30 +10,20 @@ from app.core.config import settings
 from app.domains.auction.models import AuctionBids
 from app.domains.badges.models import UserBadge
 from app.domains.blackjack import service as blackjack_service
-from app.domains.credits import repository as credits_repository
-from app.domains.credits import service as credits_service
-from app.domains.credits.types import CreditAccount
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 from app.domains.invitation.models import Invitation
-from app.domains.luckywheel import repository as luckywheel_repository
 from app.domains.luckywheel.models import WheelStats
 from app.domains.prediction.models import PredictionBet
 from app.domains.treasure.models import TreasureParticipation
 
-from . import GIFT_PACK_REWARD_TYPES
+from . import (
+    _format_gift_pack_number,
+    gift_pack_rewards_require_binding,
+)
 
 
-class _GiftPackRepositoryPart1:
-    @staticmethod
-    def _gift_pack_reward_label(reward: dict) -> str:
-        """把一个奖励项渲染成人类可读的短语，如「100 积分」「7 天 Premium」"""
-        reward_type = reward.get("type")
-        meta = GIFT_PACK_REWARD_TYPES.get(reward_type)
-        if meta is None:
-            return str(reward_type)
-        return meta["label"](reward)
-
+class _GiftPackRepositoryConditions:
     @staticmethod
     def _gift_pack_local_date(timestamp: int) -> str:
         """按 settings.TZ 把时间戳折算成 YYYY-MM-DD
@@ -117,11 +108,6 @@ class _GiftPackRepositoryPart1:
             "_tg_id": tg_id,
             "_metric_cache": {},
         }
-
-    @staticmethod
-    def _gift_pack_phase_ref(pack: GiftPack, now: int) -> int:
-        """Freeze timestamped tasks at their deadline (or the pack's end)."""
-        return min(int(now), int(pack.task_end_at or pack.end_at))
 
     @staticmethod
     def _count_gift_pack_wheel_spins(
@@ -442,133 +428,6 @@ class _GiftPackRepositoryPart1:
 
         return (not reasons), reasons
 
-    def _grant_gift_pack_rewards(
-        self, session, tg_id: int, rewards: list[dict], context: dict
-    ) -> tuple[list[dict], list[str], list[str], list[str]]:
-        """在调用方的事务内发放全部奖励项
-
-        任一项失败即抛出异常，由调用方回滚整个事务。所有分支都复用调用方的
-        session；媒体服务器同步提交后执行，特权码配置由领取方在最后一次
-        数据库 flush 后、事务提交前写入。
-
-        :return: (发放快照,
-                  待事务提交后同步 Premium 媒体服务器权限的服务列表,
-                  待事务提交后同步下载权限到媒体服务器的服务列表,
-                  待事务提交前写入配置的特权邀请码列表)
-        """
-        # 延迟导入：app.premium 依赖本模块，模块级导入会形成循环
-        from app.domains.premium.service import update_premium_status
-
-        snapshot: list[dict] = []
-        pending_permission_sync: list[str] = []
-        pending_download_sync: list[str] = []
-        pending_privileged_codes: list[str] = []
-
-        for reward in rewards:
-            reward_type = reward.get("type")
-            label = self._gift_pack_reward_label(reward)
-
-            if reward_type == "credits":
-                amount = float(reward.get("amount") or 0)
-                self._lock_gift_pack_stats(session, tg_id)
-                mutation = credits_repository.add_tx(
-                    session, CreditAccount.tg(int(tg_id)), amount
-                )
-                credits_service.register_cache_invalidation(session, mutation)
-                snapshot.append(
-                    {
-                        "type": "credits",
-                        "label": label,
-                        "success": True,
-                        "amount": amount,
-                        "balance_after": mutation.after,
-                    }
-                )
-
-            elif reward_type == "premium_days":
-                days = int(reward.get("days") or 0)
-                services = context["bound_services"]
-                if not services:
-                    # 正常情况下已被 require_binding 资格拦住，这里是最后一道防线
-                    raise ValueError("请先绑定媒体账号后再领取")
-                for service in services:
-                    # 传入 session 复用外层事务，使 Premium 写入与领取记录同生共死
-                    new_expiry = update_premium_status(
-                        self, tg_id, service, days, session=session
-                    )
-                    if new_expiry is None:
-                        # 永久会员：跳过延长，但不阻断领取
-                        snapshot.append(
-                            {
-                                "type": "premium_days",
-                                "label": label,
-                                "success": True,
-                                "days": days,
-                                "service": service,
-                                "skipped": "lifetime",
-                                "message": f"{service.capitalize()} 为永久会员，Premium 天数未生效",
-                            }
-                        )
-                    else:
-                        snapshot.append(
-                            {
-                                "type": "premium_days",
-                                "label": label,
-                                "success": True,
-                                "days": days,
-                                "service": service,
-                                "new_expiry": new_expiry.isoformat(),
-                            }
-                        )
-                        pending_permission_sync.append(service)
-
-            elif reward_type == "wheel_free_spins":
-                snapshot.append(
-                    self._grant_wheel_free_spins_tx(session, tg_id, reward, label)
-                )
-
-            elif reward_type == "tournament_wallet":
-                snapshot.append(
-                    self._grant_tournament_wallet_tx(session, tg_id, reward, label)
-                )
-
-            elif reward_type in ("line_schedule_unlock", "download_unlock"):
-                services = context["bound_services"]
-                if not services:
-                    # 正常情况下已被 require_binding 资格拦住，这里是最后一道防线
-                    raise ValueError("请先绑定媒体账号后再领取")
-                feature = (
-                    "line_schedule"
-                    if reward_type == "line_schedule_unlock"
-                    else "download"
-                )
-                for service in services:
-                    item = self._grant_feature_unlock_tx(
-                        session, tg_id, service, feature
-                    )
-                    item["type"] = reward_type
-                    item["label"] = label
-                    snapshot.append(item)
-                    if feature == "download" and not item.get("skipped"):
-                        pending_download_sync.append(service)
-
-            elif reward_type == "invite_codes":
-                snapshot.append(
-                    self._grant_invite_codes_tx(
-                        session, tg_id, reward, label, pending_privileged_codes
-                    )
-                )
-
-            else:
-                raise ValueError(f"不支持的奖励类型: {reward_type}")
-
-        return (
-            snapshot,
-            pending_permission_sync,
-            pending_download_sync,
-            pending_privileged_codes,
-        )
-
     @staticmethod
     def _lock_gift_pack_stats(session, tg_id: int) -> Statistics:
         """锁住用户的 Statistics 行（积分与争霸赛余额分支共用）
@@ -587,142 +446,135 @@ class _GiftPackRepositoryPart1:
         return stats
 
     @staticmethod
-    def _grant_wheel_free_spins_tx(
-        session, tg_id: int, reward: dict, label: str
-    ) -> dict:
-        """发放礼包来源的免费大转盘机会（source='gift_pack'）
-
-        与 21 点来源写入同一张表：消耗、概览、到期提醒、角标无需改动；
-        周上限、获得通知与对账按 source == 'blackjack' 过滤，不受影响。
-        """
-        count = int(reward.get("count") or 0)
-        expiry_days = int(reward.get("expiry_days") or 0)
-        if count <= 0 or expiry_days <= 0:
-            raise ValueError("免费机会的次数与有效天数必须为正")
-        now_ms = int(time.time() * 1000)
-        expires_at_ms = now_ms + expiry_days * 86400 * 1000
-        luckywheel_repository.grant_free_spins_tx(
-            session,
-            tg_id,
-            count,
-            source="gift_pack",
-            granted_at_ms=now_ms,
-            expires_at_ms=expires_at_ms,
-            cost_credits=0,
-            wheel_stats_source="gift_pack_free",
-        )
-        return {
-            "type": "wheel_free_spins",
-            "label": label,
-            "success": True,
-            "count": count,
-            "days": expiry_days,
-            "expires_at": expires_at_ms // 1000,
-        }
-
-    def _grant_tournament_wallet_tx(
-        self, session, tg_id: int, reward: dict, label: str
-    ) -> dict:
-        """把数额计入争霸赛余额（不计入积分），复用积分分支的行锁"""
-        amount = float(reward.get("amount") or 0)
-        if amount <= 0:
-            raise ValueError("争霸赛余额数量必须为正")
-        stats = self._lock_gift_pack_stats(session, tg_id)
-        stats.tournament_wallet_credits = round(
-            float(stats.tournament_wallet_credits or 0) + amount, 2
-        )
-        return {
-            "type": "tournament_wallet",
-            "label": label,
-            "success": True,
-            "amount": amount,
-            "balance_after": stats.tournament_wallet_credits,
-        }
-
-    # 功能解锁的永久标记列：(模型, 标记列, 解锁时间列)
-    _GIFT_PACK_UNLOCK_COLUMNS: ClassVar[dict] = {
-        ("line_schedule", "plex"): (
-            PlexUser,
-            "line_schedule_unlocked",
-            "line_schedule_unlock_time",
-        ),
-        ("line_schedule", "emby"): (
-            EmbyUser,
-            "line_schedule_unlocked",
-            "line_schedule_unlock_time",
-        ),
-        ("download", "plex"): (PlexUser, "sync_unlocked", "sync_unlock_time"),
-        ("download", "emby"): (EmbyUser, "download_unlocked", "download_unlock_time"),
-    }
-
-    def _grant_feature_unlock_tx(
-        self, session, tg_id: int, service: str, feature: str
-    ) -> dict:
-        """在调用方事务内为一个服务永久解锁线路调度 / 下载权限（只写数据库）
-
-        「已拥有」直接读永久解锁标记列，而不是调 check_download_unlock：
-        后者把 Premium 也算作已解锁，按它判断会让 Premium 用户永远拿不到
-        永久解锁。已永久解锁的服务记为 skipped，不阻断领取。
-        """
-        key = (feature, service)
-        if key not in self._GIFT_PACK_UNLOCK_COLUMNS:
-            raise ValueError(f"不支持的解锁类型: {feature}/{service}")
-        model, flag_col, time_col = self._GIFT_PACK_UNLOCK_COLUMNS[key]
-        feature_name = "线路调度" if feature == "line_schedule" else "下载权限"
-        service_name = service.capitalize()
-
-        user = (
-            session.execute(select(model).where(model.tg_id == tg_id).with_for_update())
-            .scalars()
-            .one_or_none()
-        )
-        if user is None:
-            raise ValueError(f"未找到绑定的 {service_name} 账号")
-
-        if int(getattr(user, flag_col) or 0) == 1:
-            return {
-                "success": True,
-                "service": service,
-                "skipped": "already_unlocked",
-                "message": f"{service_name} 已解锁{feature_name}，本次未变更",
-            }
-
-        setattr(user, flag_col, 1)
-        setattr(user, time_col, int(time.time()))
-        return {
-            "success": True,
-            "service": service,
-            "message": f"{service_name} 已永久解锁{feature_name}",
-        }
+    def _gift_pack_conditions_with_binding(
+        requirements: list[dict], rewards: list[dict]
+    ) -> list[dict]:
+        result = list(requirements or [])
+        if gift_pack_rewards_require_binding(rewards) and not any(
+            item["type"] == "bound" for item in result
+        ):
+            result.append({"type": "bound", "service": "any"})
+        return result
 
     @staticmethod
-    def _grant_invite_codes_tx(
-        session,
-        tg_id: int,
-        reward: dict,
-        label: str,
-        pending_privileged_codes: list[str],
-    ) -> dict:
-        """在调用方事务内为用户生成邀请码（Invitation 行）
+    def _gift_pack_audience_size(audience: list[dict]) -> int | None:
+        include = [
+            set(item["tg_ids"])
+            for item in audience
+            if item["type"] == "user_list" and item["mode"] == "include"
+        ]
+        if not include:
+            return None
+        members = set.intersection(*include)
+        for item in audience:
+            if item["type"] == "user_list" and item["mode"] == "exclude":
+                members.difference_update(item["tg_ids"])
+        return len(members)
 
-        与领取同生共死：事务回滚时不会留下可用的邀请码。
-        uuid4().hex 与既有码同为 32 位十六进制，不会重复。
-        """
-        count = int(reward.get("count") or 0)
-        if count <= 0:
-            raise ValueError("邀请码数量必须为正")
-        privileged = bool(reward.get("privileged"))
-        codes = [uuid4().hex for _ in range(count)]
-        for code in codes:
-            session.add(Invitation(code=code, owner=tg_id, is_used=0))
-        if privileged:
-            pending_privileged_codes.extend(codes)
-        session.flush()
-        return {
-            "type": "invite_codes",
-            "label": label,
-            "success": True,
-            "count": count,
-            "privileged": privileged,
-            "codes": codes,
+    @staticmethod
+    def _legacy_gift_pack_requirements(legacy: dict) -> list[dict]:
+        result = []
+        if legacy.get("min_credits") is not None:
+            result.append({"type": "credits", "min": legacy["min_credits"]})
+        if legacy.get("require_premium"):
+            result.append({"type": "premium", "state": "active"})
+        if legacy.get("require_binding"):
+            result.append({"type": "bound", "service": legacy["require_binding"]})
+        return result
+
+    @staticmethod
+    def _resolve_gift_pack_conditions(pack: GiftPack) -> tuple[list[dict], list[dict]]:
+        """Read new condition JSON, or adapt an unmigrated legacy eligibility row."""
+        audience = json.loads(pack.audience) if pack.audience else []
+        if pack.requirements:
+            requirements = json.loads(pack.requirements)
+        else:
+            legacy = json.loads(pack.eligibility) if pack.eligibility else {}
+            requirements = []
+            if legacy.get("min_credits") is not None:
+                requirements.append({"type": "credits", "min": legacy["min_credits"]})
+            if legacy.get("require_premium"):
+                requirements.append({"type": "premium", "state": "active"})
+            if legacy.get("require_binding"):
+                requirements.append(
+                    {"type": "bound", "service": legacy["require_binding"]}
+                )
+        return audience, requirements
+
+    @staticmethod
+    def _gift_pack_condition_label(item: dict) -> str:
+        """Keep all user-facing and admin condition wording in one place."""
+        kind = item["type"]
+        labels = {
+            "wheel_spins": "付费转盘" if item.get("paid_only", True) else "转盘",
+            "blackjack_hands": "21 点",
+            "treasure_issues": "夺宝参与期数",
+            "prediction_bets": "大预言家下注",
+            "auction_participations": "竞拍参与场数",
+            "tournament_entries": "锦标赛参赛",
+            "invitees": "邀请人数",
+            "watched_hours": "累计观看时长（小时）",
         }
+        if kind in labels:
+            window = item.get("window") or {"kind": "all"}
+            prefix = (
+                "礼包开始后"
+                if window["kind"] == "pack"
+                else f"最近 {window['days']} 天 "
+                if window["kind"] == "days"
+                else ""
+            )
+            suffix = ""
+            if kind == "blackjack_hands" and item.get("min_bet") is not None:
+                suffix = f"（每手 ≥ {_format_gift_pack_number(item['min_bet'])}）"
+            return f"{prefix}{labels[kind]}{suffix}"
+        if kind == "credits":
+            if item.get("max") is not None:
+                if item.get("min") is not None:
+                    return f"积分（{_format_gift_pack_number(item['min'])}–{_format_gift_pack_number(item['max'])}）"
+                return f"积分（不超过 {_format_gift_pack_number(item['max'])}）"
+            return "积分"
+        if kind == "premium":
+            return (
+                "需要 Premium 身份" if item["state"] == "active" else "无 Premium 身份"
+            )
+        if kind == "bound":
+            service = item.get("service", "any")
+            return (
+                f"绑定 {service.capitalize()} 账号"
+                if service != "any"
+                else "绑定 Plex 或 Emby 账号"
+            )
+        if kind == "badge":
+            return f"持有勋章 #{item['badge_id']}"
+        if kind == "claimed_pack":
+            return f"已领取礼包 #{item['pack_id']}"
+        if kind == "user_list":
+            return "包含名单" if item["mode"] == "include" else "排除名单"
+        raise ValueError(f"不支持的礼包条件: {kind}")
+
+    @staticmethod
+    def _gift_pack_condition_summary(items: list[dict]) -> str:
+        def label(item: dict) -> str:
+            if item["type"] == "any_of":
+                return (
+                    "（" + " 或 ".join(label(child) for child in item["items"]) + "）"
+                )
+            text = _GiftPackRepositoryConditions._gift_pack_condition_label(item)
+            target = item.get("min")
+            if target is not None:
+                number = _format_gift_pack_number(target)
+                unit = {
+                    "wheel_spins": " 次",
+                    "blackjack_hands": " 手",
+                    "treasure_issues": " 期",
+                    "prediction_bets": " 次",
+                    "auction_participations": " 场",
+                    "tournament_entries": " 次",
+                    "invitees": " 人",
+                    "watched_hours": " 小时",
+                }.get(item["type"])
+                text += f" {number}{unit}" if unit else f" ≥ {number}"
+            return text
+
+        return " 且 ".join(label(item) for item in items or [])
