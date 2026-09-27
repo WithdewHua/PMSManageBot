@@ -82,6 +82,19 @@ class Addition:
     reason: str
 
 
+@dataclass(frozen=True)
+class Removal:
+    """A reviewed baseline entry a move makes disappear.
+
+    Two source modules can import the same target for their own members; when
+    those members end up in one sub-topic module, only one import site is left.
+    The edge itself must still exist somewhere in the new scan.
+    """
+
+    key: str
+    reason: str
+
+
 def load_additions(path: Path) -> dict[str, Addition]:
     """Parse declared additions (empty when the file has none)."""
     data = tomllib.loads(path.read_text(encoding="utf-8"))
@@ -96,6 +109,21 @@ def load_additions(path: Path) -> dict[str, Addition]:
             raise BaselineMoveError(f"{path} 中重复登记了 addition {key}")
         additions[key] = Addition(key=key, source_key=source_key, reason=reason)
     return additions
+
+
+def load_removals(path: Path) -> dict[str, Removal]:
+    """Parse declared removals (empty when the file has none)."""
+    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    removals: dict[str, Removal] = {}
+    for item in data.get("removal", []):
+        key = str(item.get("key", ""))
+        reason = str(item.get("reason", "")).strip()
+        if not key or not reason:
+            raise BaselineMoveError(f"{path} 的 removal 缺少 key/reason")
+        if key in removals:
+            raise BaselineMoveError(f"{path} 中重复登记了 removal {key}")
+        removals[key] = Removal(key=key, reason=reason)
+    return removals
 
 
 def load_moves(path: Path) -> dict[str, MoveRecord]:
@@ -163,17 +191,36 @@ def _planned_targets(mapping_path: Path) -> dict[str, str]:
     return planned
 
 
+def _in_package_predicate(
+    move: MoveRecord | None,
+) -> Callable[[dict[str, Any]], bool] | None:
+    """Prefer entries sitting in the package a moved module belongs to."""
+    if move is None or not move.package_level:
+        return None
+    package = move.package_level
+
+    def in_package(entry: dict[str, Any]) -> bool:
+        return Path(str(entry.get("path"))).parent.as_posix() == package
+
+    return in_package
+
+
 def _take_match(
     bucket: list[dict[str, Any]],
     symbol: str | None,
     new_symbol: Callable[[str, int], str | None] | None,
+    prefer: Callable[[dict[str, Any]], bool] | None = None,
 ) -> dict[str, Any]:
     """Pick the new entry belonging to the same function as the old one.
 
     Entries that share an identity (same kind, domains and target) are told
     apart by their enclosing symbol, so provenance such as ``b3_source_id``
-    keeps following the function it was audited for.
+    keeps following the function it was audited for. ``prefer`` breaks ties
+    between module-level entries: a moved import must be taken from the
+    declared package, not from an unrelated edge with the same target.
     """
+    if prefer is not None:
+        bucket.sort(key=lambda entry: (not prefer(entry), entry.get("path", "")))
     if new_symbol is not None:
         for index, candidate in enumerate(bucket):
             if new_symbol(candidate["path"], int(candidate["line"])) == symbol:
@@ -207,6 +254,7 @@ def rewrite_entries(
     planned_targets: dict[str, str] | None = None,
     read_new_source: Callable[[str], str] | None = None,
     additions: dict[str, Addition] | None = None,
+    removals: dict[str, Removal] | None = None,
 ) -> list[dict[str, Any]]:
     """Rewrite ``path``/``line``/``key`` while proving the move was reviewed.
 
@@ -224,7 +272,16 @@ def rewrite_entries(
     accepted: list[dict[str, Any]] = []
     for key, addition in (additions or {}).items():
         if key in old_by_key:
-            raise BaselineMoveError(f"addition 已经存在，无需声明：{key}")
+            # 已封存：只要仍有一条身份相同的“孪生边”，声明就依然成立
+            # （孪生边会在后续搬移里换 key，所以不盯 source_key）。
+            twins = [
+                entry
+                for entry in old
+                if entry["key"] != key and identity(entry) == identity(old_by_key[key])
+            ]
+            if not twins:
+                raise BaselineMoveError(f"addition 的孪生边已消失，声明过期：{key}")
+            continue
         added = new_by_key.get(key)
         if added is None:
             raise BaselineMoveError(f"addition 在新扫描里不存在：{key}")
@@ -240,6 +297,19 @@ def rewrite_entries(
         # 重复的边继承原条目的 owner；除 key/path/line 外其余元数据相同。
         accepted.append({**{k: v for k, v in original.items()}, **added})
         new = [entry for entry in new if entry["key"] != key]
+    dropped: list[dict[str, Any]] = []
+    for key, removal in (removals or {}).items():
+        original = old_by_key.get(key)
+        if original is None:
+            raise BaselineMoveError(f"removal 的条目不在旧基线里：{key}")
+        if key in new_by_key:
+            raise BaselineMoveError(f"removal 的条目在新扫描里还存在：{key}")
+        if not [entry for entry in new if identity(entry) == identity(original)]:
+            raise BaselineMoveError(
+                f"removal 使这条边彻底消失，不能只靠声明去掉：{key}（{removal.reason}）"
+            )
+        dropped.append(original)
+        old = [entry for entry in old if entry["key"] != key]
     old_symbol = _symbol_reader(read_source)
     new_symbol = _symbol_reader(read_new_source) if read_new_source else None
 
@@ -258,8 +328,9 @@ def rewrite_entries(
             raise BaselineMoveError(
                 f"未登记的多重集合变化：{identity(entry)} 在新扫描里没有对应条目"
             )
-        match = _take_match(bucket, symbol, new_symbol)
         move = moves.get(path) if isinstance(path, str) else None
+        prefer = _in_package_predicate(move)
+        match = _take_match(bucket, symbol, new_symbol, prefer=prefer)
         if move is None:
             if match.get("path") != path:
                 raise BaselineMoveError(
@@ -349,6 +420,7 @@ def main(argv: list[str] | None = None) -> int:
 
     moves = load_moves(args.moves)
     additions = load_additions(args.moves)
+    removals = load_removals(args.moves)
     baseline = load_baseline(args.baseline)
     current = scan_cross_domain_calls(PROJECT_ROOT)
     rewritten = rewrite_entries(
@@ -359,6 +431,7 @@ def main(argv: list[str] | None = None) -> int:
         _planned_targets(args.mapping),
         read_new_source=lambda path: (PROJECT_ROOT / path).read_text(encoding="utf-8"),
         additions=additions,
+        removals=removals,
     )
     baseline["cross_domain_calls"] = rewritten
     changed = sum(

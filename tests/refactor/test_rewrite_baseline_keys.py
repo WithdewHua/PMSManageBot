@@ -8,9 +8,11 @@ from scripts.refactor.rewrite_baseline_keys import (
     Addition,
     BaselineMoveError,
     MoveRecord,
+    Removal,
     enclosing_symbol,
     load_additions,
     load_moves,
+    load_removals,
     rewrite_entries,
 )
 
@@ -337,3 +339,80 @@ reason = "拆成两个 mixin"
     incomplete.write_text('[[addition]]\nkey = "x"\n', encoding="utf-8")
     with pytest.raises(BaselineMoveError, match="缺少 key/source_key/reason"):
         load_additions(incomplete)
+
+
+def test_declared_removal_merges_two_import_sites_into_one() -> None:
+    first = _entry(path=OLD_PATH, line=1, target="Invitation", kind="import")
+    second = _entry(path=OLD_PATH, line=2, target="Invitation", kind="import")
+    moves = {
+        OLD_PATH: MoveRecord(
+            source=OLD_PATH,
+            package_level="src/app/domains/gift_pack/repository",
+            symbols={},
+        )
+    }
+    merged = _entry(path=NEW_PATH, line=14, target="Invitation", kind="import")
+    removals = {second["key"]: Removal(second["key"], "两条导入合并成一条")}
+
+    with pytest.raises(BaselineMoveError, match="没有对应条目"):
+        rewrite_entries([first, second], [merged], moves, _read_source)
+
+    rewritten = rewrite_entries(
+        [first, second], [merged], moves, _read_source, removals=removals
+    )
+    assert [entry["key"] for entry in rewritten] == [merged["key"]]
+
+
+def test_declared_removal_cannot_make_an_edge_disappear() -> None:
+    first = _entry(path=OLD_PATH, line=1, target="Invitation", kind="import")
+    second = _entry(path=OLD_PATH, line=2, target="Invitation", kind="import")
+    with pytest.raises(BaselineMoveError, match="彻底消失"):
+        rewrite_entries(
+            [first, second],
+            [],
+            {},
+            _read_source,
+            removals={
+                first["key"]: Removal(first["key"], "x"),
+                second["key"]: Removal(second["key"], "x"),
+            },
+        )
+
+
+def test_declared_removal_must_match_the_baseline() -> None:
+    old_entry = _entry(path=OLD_PATH, line=1, target="Invitation", kind="import")
+    merged = _entry(path=NEW_PATH, line=14, target="Invitation", kind="import")
+    moves: dict[str, MoveRecord] = {}
+
+    with pytest.raises(BaselineMoveError, match="不在旧基线里"):
+        rewrite_entries(
+            [old_entry],
+            [merged],
+            moves,
+            _read_source,
+            removals={"call|gone|1": Removal("call|gone|1", "x")},
+        )
+
+    twin = _entry(path=NEW_PATH, line=15, target="Invitation", kind="import")
+    with pytest.raises(BaselineMoveError, match="新扫描里还存在"):
+        rewrite_entries(
+            [old_entry, twin],
+            [merged, twin],
+            moves,
+            _read_source,
+            removals={twin["key"]: Removal(twin["key"], "x")},
+        )
+
+
+def test_load_removals_requires_key_and_reason(tmp_path) -> None:
+    path = tmp_path / "moves.toml"
+    path.write_text(
+        '[[removal]]\nkey = "import|a.py|1|x|y"\nreason = "两条导入合并"\n',
+        encoding="utf-8",
+    )
+    assert set(load_removals(path)) == {"import|a.py|1|x|y"}
+
+    incomplete = tmp_path / "incomplete.toml"
+    incomplete.write_text('[[removal]]\nkey = "x"\n', encoding="utf-8")
+    with pytest.raises(BaselineMoveError, match="缺少 key/reason"):
+        load_removals(incomplete)

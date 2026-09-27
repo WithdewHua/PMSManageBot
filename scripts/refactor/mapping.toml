@@ -1438,6 +1438,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.jackpot"
 [[items]]
 id = "app.databases.db:DatabaseORM._apply_blackjack_retention"
 target = "app.domains.blackjack.repository"
@@ -1445,6 +1446,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.retention"
 [[items]]
 id = "app.databases.db:DatabaseORM._apply_tournament_entry_terminal_status"
 target = "app.domains.blackjack.repository"
@@ -1452,6 +1454,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 赛内手牌：结算适配层与动作"
 
+planned_target = "app.domains.blackjack.repository.tournament_entries"
 [[items]]
 id = "app.databases.db:DatabaseORM._assert_tournament_params_frozen"
 target = "app.domains.blackjack.repository"
@@ -1459,6 +1462,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournaments"
 [[items]]
 id = "app.databases.db:DatabaseORM._badge_to_dict"
 target = "app.domains.badges.repository"
@@ -1473,6 +1477,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM._blackjack_hand_to_dict"
 target = "app.domains.blackjack.repository"
@@ -1480,6 +1485,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM._blackjack_rank_rows"
 target = "app.domains.rankings.repository"
@@ -1494,6 +1500,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.retention"
 [[items]]
 id = "app.databases.db:DatabaseORM._calc_prediction_odds"
 target = "app.domains.prediction.repository"
@@ -1508,6 +1515,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM._claim_blackjack_hand"
 target = "app.domains.blackjack.repository"
@@ -1515,6 +1523,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM._claim_tournament_transition"
 target = "app.domains.blackjack.repository"
@@ -1522,6 +1531,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournaments"
 [[items]]
 id = "app.databases.db:DatabaseORM._compute_tournament_payouts"
 target = "app.domains.blackjack.repository"
@@ -1529,6 +1539,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 赛内手牌：结算适配层与动作"
 
+planned_target = "app.domains.blackjack.repository.tournament_play"
 [[items]]
 id = "app.databases.db:DatabaseORM._count_blackjack_hands_today"
 target = "app.domains.blackjack.repository"
@@ -1536,6 +1547,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM._count_gift_pack_auction_participations"
 target = "app.domains.gift_pack.repository"
@@ -1651,6 +1663,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournaments"
 [[items]]
 id = "app.databases.db:DatabaseORM._get_prediction_settled_market_meta"
 target = "app.domains.prediction.repository"
@@ -1843,6 +1856,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournament_entries"
 [[items]]
 id = "app.databases.db:DatabaseORM._load_gift_pack_user_context"
 target = "app.domains.gift_pack.repository"
@@ -1859,6 +1873,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM._lock_gift_pack_audience"
 target = "app.domains.gift_pack.repository"
@@ -1884,6 +1899,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournaments"
 [[items]]
 id = "app.databases.db:DatabaseORM._lock_tournament_entry"
 target = "app.domains.blackjack.repository"
@@ -1891,6 +1907,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 赛内手牌：结算适配层与动作"
 
+planned_target = "app.domains.blackjack.repository.tournament_entries"
 [[items]]
 id = "app.databases.db:DatabaseORM._lock_tournament_hand"
 target = "app.domains.blackjack.repository"
@@ -1898,6 +1915,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 赛内手牌：结算适配层与动作"
 
+planned_target = "app.domains.blackjack.repository.tournament_play"
 [[items]]
 id = "app.databases.db:DatabaseORM._locked_fund_row"
 target = "app.domains.blackjack.repository"
@@ -1905,6 +1923,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.jackpot"
 [[items]]
 id = "app.databases.db:DatabaseORM._pay_from_jackpot"
 target = "app.domains.blackjack.repository"
@@ -1912,6 +1931,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.jackpot"
 [[items]]
 id = "app.databases.db:DatabaseORM._persist_privileged_invite_codes"
 target = "app.domains.gift_pack.repository"
@@ -1928,6 +1948,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.retention"
 [[items]]
 id = "app.databases.db:DatabaseORM._record_blackjack_decision"
 target = "app.domains.blackjack.repository"
@@ -1935,6 +1956,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM._release_blackjack_hand"
 target = "app.domains.blackjack.repository"
@@ -1942,6 +1964,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM._resolve_gift_pack_conditions"
 target = "app.domains.gift_pack.repository"
@@ -1958,6 +1981,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.settlement"
 [[items]]
 id = "app.databases.db:DatabaseORM._settle_blackjack_hand_dispatch"
 target = "app.domains.blackjack.repository"
@@ -1965,6 +1989,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 赛内手牌：结算适配层与动作"
 
+planned_target = "app.domains.blackjack.repository.settlement"
 [[items]]
 id = "app.databases.db:DatabaseORM._settle_blackjack_tournament_hand"
 target = "app.domains.blackjack.repository"
@@ -1972,6 +1997,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 赛内手牌：结算适配层与动作"
 
+planned_target = "app.domains.blackjack.repository.tournament_play"
 [[items]]
 id = "app.databases.db:DatabaseORM._settle_one_cashback_week"
 target = "app.domains.blackjack.repository"
@@ -1979,6 +2005,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.retention"
 [[items]]
 id = "app.databases.db:DatabaseORM._tournament_already_settled_result"
 target = "app.domains.blackjack.repository"
@@ -1986,6 +2013,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 赛内手牌：结算适配层与动作"
 
+planned_target = "app.domains.blackjack.repository.tournament_entries"
 [[items]]
 id = "app.databases.db:DatabaseORM._tournament_entry_state"
 target = "app.domains.blackjack.repository"
@@ -1993,6 +2021,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 赛内手牌：结算适配层与动作"
 
+planned_target = "app.domains.blackjack.repository.tournament_entries"
 [[items]]
 id = "app.databases.db:DatabaseORM._tournament_entry_to_dict"
 target = "app.domains.blackjack.repository"
@@ -2000,6 +2029,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournaments"
 [[items]]
 id = "app.databases.db:DatabaseORM._tournament_to_dict"
 target = "app.domains.blackjack.repository"
@@ -2007,6 +2037,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournaments"
 [[items]]
 id = "app.databases.db:DatabaseORM._tournament_total_hands"
 target = "app.domains.blackjack.repository"
@@ -2014,6 +2045,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 赛内手牌：结算适配层与动作"
 
+planned_target = "app.domains.blackjack.repository.tournament_entries"
 [[items]]
 id = "app.databases.db:DatabaseORM._user_badge_to_dict"
 target = "app.domains.badges.repository"
@@ -2046,6 +2078,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournaments"
 [[items]]
 id = "app.databases.db:DatabaseORM._write_retention_cursor"
 target = "app.domains.blackjack.repository"
@@ -2053,6 +2086,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.retention"
 [[items]]
 id = "app.databases.db:DatabaseORM.add_emby_user"
 target = "app.domains.identity.repository"
@@ -2116,6 +2150,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 赛内手牌：结算适配层与动作"
 
+planned_target = "app.domains.blackjack.repository"
 [[items]]
 id = "app.databases.db:DatabaseORM.blackjack_double"
 target = "app.domains.blackjack.repository"
@@ -2123,6 +2158,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM.blackjack_hit"
 target = "app.domains.blackjack.repository"
@@ -2130,6 +2166,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM.blackjack_stand"
 target = "app.domains.blackjack.repository"
@@ -2137,6 +2174,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM.blackjack_surrender"
 target = "app.domains.blackjack.repository"
@@ -2144,6 +2182,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM.blackjack_tournament_double"
 target = "app.domains.blackjack.repository"
@@ -2151,6 +2190,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 赛内手牌：结算适配层与动作"
 
+planned_target = "app.domains.blackjack.repository.tournament_play"
 [[items]]
 id = "app.databases.db:DatabaseORM.blackjack_tournament_hit"
 target = "app.domains.blackjack.repository"
@@ -2158,6 +2198,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 赛内手牌：结算适配层与动作"
 
+planned_target = "app.domains.blackjack.repository.tournament_play"
 [[items]]
 id = "app.databases.db:DatabaseORM.blackjack_tournament_stand"
 target = "app.domains.blackjack.repository"
@@ -2165,6 +2206,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 赛内手牌：结算适配层与动作"
 
+planned_target = "app.domains.blackjack.repository.tournament_play"
 [[items]]
 id = "app.databases.db:DatabaseORM.blackjack_tournament_surrender"
 target = "app.domains.blackjack.repository"
@@ -2172,6 +2214,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 赛内手牌：结算适配层与动作"
 
+planned_target = "app.domains.blackjack.repository.tournament_play"
 [[items]]
 id = "app.databases.db:DatabaseORM.bulk_create_line_traffic_entries"
 target = "app.domains.traffic.repository"
@@ -2186,6 +2229,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournaments"
 [[items]]
 id = "app.databases.db:DatabaseORM.cancel_treasure_issue"
 target = "app.domains.treasure.repository"
@@ -2200,6 +2244,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournament_entries"
 [[items]]
 id = "app.databases.db:DatabaseORM.check_download_unlock"
 target = "app.domains.media_access.repository"
@@ -2246,6 +2291,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournaments"
 [[items]]
 id = "app.databases.db:DatabaseORM.claim_unannounced_jackpot_wins"
 target = "app.domains.blackjack.repository"
@@ -2253,6 +2299,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.jackpot"
 [[items]]
 id = "app.databases.db:DatabaseORM.claim_unnotified_blackjack_freespins"
 target = "app.domains.blackjack.repository"
@@ -2302,6 +2349,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournaments"
 [[items]]
 id = "app.databases.db:DatabaseORM.count_user_blackjack_tournament_titles"
 target = "app.domains.blackjack.repository"
@@ -2309,6 +2357,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournament_entries"
 [[items]]
 id = "app.databases.db:DatabaseORM.create_auction"
 target = "app.domains.auction.repository"
@@ -2330,6 +2379,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM.create_blackjack_tournament"
 target = "app.domains.blackjack.repository"
@@ -2337,6 +2387,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournaments"
 [[items]]
 id = "app.databases.db:DatabaseORM.create_blackjack_tournament_hand"
 target = "app.domains.blackjack.repository"
@@ -2344,6 +2395,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 赛内手牌：结算适配层与动作"
 
+planned_target = "app.domains.blackjack.repository.tournament_play"
 [[items]]
 id = "app.databases.db:DatabaseORM.create_crypto_donation_order"
 target = "app.domains.crypto_donation.repository"
@@ -2495,6 +2547,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 赛内手牌：结算适配层与动作"
 
+planned_target = "app.domains.blackjack.repository.tournament_play"
 [[items]]
 id = "app.databases.db:DatabaseORM.get_active_auctions"
 target = "app.domains.auction.repository"
@@ -2621,6 +2674,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.stats"
 [[items]]
 id = "app.databases.db:DatabaseORM.get_blackjack_config"
 target = "app.domains.blackjack.repository"
@@ -2628,6 +2682,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点配置相关方法"
 
+planned_target = "app.domains.blackjack.repository.config_store"
 [[items]]
 id = "app.databases.db:DatabaseORM.get_blackjack_config_dict"
 target = "app.domains.blackjack.repository"
@@ -2635,6 +2690,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点配置相关方法"
 
+planned_target = "app.domains.blackjack.repository.config_store"
 [[items]]
 id = "app.databases.db:DatabaseORM.get_blackjack_free_hands_remaining"
 target = "app.domains.blackjack.repository"
@@ -2642,6 +2698,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM.get_blackjack_freespin_summary"
 target = "app.domains.blackjack.repository"
@@ -2656,6 +2713,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.jackpot"
 [[items]]
 id = "app.databases.db:DatabaseORM.get_blackjack_max_win_rank"
 target = "app.domains.rankings.repository"
@@ -2677,6 +2735,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournaments"
 [[items]]
 id = "app.databases.db:DatabaseORM.get_blackjack_tournament_standings"
 target = "app.domains.blackjack.repository"
@@ -2684,6 +2743,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournament_entries"
 [[items]]
 id = "app.databases.db:DatabaseORM.get_blackjack_tournament_wallet"
 target = "app.domains.blackjack.repository"
@@ -2691,6 +2751,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.wallet"
 [[items]]
 id = "app.databases.db:DatabaseORM.get_blackjack_win_rate_rank"
 target = "app.domains.rankings.repository"
@@ -2747,6 +2808,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM.get_detailed_auction_stats"
 target = "app.domains.auction.repository"
@@ -3223,6 +3285,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.stats"
 [[items]]
 id = "app.databases.db:DatabaseORM.get_user_blackjack_tournament_entry"
 target = "app.domains.blackjack.repository"
@@ -3230,6 +3293,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournament_entries"
 [[items]]
 id = "app.databases.db:DatabaseORM.get_user_credits"
 target = "app.domains.credits.repository"
@@ -3328,6 +3392,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM.list_blackjack_tournaments"
 target = "app.domains.blackjack.repository"
@@ -3335,6 +3400,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournaments"
 [[items]]
 id = "app.databases.db:DatabaseORM.list_blackjack_tournaments_with_playing_entries"
 target = "app.domains.blackjack.repository"
@@ -3342,6 +3408,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournaments"
 [[items]]
 id = "app.databases.db:DatabaseORM.list_expiring_blackjack_freespins"
 target = "app.domains.blackjack.repository"
@@ -3444,6 +3511,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.jackpot"
 [[items]]
 id = "app.databases.db:DatabaseORM.rebind_user_tg_id"
 target = "app.domains.tg_rebind.repository"
@@ -3465,6 +3533,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournaments"
 [[items]]
 id = "app.databases.db:DatabaseORM.release_blackjack_freespin"
 target = "app.domains.blackjack.repository"
@@ -3502,6 +3571,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.jackpot"
 [[items]]
 id = "app.databases.db:DatabaseORM.set_badge_center_config"
 target = "app.domains.badges.repository"
@@ -3516,6 +3586,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点配置相关方法"
 
+planned_target = "app.domains.blackjack.repository.config_store"
 [[items]]
 id = "app.databases.db:DatabaseORM.set_download_unlocked"
 target = "app.domains.media_access.repository"
@@ -3581,6 +3652,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM.settle_blackjack_tournament"
 target = "app.domains.blackjack.repository"
@@ -3588,6 +3660,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 赛内手牌：结算适配层与动作"
 
+planned_target = "app.domains.blackjack.repository.tournament_play"
 [[items]]
 id = "app.databases.db:DatabaseORM.settle_blackjack_weekly_cashback"
 target = "app.domains.blackjack.repository"
@@ -3595,6 +3668,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.retention"
 [[items]]
 id = "app.databases.db:DatabaseORM.start_blackjack_tournament"
 target = "app.domains.blackjack.repository"
@@ -3602,6 +3676,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournaments"
 [[items]]
 id = "app.databases.db:DatabaseORM.submit_prediction_market"
 target = "app.domains.prediction.repository"
@@ -3616,6 +3691,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: Blackjack (21 点) Operations"
 
+planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM.unlock_line_schedule"
 target = "app.domains.lines.repository"
@@ -3651,6 +3727,7 @@ class = "BlackjackRepository"
 kind = "method"
 reason = "db.py section: 21 点锦标赛"
 
+planned_target = "app.domains.blackjack.repository.tournaments"
 [[items]]
 id = "app.databases.db:DatabaseORM.update_crypto_donation_order_upay_info"
 target = "app.domains.crypto_donation.repository"
@@ -23831,6 +23908,19 @@ b3_behavior_test = "tests/refactor/test_blackjack_cross_domain.py::test_external
 # 按子主题拆分后的 repository 组合类（design D1）。verify.py 用它把搬移后的类成员
 # 按“定义类”归位，而不是靠 part_<n> 命名猜测；拆出的 mixin 必须真实存在。
 [repository_mixins]
+"app.domains.blackjack.repository" = [
+    "_BlackjackRepositoryImplementation",
+    "_BlackjackRepositoryHands",
+    "_BlackjackRepositorySettlement",
+    "_BlackjackRepositoryJackpot",
+    "_BlackjackRepositoryRetention",
+    "_BlackjackRepositoryWallet",
+    "_BlackjackRepositoryStats",
+    "_BlackjackRepositoryTournaments",
+    "_BlackjackRepositoryTournamentEntries",
+    "_BlackjackRepositoryTournamentPlay",
+    "_BlackjackRepositoryConfigStore",
+]
 "app.domains.gift_pack.repository" = [
     "_GiftPackRepositoryConditions",
     "_GiftPackRepositoryRewards",
