@@ -1,6 +1,6 @@
 """21 点锦标赛路由
 
-只做参数校验、权限、异常翻译与赛事推进的任务编排；业务逻辑与事务在 `db.py` 的
+只做参数校验、权限、异常翻译与赛事推进的任务编排；业务逻辑与事务在 `blackjack_service.py` 的
 `*_tournament*` 方法里，规则判定复用 `blackjack_engine.py`。
 
 赛内手牌的响应一律经 `BlackjackHandResponse.from_hand()` 构造——与现金局共用同一道
@@ -20,7 +20,11 @@ tick 任务 / 任务重试），靠「记得只发一次」是不可能正确的
 
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
-from app.databases import db
+from app.domains.blackjack import service as blackjack_service
+from app.domains.blackjack.config import (
+    TOURNAMENT_REGISTERING,
+    TOURNAMENT_RUNNING,
+)
 from app.domains.blackjack.notifications.tournament import (
     _broadcast_group,
     _format_cancelled,
@@ -28,7 +32,6 @@ from app.domains.blackjack.notifications.tournament import (
     _format_reminder,
     _format_result_dm,
     _format_result_group,
-    _notify_enabled,
     _send_many,
     notify_tournament_started,
 )
@@ -39,6 +42,14 @@ from app.domains.blackjack.service import award_blackjack_champion_badge
 # 单轮 tick 处理的赛事条数上限。达到上限会**记 error 而非静默截断**——列表按 id
 # 倒序取，被截掉的恰好是最老的赛事，它们会永远开不了赛、结不了算。
 _TICK_LIST_LIMIT = 100
+
+
+def _notify_enabled() -> bool:
+    return bool(
+        blackjack_service.get_blackjack_config_dict().get(
+            "tournament_notify_enabled", True
+        )
+    )
 
 
 # ============================================================
@@ -53,13 +64,15 @@ async def _tick_registration_deadlines(now_ms: int, tournaments: list) -> None:
             continue
         try:
             if int(t["entrant_count"]) >= int(t["min_entrants"]):
-                result = db.start_blackjack_tournament(int(t["id"]))
+                result = blackjack_service.start_blackjack_tournament(int(t["id"]))
                 if result.get("started"):
                     await notify_tournament_started(
-                        result["tournament"], result["notify_entrants"]
+                        result["tournament"],
+                        result["notify_entrants"],
+                        notify_enabled=_notify_enabled(),
                     )
             else:
-                result = db.cancel_blackjack_tournament(int(t["id"]))
+                result = blackjack_service.cancel_blackjack_tournament(int(t["id"]))
                 if result.get("cancelled") and _notify_enabled():
                     tt = result["tournament"]
                     refunds = result["refunds"]
@@ -87,7 +100,7 @@ async def _tick_completion_reminders(now_ms: int, tournaments: list) -> None:
     也照常推进它，只是不发送。若关闭时直接跳过，标记会冻结，重新打开的那一分钟会
     把积压的提醒一次性倾泻出去。
     """
-    config = db.get_blackjack_config_dict()
+    config = blackjack_service.get_blackjack_config_dict()
     configured_lead_ms = int(
         float(config.get("tournament_remind_lead_hours", 6)) * 3600 * 1000
     )
@@ -109,7 +122,7 @@ async def _tick_completion_reminders(now_ms: int, tournaments: list) -> None:
         if not (deadline - lead_ms <= now_ms < deadline):
             continue
         try:
-            claimed = db.claim_tournament_reminder(int(t["id"]))
+            claimed = blackjack_service.claim_tournament_reminder(int(t["id"]))
             if not claimed.get("claimed"):
                 continue
             pending = claimed.get("pending") or []
@@ -150,7 +163,7 @@ async def _tick_play_deadlines(now_ms: int, tournaments: list) -> None:
     if not tournaments:
         return
 
-    still_playing = db.list_blackjack_tournaments_with_playing_entries(
+    still_playing = blackjack_service.list_blackjack_tournaments_with_playing_entries(
         [int(t["id"]) for t in tournaments]
     )
     # 查询失败按「本轮每场都仍有进行中报名」处理：提前完赛关掉，
@@ -166,12 +179,12 @@ async def _tick_play_deadlines(now_ms: int, tournaments: list) -> None:
             # 阶段一：清场。**没清干净就不能派奖**——排名会读到被低估的筹码，
             # 而派奖的 CAS 一旦触发，这一场就再也没有第二次机会了。跳过本轮，
             # 赛事仍是「进行中」，下一分钟的 tick 会重新走完整个流程
-            cleared = db.force_settle_tournament_hands(tid)
+            cleared = blackjack_service.force_settle_tournament_hands(tid)
             if not cleared.get("cleared"):
                 continue
 
             # 阶段二：排名派奖。CAS 保证不会半途派奖
-            result = db.settle_blackjack_tournament(tid)
+            result = blackjack_service.settle_blackjack_tournament(tid)
             if not result.get("settled"):
                 continue
 
@@ -227,7 +240,9 @@ async def blackjack_tournament_tick_job() -> None:
     now_ms = int(_time.time() * 1000)
 
     def _fetch(status: int, label: str) -> list:
-        rows = db.list_blackjack_tournaments(statuses=(status,), limit=_TICK_LIST_LIMIT)
+        rows = blackjack_service.list_blackjack_tournaments(
+            statuses=(status,), limit=_TICK_LIST_LIMIT
+        )
         # 截断必须出声：按 id 倒序取前 N 条，最老的赛事会永远推进不了
         if len(rows) >= _TICK_LIST_LIMIT:
             logger.error(
@@ -237,8 +252,8 @@ async def blackjack_tournament_tick_job() -> None:
         return rows
 
     try:
-        registering = _fetch(db.TOURNAMENT_REGISTERING, "报名中")
-        running = _fetch(db.TOURNAMENT_RUNNING, "进行中")
+        registering = _fetch(TOURNAMENT_REGISTERING, "报名中")
+        running = _fetch(TOURNAMENT_RUNNING, "进行中")
     except Exception as e:
         logger.error(f"锦标赛 tick 任务拉取赛事列表失败: {e}")
         return
@@ -272,7 +287,7 @@ async def auto_create_blackjack_tournament_job() -> None:
     import datetime as _datetime
 
     try:
-        config = db.get_blackjack_config_dict()
+        config = blackjack_service.get_blackjack_config_dict()
         if not config.get("tournament_auto_create_enabled", False):
             logger.info("锦标赛自动开赛未开启，跳过本周自动创建")
             return
@@ -290,7 +305,7 @@ async def auto_create_blackjack_tournament_job() -> None:
         )  # 周日 23:59
 
         now_ms = int(now.timestamp() * 1000)
-        open_count = db.count_registering_blackjack_tournaments(now_ms)
+        open_count = blackjack_service.count_registering_blackjack_tournaments(now_ms)
         if open_count is None:
             logger.error("无法确认本周是否已有报名中的锦标赛，跳过自动创建")
             return
@@ -306,7 +321,7 @@ async def auto_create_blackjack_tournament_job() -> None:
         params.pop("title", None)
         params.pop("seeded_prize_credits", None)
 
-        t = db.create_blackjack_tournament(params)
+        t = blackjack_service.create_blackjack_tournament(params)
         logger.info(f"已自动创建本周锦标赛：{t['title']} (id={t['id']})")
 
         if _notify_enabled():

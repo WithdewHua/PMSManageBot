@@ -23,11 +23,6 @@ def test_module_level_blackjack_repository_exports_have_explicit_parameters() ->
         assert getattr(repository, name).__module__ == repository.__name__
 
 
-def test_legacy_facade_is_a_thin_compatibility_subclass() -> None:
-    assert issubclass(
-        repository.BlackjackRepository, repository._BlackjackRepositoryImplementation
-    )
-    assert repository.BlackjackRepository.__dict__.keys() <= {
-        "__module__",
-        "__doc__",
-    }
+def test_legacy_repository_facade_subclass_is_removed() -> None:
+    assert "BlackjackRepository" not in repository.__all__
+    assert not hasattr(repository, "BlackjackRepository")

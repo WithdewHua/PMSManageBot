@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 
 from app.core.db import get_session
-from app.databases import db
 from app.domains.identity.models import Statistics
 from app.domains.luckywheel import repository
+from app.domains.luckywheel import repository as luckywheel_repository
 from app.domains.luckywheel.models import LuckywheelFreeSpin
 
 
@@ -48,7 +48,7 @@ def test_consumption_reads_immutable_snapshot_after_configuration_changes(
             wheel_stats_source="gift_pack_free",
         )
 
-    claimed = db.consume_blackjack_freespin(101)
+    claimed = luckywheel_repository.consume_blackjack_freespin(101)
     assert claimed is not None
     assert claimed["cost_credits_snapshot"] == 7.5
     assert claimed["wheel_stats_source"] == "gift_pack_free"

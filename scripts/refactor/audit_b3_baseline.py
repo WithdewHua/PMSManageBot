@@ -8,6 +8,7 @@ import json
 import subprocess
 import tarfile
 import tempfile
+import textwrap
 import tomllib
 from collections import defaultdict
 from dataclasses import dataclass
@@ -206,7 +207,9 @@ def _source_function_matches(
 
 
 def _call_nodes(source: str, target: str) -> list[ast.Call]:
-    tree = ast.parse(source)
+    # Frozen B3 slices may start inside a class body (decorated methods), so the
+    # common indentation has to be removed before the slice can be parsed.
+    tree = ast.parse(textwrap.dedent(source))
     nodes: list[ast.Call] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):

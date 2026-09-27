@@ -17,11 +17,11 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.kv import SystemConfig
 from app.core.schemas import TelegramUser
-from app.databases import db
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 from app.domains.invitation.models import Invitation
 from app.domains.invitation.schemas import RedeemInviteCodeRequest
+from app.domains.luckywheel import repository as luckywheel_repository
 from app.domains.luckywheel.models import LuckywheelFreeSpin, WheelStats
 from tests.conftest import add_user, get_stats, next_id
 
@@ -101,7 +101,7 @@ def test_wheel_free_spins_granted_with_gift_pack_source(orm):
 
     result = orm.claim_gift_pack(pack, 1)
 
-    assert orm.get_blackjack_freespin_summary(1)["available"] == 3
+    assert luckywheel_repository.get_blackjack_freespin_summary(1)["available"] == 3
     item = result["results"][0]
     assert item["count"] == 3
     assert before + 7 * 86400 <= item["expires_at"] <= int(time.time()) + 7 * 86400
@@ -114,7 +114,7 @@ def test_wheel_free_spins_granted_with_gift_pack_source(orm):
 def test_gift_pack_free_spins_not_notified_and_not_capped(orm):
     add_user(orm, 1)
     pack = _pack(orm, [{"type": "wheel_free_spins", "count": 5, "expiry_days": 7}])
-    db.claim_unnotified_blackjack_freespins()  # 初始化游标
+    luckywheel_repository.claim_unnotified_blackjack_freespins()  # 初始化游标
     orm.claim_gift_pack(pack, 1)
 
     with get_session() as session:
@@ -123,7 +123,7 @@ def test_gift_pack_free_spins_not_notified_and_not_capped(orm):
                 granted_at_ms=int(time.time() * 1000) - 5 * 60 * 1000
             )
         )
-    assert db.claim_unnotified_blackjack_freespins() == []
+    assert luckywheel_repository.claim_unnotified_blackjack_freespins() == []
 
 
 # ------------------------------------------------------ 争霸赛余额

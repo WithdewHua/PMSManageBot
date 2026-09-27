@@ -111,6 +111,16 @@ def inventory(root: Path = SOURCE) -> dict[str, Any]:
                             "target_role": _role(relative, "facade_call"),
                         }
                     )
+                if name.startswith("blackjack_service."):
+                    entries.append(
+                        {
+                            "kind": "service_call",
+                            "path": relative,
+                            "line": node.lineno,
+                            "symbol": name,
+                            "target_role": "blackjack.service",
+                        }
+                    )
                 if in_blackjack and (
                     name.split(".")[-1] in side_effect_names
                     or name == "background_tasks.add_task"

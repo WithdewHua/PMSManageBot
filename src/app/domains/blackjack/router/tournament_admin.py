@@ -9,12 +9,11 @@ from app.core.auth import (
 )
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
-from app.databases import db
+from app.domains.blackjack import service as blackjack_service
 from app.domains.blackjack.notifications.tournament import (
     _broadcast_group,
     _format_cancelled,
     _format_created,
-    _notify_enabled,
     _send_many,
 )
 from app.domains.blackjack.router.tournament import _raise_for_value_error
@@ -27,6 +26,14 @@ from app.domains.blackjack.schemas import (
 )
 
 router = APIRouter(prefix="/blackjack/tournament", tags=["21点锦标赛"])
+
+
+def _notify_enabled() -> bool:
+    return bool(
+        blackjack_service.get_blackjack_config_dict().get(
+            "tournament_notify_enabled", True
+        )
+    )
 
 
 # ============================================================
@@ -45,7 +52,7 @@ async def admin_create(
     """创建赛事，并向群组播报（提醒用户参与）。"""
     check_admin_permission(current_user)
     try:
-        t = db.create_blackjack_tournament(
+        t = blackjack_service.create_blackjack_tournament(
             data.model_dump(exclude_none=True), created_by=current_user.id
         )
     except ValueError as e:
@@ -77,7 +84,7 @@ async def admin_update(
     """修改赛事。仅报名中的赛事可改。"""
     check_admin_permission(current_user)
     try:
-        t = db.update_blackjack_tournament(
+        t = blackjack_service.update_blackjack_tournament(
             int(tournament_id), data.model_dump(exclude_none=True)
         )
     except ValueError as e:
@@ -105,7 +112,7 @@ async def admin_cancel(
     """管理员主动取消赛事，全额退还报名费。"""
     check_admin_permission(current_user)
     try:
-        result = db.cancel_blackjack_tournament(
+        result = blackjack_service.cancel_blackjack_tournament(
             int(tournament_id), reason="admin_cancelled"
         )
     except ValueError as e:
@@ -152,7 +159,9 @@ async def admin_consistency(
     一旦漂移会直接影响派奖金额，故提供一处显式校验而非等出问题再查。
     """
     check_admin_permission(current_user)
-    result = db.check_blackjack_tournament_consistency(int(tournament_id))
+    result = blackjack_service.check_blackjack_tournament_consistency(
+        int(tournament_id)
+    )
     if not result:
         raise HTTPException(status_code=404, detail="赛事不存在")
     return TournamentConsistencyResponse(success=True, **result)

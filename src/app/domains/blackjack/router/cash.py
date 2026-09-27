@@ -1,6 +1,6 @@
 """21 点活动路由
 
-只做参数校验、权限、异常翻译与超时任务编排；业务逻辑与事务在 `db.py` 的
+只做参数校验、权限、异常翻译与超时任务编排；业务逻辑与事务在 `blackjack_service.py` 的
 `blackjack_*` 方法里，规则判定在 `blackjack_engine.py`。
 
 响应一律经 `BlackjackHandResponse.from_hand()` 构造，庄家暗牌与随机种子的过滤
@@ -18,8 +18,8 @@ from app.core.auth import (
 )
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
-from app.databases import db
 from app.domains.badge_awards.jobs import check_and_award_game_king_badge
+from app.domains.blackjack import service as blackjack_service
 from app.domains.blackjack.exceptions import BlackjackError
 from app.domains.blackjack.rules import BlackjackRuleError
 from app.domains.blackjack.schemas import (
@@ -104,7 +104,7 @@ def _build_action_response(
             credits_service.read_optional(CreditAccount.tg(int(tg_id))) or 0
         ),
         decision=BlackjackDecisionFeedback(**decision) if decision else None,
-        jackpot_balance=db.get_blackjack_jackpot(),
+        jackpot_balance=blackjack_service.get_blackjack_jackpot(),
         relief_credits=float(result.get("relief_credits") or 0),
         freespin_grants=[
             BlackjackFreespinGrant(**g) for g in (result.get("freespins") or [])
@@ -122,7 +122,7 @@ async def deal(
 ):
     """发牌"""
     try:
-        result = db.create_blackjack_hand(
+        result = blackjack_service.create_blackjack_hand(
             tg_id=int(current_user.id), bet_credits=int(data.bet_credits)
         )
         hand = result["hand"]
@@ -161,7 +161,9 @@ async def hit(
 ):
     """要牌"""
     try:
-        result = db.blackjack_hit(tg_id=int(current_user.id), hand_id=int(hand_id))
+        result = blackjack_service.blackjack_hit(
+            tg_id=int(current_user.id), hand_id=int(hand_id)
+        )
         if result.get("settled"):
             background_tasks.add_task(
                 check_and_award_game_king_badge,
@@ -187,7 +189,9 @@ async def stand(
 ):
     """停牌"""
     try:
-        result = db.blackjack_stand(tg_id=int(current_user.id), hand_id=int(hand_id))
+        result = blackjack_service.blackjack_stand(
+            tg_id=int(current_user.id), hand_id=int(hand_id)
+        )
         background_tasks.add_task(
             check_and_award_game_king_badge,
             user_id=int(current_user.id),
@@ -212,7 +216,9 @@ async def double(
 ):
     """加倍：追加一份基础注额，只发一张牌并自动停牌"""
     try:
-        result = db.blackjack_double(tg_id=int(current_user.id), hand_id=int(hand_id))
+        result = blackjack_service.blackjack_double(
+            tg_id=int(current_user.id), hand_id=int(hand_id)
+        )
         background_tasks.add_task(
             check_and_award_game_king_badge,
             user_id=int(current_user.id),
@@ -237,7 +243,7 @@ async def surrender(
 ):
     """投降：返还一半基础注额，手牌立即结算，不经庄家回合"""
     try:
-        result = db.blackjack_surrender(
+        result = blackjack_service.blackjack_surrender(
             tg_id=int(current_user.id), hand_id=int(hand_id)
         )
         background_tasks.add_task(
@@ -267,7 +273,7 @@ async def get_current_hand(
     把它滤掉，现金局界面正常展示下注区，赛内牌桌自会经锦标赛入口恢复。
     """
     try:
-        hand = db.get_current_blackjack_hand(tg_id=int(current_user.id))
+        hand = blackjack_service.get_current_blackjack_hand(tg_id=int(current_user.id))
         if hand and hand.get("tournament_id") is not None:
             hand = None
         return BlackjackCurrentHandResponse(
@@ -276,8 +282,8 @@ async def get_current_hand(
                 credits_service.read_optional(CreditAccount.tg(int(current_user.id)))
                 or 0
             ),
-            jackpot_balance=db.get_blackjack_jackpot(),
-            free_hands_remaining=db.get_blackjack_free_hands_remaining(
+            jackpot_balance=blackjack_service.get_blackjack_jackpot(),
+            free_hands_remaining=blackjack_service.get_blackjack_free_hands_remaining(
                 int(current_user.id)
             ),
         )
@@ -294,7 +300,7 @@ async def get_user_stats(
 ):
     """用户的 21 点个人统计"""
     try:
-        stats = db.get_user_blackjack_stats(tg_id=int(current_user.id))
+        stats = blackjack_service.get_user_blackjack_stats(tg_id=int(current_user.id))
         return BlackjackUserStatsResponse(**stats)
     except Exception as e:
         logger.error(f"获取 21 点个人统计失败: {e}")
@@ -312,7 +318,7 @@ async def get_public_config(
     前端不得硬编码赔率、注额、门槛、抽水比率，一律取自本接口。
     """
     try:
-        config = db.get_blackjack_config_dict()
+        config = blackjack_service.get_blackjack_config_dict()
         return BlackjackPublicConfigResponse(
             enabled=bool(config.get("enabled", False)),
             bet_options=[int(b) for b in config.get("bet_options") or []],
@@ -326,7 +332,7 @@ async def get_public_config(
             hand_timeout_minutes=int(config.get("hand_timeout_minutes", 15)),
             free_hands_per_day=int(config.get("free_hands_per_day", 1)),
             jackpot_enabled=bool(config.get("jackpot_enabled", True)),
-            jackpot_balance=db.get_blackjack_jackpot(),
+            jackpot_balance=blackjack_service.get_blackjack_jackpot(),
             jackpot_suited_bj_pct=float(config.get("jackpot_suited_bj_pct", 10)),
             relief_enabled=bool(config.get("relief_enabled", True)),
             relief_threshold=int(config.get("relief_threshold", 8)),
@@ -352,7 +358,7 @@ async def get_admin_config(
     """管理员读取完整配置"""
     check_admin_permission(current_user)
     try:
-        config = db.get_blackjack_config_dict()
+        config = blackjack_service.get_blackjack_config_dict()
         return BlackjackAdminConfig(**config)
     except HTTPException:
         raise
@@ -387,12 +393,12 @@ async def update_config(
         config = data.model_dump()
         config["bet_options"] = sorted({int(b) for b in data.bet_options})
 
-        if not db.set_blackjack_config(
+        if not blackjack_service.set_blackjack_config(
             "config", json.dumps(config, ensure_ascii=False)
         ):
             raise HTTPException(status_code=500, detail="保存配置失败")
 
-        return BlackjackAdminConfig(**db.get_blackjack_config_dict())
+        return BlackjackAdminConfig(**blackjack_service.get_blackjack_config_dict())
     except HTTPException:
         raise
     except Exception as e:
@@ -414,7 +420,7 @@ async def seed_jackpot(
     """
     check_admin_permission(current_user)
     try:
-        balance = db.seed_blackjack_jackpot(float(data.amount))
+        balance = blackjack_service.seed_blackjack_jackpot(float(data.amount))
         return {
             "success": True,
             "message": f"已注入 {data.amount} 积分",
@@ -442,7 +448,9 @@ async def get_admin_stats(
     """
     check_admin_permission(current_user)
     try:
-        return BlackjackAdminStatsResponse(**db.get_blackjack_admin_stats())
+        return BlackjackAdminStatsResponse(
+            **blackjack_service.get_blackjack_admin_stats()
+        )
     except HTTPException:
         raise
     except Exception as e:

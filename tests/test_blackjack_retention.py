@@ -17,8 +17,16 @@ from sqlalchemy import event
 
 from app.core.kv import SystemConfig
 from app.databases import db
+from app.domains.blackjack import repository as blackjack_repository
+from app.domains.blackjack.config import (
+    CASHBACK_CURSOR_KEY,
+    ENTRY_PLAYING,
+    FREESPIN_NOTIFY_CURSOR_KEY,
+    TOURNAMENT_REGISTERING,
+)
 from app.domains.blackjack.models import BlackjackTournamentEntry
 from app.domains.blackjack.repository import DEFAULT_BLACKJACK_CONFIG
+from app.domains.luckywheel import repository as luckywheel_repository
 from app.domains.luckywheel.models import WheelStats
 from tests.conftest import (
     add_cash_hand,
@@ -59,13 +67,17 @@ EXPIRED_MS = lambda: int(time.time() * 1000) - 20 * 60 * 1000
 
 def lose_once(orm, tg_id: int, *, bet: int = 15, doubled: int = 0) -> dict:
     hand_id = add_cash_hand(orm, tg_id, bet_credits=bet, doubled=doubled)
-    return orm.blackjack_stand(tg_id, hand_id)
+    return blackjack_repository.blackjack_stand(tg_id, hand_id)
 
 
 def patch_cfg(monkeypatch, orm, **overrides) -> None:
     """把 21 点配置固定为「默认值 + 用例覆盖」，屏蔽落库配置的干扰。"""
     merged = {**DEFAULT_BLACKJACK_CONFIG, **overrides}
-    monkeypatch.setattr(orm, "get_blackjack_config_dict", lambda: dict(merged))
+    monkeypatch.setattr(
+        blackjack_repository._repository,
+        "get_blackjack_config_dict",
+        lambda: dict(merged),
+    )
 
 
 def freespins_count(orm, tg_id: int) -> int:
@@ -133,14 +145,14 @@ def test_push_and_surrender_do_not_break_streak(orm, monkeypatch):
         lose_once(orm, 1)
     # 平局：计数不变
     hand = add_cash_hand(orm, 1, player_cards=PUSH_P, dealer_cards=PUSH_D)
-    orm.blackjack_stand(1, hand)
+    blackjack_repository.blackjack_stand(1, hand)
     assert get_stats(1)["blackjack_lose_streak"] == 5
 
     # 投降：计数不变（投降走独立结算路径，钩子以 outcome='surrender' 中立处理）
     hand = add_cash_hand(
         orm, 1, player_cards='["KH", "6C"]', dealer_cards='["KD", "9H"]'
     )
-    result = orm.blackjack_surrender(1, hand)
+    result = blackjack_repository.blackjack_surrender(1, hand)
     assert result["settled"] is True
     assert get_stats(1)["blackjack_lose_streak"] == 5
 
@@ -157,7 +169,7 @@ def test_win_resets_streak(orm, monkeypatch):
     for _ in range(6):
         lose_once(orm, 1)
     hand = add_cash_hand(orm, 1, player_cards=WIN_P, dealer_cards=WIN_D)
-    orm.blackjack_stand(1, hand)
+    blackjack_repository.blackjack_stand(1, hand)
     assert get_stats(1)["blackjack_lose_streak"] == 0
 
     for _ in range(2):
@@ -175,7 +187,7 @@ def test_natural_blackjack_resets_streak(orm, monkeypatch):
     hand = add_cash_hand(
         orm, 1, player_cards='["AS", "KH"]', dealer_cards='["KD", "5C"]'
     )
-    result = orm.blackjack_stand(1, hand)
+    result = blackjack_repository.blackjack_stand(1, hand)
     assert result["outcome"] == "blackjack"
     assert get_stats(1)["blackjack_lose_streak"] == 0
 
@@ -199,7 +211,7 @@ def test_timeout_loss_counts_toward_streak(orm, monkeypatch):
         lose_once(orm, 1)
     # 超时兜底路径：手牌超时（快照时限 15 分钟），按停牌结算
     hand_id = add_cash_hand(orm, 1, created_at_ms=EXPIRED_MS())
-    swept = orm.sweep_timed_out_blackjack_hands(tg_id=1)
+    swept = blackjack_repository.sweep_timed_out_blackjack_hands(tg_id=1)
     assert swept == 1
 
     from app.core.db import get_session
@@ -224,7 +236,7 @@ def test_tournament_hand_not_counted(orm, monkeypatch):
     streak_before = int(stats_before["blackjack_lose_streak"])
     hands_before = int(stats_before["blackjack_hands_since_freespin"])
 
-    orm.sweep_timed_out_blackjack_hands(tg_id=1)
+    blackjack_repository.sweep_timed_out_blackjack_hands(tg_id=1)
 
     stats_after = get_stats(1)
     assert stats_after["blackjack_lose_streak"] == streak_before
@@ -244,7 +256,7 @@ def test_relief_disabled_by_config(orm, monkeypatch):
 
     # 停用期间胜局同样归零
     hand = add_cash_hand(orm, 1, player_cards=WIN_P, dealer_cards=WIN_D)
-    orm.blackjack_stand(1, hand)
+    blackjack_repository.blackjack_stand(1, hand)
     assert get_stats(1)["blackjack_lose_streak"] == 0
 
 
@@ -308,20 +320,20 @@ def test_all_settled_outcomes_count(orm, monkeypatch):
     lose_once(orm, 1)
     lose_once(orm, 1)
     hand = add_cash_hand(orm, 1, player_cards=PUSH_P, dealer_cards=PUSH_D)
-    orm.blackjack_stand(1, hand)
+    blackjack_repository.blackjack_stand(1, hand)
     hand = add_cash_hand(
         orm, 1, player_cards='["KH", "6C"]', dealer_cards='["KD", "9H"]'
     )
-    orm.blackjack_surrender(1, hand)
+    blackjack_repository.blackjack_surrender(1, hand)
     add_cash_hand(orm, 1, created_at_ms=EXPIRED_MS())  # 第 5 手：超时结算
-    orm.sweep_timed_out_blackjack_hands(tg_id=1)
+    blackjack_repository.sweep_timed_out_blackjack_hands(tg_id=1)
 
     assert freespins_count(orm, 1) == 1
     assert get_stats(1)["blackjack_hands_since_freespin"] == 0
 
     # 第 6 手：新的计数周期
     hand = add_cash_hand(orm, 1, player_cards=WIN_P, dealer_cards=WIN_D)
-    result = orm.blackjack_stand(1, hand)
+    result = blackjack_repository.blackjack_stand(1, hand)
     assert result["freespins"] == []
     assert get_stats(1)["blackjack_hands_since_freespin"] == 1
 
@@ -389,14 +401,14 @@ def test_freespin_disabled_by_config(orm, monkeypatch):
 
 
 def _register(orm, tg_id: int, tournament_id: int) -> dict:
-    return orm.register_blackjack_tournament(tg_id, tournament_id)
+    return blackjack_repository.register_blackjack_tournament(tg_id, tournament_id)
 
 
 def _registering_tournament(orm, **kwargs) -> dict:
     """建一场处于报名中、截止时间在未来的赛事。"""
     from tests.conftest import _now_ms
 
-    kwargs.setdefault("status", orm.TOURNAMENT_REGISTERING)
+    kwargs.setdefault("status", TOURNAMENT_REGISTERING)
     kwargs.setdefault("register_deadline_ms", _now_ms() + 2 * 3600 * 1000)
     kwargs.setdefault("entrant_count", 0)
     return add_tournament(orm, **kwargs)
@@ -478,7 +490,7 @@ def test_cancel_refunds_by_payment_source(orm, monkeypatch):
     t = _registering_tournament(orm)
     _register(orm, 1, t["id"])
 
-    result = orm.cancel_blackjack_tournament(t["id"])
+    result = blackjack_repository.cancel_blackjack_tournament(t["id"])
 
     assert result["cancelled"] is True
     refund = result["refunds"][0]
@@ -506,14 +518,14 @@ def test_cancel_legacy_entry_refunds_full_credits(orm, monkeypatch):
                 tg_id=1,
                 chips=1000,
                 hands_played=0,
-                status=orm.ENTRY_PLAYING,
+                status=ENTRY_PLAYING,
                 wallet_paid_credits=0.0,
                 credits_paid_credits=0.0,
                 registered_at_ms=1,
             )
         )
 
-    result = orm.cancel_blackjack_tournament(t["id"])
+    result = blackjack_repository.cancel_blackjack_tournament(t["id"])
 
     assert result["cancelled"] is True
     refund = result["refunds"][0]
@@ -529,7 +541,7 @@ def test_cancel_legacy_entry_refunds_full_credits(orm, monkeypatch):
 
 def _prev_week_bounds(orm) -> tuple:
     """上一完整自然周的 [start_s, end_s)（秒），按 settings.TZ 周一口径。"""
-    now_week_ms = orm._blackjack_week_start_ms()
+    now_week_ms = blackjack_repository.blackjack_week_start_ms()
     week_ms = 7 * 86400 * 1000
     prev_start_ms = now_week_ms - week_ms
     return prev_start_ms // 1000, now_week_ms // 1000
@@ -538,14 +550,13 @@ def _prev_week_bounds(orm) -> tuple:
 def _rewind_cashback_cursor(orm, week_start_ms: int) -> None:
     from app.core.db import get_session
     from app.core.kv import SystemConfig
-    from app.databases.db import DatabaseORM
 
     with get_session() as session:
         row = (
             session.query(SystemConfig)
             .filter(
                 SystemConfig.config_type == "blackjack",
-                SystemConfig.config_key == DatabaseORM.CASHBACK_CURSOR_KEY,
+                SystemConfig.config_key == CASHBACK_CURSOR_KEY,
             )
             .one_or_none()
         )
@@ -589,7 +600,7 @@ def test_cashback_first_run_only_anchors(orm, monkeypatch):
     start_s, _ = _prev_week_bounds(orm)
     _add_settled_hand(1, net=-60.0, settled_at_s=start_s + 100)
 
-    result = orm.settle_blackjack_weekly_cashback()
+    result = blackjack_repository.settle_blackjack_weekly_cashback()
 
     assert result["anchored"] is True
     assert result["settled_weeks"] == []
@@ -603,10 +614,10 @@ def test_cashback_settles_net_losers(orm, monkeypatch):
     _add_settled_hand(1, net=-60.0, settled_at_s=start_s + 100)
 
     # 首跑锚定后把游标拨回两周前，使上一完整周可结算
-    orm.settle_blackjack_weekly_cashback()
+    blackjack_repository.settle_blackjack_weekly_cashback()
     _rewind_cashback_cursor(orm, (start_s - 7 * 86400) * 1000)
 
-    result = orm.settle_blackjack_weekly_cashback()
+    result = blackjack_repository.settle_blackjack_weekly_cashback()
 
     assert result["anchored"] is False
     weeks = result["settled_weeks"]
@@ -625,11 +636,13 @@ def test_cashback_rerun_is_idempotent(orm, monkeypatch):
     start_s, _ = _prev_week_bounds(orm)
     _add_settled_hand(1, net=-60.0, settled_at_s=start_s + 100)
 
-    orm.settle_blackjack_weekly_cashback()
+    blackjack_repository.settle_blackjack_weekly_cashback()
     _rewind_cashback_cursor(orm, (start_s - 7 * 86400) * 1000)
 
-    orm.settle_blackjack_weekly_cashback()
-    result = orm.settle_blackjack_weekly_cashback()  # 重跑：游标已推进，无事可做
+    blackjack_repository.settle_blackjack_weekly_cashback()
+    result = (
+        blackjack_repository.settle_blackjack_weekly_cashback()
+    )  # 重跑：游标已推进，无事可做
 
     assert (
         all(not w["users"] for w in result["settled_weeks"])
@@ -646,9 +659,9 @@ def test_cashback_skips_net_winners_and_small_amounts(orm, monkeypatch):
     _add_settled_hand(1, net=40.0, settled_at_s=start_s + 100)
     _add_settled_hand(2, net=-5.0, settled_at_s=start_s + 200)
 
-    orm.settle_blackjack_weekly_cashback()
+    blackjack_repository.settle_blackjack_weekly_cashback()
     _rewind_cashback_cursor(orm, (start_s - 7 * 86400) * 1000)
-    result = orm.settle_blackjack_weekly_cashback()
+    result = blackjack_repository.settle_blackjack_weekly_cashback()
 
     users = result["settled_weeks"][0]["users"]
     assert users == []  # 净赢者不发；-5×15%=0.75 < 1 门槛也不发
@@ -671,9 +684,9 @@ def test_cashback_jackpot_makes_net_winner(orm, monkeypatch):
             BlackjackHand.tg_id == 1, BlackjackHand.jackpot_won.is_(None)
         ).update({"jackpot_won": 200.0})
 
-    orm.settle_blackjack_weekly_cashback()
+    blackjack_repository.settle_blackjack_weekly_cashback()
     _rewind_cashback_cursor(orm, (start_s - 7 * 86400) * 1000)
-    result = orm.settle_blackjack_weekly_cashback()
+    result = blackjack_repository.settle_blackjack_weekly_cashback()
 
     assert result["settled_weeks"][0]["users"] == []
     assert get_stats(1)["tournament_wallet_credits"] == 0.0
@@ -683,17 +696,17 @@ def test_cashback_catches_up_missed_weeks(orm, monkeypatch):
     """停机跨周：一次运行把两个错过的完整周都补上。"""
     patch_cfg(monkeypatch, orm)
     add_user(orm, 1, credits=100.0)
-    now_week_ms = orm._blackjack_week_start_ms()
+    now_week_ms = blackjack_repository.blackjack_week_start_ms()
     week_ms = 7 * 86400 * 1000
     w1_start_s = (now_week_ms - 2 * week_ms) // 1000
     w2_start_s = (now_week_ms - 1 * week_ms) // 1000
     _add_settled_hand(1, net=-40.0, settled_at_s=w1_start_s + 100)
     _add_settled_hand(1, net=-20.0, settled_at_s=w2_start_s + 100)
 
-    orm.settle_blackjack_weekly_cashback()  # 锚定
+    blackjack_repository.settle_blackjack_weekly_cashback()  # 锚定
     _rewind_cashback_cursor(orm, now_week_ms - 3 * week_ms)
 
-    result = orm.settle_blackjack_weekly_cashback()
+    result = blackjack_repository.settle_blackjack_weekly_cashback()
 
     assert len(result["settled_weeks"]) == 2
     # 两周各 6 与 3 的返还
@@ -706,7 +719,7 @@ def test_cashback_disabled(orm, monkeypatch):
     start_s, _ = _prev_week_bounds(orm)
     _add_settled_hand(1, net=-60.0, settled_at_s=start_s + 100)
 
-    result = orm.settle_blackjack_weekly_cashback()
+    result = blackjack_repository.settle_blackjack_weekly_cashback()
 
     assert result["enabled"] is False
     assert get_stats(1)["tournament_wallet_credits"] == 0.0
@@ -753,38 +766,40 @@ def test_consume_freespin_claims_oldest_expiry(orm):
     later = _add_free_spin(1, expires_in_ms=7 * 86400 * 1000)
     sooner = _add_free_spin(1, expires_in_ms=1 * 86400 * 1000)
 
-    claimed = db.consume_blackjack_freespin(1)
+    claimed = luckywheel_repository.consume_blackjack_freespin(1)
 
     assert claimed is not None
     assert claimed["id"] == sooner  # 先消耗最早到期的
     assert claimed["expires_at_ms"] > 0
 
-    claimed2 = db.consume_blackjack_freespin(1)
+    claimed2 = luckywheel_repository.consume_blackjack_freespin(1)
     assert claimed2["id"] == later
 
-    assert db.consume_blackjack_freespin(1) is None  # 用尽
+    assert luckywheel_repository.consume_blackjack_freespin(1) is None  # 用尽
 
 
 def test_consume_freespin_skips_expired(orm):
     add_user(orm, 1, credits=100.0)
     _add_free_spin(1, expires_in_ms=-1000)  # 已过期
 
-    assert db.consume_blackjack_freespin(1) is None
+    assert luckywheel_repository.consume_blackjack_freespin(1) is None
 
 
 def test_release_freespin_restores_availability(orm):
     add_user(orm, 1, credits=100.0)
     spin_id = _add_free_spin(1)
 
-    claimed = db.consume_blackjack_freespin(1)
+    claimed = luckywheel_repository.consume_blackjack_freespin(1)
     assert claimed["id"] == spin_id
 
     # 补偿路径：只回退本方写入的时戳
     assert (
-        db.release_blackjack_freespin(spin_id, claimed_at_ms=claimed["claimed_at_ms"])
+        luckywheel_repository.release_blackjack_freespin(
+            spin_id, claimed_at_ms=claimed["claimed_at_ms"]
+        )
         is True
     )
-    assert db.consume_blackjack_freespin(1) is not None  # 机会回来了
+    assert luckywheel_repository.consume_blackjack_freespin(1) is not None  # 机会回来了
 
 
 async def test_free_spin_execute_skips_cost(orm, monkeypatch):
@@ -798,7 +813,7 @@ async def test_free_spin_execute_skips_cost(orm, monkeypatch):
     add_user(orm, 1, credits=25.0)  # 低于普通门槛 30
     _add_free_spin(1)
 
-    claimed = db.consume_blackjack_freespin(1)
+    claimed = luckywheel_repository.consume_blackjack_freespin(1)
     assert claimed is not None
 
     config = LuckyWheelConfig(
@@ -837,7 +852,7 @@ async def test_free_spin_negative_prize_truncates_at_zero(orm, monkeypatch):
 
     add_user(orm, 1, credits=0.0)
     _add_free_spin(1)
-    claimed = db.consume_blackjack_freespin(1)
+    claimed = luckywheel_repository.consume_blackjack_freespin(1)
     assert claimed is not None
 
     config = LuckyWheelConfig(
@@ -859,12 +874,12 @@ async def test_free_spin_negative_prize_truncates_at_zero(orm, monkeypatch):
 
 def test_freespin_summary_reports_state(orm):
     add_user(orm, 1, credits=100.0)
-    summary = db.get_blackjack_freespin_summary(1)
+    summary = luckywheel_repository.get_blackjack_freespin_summary(1)
     assert summary["available"] == 0
 
     _add_free_spin(1)
     _add_free_spin(1)
-    summary = db.get_blackjack_freespin_summary(1)
+    summary = luckywheel_repository.get_blackjack_freespin_summary(1)
     assert summary["available"] == 2
     assert len(summary["expires_at_ms_list"]) == 2
     assert summary["hands_since_freespin"] == 0
@@ -879,7 +894,7 @@ def test_cashback_launch_anchor_settles_first_full_week_after_deploy(orm, monkey
     结算的是「启用后的第一个完整自然周」而非再下一周。"""
     patch_cfg(monkeypatch, orm)
     add_user(orm, 1, credits=100.0)
-    now_week_ms = orm._blackjack_week_start_ms()
+    now_week_ms = blackjack_repository.blackjack_week_start_ms()
     week_ms = 7 * 86400 * 1000
     deploy_week_s = (now_week_ms - week_ms) // 1000  # 部署周 = 上一完整周
     first_full_week_s = now_week_ms // 1000  # 启用后的第一个完整自然周
@@ -888,15 +903,17 @@ def test_cashback_launch_anchor_settles_first_full_week_after_deploy(orm, monkey
     _add_settled_hand(1, net=-60.0, settled_at_s=first_full_week_s + 3600)
 
     # 首跑：锚定，不结算
-    result = orm.settle_blackjack_weekly_cashback()
+    result = blackjack_repository.settle_blackjack_weekly_cashback()
     assert result["anchored"] is True
     assert get_stats(1)["tournament_wallet_credits"] == 0.0
 
     # 模拟下一周的周一任务
     monkeypatch.setattr(
-        orm, "_blackjack_week_start_ms", lambda **kw: now_week_ms + week_ms
+        blackjack_repository._repository,
+        "_blackjack_week_start_ms",
+        lambda **kw: now_week_ms + week_ms,
     )
-    result = orm.settle_blackjack_weekly_cashback()
+    result = blackjack_repository.settle_blackjack_weekly_cashback()
 
     weeks = result["settled_weeks"]
     assert len(weeks) == 1
@@ -912,25 +929,25 @@ def test_cashback_disabled_period_not_backsettled(orm, monkeypatch):
     补结算与私信倾泻）。"""
     patch_cfg(monkeypatch, orm)
     add_user(orm, 1, credits=100.0)
-    now_week_ms = orm._blackjack_week_start_ms()
+    now_week_ms = blackjack_repository.blackjack_week_start_ms()
     week_ms = 7 * 86400 * 1000
     # 两周前的亏损（处于将来的停用期内）
     old_s = (now_week_ms - 2 * week_ms) // 1000
     _add_settled_hand(1, net=-100.0, settled_at_s=old_s + 3600)
 
     # 锚定后把游标拨回三周前（模拟停用期任务长期未跑）
-    orm.settle_blackjack_weekly_cashback()
+    blackjack_repository.settle_blackjack_weekly_cashback()
     _rewind_cashback_cursor(orm, now_week_ms - 3 * week_ms)
 
     # 停用状态下运行：游标推进，不结算
     patch_cfg(monkeypatch, orm, cashback_enabled=False)
-    result = orm.settle_blackjack_weekly_cashback()
+    result = blackjack_repository.settle_blackjack_weekly_cashback()
     assert result["enabled"] is False
     assert get_stats(1)["tournament_wallet_credits"] == 0.0
 
     # 重启用：不回溯停用期
     patch_cfg(monkeypatch, orm)
-    result = orm.settle_blackjack_weekly_cashback()
+    result = blackjack_repository.settle_blackjack_weekly_cashback()
     assert result["enabled"] is True
     assert all(not w["users"] for w in result["settled_weeks"])
     assert get_stats(1)["tournament_wallet_credits"] == 0.0
@@ -962,10 +979,10 @@ def test_user_and_admin_stats_include_relief(orm, monkeypatch):
         lose_once(orm, 1)
 
     # 8 手：7 手净 -15，救济手净 0（赔付 0 − 注 15 + 救济 15）
-    user_stats = db.get_user_blackjack_stats(1)
+    user_stats = blackjack_repository.get_user_blackjack_stats(1)
     assert user_stats["net_credits"] == -105.0
 
-    admin_stats = db.get_blackjack_admin_stats()
+    admin_stats = blackjack_repository.get_blackjack_admin_stats()
     # wagered 120、payout 0、jackpot 0、relief 15 → net = 15 − 120
     assert admin_stats["net_credits"] == -105.0
 
@@ -977,7 +994,7 @@ async def test_admin_notification_failure_does_not_break_spin(orm, monkeypatch):
 
     add_user(orm, 1, credits=25.0)
     _add_free_spin(1)
-    claimed = db.consume_blackjack_freespin(1)
+    claimed = luckywheel_repository.consume_blackjack_freespin(1)
     assert claimed is not None
 
     config = lw.LuckyWheelConfig(
@@ -1053,29 +1070,33 @@ def test_notify_cursor_returns_only_blackjack_and_skips_gift_rows(orm):
     old_ms = int(time.time() * 1000) - 5 * 60 * 1000  # 早于 60 秒安全边界
 
     # 首次运行只初始化游标
-    assert db.claim_unnotified_blackjack_freespins() == []
+    assert luckywheel_repository.claim_unnotified_blackjack_freespins() == []
 
     bj1 = _add_free_spin(1, granted_at_ms=old_ms)
     gp1 = _add_free_spin(1, source="gift_pack", granted_at_ms=old_ms)
     bj2 = _add_free_spin(1, granted_at_ms=old_ms)
     gp2 = _add_free_spin(1, source="gift_pack", granted_at_ms=old_ms)
 
-    claimed = db.claim_unnotified_blackjack_freespins()
+    claimed = luckywheel_repository.claim_unnotified_blackjack_freespins()
     assert [c["id"] for c in claimed] == [bj1, bj2]
 
     # 游标推进到扫描范围内的最大 id（含礼包行），不会重复返回
     from app.core.db import get_session
 
     with get_session() as session:
-        _, cursor = db._read_retention_cursor(session, db.FREESPIN_NOTIFY_CURSOR_KEY)
+        _, cursor = blackjack_repository._repository._read_retention_cursor(
+            session, FREESPIN_NOTIFY_CURSOR_KEY
+        )
     assert cursor == max(bj1, gp1, bj2, gp2)
-    assert db.claim_unnotified_blackjack_freespins() == []
+    assert luckywheel_repository.claim_unnotified_blackjack_freespins() == []
 
     # 游标后只有礼包行时也会越过，其后的 21 点行照常返回
     gp3 = _add_free_spin(1, source="gift_pack", granted_at_ms=old_ms)
-    assert db.claim_unnotified_blackjack_freespins() == []
+    assert luckywheel_repository.claim_unnotified_blackjack_freespins() == []
     bj3 = _add_free_spin(1, granted_at_ms=old_ms)
-    assert [c["id"] for c in db.claim_unnotified_blackjack_freespins()] == [bj3]
+    assert [
+        c["id"] for c in luckywheel_repository.claim_unnotified_blackjack_freespins()
+    ] == [bj3]
     assert bj3 > gp3
 
 
@@ -1085,11 +1106,11 @@ def test_consume_returns_source_and_orders_by_expiry_across_sources(orm):
     gift_later = _add_free_spin(1, source="gift_pack", expires_in_ms=3 * 86400 * 1000)
     bj_sooner = _add_free_spin(1, expires_in_ms=1 * 86400 * 1000)
 
-    first = db.consume_blackjack_freespin(1)
+    first = luckywheel_repository.consume_blackjack_freespin(1)
     assert first["id"] == bj_sooner
     assert first["source"] == "blackjack"
 
-    second = db.consume_blackjack_freespin(1)
+    second = luckywheel_repository.consume_blackjack_freespin(1)
     assert second["id"] == gift_later
     assert second["source"] == "gift_pack"
 
@@ -1104,7 +1125,7 @@ async def test_spin_records_free_spin_source(orm, spin_source, wheel_source):
 
     add_user(orm, 1, credits=0.0)
     _add_free_spin(1, source=spin_source)
-    claimed = db.consume_blackjack_freespin(1)
+    claimed = luckywheel_repository.consume_blackjack_freespin(1)
 
     config = lw.LuckyWheelConfig(
         items=[lw.LuckyWheelItem(name="谢谢参与", probability=100.0)],

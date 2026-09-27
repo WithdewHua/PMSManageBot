@@ -23645,3 +23645,75 @@ kind = "assignment"
 reason = "B1 SingletonMeta relocation; legacy utility module deleted"
 action = "delete"
 source_state = "frozen"
+
+[[items]]
+id = "app.databases.db_func:check_and_award_game_king_badge@b3-key:badges-get-badge-by-type"
+target = "app.domains.badge_awards.jobs"
+kind = "call"
+reason = "promote-blackjack-domain 4.4 reviewed rebinding: badge_awards calls badges.service instead of the legacy db facade; the enclosing job is the frozen B3 source"
+b3_key = "call|src/app/domains/badge_awards/jobs.py|imported|badges|get_badge_by_type"
+b3_source_id = "app.databases.db_func:check_and_award_game_king_badge"
+b3_behavior_test = "tests/refactor/test_blackjack_cross_domain.py::test_cross_domain_callers_use_blackjack_service_boundaries"
+
+[[items]]
+id = "app.databases.db_func:check_and_award_supreme_contributor_badge@b3-key:badges-get-badge-by-type"
+target = "app.domains.badge_awards.jobs"
+kind = "call"
+reason = "promote-blackjack-domain 4.4 reviewed rebinding: badge_awards calls badges.service instead of the legacy db facade; the enclosing job is the frozen B3 source"
+b3_key = "call|src/app/domains/badge_awards/jobs.py|imported|badges|get_badge_by_type"
+b3_source_id = "app.databases.db_func:check_and_award_supreme_contributor_badge"
+b3_behavior_test = "tests/refactor/test_blackjack_cross_domain.py::test_cross_domain_callers_use_blackjack_service_boundaries"
+
+[[items]]
+id = "app.databases.db_func:check_and_award_game_king_badge@b3-key:badges-create-badge"
+target = "app.domains.badge_awards.jobs"
+kind = "call"
+reason = "promote-blackjack-domain 4.4 reviewed rebinding: badge_awards calls badges.service instead of the legacy db facade; the enclosing job is the frozen B3 source"
+b3_key = "call|src/app/domains/badge_awards/jobs.py|imported|badges|create_badge"
+b3_source_id = "app.databases.db_func:check_and_award_game_king_badge"
+b3_behavior_test = "tests/refactor/test_blackjack_cross_domain.py::test_cross_domain_callers_use_blackjack_service_boundaries"
+
+[[items]]
+id = "app.databases.db_func:check_and_award_supreme_contributor_badge@b3-key:badges-create-badge"
+target = "app.domains.badge_awards.jobs"
+kind = "call"
+reason = "promote-blackjack-domain 4.4 reviewed rebinding: badge_awards calls badges.service instead of the legacy db facade; the enclosing job is the frozen B3 source"
+b3_key = "call|src/app/domains/badge_awards/jobs.py|imported|badges|create_badge"
+b3_source_id = "app.databases.db_func:check_and_award_supreme_contributor_badge"
+b3_behavior_test = "tests/refactor/test_blackjack_cross_domain.py::test_cross_domain_callers_use_blackjack_service_boundaries"
+
+[[items]]
+id = "app.databases.db_func:check_and_award_game_king_badge@b3-key:blackjack-config"
+target = "app.domains.badge_awards.jobs"
+kind = "call"
+reason = "promote-blackjack-domain 4.4 reviewed rebinding: badge_awards reads blackjack config through blackjack.service instead of the legacy db facade"
+b3_key = "call|src/app/domains/badge_awards/jobs.py|imported|blackjack|get_blackjack_config_dict"
+b3_source_id = "app.databases.db_func:check_and_award_game_king_badge"
+b3_behavior_test = "tests/refactor/test_blackjack_cross_domain.py::test_cross_domain_callers_use_blackjack_service_boundaries"
+
+[[items]]
+id = "app.databases.db_func:check_and_award_game_king_badge@b3-key:blackjack-stats"
+target = "app.domains.badge_awards.jobs"
+kind = "call"
+reason = "promote-blackjack-domain 4.4 reviewed rebinding: badge_awards reads blackjack stats through blackjack.service instead of the legacy db facade"
+b3_key = "call|src/app/domains/badge_awards/jobs.py|imported|blackjack|get_user_blackjack_stats"
+b3_source_id = "app.databases.db_func:check_and_award_game_king_badge"
+b3_behavior_test = "tests/refactor/test_blackjack_cross_domain.py::test_cross_domain_callers_use_blackjack_service_boundaries"
+
+[[items]]
+id = "app.databases.db_func:check_and_award_game_king_badge@b3-key:blackjack-game-king-ids"
+target = "app.domains.badge_awards.jobs"
+kind = "call"
+reason = "promote-blackjack-domain 4.4 reviewed rebinding: the game-king eligibility query moved into blackjack.service, replacing the frozen B3 in_/is_ model filters"
+b3_key = "call|src/app/domains/badge_awards/jobs.py|imported|blackjack|get_game_king_eligible_tg_ids_tx"
+b3_source_id = "app.databases.db_func:check_and_award_game_king_badge"
+b3_behavior_test = "tests/refactor/test_blackjack_cross_domain.py::test_cross_domain_callers_use_blackjack_service_boundaries"
+
+[[items]]
+id = "app.databases.db_func:@import:19@b3-key:badge-awards-blackjack-service"
+target = "app.domains.badge_awards.jobs"
+kind = "import"
+reason = "promote-blackjack-domain 4.4 reviewed rebinding: the frozen B3 blackjack model import anchor now resolves to blackjack.service"
+b3_key = "import|src/app/domains/badge_awards/jobs.py|app.domains.blackjack.service|service"
+b3_source_id = "app.databases.db_func:@import:19"
+b3_behavior_test = "tests/refactor/test_blackjack_cross_domain.py::test_external_domains_do_not_import_blackjack_models_or_repository_parts"

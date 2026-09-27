@@ -18,7 +18,7 @@ def test_blackjack_behavior_surface_matches_frozen_fixture() -> None:
     assert first == expected
     assert first["routes"]
     assert first["scheduler_jobs"]
-    assert first["facade_blackjack_methods"]
+    assert first["facade_blackjack_methods"] == []
     assert first["metadata_tables"]
 
 

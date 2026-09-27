@@ -1,6 +1,6 @@
 """21 点锦标赛路由
 
-只做参数校验、权限、异常翻译与赛事推进的任务编排；业务逻辑与事务在 `db.py` 的
+只做参数校验、权限、异常翻译与赛事推进的任务编排；业务逻辑与事务在 `blackjack_service.py` 的
 `*_tournament*` 方法里，规则判定复用 `blackjack_engine.py`。
 
 赛内手牌的响应一律经 `BlackjackHandResponse.from_hand()` 构造——与现金局共用同一道
@@ -21,7 +21,6 @@ tick 任务 / 任务重试），靠「记得只发一次」是不可能正确的
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.telegram import get_user_names_from_tg_ids, send_message_by_url
-from app.databases import db
 
 # router declaration belongs to the HTTP assembly(prefix="/blackjack/tournament", tags=["21点锦标赛"])
 
@@ -33,11 +32,6 @@ _TICK_LIST_LIMIT = 100
 # ============================================================
 # 通知
 # ============================================================
-
-
-def _notify_enabled() -> bool:
-    """赛事通知是否开启。"""
-    return bool(db.get_blackjack_config_dict().get("tournament_notify_enabled", True))
 
 
 def _group_chat_id() -> str | None:
@@ -203,9 +197,11 @@ async def _broadcast_group(text: str, label: str) -> None:
         logger.error(f"{label}群播报失败: {e}")
 
 
-async def notify_tournament_started(tournament: dict, entrants: list) -> None:
-    """开赛通知。由报名请求（`BackgroundTasks`）与 tick 任务共用。"""
-    if not _notify_enabled() or not entrants:
+async def notify_tournament_started(
+    tournament: dict, entrants: list, *, notify_enabled: bool = True
+) -> None:
+    """开赛通知。通知开关由上层 service/job 调用方解析后传入。"""
+    if not notify_enabled or not entrants:
         return
     text = _format_started(tournament)
     sent = await _send_many(entrants, lambda _t: text, "开赛")

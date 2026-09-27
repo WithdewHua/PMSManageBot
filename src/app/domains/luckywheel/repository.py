@@ -55,6 +55,20 @@ def grant_free_spins_tx(
     return rows
 
 
+def count_blackjack_freespins_since_tx(session, tg_id: int, since_ms: int) -> int:
+    """Count blackjack-sourced free spins granted to a user since a timestamp."""
+    return int(
+        session.execute(
+            select(func.count(LuckywheelFreeSpin.id)).where(
+                LuckywheelFreeSpin.tg_id == int(tg_id),
+                LuckywheelFreeSpin.source == "blackjack",
+                LuckywheelFreeSpin.granted_at_ms >= int(since_ms),
+            )
+        ).scalar_one()
+        or 0
+    )
+
+
 def consume_blackjack_freespin(tg_id: int) -> dict | None:
     """Atomically claim the earliest available free-spin ledger row."""
     now_ms = int(time.time() * 1000)
@@ -497,3 +511,105 @@ class LuckywheelRepository:
             是否成功
         """
         return self.set_system_config("lucky_wheel", config_key, config_json)
+
+
+FREESPIN_NOTIFY_CURSOR_KEY = "freespin_notify_cursor"
+
+
+def _read_blackjack_freespin_cursor(session) -> tuple[SystemConfig | None, int]:
+    row = (
+        session.execute(
+            select(SystemConfig).where(
+                SystemConfig.config_type == "blackjack",
+                SystemConfig.config_key == FREESPIN_NOTIFY_CURSOR_KEY,
+            )
+        )
+        .scalars()
+        .one_or_none()
+    )
+    try:
+        cursor = int(float(row.config_value)) if row else 0
+    except (TypeError, ValueError):
+        cursor = 0
+    return row, cursor
+
+
+def _write_blackjack_freespin_cursor(
+    session, row: SystemConfig | None, value: int
+) -> None:
+    now_ts = int(time.time())
+    if row is None:
+        session.add(
+            SystemConfig(
+                config_type="blackjack",
+                config_key=FREESPIN_NOTIFY_CURSOR_KEY,
+                config_value=str(int(value)),
+                created_at=now_ts,
+                updated_at=now_ts,
+            )
+        )
+    else:
+        row.config_value = str(int(value))
+        row.updated_at = now_ts
+    session.flush()
+
+
+def claim_unnotified_blackjack_freespins() -> list[dict]:
+    """Claim settled-enough free-spin grants for best-effort notification."""
+    try:
+        with get_session() as session:
+            cursor_row, cursor = _read_blackjack_freespin_cursor(session)
+            safe_before_ms = int(time.time() * 1000) - 60 * 1000
+            rows = session.execute(
+                select(
+                    LuckywheelFreeSpin.id,
+                    LuckywheelFreeSpin.tg_id,
+                    LuckywheelFreeSpin.expires_at_ms,
+                    LuckywheelFreeSpin.source,
+                )
+                .where(
+                    LuckywheelFreeSpin.id > cursor,
+                    LuckywheelFreeSpin.granted_at_ms <= safe_before_ms,
+                )
+                .order_by(LuckywheelFreeSpin.id)
+            ).all()
+            frontier = int(rows[-1][0]) if rows else cursor
+            _write_blackjack_freespin_cursor(session, cursor_row, frontier)
+            if cursor_row is None:
+                if frontier:
+                    logger.info(f"免费机会通知游标初始化为 {frontier}，不回溯历史发放")
+                return []
+            return [
+                {"id": int(row[0]), "tg_id": int(row[1]), "expires_at_ms": int(row[2])}
+                for row in rows
+                if row[3] == "blackjack"
+            ]
+    except Exception as exc:
+        logger.error(f"认领待通知的免费机会发放失败: {exc}")
+        return []
+
+
+def list_expiring_blackjack_freespins(*, within_ms: int = 86400 * 1000) -> list[dict]:
+    """List unused free spins expiring within a window, grouped by user."""
+    now_ms = int(time.time() * 1000)
+    try:
+        with get_session() as session:
+            rows = session.execute(
+                select(LuckywheelFreeSpin.tg_id, LuckywheelFreeSpin.expires_at_ms)
+                .where(
+                    LuckywheelFreeSpin.used_at_ms.is_(None),
+                    LuckywheelFreeSpin.expires_at_ms > now_ms,
+                    LuckywheelFreeSpin.expires_at_ms <= now_ms + int(within_ms),
+                )
+                .order_by(LuckywheelFreeSpin.expires_at_ms)
+            ).all()
+        merged: dict[int, list[int]] = {}
+        for tg_id, expires_at_ms in rows:
+            merged.setdefault(int(tg_id), []).append(int(expires_at_ms))
+        return [
+            {"tg_id": tg_id, "expires_at_ms_list": expiries}
+            for tg_id, expiries in merged.items()
+        ]
+    except Exception as exc:
+        logger.error(f"查询即将过期的免费机会失败: {exc}")
+        return []

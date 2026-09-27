@@ -28,8 +28,8 @@
 - [x] 4.2 Provide caller-owned `*_tx(session, ...)` functions for hand lifecycle, settlement, tournament registration/actions/settlement, configuration, statistics, and retention records; verify all multi-write operations reuse one session and lock rows before calculating deltas.
 - [x] 4.3 Move blackjack-specific model/config constants to explicit repository or rules modules as appropriate, preserving import paths needed by scheduler/jobstore compatibility; verify all 21-point modules import successfully.
 - [x] 4.4 Migrate cross-domain blackjack callers (credits, luckywheel, badges, rankings, gift pack, and account/profile consumers) to module/service/`*_tx` APIs; verify no new direct foreign-model or facade import is introduced.
-- [ ] 4.5 Remove blackjack methods and mixin inheritance from `DatabaseORM` only after all callers migrate; verify facade introspection contains no blackjack operations and manual-operation review has no deleted entry point.
-- [ ] 4.6 Update mapping/provenance and architecture baseline entries item-by-item, then verify blackjack violations strictly decrease without adding broad import-linter exemptions.
+- [x] 4.5 Remove blackjack methods and mixin inheritance from `DatabaseORM` only after all callers migrate; verify facade introspection contains no blackjack operations and manual-operation review has no deleted entry point.
+- [x] 4.6 Update mapping/provenance and architecture baseline entries item-by-item, then verify blackjack violations strictly decrease without adding broad import-linter exemptions.
 - [ ] 4.7 Add repository transaction/failure-injection tests for cash settlement, timeout settlement, tournament registration, tournament settlement, and free-spin issuance; verify balances, hands, entries, and awards roll back together.
 
 ## 5. Service and Side-Effect Orchestration

@@ -99,19 +99,6 @@ class RankingsRepository:
             results = session.execute(stmt).fetchall()
             return [(r[0], int(r[1] or 0)) for r in results if int(r[1] or 0) > 0]
 
-    def get_blackjack_skill_ranks(self, min_hands: int | None = None) -> dict:
-        """Return blackjack accuracy and win-rate rankings."""
-        return blackjack_service.get_blackjack_skill_ranks(min_hands)
-
-    def get_blackjack_accuracy_rank(self, min_hands: int | None = None) -> list:
-        return self.get_blackjack_skill_ranks(min_hands)["accuracy"]
-
-    def get_blackjack_win_rate_rank(self, min_hands: int | None = None) -> list:
-        return self.get_blackjack_skill_ranks(min_hands)["win_rate"]
-
-    def get_blackjack_max_win_rank(self) -> list:
-        return blackjack_service.get_blackjack_max_win_rank()
-
     def get_treasure_win_issue_rank(self) -> list:
         """获取夺宝奇兵中奖期数排行榜"""
         with get_session() as session:
@@ -199,8 +186,8 @@ rankings_repository = RankingsRepository()
 
 
 def get_blackjack_skill_ranks(min_hands: int | None = None) -> dict:
-    return rankings_repository.get_blackjack_skill_ranks(min_hands)
+    return blackjack_service.get_blackjack_skill_ranks(min_hands)
 
 
 def get_blackjack_max_win_rank() -> list:
-    return rankings_repository.get_blackjack_max_win_rank()
+    return blackjack_service.get_blackjack_max_win_rank()

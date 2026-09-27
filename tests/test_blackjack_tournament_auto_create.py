@@ -6,6 +6,9 @@ import datetime
 
 import pytest
 
+from app.domains.blackjack import repository as blackjack_repository
+from app.domains.blackjack import service as blackjack_service
+from app.domains.blackjack.config import TOURNAMENT_REGISTERING
 from tests.conftest import add_tournament, next_id
 
 
@@ -74,14 +77,17 @@ async def test_auto_create_uses_week_aligned_deadlines(
 ):
     from app.domains.blackjack.jobs import tournament as router
 
-    monkeypatch.setattr(router, "db", orm)
+    monkeypatch.setattr(router, "blackjack_service", blackjack_service)
     monkeypatch.setattr(router, "_notify_enabled", lambda: False)
-    monkeypatch.setattr(orm, "get_blackjack_config_dict", lambda: _config())
+    monkeypatch.setattr(blackjack_service, "get_blackjack_config_dict", _config)
+    monkeypatch.setattr(
+        blackjack_repository._repository, "get_blackjack_config_dict", _config
+    )
 
     await router.auto_create_blackjack_tournament_job()
 
-    rows = orm.list_blackjack_tournaments(
-        statuses=(orm.TOURNAMENT_REGISTERING,), limit=10
+    rows = blackjack_repository.list_blackjack_tournaments(
+        statuses=(TOURNAMENT_REGISTERING,), limit=10
     )
     assert len(rows) == 1
     t = rows[0]
@@ -103,13 +109,13 @@ async def test_auto_create_skips_when_registration_open(orm, monkeypatch):
 
     add_tournament(
         orm,
-        status=orm.TOURNAMENT_REGISTERING,
+        status=TOURNAMENT_REGISTERING,
         register_deadline_ms=int(time.time() * 1000) + 3600 * 1000,
     )
     created = []
-    monkeypatch.setattr(router, "db", orm)
+    monkeypatch.setattr(router, "blackjack_service", blackjack_service)
     monkeypatch.setattr(
-        orm,
+        blackjack_service,
         "create_blackjack_tournament",
         lambda *a, **kw: created.append(1) or {},
     )
@@ -125,14 +131,17 @@ async def test_auto_create_double_fire_is_idempotent(
     """任务重复触发：第一轮建了周赛，第二轮必须被闸门挡下。"""
     from app.domains.blackjack.jobs import tournament as router
 
-    monkeypatch.setattr(router, "db", orm)
+    monkeypatch.setattr(router, "blackjack_service", blackjack_service)
     monkeypatch.setattr(router, "_notify_enabled", lambda: False)
-    monkeypatch.setattr(orm, "get_blackjack_config_dict", lambda: _config())
+    monkeypatch.setattr(blackjack_service, "get_blackjack_config_dict", _config)
+    monkeypatch.setattr(
+        blackjack_repository._repository, "get_blackjack_config_dict", _config
+    )
 
     await router.auto_create_blackjack_tournament_job()
     await router.auto_create_blackjack_tournament_job()
 
-    rows = orm.list_blackjack_tournaments(limit=10)
+    rows = blackjack_repository.list_blackjack_tournaments(limit=10)
     assert len(rows) == 1
 
 
@@ -141,7 +150,7 @@ async def test_auto_create_respects_switches(orm, monkeypatch):
     """活动总开关或自动开赛开关任一关闭，都不创建。"""
     from app.domains.blackjack.jobs import tournament as router
 
-    monkeypatch.setattr(router, "db", orm)
+    monkeypatch.setattr(router, "blackjack_service", blackjack_service)
     monkeypatch.setattr(router, "_notify_enabled", lambda: False)
 
     for overrides in (
@@ -149,13 +158,13 @@ async def test_auto_create_respects_switches(orm, monkeypatch):
         {"tournament_auto_create_enabled": False},
     ):
         monkeypatch.setattr(
-            orm,
+            blackjack_repository._repository,
             "get_blackjack_config_dict",
             lambda overrides=overrides: _config(**overrides),
         )
         await router.auto_create_blackjack_tournament_job()
 
-    assert orm.list_blackjack_tournaments(limit=10) == []
+    assert blackjack_repository.list_blackjack_tournaments(limit=10) == []
 
 
 @pytest.mark.asyncio
@@ -163,14 +172,19 @@ async def test_auto_create_skips_when_count_unavailable(orm, monkeypatch):
     """闸门查询失败返回 None 时按「无法确认」跳过，宁可漏一期也不重复建。"""
     from app.domains.blackjack.jobs import tournament as router
 
-    monkeypatch.setattr(router, "db", orm)
-    monkeypatch.setattr(orm, "get_blackjack_config_dict", lambda: _config())
+    monkeypatch.setattr(router, "blackjack_service", blackjack_service)
+    monkeypatch.setattr(blackjack_service, "get_blackjack_config_dict", _config)
     monkeypatch.setattr(
-        orm, "count_registering_blackjack_tournaments", lambda _now: None
+        blackjack_repository._repository, "get_blackjack_config_dict", _config
+    )
+    monkeypatch.setattr(
+        blackjack_service,
+        "count_registering_blackjack_tournaments",
+        lambda _now: None,
     )
     created = []
     monkeypatch.setattr(
-        orm,
+        blackjack_service,
         "create_blackjack_tournament",
         lambda *a, **kw: created.append(1) or {},
     )

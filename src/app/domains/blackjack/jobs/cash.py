@@ -1,6 +1,6 @@
 """21 点活动路由
 
-只做参数校验、权限、异常翻译与超时任务编排；业务逻辑与事务在 `db.py` 的
+只做参数校验、权限、异常翻译与超时任务编排；业务逻辑与事务在 `blackjack_service.py` 的
 `blackjack_*` 方法里，规则判定在 `blackjack_engine.py`。
 
 响应一律经 `BlackjackHandResponse.from_hand()` 构造，庄家暗牌与随机种子的过滤
@@ -12,7 +12,7 @@ from datetime import datetime
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.telegram import send_message_by_url
-from app.databases import db
+from app.domains.blackjack import service as blackjack_service
 from app.domains.blackjack.notifications.cash import (
     _fmt_credits,
     _format_jackpot_win,
@@ -29,7 +29,7 @@ async def _settle_blackjack_hand_on_timeout(*, hand_id: int) -> None:
     下次发牌时兜住漏掉的手牌（设计决策 7）。
     """
     try:
-        result = db.settle_blackjack_hand_by_timeout(int(hand_id))
+        result = blackjack_service.settle_blackjack_hand_by_timeout(int(hand_id))
         if result.get("already_settled"):
             logger.info(f"Blackjack timeout: hand {hand_id} already settled; skip")
         else:
@@ -93,7 +93,7 @@ def restore_blackjack_timeouts() -> None:
         expired = 0
         now_ms = int(_time.time() * 1000)
 
-        for hand in db.list_active_blackjack_hands():
+        for hand in blackjack_service.list_active_blackjack_hands():
             deadline_ms = (
                 int(hand["created_at_ms"])
                 + int(hand["hand_timeout_minutes"]) * 60 * 1000
@@ -121,7 +121,7 @@ async def sweep_expired_blackjack_hands_job() -> None:
     时触发，若用户再也不回来，手牌会永久悬挂、押注不退。
     """
     try:
-        swept = db.sweep_timed_out_blackjack_hands()
+        swept = blackjack_service.sweep_timed_out_blackjack_hands()
         if swept:
             logger.info(f"21 点兜底清理：结算了 {swept} 手超时手牌")
     except Exception as e:
@@ -131,18 +131,18 @@ async def sweep_expired_blackjack_hands_job() -> None:
 async def notify_blackjack_jackpot_wins_job() -> None:
     """把新产生的奖池中奖播报到群里。
 
-    走游标轮询而非在各结算路径挂钩子——理由见 `db.JACKPOT_NOTIFY_CURSOR_KEY`
+    走游标轮询而非在各结算路径挂钩子——理由见 `blackjack_service.JACKPOT_NOTIFY_CURSOR_KEY`
     的注释。认领即视为已播报，故发送失败只记日志、不重播，避免刷屏。
     """
     try:
-        config = db.get_blackjack_config_dict()
+        config = blackjack_service.get_blackjack_config_dict()
         chat_id = _get_group_chat_id()
 
         # 关闭播报与未配置群组是同一件事：都**照常认领并推进游标**，只是不发送。
         # 若关闭时直接 return，游标会冻结，积压的中奖会在管理员重新打开的那一分钟
         # 一次性倾泻到群里——关掉播报两周再打开就是几十条连发。
         if not config.get("jackpot_notify_enabled", True) or not chat_id:
-            claimed = db.claim_unannounced_jackpot_wins()
+            claimed = blackjack_service.claim_unannounced_jackpot_wins()
             if claimed:
                 reason = (
                     "播报已关闭"
@@ -154,14 +154,14 @@ async def notify_blackjack_jackpot_wins_job() -> None:
                 )
             return
 
-        wins = db.claim_unannounced_jackpot_wins()
+        wins = blackjack_service.claim_unannounced_jackpot_wins()
         if not wins:
             return
 
         from app.core.telegram import send_message_by_url
 
         # 余额对本批所有消息都一样，查一次即可，不要每条消息各开一次会话
-        jackpot_balance = db.get_blackjack_jackpot()
+        jackpot_balance = blackjack_service.get_blackjack_jackpot()
 
         for win in wins:
             try:
@@ -188,7 +188,7 @@ async def notify_blackjack_freespin_grants_job() -> None:
     失败只记日志、不重发。发送量有界：每周每人至多周上限（5）条。
     """
     try:
-        grants = db.claim_unnotified_blackjack_freespins()
+        grants = blackjack_service.claim_unnotified_blackjack_freespins()
         if not grants:
             return
         for grant in grants:
@@ -222,7 +222,7 @@ async def remind_blackjack_freespin_expiry_job() -> None:
     一条/人。
     """
     try:
-        expiring = db.list_expiring_blackjack_freespins()
+        expiring = blackjack_service.list_expiring_blackjack_freespins()
         if not expiring:
             return
         for item in expiring:
@@ -257,7 +257,7 @@ async def blackjack_weekly_cashback_job() -> None:
     业务结果先落库，通知失败只记日志——与锦标赛通知同一口径。
     """
     try:
-        result = db.settle_blackjack_weekly_cashback()
+        result = blackjack_service.settle_blackjack_weekly_cashback()
         if not result.get("enabled"):
             return
         if result.get("anchored"):

@@ -17,6 +17,7 @@ from sqlalchemy import event, text
 from app.core.db import get_session
 from app.domains.auction.models import AuctionBids, Auctions
 from app.domains.badges.models import Badge, UserBadge
+from app.domains.blackjack.config import TOURNAMENT_RUNNING
 from app.domains.blackjack.models import (
     BlackjackHand,
     BlackjackTournament,
@@ -663,13 +664,13 @@ def test_prediction_counter_uses_utc_datetime_boundaries(orm):
 
 def test_tournament_counter_excludes_cancelled_events_and_applies_time_window(orm):
     add_user(orm, 1)
-    active = add_tournament(orm, status=orm.TOURNAMENT_RUNNING)
-    active_two = add_tournament(orm, status=orm.TOURNAMENT_RUNNING)
+    active = add_tournament(orm, status=TOURNAMENT_RUNNING)
+    active_two = add_tournament(orm, status=TOURNAMENT_RUNNING)
     cancelled = add_tournament(orm, status=4)
     add_entry(orm, active["id"], 1, registered_at_ms=100000)
     add_entry(orm, cancelled["id"], 1, registered_at_ms=150000)
     add_entry(orm, active_two["id"], 1, registered_at_ms=200000)
-    outside = add_tournament(orm, status=orm.TOURNAMENT_RUNNING)
+    outside = add_tournament(orm, status=TOURNAMENT_RUNNING)
     add_entry(orm, outside["id"], 1, registered_at_ms=999999)
 
     with get_session() as session:

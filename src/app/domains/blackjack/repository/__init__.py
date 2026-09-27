@@ -1,11 +1,22 @@
+from app.core.kv import SystemConfigRepository
 from app.domains.blackjack.config import (
+    CASHBACK_CURSOR_KEY,
     CHAMPION_BADGE_BONUS,
     CHAMPION_BADGE_TYPE,
     CHAMPION_BADGE_VALID_DAYS,
     DEFAULT_BLACKJACK_CONFIG,
+    ENTRY_ELIGIBLE,
+    ENTRY_ELIMINATED,
+    ENTRY_FINISHED,
+    ENTRY_PLAYING,
+    FREESPIN_NOTIFY_CURSOR_KEY,
     JACKPOT_CONFIG_KEY,
     JACKPOT_CONFIG_TYPE,
     JACKPOT_NOTIFY_CURSOR_KEY,
+    TOURNAMENT_CANCELLED,
+    TOURNAMENT_REGISTERING,
+    TOURNAMENT_RUNNING,
+    TOURNAMENT_SETTLED,
 )
 
 from .part_1 import _BlackjackRepositoryPart1
@@ -18,6 +29,7 @@ from .part_7 import _BlackjackRepositoryPart7
 
 
 class _BlackjackRepositoryImplementation(
+    SystemConfigRepository,
     _BlackjackRepositoryPart1,
     _BlackjackRepositoryPart2,
     _BlackjackRepositoryPart3,
@@ -29,10 +41,6 @@ class _BlackjackRepositoryImplementation(
     """Private compatibility implementation for the module-level API."""
 
 
-class BlackjackRepository(_BlackjackRepositoryImplementation):
-    """Legacy facade mixin target retained until Task 4.5 removes it."""
-
-
 _repository = _BlackjackRepositoryImplementation()
 
 
@@ -42,26 +50,6 @@ def settle_blackjack_weekly_cashback() -> dict:
 
 def get_blackjack_tournament_wallet(tg_id: int) -> float:
     return _repository.get_blackjack_tournament_wallet(tg_id)
-
-
-def claim_unnotified_blackjack_freespins() -> list:
-    return _repository.claim_unnotified_blackjack_freespins()
-
-
-def list_expiring_blackjack_freespins(*, within_ms: int = 86400 * 1000) -> dict:
-    return _repository.list_expiring_blackjack_freespins(within_ms=within_ms)
-
-
-def consume_blackjack_freespin(tg_id: int) -> dict | None:
-    return _repository.consume_blackjack_freespin(tg_id)
-
-
-def release_blackjack_freespin(spin_id: int, *, claimed_at_ms: int) -> bool:
-    return _repository.release_blackjack_freespin(spin_id, claimed_at_ms=claimed_at_ms)
-
-
-def get_blackjack_freespin_summary(tg_id: int) -> dict:
-    return _repository.get_blackjack_freespin_summary(tg_id)
 
 
 def read_fund_balance(session, config_type: str, config_key: str) -> float:
@@ -246,14 +234,23 @@ def get_blackjack_config_dict() -> dict:
 
 
 __all__ = [
+    "CASHBACK_CURSOR_KEY",
     "CHAMPION_BADGE_BONUS",
     "CHAMPION_BADGE_TYPE",
     "CHAMPION_BADGE_VALID_DAYS",
     "DEFAULT_BLACKJACK_CONFIG",
+    "ENTRY_ELIGIBLE",
+    "ENTRY_ELIMINATED",
+    "ENTRY_FINISHED",
+    "ENTRY_PLAYING",
+    "FREESPIN_NOTIFY_CURSOR_KEY",
     "JACKPOT_CONFIG_KEY",
     "JACKPOT_CONFIG_TYPE",
     "JACKPOT_NOTIFY_CURSOR_KEY",
-    "BlackjackRepository",
+    "TOURNAMENT_CANCELLED",
+    "TOURNAMENT_REGISTERING",
+    "TOURNAMENT_RUNNING",
+    "TOURNAMENT_SETTLED",
     "apply_blackjack_retention_tx",
     "award_or_renew_badge",
     "blackjack_double",
@@ -276,8 +273,6 @@ __all__ = [
     "check_blackjack_tournament_consistency",
     "claim_tournament_reminder",
     "claim_unannounced_jackpot_wins",
-    "claim_unnotified_blackjack_freespins",
-    "consume_blackjack_freespin",
     "count_registering_blackjack_tournaments",
     "count_user_blackjack_tournament_titles",
     "create_blackjack_hand",
@@ -293,7 +288,6 @@ __all__ = [
     "get_blackjack_config_dict_tx",
     "get_blackjack_config_tx",
     "get_blackjack_free_hands_remaining",
-    "get_blackjack_freespin_summary",
     "get_blackjack_jackpot",
     "get_blackjack_tournament",
     "get_blackjack_tournament_standings",
@@ -305,11 +299,9 @@ __all__ = [
     "list_active_blackjack_hands",
     "list_blackjack_tournaments",
     "list_blackjack_tournaments_with_playing_entries",
-    "list_expiring_blackjack_freespins",
     "read_fund_balance",
     "register_blackjack_tournament",
     "register_blackjack_tournament_tx",
-    "release_blackjack_freespin",
     "seed_blackjack_jackpot",
     "set_blackjack_config",
     "set_blackjack_config_tx",
@@ -451,3 +443,19 @@ def register_blackjack_tournament_tx(
     return _repository.register_blackjack_tournament_tx(
         session, tg_id, tournament_id, config=config, now_ms=now_ms
     )
+
+
+def tournament_to_dict(tournament) -> dict:
+    return _repository._tournament_to_dict(tournament)
+
+
+def tournament_entry_to_dict(entry) -> dict:
+    return _repository._tournament_entry_to_dict(entry)
+
+
+def blackjack_week_start_ms(*, now=None) -> int:
+    return _repository._blackjack_week_start_ms(now=now)
+
+
+def lock_running_tournament(session, tournament_id: int):
+    return _repository._lock_running_tournament(session, tournament_id)

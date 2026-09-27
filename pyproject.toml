@@ -98,13 +98,7 @@ allowed_importers = [
 
     "app.domains.badges.router", # promote-reward-domains (B2 inherited)
 
-    "app.domains.blackjack.router.cash", # promote-blackjack-domain (B2 inherited)
 
-    "app.domains.blackjack.router.tournament", # promote-blackjack-domain (B2 inherited)
-    "app.domains.blackjack.jobs.cash", # promote-blackjack-domain (B2 inherited)
-    "app.domains.blackjack.jobs.tournament", # promote-blackjack-domain (B2 inherited)
-    "app.domains.blackjack.notifications.tournament", # promote-blackjack-domain (B2 inherited)
-    "app.domains.blackjack.router.tournament_admin", # promote-blackjack-domain (B2 inherited)
 
     "app.domains.crypto_donation.router", # promote-remaining-domains (B2 inherited)
 
@@ -323,7 +317,6 @@ ignore_imports = [
     # domain-to-domain dependencies; AST cross-domain checks still cover self/db.
     "app.databases.db -> app.domains.auction.repository",
     "app.databases.db -> app.domains.badges.repository",
-    "app.databases.db -> app.domains.blackjack.repository",
     "app.databases.db -> app.domains.crypto_donation.repository",
     "app.databases.db -> app.domains.donation.repository",
     "app.databases.db -> app.domains.gift_pack.repository",
@@ -350,13 +343,8 @@ ignore_imports = [
 
     "app.domains.badges.router -> app.databases.db", # promote-reward-domains (B2 inherited)
 
-    "app.domains.blackjack.router.cash -> app.databases.db", # promote-blackjack-domain (B2 inherited)
-    "app.domains.blackjack.jobs.cash -> app.databases.db", # promote-blackjack-domain (B2 inherited)
 
 
-    "app.domains.blackjack.router.tournament -> app.databases.db", # promote-blackjack-domain (B2 inherited)
-    "app.domains.blackjack.jobs.tournament -> app.databases.db", # promote-blackjack-domain (B2 inherited)
-    "app.domains.blackjack.notifications.tournament -> app.databases.db", # promote-blackjack-domain (B2 inherited)
 
 
     "app.domains.credits.router -> app.domains.profile.schemas", # make-credit-changes-atomic (B2 inherited)
@@ -452,7 +440,6 @@ ignore_imports = [
     # restructure-backend-architecture: transitional facade composition
     "app.databases.db -> app.domains.auction.repository",
     "app.databases.db -> app.domains.badges.repository",
-    "app.databases.db -> app.domains.blackjack.repository",
     "app.databases.db -> app.domains.crypto_donation.repository",
     "app.databases.db -> app.domains.donation.repository",
     "app.databases.db -> app.domains.gift_pack.repository",
@@ -489,7 +476,6 @@ ignore_imports = [
     "app.domains.treasure.router -> app.domains.treasure.jobs", # promote-activity-domains (B2 inherited)
     "app.domains.auction.notifications -> app.databases.db", # promote-activity-domains (B2 inherited)
     "app.domains.gift_pack.notifications -> app.databases.db", # promote-gift-pack-domain (B2 inherited)
-    "app.domains.blackjack.notifications.tournament -> app.databases.db", # promote-blackjack-domain (B2 inherited)
     "app.domains.lines.router -> app.domains.lines.jobs", # B3 mechanical relocation; audit in 5.6
 ]
 unmatched_ignore_imports_alerting = "error"
@@ -561,12 +547,6 @@ ignore_imports = [
     "app.domains.treasure.router -> app.databases.db", # promote-activity-domains (B2 inherited)
     "app.domains.vaultwarden.router -> app.core.db", # promote-remaining-domains (B2 inherited)
     "app.domains.vaultwarden.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.blackjack.router.cash -> app.databases.db", # promote-blackjack-domain (B2 inherited)
-    "app.domains.blackjack.jobs.cash -> app.databases.db", # promote-blackjack-domain (B2 inherited)
-    "app.domains.blackjack.router.tournament -> app.databases.db", # promote-blackjack-domain (B2 inherited)
-    "app.domains.blackjack.jobs.tournament -> app.databases.db", # promote-blackjack-domain (B2 inherited)
-    "app.domains.blackjack.notifications.tournament -> app.databases.db", # promote-blackjack-domain (B2 inherited)
-    "app.domains.blackjack.router.tournament_admin -> app.databases.db", # promote-blackjack-domain (B2 inherited)
     "app.domains.crypto_donation.router -> app.domains.crypto_donation.models", # promote-remaining-domains (B2 inherited)
     "app.domains.custom_lines.admin_router -> app.domains.custom_lines.models", # promote-line-domains (B2 inherited)
     "app.domains.custom_lines.router -> app.domains.custom_lines.models", # promote-line-domains (B2 inherited)

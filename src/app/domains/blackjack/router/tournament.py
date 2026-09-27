@@ -1,6 +1,6 @@
 """21 点锦标赛路由
 
-只做参数校验、权限、异常翻译与赛事推进的任务编排；业务逻辑与事务在 `db.py` 的
+只做参数校验、权限、异常翻译与赛事推进的任务编排；业务逻辑与事务在 `blackjack_service.py` 的
 `*_tournament*` 方法里，规则判定复用 `blackjack_engine.py`。
 
 赛内手牌的响应一律经 `BlackjackHandResponse.from_hand()` 构造——与现金局共用同一道
@@ -24,7 +24,13 @@ from app.core.auth import get_telegram_user, require_telegram_auth
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
 from app.core.telegram import get_user_names_from_tg_ids
-from app.databases import db
+from app.domains.blackjack import service as blackjack_service
+from app.domains.blackjack.config import (
+    TOURNAMENT_CANCELLED,
+    TOURNAMENT_REGISTERING,
+    TOURNAMENT_RUNNING,
+    TOURNAMENT_SETTLED,
+)
 from app.domains.blackjack.exceptions import BlackjackError
 from app.domains.blackjack.rules import BlackjackRuleError
 from app.domains.blackjack.schemas import (
@@ -174,15 +180,15 @@ async def list_tournaments(
     """
     statuses = (
         (
-            db.TOURNAMENT_REGISTERING,
-            db.TOURNAMENT_RUNNING,
-            db.TOURNAMENT_SETTLED,
-            db.TOURNAMENT_CANCELLED,
+            TOURNAMENT_REGISTERING,
+            TOURNAMENT_RUNNING,
+            TOURNAMENT_SETTLED,
+            TOURNAMENT_CANCELLED,
         )
         if include_finished
         else None
     )
-    tournaments = db.list_blackjack_tournaments(
+    tournaments = blackjack_service.list_blackjack_tournaments(
         tg_id=current_user.id,
         statuses=statuses,
         limit=40 if include_finished else 20,
@@ -205,7 +211,7 @@ async def get_wallet(
     """争霸赛余额：21 点周损失返还的发放去向，仅可支付报名费。"""
     return TournamentWalletResponse(
         tournament_wallet_credits=float(
-            db.get_blackjack_tournament_wallet(current_user.id) or 0
+            blackjack_service.get_blackjack_tournament_wallet(current_user.id) or 0
         )
     )
 
@@ -218,7 +224,9 @@ async def get_tournament(
     current_user: TelegramUser = Depends(get_telegram_user),
 ):
     """赛事详情。"""
-    t = db.get_blackjack_tournament(int(tournament_id), tg_id=current_user.id)
+    t = blackjack_service.get_blackjack_tournament(
+        int(tournament_id), tg_id=current_user.id
+    )
     if not t:
         raise HTTPException(status_code=404, detail="赛事不存在")
     return TournamentResponse.from_tournament(t)
@@ -232,10 +240,10 @@ async def get_standings(
     current_user: TelegramUser = Depends(get_telegram_user),
 ):
     """全场排名。进行中给临时位次，已结算给最终名次。"""
-    t = db.get_blackjack_tournament(int(tournament_id))
+    t = blackjack_service.get_blackjack_tournament(int(tournament_id))
     if not t:
         raise HTTPException(status_code=404, detail="赛事不存在")
-    rows = db.get_blackjack_tournament_standings(int(tournament_id))
+    rows = blackjack_service.get_blackjack_tournament_standings(int(tournament_id))
     # 一次性取全部显示名：逐行调 get_user_name_from_tg_id 会把整个用户缓存
     # pickle 反序列化 N 遍，而本端点在每手牌结算后都会被调用一次
     names = get_user_names_from_tg_ids([r["tg_id"] for r in rows])
@@ -266,7 +274,9 @@ async def register(
 ):
     """报名。满员时本次报名会触发开赛，开赛通知走后台任务。"""
     try:
-        result = db.register_blackjack_tournament(current_user.id, int(tournament_id))
+        result = blackjack_service.register_blackjack_tournament(
+            current_user.id, int(tournament_id)
+        )
     except ValueError as e:
         _raise_for_value_error(e)
     except HTTPException:
@@ -304,7 +314,9 @@ async def get_current(
     current_user: TelegramUser = Depends(get_telegram_user),
 ):
     """赛内当前手牌与筹码状态，供恢复牌桌用。"""
-    t = db.get_blackjack_tournament(int(tournament_id), tg_id=current_user.id)
+    t = blackjack_service.get_blackjack_tournament(
+        int(tournament_id), tg_id=current_user.id
+    )
     if not t:
         raise HTTPException(status_code=404, detail="赛事不存在")
     entry = t.get("my_entry")
@@ -312,10 +324,12 @@ async def get_current(
         raise HTTPException(status_code=400, detail="你未报名该赛事")
 
     # 先清掉该用户已超时的手牌，避免返回一手早该结算的牌
-    db.sweep_timed_out_blackjack_hands(tg_id=current_user.id)
-    entry = db.get_user_blackjack_tournament_entry(current_user.id, int(tournament_id))
+    blackjack_service.sweep_timed_out_blackjack_hands(tg_id=current_user.id)
+    entry = blackjack_service.get_user_blackjack_tournament_entry(
+        current_user.id, int(tournament_id)
+    )
 
-    hand = db.get_current_blackjack_hand(current_user.id)
+    hand = blackjack_service.get_current_blackjack_hand(current_user.id)
     # 只认属于本赛事的手牌：用户可能正持有一手现金局的牌（「至多一手」跨两侧共用），
     # 那手牌不该出现在赛内牌桌上
     if hand and hand.get("tournament_id") != int(tournament_id):
@@ -340,7 +354,7 @@ async def deal(
 ):
     """赛内发牌。"""
     try:
-        result = db.create_blackjack_tournament_hand(
+        result = blackjack_service.create_blackjack_tournament_hand(
             current_user.id, int(tournament_id), int(data.bet_chips)
         )
     except ValueError as e:
@@ -386,7 +400,10 @@ async def hit(
 ):
     """赛内要牌。"""
     return _run_hand_action(
-        db.blackjack_tournament_hit, current_user.id, hand_id, "要牌成功"
+        blackjack_service.blackjack_tournament_hit,
+        current_user.id,
+        hand_id,
+        "要牌成功",
     )
 
 
@@ -402,7 +419,10 @@ async def stand(
 ):
     """赛内停牌。"""
     return _run_hand_action(
-        db.blackjack_tournament_stand, current_user.id, hand_id, "停牌成功"
+        blackjack_service.blackjack_tournament_stand,
+        current_user.id,
+        hand_id,
+        "停牌成功",
     )
 
 
@@ -418,7 +438,10 @@ async def double(
 ):
     """赛内加倍。"""
     return _run_hand_action(
-        db.blackjack_tournament_double, current_user.id, hand_id, "加倍成功"
+        blackjack_service.blackjack_tournament_double,
+        current_user.id,
+        hand_id,
+        "加倍成功",
     )
 
 
@@ -435,5 +458,8 @@ async def surrender(
 ):
     """赛内投降。"""
     return _run_hand_action(
-        db.blackjack_tournament_surrender, current_user.id, hand_id, "已投降"
+        blackjack_service.blackjack_tournament_surrender,
+        current_user.id,
+        hand_id,
+        "已投降",
     )

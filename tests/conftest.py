@@ -14,6 +14,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.databases.db import DatabaseORM
+from app.domains.blackjack import repository as blackjack_repository
+from app.domains.blackjack.config import ENTRY_PLAYING, TOURNAMENT_RUNNING
 from app.domains.blackjack.models import BlackjackTournament, BlackjackTournamentEntry
 from app.domains.identity.models import Statistics
 from app.model_registry import metadata
@@ -91,7 +93,7 @@ def add_tournament(
     if play_deadline_ms is None:
         play_deadline_ms = now + 2 * 3600 * 1000
     if status is None:
-        status = orm.TOURNAMENT_RUNNING
+        status = TOURNAMENT_RUNNING
 
     with get_session() as session:
         tournament = BlackjackTournament(
@@ -119,7 +121,7 @@ def add_tournament(
         )
         session.add(tournament)
         session.flush()
-        return orm._tournament_to_dict(tournament)
+        return blackjack_repository.tournament_to_dict(tournament)
 
 
 def add_entry(
@@ -135,7 +137,7 @@ def add_entry(
     from app.core.db import get_session
 
     if status is None:
-        status = orm.ENTRY_PLAYING
+        status = ENTRY_PLAYING
     if registered_at_ms is None:
         registered_at_ms = _now_ms()
 
@@ -151,7 +153,7 @@ def add_entry(
         )
         session.add(entry)
         session.flush()
-        return orm._tournament_entry_to_dict(entry)
+        return blackjack_repository.tournament_entry_to_dict(entry)
 
 
 def add_pending_hand(

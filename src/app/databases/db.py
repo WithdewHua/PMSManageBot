@@ -5,7 +5,6 @@ ORM-based database operations using SQLAlchemy
 from app.core.kv import SystemConfigRepository
 from app.domains.auction.repository import AuctionRepository
 from app.domains.badges.repository import BadgesRepository
-from app.domains.blackjack.repository import BlackjackRepository
 from app.domains.crypto_donation.repository import CryptoDonationRepository
 from app.domains.donation.repository import DonationRepository
 from app.domains.gift_pack.repository import GiftPackRepository
@@ -35,7 +34,6 @@ class DatabaseORM(
     TreasureRepository,
     PredictionRepository,
     RankingsRepository,
-    BlackjackRepository,
     LinesRepository,
     LuckywheelRepository,
     AuctionRepository,
