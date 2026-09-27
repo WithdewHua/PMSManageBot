@@ -51,10 +51,15 @@
 
 ## 6. Interface Migration and Compatibility
 
-- [ ] 6.1 Migrate cash, tournament, and tournament-admin routers to service APIs and typed errors, preserving paths, parameters, status codes, response schemas, and Chinese detail messages; verify route behavior against the frozen HTTP fixtures.
-- [ ] 6.2 Migrate blackjack bot handlers and admin/config endpoints to service/module imports; verify handler registration order, command signatures, and admin authorization remain unchanged.
-- [ ] 6.3 Remove direct `app.databases` and foreign model imports from blackjack interface modules; verify `PYTHONPATH=src .venv/bin/lint-imports --no-cache` and the domain interface AST check pass.
-- [ ] 6.4 Verify persisted scheduler references and startup recovery after repository/service relocation; verify no unresolved legacy job is deleted and all named tasks remain registered before API startup.
+- [x] 6.1 Migrate cash, tournament, and tournament-admin routers to service APIs and typed errors, preserving paths, parameters, status codes, response schemas, and Chinese detail messages; verify route behavior against the frozen HTTP fixtures.
+  - 验证：`tests/refactor/fixtures/blackjack_surface.json`（28 条路由 + 27 条 OpenAPI path 冻结）、`tests/refactor/test_blackjack_baseline.py`、`tests/test_blackjack_errors.py`（状态码/中文 detail 与无字符串匹配）、`tests/refactor/test_blackjack_service_boundary.py`（三个 router 只调 service）。
+- [x] 6.2 Migrate blackjack bot handlers and admin/config endpoints to service/module imports; verify handler registration order, command signatures, and admin authorization remain unchanged.
+  - 本领域无 Telegram bot 命令处理器（bot 层无 blackjack 引用），无需迁移；管理/配置端点已全部走 `blackjack_service`。
+  - 验证：`tests/refactor/test_blackjack_side_effect_boundary.py::test_tournament_admin_endpoints_keep_auth_and_admin_checks`（每个管理端点保留 `@require_telegram_auth` 与 `check_admin_permission`）；`tests/refactor/test_schedule_registry.py` 覆盖 bot 注册顺序快照。
+- [x] 6.3 Remove direct `app.databases` and foreign model imports from blackjack interface modules; verify `PYTHONPATH=src .venv/bin/lint-imports --no-cache` and the domain interface AST check pass.
+  - 验证：接口模块零 `app.databases`/`app.core.db`/`sqlalchemy`/`blackjack.repository*` 导入；`lint-imports` 10/10 通过（忽略项计数未增加）。
+- [x] 6.4 Verify persisted scheduler references and startup recovery after repository/service relocation; verify no unresolved legacy job is deleted and all named tasks remain registered before API startup.
+  - 验证：`tests/refactor/test_job_references.py`（字节级迁移/回滚）、`tests/test_blackjack_startup_recovery.py`（活跃手牌重建 `blackjack.hand_timeout`，`misfire_grace_time=None`，过期手牌交由兜底）、`tests/refactor/test_schedule_registry.py`（`register_tasks` 先于 API 线程与 bot 启动）。
 
 ## 7. Integration and Release Verification
 

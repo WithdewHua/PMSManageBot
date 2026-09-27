@@ -139,6 +139,40 @@ def test_tick_runs_the_phases_in_the_documented_order() -> None:
     ]
 
 
+def test_tournament_admin_endpoints_keep_auth_and_admin_checks() -> None:
+    """管理端点的鉴权与管理员校验不得在迁移中丢失。"""
+
+    tree = _tree(BLACKJACK / "router/tournament_admin.py")
+    endpoints = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.AsyncFunctionDef | ast.FunctionDef)
+        and any(
+            isinstance(decorator, ast.Call)
+            and isinstance(decorator.func, ast.Attribute)
+            and isinstance(decorator.func.value, ast.Name)
+            and decorator.func.value.id == "router"
+            for decorator in node.decorator_list
+        )
+    ]
+    assert endpoints
+    for node in endpoints:
+        decorators = {
+            decorator.id
+            for decorator in node.decorator_list
+            if isinstance(decorator, ast.Name)
+        }
+        assert "require_telegram_auth" in decorators, node.name
+        admin_calls = [
+            child
+            for child in ast.walk(node)
+            if isinstance(child, ast.Call)
+            and isinstance(child.func, ast.Name)
+            and child.func.id == "check_admin_permission"
+        ]
+        assert admin_calls, node.name
+
+
 def _call_line(path: Path, function: str, call: str) -> int:
     for node in ast.walk(_tree(path)):
         if not isinstance(node, ast.AsyncFunctionDef | ast.FunctionDef):
