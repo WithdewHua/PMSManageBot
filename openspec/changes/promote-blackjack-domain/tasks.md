@@ -63,8 +63,12 @@
 
 ## 7. Integration and Release Verification
 
-- [ ] 7.1 Run the full blackjack regression suite plus architecture/refactoring tests, and fix all behavior/snapshot differences before changing task status; verify no route, OpenAPI, scheduler, ORM, or bot drift.
-- [ ] 7.2 Run disposable PostgreSQL concurrency and rollback tests for blackjack settlement, competing actions, credits, tournament payout, and free-spin issuance; verify no lost updates, negative balances, deadlocks, or partial records.
-- [ ] 7.3 Run Alembic metadata comparison and production-shaped local rehearsal using a sanitized quince database copy with external notifications mocked; verify API health, protected-route auth, scheduler startup, and representative blackjack settlement.
-- [ ] 7.4 Update `docs/architecture.md` with the promotion template, blackjack ownership/boundary rules, migration/backfill/rollback evidence, and final baseline/provenance counts; verify documentation commands are reproducible.
+- [x] 7.1 Run the full blackjack regression suite plus architecture/refactoring tests, and fix all behavior/snapshot differences before changing task status; verify no route, OpenAPI, scheduler, ORM, or bot drift.
+  - 验证：`pytest tests/`全绿；`tests/refactor/fixtures/blackjack_surface.json`（路由/OpenAPI path/调度任务 ID/ORM 表）与 `blackjack_inventory.json` 在 7.x 期间的漂移均已同步，无未审阅的快照差异。
+- [x] 7.2 Run disposable PostgreSQL concurrency and rollback tests for blackjack settlement, competing actions, credits, tournament payout, and free-spin issuance; verify no lost updates, negative balances, deadlocks, or partial records.
+  - 验证：`scripts/refactor/smoke_blackjack_concurrency.py`（一次性 PostgreSQL 16 容器；pytest 入口 `tests/refactor/test_blackjack_concurrency.py`，由 `BLACKJACK_TEST_DATABASE_URL` 开启）+ `tests/test_blackjack_repository_rollback.py`（结算/超时/报名/派奖/免费次数失败注入回滚）。
+- [x] 7.3 Run Alembic metadata comparison and production-shaped local rehearsal using a sanitized quince database copy with external notifications mocked; verify API health, protected-route auth, scheduler startup, and representative blackjack settlement.
+  - 验证：一次性 PostgreSQL 16 上的 upgrade/downgrade/upgrade + `compare_metadata` 空 diff；一次性 PostgreSQL 18.6 上导入脱敏 quince 副本（33 张表、225 条 statistics、1744 条免费次数），升到 head 完成回填；`scripts/refactor/rehearse_blackjack.py`（pytest 入口 `tests/refactor/test_blackjack_rehearsal.py`，由 `BLACKJACK_REHEARSAL_DATABASE_URL` 开启）全部检查通过。
+- [x] 7.4 Update `docs/architecture.md` with the promotion template, blackjack ownership/boundary rules, migration/backfill/rollback evidence, and final baseline/provenance counts; verify documentation commands are reproducible.
+  - 已在 `docs/architecture.md` 新增「领域提升模板」「blackjack 领域边界」「blackjack 迁移、回填与彩排证据」三节，并把基线计数更新为 544 条 / B3 provenance 56 条，忽略项计数同步为 18/19/20/59/18/7/76。
 - [ ] 7.5 Run pre-commit, full backend tests, import-linter, architecture baseline, OpenSpec validation, and `git diff --check`; verify the worktree is clean before marking the change complete.

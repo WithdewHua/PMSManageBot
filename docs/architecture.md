@@ -110,11 +110,13 @@ core/（公共设施）
 
 ## 基线计数
 
-B2 过渡基线以 `scripts/refactor/B2_BASE` 中的 B1 提交为来源。B3 机械搬迁以 `scripts/refactor/B3_BASE`（B2 提交 `1b49ea8273253ee7b1b35e13056ca047f9ce45bc`）为冻结来源。`tests/architecture/baseline.json` 当前封存 547 条跨域调用／导入，其中 58 条 B3 条目记录 `b3_source_id`；`scripts/refactor/audit_b3_baseline.py` 只接受冻结源码中的实际来源单元及逐项 `b3_key`，并拒绝仅凭目标领域候选、同名导入换目标或新增领域环封存。B3 为调度器去环及 CLI 组装登记的 AST 差异分别记录 `b3_ast_exception` 和实际存在的行为测试。
+B2 过渡基线以 `scripts/refactor/B2_BASE` 中的 B1 提交为来源。B3 机械搬迁以 `scripts/refactor/B3_BASE`（B2 提交 `1b49ea8273253ee7b1b35e13056ca047f9ce45bc`）为冻结来源。`tests/architecture/baseline.json` 当前封存 544 条跨域调用／导入，其中 56 条 B3 条目记录 `b3_source_id`；`scripts/refactor/audit_b3_baseline.py` 只接受冻结源码中的实际来源单元及逐项 `b3_key`，并拒绝仅凭目标领域候选、同名导入换目标或新增领域环封存。B3 为调度器去环及 CLI 组装登记的 AST 差异分别记录 `b3_ast_exception` 和实际存在的行为测试。
 
-按清理责任分组的 B3 封存计数由 `audit_b3_baseline.py` 输出；当前 B3 provenance 封存 58 条，架构基线共 547 条，其中后续 credits 迁移条目由 `make-credit-changes-atomic` 负责，不冒充 B3 遗留债务。B3 条目只允许来源于 `db_func.py`、`premium.py`、`modules/custom_line.py`、`utils/report.py` 和 `utils/utils.py` 的冻结单元。
+按清理责任分组的 B3 封存计数由 `audit_b3_baseline.py` 输出；当前 B3 provenance 封存 56 条，架构基线共 544 条，其中后续 credits 迁移条目由 `make-credit-changes-atomic` 负责，不冒充 B3 遗留债务。B3 条目只允许来源于 `db_func.py`、`premium.py`、`modules/custom_line.py`、`utils/report.py` 和 `utils/utils.py` 的冻结单元。
 
-当前 import-linter ignore 数：SQLAlchemy 范围 18、数据库引擎范围 19、模型范围 20、六层领域依赖 65、无环兄弟领域 19、领域内分层 8、入口不碰数据层 82；其余合约 0。B3 去环没有新增 `Acyclic domain siblings` 豁免；任何新增豁免必须有冻结来源单元和行为测试证明。
+`promote-blackjack-domain` 摘除门面后基线严格下降（547 → 544 条，其中 B3 provenance 58 → 56 条），未新增任何条目；`import-linter` 只删除豁免（六层领域依赖 65 → 59、无环兄弟领域 19 → 18、领域内分层 8 → 7、入口不碰数据层 82 → 76，SQLAlchemy 范围 18、数据库引擎范围 19、模型范围 20 不变）。
+
+当前 import-linter ignore 数：SQLAlchemy 范围 18、数据库引擎范围 19、模型范围 20、六层领域依赖 59、无环兄弟领域 18、领域内分层 7、入口不碰数据层 76；其余合约 0。B3 去环与 blackjack 提升都没有新增 `Acyclic domain siblings` 豁免；任何新增豁免必须有冻结来源单元和行为测试证明。
 
 ## 积分账本写入规则
 
@@ -153,6 +155,36 @@ B3 起，部署回退必须在维护窗口执行：停止所有 B3 调度器 →
 - 任务观察：临时手牌超时结算从进行中状态转为终态并记录 `outcome=win`；已结算夺宝期 59 自动创建第 63 期，奖项规格保持一致；Telegram 通知在隔离环境中被抑制。
 
 这份证据只证明本地完整生产副本上的部署链路和任务行为；生产维护窗口中的实际部署、真实通知和真实开奖观察仍须由运维人员按回退步骤执行。
+
+## 领域提升模板
+
+`promote-blackjack-domain` 把“把一个领域从过渡门面里提升出来”的做法固化成可复用模板，后续 `promote-*` 变更按同一顺序执行：
+
+1. **冻结表面**：为路由、OpenAPI path、调度任务 ID、公开门面方法与 ORM 表生成确定性快照夹具（`tests/refactor/fixtures/blackjack_surface.json`），并用 AST 清单（`scripts/refactor/blackjack_inventory.py` → `blackjack_inventory.json`）记录门面调用方、`ValueError` 抛出点与副作用位置及其目标角色。
+2. **消除反向依赖**：领域间反向读取（luckywheel 消耗 blackjack 配置）改为在下游补齐自洽数据，而不是导入对方模型；本次在 `luckywheel_free_spins` 上落库消耗参数快照。
+3. **抽取纯规则与类型化错误**：结算、奖池、赛制校验等计算进入 `rules.py`（零 I/O）；业务拒绝改抛 `DomainError` 子类（`BlackjackError` 同时继承 `ValueError` 以兼容未迁移调用方），路由不再匹配错误字符串。
+4. **repository 模块级化**：repository 包对外暴露模块级函数与调用方持有的 `*_tx(session, ...)`；`*_tx` 一律以 `session` 为首参且不得自行 `get_session`/`commit`/`close`，`_tx` 集合与公开导出集合必须双向一致。
+5. **工作流进 service**：多步事务编排、提交后的通知/群播报/勋章协调以及调度提交由 `service.py` 承担；jobs/notifications 退化为参数解析与调用适配。
+6. **摘除门面**：删除 `DatabaseORM` 上该领域的 mixin 与方法，跨域调用方改用该领域 `service` 或 `*_tx`；随后按冻结来源逐项重封基线 provenance。
+7. **交付验证**：接口迁移与快照回归、仓库级失败注入回滚、一次性 PostgreSQL 并发、脱敏生产副本彩排。
+
+“快照先行、逐项 provenance、一次性容器验证”是三条硬约束：没有快照无法区分行为漂移与重构差异；没有逐项 provenance 无法证明新增基线条目属于旧债；没有一次性容器无法在真实数据形状上验证锁与迁移。
+
+## blackjack 领域边界
+
+- 配置默认值与常量在 `app.domains.blackjack.config`；只读聚合在 `repository/analytics.py`，对外只经 `service.py` 暴露。
+- `DatabaseORM` 不含任何 blackjack 方法或 mixin，`BlackjackRepository` 类已删除；调用方使用模块级 repository 函数或 service。
+- 领域外调用只允许 `app.domains.blackjack.service`（含 `*_tx` helper）。唯一现存例外是 `badge_awards` 的游戏王勾子里直接读 blackjack 配置与统计，由 `promote-reward-domains` 用提交后领域事件清理。
+- repository 内不得出现 Telegram 发送、调度提交或通知模块导入；router 不直接发消息；`app.core.scheduler` 只由 `jobs/cash.py` 导入。静态护栏在 `tests/refactor/test_blackjack_side_effect_boundary.py`。
+- 免费次数发放统一走 `luckywheel.repository.grant_free_spins_tx`；扣减与补偿只读发放时落库的 `cost_credits_snapshot`、`wheel_stats_source`。
+- 持久化任务名保持 `blackjack.hand_timeout`（`app.core.scheduler:run_task`），超时任务 `misfire_grace_time=None`；启动恢复由 `ON_STARTUP` 的 `restore_blackjack_timeouts` 完成，命名任务先于 API 线程注册。
+
+## blackjack 迁移、回填与彩排证据
+
+- Alembic `c0d1e2f3a4b5`（add immutable free-spin consumption snapshots）在一次性 PostgreSQL 16 上完成 upgrade → downgrade → upgrade 往返，`compare_metadata` 两次 upgrade 后均为空；在脱敏生产副本（PostgreSQL 18.6）上从生产修订 `b9c0d1e2f3a4` 升到 head，1744 条既有免费次数全部回填（41 条 `blackjack → blackjack_free`、1703 条 `gift_pack → gift_pack_free`，`cost_credits_snapshot=0`）。
+- 并发：`scripts/refactor/smoke_blackjack_concurrency.py` 在一次性 PostgreSQL 16 容器内用 6 线程做竞争结算（同一手牌停牌/超时竞争 12 次）、12 人抢 5 个名额、6 线程并发结算、并发免费次数发放；只结算一次、名额不超卖、报名费只扣一次、奖金总额等于积分增加额且名次唯一、每手恰好发放一次免费次数，无死锁与负余额。pytest 通过 `BLACKJACK_TEST_DATABASE_URL` 可复跑。
+- 生产形态彩排：`scripts/refactor/rehearse_blackjack.py` 对脱敏副本运行，通知与缓存失效置为 no-op，副本内一次性关闭救济/返水/奖池以便精确对账：`/health=200`、`/openapi.json=200`（196 条 path）、未认证 `/api/rankings/credits=401`；`register_all → migrate_persisted_jobs → scheduler.start` 成功，32 条周期任务加命名任务 `blackjack.hand_timeout`／`treasure.open_next_issue` 注册完成，jobstore 迁移 0 条（生产 jobstore 为空）；真实用户手牌结算后积分严格等于 `结算前 − 押注 + 赔付`。本地容器与远程临时 dump 均已删除。
+- 回退：本次不改变任务名，故不需要 jobstore 引用回写；回退即回滚镜像并执行 `alembic downgrade b9c0d1e2f3a4`，执行前先停调度器，避免继续写入新快照列。
 
 ## 后续变更与领域
 
