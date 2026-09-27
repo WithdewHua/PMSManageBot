@@ -1,0 +1,2373 @@
+{
+  "facade_gift_pack_methods": [
+    "claim_gift_pack",
+    "claim_gift_pack_start_dm_candidates",
+    "create_gift_pack",
+    "delete_gift_pack",
+    "get_expired_unnotified_gift_packs",
+    "get_gift_pack_by_id",
+    "get_gift_pack_claim_records",
+    "get_gift_pack_stats",
+    "get_gift_packs_admin",
+    "get_gift_packs_for_user",
+    "mark_gift_pack_expiry_notified",
+    "prompt_check_gift_packs",
+    "resolve_gift_pack_users",
+    "set_gift_pack_enabled",
+    "update_gift_pack"
+  ],
+  "gift_pack_references": {
+    "imports": [
+      {
+        "kind": "from",
+        "module": "app.api.app",
+        "module_target": "app.domains.gift_pack.router",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.router.router"
+      },
+      {
+        "kind": "from",
+        "module": "app.databases.db",
+        "module_target": "app.domains.gift_pack.repository",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.repository.GiftPackRepository"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.jobs",
+        "resolved": true,
+        "scope": "module",
+        "target": "asyncio"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.jobs",
+        "module_target": "app.core.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.config.settings"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.jobs",
+        "module_target": "app.core.log",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.log.uvicorn_logger"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.jobs",
+        "module_target": "app.core.telegram",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.telegram.notify_admins_by_url"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.jobs",
+        "module_target": "app.core.telegram",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.telegram.send_message_by_url"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.jobs",
+        "module_target": "app.databases",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.databases.db"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.jobs",
+        "module_target": "app.domains.gift_pack.notifications",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.notifications._format_rewards"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.jobs",
+        "module_target": "app.domains.gift_pack.notifications",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.notifications._format_time"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.models",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.BIGINT"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.models",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.SMALLINT"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.models",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.CheckConstraint"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.models",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.ForeignKey"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.models",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.Index"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.models",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.Integer"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.models",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.Text"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.models",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.UniqueConstraint"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.models",
+        "module_target": "sqlalchemy.orm",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.orm.Mapped"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.models",
+        "module_target": "sqlalchemy.orm",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.orm.mapped_column"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.models",
+        "module_target": "sqlalchemy.orm",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.orm.relationship"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.models",
+        "module_target": "app.core.db",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.db.Base"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.notifications",
+        "resolved": true,
+        "scope": "module",
+        "target": "asyncio"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.notifications",
+        "module_target": "datetime",
+        "resolved": true,
+        "scope": "module",
+        "target": "datetime.datetime"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.notifications",
+        "module_target": "html",
+        "resolved": true,
+        "scope": "module",
+        "target": "html.escape"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.notifications",
+        "module_target": "app.core.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.config.settings"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.notifications",
+        "module_target": "app.core.log",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.log.uvicorn_logger"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.notifications",
+        "module_target": "app.core.telegram",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.telegram.get_user_name_from_tg_id"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.notifications",
+        "module_target": "app.core.telegram",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.telegram.notify_admins_by_url"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.notifications",
+        "module_target": "app.databases",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.databases.db"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.repository",
+        "resolved": true,
+        "scope": "module",
+        "target": "json"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.repository",
+        "resolved": true,
+        "scope": "module",
+        "target": "threading"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.select"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository",
+        "module_target": "app.domains.gift_pack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.models.GiftPack"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository",
+        "module_target": "app.domains.gift_pack.repository.part_1",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.repository.part_1._GiftPackRepositoryPart1"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository",
+        "module_target": "app.domains.gift_pack.repository.part_2",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.repository.part_2._GiftPackRepositoryPart2"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository",
+        "module_target": "app.domains.gift_pack.repository.part_3",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.repository.part_3._GiftPackRepositoryPart3"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "resolved": true,
+        "scope": "module",
+        "target": "time"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "datetime",
+        "resolved": true,
+        "scope": "module",
+        "target": "datetime.UTC"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "datetime",
+        "resolved": true,
+        "scope": "module",
+        "target": "datetime.datetime"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "typing",
+        "resolved": true,
+        "scope": "module",
+        "target": "typing.ClassVar"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "uuid",
+        "resolved": true,
+        "scope": "module",
+        "target": "uuid.uuid4"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.distinct"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.func"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.select"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.core.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.config.settings"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.auction.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.auction.models.AuctionBids"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.badges.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.badges.models.UserBadge"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.blackjack",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.service"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.credits",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.credits.repository"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.credits",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.credits.service"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.credits.types",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.credits.types.CreditAccount"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.gift_pack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.models.GiftPack"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.gift_pack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.models.GiftPackUserState"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.identity.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.identity.models.EmbyUser"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.identity.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.identity.models.PlexUser"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.identity.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.identity.models.Statistics"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.invitation.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.invitation.models.Invitation"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.luckywheel",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.luckywheel.repository"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.luckywheel.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.luckywheel.models.WheelStats"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.prediction.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.prediction.models.PredictionBet"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.treasure.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.treasure.models.TreasureParticipation"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.gift_pack.repository",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.repository.GIFT_PACK_REWARD_TYPES"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_1",
+        "module_target": "app.domains.premium.service",
+        "resolved": true,
+        "scope": "function",
+        "target": "app.domains.premium.service.update_premium_status"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.repository.part_2",
+        "resolved": true,
+        "scope": "module",
+        "target": "json"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.repository.part_2",
+        "resolved": true,
+        "scope": "module",
+        "target": "time"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_2",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.delete"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_2",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.func"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_2",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.select"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_2",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.update"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_2",
+        "module_target": "app.core.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.config.settings"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_2",
+        "module_target": "app.core.db",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.db.get_session"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_2",
+        "module_target": "app.core.log",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.log.logger"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_2",
+        "module_target": "app.domains.badges.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.badges.models.Badge"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_2",
+        "module_target": "app.domains.gift_pack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.models.GiftPack"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_2",
+        "module_target": "app.domains.gift_pack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.models.GiftPackUserState"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_2",
+        "module_target": "app.domains.gift_pack.repository",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.repository._GIFT_PACK_PRIVILEGED_CODES_LOCK"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_2",
+        "module_target": "app.domains.gift_pack.repository",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.repository.gift_pack_rewards_require_binding"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_2",
+        "module_target": "app.domains.premium.service",
+        "resolved": true,
+        "scope": "function",
+        "target": "app.domains.premium.service.apply_download_unlock_to_media"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_2",
+        "module_target": "app.domains.premium.service",
+        "resolved": true,
+        "scope": "function",
+        "target": "app.domains.premium.service.sync_media_permission"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.repository.part_3",
+        "resolved": true,
+        "scope": "module",
+        "target": "json"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.repository.part_3",
+        "resolved": true,
+        "scope": "module",
+        "target": "time"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_3",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.func"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_3",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.select"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_3",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.update"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_3",
+        "module_target": "app.core.db",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.db.get_session"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_3",
+        "module_target": "app.core.log",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.log.logger"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_3",
+        "module_target": "app.domains.gift_pack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.models.GiftPack"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_3",
+        "module_target": "app.domains.gift_pack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.models.GiftPackUserState"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_3",
+        "module_target": "app.domains.identity.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.identity.models.EmbyUser"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_3",
+        "module_target": "app.domains.identity.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.identity.models.PlexUser"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_3",
+        "module_target": "app.domains.identity.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.identity.models.Statistics"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_3",
+        "module_target": "app.domains.gift_pack.repository",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.repository.GIFT_PACK_REWARD_TYPES"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.repository.part_3",
+        "resolved": true,
+        "scope": "function",
+        "target": "re"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.part_3",
+        "module_target": "app.core.telegram",
+        "resolved": true,
+        "scope": "function",
+        "target": "app.core.telegram.load_tg_user_info_cache"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.router",
+        "resolved": true,
+        "scope": "module",
+        "target": "json"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "typing",
+        "resolved": true,
+        "scope": "module",
+        "target": "typing.Annotated"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "fastapi",
+        "resolved": true,
+        "scope": "module",
+        "target": "fastapi.APIRouter"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "fastapi",
+        "resolved": true,
+        "scope": "module",
+        "target": "fastapi.BackgroundTasks"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "fastapi",
+        "resolved": true,
+        "scope": "module",
+        "target": "fastapi.Body"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "fastapi",
+        "resolved": true,
+        "scope": "module",
+        "target": "fastapi.Depends"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "fastapi",
+        "resolved": true,
+        "scope": "module",
+        "target": "fastapi.HTTPException"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "fastapi",
+        "resolved": true,
+        "scope": "module",
+        "target": "fastapi.Request"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "fastapi",
+        "resolved": true,
+        "scope": "module",
+        "target": "fastapi.status"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.core.auth",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.auth.check_admin_permission"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.core.auth",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.auth.get_telegram_user"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.core.auth",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.auth.require_telegram_auth"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.core.log",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.log.uvicorn_logger"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.core.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.schemas.TelegramUser"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.core.telegram",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.telegram.get_user_name_from_tg_id"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.databases",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.databases.db"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.notifications",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.notifications._notify_detached"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.notifications",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.notifications.notify_gift_pack_claim_failed"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.notifications",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.notifications.notify_gift_pack_created"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.notifications",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.notifications.notify_gift_pack_download_sync_failed"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.notifications",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.notifications.notify_gift_pack_sold_out"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.schemas.GiftPackAdminItem"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.schemas.GiftPackAdminListResponse"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.schemas.GiftPackClaimRecordItem"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.schemas.GiftPackClaimRecordListResponse"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.schemas.GiftPackClaimResponse"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.schemas.GiftPackClaimRewardResult"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.schemas.GiftPackCreateRequest"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.schemas.GiftPackItem"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.schemas.GiftPackListResponse"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.schemas.GiftPackPromptCheckResponse"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.schemas.GiftPackPromptItem"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.schemas.GiftPackSetEnabledRequest"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.schemas.GiftPackStatsResponse"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.schemas.GiftPackTaskPromptItem"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.schemas.GiftPackUpdateRequest"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.schemas",
+        "module_target": "typing",
+        "resolved": true,
+        "scope": "module",
+        "target": "typing.Annotated"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.schemas",
+        "module_target": "typing",
+        "resolved": true,
+        "scope": "module",
+        "target": "typing.Literal"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.schemas",
+        "module_target": "pydantic",
+        "resolved": true,
+        "scope": "module",
+        "target": "pydantic.BaseModel"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.schemas",
+        "module_target": "pydantic",
+        "resolved": true,
+        "scope": "module",
+        "target": "pydantic.ConfigDict"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.schemas",
+        "module_target": "pydantic",
+        "resolved": true,
+        "scope": "module",
+        "target": "pydantic.Field"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.schemas",
+        "module_target": "pydantic",
+        "resolved": true,
+        "scope": "module",
+        "target": "pydantic.field_validator"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.schemas",
+        "module_target": "pydantic",
+        "resolved": true,
+        "scope": "module",
+        "target": "pydantic.model_validator"
+      },
+      {
+        "kind": "from",
+        "module": "app.model_registry",
+        "module_target": "app.domains.gift_pack",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.models"
+      },
+      {
+        "kind": "from",
+        "module": "app.schedule",
+        "module_target": "app.domains.gift_pack.jobs",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.jobs.scan_expired_gift_packs"
+      },
+      {
+        "kind": "from",
+        "module": "app.schedule",
+        "module_target": "app.domains.gift_pack.jobs",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.jobs.scan_gift_pack_start_dms"
+      }
+    ],
+    "strings": []
+  },
+  "metadata_tables": [
+    {
+      "columns": [
+        {
+          "autoincrement": true,
+          "default": null,
+          "name": "id",
+          "nullable": false,
+          "primary_key": true,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "title",
+          "nullable": false,
+          "primary_key": false,
+          "type": "TEXT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "description",
+          "nullable": true,
+          "primary_key": false,
+          "type": "TEXT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "rewards",
+          "nullable": false,
+          "primary_key": false,
+          "type": "TEXT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "eligibility",
+          "nullable": true,
+          "primary_key": false,
+          "type": "TEXT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "audience",
+          "nullable": true,
+          "primary_key": false,
+          "type": "TEXT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "requirements",
+          "nullable": true,
+          "primary_key": false,
+          "type": "TEXT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "task_end_at",
+          "nullable": true,
+          "primary_key": false,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "total_quantity",
+          "nullable": true,
+          "primary_key": false,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": 0,
+          "name": "claimed_count",
+          "nullable": false,
+          "primary_key": false,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "start_at",
+          "nullable": false,
+          "primary_key": false,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "end_at",
+          "nullable": false,
+          "primary_key": false,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": 3,
+          "name": "max_prompt_count",
+          "nullable": false,
+          "primary_key": false,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": 0,
+          "name": "max_task_prompt_count",
+          "nullable": false,
+          "primary_key": false,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": 0,
+          "name": "notify_audience_on_start",
+          "nullable": false,
+          "primary_key": false,
+          "type": "SMALLINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": 1,
+          "name": "is_enabled",
+          "nullable": false,
+          "primary_key": false,
+          "type": "SMALLINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": 0,
+          "name": "expiry_notified",
+          "nullable": false,
+          "primary_key": false,
+          "type": "SMALLINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_by",
+          "nullable": true,
+          "primary_key": false,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "created_at",
+          "nullable": false,
+          "primary_key": false,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "updated_at",
+          "nullable": false,
+          "primary_key": false,
+          "type": "BIGINT"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [
+            "id"
+          ],
+          "name": null,
+          "sqltext": "",
+          "type": "PrimaryKeyConstraint"
+        },
+        {
+          "columns": [],
+          "name": "ck_gift_pack_claimed_count",
+          "sqltext": "claimed_count >= 0",
+          "type": "CheckConstraint"
+        },
+        {
+          "columns": [],
+          "name": "ck_gift_pack_enabled",
+          "sqltext": "is_enabled IN (0, 1)",
+          "type": "CheckConstraint"
+        },
+        {
+          "columns": [],
+          "name": "ck_gift_pack_expiry_notified",
+          "sqltext": "expiry_notified IN (0, 1)",
+          "type": "CheckConstraint"
+        },
+        {
+          "columns": [],
+          "name": "ck_gift_pack_max_prompt_count",
+          "sqltext": "max_prompt_count > 0",
+          "type": "CheckConstraint"
+        },
+        {
+          "columns": [],
+          "name": "ck_gift_pack_max_task_prompt_count",
+          "sqltext": "max_task_prompt_count >= 0",
+          "type": "CheckConstraint"
+        },
+        {
+          "columns": [],
+          "name": "ck_gift_pack_notify_audience_on_start",
+          "sqltext": "notify_audience_on_start IN (0, 1)",
+          "type": "CheckConstraint"
+        },
+        {
+          "columns": [],
+          "name": "ck_gift_pack_task_window",
+          "sqltext": "task_end_at IS NULL OR (task_end_at > start_at AND task_end_at <= end_at)",
+          "type": "CheckConstraint"
+        },
+        {
+          "columns": [],
+          "name": "ck_gift_pack_total_quantity",
+          "sqltext": "total_quantity IS NULL OR total_quantity > 0",
+          "type": "CheckConstraint"
+        },
+        {
+          "columns": [],
+          "name": "ck_gift_pack_window",
+          "sqltext": "end_at > start_at",
+          "type": "CheckConstraint"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "end_at",
+            "expiry_notified"
+          ],
+          "expressions": [
+            "gift_pack.end_at",
+            "gift_pack.expiry_notified"
+          ],
+          "name": "idx_gift_pack_expiry_scan",
+          "unique": false
+        },
+        {
+          "columns": [
+            "start_at",
+            "end_at",
+            "is_enabled"
+          ],
+          "expressions": [
+            "gift_pack.start_at",
+            "gift_pack.end_at",
+            "gift_pack.is_enabled"
+          ],
+          "name": "idx_gift_pack_window_enabled",
+          "unique": false
+        },
+        {
+          "columns": [
+            "end_at"
+          ],
+          "expressions": [
+            "gift_pack.end_at"
+          ],
+          "name": "ix_gift_pack_end_at",
+          "unique": false
+        },
+        {
+          "columns": [
+            "start_at"
+          ],
+          "expressions": [
+            "gift_pack.start_at"
+          ],
+          "name": "ix_gift_pack_start_at",
+          "unique": false
+        }
+      ],
+      "name": "gift_pack"
+    },
+    {
+      "columns": [
+        {
+          "autoincrement": true,
+          "default": null,
+          "name": "id",
+          "nullable": false,
+          "primary_key": true,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "pack_id",
+          "nullable": false,
+          "primary_key": false,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "tg_id",
+          "nullable": false,
+          "primary_key": false,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "claimed_at",
+          "nullable": true,
+          "primary_key": false,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "reward_snapshot",
+          "nullable": true,
+          "primary_key": false,
+          "type": "TEXT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "last_prompted_at",
+          "nullable": true,
+          "primary_key": false,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": 0,
+          "name": "prompt_count",
+          "nullable": false,
+          "primary_key": false,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "audience_locked_at",
+          "nullable": true,
+          "primary_key": false,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": 0,
+          "name": "task_prompt_count",
+          "nullable": false,
+          "primary_key": false,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "last_task_prompted_at",
+          "nullable": true,
+          "primary_key": false,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "start_dm_sent_at",
+          "nullable": true,
+          "primary_key": false,
+          "type": "BIGINT"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [
+            "id"
+          ],
+          "name": null,
+          "sqltext": "",
+          "type": "PrimaryKeyConstraint"
+        },
+        {
+          "columns": [
+            "pack_id"
+          ],
+          "name": null,
+          "sqltext": "",
+          "type": "ForeignKeyConstraint"
+        },
+        {
+          "columns": [
+            "pack_id",
+            "tg_id"
+          ],
+          "name": "uq_gift_pack_user",
+          "sqltext": "",
+          "type": "UniqueConstraint"
+        },
+        {
+          "columns": [
+            "tg_id"
+          ],
+          "name": null,
+          "sqltext": "",
+          "type": "ForeignKeyConstraint"
+        },
+        {
+          "columns": [],
+          "name": "ck_gift_pack_state_prompt_count",
+          "sqltext": "prompt_count >= 0",
+          "type": "CheckConstraint"
+        },
+        {
+          "columns": [],
+          "name": "ck_gift_pack_state_task_prompt_count",
+          "sqltext": "task_prompt_count >= 0",
+          "type": "CheckConstraint"
+        }
+      ],
+      "indexes": [
+        {
+          "columns": [
+            "tg_id",
+            "claimed_at"
+          ],
+          "expressions": [
+            "gift_pack_user_state.tg_id",
+            "gift_pack_user_state.claimed_at"
+          ],
+          "name": "idx_gift_pack_state_user_claimed",
+          "unique": false
+        },
+        {
+          "columns": [
+            "pack_id"
+          ],
+          "expressions": [
+            "gift_pack_user_state.pack_id"
+          ],
+          "name": "ix_gift_pack_user_state_pack_id",
+          "unique": false
+        },
+        {
+          "columns": [
+            "tg_id"
+          ],
+          "expressions": [
+            "gift_pack_user_state.tg_id"
+          ],
+          "name": "ix_gift_pack_user_state_tg_id",
+          "unique": false
+        }
+      ],
+      "name": "gift_pack_user_state"
+    },
+    {
+      "columns": [
+        {
+          "autoincrement": "auto",
+          "default": null,
+          "name": "tg_id",
+          "nullable": false,
+          "primary_key": true,
+          "type": "BIGINT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": 0,
+          "name": "donation",
+          "nullable": false,
+          "primary_key": false,
+          "type": "FLOAT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": 0,
+          "name": "credits",
+          "nullable": false,
+          "primary_key": false,
+          "type": "FLOAT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": 0,
+          "name": "tournament_wallet_credits",
+          "nullable": false,
+          "primary_key": false,
+          "type": "FLOAT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": 0,
+          "name": "blackjack_lose_streak",
+          "nullable": false,
+          "primary_key": false,
+          "type": "INTEGER"
+        },
+        {
+          "autoincrement": "auto",
+          "default": 0,
+          "name": "blackjack_hands_since_freespin",
+          "nullable": false,
+          "primary_key": false,
+          "type": "INTEGER"
+        }
+      ],
+      "constraints": [
+        {
+          "columns": [
+            "tg_id"
+          ],
+          "name": null,
+          "sqltext": "",
+          "type": "PrimaryKeyConstraint"
+        }
+      ],
+      "indexes": [],
+      "name": "statistics"
+    }
+  ],
+  "openapi_paths": {
+    "/api/gift-packs": {
+      "get": {
+        "description": "礼包中心列表：含每个礼包对当前用户的状态与余量",
+        "operationId": "list_gift_packs_api_gift_packs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GiftPackListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        },
+        "summary": "List Gift Packs",
+        "tags": [
+          "gift-packs"
+        ]
+      }
+    },
+    "/api/gift-packs/admin": {
+      "post": {
+        "description": "管理员：创建礼包",
+        "operationId": "admin_create_gift_pack_api_gift_packs_admin_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GiftPackCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GiftPackAdminItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Create Gift Pack",
+        "tags": [
+          "gift-packs"
+        ]
+      }
+    },
+    "/api/gift-packs/admin/list": {
+      "get": {
+        "description": "管理员：礼包列表",
+        "operationId": "admin_list_gift_packs_api_gift_packs_admin_list_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GiftPackAdminListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin List Gift Packs",
+        "tags": [
+          "gift-packs"
+        ]
+      }
+    },
+    "/api/gift-packs/admin/resolve-users": {
+      "post": {
+        "description": "将混合粘贴的 Telegram ID / Plex / Emby 标识解析为 tg_id。",
+        "operationId": "admin_resolve_gift_pack_users_api_gift_packs_admin_resolve_users_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_resolve_gift_pack_users_api_gift_packs_admin_resolve_users_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Admin Resolve Gift Pack Users Api Gift Packs Admin Resolve Users Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Resolve Gift Pack Users",
+        "tags": [
+          "gift-packs"
+        ]
+      }
+    },
+    "/api/gift-packs/admin/{pack_id}": {
+      "delete": {
+        "description": "管理员：删除礼包（已有领取记录时拒绝，只能停用）",
+        "operationId": "admin_delete_gift_pack_api_gift_packs_admin__pack_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Delete Gift Pack",
+        "tags": [
+          "gift-packs"
+        ]
+      },
+      "put": {
+        "description": "管理员：编辑礼包",
+        "operationId": "admin_update_gift_pack_api_gift_packs_admin__pack_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GiftPackUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GiftPackAdminItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Update Gift Pack",
+        "tags": [
+          "gift-packs"
+        ]
+      }
+    },
+    "/api/gift-packs/admin/{pack_id}/enabled": {
+      "post": {
+        "description": "管理员：启用 / 停用礼包",
+        "operationId": "admin_set_gift_pack_enabled_api_gift_packs_admin__pack_id__enabled_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GiftPackSetEnabledRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GiftPackAdminItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Set Gift Pack Enabled",
+        "tags": [
+          "gift-packs"
+        ]
+      }
+    },
+    "/api/gift-packs/admin/{pack_id}/records": {
+      "get": {
+        "description": "管理员：礼包领取记录（分页）",
+        "operationId": "admin_gift_pack_records_api_gift_packs_admin__pack_id__records_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GiftPackClaimRecordListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Gift Pack Records",
+        "tags": [
+          "gift-packs"
+        ]
+      }
+    },
+    "/api/gift-packs/admin/{pack_id}/stats": {
+      "get": {
+        "description": "管理员：礼包领取统计",
+        "operationId": "admin_gift_pack_stats_api_gift_packs_admin__pack_id__stats_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GiftPackStatsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Admin Gift Pack Stats",
+        "tags": [
+          "gift-packs"
+        ]
+      }
+    },
+    "/api/gift-packs/prompt-check": {
+      "post": {
+        "description": "开屏提醒判定：返回待提醒的礼包列表，并在返回的同时记账\n\n用 POST 而非 GET，因为它确实有副作用（prompt_count += 1）。\n返回空列表表示不弹窗。",
+        "operationId": "prompt_check_api_gift_packs_prompt_check_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GiftPackPromptCheckResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        },
+        "summary": "Prompt Check",
+        "tags": [
+          "gift-packs"
+        ]
+      }
+    },
+    "/api/gift-packs/{pack_id}/claim": {
+      "post": {
+        "description": "领取礼包，返回逐项发放结果",
+        "operationId": "claim_gift_pack_api_gift_packs__pack_id__claim_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pack_id",
+            "required": true,
+            "schema": {
+              "title": "Pack Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GiftPackClaimResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Claim Gift Pack",
+        "tags": [
+          "gift-packs"
+        ]
+      }
+    }
+  },
+  "repository_members": [
+    "_GIFT_PACK_COUNT_METHODS",
+    "_GIFT_PACK_UNLOCK_COLUMNS",
+    "_count_gift_pack_auction_participations",
+    "_count_gift_pack_blackjack_hands",
+    "_count_gift_pack_invitees",
+    "_count_gift_pack_prediction_bets",
+    "_count_gift_pack_tournament_entries",
+    "_count_gift_pack_treasure_issues",
+    "_count_gift_pack_watched_hours",
+    "_count_gift_pack_wheel_spins",
+    "_evaluate_conditions",
+    "_evaluate_gift_pack_audience",
+    "_evaluate_gift_pack_condition",
+    "_evaluate_gift_pack_eligibility",
+    "_gift_pack_admin_payload",
+    "_gift_pack_audience_size",
+    "_gift_pack_condition_label",
+    "_gift_pack_condition_summary",
+    "_gift_pack_conditions_with_binding",
+    "_gift_pack_lifecycle",
+    "_gift_pack_local_date",
+    "_gift_pack_metric_value",
+    "_gift_pack_phase_ref",
+    "_gift_pack_referencing_packs",
+    "_gift_pack_remaining",
+    "_gift_pack_reward_label",
+    "_grant_feature_unlock_tx",
+    "_grant_gift_pack_rewards",
+    "_grant_invite_codes_tx",
+    "_grant_tournament_wallet_tx",
+    "_grant_wheel_free_spins_tx",
+    "_is_premium_active",
+    "_legacy_gift_pack_requirements",
+    "_load_gift_pack_user_context",
+    "_lock_gift_pack_audience",
+    "_lock_gift_pack_stats",
+    "_persist_privileged_invite_codes",
+    "_resolve_gift_pack_conditions",
+    "_validate_gift_pack_references",
+    "_validate_post_start_edit",
+    "claim_gift_pack",
+    "claim_gift_pack_start_dm_candidates",
+    "create_gift_pack",
+    "delete_gift_pack",
+    "get_expired_unnotified_gift_packs",
+    "get_gift_pack_by_id",
+    "get_gift_pack_claim_records",
+    "get_gift_pack_stats",
+    "get_gift_packs_admin",
+    "get_gift_packs_for_user",
+    "mark_gift_pack_expiry_notified",
+    "prompt_check_gift_packs",
+    "resolve_gift_pack_users",
+    "set_gift_pack_enabled",
+    "update_gift_pack"
+  ],
+  "routes": [
+    {
+      "endpoint": "prompt_check",
+      "methods": [
+        "POST"
+      ],
+      "name": "prompt_check",
+      "order": 201,
+      "path": "/api/gift-packs/prompt-check",
+      "response_model": "GiftPackPromptCheckResponse"
+    },
+    {
+      "endpoint": "list_gift_packs",
+      "methods": [
+        "GET"
+      ],
+      "name": "list_gift_packs",
+      "order": 202,
+      "path": "/api/gift-packs",
+      "response_model": "GiftPackListResponse"
+    },
+    {
+      "endpoint": "claim_gift_pack",
+      "methods": [
+        "POST"
+      ],
+      "name": "claim_gift_pack",
+      "order": 203,
+      "path": "/api/gift-packs/{pack_id}/claim",
+      "response_model": "GiftPackClaimResponse"
+    },
+    {
+      "endpoint": "admin_resolve_gift_pack_users",
+      "methods": [
+        "POST"
+      ],
+      "name": "admin_resolve_gift_pack_users",
+      "order": 204,
+      "path": "/api/gift-packs/admin/resolve-users",
+      "response_model": "dict"
+    },
+    {
+      "endpoint": "admin_list_gift_packs",
+      "methods": [
+        "GET"
+      ],
+      "name": "admin_list_gift_packs",
+      "order": 205,
+      "path": "/api/gift-packs/admin/list",
+      "response_model": "GiftPackAdminListResponse"
+    },
+    {
+      "endpoint": "admin_create_gift_pack",
+      "methods": [
+        "POST"
+      ],
+      "name": "admin_create_gift_pack",
+      "order": 206,
+      "path": "/api/gift-packs/admin",
+      "response_model": "GiftPackAdminItem"
+    },
+    {
+      "endpoint": "admin_update_gift_pack",
+      "methods": [
+        "PUT"
+      ],
+      "name": "admin_update_gift_pack",
+      "order": 207,
+      "path": "/api/gift-packs/admin/{pack_id}",
+      "response_model": "GiftPackAdminItem"
+    },
+    {
+      "endpoint": "admin_set_gift_pack_enabled",
+      "methods": [
+        "POST"
+      ],
+      "name": "admin_set_gift_pack_enabled",
+      "order": 208,
+      "path": "/api/gift-packs/admin/{pack_id}/enabled",
+      "response_model": "GiftPackAdminItem"
+    },
+    {
+      "endpoint": "admin_delete_gift_pack",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "admin_delete_gift_pack",
+      "order": 209,
+      "path": "/api/gift-packs/admin/{pack_id}",
+      "response_model": null
+    },
+    {
+      "endpoint": "admin_gift_pack_stats",
+      "methods": [
+        "GET"
+      ],
+      "name": "admin_gift_pack_stats",
+      "order": 210,
+      "path": "/api/gift-packs/admin/{pack_id}/stats",
+      "response_model": "GiftPackStatsResponse"
+    },
+    {
+      "endpoint": "admin_gift_pack_records",
+      "methods": [
+        "GET"
+      ],
+      "name": "admin_gift_pack_records",
+      "order": 211,
+      "path": "/api/gift-packs/admin/{pack_id}/records",
+      "response_model": "GiftPackClaimRecordListResponse"
+    }
+  ],
+  "scheduler_jobs": [
+    {
+      "args": [],
+      "executor": "async",
+      "func": "app.domains.gift_pack.jobs:scan_expired_gift_packs",
+      "kwargs": {
+        "id": "scan_expired_gift_packs",
+        "max_instances": 1,
+        "minutes": 10,
+        "next_run_time": {
+          "relative_seconds": 240
+        },
+        "replace_existing": true,
+        "trigger": "interval"
+      }
+    },
+    {
+      "args": [],
+      "executor": "async",
+      "func": "app.domains.gift_pack.jobs:scan_gift_pack_start_dms",
+      "kwargs": {
+        "id": "scan_gift_pack_start_dms",
+        "max_instances": 1,
+        "minutes": 5,
+        "next_run_time": {
+          "relative_seconds": 120
+        },
+        "replace_existing": true,
+        "trigger": "interval"
+      }
+    }
+  ],
+  "schema": 1
+}
