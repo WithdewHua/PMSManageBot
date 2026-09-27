@@ -30,7 +30,7 @@
 - [x] 4.4 Migrate cross-domain blackjack callers (credits, luckywheel, badges, rankings, gift pack, and account/profile consumers) to module/service/`*_tx` APIs; verify no new direct foreign-model or facade import is introduced.
 - [x] 4.5 Remove blackjack methods and mixin inheritance from `DatabaseORM` only after all callers migrate; verify facade introspection contains no blackjack operations and manual-operation review has no deleted entry point.
 - [x] 4.6 Update mapping/provenance and architecture baseline entries item-by-item, then verify blackjack violations strictly decrease without adding broad import-linter exemptions.
-- [ ] 4.7 Add repository transaction/failure-injection tests for cash settlement, timeout settlement, tournament registration, tournament settlement, and free-spin issuance; verify balances, hands, entries, and awards roll back together.
+- [x] 4.7 Add repository transaction/failure-injection tests for cash settlement, timeout settlement, tournament registration, tournament settlement, and free-spin issuance; verify balances, hands, entries, and awards roll back together.
 
 ## 5. Service and Side-Effect Orchestration
 

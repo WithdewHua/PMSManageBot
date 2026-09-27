@@ -42,11 +42,13 @@ def test_module_tx_exports_have_explicit_caller_session() -> None:
 
 
 def test_extracted_tx_methods_do_not_open_or_commit_sessions() -> None:
+    tx_names: set[str] = set()
     for filename in (
         "part_1.py",
         "part_2.py",
         "part_3.py",
         "part_4.py",
+        "part_5.py",
         "part_6.py",
         "part_7.py",
     ):
@@ -56,24 +58,30 @@ def test_extracted_tx_methods_do_not_open_or_commit_sessions() -> None:
             / filename
         )
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.FunctionDef) or not node.name.endswith("_tx"):
-                continue
-                call_names = []
-                for child in ast.walk(node):
-                    if not isinstance(child, ast.Call):
-                        continue
-                    function = child.func
-                    call_names.append(
-                        function.attr
-                        if isinstance(function, ast.Attribute)
-                        else function.id
-                        if isinstance(function, ast.Name)
-                        else ""
-                    )
-                assert "get_session" not in call_names, node.name
-                assert "commit" not in call_names, node.name
-                assert "close" not in call_names, node.name
+        tx_functions = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef) and node.name.endswith("_tx")
+        ]
+        tx_names.update(node.name for node in tx_functions)
+        for node in tx_functions:
+            call_names = []
+            for child in ast.walk(node):
+                if not isinstance(child, ast.Call):
+                    continue
+                function = child.func
+                call_names.append(
+                    function.attr
+                    if isinstance(function, ast.Attribute)
+                    else function.id
+                    if isinstance(function, ast.Name)
+                    else ""
+                )
+            assert "get_session" not in call_names, node.name
+            assert "commit" not in call_names, node.name
+            assert "close" not in call_names, node.name
+
+    assert tx_names == set(TX_EXPORTS)
 
 
 def test_module_tx_exports_forward_the_same_session(monkeypatch) -> None:
