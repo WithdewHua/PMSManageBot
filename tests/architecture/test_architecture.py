@@ -15,12 +15,14 @@ from .checks import (
     scan_line_budgets,
     scan_mixin_duplicates,
     scan_model_registry,
+    scan_numbered_modules,
 )
 from .helpers import (
     BASELINE_PATH,
     PROJECT_ROOT,
     assert_baseline_exact,
     load_baseline,
+    owner_for_domain,
     write_baseline,
 )
 
@@ -254,11 +256,61 @@ def test_baseline_writer_round_trips_without_refreshing_repository_baseline(
         "line_budgets": [],
         "model_registry": [],
         "mixin_duplicates": [],
+        "numbered_modules": [],
     }
     path = tmp_path / "baseline.json"
     write_baseline(baseline, path)
     assert load_baseline(path) == baseline
     assert BASELINE_PATH.exists()
+
+
+def test_numbered_repository_modules_are_rejected(tmp_path: Path) -> None:
+    baseline_path = tmp_path / "baseline.json"
+    baseline = {
+        category: (
+            [
+                {
+                    "key": "numbered|src/app/domains/demo/repository/part_1.py",
+                    "owner": owner_for_domain("demo"),
+                    "path": "src/app/domains/demo/repository/part_1.py",
+                }
+            ]
+            if category == "numbered_modules"
+            else []
+        )
+        for category in (
+            "cross_domain_calls",
+            "line_budgets",
+            "model_registry",
+            "mixin_duplicates",
+            "numbered_modules",
+        )
+    }
+    write_baseline(baseline, baseline_path)
+    registered = load_baseline(baseline_path)
+    _write(
+        tmp_path, "src/app/domains/demo/repository/part_1.py", "class M:\n    pass\n"
+    )
+    assert_baseline_exact(
+        "numbered_modules", scan_numbered_modules(tmp_path), registered
+    )
+
+    # 新增一个未登记的序号模块 → 检查失败
+    _write(
+        tmp_path, "src/app/domains/demo/repository/part_9.py", "class M:\n    pass\n"
+    )
+    with pytest.raises(AssertionError, match="new violations"):
+        assert_baseline_exact(
+            "numbered_modules", scan_numbered_modules(tmp_path), registered
+        )
+
+    # 文件还在但登记的例外被删掉 → 检查失败
+    (tmp_path / "src/app/domains/demo/repository/part_9.py").unlink()
+    registered["numbered_modules"] = []
+    with pytest.raises(AssertionError, match="new violations"):
+        assert_baseline_exact(
+            "numbered_modules", scan_numbered_modules(tmp_path), registered
+        )
 
 
 def test_allowed_service_and_transaction_boundaries(tmp_path: Path) -> None:

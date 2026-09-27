@@ -15,6 +15,7 @@ ARCHITECTURE_CATEGORIES = (
     "line_budgets",
     "model_registry",
     "mixin_duplicates",
+    "numbered_modules",
 )
 
 

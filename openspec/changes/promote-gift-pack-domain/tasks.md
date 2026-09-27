@@ -42,7 +42,10 @@
   - 工具：`scripts/refactor/split_repository_members.py` + `scripts/refactor/split_plans.toml`（计划驱动，逐符号目标与 `mapping.toml` 的 `planned_target` 互相校验；门面类在 `[repository_mixins]` 里声明）。
   - 基线：545 → 543 条。29 条旧 `part_N` 条目按映射改写为新模块，其中两条 `credits` 导入（part_1 与其它 part 各一条）在新布局下合并成同一条边，已在 `baseline_moves.toml` 用两条 `[[removal]]` 声明并校验“边仍在包内”；`same-key-different-content = 0`，其余类别逐字节不变。
   - 验证：`verify.py --base $(cat scripts/refactor/BASE)` 错误集合与搬移前逐条相同（154 条）；`pytest tests/` 488 passed / 4 skipped；`blackjack_surface.json` 与 `blackjack_inventory.json` 的差异只有路径/行号；新增 `tests/refactor/test_blackjack_repository_split.py` 按 `planned_target` 固定落点（补上 `verify.py` 只能按包匹配的缺口）。
-- [ ] 2.4 在 `tests/architecture` 新增序号模块检查，并在 `baseline.json` 新增 `numbered_modules` 类别，登记 `prediction/repository/part_1.py` 和 `part_2.py`（负责变更为 `promote-activity-domains`）。在 `docs/architecture.md` 的提升模板里写明三条：按子主题拆包、搬移与语义改造分开提交、禁止序号模块。验证：临时加一个 `part_9.py` 时检查失败；删掉已登记的例外但文件还在时检查失败；文档中的规则可以在 AGENTS.md 找到链接。
+- [x] 2.4 在 `tests/architecture` 新增序号模块检查，并在 `baseline.json` 新增 `numbered_modules` 类别，登记 `prediction/repository/part_1.py` 和 `part_2.py`（负责变更为 `promote-activity-domains`）。在 `docs/architecture.md` 的提升模板里写明三条：按子主题拆包、搬移与语义改造分开提交、禁止序号模块。验证：临时加一个 `part_9.py` 时检查失败；删掉已登记的例外但文件还在时检查失败；文档中的规则可以在 AGENTS.md 找到链接。
+  - 交付：`tests/architecture/checks.py` 的 `scan_numbered_modules` 扫 `src/app/domains/*/repository/part_<数字>.py`，负责人按领域映射（`owner_for_domain`），扫描结果进入 `scan_all` 与 `ARCHITECTURE_CATEGORIES`；`baseline.json` 新增 `numbered_modules`，当前只登记预测领域的两个文件。
+  - 负向测试 `test_numbered_repository_modules_are_rejected` 覆盖两条验收：新加 `part_9.py` 报 new violations；删掉登记的例外但文件还在时报 new violations（只减不增）。
+  - 文档：提升模板新增“按子主题拆包 / 搬移与语义改造分开提交 / 禁止序号模块”三条硬约束，并注明与 `AGENTS.md` 的 “Where new code goes” 同步；子主题落点与基线改写工具（`split_plans.toml`、`baseline_moves.toml`）一并记录。
 
 ## 3. 各领域提供的 `*_tx`
 

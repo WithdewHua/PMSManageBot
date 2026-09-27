@@ -168,6 +168,12 @@ B3 起，部署回退必须在维护窗口执行：停止所有 B3 调度器 →
 6. **摘除门面**：删除 `DatabaseORM` 上该领域的 mixin 与方法，跨域调用方改用该领域 `service` 或 `*_tx`；随后按冻结来源逐项重封基线 provenance。
 7. **交付验证**：接口迁移与快照回归、仓库级失败注入回滚、一次性 PostgreSQL 并发、脱敏生产副本彩排。
 
+三条与代码形态有关的硬约束（`AGENTS.md` 的“Where new code goes”与本文同步）：
+
+- **角色文件变包时按子主题拆**：repository 等角色模块超过 1,000 行或出现多个主题时，拆成同名包，包内按子主题命名（`hands.py`、`tournaments.py`），组合类与模块级包装 API 仍留在 `__init__.py`。逐符号目标登记在 `scripts/refactor/split_plans.toml`，并映射到 `mapping.toml` 的 `planned_target`；`tests/refactor/test_*_repository_split.py` 按登记锁定落点（`verify.py` 只能按包匹配）。
+- **搬移与语义改造分开提交**：搬移提交只改文件位置、导入与基线键；语义改造提交不得与搬移混在同一提交里。基线键由 `scripts/refactor/rewrite_baseline_keys.py` 按搬移映射改写（`scripts/refactor/baseline_moves.toml`），校验“条目身份多重集不变”；同一目标的两处导入合并成一条边时用 `[[addition]]`／`[[removal]]` 逐条声明。
+- **禁止序号模块**：`src/app/domains/**/repository/part_<数字>.py` 出现即失败（`tests/architecture` 的 `numbered_modules` 类别，只减不增）。现存的 `prediction/repository/part_1.py`、`part_2.py` 由 `promote-activity-domains` 负责清理；21 点与礼包的 repository 包已在本轮拆为子主题模块。
+
 “快照先行、逐项 provenance、一次性容器验证”是三条硬约束：没有快照无法区分行为漂移与重构差异；没有逐项 provenance 无法证明新增基线条目属于旧债；没有一次性容器无法在真实数据形状上验证锁与迁移。
 
 ## blackjack 领域边界

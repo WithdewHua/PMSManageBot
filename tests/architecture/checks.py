@@ -575,6 +575,37 @@ def scan_mixin_duplicates(root: Path) -> list[dict[str, Any]]:
     return sorted(violations, key=lambda item: item["key"])
 
 
+def _numbered_module_owner(path: str) -> str:
+    parts = path.split("/")
+    domain = parts[3] if len(parts) > 3 and parts[0] == "src" else None
+    return owner_for_domain(domain)
+
+
+def scan_numbered_modules(root: Path) -> list[dict[str, Any]]:
+    """Find numbered ``domains/*/repository/part_<digit>.py`` modules.
+
+    Design D1 forbids numbered modules: repository packages are split by
+    sub-topic, so a ``part_N`` file is either unfinished debt (registered here)
+    or a regression.
+    """
+    violations: list[dict[str, Any]] = []
+    for path in python_files(root):
+        stable_path = relative_path(path, root)
+        parts = path.stem.split("_")
+        if "/domains/" not in f"/{stable_path}" or path.parent.name != "repository":
+            continue
+        if len(parts) != 2 or parts[0] != "part" or not parts[1].isdigit():
+            continue
+        violations.append(
+            make_violation(
+                f"numbered|{stable_path}",
+                _numbered_module_owner(stable_path),
+                path=stable_path,
+            )
+        )
+    return sorted(violations, key=lambda item: item["key"])
+
+
 def scan_all(root: Path) -> dict[str, list[dict[str, Any]]]:
     """Run all architecture scanners without reading or writing the baseline."""
     return {
@@ -582,4 +613,5 @@ def scan_all(root: Path) -> dict[str, list[dict[str, Any]]]:
         "line_budgets": scan_line_budgets(root),
         "model_registry": scan_model_registry(root),
         "mixin_duplicates": scan_mixin_duplicates(root),
+        "numbered_modules": scan_numbered_modules(root),
     }

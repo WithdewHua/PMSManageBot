@@ -5675,6 +5675,18 @@
   "line_budgets": [],
   "model_registry": [],
   "mixin_duplicates": [],
+  "numbered_modules": [
+    {
+      "key": "numbered|src/app/domains/prediction/repository/part_1.py",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/prediction/repository/part_1.py"
+    },
+    {
+      "key": "numbered|src/app/domains/prediction/repository/part_2.py",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/prediction/repository/part_2.py"
+    }
+  ],
   "contract_ignore_counts": {
     "Top-level architecture": 0,
     "External integration isolation": 0,
