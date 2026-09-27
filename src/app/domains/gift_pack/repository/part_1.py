@@ -8,11 +8,7 @@ from sqlalchemy import distinct, func, select
 from app.core.config import settings
 from app.domains.auction.models import AuctionBids
 from app.domains.badges.models import UserBadge
-from app.domains.blackjack.models import (
-    BlackjackHand,
-    BlackjackTournament,
-    BlackjackTournamentEntry,
-)
+from app.domains.blackjack import service as blackjack_service
 from app.domains.credits import repository as credits_repository
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
@@ -144,26 +140,14 @@ class _GiftPackRepositoryPart1:
     def _count_gift_pack_blackjack_hands(
         session, tg_id: int, since: int, until: int, **qualifiers
     ) -> int | tuple[int, float]:
-        from app.domains.blackjack import rules as engine
-
-        stmt = select(
-            func.count(BlackjackHand.id),
-            func.coalesce(func.sum(BlackjackHand.decisions_total), 0),
-            func.coalesce(func.sum(BlackjackHand.decisions_correct), 0),
-        ).where(
-            BlackjackHand.tg_id == tg_id,
-            BlackjackHand.tournament_id.is_(None),
-            BlackjackHand.status.in_(engine.TERMINAL_STATUSES),
-            BlackjackHand.created_at_ms >= since * 1000,
-            BlackjackHand.created_at_ms <= until * 1000,
+        return blackjack_service.count_eligible_cash_hands_tx(
+            session,
+            tg_id,
+            since,
+            until,
+            min_bet=qualifiers.get("min_bet"),
+            min_accuracy=qualifiers.get("min_accuracy"),
         )
-        if qualifiers.get("min_bet") is not None:
-            stmt = stmt.where(BlackjackHand.bet_credits >= qualifiers["min_bet"])
-        count, total, correct = session.execute(stmt).one()
-        count = int(count)
-        if qualifiers.get("min_accuracy") is None:
-            return count
-        return count, (float(correct) / float(total) * 100 if total else 0.0)
 
     @staticmethod
     def _count_gift_pack_treasure_issues(
@@ -211,20 +195,8 @@ class _GiftPackRepositoryPart1:
     def _count_gift_pack_tournament_entries(
         session, tg_id: int, since: int, until: int, **qualifiers
     ) -> int:
-        return int(
-            session.execute(
-                select(func.count(BlackjackTournamentEntry.id))
-                .join(
-                    BlackjackTournament,
-                    BlackjackTournamentEntry.tournament_id == BlackjackTournament.id,
-                )
-                .where(
-                    BlackjackTournamentEntry.tg_id == tg_id,
-                    BlackjackTournament.status != 4,
-                    BlackjackTournamentEntry.registered_at_ms >= since * 1000,
-                    BlackjackTournamentEntry.registered_at_ms <= until * 1000,
-                )
-            ).scalar_one()
+        return blackjack_service.count_tournament_entries_tx(
+            session, tg_id, since, until
         )
 
     @staticmethod

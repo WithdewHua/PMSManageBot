@@ -1,12 +1,15 @@
+import json
 import time
 from datetime import datetime, timedelta
 from math import isfinite
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.core.config import settings
 from app.core.db import get_session
+from app.core.kv import SystemConfig
 from app.core.log import logger
+from app.domains.identity.models import Statistics
 from app.domains.luckywheel.models import LuckywheelFreeSpin, WheelStats
 
 FREE_SPIN_SOURCES = frozenset({"blackjack", "gift_pack"})
@@ -50,6 +53,119 @@ def grant_free_spins_tx(
     session.add_all(rows)
     session.flush()
     return rows
+
+
+def consume_blackjack_freespin(tg_id: int) -> dict | None:
+    """Atomically claim the earliest available free-spin ledger row."""
+    now_ms = int(time.time() * 1000)
+    try:
+        with get_session() as session:
+            spin_id = (
+                session.execute(
+                    select(LuckywheelFreeSpin.id)
+                    .where(
+                        LuckywheelFreeSpin.tg_id == int(tg_id),
+                        LuckywheelFreeSpin.used_at_ms.is_(None),
+                        LuckywheelFreeSpin.expires_at_ms > now_ms,
+                    )
+                    .order_by(LuckywheelFreeSpin.expires_at_ms, LuckywheelFreeSpin.id)
+                    .limit(1)
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if spin_id is None:
+                return None
+            claimed = session.execute(
+                update(LuckywheelFreeSpin)
+                .where(
+                    LuckywheelFreeSpin.id == int(spin_id),
+                    LuckywheelFreeSpin.used_at_ms.is_(None),
+                )
+                .values(used_at_ms=now_ms)
+            )
+            if claimed.rowcount == 0:
+                return None
+            row = session.get(LuckywheelFreeSpin, int(spin_id))
+            return {
+                "id": int(spin_id),
+                "expires_at_ms": int(row.expires_at_ms),
+                "claimed_at_ms": now_ms,
+                "source": row.source or "blackjack",
+                "cost_credits_snapshot": float(row.cost_credits_snapshot or 0),
+                "wheel_stats_source": row.wheel_stats_source
+                or (
+                    "gift_pack_free" if row.source == "gift_pack" else "blackjack_free"
+                ),
+            }
+    except Exception as exc:
+        logger.error(f"认领免费大转盘机会失败 (tg_id={tg_id}): {exc}")
+        return None
+
+
+def release_blackjack_freespin(spin_id: int, *, claimed_at_ms: int) -> bool:
+    """Release a free-spin claim only when its CAS timestamp still matches."""
+    try:
+        with get_session() as session:
+            released = session.execute(
+                update(LuckywheelFreeSpin)
+                .where(
+                    LuckywheelFreeSpin.id == int(spin_id),
+                    LuckywheelFreeSpin.used_at_ms == int(claimed_at_ms),
+                )
+                .values(used_at_ms=None)
+            )
+            return released.rowcount == 1
+    except Exception as exc:
+        logger.error(f"归还免费大转盘机会失败 (spin_id={spin_id}): {exc}")
+        return False
+
+
+def get_blackjack_freespin_summary(tg_id: int) -> dict:
+    """Return free-spin availability and progress without importing blackjack."""
+    now_ms = int(time.time() * 1000)
+    try:
+        with get_session() as session:
+            raw = session.execute(
+                select(SystemConfig.config_value).where(
+                    SystemConfig.config_type == "blackjack",
+                    SystemConfig.config_key == "config",
+                )
+            ).scalar_one_or_none()
+            config = json.loads(raw) if raw else {}
+            enabled = bool(config.get("freespins_enabled", True))
+            threshold = int(config.get("freespins_hand_threshold", 20) or 0)
+            spins = (
+                session.execute(
+                    select(LuckywheelFreeSpin.expires_at_ms)
+                    .where(
+                        LuckywheelFreeSpin.tg_id == int(tg_id),
+                        LuckywheelFreeSpin.used_at_ms.is_(None),
+                        LuckywheelFreeSpin.expires_at_ms > now_ms,
+                    )
+                    .order_by(LuckywheelFreeSpin.expires_at_ms)
+                )
+                .scalars()
+                .all()
+            )
+            stats = session.get(Statistics, int(tg_id))
+            hands = int(stats.blackjack_hands_since_freespin or 0) if stats else 0
+        return {
+            "enabled": enabled,
+            "available": len(spins),
+            "expires_at_ms_list": [int(value) for value in spins],
+            "hands_since_freespin": hands,
+            "hand_threshold": threshold,
+        }
+    except Exception as exc:
+        logger.error(f"读取免费机会概览失败 (tg_id={tg_id}): {exc}")
+        return {
+            "enabled": False,
+            "available": 0,
+            "expires_at_ms_list": [],
+            "hands_since_freespin": 0,
+            "hand_threshold": 0,
+        }
 
 
 def grant_free_spins(

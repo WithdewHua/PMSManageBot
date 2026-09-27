@@ -6,9 +6,9 @@ from sqlalchemy import distinct, func, select, union
 from app.core.db import get_session
 from app.core.log import logger
 from app.core.telegram import send_message_by_url
-from app.databases.db import db
+from app.domains.badges import service as badges_service
 from app.domains.badges.models import UserBadge
-from app.domains.blackjack.models import BlackjackHand
+from app.domains.blackjack import service as blackjack_service
 from app.domains.identity.models import Statistics
 from app.domains.luckywheel.models import WheelStats
 from app.domains.prediction.models import PredictionBet
@@ -35,10 +35,10 @@ async def check_and_award_supreme_contributor_badge(user_id: int | None = None):
 
     try:
         # 1. 检查勋章是否存在，不存在则创建
-        badge_info = db.get_badge_by_type(BADGE_TYPE)
+        badge_info = badges_service.get_badge_by_type(BADGE_TYPE)
         if not badge_info:
             logger.info(f"勋章 '{BADGE_TYPE}' 不存在，正在创建...")
-            badge_info = db.create_badge(
+            badge_info = badges_service.create_badge(
                 badge_type=BADGE_TYPE,
                 name="至尊贡献者勋章",
                 description="此勋章授予对平台有特殊贡献的用户",
@@ -204,14 +204,10 @@ async def check_and_award_game_king_badge(
     #
     # 两个阈值取自 21 点配置而非写死：spec 要求管理员可在线调整，SHALL NOT 需要
     # 重新部署。其余三个活动的阈值本就不属于 21 点，维持原样。
-    _bj_config = db.get_blackjack_config_dict()
+    _bj_config = blackjack_service.get_blackjack_config_dict()
     BLACKJACK_HAND_THRESHOLD = int(_bj_config.get("badge_min_hands", 2000))
     BLACKJACK_ACCURACY_THRESHOLD = float(_bj_config.get("badge_min_accuracy", 80))
     # 终态集合以引擎常量为单一来源，避免与 db 层的口径各自漂移
-    from app.domains.blackjack.rules import (
-        TERMINAL_STATUSES as BLACKJACK_TERMINAL_STATUSES,
-    )
-
     BADGE_TYPE = "game_king"
 
     if user_id:
@@ -221,10 +217,10 @@ async def check_and_award_game_king_badge(
 
     try:
         # 1. 检查勋章是否存在，不存在则创建
-        badge_info = db.get_badge_by_type(BADGE_TYPE)
+        badge_info = badges_service.get_badge_by_type(BADGE_TYPE)
         if not badge_info:
             logger.info(f"勋章 '{BADGE_TYPE}' 不存在，正在创建...")
-            badge_info = db.create_badge(
+            badge_info = badges_service.create_badge(
                 badge_type=BADGE_TYPE,
                 name="游戏王勋章",
                 description=(
@@ -254,7 +250,7 @@ async def check_and_award_game_king_badge(
         blackjack_count = 0
         blackjack_accuracy = 0.0
         if user_id:
-            blackjack_stats = db.get_user_blackjack_stats(user_id)
+            blackjack_stats = blackjack_service.get_user_blackjack_stats(user_id)
             blackjack_count = int(blackjack_stats.get("total_hands") or 0)
             blackjack_accuracy = float(blackjack_stats.get("accuracy") or 0)
 
@@ -330,30 +326,18 @@ async def check_and_award_game_king_badge(
                     .group_by(PredictionBet.tg_id)
                     .having(func.count(PredictionBet.id) >= PREDICTION_BET_THRESHOLD)
                 )
-                # 21 点为双条件：手数达标**且**准确率达标。准确率在 SQL 里算，
-                # 避免把全部达手数的用户拉回 Python 再逐个查。
-                # 只计现金局手牌：锦标赛报名费低廉且赛内决策计数恒为 0，若计入
-                # 会让赛内手数成为绕过「把牌打好」这一意图的纯刷量路径。
-                blackjack_subq = (
-                    select(BlackjackHand.tg_id)
-                    .where(
-                        BlackjackHand.status.in_(BLACKJACK_TERMINAL_STATUSES),
-                        BlackjackHand.tournament_id.is_(None),
-                    )
-                    .group_by(BlackjackHand.tg_id)
-                    .having(
-                        func.count(BlackjackHand.id) >= BLACKJACK_HAND_THRESHOLD,
-                        func.sum(BlackjackHand.decisions_total) > 0,
-                        func.sum(BlackjackHand.decisions_correct) * 100.0
-                        >= func.sum(BlackjackHand.decisions_total)
-                        * BLACKJACK_ACCURACY_THRESHOLD,
-                    )
+                # 21 点资格查询由 blackjack repository 持有，避免本跨域作业
+                # 直接依赖 blackjack ORM 模型；其余三个活动仍在本事务中合并。
+                blackjack_tg_ids = blackjack_service.get_game_king_eligible_tg_ids_tx(
+                    session,
+                    BLACKJACK_HAND_THRESHOLD,
+                    BLACKJACK_ACCURACY_THRESHOLD,
                 )
-                union_stmt = union(
-                    wheel_subq, treasure_subq, prediction_subq, blackjack_subq
-                )
+                union_stmt = union(wheel_subq, treasure_subq, prediction_subq)
                 rows = session.execute(union_stmt).fetchall()
                 eligible_tg_ids = [row[0] for row in rows]
+                eligible_tg_ids.extend(blackjack_tg_ids)
+                eligible_tg_ids = list(dict.fromkeys(eligible_tg_ids))
 
         if not eligible_tg_ids:
             if not user_id:

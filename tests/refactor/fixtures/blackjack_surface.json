@@ -36,18 +36,10 @@
       {
         "kind": "from",
         "module": "app.domains.badge_awards.jobs",
-        "module_target": "app.domains.blackjack.models",
+        "module_target": "app.domains.blackjack",
         "resolved": true,
         "scope": "module",
-        "target": "app.domains.blackjack.models.BlackjackHand"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.badge_awards.jobs",
-        "module_target": "app.domains.blackjack.rules",
-        "resolved": true,
-        "scope": "function",
-        "target": "app.domains.blackjack.rules.TERMINAL_STATUSES"
+        "target": "app.domains.blackjack.service"
       },
       {
         "kind": "from",
@@ -610,6 +602,102 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.blackjack.repository.part_7._BlackjackRepositoryPart7"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.analytics",
+        "module_target": "__future__",
+        "resolved": true,
+        "scope": "module",
+        "target": "__future__.annotations"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.analytics",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.case"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.analytics",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.func"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.analytics",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.select"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.analytics",
+        "module_target": "app.core.db",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.db.get_session"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.analytics",
+        "module_target": "app.core.log",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.log.logger"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.analytics",
+        "module_target": "app.domains.blackjack",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.rules"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.analytics",
+        "module_target": "app.domains.blackjack.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.config.DEFAULT_BLACKJACK_CONFIG"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.analytics",
+        "module_target": "app.domains.blackjack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.models.BlackjackHand"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.analytics",
+        "module_target": "app.domains.blackjack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.models.BlackjackTournament"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.analytics",
+        "module_target": "app.domains.blackjack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.models.BlackjackTournamentEntry"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.analytics",
+        "module_target": "app.domains.blackjack.repository",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.repository.get_blackjack_config_dict"
       },
       {
         "kind": "import",
@@ -2492,10 +2580,26 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.service",
-        "module_target": "app.databases.db",
+        "module_target": "app.domains.badges",
         "resolved": true,
         "scope": "module",
-        "target": "app.databases.db.db"
+        "target": "app.domains.badges.service"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "app.domains.blackjack",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.repository"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "app.domains.blackjack.repository",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.repository.analytics"
       },
       {
         "kind": "from",
@@ -2524,58 +2628,18 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.blackjack.models",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.models.BlackjackHand"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.blackjack.models",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.models.BlackjackTournament"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
-        "module_target": "app.domains.blackjack.models",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.models.BlackjackTournamentEntry"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.part_1",
         "module_target": "app.domains.blackjack",
         "resolved": true,
-        "scope": "function",
-        "target": "app.domains.blackjack.rules"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.rankings.repository",
-        "module_target": "app.domains.blackjack.models",
-        "resolved": true,
         "scope": "module",
-        "target": "app.domains.blackjack.models.BlackjackHand"
+        "target": "app.domains.blackjack.service"
       },
       {
         "kind": "from",
         "module": "app.domains.rankings.repository",
         "module_target": "app.domains.blackjack",
         "resolved": true,
-        "scope": "function",
-        "target": "app.domains.blackjack.rules"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.rankings.repository",
-        "module_target": "app.domains.blackjack",
-        "resolved": true,
-        "scope": "function",
-        "target": "app.domains.blackjack.rules"
+        "scope": "module",
+        "target": "app.domains.blackjack.service"
       },
       {
         "kind": "from",

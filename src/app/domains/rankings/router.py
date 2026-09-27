@@ -8,6 +8,7 @@ from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
 from app.core.telegram import get_user_avatar_from_tg_id, get_user_name_from_tg_id
 from app.databases import db
+from app.domains.rankings import service as rankings_service
 from app.integrations.emby import Emby
 from app.integrations.plex import Plex
 
@@ -475,7 +476,7 @@ async def get_blackjack_game_rankings(
         # 准确率榜与胜率榜共用同一份聚合，一次扫描算出两个榜
         try:
             logger.debug("正在查询 21 点决策准确率与胜率排行")
-            skill_ranks = db.get_blackjack_skill_ranks()
+            skill_ranks = rankings_service.get_blackjack_skill_ranks()
             accuracy_data = skill_ranks.get("accuracy") or []
             win_rate_data = skill_ranks.get("win_rate") or []
         except Exception as e:
@@ -521,7 +522,7 @@ async def get_blackjack_game_rankings(
 
         try:
             logger.debug("正在查询 21 点单手最大赢利排行")
-            max_win_data = db.get_blackjack_max_win_rank()
+            max_win_data = rankings_service.get_blackjack_max_win_rank()
             if max_win_data:
                 blackjack_max_win_rank = [
                     {

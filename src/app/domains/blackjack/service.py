@@ -1,5 +1,7 @@
 from app.core.log import logger
-from app.databases.db import db
+from app.domains.badges import service as badges_service
+from app.domains.blackjack import repository as blackjack_repository
+from app.domains.blackjack.repository import analytics as blackjack_analytics
 
 
 async def award_blackjack_champion_badge(tg_id: int) -> dict | None:
@@ -25,10 +27,10 @@ async def award_blackjack_champion_badge(tg_id: int) -> dict | None:
     )
 
     try:
-        badge_info = db.get_badge_by_type(CHAMPION_BADGE_TYPE)
+        badge_info = badges_service.get_badge_by_type(CHAMPION_BADGE_TYPE)
         if not badge_info:
             logger.info(f"勋章 '{CHAMPION_BADGE_TYPE}' 不存在，正在创建...")
-            badge_info = db.create_badge(
+            badge_info = badges_service.create_badge(
                 badge_type=CHAMPION_BADGE_TYPE,
                 name="21 点冠军勋章",
                 description=(
@@ -46,11 +48,11 @@ async def award_blackjack_champion_badge(tg_id: int) -> dict | None:
                 logger.error("创建 21 点冠军勋章失败")
                 return None
 
-        config = db.get_blackjack_config_dict()
+        config = blackjack_repository.get_blackjack_config_dict()
         cap_days = int(config.get("tournament_badge_cap_days", 90))
         valid_days = int(badge_info.get("valid_days", CHAMPION_BADGE_VALID_DAYS))
 
-        result = db.award_or_renew_badge(
+        result = badges_service.award_or_renew_badge(
             tg_id=int(tg_id),
             badge_id=int(badge_info["id"]),
             valid_days=valid_days,
@@ -66,3 +68,50 @@ async def award_blackjack_champion_badge(tg_id: int) -> dict | None:
     except Exception as e:
         logger.error(f"授予 21 点冠军勋章失败 (tg_id={tg_id}): {e}")
         return None
+
+
+def get_blackjack_config_dict() -> dict:
+    return blackjack_repository.get_blackjack_config_dict()
+
+
+def get_blackjack_skill_ranks(min_hands: int | None = None) -> dict:
+    return blackjack_analytics.get_blackjack_skill_ranks(min_hands)
+
+
+def get_blackjack_max_win_rank() -> list:
+    return blackjack_analytics.get_blackjack_max_win_rank()
+
+
+def get_user_blackjack_stats(tg_id: int) -> dict:
+    return blackjack_repository.get_user_blackjack_stats(tg_id)
+
+
+def count_eligible_cash_hands_tx(
+    session,
+    tg_id: int,
+    since: int,
+    until: int,
+    *,
+    min_bet: float | None = None,
+    min_accuracy: float | None = None,
+) -> int | tuple[int, float]:
+    return blackjack_analytics.count_eligible_cash_hands_tx(
+        session,
+        tg_id,
+        since,
+        until,
+        min_bet=min_bet,
+        min_accuracy=min_accuracy,
+    )
+
+
+def count_tournament_entries_tx(session, tg_id: int, since: int, until: int) -> int:
+    return blackjack_analytics.count_tournament_entries_tx(session, tg_id, since, until)
+
+
+def get_game_king_eligible_tg_ids_tx(
+    session, min_hands: int, min_accuracy: float
+) -> list[int]:
+    return blackjack_analytics.get_game_king_eligible_tg_ids_tx(
+        session, min_hands, min_accuracy
+    )

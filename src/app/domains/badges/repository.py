@@ -389,3 +389,103 @@ class BadgesRepository:
         except Exception as e:
             logger.error(f"获取用户有效勋章失败: {e}")
             return []
+
+
+_repository = BadgesRepository()
+
+
+def get_badge_by_type(badge_type: str) -> dict | None:
+    return _repository.get_badge_by_type(badge_type)
+
+
+def create_badge(
+    badge_type: str,
+    name: str,
+    description: str,
+    icon_url: str,
+    credits_cost: float,
+    bonus_percentage: float,
+    valid_days: int,
+    is_enabled: int,
+) -> dict | None:
+    return _repository.create_badge(
+        badge_type=badge_type,
+        name=name,
+        description=description,
+        icon_url=icon_url,
+        credits_cost=credits_cost,
+        bonus_percentage=bonus_percentage,
+        valid_days=valid_days,
+        is_enabled=is_enabled,
+    )
+
+
+def award_or_renew_badge(
+    tg_id: int,
+    badge_id: int,
+    valid_days: int,
+    cap_days: int | None = None,
+) -> dict:
+    """Award or renew a system badge through the badges domain repository."""
+    now_ts = int(time.time())
+    span = int(valid_days) * 24 * 3600
+    try:
+        with get_session() as session:
+            existing = (
+                session.execute(
+                    select(UserBadge)
+                    .where(
+                        UserBadge.tg_id == int(tg_id),
+                        UserBadge.badge_id == int(badge_id),
+                    )
+                    .with_for_update()
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if existing is None:
+                session.add(
+                    UserBadge(
+                        tg_id=int(tg_id),
+                        badge_id=int(badge_id),
+                        credits_cost=0,
+                        redeemed_at=now_ts,
+                        expires_at=now_ts + span,
+                        is_active=1,
+                    )
+                )
+                return {
+                    "awarded": True,
+                    "renewed": False,
+                    "expires_at": now_ts + span,
+                    "previous_expires_at": None,
+                }
+
+            previous = int(existing.expires_at)
+            new_expires = max(previous, now_ts) + span
+            if cap_days:
+                new_expires = min(new_expires, now_ts + int(cap_days) * 24 * 3600)
+            existing.expires_at = new_expires
+            existing.is_active = 1
+            return {
+                "awarded": False,
+                "renewed": True,
+                "expires_at": new_expires,
+                "previous_expires_at": previous,
+            }
+    except Exception as exc:
+        logger.error(f"授予/续期勋章失败 (tg_id={tg_id}, badge={badge_id}): {exc}")
+        return {
+            "awarded": False,
+            "renewed": False,
+            "expires_at": None,
+            "previous_expires_at": None,
+        }
+
+
+__all__ = [
+    "BadgesRepository",
+    "award_or_renew_badge",
+    "create_badge",
+    "get_badge_by_type",
+]

@@ -21,6 +21,7 @@ from app.domains.badge_awards.jobs import check_and_award_game_king_badge
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.invitation.service import add_redeem_code
+from app.domains.luckywheel import service as luckywheel_service
 from app.domains.luckywheel.schemas import (
     LuckyWheelConfig,
     LuckyWheelConfigUpdateRequest,
@@ -400,7 +401,7 @@ async def get_free_spins(
     current_user: TelegramUser = Depends(get_telegram_user),
 ):
     """21 点打满手数获得的免费机会概览：可用次数、到期时间、手数进度。"""
-    summary = db.get_blackjack_freespin_summary(int(current_user.id))
+    summary = luckywheel_service.get_blackjack_freespin_summary(int(current_user.id))
     return LuckyWheelFreespinSummaryResponse(
         enabled=bool(summary.get("enabled")),
         available=int(summary.get("available") or 0),
@@ -436,7 +437,7 @@ async def spin_wheel(
         # 只会赢不会输，这正是跌破 21 点门槛后的回流路径。
         # 认领与抽奖非同一事务：若抽奖执行失败，补偿性地归还机会（只回退
         # 本方写入的时戳），用户不会白丢一张
-        free_spin = db.consume_blackjack_freespin(user_id)
+        free_spin = luckywheel_service.consume_blackjack_freespin(user_id)
         if free_spin is not None:
             try:
                 spin_result, final_credits, _ = await execute_single_spin(
@@ -450,7 +451,7 @@ async def spin_wheel(
                     ),
                 )
             except Exception:
-                db.release_blackjack_freespin(
+                luckywheel_service.release_blackjack_freespin(
                     int(free_spin["id"]), claimed_at_ms=int(free_spin["claimed_at_ms"])
                 )
                 raise
