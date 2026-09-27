@@ -9,11 +9,11 @@
 
 ## 2. Luckywheel Free-Spin Boundary
 
-- [ ] 2.1 Add `cost_credits_snapshot` and `wheel_stats_source` to `LuckywheelFreeSpin`, update model registry, and create an Alembic migration with safe defaults and historical backfill; verify upgrade-downgrade-upgrade and metadata parity on disposable PostgreSQL.
-- [ ] 2.2 Implement `luckywheel.repository.grant_free_spins_tx(session, ...)` and a repository-owned wrapper; verify it uses the caller session, returns created ledger rows, rejects invalid source/count/expiry inputs, and rolls back with the caller transaction.
-- [ ] 2.3 Update all free-spin issuers (blackjack and gift pack) to use the transaction helper and populate immutable consumption snapshots; verify no issuer directly constructs `LuckywheelFreeSpin` outside luckywheel repository.
-- [ ] 2.4 Update luckywheel consumption and compensation paths to read the stored snapshots rather than infer blackjack semantics from source; verify free-spin priority, zero-cost behavior, source-specific `wheel_stats`, rollback release, and ten-spin behavior.
-- [ ] 2.5 Add migration and free-spin regression tests covering legacy rows, blackjack rows, gift-pack rows, unknown/null source fallback, and configuration changes after issuance; verify all cases with focused pytest tests.
+- [x] 2.1 Add `cost_credits_snapshot` and `wheel_stats_source` to `LuckywheelFreeSpin`, update model registry, and create an Alembic migration with safe defaults and historical backfill; verify upgrade-downgrade-upgrade and metadata parity on disposable PostgreSQL.
+- [x] 2.2 Implement `luckywheel.repository.grant_free_spins_tx(session, ...)` and a repository-owned wrapper; verify it uses the caller session, returns created ledger rows, rejects invalid source/count/expiry inputs, and rolls back with the caller transaction.
+- [x] 2.3 Update all free-spin issuers (blackjack and gift pack) to use the transaction helper and populate immutable consumption snapshots; verify no issuer directly constructs `LuckywheelFreeSpin` outside luckywheel repository.
+- [x] 2.4 Update luckywheel consumption and compensation paths to read the stored snapshots rather than infer blackjack semantics from source; verify free-spin priority, zero-cost behavior, source-specific `wheel_stats`, rollback release, and ten-spin behavior.
+- [x] 2.5 Add migration and free-spin regression tests covering legacy rows, blackjack rows, gift-pack rows, unknown/null source fallback, and configuration changes after issuance; verify all cases with focused pytest tests.
 
 ## 3. Blackjack Pure Rules and Typed Errors
 

@@ -19,7 +19,8 @@ from app.domains.credits.types import CreditAccount
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 from app.domains.invitation.models import Invitation
-from app.domains.luckywheel.models import LuckywheelFreeSpin, WheelStats
+from app.domains.luckywheel import repository as luckywheel_repository
+from app.domains.luckywheel.models import WheelStats
 from app.domains.prediction.models import PredictionBet
 from app.domains.treasure.models import TreasureParticipation
 
@@ -628,16 +629,16 @@ class _GiftPackRepositoryPart1:
             raise ValueError("免费机会的次数与有效天数必须为正")
         now_ms = int(time.time() * 1000)
         expires_at_ms = now_ms + expiry_days * 86400 * 1000
-        for _ in range(count):
-            session.add(
-                LuckywheelFreeSpin(
-                    tg_id=tg_id,
-                    source="gift_pack",
-                    granted_at_ms=now_ms,
-                    expires_at_ms=expires_at_ms,
-                )
-            )
-        session.flush()
+        luckywheel_repository.grant_free_spins_tx(
+            session,
+            tg_id,
+            count,
+            source="gift_pack",
+            granted_at_ms=now_ms,
+            expires_at_ms=expires_at_ms,
+            cost_credits=0,
+            wheel_stats_source="gift_pack_free",
+        )
         return {
             "type": "wheel_free_spins",
             "label": label,

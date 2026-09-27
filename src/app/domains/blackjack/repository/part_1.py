@@ -15,6 +15,7 @@ from app.domains.credits import repository as credits_repository
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
+from app.domains.luckywheel import repository as luckywheel_repository
 from app.domains.luckywheel.models import LuckywheelFreeSpin
 
 
@@ -169,19 +170,25 @@ class _BlackjackRepositoryPart1:
                     ).scalar_one()
                     or 0
                 )
-                while progress >= threshold and granted_this_week < cap:
-                    expires_at_ms = now_ms + expiry_days * 86400 * 1000
-                    session.add(
-                        LuckywheelFreeSpin(
-                            tg_id=tg_id,
-                            source="blackjack",
-                            granted_at_ms=now_ms,
-                            expires_at_ms=expires_at_ms,
-                        )
-                    )
-                    result["freespins"].append({"expires_at_ms": expires_at_ms})
+                grant_count = 0
+                while progress >= threshold and granted_this_week + grant_count < cap:
                     progress -= threshold
-                    granted_this_week += 1
+                    grant_count += 1
+                if grant_count:
+                    expires_at_ms = now_ms + expiry_days * 86400 * 1000
+                    rows = luckywheel_repository.grant_free_spins_tx(
+                        session,
+                        tg_id,
+                        grant_count,
+                        source="blackjack",
+                        granted_at_ms=now_ms,
+                        expires_at_ms=expires_at_ms,
+                        cost_credits=0,
+                        wheel_stats_source="blackjack_free",
+                    )
+                    result["freespins"].extend(
+                        {"expires_at_ms": row.expires_at_ms} for row in rows
+                    )
             stats.blackjack_hands_since_freespin = progress
 
         return result
@@ -562,7 +569,8 @@ class _BlackjackRepositoryPart1:
         适用于**所有来源**的免费机会（21 点、礼包……），不区分来源，只按
         到期时间排序。方法名沿用 *_blackjack_freespin 以避免大范围改名。
 
-        Returns: {id, expires_at_ms, claimed_at_ms, source} 或 None（无可用机会）
+        Returns: {id, expires_at_ms, claimed_at_ms, source, cost_credits_snapshot,
+        wheel_stats_source} 或 None（无可用机会）
         """
         now_ms = int(time.time() * 1000)
         try:
@@ -601,6 +609,13 @@ class _BlackjackRepositoryPart1:
                     "expires_at_ms": int(row.expires_at_ms),
                     "claimed_at_ms": now_ms,
                     "source": row.source or "blackjack",
+                    "cost_credits_snapshot": float(row.cost_credits_snapshot or 0),
+                    "wheel_stats_source": row.wheel_stats_source
+                    or (
+                        "gift_pack_free"
+                        if row.source == "gift_pack"
+                        else "blackjack_free"
+                    ),
                 }
         except Exception as e:
             logger.error(f"认领免费大转盘机会失败 (tg_id={tg_id}): {e}")

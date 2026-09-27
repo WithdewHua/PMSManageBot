@@ -736,6 +736,10 @@ def _add_free_spin(
         row = LuckywheelFreeSpin(
             tg_id=int(tg_id),
             source=source,
+            cost_credits_snapshot=0,
+            wheel_stats_source=(
+                "gift_pack_free" if source == "gift_pack" else "blackjack_free"
+            ),
             granted_at_ms=granted,
             expires_at_ms=expires_at,
         )
@@ -1111,8 +1115,8 @@ async def test_spin_records_free_spin_source(orm, spin_source, wheel_source):
         config=config,
         user_id=1,
         current_credits=0.0,
-        cost_credits=0.0,
-        source=lw.wheel_source_for_free_spin(claimed["source"]),
+        cost_credits=float(claimed["cost_credits_snapshot"]),
+        source=claimed["wheel_stats_source"],
     )
 
     assert result.used_free_spin is True

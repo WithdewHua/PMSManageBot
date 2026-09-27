@@ -54,6 +54,12 @@ class LuckywheelFreeSpin(Base):
         nullable=False,
     )
     source: Mapped[str] = mapped_column(Text, nullable=False, default="blackjack")
+    cost_credits_snapshot: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0, server_default="0"
+    )
+    wheel_stats_source: Mapped[str] = mapped_column(
+        Text, nullable=False, default="blackjack_free", server_default="blackjack_free"
+    )
     granted_at_ms: Mapped[int] = mapped_column(BIGINT, nullable=False)
     expires_at_ms: Mapped[int] = mapped_column(BIGINT, nullable=False)
     used_at_ms: Mapped[int | None] = mapped_column(BIGINT, nullable=True)

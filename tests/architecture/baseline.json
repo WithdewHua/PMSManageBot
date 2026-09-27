@@ -445,20 +445,20 @@
       "target": "tg"
     },
     {
-      "key": "call|src/app/domains/blackjack/repository/part_1.py|133|imported|credits|tg",
+      "key": "call|src/app/domains/blackjack/repository/part_1.py|134|imported|credits|tg",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_1.py",
-      "line": 133,
+      "line": 134,
       "kind": "call",
       "source_domain": "blackjack",
       "target_domain": "credits",
       "target": "tg"
     },
     {
-      "key": "call|src/app/domains/blackjack/repository/part_1.py|135|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/blackjack/repository/part_1.py|136|imported|credits|register_cache_invalidation",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_1.py",
-      "line": 135,
+      "line": 136,
       "kind": "call",
       "source_domain": "blackjack",
       "target_domain": "credits",
@@ -1210,30 +1210,30 @@
       "target": "add_redeem_code"
     },
     {
-      "key": "call|src/app/domains/gift_pack/repository/part_1.py|502|imported|credits|tg",
+      "key": "call|src/app/domains/gift_pack/repository/part_1.py|503|imported|credits|tg",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/part_1.py",
-      "line": 502,
+      "line": 503,
       "kind": "call",
       "source_domain": "gift_pack",
       "target_domain": "credits",
       "target": "tg"
     },
     {
-      "key": "call|src/app/domains/gift_pack/repository/part_1.py|504|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/gift_pack/repository/part_1.py|505|imported|credits|register_cache_invalidation",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/part_1.py",
-      "line": 504,
+      "line": 505,
       "kind": "call",
       "source_domain": "gift_pack",
       "target_domain": "credits",
       "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/gift_pack/repository/part_1.py|523|imported|premium|update_premium_status",
+      "key": "call|src/app/domains/gift_pack/repository/part_1.py|524|imported|premium|update_premium_status",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/part_1.py",
-      "line": 523,
+      "line": 524,
       "kind": "call",
       "source_domain": "gift_pack",
       "target_domain": "premium",
@@ -2340,40 +2340,40 @@
       "target": "tg"
     },
     {
-      "key": "call|src/app/domains/luckywheel/router.py|501|imported|credits|read_optional",
+      "key": "call|src/app/domains/luckywheel/router.py|504|imported|credits|read_optional",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/luckywheel/router.py",
-      "line": 501,
+      "line": 504,
       "kind": "call",
       "source_domain": "luckywheel",
       "target_domain": "credits",
       "target": "read_optional"
     },
     {
-      "key": "call|src/app/domains/luckywheel/router.py|501|imported|credits|tg",
+      "key": "call|src/app/domains/luckywheel/router.py|504|imported|credits|tg",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/luckywheel/router.py",
-      "line": 501,
+      "line": 504,
       "kind": "call",
       "source_domain": "luckywheel",
       "target_domain": "credits",
       "target": "tg"
     },
     {
-      "key": "call|src/app/domains/luckywheel/router.py|577|imported|credits|read_optional",
+      "key": "call|src/app/domains/luckywheel/router.py|580|imported|credits|read_optional",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/luckywheel/router.py",
-      "line": 577,
+      "line": 580,
       "kind": "call",
       "source_domain": "luckywheel",
       "target_domain": "credits",
       "target": "read_optional"
     },
     {
-      "key": "call|src/app/domains/luckywheel/router.py|577|imported|credits|tg",
+      "key": "call|src/app/domains/luckywheel/router.py|580|imported|credits|tg",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/luckywheel/router.py",
-      "line": 577,
+      "line": 580,
       "kind": "call",
       "source_domain": "luckywheel",
       "target_domain": "credits",
@@ -3851,10 +3851,10 @@
       "symbol": "CreditAccount"
     },
     {
-      "key": "import|src/app/domains/blackjack/repository/part_1.py|18|app.domains.luckywheel.models|LuckywheelFreeSpin",
+      "key": "import|src/app/domains/blackjack/repository/part_1.py|19|app.domains.luckywheel.models|LuckywheelFreeSpin",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_1.py",
-      "line": 18,
+      "line": 19,
       "kind": "import",
       "source_domain": "blackjack",
       "target_domain": "luckywheel",
@@ -4529,10 +4529,10 @@
       "symbol": "BlackjackTournamentEntry"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/part_1.py|146|app.domains.blackjack.rules|rules",
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|147|app.domains.blackjack.rules|rules",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/part_1.py",
-      "line": 146,
+      "line": 147,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "blackjack",
@@ -4573,21 +4573,10 @@
       "symbol": "Invitation"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/part_1.py|22|app.domains.luckywheel.models|LuckywheelFreeSpin",
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|23|app.domains.luckywheel.models|WheelStats",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/part_1.py",
-      "line": 22,
-      "kind": "import",
-      "source_domain": "gift_pack",
-      "target_domain": "luckywheel",
-      "target_module": "app.domains.luckywheel.models",
-      "symbol": "LuckywheelFreeSpin"
-    },
-    {
-      "key": "import|src/app/domains/gift_pack/repository/part_1.py|22|app.domains.luckywheel.models|WheelStats",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/part_1.py",
-      "line": 22,
+      "line": 23,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "luckywheel",
@@ -4595,10 +4584,10 @@
       "symbol": "WheelStats"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/part_1.py|23|app.domains.prediction.models|PredictionBet",
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|24|app.domains.prediction.models|PredictionBet",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/part_1.py",
-      "line": 23,
+      "line": 24,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "prediction",
@@ -4606,10 +4595,10 @@
       "symbol": "PredictionBet"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/part_1.py|24|app.domains.treasure.models|TreasureParticipation",
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|25|app.domains.treasure.models|TreasureParticipation",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/part_1.py",
-      "line": 24,
+      "line": 25,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "treasure",
@@ -4617,10 +4606,10 @@
       "symbol": "TreasureParticipation"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/part_1.py|487|app.domains.premium.service|update_premium_status",
+      "key": "import|src/app/domains/gift_pack/repository/part_1.py|488|app.domains.premium.service|update_premium_status",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/part_1.py",
-      "line": 487,
+      "line": 488,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "premium",

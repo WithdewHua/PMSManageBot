@@ -1,12 +1,79 @@
 import time
 from datetime import datetime, timedelta
+from math import isfinite
 
 from sqlalchemy import func, select
 
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
-from app.domains.luckywheel.models import WheelStats
+from app.domains.luckywheel.models import LuckywheelFreeSpin, WheelStats
+
+FREE_SPIN_SOURCES = frozenset({"blackjack", "gift_pack"})
+
+
+def grant_free_spins_tx(
+    session,
+    tg_id: int,
+    count: int,
+    *,
+    source: str,
+    granted_at_ms: int,
+    expires_at_ms: int,
+    cost_credits: float = 0.0,
+    wheel_stats_source: str = "blackjack_free",
+) -> list[LuckywheelFreeSpin]:
+    """Grant free spins in a caller-owned transaction."""
+    if int(count) <= 0:
+        raise ValueError("free spin count must be positive")
+    if source not in FREE_SPIN_SOURCES:
+        raise ValueError(f"unsupported free spin source: {source}")
+    if not wheel_stats_source.strip():
+        raise ValueError("wheel stats source must not be empty")
+    if int(expires_at_ms) <= int(granted_at_ms):
+        raise ValueError("free spin expiry must be after grant time")
+    normalized_cost = float(cost_credits)
+    if not isfinite(normalized_cost) or normalized_cost < 0:
+        raise ValueError("free spin cost must be finite and non-negative")
+
+    rows = [
+        LuckywheelFreeSpin(
+            tg_id=int(tg_id),
+            source=source,
+            cost_credits_snapshot=normalized_cost,
+            wheel_stats_source=wheel_stats_source,
+            granted_at_ms=int(granted_at_ms),
+            expires_at_ms=int(expires_at_ms),
+        )
+        for _ in range(int(count))
+    ]
+    session.add_all(rows)
+    session.flush()
+    return rows
+
+
+def grant_free_spins(
+    tg_id: int,
+    count: int,
+    *,
+    source: str,
+    granted_at_ms: int,
+    expires_at_ms: int,
+    cost_credits: float = 0.0,
+    wheel_stats_source: str = "blackjack_free",
+) -> list[LuckywheelFreeSpin]:
+    """Grant free spins in a repository-owned transaction."""
+    with get_session() as session:
+        return grant_free_spins_tx(
+            session,
+            tg_id,
+            count,
+            source=source,
+            granted_at_ms=granted_at_ms,
+            expires_at_ms=expires_at_ms,
+            cost_credits=cost_credits,
+            wheel_stats_source=wheel_stats_source,
+        )
 
 
 class LuckywheelRepository:

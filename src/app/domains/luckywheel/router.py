@@ -443,8 +443,11 @@ async def spin_wheel(
                     config=config,
                     user_id=user_id,
                     current_credits=current_credits,
-                    cost_credits=0.0,
-                    source=wheel_source_for_free_spin(free_spin.get("source")),
+                    cost_credits=float(free_spin.get("cost_credits_snapshot") or 0),
+                    source=str(
+                        free_spin.get("wheel_stats_source")
+                        or wheel_source_for_free_spin(free_spin.get("source"))
+                    ),
                 )
             except Exception:
                 db.release_blackjack_freespin(
