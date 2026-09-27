@@ -191,6 +191,12 @@
 
 如果 21 点试点在它的任务 4.4 和 4.6 中已经用等价方式解决了这两个问题，本变更就沿用试点的实现，只迁移礼包的调用，不重复实现。实施的第一步就是核对这一点（见 tasks 1.1）。
 
+**1.1 核对结论（2026-09-27，`promote-blackjack-domain` 34/34 全部勾选）**：试点**没有**解决这两件事，所以本变更必须实现 D3 的两项，并用它作为 D2 的前提。
+
+- `types` 跨域导入：`tests/architecture/checks.py:_role_for_module` 的合法角色集合不含 `types`，而 `_import_allowed` 只对 `repository`\/`models` 等已知角色放行，所以 `app.domains.credits.types` 的导入恒判为违规。试点在 4.4 只把跨域调用改成 service\/`*_tx`，没有新增 `types` 角色，因此这些边全部以既有债务形式封存在 `tests/architecture/baseline.json`：以 `target_module == "app.domains.credits.types"` 计共 66 条，分布在 accounts、auction、badges、blackjack、gift_pack 等 15 个领域。D3 落地后这 66 条可一次清零（`credits/types.py` 是目前唯一的 `types` 模块）。
+- 积分缓存失效：试点把登记留在调用方。`credits/repository.py` 的 `add_tx`\/`deduct_tx`\/`move_tx` 只做加锁与 SQL 增量，失效由调用方显式调用 `credits.service.register_cache_invalidation(session, mutation)` 完成（blackjack `part_1/2/3/4/5/7`、gift_pack、auction、badges、accounts、donation、lines、media_access、prediction、treasure 等约 18 处），这些 repository → credits.service 的边也以债务形式封存。
+- 因此实施顺序固定为：先做 3.1（`types` 放行与纯度合约、credits 写入 `*_tx` 自登记并按 key 去重），再做礼包的 `*_tx` 迁移；自登记落地后，调用方的显式登记变成幂等冗余，礼包移除自己的那处，其余领域按 `make-credit-changes-atomic` 的清理责任分批收敛。
+
 备选方案：在 credits repository 里增加以 `tg_id` 为参数的 `*_tx` 变体，绕开 `CreditAccount`。这会为 plex 和 emby 两类账户重复出一套 API，也会丢掉值对象的校验。所以不采用。
 
 ### D4 领取事务：固定加锁顺序与三步式条件求值
