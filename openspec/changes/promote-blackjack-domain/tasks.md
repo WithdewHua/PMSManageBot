@@ -34,7 +34,9 @@
 
 ## 5. Service and Side-Effect Orchestration
 
-- [ ] 5.1 Implement `blackjack.service` for cash hand workflows, delegating calculations to rules and writes to repository; verify routers/jobs can execute the workflow without importing repository implementation parts or external clients.
+- [x] 5.1 Implement `blackjack.service` for cash hand workflows, delegating calculations to rules and writes to repository; verify routers/jobs can execute the workflow without importing repository implementation parts or external clients.
+  - 验证方式：`tests/refactor/test_blackjack_service_boundary.py`——接口模块零导入 `blackjack.repository*`/`app.databases`/`app.core.db`/`sqlalchemy`，跨领域导入只允许 service 或类型模块。
+  - 逐项例外：`blackjack/router/cash.py` 仍导入 `badge_awards.jobs.check_and_award_game_king_badge`（该领域无 service，且其内部已反向依赖 `blackjack.service`，搬到 blackjack.service 会形成环）。已按行号固定为唯一条目，责任变更：promote-reward-domains。
 - [ ] 5.2 Implement tournament service workflows for registration, player actions, ticking, settlement, and champion award coordination; verify buy-in split, payout, badge award, and state transitions preserve existing results.
 - [ ] 5.3 Move post-commit Telegram notifications, group broadcasts, badge notifications, and scheduler submissions behind service/job boundaries; verify repository transactions contain no network, notification, or scheduler side effects.
 - [ ] 5.4 Update blackjack jobs and notification modules to call services while preserving task IDs, persisted callable compatibility, execution order, and best-effort notification behavior; verify schedule registry snapshots remain unchanged.
