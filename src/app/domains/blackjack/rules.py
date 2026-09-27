@@ -42,6 +42,8 @@ BLACKJACK_TOTAL = 21
 DEALER_STAND_TOTAL = 17
 
 DECK_SIZE = 52
+TOURNAMENT_MIN_PLAY_WINDOW_MS = 30 * 60 * 1000
+TOURNAMENT_MS_PER_HAND = 60 * 1000
 
 RANKS = ("A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K")
 
@@ -326,6 +328,147 @@ def calculate_jackpot_injection(
     return round(
         float(rake) * float(jackpot_basis_points) / float(rake_basis_points), 2
     )
+
+
+def tournament_min_play_window_ms(total_hands: int) -> int:
+    """Return the minimum schedule window needed for a tournament."""
+    return max(
+        TOURNAMENT_MIN_PLAY_WINDOW_MS,
+        int(total_hands) * TOURNAMENT_MS_PER_HAND,
+    )
+
+
+def is_deadline_reached(now_ms: int, deadline_ms: int) -> bool:
+    """Return whether a wall-clock deadline has elapsed."""
+    return int(now_ms) >= int(deadline_ms)
+
+
+def calculate_tournament_pool(
+    entrant_count: int,
+    buy_in_credits: int,
+    seeded_prize_credits: float,
+    rake_bp: int,
+) -> tuple[float, float, float]:
+    """Return gross pool, rake, and net prize pool."""
+    gross = round(
+        int(entrant_count) * int(buy_in_credits) + float(seeded_prize_credits), 2
+    )
+    rake = round(gross * int(rake_bp) / 10000.0, 2)
+    return gross, rake, round(gross - rake, 2)
+
+
+def validate_tournament_params(params: dict) -> dict:
+    """Validate and normalize tournament creation parameters without I/O."""
+    out: dict[str, object] = {}
+    title = str(params.get("title") or "").strip()
+    if not title:
+        raise ValueError("tournament title required")
+    out["title"] = title
+    description = params.get("description")
+    out["description"] = str(description).strip() if description else None
+
+    def positive_int(key: str) -> int:
+        try:
+            value = int(params[key])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(f"invalid {key}") from exc
+        if value <= 0:
+            raise ValueError(f"invalid {key}")
+        return value
+
+    for key in (
+        "buy_in_credits",
+        "starting_chips",
+        "total_hands",
+        "bet_step_chips",
+        "min_bet_chips",
+        "max_bet_chips",
+        "min_entrants",
+        "max_entrants",
+    ):
+        out[key] = positive_int(key)
+
+    step = int(out["bet_step_chips"])
+    if int(out["min_bet_chips"]) > int(out["max_bet_chips"]):
+        raise ValueError("min_bet_chips must not exceed max_bet_chips")
+    if int(out["min_bet_chips"]) % step or int(out["max_bet_chips"]) % step:
+        raise ValueError(f"bet bounds must be multiples of {step}")
+    if int(out["max_bet_chips"]) > int(out["starting_chips"]):
+        raise ValueError("max_bet_chips must not exceed starting_chips")
+    if int(out["min_entrants"]) > int(out["max_entrants"]):
+        raise ValueError("min_entrants must not exceed max_entrants")
+
+    try:
+        rake_bp = int(params.get("rake_bp", 1000))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("invalid rake_bp") from exc
+    if not 0 <= rake_bp <= 10000:
+        raise ValueError("rake_bp must be between 0 and 10000")
+    out["rake_bp"] = rake_bp
+
+    try:
+        seeded = round(float(params.get("seeded_prize_credits", 0) or 0), 2)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("invalid seeded_prize_credits") from exc
+    if seeded < 0:
+        raise ValueError("seeded_prize_credits must not be negative")
+    out["seeded_prize_credits"] = seeded
+
+    structure = params.get("payout_structure")
+    if structure is None:
+        structure = [50, 30, 20]
+    if isinstance(structure, str):
+        import json
+
+        try:
+            structure = json.loads(structure)
+        except Exception as exc:
+            raise ValueError("invalid payout_structure") from exc
+    if not isinstance(structure, list) or not structure:
+        raise ValueError("payout_structure must be a non-empty list")
+    try:
+        normalized_structure = [round(float(value), 4) for value in structure]
+    except (TypeError, ValueError) as exc:
+        raise ValueError("invalid payout_structure") from exc
+    if any(value <= 0 for value in normalized_structure):
+        raise ValueError("payout_structure entries must be positive")
+    if abs(sum(normalized_structure) - 100.0) > 0.01:
+        raise ValueError("payout_structure must sum to 100")
+    out["payout_structure"] = normalized_structure
+
+    try:
+        register_deadline = int(params["register_deadline_ms"])
+        play_deadline = int(params["play_deadline_ms"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("invalid deadlines") from exc
+    if register_deadline > play_deadline:
+        raise ValueError("register deadline must not be after play deadline")
+    min_window = tournament_min_play_window_ms(int(out["total_hands"]))
+    if play_deadline - register_deadline < min_window:
+        raise ValueError(
+            f"play window must be at least {min_window // 60000} minutes "
+            f"for {out['total_hands']} hands"
+        )
+    out["register_deadline_ms"] = register_deadline
+    out["play_deadline_ms"] = play_deadline
+    return out
+
+
+def calculate_tournament_payouts(
+    eligible_count: int, structure: list[float], net_pool: float
+) -> list[float]:
+    """Normalize available payout tiers and distribute a pool exactly."""
+    if eligible_count <= 0 or net_pool <= 0 or not structure:
+        return []
+    used = list(structure)[: int(eligible_count)]
+    total = sum(used)
+    if total <= 0:
+        return []
+    payouts = [round(float(net_pool) * (pct / total), 2) for pct in used]
+    drift = round(float(net_pool) - sum(payouts), 2)
+    if payouts and abs(drift) >= 0.01:
+        payouts[-1] = round(payouts[-1] + drift, 2)
+    return payouts
 
 
 def calculate_cashback(

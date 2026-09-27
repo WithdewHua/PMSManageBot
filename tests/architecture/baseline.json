@@ -545,20 +545,20 @@
       "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/blackjack/repository/part_4.py|641|imported|credits|tg",
+      "key": "call|src/app/domains/blackjack/repository/part_4.py|548|imported|credits|tg",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_4.py",
-      "line": 641,
+      "line": 548,
       "kind": "call",
       "source_domain": "blackjack",
       "target_domain": "credits",
       "target": "tg"
     },
     {
-      "key": "call|src/app/domains/blackjack/repository/part_4.py|643|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/blackjack/repository/part_4.py|550|imported|credits|register_cache_invalidation",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_4.py",
-      "line": 643,
+      "line": 550,
       "kind": "call",
       "source_domain": "blackjack",
       "target_domain": "credits",
@@ -585,20 +585,20 @@
       "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/blackjack/repository/part_7.py|169|imported|credits|tg",
+      "key": "call|src/app/domains/blackjack/repository/part_7.py|151|imported|credits|tg",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_7.py",
-      "line": 169,
+      "line": 151,
       "kind": "call",
       "source_domain": "blackjack",
       "target_domain": "credits",
       "target": "tg"
     },
     {
-      "key": "call|src/app/domains/blackjack/repository/part_7.py|171|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/blackjack/repository/part_7.py|153|imported|credits|register_cache_invalidation",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_7.py",
-      "line": 171,
+      "line": 153,
       "kind": "call",
       "source_domain": "blackjack",
       "target_domain": "credits",

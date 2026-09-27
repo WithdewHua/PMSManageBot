@@ -23,27 +23,9 @@ class _BlackjackRepositoryPart7:
     def _compute_tournament_payouts(
         self, eligible_count: int, structure: list, net_pool: float
     ) -> list:
-        """按档位算出每个名次的派奖额。
+        from app.domains.blackjack import rules
 
-        具备派奖资格者少于档位数时，档位**截断至该数量并重新归一至 100%**，
-        使奖池不残留。例：档位 50/30/20 而只有 2 人具备资格 → 62.5/37.5。
-
-        末位吸收舍入误差：逐个 `round(x, 2)` 之后各项之和未必恰好等于 `net_pool`，
-        把差额并入最后一名，保证派出去的总额与奖池分毫不差。
-        """
-        if eligible_count <= 0 or net_pool <= 0 or not structure:
-            return []
-
-        used = list(structure)[: int(eligible_count)]
-        total = sum(used)
-        if total <= 0:
-            return []
-
-        payouts = [round(net_pool * (pct / total), 2) for pct in used]
-        drift = round(net_pool - sum(payouts), 2)
-        if payouts and abs(drift) >= 0.01:
-            payouts[-1] = round(payouts[-1] + drift, 2)
-        return payouts
+        return rules.calculate_tournament_payouts(eligible_count, structure, net_pool)
 
     def settle_blackjack_tournament(self, tournament_id: int) -> dict:
         """完赛结算：排名 → 派奖 → 返回冠军以待授勋。

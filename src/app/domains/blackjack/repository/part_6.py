@@ -224,7 +224,9 @@ class _BlackjackRepositoryPart6:
             # 截止必须用锁后的墙钟。进 session 之前冻住的 `now_ms` 若在等锁期间
             # 已经过了完赛截止，继续用它会把新手牌送进清场与 CAS 之间。
             now_ms = int(time.time() * 1000)
-            if now_ms >= int(tournament.play_deadline_ms):
+            from app.domains.blackjack import rules
+
+            if rules.is_deadline_reached(now_ms, tournament.play_deadline_ms):
                 raise ValueError("tournament finished")
 
             entry = self._lock_tournament_entry(session, int(tournament_id), int(tg_id))
@@ -366,7 +368,9 @@ class _BlackjackRepositoryPart6:
             raise ValueError("tournament not found")
         if int(tournament.status) != self.TOURNAMENT_RUNNING:
             raise ValueError("tournament not running")
-        if int(time.time() * 1000) >= int(tournament.play_deadline_ms):
+        from app.domains.blackjack import rules
+
+        if rules.is_deadline_reached(time.time() * 1000, tournament.play_deadline_ms):
             # 清场任务会把它按停牌口径结算，不因截止判负。
             # 动作路径不加赛事写锁：锁序是 hand → tournament，与发牌/
             # 结算的 tournament → entry 交错会死锁。本路径只改已存在的

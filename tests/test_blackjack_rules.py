@@ -66,6 +66,71 @@ def test_cash_settlement_preserves_blackjack_and_double_multipliers() -> None:
     )
 
 
+def test_tournament_pool_and_payouts_are_pure_and_exact() -> None:
+    assert rules.calculate_tournament_pool(3, 100, 10, 1000) == (
+        310.0,
+        31.0,
+        279.0,
+    )
+    assert rules.calculate_tournament_payouts(2, [50, 30, 20], 100) == [
+        62.5,
+        37.5,
+    ]
+    assert rules.calculate_tournament_payouts(3, [50, 30, 20], 100) == [
+        50.0,
+        30.0,
+        20.0,
+    ]
+    assert rules.calculate_tournament_payouts(0, [50, 30, 20], 100) == []
+
+
+def test_tournament_parameter_validation_preserves_boundaries() -> None:
+    params = rules.validate_tournament_params(
+        {
+            "title": " Weekly Cup ",
+            "description": " desc ",
+            "buy_in_credits": "100",
+            "starting_chips": 1000,
+            "total_hands": 10,
+            "bet_step_chips": 10,
+            "min_bet_chips": 10,
+            "max_bet_chips": 100,
+            "min_entrants": 2,
+            "max_entrants": 20,
+            "rake_bp": 1000,
+            "seeded_prize_credits": "1.236",
+            "payout_structure": "[60, 40]",
+            "register_deadline_ms": 1_000,
+            "play_deadline_ms": 1_801_000,
+        }
+    )
+
+    assert params["title"] == "Weekly Cup"
+    assert params["description"] == "desc"
+    assert params["buy_in_credits"] == 100
+    assert params["seeded_prize_credits"] == 1.24
+    assert params["payout_structure"] == [60.0, 40.0]
+    assert params["play_deadline_ms"] - params["register_deadline_ms"] == 1_800_000
+    assert rules.is_deadline_reached(1_000, 1_000)
+    assert not rules.is_deadline_reached(999, 1_000)
+
+    with pytest.raises(ValueError, match="bet bounds"):
+        rules.validate_tournament_params(
+            {
+                **params,
+                "payout_structure": [100],
+                "min_bet_chips": 11,
+            }
+        )
+    with pytest.raises(ValueError, match="play window"):
+        rules.validate_tournament_params(
+            {
+                **params,
+                "play_deadline_ms": 1_000 + 1_799_999,
+            }
+        )
+
+
 def test_pure_retention_and_jackpot_calculations() -> None:
     assert rules.calculate_relief_credits(12.34, 1.5) == 18.51
     assert rules.calculate_jackpot_target(123.45, 10) == 12.35

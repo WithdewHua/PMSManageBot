@@ -256,12 +256,14 @@ class _BlackjackRepositoryPart4:
         except Exception:
             payout_structure = []
 
-        gross = round(
-            int(t.entrant_count) * int(t.buy_in_credits)
-            + float(t.seeded_prize_credits),
-            2,
+        from app.domains.blackjack import rules
+
+        gross, _rake, net_pool = rules.calculate_tournament_pool(
+            t.entrant_count,
+            t.buy_in_credits,
+            t.seeded_prize_credits,
+            t.rake_bp,
         )
-        rake = round(gross * int(t.rake_bp) / 10000.0, 2)
         return {
             "id": int(t.id),
             "title": str(t.title),
@@ -281,7 +283,7 @@ class _BlackjackRepositoryPart4:
             "payout_structure": payout_structure,
             # 奖池总额与实际可派发额分列：前者是玩家看到的「奖池」，后者扣掉抽水
             "prize_pool_gross": gross,
-            "prize_pool_net": round(gross - rake, 2),
+            "prize_pool_net": net_pool,
             "dealer_hits_soft_17": int(t.dealer_hits_soft_17) == 1,
             "blackjack_payout": float(t.blackjack_payout),
             "surrender_enabled": int(t.surrender_enabled) == 1,
@@ -312,110 +314,11 @@ class _BlackjackRepositoryPart4:
         }
 
     def _validate_tournament_params(self, params: dict) -> dict:
-        """校验并归一赛事参数。非法值一律抛 ValueError 由路由翻译。
+        from app.domains.blackjack import rules
 
-        注额区间与步进的关系是这里唯一容易被忽略的一处：`min_bet` 与 `max_bet`
-        都必须落在步进上，否则用户在滑杆上永远选不到端点值，而服务端又只接受
-        步进的整数倍——两端不一致会让「全下」这个按钮直接报错。
-        """
-        out = {}
-
-        title = str(params.get("title") or "").strip()
-        if not title:
-            raise ValueError("tournament title required")
-        out["title"] = title
-        desc = params.get("description")
-        out["description"] = str(desc).strip() if desc else None
-
-        def _pos_int(key: str) -> int:
-            try:
-                value = int(params[key])
-            except (KeyError, TypeError, ValueError):
-                raise ValueError(f"invalid {key}")
-            if value <= 0:
-                raise ValueError(f"invalid {key}")
-            return value
-
-        out["buy_in_credits"] = _pos_int("buy_in_credits")
-        out["starting_chips"] = _pos_int("starting_chips")
-        out["total_hands"] = _pos_int("total_hands")
-        out["bet_step_chips"] = _pos_int("bet_step_chips")
-        out["min_bet_chips"] = _pos_int("min_bet_chips")
-        out["max_bet_chips"] = _pos_int("max_bet_chips")
-        out["min_entrants"] = _pos_int("min_entrants")
-        out["max_entrants"] = _pos_int("max_entrants")
-
-        step = out["bet_step_chips"]
-        if out["min_bet_chips"] > out["max_bet_chips"]:
-            raise ValueError("min_bet_chips must not exceed max_bet_chips")
-        if out["min_bet_chips"] % step or out["max_bet_chips"] % step:
-            raise ValueError(f"bet bounds must be multiples of {step}")
-        if out["max_bet_chips"] > out["starting_chips"]:
-            raise ValueError("max_bet_chips must not exceed starting_chips")
-        if out["min_entrants"] > out["max_entrants"]:
-            raise ValueError("min_entrants must not exceed max_entrants")
-
-        try:
-            rake_bp = int(params.get("rake_bp", 1000))
-        except (TypeError, ValueError):
-            raise ValueError("invalid rake_bp")
-        if not 0 <= rake_bp <= 10000:
-            raise ValueError("rake_bp must be between 0 and 10000")
-        out["rake_bp"] = rake_bp
-
-        try:
-            seed = round(float(params.get("seeded_prize_credits", 0) or 0), 2)
-        except (TypeError, ValueError):
-            raise ValueError("invalid seeded_prize_credits")
-        if seed < 0:
-            raise ValueError("seeded_prize_credits must not be negative")
-        out["seeded_prize_credits"] = seed
-
-        # 用 `is None` 而非 `or`：空列表是**明确给错了**，不是没给。
-        # `params.get(...) or default` 会把管理员清空的档位静默换成默认值，
-        # 他会以为自己设的生效了，而奖池按另一套档位派了出去。
-        structure = params.get("payout_structure")
-        if structure is None:
-            structure = [50, 30, 20]
-        if isinstance(structure, str):
-            try:
-                structure = json.loads(structure)
-            except Exception:
-                raise ValueError("invalid payout_structure")
-        if not isinstance(structure, list) or not structure:
-            raise ValueError("payout_structure must be a non-empty list")
-        try:
-            structure = [round(float(x), 4) for x in structure]
-        except (TypeError, ValueError):
-            raise ValueError("invalid payout_structure")
-        if any(x <= 0 for x in structure):
-            raise ValueError("payout_structure entries must be positive")
-        if abs(sum(structure) - 100.0) > 0.01:
-            raise ValueError("payout_structure must sum to 100")
-        out["payout_structure"] = json.dumps(structure)
-
-        try:
-            reg = int(params["register_deadline_ms"])
-            play = int(params["play_deadline_ms"])
-        except (KeyError, TypeError, ValueError):
-            raise ValueError("invalid deadlines")
-        if reg > play:
-            raise ValueError("register deadline must not be after play deadline")
-        # 赛程窗口须够打完总手数。见 TOURNAMENT_MIN_PLAY_WINDOW_MS 的说明：
-        # 窗口为零时全员无资格，报名费会被静默销毁
-        min_window = max(
-            self.TOURNAMENT_MIN_PLAY_WINDOW_MS,
-            out["total_hands"] * self.TOURNAMENT_MS_PER_HAND,
-        )
-        if play - reg < min_window:
-            raise ValueError(
-                f"play window must be at least {min_window // 60000} minutes "
-                f"for {out['total_hands']} hands"
-            )
-        out["register_deadline_ms"] = reg
-        out["play_deadline_ms"] = play
-
-        return out
+        normalized = rules.validate_tournament_params(params)
+        normalized["payout_structure"] = json.dumps(normalized["payout_structure"])
+        return normalized
 
     def _generate_tournament_title(self) -> str:
         """赛事名称留空时的自动命名：`21 点锦标赛 · 第 N 期`。
@@ -458,7 +361,9 @@ class _BlackjackRepositoryPart4:
             raise ValueError("blackjack disabled")
 
         now_ms = int(time.time() * 1000)
-        if validated["register_deadline_ms"] <= now_ms:
+        from app.domains.blackjack import rules
+
+        if rules.is_deadline_reached(now_ms, validated["register_deadline_ms"]):
             raise ValueError("register deadline must be in the future")
 
         with get_session() as session:
@@ -581,7 +486,9 @@ class _BlackjackRepositoryPart4:
                 raise ValueError("tournament not found")
             if int(tournament.status) != self.TOURNAMENT_REGISTERING:
                 raise ValueError("tournament not open for registration")
-            if now_ms >= int(tournament.register_deadline_ms):
+            from app.domains.blackjack import rules
+
+            if rules.is_deadline_reached(now_ms, tournament.register_deadline_ms):
                 raise ValueError("registration closed")
 
             buy_in = int(tournament.buy_in_credits)
