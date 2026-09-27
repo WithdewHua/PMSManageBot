@@ -503,3 +503,102 @@ def test_b3_ast_exception_requires_itemized_behavior_test(tmp_path: Path) -> Non
     test_file.parent.mkdir(parents=True)
     test_file.write_text("def test_run():\n    assert True\n")
     assert compare_inventory(base, current, mapping) == []
+
+
+def _split_mapping() -> str:
+    """Mapping entries for a facade class whose method moved into a mixin."""
+    return (
+        "[[items]]\n"
+        'id = "app.databases.db:DatabaseORM"\n'
+        'target = "app.databases.db"\n'
+        'kind = "class"\n'
+        'reason = "facade"\n'
+        'action = "assemble"\n'
+        "[[items]]\n"
+        'id = "app.databases.db:DatabaseORM.reserve"\n'
+        'target = "app.domains.sample.repository"\n'
+        'kind = "method"\n'
+        'reason = "sub-topic split"\n'
+    )
+
+
+def test_repository_package_search_includes_sub_topic_modules(tmp_path: Path) -> None:
+    from scripts.refactor.verify import _module_paths
+
+    package = tmp_path / "src/app/domains/sample/repository"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("")
+    (package / "conditions.py").write_text("class Conditions:\n    pass\n")
+    (package / "part_9.py").write_text("class Legacy:\n    pass\n")
+
+    paths = _module_paths(tmp_path, "app.domains.sample.repository")
+    assert [path.name for path in paths] == [
+        "__init__.py",
+        "conditions.py",
+        "part_9.py",
+    ]
+
+
+def _write_split_repository(root: Path, mixin: str) -> None:
+    """Minimal facade package whose method lives in a sub-topic mixin."""
+    package = root / "src/app/domains/sample/repository"
+    package.mkdir(parents=True, exist_ok=True)
+    (package / "__init__.py").write_text(
+        f"from .conditions import {mixin}\n\n\nclass SampleRepository({mixin}):\n    pass\n"
+    )
+    (package / "conditions.py").write_text(
+        f"class {mixin}:\n    def reserve(self, delta):\n        return delta + 1\n"
+    )
+
+
+def test_declared_repository_mixins_resolve_moved_members(tmp_path: Path) -> None:
+    from scripts.refactor.verify import compare_inventory
+
+    base = tmp_path / "base"
+    current = tmp_path / "current"
+    (base / "src/app/databases").mkdir(parents=True)
+    (base / "src/app/databases/db.py").write_text(
+        "class DatabaseORM:\n    def reserve(self, delta):\n        return delta + 1\n"
+    )
+    _write_split_repository(current, "_SampleRepositoryConditions")
+    (current / "src/app/databases").mkdir(parents=True)
+    (current / "src/app/databases/db.py").write_text("class DatabaseORM:\n    pass\n")
+    mapping = tmp_path / "mapping.toml"
+    mapping.write_text(_split_mapping())
+
+    # 没有声明组合类时，找不到搬移后的成员。
+    assert any(
+        "missing moved method" in error
+        for error in compare_inventory(base, current, mapping)
+    )
+
+    mapping.write_text(
+        mapping.read_text()
+        + "\n[repository_mixins]\n"
+        + '"app.domains.sample.repository" = ["_SampleRepositoryConditions"]\n'
+    )
+    assert compare_inventory(base, current, mapping) == []
+
+
+def test_declared_repository_mixin_must_exist(tmp_path: Path) -> None:
+    from scripts.refactor.verify import compare_inventory
+
+    base = tmp_path / "base"
+    current = tmp_path / "current"
+    (base / "src/app/databases").mkdir(parents=True)
+    (base / "src/app/databases/db.py").write_text(
+        "class DatabaseORM:\n    def reserve(self, delta):\n        return delta + 1\n"
+    )
+    _write_split_repository(current, "_SampleRepositoryConditions")
+    (current / "src/app/databases").mkdir(parents=True)
+    (current / "src/app/databases/db.py").write_text("class DatabaseORM:\n    pass\n")
+    mapping = tmp_path / "mapping.toml"
+    mapping.write_text(
+        _split_mapping()
+        + "\n[repository_mixins]\n"
+        + '"app.domains.sample.repository" = ["_SampleRepositoryRenamed"]\n'
+    )
+    errors = compare_inventory(base, current, mapping)
+    assert any("declared repository mixin not found" in error for error in errors), (
+        errors
+    )

@@ -5,9 +5,11 @@ from __future__ import annotations
 import pytest
 
 from scripts.refactor.rewrite_baseline_keys import (
+    Addition,
     BaselineMoveError,
     MoveRecord,
     enclosing_symbol,
+    load_additions,
     load_moves,
     rewrite_entries,
 )
@@ -226,3 +228,112 @@ source = "a.py"
     empty.write_text("# nothing here\n", encoding="utf-8")
     with pytest.raises(BaselineMoveError, match="没有登记"):
         load_moves(empty)
+
+
+def test_package_level_accepts_a_module_inside_the_declared_package() -> None:
+    old = [_entry(path=OLD_PATH, line=1, target="logger", kind="import")]
+    new = [_entry(path=NEW_PATH, line=9, target="logger", kind="import")]
+    moves = {
+        OLD_PATH: MoveRecord(
+            source=OLD_PATH,
+            package_level="src/app/domains/gift_pack/repository",
+            symbols={},
+        )
+    }
+    rewritten = rewrite_entries(old, new, moves, _read_source)
+    assert rewritten[0]["path"] == NEW_PATH
+
+
+def test_package_level_rejects_a_destination_outside_the_package() -> None:
+    old = [_entry(path=OLD_PATH, line=1, target="logger", kind="import")]
+    new = [
+        _entry(
+            path="src/app/domains/other/repository/x.py",
+            line=9,
+            target="logger",
+            kind="import",
+        )
+    ]
+    moves = {
+        OLD_PATH: MoveRecord(
+            source=OLD_PATH,
+            package_level="src/app/domains/gift_pack/repository",
+            symbols={},
+        )
+    }
+    with pytest.raises(BaselineMoveError, match="包外落点"):
+        rewrite_entries(old, new, moves, _read_source)
+
+
+def test_declared_addition_is_accepted_and_inherits_the_owner() -> None:
+    original = _entry(path=OLD_PATH, line=1, target="Invitation", kind="import")
+    duplicate = _entry(path=NEW_PATH, line=14, target="Invitation", kind="import")
+    moves = {
+        OLD_PATH: MoveRecord(
+            source=OLD_PATH,
+            package_level="src/app/domains/gift_pack/repository",
+            symbols={},
+        )
+    }
+    additions = {
+        duplicate["key"]: Addition(duplicate["key"], original["key"], "shared")
+    }
+
+    rewritten = rewrite_entries(
+        [original],
+        [
+            _entry(path=PACKS_PATH, line=15, target="Invitation", kind="import"),
+            duplicate,
+        ],
+        moves,
+        _read_source,
+        additions=additions,
+    )
+
+    assert sorted(entry["key"] for entry in rewritten) == sorted(
+        [f"call|{PACKS_PATH}|15|facade|identity|Invitation", duplicate["key"]]
+    )
+    assert all(entry["owner"] == "promote-gift-pack-domain" for entry in rewritten)
+
+
+def test_rejects_undeclared_addition_source_and_mismatched_edge() -> None:
+    original = _entry(path=OLD_PATH, line=1, target="Invitation", kind="import")
+    other_old = _entry(path=OLD_PATH, line=2, target="Other", kind="import")
+    duplicate = _entry(path=NEW_PATH, line=14, target="Invitation", kind="import")
+    moves: dict[str, MoveRecord] = {}
+
+    undeclared = {duplicate["key"]: Addition(duplicate["key"], "call|gone|1", "x")}
+    with pytest.raises(BaselineMoveError, match="原始条目不在旧基线里"):
+        rewrite_entries(
+            [original], [duplicate], moves, _read_source, additions=undeclared
+        )
+
+    mismatched = {duplicate["key"]: Addition(duplicate["key"], other_old["key"], "x")}
+    with pytest.raises(BaselineMoveError, match="不是同一条重复边"):
+        rewrite_entries(
+            [original, other_old],
+            [duplicate],
+            moves,
+            _read_source,
+            additions=mismatched,
+        )
+
+
+def test_load_additions_requires_key_source_and_reason(tmp_path) -> None:
+    path = tmp_path / "moves.toml"
+    path.write_text(
+        """
+[[addition]]
+key = "import|a.py|1|x|y"
+source_key = "import|b.py|2|x|y"
+reason = "拆成两个 mixin"
+""",
+        encoding="utf-8",
+    )
+    additions = load_additions(path)
+    assert set(additions) == {"import|a.py|1|x|y"}
+
+    incomplete = tmp_path / "incomplete.toml"
+    incomplete.write_text('[[addition]]\nkey = "x"\n', encoding="utf-8")
+    with pytest.raises(BaselineMoveError, match="缺少 key/source_key/reason"):
+        load_additions(incomplete)

@@ -59,12 +59,43 @@ class MoveRecord:
 
     source: str
     module_level: str | None = None
+    package_level: str | None = None
     symbols: dict[str, str] = field(default_factory=dict)
 
 
 def identity(entry: dict[str, Any]) -> tuple[Any, ...]:
     """Return the reviewed identity of a baseline entry (path/line excluded)."""
     return tuple(entry.get(field) for field in IDENTITY_FIELDS)
+
+
+@dataclass(frozen=True)
+class Addition:
+    """A reviewed new baseline entry that a move cannot avoid creating.
+
+    Splitting one module into mixins can turn a single cross-domain import into
+    two edges when both parts use it. Such an addition must be declared with the
+    original key it duplicates, and it inherits that entry's owner.
+    """
+
+    key: str
+    source_key: str
+    reason: str
+
+
+def load_additions(path: Path) -> dict[str, Addition]:
+    """Parse declared additions (empty when the file has none)."""
+    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    additions: dict[str, Addition] = {}
+    for item in data.get("addition", []):
+        key = str(item.get("key", ""))
+        source_key = str(item.get("source_key", ""))
+        reason = str(item.get("reason", "")).strip()
+        if not key or not source_key or not reason:
+            raise BaselineMoveError(f"{path} 的 addition 缺少 key/source_key/reason")
+        if key in additions:
+            raise BaselineMoveError(f"{path} 中重复登记了 addition {key}")
+        additions[key] = Addition(key=key, source_key=source_key, reason=reason)
+    return additions
 
 
 def load_moves(path: Path) -> dict[str, MoveRecord]:
@@ -83,6 +114,7 @@ def load_moves(path: Path) -> dict[str, MoveRecord]:
         moves[source] = MoveRecord(
             source=source,
             module_level=item.get("module_level"),
+            package_level=item.get("package_level"),
             symbols={str(key): str(value) for key, value in symbols.items()},
         )
     if not moves:
@@ -174,6 +206,7 @@ def rewrite_entries(
     read_source: Callable[[str], str],
     planned_targets: dict[str, str] | None = None,
     read_new_source: Callable[[str], str] | None = None,
+    additions: dict[str, Addition] | None = None,
 ) -> list[dict[str, Any]]:
     """Rewrite ``path``/``line``/``key`` while proving the move was reviewed.
 
@@ -185,11 +218,33 @@ def rewrite_entries(
     must sit in the same-named symbol on the new side.
     """
     old = sorted(old_entries, key=lambda entry: entry["key"])
+    old_by_key = {entry["key"]: entry for entry in old}
+    new = list(new_entries)
+    new_by_key = {entry["key"]: entry for entry in new}
+    accepted: list[dict[str, Any]] = []
+    for key, addition in (additions or {}).items():
+        if key in old_by_key:
+            raise BaselineMoveError(f"addition 已经存在，无需声明：{key}")
+        added = new_by_key.get(key)
+        if added is None:
+            raise BaselineMoveError(f"addition 在新扫描里不存在：{key}")
+        original = old_by_key.get(addition.source_key)
+        if original is None:
+            raise BaselineMoveError(
+                f"addition 的原始条目不在旧基线里：{addition.source_key}"
+            )
+        if identity(added) != identity(original):
+            raise BaselineMoveError(
+                f"addition 不是同一条重复边：{key} 与 {addition.source_key}"
+            )
+        # 重复的边继承原条目的 owner；除 key/path/line 外其余元数据相同。
+        accepted.append({**{k: v for k, v in original.items()}, **added})
+        new = [entry for entry in new if entry["key"] != key]
     old_symbol = _symbol_reader(read_source)
     new_symbol = _symbol_reader(read_new_source) if read_new_source else None
 
     buckets: dict[tuple[Any, ...], list[dict[str, Any]]] = {}
-    for entry in new_entries:
+    for entry in new:
         buckets.setdefault(identity(entry), []).append(entry)
     for entries in buckets.values():
         entries.sort(key=lambda item: (item.get("path", ""), item.get("line", 0)))
@@ -214,11 +269,20 @@ def rewrite_entries(
             target = move.symbols.get(symbol) if symbol else None
             if target is None:
                 target = move.module_level
-            if target is None:
+            if target is None and move.package_level:
+                # 模块级条目（导入）按使用位置散到同一个包的多个模块里，
+                # 只要求落在登记的那个包内。
+                parent = Path(str(match.get("path"))).parent.as_posix()
+                if parent != move.package_level:
+                    raise BaselineMoveError(
+                        f"包外落点：{path} 应留在 {move.package_level}，实际在 "
+                        f"{match.get('path')}"
+                    )
+            elif target is None:
                 raise BaselineMoveError(
                     f"映射缺失：{path} 的 {symbol or '<module>'} 没有登记目标"
                 )
-            if match.get("path") != target:
+            elif match.get("path") != target:
                 raise BaselineMoveError(
                     f"映射不一致：{path} 的 {symbol or '<module>'} 应到 {target}，"
                     f"实际在 {match.get('path')}"
@@ -248,7 +312,7 @@ def rewrite_entries(
             "未登记的多重集合变化：新扫描多出条目 "
             + ", ".join(str(entry.get("key")) for entry in leftovers[:5])
         )
-    return sorted(rewritten, key=lambda entry: entry["key"])
+    return sorted([*rewritten, *accepted], key=lambda entry: entry["key"])
 
 
 def git_source(rev: str) -> Callable[[str], str]:
@@ -284,6 +348,7 @@ def main(argv: list[str] | None = None) -> int:
     from tests.architecture.helpers import load_baseline, write_baseline
 
     moves = load_moves(args.moves)
+    additions = load_additions(args.moves)
     baseline = load_baseline(args.baseline)
     current = scan_cross_domain_calls(PROJECT_ROOT)
     rewritten = rewrite_entries(
@@ -293,6 +358,7 @@ def main(argv: list[str] | None = None) -> int:
         git_source(args.base),
         _planned_targets(args.mapping),
         read_new_source=lambda path: (PROJECT_ROOT / path).read_text(encoding="utf-8"),
+        additions=additions,
     )
     baseline["cross_domain_calls"] = rewritten
     changed = sum(

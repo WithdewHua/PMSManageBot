@@ -11,6 +11,7 @@ import sys
 import tempfile
 import tomllib
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -38,13 +39,26 @@ _PREMIUM_LAZY = {
 
 
 def _module_paths(root: Path, module: str) -> list[Path]:
+    """Files that may define the items of ``module``.
+
+    A package keeps its ``__init__`` plus every module next to it, so a
+    repository split into sub-topic mixins (``conditions.py``, ``packs.py``…)
+    is still searched as a whole.
+    """
     relative = Path("src", *module.split("."))
     file = root / relative.with_suffix(".py")
     package = root / relative / "__init__.py"
     if file.is_file():
         return [file]
     if package.is_file():
-        return [package, *sorted(package.parent.glob("part_*.py"))]
+        return [
+            package,
+            *sorted(
+                path
+                for path in package.parent.glob("*.py")
+                if path != package and path.is_file()
+            ),
+        ]
     return []
 
 
@@ -70,6 +84,7 @@ def _normalized(
     *,
     target_class: str = "",
     allow_import_reorder: bool = False,
+    class_aliases: Iterable[str] = (),
 ) -> str:
     """Normalize import paths, relocation self-references, and known path anchors."""
     import copy
@@ -153,7 +168,7 @@ def _normalized(
                 and item.name.startswith("DatabaseORM.")
                 and node.attr in _SELF_REFERENCES
                 and isinstance(node.value, ast.Name)
-                and node.value.id in {"DatabaseORM", target_class}
+                and node.value.id in {"DatabaseORM", target_class, *class_aliases}
             ):
                 node.value.id = "__RELOCATED_DB_CLASS__"
             return node
@@ -263,6 +278,28 @@ def _bindings(node: ast.stmt) -> set[str]:
     return set()
 
 
+def _repository_mixins(mapping_file: Path | None) -> dict[str, set[str]]:
+    """Reviewed sub-topic mixin classes composed by a repository package.
+
+    A sub-topic split moves class members into ``conditions.py``,
+    ``packs.py``…; the mapping declares which mixin classes the facade package
+    composes, so the verifier can still find each moved member by its defining
+    class instead of guessing from the ``part_<n>`` naming.
+    """
+    if mapping_file is None or not mapping_file.is_file():
+        return {}
+    with mapping_file.open("rb") as stream:
+        data = tomllib.load(stream)
+    declared: dict[str, set[str]] = {}
+    for module, names in data.get("repository_mixins", {}).items():
+        if not isinstance(names, list) or not all(
+            isinstance(name, str) and name for name in names
+        ):
+            raise VerificationError(f"invalid repository_mixins for {module}")
+        declared[module] = set(names)
+    return declared
+
+
 def compare_inventory(
     base_root: Path, current_root: Path, mapping_file: Path | None = None
 ) -> list[str]:
@@ -274,6 +311,7 @@ def compare_inventory(
     if mapping_file is None:
         candidate = current_root / "scripts/refactor/mapping.toml"
         mapping_file = candidate if candidate.is_file() else None
+    repository_mixins = _repository_mixins(mapping_file)
     entries: dict[str, dict[str, Any]] = {}
     if mapping_file is not None:
         with mapping_file.open("rb") as stream:
@@ -392,6 +430,15 @@ def compare_inventory(
             target_class = item.name.rsplit(".", 1)[0]
         parents = {target_class}
         if target_class and module.endswith(".repository"):
+            declared_mixins = repository_mixins.get(module)
+            if declared_mixins is not None:
+                available = {candidate.name for candidate in target_items}
+                missing = sorted(declared_mixins - available)
+                if missing:
+                    errors.append(
+                        f"declared repository mixin not found: {module}: {missing}"
+                    )
+                parents |= declared_mixins
             parents |= {
                 candidate.name
                 for candidate in target_items
@@ -464,6 +511,7 @@ def compare_inventory(
                     source_node,
                     target_class=target_class,
                     allow_import_reorder=allow_import_reorder,
+                    class_aliases=parents,
                 )
             ] += 1
             continue
@@ -477,12 +525,14 @@ def compare_inventory(
                 source_node,
                 target_class=target_class,
                 allow_import_reorder=allow_import_reorder,
+                class_aliases=parents,
             )
             == _normalized(
                 item,
                 target_nodes[match.id],
                 target_class=target_class,
                 allow_import_reorder=allow_import_reorder,
+                class_aliases=parents,
             )
             for match in matches
         ):

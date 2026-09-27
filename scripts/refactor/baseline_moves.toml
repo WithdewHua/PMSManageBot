@@ -1,0 +1,90 @@
+# 礼包 repository 子主题拆分的搬移登记（tasks 2.1 / 2.2）。
+# `symbols` 逐条登记类成员的新模块；`package_level` 覆盖模块级条目（导入），
+# 它们按使用位置落在同一个包内的不同模块里。
+
+[[move]]
+source = "src/app/domains/gift_pack/repository/part_1.py"
+package_level = "src/app/domains/gift_pack/repository"
+
+[move.symbols]
+"_GIFT_PACK_COUNT_METHODS" = "src/app/domains/gift_pack/repository/conditions.py"
+"_GIFT_PACK_UNLOCK_COLUMNS" = "src/app/domains/gift_pack/repository/rewards.py"
+"_count_gift_pack_auction_participations" = "src/app/domains/gift_pack/repository/conditions.py"
+"_count_gift_pack_blackjack_hands" = "src/app/domains/gift_pack/repository/conditions.py"
+"_count_gift_pack_invitees" = "src/app/domains/gift_pack/repository/conditions.py"
+"_count_gift_pack_prediction_bets" = "src/app/domains/gift_pack/repository/conditions.py"
+"_count_gift_pack_tournament_entries" = "src/app/domains/gift_pack/repository/conditions.py"
+"_count_gift_pack_treasure_issues" = "src/app/domains/gift_pack/repository/conditions.py"
+"_count_gift_pack_watched_hours" = "src/app/domains/gift_pack/repository/conditions.py"
+"_count_gift_pack_wheel_spins" = "src/app/domains/gift_pack/repository/conditions.py"
+"_evaluate_conditions" = "src/app/domains/gift_pack/repository/conditions.py"
+"_evaluate_gift_pack_audience" = "src/app/domains/gift_pack/repository/conditions.py"
+"_evaluate_gift_pack_condition" = "src/app/domains/gift_pack/repository/conditions.py"
+"_evaluate_gift_pack_eligibility" = "src/app/domains/gift_pack/repository/conditions.py"
+"_gift_pack_local_date" = "src/app/domains/gift_pack/repository/conditions.py"
+"_gift_pack_metric_value" = "src/app/domains/gift_pack/repository/conditions.py"
+"_gift_pack_phase_ref" = "src/app/domains/gift_pack/repository/packs.py"
+"_gift_pack_reward_label" = "src/app/domains/gift_pack/repository/packs.py"
+"_grant_feature_unlock_tx" = "src/app/domains/gift_pack/repository/rewards.py"
+"_grant_gift_pack_rewards" = "src/app/domains/gift_pack/repository/rewards.py"
+"_grant_invite_codes_tx" = "src/app/domains/gift_pack/repository/rewards.py"
+"_grant_tournament_wallet_tx" = "src/app/domains/gift_pack/repository/rewards.py"
+"_grant_wheel_free_spins_tx" = "src/app/domains/gift_pack/repository/rewards.py"
+"_is_premium_active" = "src/app/domains/gift_pack/repository/conditions.py"
+"_load_gift_pack_user_context" = "src/app/domains/gift_pack/repository/conditions.py"
+"_lock_gift_pack_audience" = "src/app/domains/gift_pack/repository/conditions.py"
+"_lock_gift_pack_stats" = "src/app/domains/gift_pack/repository/conditions.py"
+
+[[move]]
+source = "src/app/domains/gift_pack/repository/part_2.py"
+package_level = "src/app/domains/gift_pack/repository"
+
+[move.symbols]
+"_gift_pack_admin_payload" = "src/app/domains/gift_pack/repository/packs.py"
+"_gift_pack_audience_size" = "src/app/domains/gift_pack/repository/conditions.py"
+"_gift_pack_conditions_with_binding" = "src/app/domains/gift_pack/repository/conditions.py"
+"_gift_pack_lifecycle" = "src/app/domains/gift_pack/repository/packs.py"
+"_gift_pack_remaining" = "src/app/domains/gift_pack/repository/packs.py"
+"_legacy_gift_pack_requirements" = "src/app/domains/gift_pack/repository/conditions.py"
+"_persist_privileged_invite_codes" = "src/app/domains/gift_pack/repository/rewards.py"
+"_validate_gift_pack_references" = "src/app/domains/gift_pack/repository/packs.py"
+"claim_gift_pack" = "src/app/domains/gift_pack/repository/claims.py"
+"create_gift_pack" = "src/app/domains/gift_pack/repository/packs.py"
+"delete_gift_pack" = "src/app/domains/gift_pack/repository/packs.py"
+"get_gift_pack_by_id" = "src/app/domains/gift_pack/repository/packs.py"
+"get_gift_packs_for_user" = "src/app/domains/gift_pack/repository/claims.py"
+"set_gift_pack_enabled" = "src/app/domains/gift_pack/repository/packs.py"
+"update_gift_pack" = "src/app/domains/gift_pack/repository/packs.py"
+
+[[move]]
+source = "src/app/domains/gift_pack/repository/part_3.py"
+package_level = "src/app/domains/gift_pack/repository"
+
+[move.symbols]
+"claim_gift_pack_start_dm_candidates" = "src/app/domains/gift_pack/repository/notices.py"
+"get_expired_unnotified_gift_packs" = "src/app/domains/gift_pack/repository/notices.py"
+"get_gift_pack_claim_records" = "src/app/domains/gift_pack/repository/packs.py"
+"get_gift_pack_stats" = "src/app/domains/gift_pack/repository/packs.py"
+"get_gift_packs_admin" = "src/app/domains/gift_pack/repository/packs.py"
+"mark_gift_pack_expiry_notified" = "src/app/domains/gift_pack/repository/notices.py"
+"prompt_check_gift_packs" = "src/app/domains/gift_pack/repository/claims.py"
+"resolve_gift_pack_users" = "src/app/domains/gift_pack/repository/packs.py"
+
+[[move]]
+source = "src/app/domains/gift_pack/repository/__init__.py"
+package_level = "src/app/domains/gift_pack/repository"
+
+[move.symbols]
+"_gift_pack_condition_label" = "src/app/domains/gift_pack/repository/conditions.py"
+"_gift_pack_condition_summary" = "src/app/domains/gift_pack/repository/conditions.py"
+"_gift_pack_referencing_packs" = "src/app/domains/gift_pack/repository/packs.py"
+"_resolve_gift_pack_conditions" = "src/app/domains/gift_pack/repository/conditions.py"
+"_validate_post_start_edit" = "src/app/domains/gift_pack/repository/packs.py"
+
+# 拆分必然产生的重复导入边：conditions.py 与 rewards.py 都要用 Invitation，
+# 一次模块级导入因此变成两条边。行为不变，3.5 把生码搬到
+# invitation.repository.issue_codes_tx 后这条边会消失。
+[[addition]]
+key = "import|src/app/domains/gift_pack/repository/rewards.py|14|app.domains.invitation.models|Invitation"
+source_key = "import|src/app/domains/gift_pack/repository/part_1.py|17|app.domains.invitation.models|Invitation"
+reason = "同一个 Invitation 导入被 conditions.py 与 rewards.py 同时使用（拆分的必然结果，3.5 后消失）"

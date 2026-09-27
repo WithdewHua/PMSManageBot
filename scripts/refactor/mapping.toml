@@ -23827,3 +23827,14 @@ reason = "promote-blackjack-domain 4.4 reviewed rebinding: the frozen B3 blackja
 b3_key = "import|src/app/domains/badge_awards/jobs.py|app.domains.blackjack.service|service"
 b3_source_id = "app.databases.db_func:@import:19"
 b3_behavior_test = "tests/refactor/test_blackjack_cross_domain.py::test_external_domains_do_not_import_blackjack_models_or_repository_parts"
+
+# 按子主题拆分后的 repository 组合类（design D1）。verify.py 用它把搬移后的类成员
+# 按“定义类”归位，而不是靠 part_<n> 命名猜测；拆出的 mixin 必须真实存在。
+[repository_mixins]
+"app.domains.gift_pack.repository" = [
+    "_GiftPackRepositoryConditions",
+    "_GiftPackRepositoryRewards",
+    "_GiftPackRepositoryPacks",
+    "_GiftPackRepositoryClaims",
+    "_GiftPackRepositoryNotices",
+]
