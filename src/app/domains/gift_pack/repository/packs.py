@@ -8,47 +8,13 @@ from sqlalchemy import delete, func, select, update
 from app.core.db import get_session
 from app.core.log import logger
 from app.domains.badges import repository as badges_repository
+from app.domains.gift_pack import rules
 from app.domains.gift_pack.exceptions import gift_pack_error
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 
-from . import GIFT_PACK_REWARD_TYPES
-from .conditions import _GiftPackRepositoryConditions
-
 
 class _GiftPackRepositoryPacks:
-    @staticmethod
-    def _gift_pack_reward_label(reward: dict) -> str:
-        """把一个奖励项渲染成人类可读的短语，如「100 积分」「7 天 Premium」"""
-        reward_type = reward.get("type")
-        meta = GIFT_PACK_REWARD_TYPES.get(reward_type)
-        if meta is None:
-            return str(reward_type)
-        return meta["label"](reward)
-
-    @staticmethod
-    def _gift_pack_phase_ref(pack: GiftPack, now: int) -> int:
-        """Freeze timestamped tasks at their deadline (or the pack's end)."""
-        return min(int(now), int(pack.task_end_at or pack.end_at))
-
-    @staticmethod
-    def _gift_pack_lifecycle(pack: GiftPack, now: int) -> str:
-        """礼包相对当前时间的生命周期状态"""
-        if now < int(pack.start_at):
-            return "upcoming"
-        if now > int(pack.end_at):
-            return "ended"
-        if pack.task_end_at is not None and int(pack.task_end_at) < now:
-            return "claim_only"
-        return "active"
-
-    @staticmethod
-    def _gift_pack_remaining(pack: GiftPack) -> int | None:
-        """剩余份数；不限量时返回 None"""
-        if pack.total_quantity is None:
-            return None
-        return max(0, int(pack.total_quantity) - int(pack.claimed_count))
-
     @staticmethod
     def _validate_gift_pack_references(
         session,
@@ -56,6 +22,7 @@ class _GiftPackRepositoryPacks:
         requirements: list[dict],
         pack_id: int | None = None,
     ) -> None:
+
         def leaves(items):
             for item in items:
                 if item["type"] == "any_of":
@@ -72,7 +39,6 @@ class _GiftPackRepositoryPacks:
         for badge_id in badge_ids:
             if badge_id not in existing_badges:
                 raise gift_pack_error(f"引用的勋章不存在: {badge_id}")
-
         for item in leaves(audience + requirements):
             kind = item["type"]
             if kind == "claimed_pack":
@@ -104,19 +70,21 @@ class _GiftPackRepositoryPacks:
             raise gift_pack_error("礼包至少需要一项奖励")
         if end_at <= start_at:
             raise gift_pack_error("结束时间必须晚于开始时间")
-        if task_end_at is not None and not start_at < task_end_at <= end_at:
+        if task_end_at is not None and (not start_at < task_end_at <= end_at):
             raise gift_pack_error("任务截止时间必须晚于开始时间且不晚于结束时间")
         if total_quantity is not None and total_quantity <= 0:
             raise gift_pack_error("限量份数必须大于 0")
         audience = list(audience or [])
         if requirements is None and eligibility:
-            requirements = self._legacy_gift_pack_requirements(eligibility)
-        requirements = self._gift_pack_conditions_with_binding(
+            requirements = rules._legacy_gift_pack_requirements(eligibility)
+        requirements = rules._gift_pack_conditions_with_binding(
             requirements or [], rewards
         )
-        if notify_audience_on_start and not any(
-            item["type"] == "user_list" and item["mode"] == "include"
-            for item in audience
+        if notify_audience_on_start and (
+            not any(
+                item["type"] == "user_list" and item["mode"] == "include"
+                for item in audience
+            )
         ):
             raise gift_pack_error("开启开始通知要求受众顶层包含 include 指定名单")
         with get_session() as session:
@@ -185,7 +153,7 @@ class _GiftPackRepositoryPacks:
             ).scalar_one_or_none()
             if pack is None:
                 raise gift_pack_error("礼包不存在")
-            old_audience, old_requirements = self._resolve_gift_pack_conditions(pack)
+            old_audience, old_requirements = rules._resolve_gift_pack_conditions(pack)
             old = {
                 "start_at": int(pack.start_at),
                 "end_at": int(pack.end_at),
@@ -196,7 +164,7 @@ class _GiftPackRepositoryPacks:
                 "requirements": old_requirements,
             }
             if "eligibility" in fields and "requirements" not in fields:
-                fields["requirements"] = self._legacy_gift_pack_requirements(
+                fields["requirements"] = rules._legacy_gift_pack_requirements(
                     fields["eligibility"] or {}
                 )
             new = {**old, **{k: v for k, v in fields.items() if k in old}}
@@ -204,8 +172,8 @@ class _GiftPackRepositoryPacks:
                 raise gift_pack_error("礼包至少需要一项奖励")
             if new["end_at"] <= new["start_at"]:
                 raise gift_pack_error("结束时间必须晚于开始时间")
-            if new["task_end_at"] is not None and not (
-                new["start_at"] < new["task_end_at"] <= new["end_at"]
+            if new["task_end_at"] is not None and (
+                not new["start_at"] < new["task_end_at"] <= new["end_at"]
             ):
                 raise gift_pack_error("任务截止时间必须晚于开始时间且不晚于结束时间")
             if new["total_quantity"] is not None and (
@@ -213,19 +181,21 @@ class _GiftPackRepositoryPacks:
             ):
                 raise gift_pack_error("限量份数不能小于已领取份数且必须大于 0")
             new["audience"] = list(new["audience"] or [])
-            new["requirements"] = self._gift_pack_conditions_with_binding(
+            new["requirements"] = rules._gift_pack_conditions_with_binding(
                 new["requirements"] or [], new["rewards"]
             )
             notify = fields.get(
                 "notify_audience_on_start", pack.notify_audience_on_start
             )
-            if notify and not any(
-                item["type"] == "user_list" and item["mode"] == "include"
-                for item in new["audience"]
+            if notify and (
+                not any(
+                    item["type"] == "user_list" and item["mode"] == "include"
+                    for item in new["audience"]
+                )
             ):
                 raise gift_pack_error("开启开始通知要求受众顶层包含 include 指定名单")
             if int(time.time()) >= int(pack.start_at):
-                self._validate_post_start_edit(old, new)
+                rules._validate_post_start_edit(old, new)
             self._validate_gift_pack_references(
                 session, new["audience"], new["requirements"], pack_id
             )
@@ -273,9 +243,7 @@ class _GiftPackRepositoryPacks:
                 .one_or_none()
             )
             if not pack:
-                # 删除接口的“不存在”是 404（启停/统计由 router 的 None 映射）
                 raise gift_pack_error("礼包不存在", status_code=404)
-
             claimed = session.execute(
                 select(func.count(GiftPackUserState.id)).where(
                     GiftPackUserState.pack_id == pack_id,
@@ -284,15 +252,12 @@ class _GiftPackRepositoryPacks:
             ).scalar_one()
             if int(claimed) > 0 or int(pack.claimed_count) > 0:
                 raise gift_pack_error("该礼包已有用户领取，只能停用不能删除")
-
             references = self._gift_pack_referencing_packs(session, pack_id)
             if references:
-                names = "、".join(f"#{pid} {title}" for pid, title in references)
+                names = "、".join((f"#{pid} {title}" for pid, title in references))
                 raise gift_pack_error(
                     f"该礼包被其他礼包的已领取条件引用：{names}；请先移除引用"
                 )
-
-            # 仅被提醒过、从未领取的状态行随礼包一并清理
             session.execute(
                 delete(GiftPackUserState).where(GiftPackUserState.pack_id == pack_id)
             )
@@ -300,8 +265,8 @@ class _GiftPackRepositoryPacks:
             return True
 
     def _gift_pack_admin_payload(self, session, pack: GiftPack, now: int) -> dict:
-        audience, requirements = self._resolve_gift_pack_conditions(pack)
-        size = self._gift_pack_audience_size(audience)
+        audience, requirements = rules._resolve_gift_pack_conditions(pack)
+        size = rules._gift_pack_audience_size(audience)
         prompted = session.execute(
             select(func.count(GiftPackUserState.id)).where(
                 GiftPackUserState.pack_id == pack.id,
@@ -322,14 +287,14 @@ class _GiftPackRepositoryPacks:
             "rewards": json.loads(pack.rewards),
             "audience": audience or None,
             "requirements": requirements or None,
-            "audience_summary": self._gift_pack_condition_summary(audience),
-            "requirements_summary": self._gift_pack_condition_summary(requirements),
+            "audience_summary": rules._gift_pack_condition_summary(audience),
+            "requirements_summary": rules._gift_pack_condition_summary(requirements),
             "audience_size": size,
             "claim_rate": round(int(claimed_users) / size * 100, 2) if size else None,
             "task_prompted_users": int(prompted),
             "total_quantity": pack.total_quantity,
             "claimed_count": int(pack.claimed_count),
-            "remaining": self._gift_pack_remaining(pack),
+            "remaining": rules._gift_pack_remaining(pack),
             "start_at": int(pack.start_at),
             "end_at": int(pack.end_at),
             "task_end_at": pack.task_end_at,
@@ -337,10 +302,10 @@ class _GiftPackRepositoryPacks:
             "max_task_prompt_count": int(pack.max_task_prompt_count),
             "notify_audience_on_start": bool(pack.notify_audience_on_start),
             "is_enabled": bool(pack.is_enabled),
-            "lifecycle": self._gift_pack_lifecycle(pack, now),
+            "lifecycle": rules._gift_pack_lifecycle(pack, now),
             "can_delete": int(pack.claimed_count) == 0
             and int(claimed_users) == 0
-            and not dependents,
+            and (not dependents),
             "created_by": pack.created_by,
             "created_at": int(pack.created_at),
             "updated_at": int(pack.updated_at),
@@ -377,12 +342,13 @@ class _GiftPackRepositoryPacks:
                     .scalars()
                     .all()
                 )
-                return [
-                    self._gift_pack_admin_payload(session, p, now) for p in packs
-                ], int(total)
+                return (
+                    [self._gift_pack_admin_payload(session, p, now) for p in packs],
+                    int(total),
+                )
         except Exception as e:
             logger.error(f"获取礼包管理列表失败: {e}")
-            return [], 0
+            return ([], 0)
 
     def get_gift_pack_stats(self, pack_id: int) -> dict | None:
         """单个礼包的领取统计：领取人数、被提醒人数、各类奖励发放总量"""
@@ -395,7 +361,6 @@ class _GiftPackRepositoryPacks:
                 )
                 if not pack:
                     return None
-
                 claimed_users = session.execute(
                     select(func.count(GiftPackUserState.id)).where(
                         GiftPackUserState.pack_id == pack_id,
@@ -408,17 +373,14 @@ class _GiftPackRepositoryPacks:
                         GiftPackUserState.prompt_count > 0,
                     )
                 ).scalar_one()
-
                 task_prompted_users = session.execute(
                     select(func.count(GiftPackUserState.id)).where(
                         GiftPackUserState.pack_id == pack_id,
                         GiftPackUserState.task_prompt_count > 0,
                     )
                 ).scalar_one()
-                audience, _ = self._resolve_gift_pack_conditions(pack)
-                audience_size = self._gift_pack_audience_size(audience)
-
-                # reward_snapshot 是 JSON 文本，聚合只能在 Python 侧做
+                audience, _ = rules._resolve_gift_pack_conditions(pack)
+                audience_size = rules._gift_pack_audience_size(audience)
                 snapshots = [
                     row
                     for (row,) in session.execute(
@@ -434,7 +396,7 @@ class _GiftPackRepositoryPacks:
                         items = json.loads(raw)
                         for item in items:
                             reward_type = item.get("type")
-                            meta = GIFT_PACK_REWARD_TYPES.get(reward_type)
+                            meta = rules.GIFT_PACK_REWARD_TYPES.get(reward_type)
                             if meta is None:
                                 continue
                             entry = aggregates.setdefault(
@@ -457,9 +419,8 @@ class _GiftPackRepositoryPacks:
                             entry["grants"] += 1
                     except (ValueError, TypeError) as e:
                         logger.warning(f"解析礼包发放快照失败 (pack_id={pack_id}): {e}")
-
                 reward_totals = []
-                for reward_type, meta in GIFT_PACK_REWARD_TYPES.items():
+                for reward_type, meta in rules.GIFT_PACK_REWARD_TYPES.items():
                     entry = aggregates.get(reward_type)
                     if entry is None:
                         continue
@@ -469,7 +430,6 @@ class _GiftPackRepositoryPacks:
                     if reward_type == "premium_days":
                         entry["skipped_lifetime"] = entry["skipped"]
                     reward_totals.append(entry)
-
                 return {
                     "pack_id": int(pack.id),
                     "title": pack.title,
@@ -481,7 +441,7 @@ class _GiftPackRepositoryPacks:
                     if audience_size
                     else None,
                     "total_quantity": pack.total_quantity,
-                    "remaining": self._gift_pack_remaining(pack),
+                    "remaining": rules._gift_pack_remaining(pack),
                     "reward_totals": reward_totals,
                 }
         except Exception as e:
@@ -494,8 +454,8 @@ class _GiftPackRepositoryPacks:
 
         from app.core.telegram import load_tg_user_info_cache
 
-        tokens = list(dict.fromkeys(t for t in re.split(r"[\s,，]+", text) if t))
-        resolved, unresolved = [], []
+        tokens = list(dict.fromkeys(t for t in re.split("[\\s,，]+", text) if t))
+        resolved, unresolved = ([], [])
         with get_session() as session:
             tg_cache = load_tg_user_info_cache()
             for token in tokens:
@@ -522,7 +482,7 @@ class _GiftPackRepositoryPacks:
                     ):
                         if tg_id is not None:
                             matches[int(tg_id)] = ("emby", username)
-                if token.startswith("@") and not matches:
+                if token.startswith("@") and (not matches):
                     for tg_id, data in tg_cache.items():
                         if str(data.get("username") or "").lower() == token[1:].lower():
                             matches[int(tg_id)] = (
@@ -586,70 +546,10 @@ class _GiftPackRepositoryPacks:
                     }
                     for row in rows
                 ]
-                return records, int(total)
+                return (records, int(total))
         except Exception as e:
             logger.error(f"获取礼包领取记录失败 (pack_id={pack_id}): {e}")
-            return [], 0
-
-    @staticmethod
-    def _validate_post_start_edit(old: dict, new: dict) -> None:
-        def reject(field: str) -> None:
-            raise gift_pack_error(f"礼包开始后不能修改 {field}；可停用后新建礼包")
-
-        for field in ("start_at", "rewards"):
-            if old[field] != new[field]:
-                reject(field if field == "start_at" else "奖励 rewards")
-
-        def skeleton(items, field):
-            def strip(item):
-                item = dict(item)
-                if field == "audience" and item["type"] == "user_list":
-                    item.pop("tg_ids", None)
-                if field == "requirements":
-                    if item["type"] == "any_of":
-                        item["items"] = [strip(child) for child in item["items"]]
-                    elif (
-                        item["type"]
-                        in _GiftPackRepositoryConditions._GIFT_PACK_COUNT_METHODS
-                        or item["type"] == "credits"
-                    ):
-                        item.pop("min", None)
-                return item
-
-            return [strip(item) for item in items]
-
-        for field in ("audience", "requirements"):
-            old_items, new_items = old[field], new[field]
-            if skeleton(old_items, field) != skeleton(new_items, field):
-                reject(field)
-            if field == "requirements":
-
-                def targets(items):
-                    for item in items:
-                        if item["type"] == "any_of":
-                            yield from targets(item["items"])
-                        else:
-                            yield item.get("min")
-
-                for before, after in zip(targets(old_items), targets(new_items)):
-                    if before is not None and (after is None or after > before):
-                        reject(field)
-        if new["end_at"] < old["end_at"]:
-            reject("end_at")
-        old_deadline, new_deadline = old["task_end_at"], new["task_end_at"]
-        if (old_deadline is None and new_deadline is not None) or (
-            old_deadline is not None
-            and new_deadline is not None
-            and new_deadline < old_deadline
-        ):
-            reject("task_end_at")
-        old_quantity, new_quantity = old["total_quantity"], new["total_quantity"]
-        if (old_quantity is None and new_quantity is not None) or (
-            old_quantity is not None
-            and new_quantity is not None
-            and new_quantity < old_quantity
-        ):
-            reject("total_quantity")
+            return ([], 0)
 
     @staticmethod
     def _gift_pack_referencing_packs(session, pack_id: int) -> list[tuple[int, str]]:
@@ -658,9 +558,7 @@ class _GiftPackRepositoryPacks:
         for pack in session.execute(
             select(GiftPack).where(GiftPack.id != pack_id)
         ).scalars():
-            audience, requirements = (
-                _GiftPackRepositoryConditions._resolve_gift_pack_conditions(pack)
-            )
+            audience, requirements = rules._resolve_gift_pack_conditions(pack)
 
             def refers(items):
                 return any(

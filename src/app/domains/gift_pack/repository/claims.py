@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.gift_pack import rules
 from app.domains.gift_pack.exceptions import ConditionsNotMet, gift_pack_error
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 
@@ -47,16 +48,22 @@ class _GiftPackRepositoryClaims:
                 for pack in packs:
                     state = states.get(pack.id)
                     claimed = state is not None and state.claimed_at is not None
-                    audience, requirements = self._resolve_gift_pack_conditions(pack)
-                    lifecycle = self._gift_pack_lifecycle(pack, now)
-                    ref = self._gift_pack_phase_ref(pack, now)
-                    if not claimed and not self._evaluate_gift_pack_audience(
-                        audience, ctx, pack, ref, state
+                    audience, requirements = rules._resolve_gift_pack_conditions(pack)
+                    lifecycle = rules._gift_pack_lifecycle(pack, now)
+                    ref = rules._gift_pack_phase_ref(pack, now)
+                    metrics = self._gift_pack_metrics(
+                        session, tg_id, audience, pack, ref
+                    )
+                    if not claimed and not rules._evaluate_gift_pack_audience(
+                        audience, ctx, pack, ref, state, metrics=metrics
                     ):
                         continue
-                    remaining = self._gift_pack_remaining(pack)
-                    met, progress = self._evaluate_conditions(
-                        requirements, ctx, pack, ref
+                    remaining = rules._gift_pack_remaining(pack)
+                    self._gift_pack_metrics(
+                        session, tg_id, requirements, pack, ref, metrics=metrics
+                    )
+                    met, progress = rules._evaluate_conditions(
+                        requirements, ctx, pack, ref, metrics=metrics
                     )
                     if claimed:
                         status = "claimed"
@@ -88,7 +95,7 @@ class _GiftPackRepositoryClaims:
                                             "privileged",
                                         )
                                     },
-                                    "label": self._gift_pack_reward_label(r),
+                                    "label": rules._gift_pack_reward_label(r),
                                 }
                                 for r in json.loads(pack.rewards)
                             ],
@@ -146,10 +153,11 @@ class _GiftPackRepositoryClaims:
                 .with_for_update()
             ).scalar_one_or_none()
             context = self._load_gift_pack_user_context(session, tg_id)
-            audience, requirements = self._resolve_gift_pack_conditions(pack)
-            ref = self._gift_pack_phase_ref(pack, now)
-            if not self._evaluate_gift_pack_audience(
-                audience, context, pack, ref, state
+            audience, requirements = rules._resolve_gift_pack_conditions(pack)
+            ref = rules._gift_pack_phase_ref(pack, now)
+            metrics = self._gift_pack_metrics(session, tg_id, audience, pack, ref)
+            if not rules._evaluate_gift_pack_audience(
+                audience, context, pack, ref, state, metrics=metrics
             ):
                 # 受众不符时不暴露礼包状态、时间窗与余量
                 raise gift_pack_error("礼包不存在")
@@ -170,8 +178,11 @@ class _GiftPackRepositoryClaims:
                 raise gift_pack_error("你已领取过该礼包")
             if not context["has_stats"]:
                 raise gift_pack_error("用户积分信息不存在")
-            eligible, progress = self._evaluate_conditions(
-                requirements, context, pack, ref
+            self._gift_pack_metrics(
+                session, tg_id, requirements, pack, ref, metrics=metrics
+            )
+            eligible, progress = rules._evaluate_conditions(
+                requirements, context, pack, ref, metrics=metrics
             )
             if not eligible:
                 # Include both the human-readable progress and its structure in the
@@ -209,7 +220,7 @@ class _GiftPackRepositoryClaims:
                 self._persist_privileged_invite_codes(pending_privileged_codes)
 
             claimed_count = int(pack.claimed_count)
-            remaining = self._gift_pack_remaining(pack)
+            remaining = rules._gift_pack_remaining(pack)
             pack_title = pack.title
 
         # 事务已提交：把下载权限解锁同步到媒体服务器。失败不回滚领取——数据库
@@ -292,7 +303,7 @@ class _GiftPackRepositoryClaims:
                         )
                     ).scalars()
                 }
-                today = self._gift_pack_local_date(now)
+                today = rules._gift_pack_local_date(now)
                 claimable, tasks = [], []
                 for pack in packs:
                     state = states.get(pack.id)
@@ -314,18 +325,22 @@ class _GiftPackRepositoryClaims:
                             )
                         ).scalar_one()
                         states[pack.id] = state
-                    remaining = self._gift_pack_remaining(pack)
+                    remaining = rules._gift_pack_remaining(pack)
                     if remaining is not None and remaining <= 0:
                         continue
-                    _, requirements = self._resolve_gift_pack_conditions(pack)
-                    met, progress = self._evaluate_conditions(
-                        requirements, ctx, pack, self._gift_pack_phase_ref(pack, now)
+                    _, requirements = rules._resolve_gift_pack_conditions(pack)
+                    ref = rules._gift_pack_phase_ref(pack, now)
+                    metrics = self._gift_pack_metrics(
+                        session, tg_id, requirements, pack, ref
+                    )
+                    met, progress = rules._evaluate_conditions(
+                        requirements, ctx, pack, ref, metrics=metrics
                     )
                     if met:
                         count_field, time_field = "prompt_count", "last_prompted_at"
                         maximum, destination = int(pack.max_prompt_count), claimable
                     else:
-                        if self._gift_pack_lifecycle(pack, now) != "active":
+                        if rules._gift_pack_lifecycle(pack, now) != "active":
                             continue
                         count_field, time_field = (
                             "task_prompt_count",
@@ -334,7 +349,7 @@ class _GiftPackRepositoryClaims:
                         maximum, destination = int(pack.max_task_prompt_count), tasks
                     last = getattr(state, time_field)
                     if int(getattr(state, count_field) or 0) >= maximum or (
-                        last is not None and self._gift_pack_local_date(last) == today
+                        last is not None and rules._gift_pack_local_date(last) == today
                     ):
                         continue
                     setattr(
@@ -359,7 +374,7 @@ class _GiftPackRepositoryClaims:
                                         "privileged",
                                     )
                                 },
-                                "label": self._gift_pack_reward_label(r),
+                                "label": rules._gift_pack_reward_label(r),
                             }
                             for r in rewards
                         ],

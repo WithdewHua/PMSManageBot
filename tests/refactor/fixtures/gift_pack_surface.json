@@ -282,6 +282,14 @@
       },
       {
         "kind": "from",
+        "module": "app.domains.gift_pack.notifications",
+        "module_target": "app.domains.gift_pack",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.rules"
+      },
+      {
+        "kind": "from",
         "module": "app.domains.gift_pack.repository",
         "module_target": "app.domains.gift_pack.repository.claims",
         "resolved": true,
@@ -361,6 +369,14 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.repository.claims",
+        "module_target": "app.domains.gift_pack",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.rules"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.claims",
         "module_target": "app.domains.gift_pack.exceptions",
         "resolved": true,
         "scope": "module",
@@ -407,21 +423,6 @@
         "target": "app.domains.premium.service"
       },
       {
-        "kind": "import",
-        "module": "app.domains.gift_pack.repository.conditions",
-        "resolved": true,
-        "scope": "module",
-        "target": "json"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.conditions",
-        "module_target": "datetime",
-        "resolved": true,
-        "scope": "module",
-        "target": "datetime.datetime"
-      },
-      {
         "kind": "from",
         "module": "app.domains.gift_pack.repository.conditions",
         "module_target": "typing",
@@ -436,14 +437,6 @@
         "resolved": true,
         "scope": "module",
         "target": "sqlalchemy.select"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.conditions",
-        "module_target": "app.core.config",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.config.settings"
       },
       {
         "kind": "from",
@@ -468,6 +461,14 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.blackjack.repository"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "app.domains.gift_pack",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.rules"
       },
       {
         "kind": "from",
@@ -550,22 +551,6 @@
         "target": "app.domains.treasure.repository"
       },
       {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.conditions",
-        "module_target": "app.domains.gift_pack.repository",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.gift_pack.repository._format_gift_pack_number"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.conditions",
-        "module_target": "app.domains.gift_pack.repository",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.gift_pack.repository.gift_pack_rewards_require_binding"
-      },
-      {
         "kind": "import",
         "module": "app.domains.gift_pack.repository.notices",
         "resolved": true,
@@ -610,6 +595,14 @@
         "resolved": true,
         "scope": "module",
         "target": "app.core.log.logger"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.notices",
+        "module_target": "app.domains.gift_pack",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.rules"
       },
       {
         "kind": "from",
@@ -700,6 +693,14 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.repository.packs",
+        "module_target": "app.domains.gift_pack",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.rules"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.packs",
         "module_target": "app.domains.gift_pack.exceptions",
         "resolved": true,
         "scope": "module",
@@ -744,22 +745,6 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.identity.models.Statistics"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.packs",
-        "module_target": "app.domains.gift_pack.repository",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.gift_pack.repository.GIFT_PACK_REWARD_TYPES"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.packs",
-        "module_target": "app.domains.gift_pack.repository.conditions",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.gift_pack.repository.conditions._GiftPackRepositoryConditions"
       },
       {
         "kind": "import",
@@ -814,6 +799,14 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.credits.types.CreditAccount"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "app.domains.gift_pack",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.rules"
       },
       {
         "kind": "from",
@@ -1150,6 +1143,61 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.gift_pack.schemas.GiftPackUpdateRequest"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.rules",
+        "module_target": "__future__",
+        "resolved": true,
+        "scope": "module",
+        "target": "__future__.annotations"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.rules",
+        "resolved": true,
+        "scope": "module",
+        "target": "json"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.rules",
+        "module_target": "datetime",
+        "resolved": true,
+        "scope": "module",
+        "target": "datetime.datetime"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.rules",
+        "module_target": "app.core.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.config.settings"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.rules",
+        "module_target": "app.domains.gift_pack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.exceptions.gift_pack_error"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.rules",
+        "module_target": "app.domains.gift_pack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.models.GiftPack"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.rules",
+        "module_target": "app.domains.gift_pack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.models.GiftPackUserState"
       },
       {
         "kind": "from",
@@ -2274,36 +2322,20 @@
     "_count_gift_pack_treasure_issues",
     "_count_gift_pack_watched_hours",
     "_count_gift_pack_wheel_spins",
-    "_evaluate_conditions",
-    "_evaluate_gift_pack_audience",
-    "_evaluate_gift_pack_condition",
     "_evaluate_gift_pack_eligibility",
     "_gift_pack_admin_payload",
-    "_gift_pack_audience_size",
-    "_gift_pack_condition_label",
-    "_gift_pack_condition_summary",
-    "_gift_pack_conditions_with_binding",
-    "_gift_pack_lifecycle",
-    "_gift_pack_local_date",
-    "_gift_pack_metric_value",
-    "_gift_pack_phase_ref",
+    "_gift_pack_metrics",
     "_gift_pack_referencing_packs",
-    "_gift_pack_remaining",
-    "_gift_pack_reward_label",
     "_grant_feature_unlock_tx",
     "_grant_gift_pack_rewards",
     "_grant_invite_codes_tx",
     "_grant_tournament_wallet_tx",
     "_grant_wheel_free_spins_tx",
-    "_is_premium_active",
-    "_legacy_gift_pack_requirements",
     "_load_gift_pack_user_context",
     "_lock_gift_pack_audience",
     "_lock_gift_pack_stats",
     "_persist_privileged_invite_codes",
-    "_resolve_gift_pack_conditions",
     "_validate_gift_pack_references",
-    "_validate_post_start_edit",
     "claim_gift_pack",
     "claim_gift_pack_start_dm_candidates",
     "create_gift_pack",

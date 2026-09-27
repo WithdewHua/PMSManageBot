@@ -23,6 +23,7 @@ from app.domains.blackjack.models import (
     BlackjackTournament,
     BlackjackTournamentEntry,
 )
+from app.domains.gift_pack import rules
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 from app.domains.gift_pack.schemas import GiftPackCreateRequest
 from app.domains.identity.models import EmbyUser, PlexUser
@@ -364,7 +365,7 @@ def test_resolve_conditions_converts_legacy_eligibility_without_mutating_pack(or
         },
     )
 
-    audience, requirements = orm._resolve_gift_pack_conditions(pack)
+    audience, requirements = rules._resolve_gift_pack_conditions(pack)
 
     assert audience == []
     assert requirements == [
@@ -385,7 +386,7 @@ def test_resolve_conditions_prefers_new_columns_over_legacy(orm):
         eligibility={"min_credits": 999},
     )
 
-    audience, requirements = orm._resolve_gift_pack_conditions(pack)
+    audience, requirements = rules._resolve_gift_pack_conditions(pack)
 
     assert audience == [{"type": "credits", "max": 10}]
     assert requirements == [{"type": "wheel_spins", "min": 3}]
@@ -435,7 +436,8 @@ def test_load_context_contains_live_state_sets_and_request_metric_cache(orm):
     assert context["badge_ids"] == {7}
     assert context["claimed_pack_ids"] == {88}
     assert context["_tg_id"] == 1
-    assert context["_metric_cache"] == {}
+    # 计数由 repository 依据 rules.required_metrics 预取，上下文不再自带缓存
+    assert "_metric_cache" not in context
 
 
 def test_condition_progress_and_any_of_group_report_all_children(orm, monkeypatch):
@@ -453,9 +455,7 @@ def test_condition_progress_and_any_of_group_report_all_children(orm, monkeypatc
         "bound_services": [],
         "badge_ids": set(),
         "claimed_pack_ids": set(),
-        "_session": object(),
         "_tg_id": 1,
-        "_metric_cache": {},
     }
     items = [
         {"type": "credits", "min": 50},
@@ -468,7 +468,8 @@ def test_condition_progress_and_any_of_group_report_all_children(orm, monkeypatc
         },
     ]
 
-    ok, progress = orm._evaluate_conditions(items, context, pack, ref=200)
+    metrics = orm._gift_pack_metrics(object(), 1, items, pack, ref=200)
+    ok, progress = rules.evaluate(items, context, pack, ref=200, metrics=metrics)
 
     assert ok is False
     assert progress[0]["met"] is False
@@ -716,21 +717,13 @@ def test_metric_cache_is_shared_by_same_metric_window_and_qualifiers(orm, monkey
         return 4
 
     monkeypatch.setattr(orm, "_count_gift_pack_wheel_spins", count_wheels)
-    context = {
-        "credits": 0,
-        "premium_services": [],
-        "bound_services": [],
-        "badge_ids": set(),
-        "claimed_pack_ids": set(),
-        "_session": object(),
-        "_tg_id": 1,
-        "_metric_cache": {},
-    }
     first = {"type": "wheel_spins", "min": 4, "window": {"kind": "pack"}}
     second = {"type": "wheel_spins", "min": 5, "window": {"kind": "pack"}}
 
-    assert orm._gift_pack_metric_value(first, context, pack, ref=500) == 4
-    assert orm._gift_pack_metric_value(second, context, pack, ref=500) == 4
+    metrics = orm._gift_pack_metrics(object(), 1, [first, second], pack, ref=500)
+
+    assert rules.metric_value(first, pack, 500, metrics) == 4
+    assert rules.metric_value(second, pack, 500, metrics) == 4
     assert len(calls) == 1
 
 
@@ -741,21 +734,13 @@ def test_pack_window_before_start_returns_zero_without_count_query(orm, monkeypa
         raise AssertionError("pack-window counter queried before pack start")
 
     monkeypatch.setattr(orm, "_count_gift_pack_wheel_spins", should_not_query)
-    context = {
-        "_session": object(),
-        "_tg_id": 1,
-        "_metric_cache": {},
-    }
+    items = [{"type": "wheel_spins", "min": 1, "window": {"kind": "pack"}}]
 
-    assert (
-        orm._gift_pack_metric_value(
-            {"type": "wheel_spins", "min": 1, "window": {"kind": "pack"}},
-            context,
-            pack,
-            ref=499,
-        )
-        == 0
-    )
+    # 窗口未开始：先不取数，求值时按 0 计
+    metrics = orm._gift_pack_metrics(object(), 1, items, pack, ref=499)
+    assert metrics == {}
+
+    assert rules.metric_value(items[0], pack, 499, metrics) == 0
 
 
 def test_lifecycle_boundaries_and_frozen_phase_reference(orm):
@@ -763,18 +748,18 @@ def test_lifecycle_boundaries_and_frozen_phase_reference(orm):
     no_task_deadline = _pack(start_at=100, end_at=300)
     deadline_at_end = _pack(start_at=100, end_at=300, task_end_at=300)
 
-    assert orm._gift_pack_lifecycle(active_pack, 99) == "upcoming"
-    assert orm._gift_pack_lifecycle(active_pack, 100) == "active"
-    assert orm._gift_pack_lifecycle(active_pack, 200) == "active"
-    assert orm._gift_pack_lifecycle(active_pack, 201) == "claim_only"
-    assert orm._gift_pack_lifecycle(active_pack, 300) == "claim_only"
-    assert orm._gift_pack_lifecycle(active_pack, 301) == "ended"
-    assert orm._gift_pack_lifecycle(no_task_deadline, 300) == "active"
-    assert orm._gift_pack_lifecycle(deadline_at_end, 300) == "active"
-    assert orm._gift_pack_lifecycle(deadline_at_end, 301) == "ended"
-    assert orm._gift_pack_phase_ref(active_pack, 250) == 200
-    assert orm._gift_pack_phase_ref(active_pack, 150) == 150
-    assert orm._gift_pack_phase_ref(no_task_deadline, 250) == 250
+    assert rules._gift_pack_lifecycle(active_pack, 99) == "upcoming"
+    assert rules._gift_pack_lifecycle(active_pack, 100) == "active"
+    assert rules._gift_pack_lifecycle(active_pack, 200) == "active"
+    assert rules._gift_pack_lifecycle(active_pack, 201) == "claim_only"
+    assert rules._gift_pack_lifecycle(active_pack, 300) == "claim_only"
+    assert rules._gift_pack_lifecycle(active_pack, 301) == "ended"
+    assert rules._gift_pack_lifecycle(no_task_deadline, 300) == "active"
+    assert rules._gift_pack_lifecycle(deadline_at_end, 300) == "active"
+    assert rules._gift_pack_lifecycle(deadline_at_end, 301) == "ended"
+    assert rules._gift_pack_phase_ref(active_pack, 250) == 200
+    assert rules._gift_pack_phase_ref(active_pack, 150) == 150
+    assert rules._gift_pack_phase_ref(no_task_deadline, 250) == 250
 
 
 def test_blackjack_accuracy_with_no_decisions_is_zero(orm):
@@ -810,7 +795,7 @@ def test_blackjack_accuracy_with_no_decisions_is_zero(orm):
 )
 def test_legacy_fields_each_map_to_an_equivalent_leaf(orm, old, new):
     pack = _pack(start_at=100, end_at=200, eligibility=old)
-    _, requirements = orm._resolve_gift_pack_conditions(pack)
+    _, requirements = rules._resolve_gift_pack_conditions(pack)
     assert requirements == new
 
 
@@ -836,7 +821,7 @@ def test_legacy_pack_uses_zero_task_prompt_limit(orm):
         pack = session.get(GiftPack, pack_id)
         assert pack is not None
         assert pack.max_task_prompt_count == 0
-        _, requirements = orm._resolve_gift_pack_conditions(pack)
+        _, requirements = rules._resolve_gift_pack_conditions(pack)
         assert requirements == [{"type": "credits", "min": 50}]
 
 

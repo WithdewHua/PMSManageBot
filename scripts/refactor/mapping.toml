@@ -1637,33 +1637,37 @@ b3_behavior_test = "tests/test_gift_pack_conditions.py::test_wheel_counter_inclu
 
 [[items]]
 id = "app.databases.db:DatabaseORM._evaluate_conditions"
-target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.conditions"
+target = "app.domains.gift_pack.rules"
+planned_target = "app.domains.gift_pack.rules"
 planned_reason = "design D1 sub-topic: user context, condition/audience reads and evaluation"
-class = "GiftPackRepository"
-kind = "method"
+kind = "function"
 reason = "db.py section: Gift Pack Operations"
+method_to_function = true
+b3_behavior_test = "tests/test_gift_pack_rules.py::test_evaluate_covers_every_condition_type"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 method-to-function move: 纯计算搬进 gift_pack.rules，去掉 self 形参"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._evaluate_gift_pack_audience"
-target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.conditions"
+target = "app.domains.gift_pack.rules"
+planned_target = "app.domains.gift_pack.rules"
 planned_reason = "design D1 sub-topic: user context, condition/audience reads and evaluation"
-class = "GiftPackRepository"
-kind = "method"
+kind = "function"
 reason = "db.py section: Gift Pack Operations"
+b3_behavior_test = "tests/test_gift_pack_audience.py::test_include_and_exclude_audiences_are_live_and_claimed_packs_remain_visible"
+method_to_function = true
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 method-to-function move: 纯计算搬进 gift_pack.rules，去掉 self 形参"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._evaluate_gift_pack_condition"
-target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.conditions"
+target = "app.domains.gift_pack.rules"
+planned_target = "app.domains.gift_pack.rules"
 planned_reason = "design D1 sub-topic: user context, condition/audience reads and evaluation"
-class = "GiftPackRepository"
-kind = "method"
+kind = "function"
 reason = "db.py section: Gift Pack Operations"
 
-b3_ast_exception = "promote-gift-pack-domain reviewed typed rejection"
 b3_behavior_test = "tests/test_gift_pack_conditions.py::test_condition_progress_and_any_of_group_report_all_children"
+method_to_function = true
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 method-to-function move: 纯计算搬进 gift_pack.rules，去掉 self 形参"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._evaluate_gift_pack_eligibility"
@@ -1705,80 +1709,103 @@ class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
 
+b3_behavior_test = "tests/test_gift_pack_audience.py::test_named_pack_stats_include_audience_rate_and_task_reminders"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 call-site rewiring: 纯计算搬到 gift_pack.rules 后调用点随之改写"
+
 [[items]]
 id = "app.databases.db:DatabaseORM._gift_pack_audience_size"
-target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.conditions"
+target = "app.domains.gift_pack.rules"
+planned_target = "app.domains.gift_pack.rules"
 planned_reason = "design D1 sub-topic: user context, condition/audience reads and evaluation"
-class = "GiftPackRepository"
-kind = "method"
+kind = "function"
 reason = "db.py section: Gift Pack Operations"
+
+method_to_function = true
+b3_behavior_test = "tests/test_gift_pack_rules.py::test_audience_size_and_local_date"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 method-to-function move: 纯计算搬进 gift_pack.rules，去掉 self 形参"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._gift_pack_condition_label"
-target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.conditions"
+target = "app.domains.gift_pack.rules"
+planned_target = "app.domains.gift_pack.rules"
 planned_reason = "design D1 sub-topic: user context, condition/audience reads and evaluation"
-class = "GiftPackRepository"
-kind = "method"
+kind = "function"
 reason = "db.py section: Gift Pack Operations"
 
-b3_ast_exception = "promote-gift-pack-domain reviewed typed rejection"
 b3_behavior_test = "tests/test_gift_pack_conditions.py::test_condition_progress_and_any_of_group_report_all_children"
+
+method_to_function = true
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 method-to-function move: 纯计算搬进 gift_pack.rules，去掉 self 形参"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._gift_pack_condition_summary"
-target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.conditions"
+target = "app.domains.gift_pack.rules"
+planned_target = "app.domains.gift_pack.rules"
 planned_reason = "design D1 sub-topic: user context, condition/audience reads and evaluation"
-class = "GiftPackRepository"
-kind = "method"
+kind = "function"
 reason = "db.py section: Gift Pack Operations"
+
+method_to_function = true
+b3_behavior_test = "tests/test_gift_pack_rules.py::test_condition_summary_renders_every_family"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 method-to-function move: 纯计算搬进 gift_pack.rules，去掉 self 形参"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._gift_pack_conditions_with_binding"
-target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.conditions"
+target = "app.domains.gift_pack.rules"
+planned_target = "app.domains.gift_pack.rules"
 planned_reason = "design D1 sub-topic: user context, condition/audience reads and evaluation"
-class = "GiftPackRepository"
-kind = "method"
+kind = "function"
 reason = "db.py section: Gift Pack Operations"
+
+method_to_function = true
+b3_behavior_test = "tests/test_gift_pack_rules.py::test_binding_requirement_comes_from_the_registry"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 method-to-function move: 纯计算搬进 gift_pack.rules，去掉 self 形参"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._gift_pack_lifecycle"
-target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.packs"
+target = "app.domains.gift_pack.rules"
+planned_target = "app.domains.gift_pack.rules"
 planned_reason = "design D1 sub-topic: pack definitions, admin list, stats, claim records, user list resolution"
-class = "GiftPackRepository"
-kind = "method"
+kind = "function"
 reason = "db.py section: Gift Pack Operations"
+
+method_to_function = true
+b3_behavior_test = "tests/test_gift_pack_rules.py::test_lifecycle_phase_ref_and_remaining"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 method-to-function move: 纯计算搬进 gift_pack.rules，去掉 self 形参"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._gift_pack_local_date"
-target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.conditions"
+target = "app.domains.gift_pack.rules"
+planned_target = "app.domains.gift_pack.rules"
 planned_reason = "design D1 sub-topic: user context, condition/audience reads and evaluation"
-class = "GiftPackRepository"
-kind = "method"
+kind = "function"
 reason = "db.py section: Gift Pack Operations"
+
+method_to_function = true
+b3_behavior_test = "tests/test_gift_pack_rules.py::test_audience_size_and_local_date"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 method-to-function move: 纯计算搬进 gift_pack.rules，去掉 self 形参"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._gift_pack_metric_value"
 target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.conditions"
+planned_target = "app.domains.gift_pack.repository"
 planned_reason = "design D1 sub-topic: user context, condition/audience reads and evaluation"
-class = "GiftPackRepository"
-kind = "method"
+kind = "function"
 reason = "db.py section: Gift Pack Operations"
+b3_behavior_test = "tests/test_gift_pack_conditions.py::test_metric_cache_is_shared_by_same_metric_window_and_qualifiers"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 call-site rewiring: 纯计算搬到 gift_pack.rules 后调用点随之改写"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._gift_pack_phase_ref"
-target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.packs"
+target = "app.domains.gift_pack.rules"
+planned_target = "app.domains.gift_pack.rules"
 planned_reason = "design D1 sub-topic: pack definitions, admin list, stats, claim records, user list resolution"
-class = "GiftPackRepository"
-kind = "method"
+kind = "function"
 reason = "db.py section: Gift Pack Operations"
+
+method_to_function = true
+b3_behavior_test = "tests/test_gift_pack_rules.py::test_lifecycle_phase_ref_and_remaining"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 method-to-function move: 纯计算搬进 gift_pack.rules，去掉 self 形参"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._gift_pack_referencing_packs"
@@ -1789,23 +1816,32 @@ class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
 
+b3_behavior_test = "tests/test_gift_pack_audience.py::test_delete_route_splits_404_and_400_despite_title_quirk"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 call-site rewiring: 纯计算搬到 gift_pack.rules 后调用点随之改写"
+
 [[items]]
 id = "app.databases.db:DatabaseORM._gift_pack_remaining"
-target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.packs"
+target = "app.domains.gift_pack.rules"
+planned_target = "app.domains.gift_pack.rules"
 planned_reason = "design D1 sub-topic: pack definitions, admin list, stats, claim records, user list resolution"
-class = "GiftPackRepository"
-kind = "method"
+kind = "function"
 reason = "db.py section: Gift Pack Operations"
+
+method_to_function = true
+b3_behavior_test = "tests/test_gift_pack_rules.py::test_lifecycle_phase_ref_and_remaining"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 method-to-function move: 纯计算搬进 gift_pack.rules，去掉 self 形参"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._gift_pack_reward_label"
-target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.packs"
+target = "app.domains.gift_pack.rules"
+planned_target = "app.domains.gift_pack.rules"
 planned_reason = "design D1 sub-topic: pack definitions, admin list, stats, claim records, user list resolution"
-class = "GiftPackRepository"
-kind = "method"
+kind = "function"
 reason = "db.py section: Gift Pack Operations"
+
+method_to_function = true
+b3_behavior_test = "tests/test_gift_pack_rules.py::test_reward_registry_labels_every_type"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 method-to-function move: 纯计算搬进 gift_pack.rules，去掉 self 形参"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._grant_feature_unlock_tx"
@@ -1862,21 +1898,27 @@ reason = "db.py section: Gift Pack Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._is_premium_active"
-target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.conditions"
+target = "app.domains.gift_pack.rules"
+planned_target = "app.domains.gift_pack.rules"
 planned_reason = "design D1 sub-topic: user context, condition/audience reads and evaluation"
-class = "GiftPackRepository"
-kind = "method"
+kind = "function"
 reason = "db.py section: Gift Pack Operations"
+
+method_to_function = true
+b3_behavior_test = "tests/test_gift_pack_rules.py::test_evaluate_covers_every_condition_type"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 method-to-function move: 纯计算搬进 gift_pack.rules，去掉 self 形参"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._legacy_gift_pack_requirements"
-target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.conditions"
+target = "app.domains.gift_pack.rules"
+planned_target = "app.domains.gift_pack.rules"
 planned_reason = "design D1 sub-topic: user context, condition/audience reads and evaluation"
-class = "GiftPackRepository"
-kind = "method"
+kind = "function"
 reason = "db.py section: Gift Pack Operations"
+
+method_to_function = true
+b3_behavior_test = "tests/test_gift_pack_rules.py::test_legacy_eligibility_becomes_leaves"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 method-to-function move: 纯计算搬进 gift_pack.rules，去掉 self 形参"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._list_tournament_entrant_ids"
@@ -1914,6 +1956,9 @@ planned_reason = "design D1 sub-topic: user context, condition/audience reads an
 class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
+
+b3_behavior_test = "tests/test_gift_pack_audience.py::test_non_list_audience_is_locked_by_prompt_and_survives_state_change"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 call-site rewiring: 纯计算搬到 gift_pack.rules 后调用点随之改写"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._lock_gift_pack_stats"
@@ -2005,12 +2050,15 @@ reason = "db.py section: Blackjack (21 点) Operations"
 planned_target = "app.domains.blackjack.repository.hands"
 [[items]]
 id = "app.databases.db:DatabaseORM._resolve_gift_pack_conditions"
-target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.conditions"
+target = "app.domains.gift_pack.rules"
+planned_target = "app.domains.gift_pack.rules"
 planned_reason = "design D1 sub-topic: user context, condition/audience reads and evaluation"
-class = "GiftPackRepository"
-kind = "method"
+kind = "function"
 reason = "db.py section: Gift Pack Operations"
+
+method_to_function = true
+b3_behavior_test = "tests/test_gift_pack_rules.py::test_legacy_eligibility_becomes_leaves"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 method-to-function move: 纯计算搬进 gift_pack.rules，去掉 self 形参"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._settle_blackjack_hand"
@@ -2105,15 +2153,16 @@ b3_behavior_test = "tests/test_gift_pack_audience.py::test_admin_references_and_
 
 [[items]]
 id = "app.databases.db:DatabaseORM._validate_post_start_edit"
-target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.packs"
+target = "app.domains.gift_pack.rules"
+planned_target = "app.domains.gift_pack.rules"
 planned_reason = "design D1 sub-topic: pack definitions, admin list, stats, claim records, user list resolution"
-class = "GiftPackRepository"
-kind = "method"
+kind = "function"
 reason = "db.py section: Gift Pack Operations"
 
-b3_ast_exception = "promote-gift-pack-domain reviewed typed rejection"
 b3_behavior_test = "tests/test_gift_pack_errors.py::test_post_start_edit_rejection_is_typed"
+
+method_to_function = true
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 method-to-function move: 纯计算搬进 gift_pack.rules，去掉 self 形参"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._validate_tournament_params"
@@ -2351,6 +2400,9 @@ planned_reason = "design D1 sub-topic: start-DM claim, expiry scan and marking"
 class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
+
+b3_behavior_test = "tests/test_gift_pack_audience.py::test_start_dm_candidate_scan_marks_once_excludes_claimed_and_finds_new_members"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 call-site rewiring: 纯计算搬到 gift_pack.rules 后调用点随之改写"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.claim_tournament_reminder"
@@ -3045,6 +3097,9 @@ class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
 
+b3_behavior_test = "tests/test_gift_pack_audience.py::test_named_pack_stats_include_audience_rate_and_task_reminders"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 call-site rewiring: 纯计算搬到 gift_pack.rules 后调用点随之改写"
+
 [[items]]
 id = "app.databases.db:DatabaseORM.get_gift_packs_admin"
 target = "app.domains.gift_pack.repository"
@@ -3062,6 +3117,9 @@ planned_reason = "design D1 sub-topic: user list, prompt check, claim"
 class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
+
+b3_behavior_test = "tests/test_gift_pack_audience.py::test_include_and_exclude_audiences_are_live_and_claimed_packs_remain_visible"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 call-site rewiring: 纯计算搬到 gift_pack.rules 后调用点随之改写"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_invitation_code_by_owner"
@@ -3578,6 +3636,9 @@ class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
 
+b3_behavior_test = "tests/test_gift_pack_audience.py::test_prompt_separates_task_and_claim_counts_and_throttles_each_class"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 call-site rewiring: 纯计算搬到 gift_pack.rules 后调用点随之改写"
+
 [[items]]
 id = "app.databases.db:DatabaseORM.read_fund_balance"
 target = "app.domains.blackjack.repository"
@@ -3886,10 +3947,10 @@ reason = "db.py section: Invitation Query Operations"
 
 [[items]]
 id = "app.databases.db:GIFT_PACK_REWARD_TYPES"
-target = "app.domains.gift_pack.repository"
+target = "app.domains.gift_pack.rules"
 kind = "assignment"
 reason = "ambiguous: human review required"
-
+planned_target = "app.domains.gift_pack.rules"
 [[items]]
 id = "app.databases.db:JACKPOT_CONFIG_KEY"
 target = "app.domains.blackjack.config"
@@ -3918,10 +3979,10 @@ b3_behavior_test = "tests/test_gift_pack_rewards.py::test_privileged_code_writte
 
 [[items]]
 id = "app.databases.db:_format_gift_pack_number"
-target = "app.domains.gift_pack.repository"
+target = "app.domains.gift_pack.rules"
 kind = "function"
 reason = "ambiguous: human review required"
-
+planned_target = "app.domains.gift_pack.rules"
 [[items]]
 id = "app.databases.db:db"
 target = "app.databases.db"
@@ -3930,10 +3991,10 @@ reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:gift_pack_rewards_require_binding"
-target = "app.domains.gift_pack.repository"
+target = "app.domains.gift_pack.rules"
 kind = "function"
 reason = "ambiguous: human review required"
-
+planned_target = "app.domains.gift_pack.rules"
 [[items]]
 id = "app.databases.db_func:@import:1"
 target = "app.domains.watch_rewards.jobs"
@@ -12748,6 +12809,9 @@ target = "app.domains.gift_pack.notifications"
 kind = "function"
 reason = "B2 reviewed notifications role extraction"
 source_state = "frozen"
+
+b3_behavior_test = "tests/test_gift_pack_rewards.py::test_created_and_sold_out_notifications_are_queued_once"
+b3_ast_exception = "promote-gift-pack-domain reviewed 4.1 call-site rewiring: 奖励文案渲染改为调用 gift_pack.rules"
 
 [[items]]
 id = "app.webapp.routers.gift_pack:_format_time"

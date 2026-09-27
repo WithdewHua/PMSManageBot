@@ -263,6 +263,9 @@ allowed_importers = [
 ]
 as_packages = false
 ignore_imports = [
+    # promote-gift-pack-domain 4.1：rules 是纯计算，只为类型注解读模型（数据形状）
+    "app.domains.gift_pack.rules -> app.domains.gift_pack.models",
+
     # restructure-backend-architecture: B3 orchestration and utility migration
     # promote-line-domains: remaining Premium/custom-line business logic
     # restructure-backend-architecture: B2 legacy routers
@@ -493,6 +496,28 @@ forbidden_modules = [
     "app.domains.*.models",
     "app.domains.*.config",
     "app.domains.*.exceptions",
+    "app.core.db",
+    "sqlalchemy",
+]
+unmatched_ignore_imports_alerting = "error"
+
+[[tool.importlinter.contracts]]
+name = "Domain rules are pure value computations"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = [
+    "app.domains.*.rules",
+    "app.domains.*.rules.*",
+]
+forbidden_modules = [
+    "app.domains.*.service",
+    "app.domains.*.repository",
+    "app.domains.*.repository.*",
+    "app.domains.*.router",
+    "app.domains.*.admin_router",
+    "app.domains.*.bot",
+    "app.domains.*.jobs",
+    "app.domains.*.notifications",
     "app.core.db",
     "sqlalchemy",
 ]

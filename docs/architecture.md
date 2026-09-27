@@ -30,7 +30,7 @@ core/（公共设施）
 | `notifications.py` | 消息格式化与发送，依赖 rules、constants、core.telegram |
 | `repository.py` | 唯一的业务 SQLAlchemy 查询和事务位置；对外提供完整事务操作，跨域同事务调用目标领域的 `*_tx(session, …)` |
 | `models.py` | 本领域的 ORM 表，依赖 core.db；所有模型经 model_registry 注册 |
-| `rules.py` | 不做 I/O 的纯逻辑，依赖 constants 和 exceptions |
+| `rules.py` | 不做 I/O 的纯逻辑，依赖 constants、exceptions、本领域 models（仅作类型注解）；由「Domain rules are pure value computations」合约禁止直接导入 `app.core.db`、`sqlalchemy`、repository/service/router/jobs/notifications，需要取数时由 repository 依据 `required_metrics(...)` 预取 |
 | `schemas.py` | Pydantic 请求和响应模型，依赖 constants 和 core.schemas |
 | `exceptions.py` / `constants.py` / `config.py` | 领域异常 / 常量 / 类型化业务配置 |
 

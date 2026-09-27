@@ -61,8 +61,16 @@ def test_gift_pack_baseline_covers_routes_jobs_and_tables() -> None:
 
     tables = {table["name"] for table in snapshot["metadata_tables"]}
     assert {"gift_pack", "gift_pack_user_state"} <= tables
-    # 55 -> 54：promote-gift-pack-domain 3.4 把解锁列常量按列归属搬出礼包
-    assert len(snapshot["repository_members"]) == 54
+    # 55 -> 54：3.4 把解锁列常量按列归属搬去 lines / media_access；
+    # 54 -> 38：4.1 把 17 个纯计算搬去 rules，repository 新增 _gift_pack_metrics。
+    assert len(snapshot["repository_members"]) == 38
+
+
+#: 拆分之后新增的 repository 成员（没有对应的冻结来源，需要在这里点名）。
+ADDED_AFTER_SPLIT = {
+    # promote-gift-pack-domain 4.1：按 rules.required_metrics 预取条件计数
+    "_gift_pack_metrics",
+}
 
 
 def test_every_repository_member_has_a_reviewed_destination() -> None:
@@ -75,6 +83,9 @@ def test_every_repository_member_has_a_reviewed_destination() -> None:
         and "planned_target" in item
     }
 
-    assert sorted(name for name in members if name not in planned) == []
-    assert {planned[name] for name in members} <= SUBTOPIC_MODULES
-    assert len({planned[name] for name in members}) == 5
+    assert sorted(name for name in members if name not in planned) == sorted(
+        ADDED_AFTER_SPLIT
+    )
+    in_package = members - ADDED_AFTER_SPLIT
+    assert {planned[name] for name in in_package} <= SUBTOPIC_MODULES
+    assert len({planned[name] for name in in_package}) == 5

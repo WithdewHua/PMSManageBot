@@ -86,14 +86,12 @@
   - 交付：各领域 repository 以模块级 `*_tx` 暴露口径（转盘默认只数付费、可关；夺宝按 issue 去重且毫秒边界；竞拍按 auction 去重；预言家按 UTC datetime 闭区间；被邀请人按全部时间去重；勋章取生效集合与存在集合）。
   - 礼包侧：`conditions.py` 的条件计数与 `badge_ids`、`packs.py` 的勋章引用校验全部改走这些 `*_tx`，礼包不再直接读别的领域的表。
   - 验证：`tests/test_gift_pack_conditions.py` 的窗口边界、去重、UTC、准确率与被邀请人历史口径用例逐条通过（`paid_only=False` 也在 `test_wheel_counter_includes_time_boundaries_and_filters_free_spins` 里覆盖）。
-- [ ] 4.1 把 design D1、D4 列出的纯计算抽到 `gift_pack.rules`，包括：
-  - 奖励登记表、标签和摘要。
-  - 条件解析，把两套重复实现合并成一套。
-  - 生命周期、`phase_ref`、余量、受众规模、自动补绑定条件、开始后的编辑校验。
-  - `required_metrics` 和 `evaluate`。
-  - 列表状态推导、提醒节流、统计聚合、字段校验。
-
-  超过 1,000 行就改成按子主题拆分的包。验证：rules 纯函数合约通过；单元测试覆盖旧格式条件、12 种条件、any_of，以及礼包未开始时不取数。
+- [ ] 4.1 把 design D1、D4 列出的纯计算抽到 `gift_pack.rules`。
+  - [x] 4.1a 奖励登记表、标签和摘要；条件解析（两套实现合并成一套）；生命周期、`phase_ref`、余量、受众规模、自动补绑定条件、开始后的编辑校验；`required_metrics` 与 `evaluate`（求值只读预取好的计数，`metric_value` 在窗口未开始时按 0 计，取数计划由 repository 执行）。
+    - 交付：`gift_pack/rules.py`（约 500 行，未超过 1,000 行因此仍是单模块）；repository 只剩取数（`_load_gift_pack_user_context`、8 个 `*_count_*`/计数器委托、`_gift_pack_metrics`、受众锁定）与写入。
+    - 验证：新增 import-linter 合约「Domain rules are pure value computations」（直接导入层面禁止 `app.core.db`、`sqlalchemy`、repository/service/router/jobs/notifications；模型只作为类型注解来源并已登记）；`tests/test_gift_pack_rules.py` 14 个用例覆盖旧格式条件、12 种条件、any_of 全子项进度、窗口未开始不取数、指标身份去重、生命周期/相位/余量/受众规模、文案与开始后编辑校验。
+    - 说明：`verify.py` 新增 `method_to_function` 登记项（类方法搬成目标模块同名函数），17 个搬移单元逐条登记 `b3_ast_exception` + `b3_behavior_test`，`verify.py` 仍是 154 条既有差异、零新增。
+  - [ ] 4.1b 列表状态推导、提醒节流、统计聚合、字段校验（create/update 入参校验）尚未抽出：它们目前散在 `packs.py`/`claims.py` 的较大方法里，随 5.x 的 service 化一起搬。
 - [x] 4.2 新增 `gift_pack/exceptions.py`，按 design D8 定义异常类和错误码，替换 repository 里的 38 处 `raise ValueError`。验证：逐条测试每个旧文案对应的状态码和 detail；`ConditionsNotMet` 自带条件进度；外域的 `ValueError` 被包装成 `gift_pack_reward_rejected` 且保留原文。
   - 交付：`GiftPackError(DomainError, ValueError)`（错误码来自旧文案前缀表，detail 默认保留原文）+ 携带 `requirements` 进度的 `ConditionsNotMet`（有进度时 detail 就是 `{"message": "不满足领取条件", "requirements": [...]}`，与 1.2 夹具逐字一致）+ `gift_pack_not_found` / `gift_pack_error` / `wrap_reward_rejection` 工厂；状态码在抛出点确定（删除缺失礼包是 404，编辑/领取仍是 400）。
   - 迁移：repository 里 45 处 `raise ValueError` 全部改为类型化异常（conditions/packs/claims/rewards 各文件），router 的领取与删除分支改成读 `e.status_code` 与 `e.payload["detail"]`，不再做子串判断（`不满足领取条件；当前进度：` 与 `"不存在" in message` 都已删除）。

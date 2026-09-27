@@ -7,6 +7,7 @@ from sqlalchemy import select, update
 
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.gift_pack import rules
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 
 
@@ -33,9 +34,9 @@ class _GiftPackRepositoryNotices:
                 .all()
             )
             for pack in packs:
-                if self._gift_pack_lifecycle(pack, now) != "active":
+                if rules._gift_pack_lifecycle(pack, now) != "active":
                     continue
-                audience, requirements = self._resolve_gift_pack_conditions(pack)
+                audience, requirements = rules._resolve_gift_pack_conditions(pack)
                 includes = [
                     set(item["tg_ids"])
                     for item in audience
@@ -60,8 +61,12 @@ class _GiftPackRepositoryNotices:
                     ):
                         continue
                     ctx = self._load_gift_pack_user_context(session, tg_id)
-                    if not ctx["has_stats"] or not self._evaluate_gift_pack_audience(
-                        audience, ctx, pack, self._gift_pack_phase_ref(pack, now), None
+                    ref = rules._gift_pack_phase_ref(pack, now)
+                    metrics = self._gift_pack_metrics(
+                        session, tg_id, audience, pack, ref
+                    )
+                    if not ctx["has_stats"] or not rules._evaluate_gift_pack_audience(
+                        audience, ctx, pack, ref, None, metrics=metrics
                     ):
                         continue
                     if state is None:
@@ -74,7 +79,7 @@ class _GiftPackRepositoryNotices:
                             "tg_id": int(tg_id),
                             "title": pack.title,
                             "rewards": json.loads(pack.rewards),
-                            "requirements_summary": self._gift_pack_condition_summary(
+                            "requirements_summary": rules._gift_pack_condition_summary(
                                 requirements
                             ),
                             "end_at": int(pack.end_at),

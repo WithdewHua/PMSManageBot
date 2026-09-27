@@ -315,28 +315,35 @@ def _reviewed_ast_exception(exception: object, root: Path) -> bool:
     return parts[0] == "B3" or (root / "openspec/changes" / parts[0]).is_dir()
 
 
-def _reviewed_exception_entry(entry: dict[str, Any], root: Path) -> bool:
-    """``b3_ast_exception``（登记过的变更）加 ``b3_behavior_test`` 都成立才放行。"""
-    exception = entry.get("b3_ast_exception", "")
+def _reviewed_behavior_test(entry: dict[str, Any], root: Path) -> bool:
+    """``b3_behavior_test`` 必须指向真实存在的测试函数。"""
     behavior_test = entry.get("b3_behavior_test", "")
     test_path, separator, test_name = (
         behavior_test.partition("::")
         if isinstance(behavior_test, str)
         else ("", "", "")
     )
-    test_file = root / test_path
-    reviewed_test_exists = (
+    return (
         separator == "::"
         and test_path.startswith("tests/")
-        and test_file.is_file()
+        and (root / test_path).is_file()
         and test_name.startswith("test_")
         and any(
             isinstance(test_node, (ast.FunctionDef, ast.AsyncFunctionDef))
             and test_node.name == test_name
-            for test_node in ast.parse(test_file.read_text(encoding="utf-8")).body
+            for test_node in ast.parse(
+                (root / test_path).read_text(encoding="utf-8")
+            ).body
         )
     )
-    return _reviewed_ast_exception(exception, root) and reviewed_test_exists
+
+
+def _reviewed_exception_entry(entry: dict[str, Any], root: Path) -> bool:
+    """``b3_ast_exception``（登记过的变更）加 ``b3_behavior_test`` 都成立才放行。"""
+    exception = entry.get("b3_ast_exception", "")
+    return _reviewed_ast_exception(exception, root) and _reviewed_behavior_test(
+        entry, root
+    )
 
 
 def compare_inventory(
@@ -485,13 +492,28 @@ def compare_inventory(
                 and "/part_" in candidate.path
                 and "RepositoryPart" in candidate.name
             }
+        plain_name = item.name.rsplit(".", 1)[-1]
         matches = [
             candidate
             for candidate in target_items
             if candidate.kind == item.kind
-            and candidate.name.rsplit(".", 1)[-1] == item.name.rsplit(".", 1)[-1]
+            and candidate.name.rsplit(".", 1)[-1] == plain_name
             and (not item.parent_id or candidate.name.rsplit(".", 1)[0] in parents)
         ]
+        if not matches and item.parent_id and entry.get("method_to_function") is True:
+            # 类方法搬成目标模块里的同名模块级函数（纯计算搬进 rules 的情形）：
+            # 目标是模块而不是包时上面的“定义类”约束无法表达，这里显式放行，
+            # 但仍然要求 AST 逐字一致（下面的比对逻辑不变）。
+            matches = [
+                candidate
+                for candidate in target_items
+                if candidate.kind == "function"
+                and candidate.name == plain_name
+                and not candidate.parent_id
+            ]
+            if not matches or not _reviewed_behavior_test(entry, current_root):
+                errors.append(f"unreviewed method-to-function move: {item.id}")
+                continue
         source_node = source_nodes[item.id]
         allow_import_reorder = entry.get("normalize_local_import_order") is True
         if allow_import_reorder and item.id not in {
@@ -560,7 +582,7 @@ def compare_inventory(
                 )
             ] += 1
             continue
-        if not matches:
+        if not matches and not _reviewed_exception_entry(entry, current_root):
             errors.append(
                 f"missing moved {item.kind}: {item.id} -> {module}{'.' + target_class if target_class else ''}"
             )

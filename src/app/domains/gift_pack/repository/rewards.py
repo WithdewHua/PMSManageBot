@@ -6,6 +6,7 @@ from app.domains.blackjack import repository as blackjack_repository
 from app.domains.credits import repository as credits_repository
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.domains.gift_pack import rules
 from app.domains.gift_pack.exceptions import gift_pack_error
 from app.domains.invitation import repository as invitation_repository
 from app.domains.lines import repository as lines_repository
@@ -37,7 +38,7 @@ class _GiftPackRepositoryRewards:
 
         for reward in rewards:
             reward_type = reward.get("type")
-            label = self._gift_pack_reward_label(reward)
+            label = rules._gift_pack_reward_label(reward)
 
             if reward_type == "credits":
                 amount = float(reward.get("amount") or 0)

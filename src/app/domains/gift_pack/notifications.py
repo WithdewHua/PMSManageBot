@@ -8,6 +8,7 @@ from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.telegram import get_user_name_from_tg_id, notify_admins_by_url
 from app.databases import db
+from app.domains.gift_pack import rules
 
 
 def _format_time(timestamp: int) -> str:
@@ -18,7 +19,7 @@ def _format_time(timestamp: int) -> str:
 
 
 def _format_rewards(rewards: list[dict]) -> str:
-    return "、".join(db._gift_pack_reward_label(r) for r in rewards)
+    return "、".join(rules._gift_pack_reward_label(r) for r in rewards)
 
 
 # 持有强引用，避免 fire-and-forget 的 task 被 GC 提前回收

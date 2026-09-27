@@ -2214,7 +2214,7 @@
     },
     {
       "kind": "facade_import",
-      "line": 12,
+      "line": 9,
       "path": "src/app/domains/gift_pack/repository/conditions.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
