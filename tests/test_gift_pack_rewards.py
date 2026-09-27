@@ -459,3 +459,247 @@ async def test_download_sync_failure_keeps_claim_and_notifies_admin(orm, monkeyp
     assert "VIP &lt;2026&gt;" in admin_messages[0]
     assert "test&lt;user&gt;" in admin_messages[0]
     assert "media &lt;server&gt; unavailable" in admin_messages[0]
+
+
+# ------------------------------------------------------ 奖励回滚、会员续期与通知
+
+
+def _free_spin_count(tg_id: int) -> int:
+    with get_session() as session:
+        return session.query(LuckywheelFreeSpin).filter_by(tg_id=int(tg_id)).count()
+
+
+ROLLBACK_REWARDS = [
+    pytest.param({"type": "credits", "amount": 25}, id="credits"),
+    pytest.param({"type": "premium_days", "days": 7}, id="premium_days"),
+    pytest.param(
+        {"type": "wheel_free_spins", "count": 2, "expiry_days": 5},
+        id="wheel_free_spins",
+    ),
+    pytest.param({"type": "tournament_wallet", "amount": 20}, id="tournament_wallet"),
+    pytest.param({"type": "download_unlock"}, id="download_unlock"),
+    pytest.param({"type": "line_schedule_unlock"}, id="line_schedule_unlock"),
+]
+
+
+@pytest.mark.parametrize("reward", ROLLBACK_REWARDS)
+def test_each_reward_rolls_back_when_a_later_reward_fails(orm, reward):
+    """除邀请码外的每类奖励，在后续奖励发放失败时一并回滚。"""
+    add_user(orm, 1)
+    _bind_plex(1)
+    pack = _pack(orm, [reward, {"type": "unsupported_reward"}])
+
+    with pytest.raises(ValueError, match="不支持的奖励类型"):
+        orm.claim_gift_pack(pack, 1)
+
+    stats = get_stats(1)
+    assert stats["credits"] == 100.0
+    assert stats["tournament_wallet_credits"] == 0.0
+    assert _free_spin_count(1) == 0
+    assert _user_col(PlexUser, 1, "is_premium") == 0
+    assert _user_col(PlexUser, 1, "premium_expiry_time") is None
+    assert _user_col(PlexUser, 1, "sync_unlocked") == 0
+    assert _user_col(PlexUser, 1, "line_schedule_unlocked") == 0
+    with get_session() as session:
+        assert session.get(GiftPack, pack).claimed_count == 0
+        assert session.query(GiftPackUserState).filter_by(pack_id=pack).count() == 0
+
+
+def test_premium_days_reward_extends_active_membership_from_expiry(orm):
+    from datetime import datetime, timedelta
+
+    add_user(orm, 1)
+    current = datetime.now(settings.TZ) + timedelta(days=30)
+    _bind_plex(1, is_premium=1, premium_expiry_time=current.isoformat())
+    pack = _pack(orm, [{"type": "premium_days", "days": 7}])
+
+    item = orm.claim_gift_pack(pack, 1)["results"][0]
+
+    new_expiry = datetime.fromisoformat(item["new_expiry"])
+    assert abs((new_expiry - (current + timedelta(days=7))).total_seconds()) < 120
+    assert item["service"] == "plex"
+    assert item.get("skipped") is None
+
+
+def test_premium_days_reward_starts_membership_for_new_user(orm):
+    from datetime import datetime, timedelta
+
+    add_user(orm, 1)
+    _bind_plex(1)
+    pack = _pack(orm, [{"type": "premium_days", "days": 7}])
+
+    before = datetime.now(settings.TZ)
+    item = orm.claim_gift_pack(pack, 1)["results"][0]
+
+    new_expiry = datetime.fromisoformat(item["new_expiry"])
+    assert abs((new_expiry - (before + timedelta(days=7))).total_seconds()) < 120
+    assert _user_col(PlexUser, 1, "is_premium") == 1
+
+
+def test_premium_days_reward_skips_lifetime_member(orm):
+    add_user(orm, 1)
+    _bind_plex(1, is_premium=1)  # 永久会员：没有到期时间
+    pack = _pack(orm, [{"type": "premium_days", "days": 7}])
+
+    item = orm.claim_gift_pack(pack, 1)["results"][0]
+
+    assert item["success"] is True
+    assert item["skipped"] == "lifetime"
+    assert "new_expiry" not in item
+    assert "永久会员" in item["message"]
+    assert _user_col(PlexUser, 1, "premium_expiry_time") is None
+
+
+@pytest.mark.asyncio
+async def test_claim_response_reports_lifetime_skip_in_message(orm, monkeypatch):
+    from fastapi import BackgroundTasks
+    from starlette.requests import Request
+
+    from app.core.schemas import TelegramUser
+    from app.domains.gift_pack import router
+
+    add_user(orm, 1)
+    _bind_plex(1, is_premium=1)
+    pack = _pack(orm, [{"type": "premium_days", "days": 7}])
+    monkeypatch.setattr(router, "db", orm)
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": f"/api/gift-packs/{pack}/claim",
+            "headers": [],
+        }
+    )
+    request.state.telegram_data = {}
+
+    response = await router.claim_gift_pack(
+        request=request,
+        pack_id=pack,
+        background_tasks=BackgroundTasks(),
+        telegram_user=TelegramUser(id=1, first_name="test"),
+    )
+
+    assert response.success is True
+    assert response.message == "领取成功；Plex 为永久会员，Premium 天数部分未生效"
+
+
+def test_privileged_code_written_to_env_stays_when_commit_fails(orm, monkeypatch):
+    """现状：`.env` 先写成功、随后提交失败时，内存中的特权码不会回退。"""
+    from sqlalchemy.orm import Session
+
+    add_user(orm, 1)
+    pack = _pack(orm, [{"type": "invite_codes", "count": 1, "privileged": True}])
+    monkeypatch.setattr(settings, "PRIVILEGED_CODES", ["pre-existing-code"])
+
+    saves: list[dict] = []
+
+    def _capture_save(self, config_data, *, raise_on_error=False):
+        saves.append(dict(config_data))
+
+    monkeypatch.setattr(type(settings), "save_config_to_env_file", _capture_save)
+
+    def _fail_commit(self):
+        raise RuntimeError("commit failed")
+
+    with monkeypatch.context() as patcher:
+        patcher.setattr(Session, "commit", _fail_commit)
+        with pytest.raises(RuntimeError, match="commit failed"):
+            orm.claim_gift_pack(pack, 1)
+
+    assert len(saves) == 1
+    written = saves[0]["PRIVILEGED_CODES"].split(",")
+    assert len(written) == 2
+    assert "pre-existing-code" in written
+    # 数据库回滚了，但 `.env` 与内存里的特权码已经是写入后的状态
+    assert settings.PRIVILEGED_CODES == written
+    assert _invitations(1) == []
+    with get_session() as session:
+        assert session.get(GiftPack, pack).claimed_count == 0
+
+
+@pytest.mark.asyncio
+async def test_created_and_sold_out_notifications_are_queued_once(orm, monkeypatch):
+    from fastapi import BackgroundTasks
+    from starlette.requests import Request
+
+    from app.core.schemas import TelegramUser
+    from app.domains.gift_pack import notifications, router
+    from app.domains.gift_pack.schemas import GiftPackCreateRequest
+
+    now = int(time.time())
+    add_user(orm, 1)
+    monkeypatch.setattr(router, "db", orm)
+    monkeypatch.setattr(router, "check_admin_permission", lambda user: None)
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/api/gift-packs/admin",
+            "headers": [],
+        }
+    )
+    request.state.telegram_data = {}
+    admin = TelegramUser(id=1, first_name="Admin")
+
+    create_tasks = BackgroundTasks()
+    created = await router.admin_create_gift_pack(
+        request=request,
+        background_tasks=create_tasks,
+        data=GiftPackCreateRequest(
+            title="限量礼包",
+            rewards=[{"type": "credits", "amount": 5}],
+            start_at=now - 10,
+            end_at=now + 3600,
+            total_quantity=1,
+        ),
+        telegram_user=admin,
+    )
+    created_funcs = [task.func for task in create_tasks.tasks]
+    assert created_funcs == [notifications.notify_gift_pack_created]
+
+    claim_tasks = BackgroundTasks()
+    await router.claim_gift_pack(
+        request=request,
+        pack_id=created.id,
+        background_tasks=claim_tasks,
+        telegram_user=TelegramUser(id=1, first_name="test"),
+    )
+    sold_out_funcs = [task.func for task in claim_tasks.tasks]
+    assert sold_out_funcs == [notifications.notify_gift_pack_sold_out]
+    assert claim_tasks.tasks[0].args == (created.id, "限量礼包", 1)
+
+    sent: list[str] = []
+
+    async def _notify(text, **kwargs):
+        sent.append(text)
+
+    monkeypatch.setattr(notifications, "notify_admins_by_url", _notify)
+    await notifications.notify_gift_pack_created(created.model_dump())
+    assert "礼包已上线" in sent[0]
+    assert "限量" in sent[0]
+    assert "限量礼包" in sent[0]
+
+    await notifications.notify_gift_pack_sold_out(created.id, "限量礼包", 1)
+    assert "礼包已领完" in sent[1]
+    assert "1 份已全部领取" in sent[1]
+
+
+def test_premium_sync_runs_after_the_claim_commits(orm, monkeypatch):
+    """媒体权限同步在提交后执行：同步时数据库里已经有领取记录。"""
+    add_user(orm, 1)
+    _bind_plex(1)
+    pack = _pack(orm, [{"type": "premium_days", "days": 7}])
+
+    observed: list[tuple[int, str, int]] = []
+
+    def _record(db, tg_id, service):
+        with get_session() as session:
+            claimed = session.get(GiftPack, pack).claimed_count
+        observed.append((int(tg_id), service, int(claimed)))
+
+    monkeypatch.setattr("app.domains.premium.service.sync_media_permission", _record)
+
+    orm.claim_gift_pack(pack, 1)
+
+    assert observed == [(1, "plex", 1)]
+    assert _user_col(PlexUser, 1, "is_premium") == 1

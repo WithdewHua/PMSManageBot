@@ -838,3 +838,65 @@ def test_legacy_pack_uses_zero_task_prompt_limit(orm):
         assert pack.max_task_prompt_count == 0
         _, requirements = orm._resolve_gift_pack_conditions(pack)
         assert requirements == [{"type": "credits", "min": 50}]
+
+
+# ------------------------------------------------------ 领取拒绝的文案
+
+
+def _save_pack(pack: GiftPack) -> int:
+    with get_session() as session:
+        session.add(pack)
+        session.flush()
+        return int(pack.id)
+
+
+def _pack_with_rewards(*, start_at: int, end_at: int, rewards: list[dict]) -> GiftPack:
+    pack = _pack(start_at=start_at, end_at=end_at)
+    pack.rewards = json.dumps(rewards, ensure_ascii=False)
+    return pack
+
+
+def test_claim_rejections_keep_their_messages(orm):
+    """领取的每类拒绝都保留原有文案，供 router 与前端展示。"""
+    now = int(time.time())
+    add_user(orm, 1)
+    add_user(orm, 2)
+
+    def claim(pack_id: int, tg_id: int = 1):
+        return orm.claim_gift_pack(pack_id, tg_id)
+
+    disabled = _save_pack(_pack(start_at=now - 10, end_at=now + 3600, is_enabled=0))
+    future = _save_pack(_pack(start_at=now + 3600, end_at=now + 7200))
+    ended = _save_pack(_pack(start_at=now - 7200, end_at=now - 3600))
+    limited = _save_pack(_pack(start_at=now - 10, end_at=now + 3600))
+    with get_session() as session:
+        pack_row = session.get(GiftPack, limited)
+        pack_row.total_quantity = 1
+        pack_row.claimed_count = 1
+    claimed = _save_pack(_pack(start_at=now - 10, end_at=now + 3600))
+    claim(claimed)
+    unbound = _save_pack(
+        _pack_with_rewards(
+            start_at=now - 10,
+            end_at=now + 3600,
+            rewards=[{"type": "premium_days", "days": 7}],
+        )
+    )
+    no_stats = _save_pack(_pack(start_at=now - 10, end_at=now + 3600))
+
+    with pytest.raises(ValueError, match="^礼包不存在$"):
+        claim(999_999)
+    with pytest.raises(ValueError, match="^礼包已停用$"):
+        claim(disabled)
+    with pytest.raises(ValueError, match="^礼包尚未开始$"):
+        claim(future)
+    with pytest.raises(ValueError, match="^礼包已结束$"):
+        claim(ended)
+    with pytest.raises(ValueError, match="^礼包已被领完$"):
+        claim(limited)
+    with pytest.raises(ValueError, match="^你已领取过该礼包$"):
+        claim(claimed)
+    with pytest.raises(ValueError, match="^请先绑定媒体账号后再领取$"):
+        claim(unbound, 2)
+    with pytest.raises(ValueError, match="^用户积分信息不存在$"):
+        claim(no_stats, 9999)

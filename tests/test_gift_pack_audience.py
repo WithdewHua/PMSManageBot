@@ -1168,3 +1168,233 @@ def test_prompt_returns_new_task_pack_after_an_earlier_pack_was_claimed(orm):
     reminder = orm.prompt_check_gift_packs(1)
     assert reminder["packs"] == []
     assert [item["id"] for item in reminder["task_packs"]] == [task_id]
+
+
+# ---------------------------------------------------------------- 管理端接口与错误分支
+
+
+def _rename_pack(pack_id: int, title: str) -> None:
+    with get_session() as session:
+        pack = session.get(GiftPack, pack_id)
+        assert pack is not None
+        pack.title = title
+
+
+async def _http_outcome(coro) -> tuple[int, object]:
+    from fastapi import HTTPException
+
+    try:
+        await coro
+    except HTTPException as exc:
+        return exc.status_code, exc.detail
+    raise AssertionError("expected HTTPException")
+
+
+@pytest.mark.asyncio
+async def test_admin_list_and_records_endpoints_report_rows_and_totals(
+    orm, monkeypatch
+):
+    from starlette.requests import Request
+
+    from app.core.schemas import TelegramUser
+    from app.domains.gift_pack import router
+
+    now = int(time.time())
+    add_user(orm, 1)
+    pack_id = _add_pack(_pack(start_at=now - 10, end_at=now + 3600))
+    monkeypatch.setattr(router, "db", orm)
+    monkeypatch.setattr(router, "check_admin_permission", lambda user: None)
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/api/gift-packs/admin/list",
+            "headers": [],
+        }
+    )
+    request.state.telegram_data = {}
+    admin = TelegramUser(id=1, first_name="Admin")
+
+    listing = await router.admin_list_gift_packs(
+        request=request, page=1, page_size=20, telegram_user=admin
+    )
+    assert listing.total == 1
+    assert [item.id for item in listing.packs] == [pack_id]
+    assert listing.packs[0].can_delete is True
+
+    orm.claim_gift_pack(pack_id, 1)
+    records = await router.admin_gift_pack_records(
+        request=request, pack_id=pack_id, page=1, page_size=20, telegram_user=admin
+    )
+    assert records.total == 1
+    assert records.records[0].tg_id == 1
+    assert records.records[0].tg_username == "1"
+
+    empty_page = await router.admin_gift_pack_records(
+        request=request, pack_id=pack_id, page=2, page_size=20, telegram_user=admin
+    )
+    assert (empty_page.total, empty_page.records) == (1, [])
+
+    missing_page = await router.admin_gift_pack_records(
+        request=request, pack_id=999_999, page=1, page_size=20, telegram_user=admin
+    )
+    assert (missing_page.total, missing_page.records) == (0, [])
+
+
+@pytest.mark.asyncio
+async def test_delete_route_splits_404_and_400_and_keeps_title_quirk(orm, monkeypatch):
+    from starlette.requests import Request
+
+    from app.core.schemas import TelegramUser
+    from app.domains.gift_pack import router
+
+    now = int(time.time())
+    add_user(orm, 1)
+    monkeypatch.setattr(router, "db", orm)
+    monkeypatch.setattr(router, "check_admin_permission", lambda user: None)
+    request = Request(
+        {
+            "type": "http",
+            "method": "DELETE",
+            "path": "/api/gift-packs/admin/1",
+            "headers": [],
+        }
+    )
+    request.state.telegram_data = {}
+    admin = TelegramUser(id=1, first_name="Admin")
+
+    def delete(pack_id: int):
+        return router.admin_delete_gift_pack(
+            request=request, pack_id=pack_id, telegram_user=admin
+        )
+
+    # 不存在 → 404
+    assert await _http_outcome(delete(999_999)) == (404, "礼包不存在")
+
+    # 已有领取记录 → 400
+    claimed = _add_pack(_pack(start_at=now - 10, end_at=now + 3600))
+    orm.claim_gift_pack(claimed, 1)
+    assert await _http_outcome(delete(claimed)) == (
+        400,
+        "该礼包已有用户领取，只能停用不能删除",
+    )
+
+    # 被引用 → 400；被引用礼包的标题里含“不存在”时，现状按子串判定返回 404
+    referenced = _add_pack(_pack(start_at=now - 10, end_at=now + 3600))
+    referrer = _add_pack(
+        _pack(
+            start_at=now - 10,
+            end_at=now + 3600,
+            requirements=[{"type": "claimed_pack", "pack_id": referenced}],
+        )
+    )
+    status, detail = await _http_outcome(delete(referenced))
+    assert status == 400
+    assert "被其他礼包的已领取条件引用" in str(detail)
+
+    _rename_pack(referrer, "不存在的引用者")
+    status, detail = await _http_outcome(delete(referenced))
+    assert status == 404  # 现状：子串判定把 400 类拒绝当成了 404
+    assert "引用" in str(detail)
+
+    # 无引用 → 删除成功
+    free_pack = _add_pack(_pack(start_at=now - 10, end_at=now + 3600))
+    assert await delete(free_pack) == {"success": True, "message": "礼包已删除"}
+
+
+@pytest.mark.asyncio
+async def test_admin_error_branches_return_fixed_details(orm, monkeypatch):
+    from fastapi import BackgroundTasks
+    from starlette.requests import Request
+
+    from app.core.schemas import TelegramUser
+    from app.domains.gift_pack import router
+    from app.domains.gift_pack.schemas import (
+        GiftPackCreateRequest,
+        GiftPackUpdateRequest,
+    )
+
+    now = int(time.time())
+    add_user(orm, 1)
+    pack_id = _add_pack(_pack(start_at=now - 10, end_at=now + 3600))
+    monkeypatch.setattr(router, "db", orm)
+    monkeypatch.setattr(router, "check_admin_permission", lambda user: None)
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/api/gift-packs/admin",
+            "headers": [],
+        }
+    )
+    request.state.telegram_data = {}
+    admin = TelegramUser(id=1, first_name="Admin")
+    background_tasks = BackgroundTasks()
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    cases = [
+        (
+            "获取礼包列表失败",
+            "get_gift_packs_admin",
+            lambda: router.admin_list_gift_packs(request=request, telegram_user=admin),
+        ),
+        (
+            "获取领取记录失败",
+            "get_gift_pack_claim_records",
+            lambda: router.admin_gift_pack_records(
+                request=request, pack_id=pack_id, telegram_user=admin
+            ),
+        ),
+        (
+            "解析名单失败",
+            "resolve_gift_pack_users",
+            lambda: router.admin_resolve_gift_pack_users(
+                request=request, text="1", telegram_user=admin
+            ),
+        ),
+        (
+            "创建礼包失败",
+            "create_gift_pack",
+            lambda: router.admin_create_gift_pack(
+                request=request,
+                background_tasks=background_tasks,
+                data=GiftPackCreateRequest(
+                    title="x",
+                    rewards=[{"type": "credits", "amount": 1}],
+                    start_at=now - 10,
+                    end_at=now + 3600,
+                ),
+                telegram_user=admin,
+            ),
+        ),
+        (
+            "编辑礼包失败",
+            "update_gift_pack",
+            lambda: router.admin_update_gift_pack(
+                request=request,
+                pack_id=pack_id,
+                data=GiftPackUpdateRequest(description="x"),
+                telegram_user=admin,
+            ),
+        ),
+        (
+            "删除礼包失败",
+            "delete_gift_pack",
+            lambda: router.admin_delete_gift_pack(
+                request=request, pack_id=pack_id, telegram_user=admin
+            ),
+        ),
+    ]
+    for detail, method, call in cases:
+        with monkeypatch.context() as patcher:
+            patcher.setattr(orm, method, _boom)
+            assert await _http_outcome(call()) == (500, detail)
+
+    # 开屏提醒是锦上添花：失败时静默返回空列表，不抛 500
+    with monkeypatch.context() as patcher:
+        patcher.setattr(orm, "prompt_check_gift_packs", _boom)
+        response = await router.prompt_check(request=request, telegram_user=admin)
+    assert response.packs == []
+    assert response.task_packs == []
