@@ -6,10 +6,12 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
+from app.api.errors import domain_error_handler
 from app.api.lifespan import lifespan
 from app.api.middlewares import TelegramAuthMiddleware
 from app.api.static import setup_static_files
 from app.core.config import settings
+from app.core.errors import DomainError
 from app.domains.accounts.admin_router import router as accounts_admin
 from app.domains.accounts.router import router as accounts
 from app.domains.auction.router import router as auction_router
@@ -54,6 +56,7 @@ app = FastAPI(
     description="API for PMSManageBot WebApp",
     lifespan=lifespan,
 )
+app.add_exception_handler(DomainError, domain_error_handler)
 
 app.add_middleware(
     SessionMiddleware,
