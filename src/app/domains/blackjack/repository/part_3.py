@@ -574,7 +574,7 @@ class _BlackjackRepositoryPart3:
 
         # 留存钩子：连败计数对投降中立（钩子内 outcome='surrender'
         # 不改计数），手数 +1 并按阈值发放免费机会
-        retention = self._apply_blackjack_retention(
+        retention = self.apply_blackjack_retention_tx(
             session,
             hand,
             stats,

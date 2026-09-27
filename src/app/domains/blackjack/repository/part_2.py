@@ -239,7 +239,7 @@ class _BlackjackRepositoryPart2:
         # 之前——救济补偿也走 stats.credits，与赔付同一事务同一行锁；
         # 两项计数写入 stats，金额写入手牌行。幂等性已由上方的结算 CAS
         # 保证（抢不到的一方根本走不到这里）
-        retention = self._apply_blackjack_retention(
+        retention = self.apply_blackjack_retention_tx(
             session,
             hand,
             stats,

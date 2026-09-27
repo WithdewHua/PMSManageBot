@@ -1,8 +1,10 @@
 import json
+import time
 
 from sqlalchemy import func, select
 
 from app.core.db import get_session
+from app.core.kv import SystemConfig
 from app.core.log import logger
 from app.domains.blackjack.exceptions import blackjack_error
 from app.domains.blackjack.models import (
@@ -162,6 +164,63 @@ class _BlackjackRepositoryPart7:
             "champion_tg_id": champion,
             "prize_total": prize_total,
         }
+
+    def get_blackjack_config_tx(
+        self, session, config_key: str = "config"
+    ) -> str | None:
+        return session.execute(
+            select(SystemConfig.config_value).where(
+                SystemConfig.config_type == "blackjack",
+                SystemConfig.config_key == config_key,
+            )
+        ).scalar_one_or_none()
+
+    def set_blackjack_config_tx(
+        self, session, config_key: str, config_json: str
+    ) -> bool:
+        current_time = int(time.time())
+        existing = (
+            session.execute(
+                select(SystemConfig)
+                .where(
+                    SystemConfig.config_type == "blackjack",
+                    SystemConfig.config_key == config_key,
+                )
+                .with_for_update()
+            )
+            .scalars()
+            .one_or_none()
+        )
+        if existing is None:
+            session.add(
+                SystemConfig(
+                    config_type="blackjack",
+                    config_key=config_key,
+                    config_value=config_json,
+                    created_at=current_time,
+                    updated_at=current_time,
+                )
+            )
+        else:
+            existing.config_value = config_json
+            existing.updated_at = current_time
+        return True
+
+    def get_blackjack_config_dict_tx(self, session) -> dict:
+        raw = self.get_blackjack_config_tx(session, "config")
+        config = dict(DEFAULT_BLACKJACK_CONFIG)
+        if raw:
+            try:
+                stored = json.loads(raw)
+                if isinstance(stored, dict):
+                    config.update(stored)
+            except Exception as e:
+                logger.error(f"解析 21 点配置失败，回退默认配置: {e}")
+        else:
+            self.set_blackjack_config_tx(
+                session, "config", json.dumps(config, ensure_ascii=False)
+            )
+        return config
 
     def get_blackjack_config(self, config_key: str = "config") -> str | None:
         """

@@ -342,6 +342,7 @@ __all__ = [
     "JACKPOT_CONFIG_TYPE",
     "JACKPOT_NOTIFY_CURSOR_KEY",
     "BlackjackRepository",
+    "apply_blackjack_retention_tx",
     "award_or_renew_badge",
     "blackjack_double",
     "blackjack_double_tx",
@@ -374,8 +375,11 @@ __all__ = [
     "create_blackjack_tournament_hand_tx",
     "force_settle_tournament_hands",
     "get_blackjack_admin_stats",
+    "get_blackjack_admin_stats_tx",
     "get_blackjack_config",
     "get_blackjack_config_dict",
+    "get_blackjack_config_dict_tx",
+    "get_blackjack_config_tx",
     "get_blackjack_free_hands_remaining",
     "get_blackjack_freespin_summary",
     "get_blackjack_jackpot",
@@ -384,6 +388,7 @@ __all__ = [
     "get_blackjack_tournament_wallet",
     "get_current_blackjack_hand",
     "get_user_blackjack_stats",
+    "get_user_blackjack_stats_tx",
     "get_user_blackjack_tournament_entry",
     "list_active_blackjack_hands",
     "list_blackjack_tournaments",
@@ -391,9 +396,11 @@ __all__ = [
     "list_expiring_blackjack_freespins",
     "read_fund_balance",
     "register_blackjack_tournament",
+    "register_blackjack_tournament_tx",
     "release_blackjack_freespin",
     "seed_blackjack_jackpot",
     "set_blackjack_config",
+    "set_blackjack_config_tx",
     "settle_blackjack_hand_by_timeout",
     "settle_blackjack_hand_by_timeout_tx",
     "settle_blackjack_tournament",
@@ -403,6 +410,25 @@ __all__ = [
     "sweep_timed_out_blackjack_hands",
     "update_blackjack_tournament",
 ]
+
+
+def apply_blackjack_retention_tx(
+    session,
+    hand,
+    stats,
+    *,
+    outcome: str,
+    config: dict,
+    now_ts: int,
+) -> dict:
+    return _repository.apply_blackjack_retention_tx(
+        session,
+        hand,
+        stats,
+        outcome=outcome,
+        config=config,
+        now_ts=now_ts,
+    )
 
 
 def create_blackjack_hand_tx(
@@ -480,3 +506,36 @@ def blackjack_tournament_surrender_tx(session, tg_id: int, hand_id: int) -> dict
 
 def settle_blackjack_tournament_tx(session, tournament_id: int) -> dict:
     return _repository.settle_blackjack_tournament_tx(session, tournament_id)
+
+
+def get_user_blackjack_stats_tx(session, tg_id: int) -> dict:
+    return _repository.get_user_blackjack_stats_tx(session, tg_id)
+
+
+def get_blackjack_admin_stats_tx(session) -> dict:
+    return _repository.get_blackjack_admin_stats_tx(session)
+
+
+def get_blackjack_config_tx(session, config_key: str = "config") -> str | None:
+    return _repository.get_blackjack_config_tx(session, config_key)
+
+
+def get_blackjack_config_dict_tx(session) -> dict:
+    return _repository.get_blackjack_config_dict_tx(session)
+
+
+def set_blackjack_config_tx(session, config_key: str, config_json: str) -> bool:
+    return _repository.set_blackjack_config_tx(session, config_key, config_json)
+
+
+def register_blackjack_tournament_tx(
+    session,
+    tg_id: int,
+    tournament_id: int,
+    *,
+    config: dict,
+    now_ms: int,
+) -> dict:
+    return _repository.register_blackjack_tournament_tx(
+        session, tg_id, tournament_id, config=config, now_ms=now_ms
+    )

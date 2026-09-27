@@ -25,13 +25,7 @@ from . import (
 
 class _BlackjackRepositoryPart4:
     def get_user_blackjack_stats(self, tg_id: int) -> dict:
-        """用户的 21 点个人统计。
-
-        净积分变动 = Σ(payout − 总押注)；总押注为加倍手两份基础注额、否则一份。
-        奖池派彩单独统计，不混入净积分与单手最大赢利——它衡量的是运气不是打法。
-        """
-        from app.domains.blackjack import rules as engine
-
+        """用户的 21 点个人统计。"""
         empty = {
             "total_hands": 0,
             "net_credits": 0.0,
@@ -44,88 +38,13 @@ class _BlackjackRepositoryPart4:
         }
         try:
             with get_session() as session:
-                total_stake = case(
-                    (BlackjackHand.doubled == 1, BlackjackHand.bet_credits * 2),
-                    else_=BlackjackHand.bet_credits,
-                )
-                # 救济计入净变动：它是玩家从本活动真实收到的积分，漏算会让
-                # 用户统计卡与周返还的净变动口径互相矛盾；奖池派彩仍按既有
-                # 口径单独列示（jackpot_total）不混入 net
-                net = (
-                    func.coalesce(BlackjackHand.payout_credits, 0)
-                    - total_stake
-                    + func.coalesce(BlackjackHand.relief_credits, 0)
-                )
-                win_flag = case(
-                    (
-                        BlackjackHand.outcome.in_(
-                            [engine.OUTCOME_WIN, engine.OUTCOME_BLACKJACK]
-                        ),
-                        1,
-                    ),
-                    else_=0,
-                )
-                # 投降手数单列：把主动止损作为一项技巧展示出来。与 win_flag 互斥，
-                # 故不影响胜率——投降计入分母不计入分子（与平局同一待遇）。
-                surrender_flag = case(
-                    (BlackjackHand.outcome == engine.OUTCOME_SURRENDER, 1), else_=0
-                )
-                row = session.execute(
-                    select(
-                        func.count(BlackjackHand.id),
-                        func.coalesce(func.sum(net), 0),
-                        func.coalesce(func.max(net), 0),
-                        func.coalesce(func.sum(win_flag), 0),
-                        func.coalesce(func.sum(BlackjackHand.decisions_total), 0),
-                        func.coalesce(func.sum(BlackjackHand.decisions_correct), 0),
-                        func.coalesce(func.sum(BlackjackHand.jackpot_won), 0),
-                        func.coalesce(func.sum(surrender_flag), 0),
-                    ).where(
-                        BlackjackHand.tg_id == int(tg_id),
-                        BlackjackHand.status.in_(engine.TERMINAL_STATUSES),
-                        # 只统计现金局手牌：赛内不产生抽水与奖池派彩，其筹码
-                        # 也不是积分，混入会让 net_credits / max_win 失去口径，
-                        # 并稀释决策准确率（赛内决策计数恒为 0）
-                        BlackjackHand.tournament_id.is_(None),
-                    )
-                ).one()
-
-                hands = int(row[0] or 0)
-                dec_total = int(row[4] or 0)
-                return {
-                    "total_hands": hands,
-                    "net_credits": round(float(row[1] or 0), 2),
-                    "max_win": round(float(row[2] or 0), 2),
-                    "win_rate": round(float(row[3] or 0) / hands * 100, 2)
-                    if hands
-                    else 0.0,
-                    "accuracy": round(float(row[5] or 0) / dec_total * 100, 2)
-                    if dec_total
-                    else 0.0,
-                    "decisions_total": dec_total,
-                    "jackpot_total": round(float(row[6] or 0), 2),
-                    "surrender_hands": int(row[7] or 0),
-                }
+                return self.get_user_blackjack_stats_tx(session, tg_id)
         except Exception as e:
             logger.error(f"获取用户 21 点统计失败 (tg_id={tg_id}): {e}")
             return empty
 
     def get_blackjack_admin_stats(self) -> dict:
-        """21 点的运营聚合统计，供管理页卡片展示。
-
-        **金额口径只统计终态手牌**（已结算 / 超时弃牌）。进行中的手牌押注已扣、
-        赔付未定，计进去会把尚未落定的押注记成净流出，数字在手牌结算的那一刻
-        又跳回来——展示值不该随一手牌的中间状态抖动。进行中手数单列，正好也是
-        运营需要盯的悬挂量。
-
-        `net_credits` 取**玩家视角**：为负说明活动在净回收积分，与设计意图一致。
-        奖池派彩计入其中，因为那同样是发到玩家手上的积分；但它来自抽水积攒的池
-        子而非凭空增发，故不破坏「只回收不增发」。
-
-        一次扫描出全部聚合项。参与人数按全部手牌去重，不限终态——发过牌就算参与。
-        """
-        from app.domains.blackjack import rules as engine
-
+        """21 点的运营聚合统计，供管理页卡片展示。"""
         empty = {
             "total_hands": 0,
             "active_hands": 0,
@@ -139,85 +58,125 @@ class _BlackjackRepositoryPart4:
         }
         try:
             with get_session() as session:
-                terminal = BlackjackHand.status.in_(engine.TERMINAL_STATUSES)
-                stake = case(
-                    (BlackjackHand.doubled == 1, BlackjackHand.bet_credits * 2),
-                    else_=BlackjackHand.bet_credits,
-                )
-                # 终态才计金额；用 case 折成 0 而非加 WHERE，这样手数、人数、
-                # 今日手数能与金额项共用同一次扫描
-                staked = case((terminal, stake), else_=0)
-                paid = case(
-                    (terminal, func.coalesce(BlackjackHand.payout_credits, 0)), else_=0
-                )
-                raked = case(
-                    (terminal, func.coalesce(BlackjackHand.rake_credits, 0)), else_=0
-                )
-                jackpot = case(
-                    (terminal, func.coalesce(BlackjackHand.jackpot_won, 0)), else_=0
-                )
-                # 救济与抽水/派彩同口径：终态才计，与周结算的净变动公式一致
-                relief = case(
-                    (terminal, func.coalesce(BlackjackHand.relief_credits, 0)), else_=0
-                )
-
-                row = session.execute(
-                    select(
-                        func.coalesce(func.sum(case((terminal, 1), else_=0)), 0),
-                        func.coalesce(func.sum(case((terminal, 0), else_=1)), 0),
-                        func.count(distinct(BlackjackHand.tg_id)),
-                        func.coalesce(
-                            func.sum(
-                                case(
-                                    (
-                                        BlackjackHand.created_at_ms
-                                        >= self._blackjack_day_start_ms(),
-                                        1,
-                                    ),
-                                    else_=0,
-                                )
-                            ),
-                            0,
-                        ),
-                        func.coalesce(func.sum(staked), 0),
-                        func.coalesce(func.sum(raked), 0),
-                        func.coalesce(func.sum(paid), 0),
-                        func.coalesce(func.sum(jackpot), 0),
-                        func.coalesce(func.sum(relief), 0),
-                    ).where(
-                        # 只统计现金局手牌。这里不是「仅展示失真」的量级：赛内的
-                        # bet_credits 是**筹码**，混入会把筹码数加进以积分计价的
-                        # total_wagered 与 net_credits，得出的运营数字毫无意义。
-                        BlackjackHand.tournament_id.is_(None)
-                    )
-                ).one()
-
-                wagered = float(row[4] or 0)
-                payout = float(row[6] or 0)
-                jackpot_paid = float(row[7] or 0)
-                relief_paid = float(row[8] or 0)
-                return {
-                    "total_hands": int(row[0] or 0),
-                    "active_hands": int(row[1] or 0),
-                    "total_players": int(row[2] or 0),
-                    "today_hands": int(row[3] or 0),
-                    "total_wagered": round(wagered, 2),
-                    "total_rake": round(float(row[5] or 0), 2),
-                    # 救济是发放而非赢利，但同样是流出系统的积分，计入
-                    # net_credits 才能与周结算/用户统计的口径对齐
-                    "net_credits": round(
-                        payout + jackpot_paid + relief_paid - wagered, 2
-                    ),
-                    "jackpot_paid": round(jackpot_paid, 2),
-                    # 复用同一 session 读余额。这里若改调 get_blackjack_jackpot()
-                    # 会在已开事务内再取一条连接，池子只有 DB_POOL_SIZE 条
-                    "jackpot_balance": self.read_fund_balance(
-                        session, JACKPOT_CONFIG_TYPE, JACKPOT_CONFIG_KEY
-                    ),
-                }
+                return self.get_blackjack_admin_stats_tx(session)
         except Exception as e:
             logger.error(f"获取 21 点运营统计失败: {e}")
             return empty
+
+    def get_user_blackjack_stats_tx(self, session, tg_id: int) -> dict:
+        """Read user statistics using the caller-owned session."""
+        from app.domains.blackjack import rules as engine
+
+        total_stake = case(
+            (BlackjackHand.doubled == 1, BlackjackHand.bet_credits * 2),
+            else_=BlackjackHand.bet_credits,
+        )
+        net = (
+            func.coalesce(BlackjackHand.payout_credits, 0)
+            - total_stake
+            + func.coalesce(BlackjackHand.relief_credits, 0)
+        )
+        win_flag = case(
+            (
+                BlackjackHand.outcome.in_(
+                    [engine.OUTCOME_WIN, engine.OUTCOME_BLACKJACK]
+                ),
+                1,
+            ),
+            else_=0,
+        )
+        surrender_flag = case(
+            (BlackjackHand.outcome == engine.OUTCOME_SURRENDER, 1), else_=0
+        )
+        row = session.execute(
+            select(
+                func.count(BlackjackHand.id),
+                func.coalesce(func.sum(net), 0),
+                func.coalesce(func.max(net), 0),
+                func.coalesce(func.sum(win_flag), 0),
+                func.coalesce(func.sum(BlackjackHand.decisions_total), 0),
+                func.coalesce(func.sum(BlackjackHand.decisions_correct), 0),
+                func.coalesce(func.sum(BlackjackHand.jackpot_won), 0),
+                func.coalesce(func.sum(surrender_flag), 0),
+            ).where(
+                BlackjackHand.tg_id == int(tg_id),
+                BlackjackHand.status.in_(engine.TERMINAL_STATUSES),
+                BlackjackHand.tournament_id.is_(None),
+            )
+        ).one()
+        hands = int(row[0] or 0)
+        decisions_total = int(row[4] or 0)
+        return {
+            "total_hands": hands,
+            "net_credits": round(float(row[1] or 0), 2),
+            "max_win": round(float(row[2] or 0), 2),
+            "win_rate": round(float(row[3] or 0) / hands * 100, 2) if hands else 0.0,
+            "accuracy": round(float(row[5] or 0) / decisions_total * 100, 2)
+            if decisions_total
+            else 0.0,
+            "decisions_total": decisions_total,
+            "jackpot_total": round(float(row[6] or 0), 2),
+            "surrender_hands": int(row[7] or 0),
+        }
+
+    def get_blackjack_admin_stats_tx(self, session) -> dict:
+        """Read aggregate statistics using the caller-owned session."""
+        from app.domains.blackjack import rules as engine
+
+        terminal = BlackjackHand.status.in_(engine.TERMINAL_STATUSES)
+        stake = case(
+            (BlackjackHand.doubled == 1, BlackjackHand.bet_credits * 2),
+            else_=BlackjackHand.bet_credits,
+        )
+        staked = case((terminal, stake), else_=0)
+        paid = case((terminal, func.coalesce(BlackjackHand.payout_credits, 0)), else_=0)
+        raked = case((terminal, func.coalesce(BlackjackHand.rake_credits, 0)), else_=0)
+        jackpot = case((terminal, func.coalesce(BlackjackHand.jackpot_won, 0)), else_=0)
+        relief = case(
+            (terminal, func.coalesce(BlackjackHand.relief_credits, 0)), else_=0
+        )
+        row = session.execute(
+            select(
+                func.coalesce(func.sum(case((terminal, 1), else_=0)), 0),
+                func.coalesce(func.sum(case((terminal, 0), else_=1)), 0),
+                func.count(distinct(BlackjackHand.tg_id)),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (
+                                BlackjackHand.created_at_ms
+                                >= self._blackjack_day_start_ms(),
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ),
+                func.coalesce(func.sum(staked), 0),
+                func.coalesce(func.sum(raked), 0),
+                func.coalesce(func.sum(paid), 0),
+                func.coalesce(func.sum(jackpot), 0),
+                func.coalesce(func.sum(relief), 0),
+            ).where(BlackjackHand.tournament_id.is_(None))
+        ).one()
+        wagered = float(row[4] or 0)
+        payout = float(row[6] or 0)
+        jackpot_paid = float(row[7] or 0)
+        relief_paid = float(row[8] or 0)
+        return {
+            "total_hands": int(row[0] or 0),
+            "active_hands": int(row[1] or 0),
+            "total_players": int(row[2] or 0),
+            "today_hands": int(row[3] or 0),
+            "total_wagered": round(wagered, 2),
+            "total_rake": round(float(row[5] or 0), 2),
+            "net_credits": round(payout + jackpot_paid + relief_paid - wagered, 2),
+            "jackpot_paid": round(jackpot_paid, 2),
+            "jackpot_balance": self.read_fund_balance(
+                session, JACKPOT_CONFIG_TYPE, JACKPOT_CONFIG_KEY
+            ),
+        }
 
     # 赛事状态
     TOURNAMENT_REGISTERING = 1
@@ -454,160 +413,152 @@ class _BlackjackRepositoryPart4:
                 raise blackjack_error(f"cannot change {key} after entrants joined")
 
     def register_blackjack_tournament(self, tg_id: int, tournament_id: int) -> dict:
-        """报名：占名额 → 扣报名费 → 建 entry；满员则尝试开赛。
-
-        **名额占位用条件 UPDATE（CAS）而非「读计数再判断」**：
-        `with_for_update()` 在 SQLite 上是 no-op，两个并发报名会各自读到未满员、
-        各自插入，把人数顶到上限之上。CAS 不依赖行锁，在 SQLite 与 PostgreSQL 上
-        都成立。
-
-        计数增量与 entry 插入**在同一事务内**：插入撞 `uq_blackjack_tournament_entry`
-        （同一用户并发重复报名）时整个事务回滚，计数增量随之回退，故不需要补偿性
-        的减一。这一点必须保持——若把两者拆到不同事务，会留下「名额被占但无 entry」
-        的幽灵占位，而 entrant_count 又是奖池推导的因子，等于凭空多算一份报名费。
-
-        锁序 tournament → statistics。
-
-        Returns: {entry, tournament, started(bool), notify_entrants: [tg_id]}
-        """
+        """报名：占名额 → 扣报名费 → 建 entry；满员则尝试开赛。"""
         config = self.get_blackjack_config_dict()
         if not config.get("enabled", False):
             raise blackjack_error("blackjack disabled")
+        return self._run_registration_transaction(
+            tg_id, tournament_id, config=config, now_ms=int(time.time() * 1000)
+        )
 
-        now_ms = int(time.time() * 1000)
-
+    def _run_registration_transaction(
+        self, tg_id: int, tournament_id: int, *, config: dict, now_ms: int
+    ) -> dict:
         with get_session() as session:
-            tournament = (
-                session.execute(
-                    select(BlackjackTournament).where(
-                        BlackjackTournament.id == int(tournament_id)
-                    )
-                )
-                .scalars()
-                .one_or_none()
+            return self.register_blackjack_tournament_tx(
+                session, tg_id, tournament_id, config=config, now_ms=now_ms
             )
-            if not tournament:
-                raise blackjack_error("tournament not found")
-            if int(tournament.status) != self.TOURNAMENT_REGISTERING:
-                raise blackjack_error("tournament not open for registration")
-            from app.domains.blackjack import rules
 
-            if rules.is_deadline_reached(now_ms, tournament.register_deadline_ms):
-                raise blackjack_error("registration closed")
+    def register_blackjack_tournament_tx(
+        self,
+        session,
+        tg_id: int,
+        tournament_id: int,
+        *,
+        config: dict,
+        now_ms: int,
+    ) -> dict:
+        """在 caller-owned session 中完成报名、扣费、占位和自动开赛。
 
-            buy_in = int(tournament.buy_in_credits)
-            starting_chips = int(tournament.starting_chips)
-            max_entrants = int(tournament.max_entrants)
+        所有写入必须留在同一事务：entrant_count、Statistics、credits 和 entry
+        任何一步失败都由调用方回滚。赛事行先用条件 UPDATE 占位，随后才锁
+        Statistics，保持 tournament → statistics 的锁序。
+        """
+        if not config.get("enabled", False):
+            raise blackjack_error("blackjack disabled")
 
-            # 先做一次廉价的重复报名检查，把绝大多数重复请求挡在扣费之前。
-            # 真正的防线是下方插入时的唯一约束——此处只读不锁，并发下会漏。
-            existing = (
-                session.execute(
-                    select(BlackjackTournamentEntry).where(
-                        BlackjackTournamentEntry.tournament_id == int(tournament_id),
-                        BlackjackTournamentEntry.tg_id == int(tg_id),
-                    )
+        tournament = (
+            session.execute(
+                select(BlackjackTournament).where(
+                    BlackjackTournament.id == int(tournament_id)
                 )
-                .scalars()
-                .one_or_none()
             )
-            if existing:
-                raise blackjack_error("already registered")
+            .scalars()
+            .one_or_none()
+        )
+        if not tournament:
+            raise blackjack_error("tournament not found")
+        if int(tournament.status) != self.TOURNAMENT_REGISTERING:
+            raise blackjack_error("tournament not open for registration")
+        from app.domains.blackjack import rules
 
-            # 名额占位：CAS。抢不到即已满员
-            claimed = session.execute(
-                update(BlackjackTournament)
-                .where(
-                    BlackjackTournament.id == int(tournament_id),
-                    BlackjackTournament.status == self.TOURNAMENT_REGISTERING,
-                    BlackjackTournament.entrant_count < max_entrants,
+        if rules.is_deadline_reached(now_ms, tournament.register_deadline_ms):
+            raise blackjack_error("registration closed")
+
+        buy_in = int(tournament.buy_in_credits)
+        starting_chips = int(tournament.starting_chips)
+        max_entrants = int(tournament.max_entrants)
+        existing = (
+            session.execute(
+                select(BlackjackTournamentEntry).where(
+                    BlackjackTournamentEntry.tournament_id == int(tournament_id),
+                    BlackjackTournamentEntry.tg_id == int(tg_id),
                 )
-                .values(entrant_count=BlackjackTournament.entrant_count + 1)
             )
-            if claimed.rowcount == 0:
-                raise blackjack_error("tournament full")
+            .scalars()
+            .one_or_none()
+        )
+        if existing:
+            raise blackjack_error("already registered")
 
-            # 扣报名费：争霸赛余额优先，不足部分从积分补足（拆分落 entry，
-            # 取消退款按原路退回）。锁序 tournament → statistics，故此处才取
-            # 积分行锁——争霸赛余额就在同一行上
-            stats = (
-                session.execute(
-                    select(Statistics)
-                    .where(Statistics.tg_id == int(tg_id))
-                    .with_for_update()
-                )
-                .scalars()
-                .one_or_none()
+        claimed = session.execute(
+            update(BlackjackTournament)
+            .where(
+                BlackjackTournament.id == int(tournament_id),
+                BlackjackTournament.status == self.TOURNAMENT_REGISTERING,
+                BlackjackTournament.entrant_count < max_entrants,
             )
-            if not stats:
-                raise blackjack_error("user stats not found")
-            wallet = round(float(stats.tournament_wallet_credits or 0), 2)
-            if wallet + float(stats.credits) < float(buy_in):
-                raise blackjack_error(f"insufficient credits: need {buy_in}")
-            wallet_paid = round(min(wallet, float(buy_in)), 2)
-            credits_paid = round(float(buy_in) - wallet_paid, 2)
-            stats.tournament_wallet_credits = round(wallet - wallet_paid, 2)
-            if credits_paid > 0:
-                mutation = credits_repository.deduct_tx(
-                    session, CreditAccount.tg(int(tg_id)), credits_paid
-                )
-                credits_service.register_cache_invalidation(session, mutation)
+            .values(entrant_count=BlackjackTournament.entrant_count + 1)
+        )
+        if claimed.rowcount == 0:
+            raise blackjack_error("tournament full")
 
-            entry = BlackjackTournamentEntry(
-                tournament_id=int(tournament_id),
-                tg_id=int(tg_id),
-                chips=starting_chips,
-                hands_played=0,
-                status=self.ENTRY_PLAYING,
-                wallet_paid_credits=wallet_paid,
-                credits_paid_credits=credits_paid,
-                registered_at_ms=now_ms,
+        stats = (
+            session.execute(
+                select(Statistics)
+                .where(Statistics.tg_id == int(tg_id))
+                .with_for_update()
             )
-            session.add(entry)
-            # 立刻 flush：让唯一约束在本事务内就撞出来，而不是等到 commit 时
-            # 才失败——那时扣费与计数都已写下，异常从 commit 抛出更难归因。
-            #
-            # 撞约束就是「并发重复报名」，翻成与前置检查同一句 ValueError：路由层
-            # 只捕获 ValueError，裸的 IntegrityError 会冒成 500，而这是一次正常的
-            # 业务拒绝，用户该看到「你已报名该赛事」。事务照旧整体回滚，扣费与
-            # 名额增量一并回退
-            try:
-                session.flush()
-            except IntegrityError:
-                raise blackjack_error("already registered")
-            session.expire(tournament)
+            .scalars()
+            .one_or_none()
+        )
+        if not stats:
+            raise blackjack_error("user stats not found")
+        wallet = round(float(stats.tournament_wallet_credits or 0), 2)
+        if wallet + float(stats.credits) < float(buy_in):
+            raise blackjack_error(f"insufficient credits: need {buy_in}")
+        wallet_paid = round(min(wallet, float(buy_in)), 2)
+        credits_paid = round(float(buy_in) - wallet_paid, 2)
+        stats.tournament_wallet_credits = round(wallet - wallet_paid, 2)
+        if credits_paid > 0:
+            mutation = credits_repository.deduct_tx(
+                session, CreditAccount.tg(int(tg_id)), credits_paid
+            )
+            credits_service.register_cache_invalidation(session, mutation)
 
-            entry_dict = self._tournament_entry_to_dict(entry)
+        entry = BlackjackTournamentEntry(
+            tournament_id=int(tournament_id),
+            tg_id=int(tg_id),
+            chips=starting_chips,
+            hands_played=0,
+            status=self.ENTRY_PLAYING,
+            wallet_paid_credits=wallet_paid,
+            credits_paid_credits=credits_paid,
+            registered_at_ms=now_ms,
+        )
+        session.add(entry)
+        try:
+            session.flush()
+        except IntegrityError:
+            raise blackjack_error("already registered")
+        session.expire(tournament)
 
-            # 满员即开：sit-and-go。定死开赛时间在冷清社区会大量流局
-            started = False
-            notify_entrants: list[int] = []
-            if int(tournament.entrant_count) >= max_entrants:
-                started = self._claim_tournament_transition(
-                    session,
-                    int(tournament_id),
-                    self.TOURNAMENT_REGISTERING,
-                    self.TOURNAMENT_RUNNING,
+        entry_dict = self._tournament_entry_to_dict(entry)
+        started = False
+        notify_entrants: list[int] = []
+        if int(tournament.entrant_count) >= max_entrants:
+            started = self._claim_tournament_transition(
+                session,
+                int(tournament_id),
+                self.TOURNAMENT_REGISTERING,
+                self.TOURNAMENT_RUNNING,
+            )
+            if started:
+                session.expire(tournament)
+                notify_entrants = self._list_tournament_entrant_ids(
+                    session, int(tournament_id)
                 )
-                if started:
-                    session.expire(tournament)
-                    notify_entrants = self._list_tournament_entrant_ids(
-                        session, int(tournament_id)
-                    )
 
-            return {
-                "entry": entry_dict,
-                "tournament": self._tournament_to_dict(tournament),
-                "started": started,
-                "notify_entrants": notify_entrants,
-                # 余额随结果返回：报名事务内本就持有拆分后的两项余额，
-                # 路由层再开 session 重读既多余、也引入「读取失败静默返回
-                # 0.0 导致显示错余额」的隐患
-                "current_credits": round(float(stats.credits), 2),
-                "tournament_wallet_credits": round(
-                    float(stats.tournament_wallet_credits or 0), 2
-                ),
-            }
+        return {
+            "entry": entry_dict,
+            "tournament": self._tournament_to_dict(tournament),
+            "started": started,
+            "notify_entrants": notify_entrants,
+            "current_credits": round(float(stats.credits), 2),
+            "tournament_wallet_credits": round(
+                float(stats.tournament_wallet_credits or 0), 2
+            ),
+        }
 
     def _claim_tournament_transition(
         self, session, tournament_id: int, from_status: int, to_status: int

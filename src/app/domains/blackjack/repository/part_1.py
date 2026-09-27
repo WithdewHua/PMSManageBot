@@ -69,6 +69,26 @@ class _BlackjackRepositoryPart1:
             "settled_at": int(hand.settled_at) if hand.settled_at is not None else None,
         }
 
+    def apply_blackjack_retention_tx(
+        self,
+        session,
+        hand: BlackjackHand,
+        stats: Statistics | None,
+        *,
+        outcome: str,
+        config: dict,
+        now_ts: int,
+    ) -> dict:
+        """Apply retention counters and ledger records in the caller transaction."""
+        return self._apply_blackjack_retention(
+            session,
+            hand,
+            stats,
+            outcome=outcome,
+            config=config,
+            now_ts=now_ts,
+        )
+
     def _apply_blackjack_retention(
         self,
         session,
