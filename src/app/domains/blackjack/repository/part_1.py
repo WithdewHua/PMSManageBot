@@ -129,7 +129,9 @@ class _BlackjackRepositoryPart1:
                 and multiplier > 0
                 and streak >= threshold
             ):
-                relief = round(float(hand.bet_credits) * multiplier, 2)
+                from app.domains.blackjack import rules
+
+                relief = rules.calculate_relief_credits(hand.bet_credits, multiplier)
                 mutation = credits_repository.add_tx(
                     session, CreditAccount.tg(tg_id), relief
                 )
@@ -372,15 +374,14 @@ class _BlackjackRepositoryPart1:
             .group_by(BlackjackHand.tg_id)
         ).all()
 
+        from app.domains.blackjack import rules
+
         payload = []
         for tg_id, net_change in rows:
             net = round(float(net_change or 0), 2)
-            if net >= 0:
-                # 净赢者（含因奖池派彩转正者）不返还
-                continue
-            cashback = round(abs(net) * rate, 2)
-            if cashback < min_payout:
-                # 低于发放门槛：不发、不通知、不留结算行
+            cashback = rules.calculate_cashback(net, rate, min_payout)
+            if cashback is None:
+                # 净赢者或低于发放门槛：不发、不通知、不留结算行
                 continue
             try:
                 with session.begin_nested():

@@ -11,6 +11,7 @@
 """
 
 import random
+from dataclasses import dataclass
 
 # 状态常量，与 BlackjackHand.status 一致
 STATUS_PLAYER_TURN = 1  # 玩家回合
@@ -255,6 +256,87 @@ def resolve(
     if player_total < dealer_total:
         return OUTCOME_LOSE, 0.0, 0.0
     return OUTCOME_PUSH, stake, 0.0
+
+
+@dataclass(frozen=True)
+class CashSettlement:
+    """Pure cash-hand settlement values before persistence side effects."""
+
+    outcome: str
+    return_multiplier: float
+    profit_multiplier: float
+    gross_profit: float
+    rake: float
+    payout: float
+
+
+def calculate_cash_settlement(
+    player_cards: list[str],
+    dealer_cards: list[str],
+    *,
+    bet: float,
+    doubled: bool,
+    blackjack_payout: float = 1.5,
+    rake_bp: int = 0,
+) -> CashSettlement:
+    """Resolve a cash hand and calculate its persisted monetary values.
+
+    This function intentionally receives already-read values and performs no
+    database access, configuration lookup, logging, or external side effect.
+    All amounts are relative to the base bet and rounded exactly as the legacy
+    settlement adapter did.
+    """
+    outcome, return_multiplier, profit_multiplier = resolve(
+        player_cards,
+        dealer_cards,
+        doubled=doubled,
+        blackjack_payout=blackjack_payout,
+    )
+    gross_profit = round(float(profit_multiplier) * float(bet), 2)
+    rake = (
+        round(gross_profit * float(rake_bp) / 10000.0, 2) if gross_profit > 0 else 0.0
+    )
+    payout = round(float(return_multiplier) * float(bet) - rake, 2)
+    return CashSettlement(
+        outcome=outcome,
+        return_multiplier=float(return_multiplier),
+        profit_multiplier=float(profit_multiplier),
+        gross_profit=gross_profit,
+        rake=rake,
+        payout=payout,
+    )
+
+
+def calculate_relief_credits(base_bet: float, multiplier: float) -> float:
+    """Calculate the loss-streak relief from the base bet."""
+    return round(float(base_bet) * float(multiplier), 2)
+
+
+def calculate_jackpot_target(balance: float, percentage: float) -> float:
+    """Calculate a percentage jackpot payout from a locked-balance snapshot."""
+    return round(float(balance) * float(percentage) / 100.0, 2)
+
+
+def calculate_jackpot_injection(
+    rake: float, jackpot_basis_points: int, rake_basis_points: int
+) -> float:
+    """Calculate the portion of rake injected into the jackpot fund."""
+    if rake <= 0 or jackpot_basis_points <= 0 or rake_basis_points <= 0:
+        return 0.0
+    return round(
+        float(rake) * float(jackpot_basis_points) / float(rake_basis_points), 2
+    )
+
+
+def calculate_cashback(
+    net_change: float, rate: float, minimum_payout: float
+) -> float | None:
+    """Return eligible weekly cashback, or ``None`` when no award is due."""
+    net = round(float(net_change), 2)
+    if net >= 0:
+        return None
+    cashback = round(abs(net) * float(rate), 2)
+    return cashback if cashback >= float(minimum_payout) else None
 
 
 def evaluate_initial_deal(

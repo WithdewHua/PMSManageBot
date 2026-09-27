@@ -115,21 +115,17 @@ class _BlackjackRepositoryPart2:
                 deck, dealer_cards, next_index, hits_soft_17=hits_soft_17
             )
 
-        outcome, return_multiplier, profit_multiplier = engine.resolve(
+        settlement = engine.calculate_cash_settlement(
             player_cards,
             final_dealer_cards,
+            bet=bet,
             doubled=doubled,
             blackjack_payout=blackjack_payout,
+            rake_bp=rake_bp,
         )
-
-        # 抽水仅对净赢利计取；判负与平局的 profit_multiplier 为 0，故自然零抽水。
-        # 一律 round(x, 2) 而非 int()：注 5 普通胜的抽水为 0.15，取整会被抹为零，
-        # 形成鼓励刷小注的偏差。
-        gross_profit = round(float(profit_multiplier) * float(bet), 2)
-        rake = 0.0
-        if gross_profit > 0:
-            rake = round(gross_profit * float(rake_bp) / 10000.0, 2)
-        payout = round(float(return_multiplier) * float(bet) - rake, 2)
+        outcome = settlement.outcome
+        rake = settlement.rake
+        payout = settlement.payout
 
         final_status = engine.STATUS_ABANDONED if abandoned else engine.STATUS_SETTLED
         now_ts = int(time.time())
@@ -204,19 +200,17 @@ class _BlackjackRepositoryPart2:
                 balance = self.read_fund_balance(
                     session, JACKPOT_CONFIG_TYPE, JACKPOT_CONFIG_KEY
                 )
-                target = round(balance * float(jackpot_suited_pct) / 100.0, 2)
+                target = engine.calculate_jackpot_target(balance, jackpot_suited_pct)
                 jackpot_won = self._pay_from_jackpot(session, target)
 
         # 抽水去向：一部分注入幸运奖池，其余直接销毁。
         # 销毁部分不需要落账——销毁即「不发给任何人」，未进奖池的部分自然消失；
         # 手牌上的 rake_credits 记录抽水总额供审计。
-        jackpot_in = 0.0
-        if rake > 0 and rake_jackpot_bp > 0:
-            jackpot_in = round(rake * float(rake_jackpot_bp) / float(rake_bp), 2)
-            if jackpot_in > 0:
-                self._add_to_fund(
-                    session, JACKPOT_CONFIG_TYPE, JACKPOT_CONFIG_KEY, jackpot_in
-                )
+        jackpot_in = engine.calculate_jackpot_injection(rake, rake_jackpot_bp, rake_bp)
+        if jackpot_in > 0:
+            self._add_to_fund(
+                session, JACKPOT_CONFIG_TYPE, JACKPOT_CONFIG_KEY, jackpot_in
+            )
 
         # 计入积分：赔付与奖池派彩一并入账，但在手牌上分列两处记账。
         # Statistics 的行锁已在奖池之前取好，此处只写不再加锁。

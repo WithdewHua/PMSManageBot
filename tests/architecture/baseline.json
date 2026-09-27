@@ -445,40 +445,40 @@
       "target": "tg"
     },
     {
-      "key": "call|src/app/domains/blackjack/repository/part_1.py|134|imported|credits|tg",
-      "owner": "promote-blackjack-domain",
-      "path": "src/app/domains/blackjack/repository/part_1.py",
-      "line": 134,
-      "kind": "call",
-      "source_domain": "blackjack",
-      "target_domain": "credits",
-      "target": "tg"
-    },
-    {
-      "key": "call|src/app/domains/blackjack/repository/part_1.py|136|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/blackjack/repository/part_1.py|136|imported|credits|tg",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_1.py",
       "line": 136,
       "kind": "call",
       "source_domain": "blackjack",
       "target_domain": "credits",
+      "target": "tg"
+    },
+    {
+      "key": "call|src/app/domains/blackjack/repository/part_1.py|138|imported|credits|register_cache_invalidation",
+      "owner": "promote-blackjack-domain",
+      "path": "src/app/domains/blackjack/repository/part_1.py",
+      "line": 138,
+      "kind": "call",
+      "source_domain": "blackjack",
+      "target_domain": "credits",
       "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/blackjack/repository/part_2.py|227|imported|credits|tg",
+      "key": "call|src/app/domains/blackjack/repository/part_2.py|221|imported|credits|tg",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_2.py",
-      "line": 227,
+      "line": 221,
       "kind": "call",
       "source_domain": "blackjack",
       "target_domain": "credits",
       "target": "tg"
     },
     {
-      "key": "call|src/app/domains/blackjack/repository/part_2.py|229|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/blackjack/repository/part_2.py|223|imported|credits|register_cache_invalidation",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_2.py",
-      "line": 229,
+      "line": 223,
       "kind": "call",
       "source_domain": "blackjack",
       "target_domain": "credits",

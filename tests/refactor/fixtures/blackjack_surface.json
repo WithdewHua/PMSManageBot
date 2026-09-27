@@ -660,6 +660,22 @@
         "target": "app.domains.blackjack.rules"
       },
       {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_1",
+        "module_target": "app.domains.blackjack",
+        "resolved": true,
+        "scope": "function",
+        "target": "app.domains.blackjack.rules"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_1",
+        "module_target": "app.domains.blackjack",
+        "resolved": true,
+        "scope": "function",
+        "target": "app.domains.blackjack.rules"
+      },
+      {
         "kind": "import",
         "module": "app.domains.blackjack.repository.part_2",
         "resolved": true,
@@ -2180,6 +2196,14 @@
         "resolved": true,
         "scope": "module",
         "target": "random"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.rules",
+        "module_target": "dataclasses",
+        "resolved": true,
+        "scope": "module",
+        "target": "dataclasses.dataclass"
       },
       {
         "kind": "from",
