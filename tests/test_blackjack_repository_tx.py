@@ -26,6 +26,15 @@ TX_EXPORTS = (
     "apply_blackjack_retention_tx",
     "get_user_blackjack_stats_tx",
     "get_blackjack_admin_stats_tx",
+    "credit_tournament_wallet_tx",
+)
+
+#: 只读聚合模块（analytics）提供的 `*_tx` 包装：它们不是 mixin 方法，所以不参与
+#: 上面那条“mixin 里的 `_tx` 方法必须逐个登记”的集合相等断言，但同样必须
+#: 以 `session` 为首参。
+ANALYTICS_TX_EXPORTS = (
+    "cash_hand_metrics_tx",
+    "count_tournament_entries_tx",
 )
 
 
@@ -35,7 +44,7 @@ def test_repository_reexports_config_constants_for_compatibility() -> None:
 
 
 def test_module_tx_exports_have_explicit_caller_session() -> None:
-    for name in TX_EXPORTS:
+    for name in (*TX_EXPORTS, *ANALYTICS_TX_EXPORTS):
         signature = inspect.signature(getattr(repository, name))
         assert next(iter(signature.parameters)) == "session"
         assert getattr(repository, name).__module__ == repository.__name__

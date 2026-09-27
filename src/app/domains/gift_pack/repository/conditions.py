@@ -9,7 +9,7 @@ from sqlalchemy import distinct, func, select
 from app.core.config import settings
 from app.domains.auction.models import AuctionBids
 from app.domains.badges.models import UserBadge
-from app.domains.blackjack import service as blackjack_service
+from app.domains.blackjack import repository as blackjack_repository
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 from app.domains.invitation.models import Invitation
@@ -126,7 +126,7 @@ class _GiftPackRepositoryConditions:
     def _count_gift_pack_blackjack_hands(
         session, tg_id: int, since: int, until: int, **qualifiers
     ) -> int | tuple[int, float]:
-        return blackjack_service.count_eligible_cash_hands_tx(
+        return blackjack_repository.cash_hand_metrics_tx(
             session,
             tg_id,
             since,
@@ -181,7 +181,7 @@ class _GiftPackRepositoryConditions:
     def _count_gift_pack_tournament_entries(
         session, tg_id: int, since: int, until: int, **qualifiers
     ) -> int:
-        return blackjack_service.count_tournament_entries_tx(
+        return blackjack_repository.count_tournament_entries_tx(
             session, tg_id, since, until
         )
 

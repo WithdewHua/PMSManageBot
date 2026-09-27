@@ -104,7 +104,7 @@ def get_user_blackjack_stats(tg_id: int) -> dict:
     return blackjack_repository.get_user_blackjack_stats(tg_id)
 
 
-def count_eligible_cash_hands_tx(
+def cash_hand_metrics_tx(
     session,
     tg_id: int,
     since: int,
@@ -113,7 +113,7 @@ def count_eligible_cash_hands_tx(
     min_bet: float | None = None,
     min_accuracy: float | None = None,
 ) -> int | tuple[int, float]:
-    return blackjack_analytics.count_eligible_cash_hands_tx(
+    return blackjack_analytics.cash_hand_metrics_tx(
         session,
         tg_id,
         since,

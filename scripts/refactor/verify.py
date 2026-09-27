@@ -300,6 +300,21 @@ def _repository_mixins(mapping_file: Path | None) -> dict[str, set[str]]:
     return declared
 
 
+def _reviewed_ast_exception(exception: object, root: Path) -> bool:
+    """A deliberate AST change is recorded as ``<change> reviewed <what>``.
+
+    ``<change>`` must be the historical ``B3`` migration or an existing
+    ``openspec/changes/<name>`` directory, so an exception cannot be invented by
+    writing prose into the mapping file.
+    """
+    if not isinstance(exception, str):
+        return False
+    parts = exception.split(maxsplit=2)
+    if len(parts) < 3 or parts[1] != "reviewed":
+        return False
+    return parts[0] == "B3" or (root / "openspec/changes" / parts[0]).is_dir()
+
+
 def compare_inventory(
     base_root: Path, current_root: Path, mapping_file: Path | None = None
 ) -> list[str]:
@@ -558,8 +573,7 @@ def compare_inventory(
                 )
             )
             if not (
-                isinstance(exception, str)
-                and exception.startswith("B3 ")
+                _reviewed_ast_exception(exception, current_root)
                 and reviewed_test_exists
             ):
                 errors.append(

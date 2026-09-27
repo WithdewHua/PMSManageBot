@@ -638,6 +638,14 @@
       },
       {
         "kind": "from",
+        "module": "app.domains.blackjack.repository",
+        "module_target": "app.domains.blackjack.repository",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.repository.analytics"
+      },
+      {
+        "kind": "from",
         "module": "app.domains.blackjack.repository.analytics",
         "module_target": "__future__",
         "resolved": true,
@@ -699,6 +707,14 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.blackjack.config.DEFAULT_BLACKJACK_CONFIG"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.analytics",
+        "module_target": "app.domains.blackjack.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.config.TOURNAMENT_CANCELLED"
       },
       {
         "kind": "from",
@@ -1888,6 +1904,30 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.repository.wallet",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.func"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.wallet",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.select"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.wallet",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.update"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.wallet",
         "module_target": "app.core.db",
         "resolved": true,
         "scope": "module",
@@ -1900,6 +1940,14 @@
         "resolved": true,
         "scope": "module",
         "target": "app.core.log.logger"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.wallet",
+        "module_target": "app.domains.blackjack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.exceptions.blackjack_error"
       },
       {
         "kind": "from",
@@ -2806,7 +2854,15 @@
         "module_target": "app.domains.blackjack",
         "resolved": true,
         "scope": "module",
-        "target": "app.domains.blackjack.service"
+        "target": "app.domains.blackjack.repository"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "app.domains.blackjack",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.repository"
       },
       {
         "kind": "from",

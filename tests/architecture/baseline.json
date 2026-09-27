@@ -949,40 +949,20 @@
       "target": "sync_media_permission"
     },
     {
-      "key": "call|src/app/domains/gift_pack/repository/conditions.py|129|imported|blackjack|count_eligible_cash_hands_tx",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/conditions.py",
-      "line": 129,
-      "kind": "call",
-      "source_domain": "gift_pack",
-      "target_domain": "blackjack",
-      "target": "count_eligible_cash_hands_tx"
-    },
-    {
-      "key": "call|src/app/domains/gift_pack/repository/conditions.py|184|imported|blackjack|count_tournament_entries_tx",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/conditions.py",
-      "line": 184,
-      "kind": "call",
-      "source_domain": "gift_pack",
-      "target_domain": "blackjack",
-      "target": "count_tournament_entries_tx"
-    },
-    {
-      "key": "call|src/app/domains/gift_pack/repository/rewards.py|55|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/gift_pack/repository/rewards.py|56|imported|credits|register_cache_invalidation",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/rewards.py",
-      "line": 55,
+      "line": 56,
       "kind": "call",
       "source_domain": "gift_pack",
       "target_domain": "credits",
       "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/gift_pack/repository/rewards.py|74|imported|premium|update_premium_status",
+      "key": "call|src/app/domains/gift_pack/repository/rewards.py|75|imported|premium|update_premium_status",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/rewards.py",
-      "line": 74,
+      "line": 75,
       "kind": "call",
       "source_domain": "gift_pack",
       "target_domain": "premium",
@@ -3677,17 +3657,6 @@
       "symbol": "UserBadge"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/conditions.py|12|app.domains.blackjack.service|service",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/conditions.py",
-      "line": 12,
-      "kind": "import",
-      "source_domain": "gift_pack",
-      "target_domain": "blackjack",
-      "target_module": "app.domains.blackjack.service",
-      "symbol": "service"
-    },
-    {
       "key": "import|src/app/domains/gift_pack/repository/conditions.py|15|app.domains.invitation.models|Invitation",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/conditions.py",
@@ -3743,10 +3712,10 @@
       "symbol": "Badge"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/rewards.py|11|app.domains.credits.service|service",
+      "key": "import|src/app/domains/gift_pack/repository/rewards.py|12|app.domains.credits.service|service",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/rewards.py",
-      "line": 11,
+      "line": 12,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "credits",
@@ -3754,10 +3723,10 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/rewards.py|14|app.domains.invitation.models|Invitation",
+      "key": "import|src/app/domains/gift_pack/repository/rewards.py|15|app.domains.invitation.models|Invitation",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/rewards.py",
-      "line": 14,
+      "line": 15,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "invitation",
@@ -3765,10 +3734,10 @@
       "symbol": "Invitation"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/rewards.py|38|app.domains.premium.service|update_premium_status",
+      "key": "import|src/app/domains/gift_pack/repository/rewards.py|39|app.domains.premium.service|update_premium_status",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/rewards.py",
-      "line": 38,
+      "line": 39,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "premium",

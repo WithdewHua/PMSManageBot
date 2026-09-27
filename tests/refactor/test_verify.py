@@ -505,6 +505,22 @@ def test_b3_ast_exception_requires_itemized_behavior_test(tmp_path: Path) -> Non
     assert compare_inventory(base, current, mapping) == []
 
 
+def test_ast_exception_must_name_a_reviewed_change(tmp_path: Path) -> None:
+    """例外必须写成 `<变更> reviewed <说明>`，且变更是真实存在的 OpenSpec 变更。"""
+    from scripts.refactor.verify import _reviewed_ast_exception
+
+    root = tmp_path
+    (root / "openspec/changes/promote-sample-domain").mkdir(parents=True)
+    assert _reviewed_ast_exception("B3 reviewed named task registry", root)
+    assert _reviewed_ast_exception("promote-sample-domain reviewed split", root)
+    # 变更目录不存在时拒绝
+    assert not _reviewed_ast_exception("promote-unknown-domain reviewed split", root)
+    # 缺少 reviewed 标记或说明时拒绝
+    assert not _reviewed_ast_exception("promote-sample-domain arbitrary note", root)
+    assert not _reviewed_ast_exception("promote-sample-domain reviewed", root)
+    assert not _reviewed_ast_exception(None, root)
+
+
 def _split_mapping() -> str:
     """Mapping entries for a facade class whose method moved into a mixin."""
     return (

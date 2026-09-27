@@ -7,6 +7,7 @@ from uuid import uuid4
 from sqlalchemy import select
 
 from app.core.config import settings
+from app.domains.blackjack import repository as blackjack_repository
 from app.domains.credits import repository as credits_repository
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
@@ -184,20 +185,23 @@ class _GiftPackRepositoryRewards:
     def _grant_tournament_wallet_tx(
         self, session, tg_id: int, reward: dict, label: str
     ) -> dict:
-        """把数额计入争霸赛余额（不计入积分），复用积分分支的行锁"""
-        amount = float(reward.get("amount") or 0)
+        """把数额计入争霸赛余额（不计入积分）
+
+        争霸赛余额列属于 blackjack 领域，写入统一走它的 `*_tx`（行锁 + SQL 增量 +
+        两位小数舍入），礼包这边只负责校验数额与拼响应。
+        """
+        amount = round(float(reward.get("amount") or 0), 2)
         if amount <= 0:
             raise ValueError("争霸赛余额数量必须为正")
-        stats = self._lock_gift_pack_stats(session, tg_id)
-        stats.tournament_wallet_credits = round(
-            float(stats.tournament_wallet_credits or 0) + amount, 2
+        balance_after = blackjack_repository.credit_tournament_wallet_tx(
+            session, tg_id, amount
         )
         return {
             "type": "tournament_wallet",
             "label": label,
             "success": True,
             "amount": amount,
-            "balance_after": stats.tournament_wallet_credits,
+            "balance_after": balance_after,
         }
 
     # 功能解锁的永久标记列：(模型, 标记列, 解锁时间列)

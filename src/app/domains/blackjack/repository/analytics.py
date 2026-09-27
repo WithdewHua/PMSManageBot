@@ -7,7 +7,7 @@ from sqlalchemy import case, func, select
 from app.core.db import get_session
 from app.core.log import logger
 from app.domains.blackjack import rules
-from app.domains.blackjack.config import DEFAULT_BLACKJACK_CONFIG
+from app.domains.blackjack.config import DEFAULT_BLACKJACK_CONFIG, TOURNAMENT_CANCELLED
 from app.domains.blackjack.models import (
     BlackjackHand,
     BlackjackTournament,
@@ -134,7 +134,7 @@ def get_blackjack_max_win_rank() -> list[tuple[int, float, int]]:
         return []
 
 
-def count_eligible_cash_hands_tx(
+def cash_hand_metrics_tx(
     session,
     tg_id: int,
     since: int,
@@ -143,7 +143,11 @@ def count_eligible_cash_hands_tx(
     min_bet: float | None = None,
     min_accuracy: float | None = None,
 ) -> int | tuple[int, float]:
-    """Count settled cash hands for a gift-pack audience in caller transaction."""
+    """手牌口径的条件计数：返回手数，或（手数，决策准确率）。
+
+    条件计数只统计已结算的现金局（终态且非锦标赛），毫秒边界用闭区间，
+    可选 min_bet / min_accuracy 过滤；准确率按累计决策数加权。
+    """
     stmt = select(
         func.count(BlackjackHand.id),
         func.coalesce(func.sum(BlackjackHand.decisions_total), 0),
@@ -175,7 +179,7 @@ def count_tournament_entries_tx(session, tg_id: int, since: int, until: int) -> 
         )
         .where(
             BlackjackTournamentEntry.tg_id == int(tg_id),
-            BlackjackTournament.status != 4,
+            BlackjackTournament.status != TOURNAMENT_CANCELLED,
             BlackjackTournamentEntry.registered_at_ms >= int(since) * 1000,
             BlackjackTournamentEntry.registered_at_ms <= int(until) * 1000,
         )
@@ -205,7 +209,7 @@ def get_game_king_eligible_tg_ids_tx(
 
 
 __all__ = [
-    "count_eligible_cash_hands_tx",
+    "cash_hand_metrics_tx",
     "count_tournament_entries_tx",
     "get_blackjack_max_win_rank",
     "get_blackjack_max_win_rank_tx",

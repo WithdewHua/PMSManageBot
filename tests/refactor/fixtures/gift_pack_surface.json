@@ -458,7 +458,7 @@
         "module_target": "app.domains.blackjack",
         "resolved": true,
         "scope": "module",
-        "target": "app.domains.blackjack.service"
+        "target": "app.domains.blackjack.repository"
       },
       {
         "kind": "from",
@@ -789,6 +789,14 @@
         "resolved": true,
         "scope": "module",
         "target": "app.core.config.settings"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "app.domains.blackjack",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.repository"
       },
       {
         "kind": "from",

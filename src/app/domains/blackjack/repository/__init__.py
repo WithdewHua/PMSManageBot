@@ -148,6 +148,11 @@ def get_blackjack_tournament_wallet(tg_id: int) -> float:
     return _repository.get_blackjack_tournament_wallet(tg_id)
 
 
+def credit_tournament_wallet_tx(session, tg_id: int, amount: float) -> float:
+    """给争霸赛余额记账（调用方持有事务），返回记完后的余额。"""
+    return _repository.credit_tournament_wallet_tx(session, tg_id, amount)
+
+
 def read_fund_balance(session, config_type: str, config_key: str) -> float:
     return _repository.read_fund_balance(session, config_type, config_key)
 
@@ -329,6 +334,36 @@ def get_blackjack_config_dict() -> dict:
     return _repository.get_blackjack_config_dict()
 
 
+# analytics 是只读聚合模块，导入必须排在包级包装函数之后（它反过来要用
+# get_blackjack_config_dict），否则会形成部分初始化循环导入。
+from . import analytics
+
+
+def cash_hand_metrics_tx(
+    session,
+    tg_id: int,
+    since: int,
+    until: int,
+    *,
+    min_bet: float | None = None,
+    min_accuracy: float | None = None,
+):
+    """手牌口径的条件计数（调用方持有事务）。"""
+    return analytics.cash_hand_metrics_tx(
+        session,
+        tg_id,
+        since,
+        until,
+        min_bet=min_bet,
+        min_accuracy=min_accuracy,
+    )
+
+
+def count_tournament_entries_tx(session, tg_id: int, since: int, until: int) -> int:
+    """锦标赛参赛次数的条件计数（已取消赛事不计，调用方持有事务）。"""
+    return analytics.count_tournament_entries_tx(session, tg_id, since, until)
+
+
 __all__ = [
     "CASHBACK_CURSOR_KEY",
     "CHAMPION_BADGE_BONUS",
@@ -366,16 +401,19 @@ __all__ = [
     "blackjack_tournament_surrender",
     "blackjack_tournament_surrender_tx",
     "cancel_blackjack_tournament",
+    "cash_hand_metrics_tx",
     "check_blackjack_tournament_consistency",
     "claim_tournament_reminder",
     "claim_unannounced_jackpot_wins",
     "count_registering_blackjack_tournaments",
+    "count_tournament_entries_tx",
     "count_user_blackjack_tournament_titles",
     "create_blackjack_hand",
     "create_blackjack_hand_tx",
     "create_blackjack_tournament",
     "create_blackjack_tournament_hand",
     "create_blackjack_tournament_hand_tx",
+    "credit_tournament_wallet_tx",
     "force_settle_tournament_hands",
     "get_blackjack_admin_stats",
     "get_blackjack_admin_stats_tx",

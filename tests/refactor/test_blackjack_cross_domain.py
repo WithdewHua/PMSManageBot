@@ -8,6 +8,23 @@ DOMAINS = ROOT / "src/app/domains"
 ALLOWED_BLACKJACK_TARGETS = {
     "app.domains.blackjack.service",
     "app.domains.blackjack.config",
+    "app.domains.blackjack.repository",
+}
+
+#: 跨域调用只走 service，或有明确所有权的 `*_tx`（design D2）。
+SERVICE_BOUNDARY_CALLERS = {
+    "src/app/domains/badge_awards/jobs.py": "blackjack_service",
+    "src/app/domains/rankings/repository.py": "blackjack_service",
+}
+REPOSITORY_TX_CALLERS = {
+    "src/app/domains/gift_pack/repository/conditions.py": (
+        "blackjack_repository",
+        {"cash_hand_metrics_tx", "count_tournament_entries_tx"},
+    ),
+    "src/app/domains/gift_pack/repository/rewards.py": (
+        "blackjack_repository",
+        {"credit_tournament_wallet_tx"},
+    ),
 }
 
 
@@ -19,25 +36,45 @@ def _domain_python_files() -> list[Path]:
     ]
 
 
+def _blackjack_imports(relative: str) -> list[ast.ImportFrom]:
+    tree = ast.parse((ROOT / relative).read_text(encoding="utf-8"))
+    return [
+        node
+        for node in tree.body
+        if isinstance(node, ast.ImportFrom) and node.module == "app.domains.blackjack"
+    ]
+
+
 def test_cross_domain_callers_use_blackjack_service_boundaries() -> None:
-    expected = {
-        "src/app/domains/badge_awards/jobs.py": "blackjack_service",
-        "src/app/domains/gift_pack/repository/conditions.py": "blackjack_service",
-        "src/app/domains/rankings/repository.py": "blackjack_service",
-    }
-    for relative, binding in expected.items():
-        tree = ast.parse((ROOT / relative).read_text(encoding="utf-8"))
-        imports = [
-            node
-            for node in tree.body
-            if isinstance(node, ast.ImportFrom)
-            and node.module == "app.domains.blackjack"
-        ]
+    for relative, binding in SERVICE_BOUNDARY_CALLERS.items():
+        imports = _blackjack_imports(relative)
         assert any(
             alias.asname == binding or alias.name == "service"
             for node in imports
             for alias in node.names
         ), relative
+
+
+def test_blackjack_tx_callers_only_use_registered_helpers() -> None:
+    """走 repository 的跨域调用方只能调用登记的 `*_tx`（design D2）。"""
+    for relative, (binding, allowed) in REPOSITORY_TX_CALLERS.items():
+        imports = _blackjack_imports(relative)
+        assert any(
+            alias.asname == binding or alias.name == "repository"
+            for node in imports
+            for alias in node.names
+        ), relative
+        tree = ast.parse((ROOT / relative).read_text(encoding="utf-8"))
+        called = {
+            node.func.attr
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == binding
+        }
+        assert called, relative
+        assert called <= allowed, (relative, called - allowed)
 
 
 def test_external_domains_do_not_import_blackjack_models_or_repository_parts() -> None:

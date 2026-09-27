@@ -62,7 +62,11 @@
   - 基线：`types` 合法化使 543 条跨域条目降到 445 条（stale 98、new 0），`audit_b3_baseline.py --write` 逐条保留 `b3_source_id`（56 条）并让 `contract_ignore_counts` 反映新合约；审计脚本改写走 `helpers.write_baseline`。
   - 验证：`lint-imports` 11/0；`pytest tests/` 497 passed / 4 skipped；新增去重用例（同一事务多次改动同一账号只失效一次）与回滚不失效用例。
   - 文档：`docs/architecture.md` 新增“跨域导入规则”一节，`AGENTS.md` 的 Imports 规则写入 types 例外。
-- [ ] 3.2 在 blackjack repository 中新增 `credit_tournament_wallet_tx`、`cash_hand_metrics_tx` 和 `count_tournament_entries_tx`，其中后者用常量排除已取消的赛事。验证：锁、SQL 增量、舍入和回滚测试通过；两个计数函数与原礼包计数器的边界用例（终态、非锦标赛、毫秒边界、准确率、已取消赛事）逐条一致。
+- [x] 3.2 在 blackjack repository 中新增 `credit_tournament_wallet_tx`、`cash_hand_metrics_tx` 和 `count_tournament_entries_tx`，其中后者用常量排除已取消的赛事。验证：锁、SQL 增量、舍入和回滚测试通过；两个计数函数与原礼包计数器的边界用例（终态、非锦标赛、毫秒边界、准确率、已取消赛事）逐条一致。
+  - 交付：`credit_tournament_wallet_tx` 落在 `blackjack/repository/wallet.py`（行锁 + `func.round(..., 2)` SQL 增量，返回新余额，非法数额/缺行抛 `BlackjackError`）；`cash_hand_metrics_tx`（原名 `count_eligible_cash_hands_tx`，返回手数或（手数，准确率））与 `count_tournament_entries_tx` 在 `repository/analytics.py`，后者改用 `TOURNAMENT_CANCELLED` 常量；两者经 `repository/__init__.py` 暴露（analytics 的导入放在包级包装函数之后，避免部分初始化循环）。
+  - 礼包侧改走 `blackjack.repository.*_tx`：`conditions.py` 的两个计数器、`rewards.py` 的争霸赛余额奖励都不再直接写 `statistics.tournament_wallet_credits`，也不再导入 `blackjack.service`。
+  - 验证：新增 `tests/test_blackjack_wallet.py`（事务内累加、两位小数舍入、调用方回滚、非正数额与缺行拒绝、AST 断言行锁/SQL 增量，以及礼包不再直接写该列）；`tests/refactor/test_blackjack_cross_domain.py` 新增“走 repository 的调用方只能调登记的 `*_tx`”。全量 505 passed / 4 skipped。
+  - 基线：这三条礼包→21 点的边在新边界下合法，基线 445 → 442 条（`b3_source_id` 仍 56 条）。
 - [ ] 3.3 在 premium 中新增 `grant_premium_days_tx` 和 `sync_premium_media_access(tg_id)`，前者在调用方 session 内对媒体账号行加锁后读写。验证：新开、续期、已过期、永久会员（含提示）各用例与 `update_premium_status` 的结果一致；外层事务回滚时一并回滚；同步函数的签名里不再有门面实例。
 - [ ] 3.4 新增 `lines.repository.unlock_line_schedule_tx` 和 `media_access.repository.unlock_download_tx`，返回"已解锁"或"已跳过"。验证：写入的列、解锁时间和"已解锁则跳过"都与 `_grant_feature_unlock_tx` 一致；外层事务回滚时一并回滚。
 - [ ] 3.5 在 invitation 中新增 `issue_codes_tx`、`persist_privileged_codes_tx` 和 `count_invitees_tx`，把特权码例外挪过来；更新 `docs/architecture.md` 的例外清单。验证：

@@ -1820,7 +1820,9 @@ planned_target = "app.domains.gift_pack.repository.rewards"
 planned_reason = "design D1 sub-topic: reward granting"
 class = "GiftPackRepository"
 kind = "method"
-reason = "db.py section: Gift Pack Operations"
+reason = "promote-gift-pack-domain 3.2 reviewed change: the wallet reward now credits statistics.tournament_wallet_credits through blackjack.repository.credit_tournament_wallet_tx (row lock + SQL increment + 2-decimal rounding) instead of writing the column from the gift-pack side"
+b3_ast_exception = "promote-gift-pack-domain reviewed wallet ownership handoff"
+b3_behavior_test = "tests/test_blackjack_wallet.py::test_gift_pack_repository_does_not_write_the_wallet_column"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._grant_wheel_free_spins_tx"
