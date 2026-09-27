@@ -28,7 +28,10 @@
 
 ## 2. 按子主题搬移（只搬不改）
 
-- [ ] 2.1 编写基线键改写脚本：按搬移映射把基线条目的 `path|line` 改到新位置，并校验条目总数不变、按 `(owner, kind, source_domain, target_domain, target/symbol)` 统计的多重集合不变。验证：单元测试覆盖正常改写、多重集合变化被拒绝、映射缺失被拒绝。
+- [x] 2.1 编写基线键改写脚本：按搬移映射把基线条目的 `path|line` 改到新位置，并校验条目总数不变、按 `(owner, kind, source_domain, target_domain, target/symbol)` 统计的多重集合不变。验证：单元测试覆盖正常改写、多重集合变化被拒绝、映射缺失被拒绝。
+  - 交付：`scripts/refactor/rewrite_baseline_keys.py` + `tests/refactor/test_rewrite_baseline_keys.py`（12 个用例）；搬移声明文件为 `scripts/refactor/baseline_moves.toml`。
+  - 规则：旧条目按 `identity + 所属符号` 配对，符号与 `path/line` 均从 `git show <base>:<path>` 的搬移前源码解析，目标侧从工作区解析；路径变化必须被搬移声明覆盖，声明里的符号目标反过来与 `mapping.toml` 的 `planned_target` 对比；`owner`、`b3_source_id` 等评审元数据保留，只改 `path`/`line`/`key`。
+  - 验证：把 `part_1.py` 声明为“搬到自己”的恒等搬移后，544 条条目全部配对成功、`rewritten=0`，重写后的 `baseline.json` 与重写前逐字节相同（证明配对与来源标记不会漂移）；把 `--mapping` 指回真实的 `mapping.toml` 时会因计划目标不一致而拒绝；单测覆盖正常改写、多重集合增删、映射缺失、未登记搬移、目标不一致、符号不一致、重复声明。
 - [ ] 2.2 把礼包 repository 的 `part_1`–`part_3` 按 design D1 搬移为 `conditions.py`、`rewards.py`、`packs.py`、`claims.py`、`notices.py` 五个 mixin 模块，由 `repository/__init__.py` 组合，门面看到的类不变；用 2.1 的脚本改写基线键。验证：`verify.py` 逐项 AST 零差异，全量测试和 `pytest tests/architecture` 通过；本次提交只含搬移、导入和基线键的改动。
 - [ ] 2.3 把 21 点 repository 的 `part_1`–`part_7` 按子主题搬移，目标文件名在映射表中审阅确定（参考 design D1 的表），`repository/__init__.py` 的导出不变；21 点的冻结夹具如果仍在，按映射只更新路径。验证：`verify.py` 零差异；21 点全部测试通过；夹具的 diff 只有路径变化；单独提交。
 - [ ] 2.4 在 `tests/architecture` 新增序号模块检查，并在 `baseline.json` 新增 `numbered_modules` 类别，登记 `prediction/repository/part_1.py` 和 `part_2.py`（负责变更为 `promote-activity-domains`）。在 `docs/architecture.md` 的提升模板里写明三条：按子主题拆包、搬移与语义改造分开提交、禁止序号模块。验证：临时加一个 `part_9.py` 时检查失败；删掉已登记的例外但文件还在时检查失败；文档中的规则可以在 AGENTS.md 找到链接。
