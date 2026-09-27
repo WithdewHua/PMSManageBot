@@ -1242,7 +1242,7 @@ async def test_admin_list_and_records_endpoints_report_rows_and_totals(
 
 
 @pytest.mark.asyncio
-async def test_delete_route_splits_404_and_400_and_keeps_title_quirk(orm, monkeypatch):
+async def test_delete_route_splits_404_and_400_despite_title_quirk(orm, monkeypatch):
     from starlette.requests import Request
 
     from app.core.schemas import TelegramUser
@@ -1279,7 +1279,7 @@ async def test_delete_route_splits_404_and_400_and_keeps_title_quirk(orm, monkey
         "该礼包已有用户领取，只能停用不能删除",
     )
 
-    # 被引用 → 400；被引用礼包的标题里含“不存在”时，现状按子串判定返回 404
+    # 被引用 → 400；引用者标题里含“不存在”也一样（design D8 记下的唯一行为差异）
     referenced = _add_pack(_pack(start_at=now - 10, end_at=now + 3600))
     referrer = _add_pack(
         _pack(
@@ -1294,7 +1294,9 @@ async def test_delete_route_splits_404_and_400_and_keeps_title_quirk(orm, monkey
 
     _rename_pack(referrer, "不存在的引用者")
     status, detail = await _http_outcome(delete(referenced))
-    assert status == 404  # 现状：子串判定把 400 类拒绝当成了 404
+    # 类型化异常按抛出点的状态码返回：被引用始终是 400，不再被标题里的
+    # “不存在”带偏成 404（promote-gift-pack-domain design D8 的唯一差异）
+    assert status == 400
     assert "引用" in str(detail)
 
     # 无引用 → 删除成功

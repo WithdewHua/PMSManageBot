@@ -315,6 +315,30 @@ def _reviewed_ast_exception(exception: object, root: Path) -> bool:
     return parts[0] == "B3" or (root / "openspec/changes" / parts[0]).is_dir()
 
 
+def _reviewed_exception_entry(entry: dict[str, Any], root: Path) -> bool:
+    """``b3_ast_exception``（登记过的变更）加 ``b3_behavior_test`` 都成立才放行。"""
+    exception = entry.get("b3_ast_exception", "")
+    behavior_test = entry.get("b3_behavior_test", "")
+    test_path, separator, test_name = (
+        behavior_test.partition("::")
+        if isinstance(behavior_test, str)
+        else ("", "", "")
+    )
+    test_file = root / test_path
+    reviewed_test_exists = (
+        separator == "::"
+        and test_path.startswith("tests/")
+        and test_file.is_file()
+        and test_name.startswith("test_")
+        and any(
+            isinstance(test_node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and test_node.name == test_name
+            for test_node in ast.parse(test_file.read_text(encoding="utf-8")).body
+        )
+    )
+    return _reviewed_ast_exception(exception, root) and reviewed_test_exists
+
+
 def compare_inventory(
     base_root: Path, current_root: Path, mapping_file: Path | None = None
 ) -> list[str]:
@@ -514,9 +538,15 @@ def compare_inventory(
                     if imported_item.kind in {"import", "package_import"}
                     for binding in _bindings(importing_nodes[imported_item.id])
                 )
-            if bindings - imported and "*" not in bindings:
+            missing_bindings = bindings - imported
+            # 登记过的变更可以少一个绑定（例如迁移后不再需要的 json 导入）
+            if (
+                missing_bindings
+                and "*" not in bindings
+                and not _reviewed_exception_entry(entry, current_root)
+            ):
                 errors.append(
-                    f"missing import bindings: {item.id} -> {module}: {sorted(bindings - imported)}"
+                    f"missing import bindings: {item.id} -> {module}: {sorted(missing_bindings)}"
                 )
             continue
         if item.kind in {"statement", "docstring"}:
@@ -550,35 +580,10 @@ def compare_inventory(
                 class_aliases=parents,
             )
             for match in matches
-        ):
-            exception = entry.get("b3_ast_exception", "")
-            behavior_test = entry.get("b3_behavior_test", "")
-            test_path, separator, test_name = (
-                behavior_test.partition("::")
-                if isinstance(behavior_test, str)
-                else ("", "", "")
+        ) and not _reviewed_exception_entry(entry, current_root):
+            errors.append(
+                f"AST changed: {item.id} -> {module}{'.' + target_class if target_class else ''}"
             )
-            test_file = current_root / test_path
-            reviewed_test_exists = (
-                separator == "::"
-                and test_path.startswith("tests/")
-                and test_file.is_file()
-                and test_name.startswith("test_")
-                and any(
-                    isinstance(test_node, (ast.FunctionDef, ast.AsyncFunctionDef))
-                    and test_node.name == test_name
-                    for test_node in ast.parse(
-                        test_file.read_text(encoding="utf-8")
-                    ).body
-                )
-            )
-            if not (
-                _reviewed_ast_exception(exception, current_root)
-                and reviewed_test_exists
-            ):
-                errors.append(
-                    f"AST changed: {item.id} -> {module}{'.' + target_class if target_class else ''}"
-                )
     for (module, parent, kind), expected in anonymous.items():
         items, nodes = destination(module)
         observed = Counter(

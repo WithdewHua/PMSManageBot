@@ -35,6 +35,30 @@
         "target": "app.domains.gift_pack.repository.GiftPackRepository"
       },
       {
+        "kind": "from",
+        "module": "app.domains.gift_pack.exceptions",
+        "module_target": "__future__",
+        "resolved": true,
+        "scope": "module",
+        "target": "__future__.annotations"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.exceptions",
+        "module_target": "typing",
+        "resolved": true,
+        "scope": "module",
+        "target": "typing.Any"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.exceptions",
+        "module_target": "app.core.errors",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.errors.DomainError"
+      },
+      {
         "kind": "import",
         "module": "app.domains.gift_pack.jobs",
         "resolved": true,
@@ -337,6 +361,22 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.repository.claims",
+        "module_target": "app.domains.gift_pack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.exceptions.ConditionsNotMet"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.claims",
+        "module_target": "app.domains.gift_pack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.exceptions.gift_pack_error"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.claims",
         "module_target": "app.domains.gift_pack.models",
         "resolved": true,
         "scope": "module",
@@ -428,6 +468,14 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.blackjack.repository"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "app.domains.gift_pack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.exceptions.gift_pack_error"
       },
       {
         "kind": "from",
@@ -652,6 +700,14 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.repository.packs",
+        "module_target": "app.domains.gift_pack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.exceptions.gift_pack_error"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.packs",
         "module_target": "app.domains.gift_pack.models",
         "resolved": true,
         "scope": "module",
@@ -762,6 +818,14 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "app.domains.gift_pack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.exceptions.gift_pack_error"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
         "module_target": "app.domains.invitation",
         "resolved": true,
         "scope": "module",
@@ -798,13 +862,6 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.premium.repository"
-      },
-      {
-        "kind": "import",
-        "module": "app.domains.gift_pack.router",
-        "resolved": true,
-        "scope": "module",
-        "target": "json"
       },
       {
         "kind": "from",
@@ -925,6 +982,14 @@
         "resolved": true,
         "scope": "module",
         "target": "app.databases.db"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.router",
+        "module_target": "app.domains.gift_pack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.exceptions.GiftPackError"
       },
       {
         "kind": "from",

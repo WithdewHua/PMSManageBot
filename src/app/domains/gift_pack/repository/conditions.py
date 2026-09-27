@@ -10,6 +10,7 @@ from app.core.config import settings
 from app.domains.auction import repository as auction_repository
 from app.domains.badges import repository as badges_repository
 from app.domains.blackjack import repository as blackjack_repository
+from app.domains.gift_pack.exceptions import gift_pack_error
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 from app.domains.invitation import repository as invitation_repository
@@ -300,7 +301,7 @@ class _GiftPackRepositoryConditions:
             if kind not in ("invitees", "watched_hours"):
                 result["window"] = item.get("window") or {"kind": "all"}
         else:
-            raise ValueError(f"不支持的礼包条件: {kind}")
+            raise gift_pack_error(f"不支持的礼包条件: {kind}")
         return result
 
     def _evaluate_gift_pack_audience(
@@ -409,7 +410,7 @@ class _GiftPackRepositoryConditions:
             .one_or_none()
         )
         if not stats:
-            raise ValueError("用户积分信息不存在")
+            raise gift_pack_error("用户积分信息不存在")
         return stats
 
     @staticmethod
@@ -518,7 +519,7 @@ class _GiftPackRepositoryConditions:
             return f"已领取礼包 #{item['pack_id']}"
         if kind == "user_list":
             return "包含名单" if item["mode"] == "include" else "排除名单"
-        raise ValueError(f"不支持的礼包条件: {kind}")
+        raise gift_pack_error(f"不支持的礼包条件: {kind}")
 
     @staticmethod
     def _gift_pack_condition_summary(items: list[dict]) -> str:

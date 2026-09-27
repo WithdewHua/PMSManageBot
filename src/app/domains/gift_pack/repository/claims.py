@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.gift_pack.exceptions import ConditionsNotMet, gift_pack_error
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 
 
@@ -134,7 +135,7 @@ class _GiftPackRepositoryClaims:
                 .one_or_none()
             )
             if not pack:
-                raise ValueError("礼包不存在")
+                raise gift_pack_error("礼包不存在")
             # Audience is checked before exposing status, window, or inventory.
             state = session.execute(
                 select(GiftPackUserState)
@@ -150,33 +151,32 @@ class _GiftPackRepositoryClaims:
             if not self._evaluate_gift_pack_audience(
                 audience, context, pack, ref, state
             ):
-                raise ValueError("礼包不存在")
+                # 受众不符时不暴露礼包状态、时间窗与余量
+                raise gift_pack_error("礼包不存在")
             if not pack.is_enabled:
-                raise ValueError("礼包已停用")
+                raise gift_pack_error("礼包已停用")
             if now < int(pack.start_at):
-                raise ValueError("礼包尚未开始")
+                raise gift_pack_error("礼包尚未开始")
             if now > int(pack.end_at):
-                raise ValueError("礼包已结束")
+                raise gift_pack_error("礼包已结束")
 
             total_quantity = pack.total_quantity
             if total_quantity is not None and int(pack.claimed_count) >= int(
                 total_quantity
             ):
-                raise ValueError("礼包已被领完")
+                raise gift_pack_error("礼包已被领完")
 
             if state is not None and state.claimed_at is not None:
-                raise ValueError("你已领取过该礼包")
+                raise gift_pack_error("你已领取过该礼包")
             if not context["has_stats"]:
-                raise ValueError("用户积分信息不存在")
+                raise gift_pack_error("用户积分信息不存在")
             eligible, progress = self._evaluate_conditions(
                 requirements, context, pack, ref
             )
             if not eligible:
                 # Include both the human-readable progress and its structure in the
                 # business error; the claim route currently exposes only detail text.
-                raise ValueError(
-                    f"不满足领取条件；当前进度：{json.dumps(progress, ensure_ascii=False)}"
-                )
+                raise ConditionsNotMet(progress)
 
             rewards = json.loads(pack.rewards)
             (

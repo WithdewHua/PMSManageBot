@@ -6,6 +6,7 @@ from app.domains.blackjack import repository as blackjack_repository
 from app.domains.credits import repository as credits_repository
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.domains.gift_pack.exceptions import gift_pack_error
 from app.domains.invitation import repository as invitation_repository
 from app.domains.lines import repository as lines_repository
 from app.domains.luckywheel import repository as luckywheel_repository
@@ -60,7 +61,7 @@ class _GiftPackRepositoryRewards:
                 services = context["bound_services"]
                 if not services:
                     # 正常情况下已被 require_binding 资格拦住，这里是最后一道防线
-                    raise ValueError("请先绑定媒体账号后再领取")
+                    raise gift_pack_error("请先绑定媒体账号后再领取")
                 for service in services:
                     # 复用外层事务（行锁在 premium 的 *_tx 里），Premium 写入与
                     # 领取记录同生共死；媒体权限同步由提交后的 service 负责。
@@ -107,7 +108,7 @@ class _GiftPackRepositoryRewards:
                 services = context["bound_services"]
                 if not services:
                     # 正常情况下已被 require_binding 资格拦住，这里是最后一道防线
-                    raise ValueError("请先绑定媒体账号后再领取")
+                    raise gift_pack_error("请先绑定媒体账号后再领取")
                 feature = (
                     "line_schedule"
                     if reward_type == "line_schedule_unlock"
@@ -131,7 +132,7 @@ class _GiftPackRepositoryRewards:
                 )
 
             else:
-                raise ValueError(f"不支持的奖励类型: {reward_type}")
+                raise gift_pack_error(f"不支持的奖励类型: {reward_type}")
 
         return (
             snapshot,
@@ -152,7 +153,7 @@ class _GiftPackRepositoryRewards:
         count = int(reward.get("count") or 0)
         expiry_days = int(reward.get("expiry_days") or 0)
         if count <= 0 or expiry_days <= 0:
-            raise ValueError("免费机会的次数与有效天数必须为正")
+            raise gift_pack_error("免费机会的次数与有效天数必须为正")
         now_ms = int(time.time() * 1000)
         expires_at_ms = now_ms + expiry_days * 86400 * 1000
         luckywheel_repository.grant_free_spins_tx(
@@ -184,7 +185,7 @@ class _GiftPackRepositoryRewards:
         """
         amount = round(float(reward.get("amount") or 0), 2)
         if amount <= 0:
-            raise ValueError("争霸赛余额数量必须为正")
+            raise gift_pack_error("争霸赛余额数量必须为正")
         balance_after = blackjack_repository.credit_tournament_wallet_tx(
             session, tg_id, amount
         )
@@ -208,7 +209,7 @@ class _GiftPackRepositoryRewards:
             result = media_access_repository.unlock_download_tx(session, tg_id, service)
             feature_name = "下载权限"
         else:
-            raise ValueError(f"不支持的解锁类型: {feature}/{service}")
+            raise gift_pack_error(f"不支持的解锁类型: {feature}/{service}")
         service_name = service.capitalize()
         if result.get("skipped"):
             return {
@@ -238,7 +239,7 @@ class _GiftPackRepositoryRewards:
         """
         count = int(reward.get("count") or 0)
         if count <= 0:
-            raise ValueError("邀请码数量必须为正")
+            raise gift_pack_error("邀请码数量必须为正")
         privileged = bool(reward.get("privileged"))
         codes = invitation_repository.issue_codes_tx(
             session, tg_id, count, privileged=privileged

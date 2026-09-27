@@ -6,7 +6,6 @@
 按笔通知在运营活动的量级下会刷屏并触发 Telegram 限流。
 """
 
-import json
 from typing import Annotated
 
 from fastapi import (
@@ -28,6 +27,7 @@ from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
 from app.core.telegram import get_user_name_from_tg_id
 from app.databases import db
+from app.domains.gift_pack.exceptions import GiftPackError
 from app.domains.gift_pack.notifications import (
     _notify_detached,
     notify_gift_pack_claim_failed,
@@ -117,23 +117,15 @@ async def claim_gift_pack(
     tg_id = telegram_user.id
     try:
         result = db.claim_gift_pack(pack_id, tg_id)
-    except ValueError as e:
-        # 领取条件变化时返回持锁事务内重新计算的结构化进度，供前端展示；
-        # 其余业务拒绝沿用原有的中文 detail 文本。
-        prefix = "不满足领取条件；当前进度："
-        message = str(e)
-        if message.startswith(prefix):
-            try:
-                progress = json.loads(message[len(prefix) :])
-            except (TypeError, ValueError):
-                pass
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail={"message": "不满足领取条件", "requirements": progress},
-                ) from e
+    except GiftPackError as e:
+        # 类型化拒绝自带状态码与 detail：条件不满足时 detail 是逐项进度对象
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=message
+            status_code=e.status_code, detail=e.payload["detail"]
+        ) from e
+    except ValueError as e:
+        # 过渡期：外域仍抛裸 ValueError，按业务拒绝处理
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
         ) from e
     except Exception as e:
         logger.error(f"领取礼包失败 (pack_id={pack_id}, tg_id={tg_id}): {e}")
@@ -337,11 +329,14 @@ async def admin_delete_gift_pack(
     try:
         db.delete_gift_pack(pack_id)
         return {"success": True, "message": "礼包已删除"}
+    except GiftPackError as e:
+        raise HTTPException(
+            status_code=e.status_code, detail=e.payload["detail"]
+        ) from e
     except ValueError as e:
-        message = str(e)
-        if "不存在" in message:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=message)
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
     except Exception as e:
         logger.error(f"删除礼包失败 (pack_id={pack_id}): {e}")
         raise HTTPException(

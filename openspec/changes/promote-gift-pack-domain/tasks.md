@@ -94,10 +94,12 @@
   - 列表状态推导、提醒节流、统计聚合、字段校验。
 
   超过 1,000 行就改成按子主题拆分的包。验证：rules 纯函数合约通过；单元测试覆盖旧格式条件、12 种条件、any_of，以及礼包未开始时不取数。
-- [ ] 4.2 新增 `gift_pack/exceptions.py`，按 design D8 定义异常类和错误码，替换 repository 里的 38 处 `raise ValueError`。验证：逐条测试每个旧文案对应的状态码和 detail；`ConditionsNotMet` 自带条件进度；外域的 `ValueError` 被包装成 `gift_pack_reward_rejected` 且保留原文。
-
-## 5. repository 提升与 service
-
+- [x] 4.2 新增 `gift_pack/exceptions.py`，按 design D8 定义异常类和错误码，替换 repository 里的 38 处 `raise ValueError`。验证：逐条测试每个旧文案对应的状态码和 detail；`ConditionsNotMet` 自带条件进度；外域的 `ValueError` 被包装成 `gift_pack_reward_rejected` 且保留原文。
+  - 交付：`GiftPackError(DomainError, ValueError)`（错误码来自旧文案前缀表，detail 默认保留原文）+ 携带 `requirements` 进度的 `ConditionsNotMet`（有进度时 detail 就是 `{"message": "不满足领取条件", "requirements": [...]}`，与 1.2 夹具逐字一致）+ `gift_pack_not_found` / `gift_pack_error` / `wrap_reward_rejection` 工厂；状态码在抛出点确定（删除缺失礼包是 404，编辑/领取仍是 400）。
+  - 迁移：repository 里 45 处 `raise ValueError` 全部改为类型化异常（conditions/packs/claims/rewards 各文件），router 的领取与删除分支改成读 `e.status_code` 与 `e.payload["detail"]`，不再做子串判断（`不满足领取条件；当前进度：` 与 `"不存在" in message` 都已删除）。
+  - 唯一行为差异已固定：被引用的礼包无论引用者标题里有没有“不存在”，删除都返回 400；`tests/test_gift_pack_audience.py` 的用例改名并断言行新语义。
+  - 工具：`verify.py` 抽出 `_reviewed_exception_entry`，让“登记过的变更”既能解释 AST 差异、也能解释少掉的导入绑定（礼包 router 不再需要 `json`），并补了负向单测。
+  - 验证：新增 `tests/test_gift_pack_errors.py`（22 条旧文案 → 错误码/状态码/detail 逐条、进度结构、ValueError 兼容、外域包装、repository 无裸 ValueError、router 无子串判断、删除/编辑/开始后编辑三个状态码用例）；全量 554 passed / 4 skipped；`verify.py` 与改动前同为 154 条既有差异。
 - [ ] 5.1 把礼包 repository 改成模块级函数。领取事务按 design D4 实现：固定加锁顺序、三步式求值、按 JSON 顺序发放、特权码持久化放在最后；其余操作在各自的事务里完成，`*_tx` 不吞异常。验证：
   - 每类奖励在发放中途失败时，余额、领取状态、邀请码和解锁全部回滚。
   - 现有的查询次数断言保持通过。

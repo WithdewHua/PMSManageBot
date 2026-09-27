@@ -1662,6 +1662,9 @@ class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
 
+b3_ast_exception = "promote-gift-pack-domain reviewed typed rejection"
+b3_behavior_test = "tests/test_gift_pack_conditions.py::test_condition_progress_and_any_of_group_report_all_children"
+
 [[items]]
 id = "app.databases.db:DatabaseORM._evaluate_gift_pack_eligibility"
 target = "app.domains.gift_pack.repository"
@@ -1719,6 +1722,9 @@ planned_reason = "design D1 sub-topic: user context, condition/audience reads an
 class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
+
+b3_ast_exception = "promote-gift-pack-domain reviewed typed rejection"
+b3_behavior_test = "tests/test_gift_pack_conditions.py::test_condition_progress_and_any_of_group_report_all_children"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._gift_pack_condition_summary"
@@ -1918,6 +1924,9 @@ class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
 
+b3_ast_exception = "promote-gift-pack-domain reviewed typed rejection"
+b3_behavior_test = "tests/test_gift_pack_conditions.py::test_claim_rejections_keep_their_messages"
+
 [[items]]
 id = "app.databases.db:DatabaseORM._lock_running_tournament"
 target = "app.domains.blackjack.repository"
@@ -2102,6 +2111,9 @@ planned_reason = "design D1 sub-topic: pack definitions, admin list, stats, clai
 class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
+
+b3_ast_exception = "promote-gift-pack-domain reviewed typed rejection"
+b3_behavior_test = "tests/test_gift_pack_errors.py::test_post_start_edit_rejection_is_typed"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._validate_tournament_params"
@@ -2475,6 +2487,9 @@ class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
 
+b3_ast_exception = "promote-gift-pack-domain reviewed typed rejection"
+b3_behavior_test = "tests/refactor/test_gift_pack_http_contract.py::test_gift_pack_http_contract"
+
 [[items]]
 id = "app.databases.db:DatabaseORM.create_line_schedule"
 target = "app.domains.lines.repository"
@@ -2546,6 +2561,9 @@ planned_reason = "design D1 sub-topic: pack definitions, admin list, stats, clai
 class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
+
+b3_ast_exception = "promote-gift-pack-domain reviewed typed rejection"
+b3_behavior_test = "tests/test_gift_pack_errors.py::test_delete_missing_pack_is_a_404_typed_error"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.delete_line_schedule"
@@ -3813,6 +3831,9 @@ planned_reason = "design D1 sub-topic: pack definitions, admin list, stats, clai
 class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
+
+b3_ast_exception = "promote-gift-pack-domain reviewed typed rejection"
+b3_behavior_test = "tests/test_gift_pack_errors.py::test_post_start_edit_rejection_is_typed"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.update_invitation_plex_id"
@@ -12663,6 +12684,9 @@ kind = "import"
 reason = "router module name"
 source_state = "frozen"
 
+b3_ast_exception = "promote-gift-pack-domain reviewed typed rejection"
+b3_behavior_test = "tests/refactor/test_gift_pack_http_contract.py::test_gift_pack_http_contract"
+
 [[items]]
 id = "app.webapp.routers.gift_pack:@import:3"
 target = "app.domains.gift_pack.router"
@@ -12760,6 +12784,9 @@ kind = "function"
 reason = "router module name"
 source_state = "frozen"
 
+b3_ast_exception = "promote-gift-pack-domain reviewed typed rejection"
+b3_behavior_test = "tests/test_gift_pack_audience.py::test_delete_route_splits_404_and_400_despite_title_quirk"
+
 [[items]]
 id = "app.webapp.routers.gift_pack:admin_gift_pack_records"
 target = "app.domains.gift_pack.router"
@@ -12808,6 +12835,9 @@ target = "app.domains.gift_pack.router"
 kind = "function"
 reason = "router module name"
 source_state = "frozen"
+
+b3_ast_exception = "promote-gift-pack-domain reviewed typed rejection"
+b3_behavior_test = "tests/test_gift_pack_audience.py::test_claim_route_returns_structured_current_progress_on_recheck_failure"
 
 [[items]]
 id = "app.webapp.routers.gift_pack:list_gift_packs"

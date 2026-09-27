@@ -950,10 +950,10 @@
       "b3_source_id": "app.domains.gift_pack.repository.part_2:_GiftPackRepositoryPart2.claim_gift_pack"
     },
     {
-      "key": "call|src/app/domains/gift_pack/repository/rewards.py|47|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/gift_pack/repository/rewards.py|48|imported|credits|register_cache_invalidation",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/rewards.py",
-      "line": 47,
+      "line": 48,
       "kind": "call",
       "source_domain": "gift_pack",
       "target_domain": "credits",

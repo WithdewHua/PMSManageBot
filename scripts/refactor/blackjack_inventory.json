@@ -2228,7 +2228,7 @@
     },
     {
       "kind": "facade_import",
-      "line": 30,
+      "line": 29,
       "path": "src/app/domains/gift_pack/router.py",
       "symbol": "app.databases",
       "target_role": "blackjack.service"

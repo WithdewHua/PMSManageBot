@@ -618,3 +618,55 @@ def test_declared_repository_mixin_must_exist(tmp_path: Path) -> None:
     assert any("declared repository mixin not found" in error for error in errors), (
         errors
     )
+
+
+def test_reviewed_change_may_drop_a_base_import(tmp_path: Path) -> None:
+    """登记过的变更允许少一个导入绑定（迁移后不再需要某模块时）。"""
+    from scripts.refactor.verify import compare_inventory
+
+    base = tmp_path / "base"
+    current = tmp_path / "current"
+    original = base / "src/app/legacy.py"
+    moved = current / "src/app/domains/example.py"
+    original.parent.mkdir(parents=True)
+    moved.parent.mkdir(parents=True)
+    original.write_text("import json\n\n\ndef run():\n    return 1\n")
+    moved.write_text("def run():\n    return 1\n")
+    test_file = current / "tests/example.py"
+    test_file.parent.mkdir(parents=True)
+    test_file.write_text("def test_run():\n    assert True\n")
+    mapping = tmp_path / "mapping.toml"
+    mapping.write_text(
+        "[[items]]\n"
+        'id = "app.legacy:run"\n'
+        'target = "app.domains.example"\n'
+        'kind = "function"\n'
+        'reason = "moved"\n'
+        "[[items]]\n"
+        'id = "app.legacy:@import:1"\n'
+        'target = "app.domains.example"\n'
+        'kind = "import"\n'
+        'reason = "moved"\n'
+    )
+    assert any(
+        "missing import bindings" in error
+        for error in compare_inventory(base, current, mapping)
+    )
+
+    mapping.write_text(
+        mapping.read_text()
+        + 'b3_ast_exception = "B3 reviewed removal"\n'
+        + 'b3_behavior_test = "tests/example.py::test_run"\n'
+    )
+    assert compare_inventory(base, current, mapping) == []
+
+    # 例外必须指向真实存在的测试，否则不放行
+    mapping.write_text(
+        mapping.read_text().replace(
+            "tests/example.py::test_run", "tests/example.py::test_missing"
+        )
+    )
+    assert any(
+        "missing import bindings" in error
+        for error in compare_inventory(base, current, mapping)
+    )

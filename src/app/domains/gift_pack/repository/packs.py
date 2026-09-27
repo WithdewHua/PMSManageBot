@@ -8,6 +8,7 @@ from sqlalchemy import delete, func, select, update
 from app.core.db import get_session
 from app.core.log import logger
 from app.domains.badges import repository as badges_repository
+from app.domains.gift_pack.exceptions import gift_pack_error
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 
@@ -70,15 +71,15 @@ class _GiftPackRepositoryPacks:
         existing_badges = badges_repository.badges_exist_tx(session, badge_ids)
         for badge_id in badge_ids:
             if badge_id not in existing_badges:
-                raise ValueError(f"引用的勋章不存在: {badge_id}")
+                raise gift_pack_error(f"引用的勋章不存在: {badge_id}")
 
         for item in leaves(audience + requirements):
             kind = item["type"]
             if kind == "claimed_pack":
                 if pack_id is not None and item["pack_id"] == pack_id:
-                    raise ValueError("礼包不能引用自身作为已领取条件")
+                    raise gift_pack_error("礼包不能引用自身作为已领取条件")
                 if session.get(GiftPack, item["pack_id"]) is None:
-                    raise ValueError(f"引用的礼包不存在: {item['pack_id']}")
+                    raise gift_pack_error(f"引用的礼包不存在: {item['pack_id']}")
 
     def create_gift_pack(
         self,
@@ -100,13 +101,13 @@ class _GiftPackRepositoryPacks:
     ) -> int:
         """Create a pack, normalizing legacy eligibility and binding requirements."""
         if not rewards:
-            raise ValueError("礼包至少需要一项奖励")
+            raise gift_pack_error("礼包至少需要一项奖励")
         if end_at <= start_at:
-            raise ValueError("结束时间必须晚于开始时间")
+            raise gift_pack_error("结束时间必须晚于开始时间")
         if task_end_at is not None and not start_at < task_end_at <= end_at:
-            raise ValueError("任务截止时间必须晚于开始时间且不晚于结束时间")
+            raise gift_pack_error("任务截止时间必须晚于开始时间且不晚于结束时间")
         if total_quantity is not None and total_quantity <= 0:
-            raise ValueError("限量份数必须大于 0")
+            raise gift_pack_error("限量份数必须大于 0")
         audience = list(audience or [])
         if requirements is None and eligibility:
             requirements = self._legacy_gift_pack_requirements(eligibility)
@@ -117,7 +118,7 @@ class _GiftPackRepositoryPacks:
             item["type"] == "user_list" and item["mode"] == "include"
             for item in audience
         ):
-            raise ValueError("开启开始通知要求受众顶层包含 include 指定名单")
+            raise gift_pack_error("开启开始通知要求受众顶层包含 include 指定名单")
         with get_session() as session:
             self._validate_gift_pack_references(session, audience, requirements)
             now = int(time.time())
@@ -183,7 +184,7 @@ class _GiftPackRepositoryPacks:
                 select(GiftPack).where(GiftPack.id == pack_id).with_for_update()
             ).scalar_one_or_none()
             if pack is None:
-                raise ValueError("礼包不存在")
+                raise gift_pack_error("礼包不存在")
             old_audience, old_requirements = self._resolve_gift_pack_conditions(pack)
             old = {
                 "start_at": int(pack.start_at),
@@ -200,17 +201,17 @@ class _GiftPackRepositoryPacks:
                 )
             new = {**old, **{k: v for k, v in fields.items() if k in old}}
             if not new["rewards"]:
-                raise ValueError("礼包至少需要一项奖励")
+                raise gift_pack_error("礼包至少需要一项奖励")
             if new["end_at"] <= new["start_at"]:
-                raise ValueError("结束时间必须晚于开始时间")
+                raise gift_pack_error("结束时间必须晚于开始时间")
             if new["task_end_at"] is not None and not (
                 new["start_at"] < new["task_end_at"] <= new["end_at"]
             ):
-                raise ValueError("任务截止时间必须晚于开始时间且不晚于结束时间")
+                raise gift_pack_error("任务截止时间必须晚于开始时间且不晚于结束时间")
             if new["total_quantity"] is not None and (
                 new["total_quantity"] <= 0 or new["total_quantity"] < pack.claimed_count
             ):
-                raise ValueError("限量份数不能小于已领取份数且必须大于 0")
+                raise gift_pack_error("限量份数不能小于已领取份数且必须大于 0")
             new["audience"] = list(new["audience"] or [])
             new["requirements"] = self._gift_pack_conditions_with_binding(
                 new["requirements"] or [], new["rewards"]
@@ -222,7 +223,7 @@ class _GiftPackRepositoryPacks:
                 item["type"] == "user_list" and item["mode"] == "include"
                 for item in new["audience"]
             ):
-                raise ValueError("开启开始通知要求受众顶层包含 include 指定名单")
+                raise gift_pack_error("开启开始通知要求受众顶层包含 include 指定名单")
             if int(time.time()) >= int(pack.start_at):
                 self._validate_post_start_edit(old, new)
             self._validate_gift_pack_references(
@@ -272,7 +273,8 @@ class _GiftPackRepositoryPacks:
                 .one_or_none()
             )
             if not pack:
-                raise ValueError("礼包不存在")
+                # 删除接口的“不存在”是 404（启停/统计由 router 的 None 映射）
+                raise gift_pack_error("礼包不存在", status_code=404)
 
             claimed = session.execute(
                 select(func.count(GiftPackUserState.id)).where(
@@ -281,12 +283,12 @@ class _GiftPackRepositoryPacks:
                 )
             ).scalar_one()
             if int(claimed) > 0 or int(pack.claimed_count) > 0:
-                raise ValueError("该礼包已有用户领取，只能停用不能删除")
+                raise gift_pack_error("该礼包已有用户领取，只能停用不能删除")
 
             references = self._gift_pack_referencing_packs(session, pack_id)
             if references:
                 names = "、".join(f"#{pid} {title}" for pid, title in references)
-                raise ValueError(
+                raise gift_pack_error(
                     f"该礼包被其他礼包的已领取条件引用：{names}；请先移除引用"
                 )
 
@@ -592,7 +594,7 @@ class _GiftPackRepositoryPacks:
     @staticmethod
     def _validate_post_start_edit(old: dict, new: dict) -> None:
         def reject(field: str) -> None:
-            raise ValueError(f"礼包开始后不能修改 {field}；可停用后新建礼包")
+            raise gift_pack_error(f"礼包开始后不能修改 {field}；可停用后新建礼包")
 
         for field in ("start_at", "rewards"):
             if old[field] != new[field]:
