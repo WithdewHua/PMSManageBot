@@ -25,6 +25,7 @@ from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
 from app.core.telegram import get_user_names_from_tg_ids
 from app.databases import db
+from app.domains.blackjack.exceptions import BlackjackError
 from app.domains.blackjack.schemas import (
     BlackjackHandResponse,
     TournamentActionResponse,
@@ -59,8 +60,67 @@ from app.domains.blackjack.notifications.tournament import (
 )
 
 
+def _raise_typed_error(error: BlackjackError) -> None:
+    payload = error.payload
+    code = error.code
+    details = {
+        "blackjack_disabled": "21 点活动当前未开放",
+        "blackjack_tournament_not_found": "赛事不存在",
+        "blackjack_tournament_entry_not_found": "你未报名该赛事",
+        "blackjack_already_registered": "你已报名该赛事",
+        "blackjack_tournament_full": "报名人数已满",
+        "blackjack_registration_closed": "报名已截止",
+        "blackjack_tournament_not_open_for_registration": "该赛事当前不接受报名",
+        "blackjack_tournament_already_started": "赛事已开赛，无法修改或取消",
+        "blackjack_tournament_not_running": "赛事尚未开赛或已结束",
+        "blackjack_tournament_finished": "赛事已结束",
+        "blackjack_all_hands_played": "你已打满全部手数",
+        "blackjack_eliminated": "你的筹码已不足最小注，已被淘汰",
+        "blackjack_insufficient_chips": "筹码不足",
+        "blackjack_insufficient_chips_to_double": "筹码不足，无法加倍",
+        "blackjack_insufficient_credits": "积分不足",
+        "blackjack_hand_in_progress": "你还有一手牌未结束，请先完成",
+        "blackjack_hand_in_progress_in_cash_game": "你还有一手现金局的牌未结束，请先去 21 点打完",
+        "blackjack_hand_in_progress_in_tournament": "你在另一场锦标赛中还有一手牌未结束，请先打完",
+        "blackjack_hand_already_finished": "该手牌已结束",
+        "blackjack_not_player_turn": "当前不是你的回合",
+        "blackjack_already_doubled": "本手牌已加倍，不能重复加倍",
+        "blackjack_cannot_double_after_hit": "已要牌，不能再加倍",
+        "blackjack_surrender_disabled": "本赛事未开放投降",
+        "blackjack_cannot_surrender_now": "当前不可投降",
+        "blackjack_hand_not_found": "手牌不存在",
+        "blackjack_user_stats_not_found": "用户积分信息不存在",
+        "blackjack_deal_too_frequent": "操作过于频繁，请稍后再试",
+    }
+    if code == "blackjack_insufficient_credits_for_entry":
+        detail = (
+            f"争霸赛余额与积分合计不足，报名需 {payload.get('required', '')} 积分"
+            "（报名时优先扣争霸赛余额）"
+        )
+    elif code == "blackjack_bet_must_be_a_multiple_of":
+        detail = f"注额须为 {payload.get('bet_step', '')} 的整数倍"
+    elif code == "blackjack_bet_out_of_range":
+        detail = f"注额须在 {payload.get('bet_range', '')} 筹码之间"
+    elif code == "blackjack_play_window_must_be_at_least":
+        detail = f"赛程过短：报名截止到完赛截止之间至少需要 {payload.get('minutes', '')} 分钟"
+    elif code == "blackjack_tournament_title_required":
+        detail = "赛事名称不能为空"
+    elif code == "blackjack_register_deadline_must_be_in_the_future":
+        detail = "报名截止时点须晚于当前时间"
+    elif code == "blackjack_seeded_prize_credits_must_not_decrease":
+        detail = "已有人报名，奖池补贴只能增加、不能减少"
+    elif code == "blackjack_cannot_change_after_entrants_joined":
+        detail = "已有人报名，报名费与赛制参数不可再改；如需变更请先取消赛事再重建"
+    else:
+        detail = details.get(code, payload.get("detail", error.message))
+    status_code = 404 if code == "blackjack_tournament_not_found" else error.status_code
+    raise HTTPException(status_code=status_code, detail=detail)
+
+
 def _raise_for_value_error(e: ValueError) -> None:
-    """把 DB 层的 ValueError 翻译为面向用户的中文提示。"""
+    """Compatibility adapter for legacy callers; typed errors use stable codes."""
+    if isinstance(e, BlackjackError):
+        _raise_typed_error(e)
     msg = str(e)
     msg_l = msg.lower()
 

@@ -62,6 +62,13 @@
         "module": "app.domains.blackjack.exceptions",
         "resolved": true,
         "scope": "module",
+        "target": "ast"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.blackjack.exceptions",
+        "resolved": true,
+        "scope": "module",
         "target": "re"
       },
       {
@@ -1840,6 +1847,14 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.router.cash",
+        "module_target": "app.domains.blackjack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.exceptions.BlackjackError"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.router.cash",
         "module_target": "app.domains.blackjack.schemas",
         "resolved": true,
         "scope": "module",
@@ -2044,6 +2059,14 @@
         "resolved": true,
         "scope": "module",
         "target": "app.databases.db"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.router.tournament",
+        "module_target": "app.domains.blackjack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.exceptions.BlackjackError"
       },
       {
         "kind": "from",

@@ -605,40 +605,40 @@
       "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/blackjack/router/cash.py|114|imported|credits|read_optional",
+      "key": "call|src/app/domains/blackjack/router/cash.py|150|imported|credits|read_optional",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/router/cash.py",
-      "line": 114,
+      "line": 150,
       "kind": "call",
       "source_domain": "blackjack",
       "target_domain": "credits",
       "target": "read_optional"
     },
     {
-      "key": "call|src/app/domains/blackjack/router/cash.py|114|imported|credits|tg",
+      "key": "call|src/app/domains/blackjack/router/cash.py|150|imported|credits|tg",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/router/cash.py",
-      "line": 114,
+      "line": 150,
       "kind": "call",
       "source_domain": "blackjack",
       "target_domain": "credits",
       "target": "tg"
     },
     {
-      "key": "call|src/app/domains/blackjack/router/cash.py|286|imported|credits|read_optional",
+      "key": "call|src/app/domains/blackjack/router/cash.py|322|imported|credits|read_optional",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/router/cash.py",
-      "line": 286,
+      "line": 322,
       "kind": "call",
       "source_domain": "blackjack",
       "target_domain": "credits",
       "target": "read_optional"
     },
     {
-      "key": "call|src/app/domains/blackjack/router/cash.py|286|imported|credits|tg",
+      "key": "call|src/app/domains/blackjack/router/cash.py|322|imported|credits|tg",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/router/cash.py",
-      "line": 286,
+      "line": 322,
       "kind": "call",
       "source_domain": "blackjack",
       "target_domain": "credits",
@@ -3995,10 +3995,10 @@
       "b3_source_id": "app.databases.db_func:check_and_award_game_king_badge"
     },
     {
-      "key": "import|src/app/domains/blackjack/router/cash.py|37|app.domains.credits.service|service",
+      "key": "import|src/app/domains/blackjack/router/cash.py|38|app.domains.credits.service|service",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/router/cash.py",
-      "line": 37,
+      "line": 38,
       "kind": "import",
       "source_domain": "blackjack",
       "target_domain": "credits",
@@ -4006,10 +4006,10 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/blackjack/router/cash.py|38|app.domains.credits.types|CreditAccount",
+      "key": "import|src/app/domains/blackjack/router/cash.py|39|app.domains.credits.types|CreditAccount",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/router/cash.py",
-      "line": 38,
+      "line": 39,
       "kind": "import",
       "source_domain": "blackjack",
       "target_domain": "credits",

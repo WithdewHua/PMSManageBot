@@ -20,6 +20,7 @@ from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
 from app.databases import db
 from app.domains.badge_awards.jobs import check_and_award_game_king_badge
+from app.domains.blackjack.exceptions import BlackjackError
 from app.domains.blackjack.schemas import (
     BlackjackActionResponse,
     BlackjackAdminConfig,
@@ -45,8 +46,43 @@ from app.domains.blackjack.jobs.cash import (
 )
 
 
+def _raise_typed_error(error: BlackjackError) -> None:
+    payload = error.payload
+    code = error.code
+    details = {
+        "blackjack_disabled": "21 点活动当前未开放",
+        "blackjack_hand_in_progress": "你还有一手牌未结束，请先完成",
+        "blackjack_hand_in_progress_in_tournament": "你在锦标赛中还有一手牌未结束，请先到锦标赛里打完",
+        "blackjack_hand_already_finished": "该手牌已结束",
+        "blackjack_not_player_turn": "当前不是你的回合",
+        "blackjack_already_doubled": "本手牌已加倍，不能重复加倍",
+        "blackjack_cannot_double_after_hit": "已要牌，不能再加倍",
+        "blackjack_surrender_disabled": "投降当前未开放",
+        "blackjack_cannot_surrender_after_hit": "已要牌，不能再投降",
+        "blackjack_cannot_surrender_after_double": "已加倍，不能再投降",
+        "blackjack_hand_not_found": "手牌不存在",
+        "blackjack_user_stats_not_found": "用户积分信息不存在",
+        "blackjack_insufficient_credits": "积分不足",
+        "blackjack_insufficient_credits_to_double": "积分不足，无法加倍",
+        "blackjack_deal_too_frequent": "操作过于频繁，请稍后再试",
+    }
+    if code == "blackjack_invalid_bet":
+        options = payload.get("bet_options", [])
+        detail = f"注额不合法，可选档位为 {'、'.join(str(x) for x in options)}"
+    elif code == "blackjack_insufficient_credits_for_entry":
+        detail = f"积分不足，参与需至少 {payload.get('required', '')} 积分"
+    elif code == "blackjack_tournament_not_found":
+        detail = str(payload.get("legacy_message", error.message))
+    else:
+        detail = details.get(code, payload.get("detail", error.message))
+    status_code = 404 if code == "blackjack_hand_not_found" else error.status_code
+    raise HTTPException(status_code=status_code, detail=detail)
+
+
 def _raise_for_value_error(e: ValueError) -> None:
-    """把 DB 层的 ValueError 翻译为面向用户的中文提示。"""
+    """Compatibility adapter for legacy callers; typed errors use stable codes."""
+    if isinstance(e, BlackjackError):
+        _raise_typed_error(e)
     msg = str(e)
     msg_l = msg.lower()
 
