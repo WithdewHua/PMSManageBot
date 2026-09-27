@@ -68,7 +68,7 @@ RANK_VALUES = {
 
 
 class BlackjackRuleError(ValueError):
-    """规则层面的非法操作。由适配层翻译为面向用户的中文提示。"""
+    """规则层面的非法操作，由接口适配层翻译为结构化错误。"""
 
 
 def card_rank(card: str) -> str:

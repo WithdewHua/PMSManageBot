@@ -51,6 +51,10 @@ _MESSAGE_CODES = (
     ),
     ("cannot surrender now", "blackjack.cannot_surrender_now"),
     ("tournament entry not found", "blackjack.tournament_entry_not_found"),
+    ("user stats not found", "blackjack.user_stats_not_found"),
+    ("all hands played", "blackjack.all_hands_played"),
+    ("eliminated", "blackjack.eliminated"),
+    ("max_entrants must not be below", "blackjack.max_entrants_too_low"),
     ("tournament title required", "blackjack.tournament_title_required"),
 )
 

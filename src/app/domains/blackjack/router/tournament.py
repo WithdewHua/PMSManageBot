@@ -26,6 +26,7 @@ from app.core.schemas import TelegramUser
 from app.core.telegram import get_user_names_from_tg_ids
 from app.databases import db
 from app.domains.blackjack.exceptions import BlackjackError
+from app.domains.blackjack.rules import BlackjackRuleError
 from app.domains.blackjack.schemas import (
     BlackjackHandResponse,
     TournamentActionResponse,
@@ -118,107 +119,12 @@ def _raise_typed_error(error: BlackjackError) -> None:
 
 
 def _raise_for_value_error(e: ValueError) -> None:
-    """Compatibility adapter for legacy callers; typed errors use stable codes."""
+    """Translate only legacy untyped errors; new domain errors use stable codes."""
     if isinstance(e, BlackjackError):
         _raise_typed_error(e)
-    msg = str(e)
-    msg_l = msg.lower()
-
-    if "blackjack disabled" in msg_l:
-        raise HTTPException(status_code=400, detail="21 点活动当前未开放")
-    if "tournament not found" in msg_l:
-        raise HTTPException(status_code=404, detail="赛事不存在")
-    if "tournament entry not found" in msg_l:
-        raise HTTPException(status_code=400, detail="你未报名该赛事")
-    if "already registered" in msg_l:
-        raise HTTPException(status_code=400, detail="你已报名该赛事")
-    if "tournament full" in msg_l:
-        raise HTTPException(status_code=400, detail="报名人数已满")
-    if "registration closed" in msg_l:
-        raise HTTPException(status_code=400, detail="报名已截止")
-    if "not open for registration" in msg_l:
-        raise HTTPException(status_code=400, detail="该赛事当前不接受报名")
-    if "tournament already started" in msg_l:
-        raise HTTPException(status_code=400, detail="赛事已开赛，无法修改或取消")
-    if "tournament not running" in msg_l:
-        raise HTTPException(status_code=400, detail="赛事尚未开赛或已结束")
-    if "tournament finished" in msg_l:
-        raise HTTPException(status_code=400, detail="赛事已结束")
-    if "all hands played" in msg_l:
-        raise HTTPException(status_code=400, detail="你已打满全部手数")
-    if "eliminated" in msg_l:
-        raise HTTPException(status_code=400, detail="你的筹码已不足最小注，已被淘汰")
-    if "insufficient chips to double" in msg_l:
-        raise HTTPException(status_code=400, detail="筹码不足，无法加倍")
-    if "insufficient chips" in msg_l:
-        raise HTTPException(status_code=400, detail="筹码不足")
-    if "insufficient credits: need" in msg_l:
-        need = msg_l.split("need")[-1].strip()
-        raise HTTPException(
-            status_code=400,
-            detail=f"争霸赛余额与积分合计不足，报名需 {need} 积分"
-            f"（报名时优先扣争霸赛余额）",
-        )
-    if "insufficient credits" in msg_l:
-        raise HTTPException(status_code=400, detail="积分不足")
-    if "bet must be a multiple of" in msg_l:
-        step = msg_l.split("of")[-1].strip()
-        raise HTTPException(status_code=400, detail=f"注额须为 {step} 的整数倍")
-    if "bet out of range" in msg_l:
-        rng = msg.split(":")[-1].strip()
-        raise HTTPException(status_code=400, detail=f"注额须在 {rng} 筹码之间")
-    if "hand in progress in cash game" in msg_l:
-        raise HTTPException(
-            status_code=400, detail="你还有一手现金局的牌未结束，请先去 21 点打完"
-        )
-    if "hand in progress in tournament" in msg_l:
-        raise HTTPException(
-            status_code=400, detail="你在另一场锦标赛中还有一手牌未结束，请先打完"
-        )
-    if "hand in progress" in msg_l:
-        raise HTTPException(status_code=400, detail="你还有一手牌未结束，请先完成")
-    if "cannot change" in msg_l and "after entrants joined" in msg_l:
-        raise HTTPException(
-            status_code=400,
-            detail="已有人报名，报名费与赛制参数不可再改；如需变更请先取消赛事再重建",
-        )
-    if "seeded_prize_credits must not decrease" in msg_l:
-        raise HTTPException(
-            status_code=400, detail="已有人报名，奖池补贴只能增加、不能减少"
-        )
-    if "play window must be at least" in msg_l:
-        minutes = msg_l.split("least")[-1].split("minutes")[0].strip()
-        raise HTTPException(
-            status_code=400,
-            detail=f"赛程过短：报名截止到完赛截止之间至少需要 {minutes} 分钟",
-        )
-    if "hand already finished" in msg_l:
-        raise HTTPException(status_code=400, detail="该手牌已结束")
-    if "not player turn" in msg_l:
-        raise HTTPException(status_code=400, detail="当前不是你的回合")
-    if "already doubled" in msg_l:
-        raise HTTPException(status_code=400, detail="本手牌已加倍，不能重复加倍")
-    if "cannot double after hit" in msg_l:
-        raise HTTPException(status_code=400, detail="已要牌，不能再加倍")
-    if "surrender disabled" in msg_l:
-        raise HTTPException(status_code=400, detail="本赛事未开放投降")
-    if "cannot surrender now" in msg_l:
-        raise HTTPException(status_code=400, detail="当前不可投降")
-    if "deal too frequent" in msg_l:
-        raise HTTPException(status_code=429, detail="操作过于频繁，请稍后再试")
-    if "hand not found" in msg_l:
-        raise HTTPException(status_code=404, detail="手牌不存在")
-    if "user stats not found" in msg_l:
-        raise HTTPException(status_code=400, detail="用户积分信息不存在")
-    if "tournament title required" in msg_l:
-        # 只有修改路径会走到这里：创建时留空会被自动命名兜住
-        raise HTTPException(status_code=400, detail="赛事名称不能为空")
-    if "register deadline must be in the future" in msg_l:
-        raise HTTPException(status_code=400, detail="报名截止时点须晚于当前时间")
-    if "must not exceed" in msg_l or "must be" in msg_l or "invalid" in msg_l:
-        raise HTTPException(status_code=400, detail=f"参数不合法：{msg}")
-
-    raise HTTPException(status_code=400, detail=msg)
+    if isinstance(e, BlackjackRuleError):
+        raise HTTPException(status_code=500, detail="牌靴异常，请联系管理员")
+    raise HTTPException(status_code=400, detail=str(e))
 
 
 def _hands_remaining(tournament: dict, entry: dict) -> int:

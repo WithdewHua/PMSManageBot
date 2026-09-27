@@ -21,6 +21,7 @@ from app.core.schemas import TelegramUser
 from app.databases import db
 from app.domains.badge_awards.jobs import check_and_award_game_king_badge
 from app.domains.blackjack.exceptions import BlackjackError
+from app.domains.blackjack.rules import BlackjackRuleError
 from app.domains.blackjack.schemas import (
     BlackjackActionResponse,
     BlackjackAdminConfig,
@@ -65,6 +66,7 @@ def _raise_typed_error(error: BlackjackError) -> None:
         "blackjack_insufficient_credits": "积分不足",
         "blackjack_insufficient_credits_to_double": "积分不足，无法加倍",
         "blackjack_deal_too_frequent": "操作过于频繁，请稍后再试",
+        "blackjack_rule_violation": "牌靴异常，请联系管理员",
     }
     if code == "blackjack_invalid_bet":
         options = payload.get("bet_options", [])
@@ -80,60 +82,12 @@ def _raise_typed_error(error: BlackjackError) -> None:
 
 
 def _raise_for_value_error(e: ValueError) -> None:
-    """Compatibility adapter for legacy callers; typed errors use stable codes."""
+    """Translate only legacy untyped errors; new domain errors use stable codes."""
     if isinstance(e, BlackjackError):
         _raise_typed_error(e)
-    msg = str(e)
-    msg_l = msg.lower()
-
-    if "blackjack disabled" in msg_l:
-        raise HTTPException(status_code=400, detail="21 点活动当前未开放")
-    if "invalid bet" in msg_l:
-        options = db.get_blackjack_config_dict().get("bet_options") or []
-        raise HTTPException(
-            status_code=400,
-            detail=f"注额不合法，可选档位为 {'、'.join(str(b) for b in options)}",
-        )
-    if "insufficient credits to double" in msg_l:
-        raise HTTPException(status_code=400, detail="积分不足，无法加倍")
-    if "insufficient credits: need" in msg_l:
-        need = msg_l.split("need")[-1].strip()
-        raise HTTPException(status_code=400, detail=f"积分不足，参与需至少 {need} 积分")
-    if "insufficient credits" in msg_l:
-        raise HTTPException(status_code=400, detail="积分不足")
-    if "hand in progress in tournament" in msg_l:
-        # 必须比下一条更早匹配：现金局的 /current 看不到赛内手牌，只说「你还有
-        # 一手牌未结束」等于让用户在现金局界面里找一张永远找不到的牌
-        raise HTTPException(
-            status_code=400,
-            detail="你在锦标赛中还有一手牌未结束，请先到锦标赛里打完",
-        )
-    if "hand in progress" in msg_l:
-        raise HTTPException(status_code=400, detail="你还有一手牌未结束，请先完成")
-    if "hand already finished" in msg_l:
-        raise HTTPException(status_code=400, detail="该手牌已结束")
-    if "not player turn" in msg_l:
-        raise HTTPException(status_code=400, detail="当前不是你的回合")
-    if "already doubled" in msg_l:
-        raise HTTPException(status_code=400, detail="本手牌已加倍，不能重复加倍")
-    if "cannot double after hit" in msg_l:
-        raise HTTPException(status_code=400, detail="已要牌，不能再加倍")
-    if "surrender disabled" in msg_l:
-        raise HTTPException(status_code=400, detail="投降当前未开放")
-    if "cannot surrender after hit" in msg_l:
-        raise HTTPException(status_code=400, detail="已要牌，不能再投降")
-    if "cannot surrender after double" in msg_l:
-        raise HTTPException(status_code=400, detail="已加倍，不能再投降")
-    if "deal too frequent" in msg_l:
-        raise HTTPException(status_code=429, detail="操作过于频繁，请稍后再试")
-    if "hand not found" in msg_l:
-        raise HTTPException(status_code=404, detail="手牌不存在")
-    if "user stats not found" in msg_l:
-        raise HTTPException(status_code=400, detail="用户积分信息不存在")
-    if "deck exhausted" in msg_l or "牌靴已耗尽" in msg:
+    if isinstance(e, BlackjackRuleError):
         raise HTTPException(status_code=500, detail="牌靴异常，请联系管理员")
-
-    raise HTTPException(status_code=400, detail=msg)
+    raise HTTPException(status_code=400, detail=str(e))
 
 
 def _build_action_response(

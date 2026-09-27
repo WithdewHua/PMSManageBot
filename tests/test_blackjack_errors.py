@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from fastapi import HTTPException
 
@@ -68,6 +70,14 @@ def test_typed_errors_preserve_status_and_detail(
         adapter(exceptions.blackjack_error(message))
     assert caught.value.status_code == status_code
     assert caught.value.detail == detail
+
+
+def test_blackjack_routers_do_not_match_error_messages() -> None:
+    root = Path(__file__).parents[1] / "src/app/domains/blackjack/router"
+    for path in (root / "cash.py", root / "tournament.py"):
+        source = path.read_text(encoding="utf-8")
+        assert "msg_l" not in source
+        assert 'if "' not in source
 
 
 def test_tournament_error_adapter_preserves_existing_http_detail() -> None:

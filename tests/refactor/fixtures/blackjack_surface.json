@@ -1855,6 +1855,14 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.router.cash",
+        "module_target": "app.domains.blackjack.rules",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.rules.BlackjackRuleError"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.router.cash",
         "module_target": "app.domains.blackjack.schemas",
         "resolved": true,
         "scope": "module",
@@ -2067,6 +2075,14 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.blackjack.exceptions.BlackjackError"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.router.tournament",
+        "module_target": "app.domains.blackjack.rules",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.rules.BlackjackRuleError"
       },
       {
         "kind": "from",
