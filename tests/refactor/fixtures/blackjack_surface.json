@@ -1213,6 +1213,38 @@
         "target": "app.domains.blackjack.rules"
       },
       {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_4",
+        "module_target": "app.domains.blackjack",
+        "resolved": true,
+        "scope": "function",
+        "target": "app.domains.blackjack.rules"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_4",
+        "module_target": "app.domains.blackjack",
+        "resolved": true,
+        "scope": "function",
+        "target": "app.domains.blackjack.rules"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_4",
+        "module_target": "app.domains.blackjack",
+        "resolved": true,
+        "scope": "function",
+        "target": "app.domains.blackjack.rules"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_4",
+        "module_target": "app.domains.blackjack",
+        "resolved": true,
+        "scope": "function",
+        "target": "app.domains.blackjack.rules"
+      },
+      {
         "kind": "import",
         "module": "app.domains.blackjack.repository.part_5",
         "resolved": true,
@@ -1465,6 +1497,22 @@
         "target": "app.domains.blackjack.rules"
       },
       {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_6",
+        "module_target": "app.domains.blackjack",
+        "resolved": true,
+        "scope": "function",
+        "target": "app.domains.blackjack.rules"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_6",
+        "module_target": "app.domains.blackjack",
+        "resolved": true,
+        "scope": "function",
+        "target": "app.domains.blackjack.rules"
+      },
+      {
         "kind": "import",
         "module": "app.domains.blackjack.repository.part_7",
         "resolved": true,
@@ -1566,6 +1614,14 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.blackjack.repository.DEFAULT_BLACKJACK_CONFIG"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_7",
+        "module_target": "app.domains.blackjack",
+        "resolved": true,
+        "scope": "function",
+        "target": "app.domains.blackjack.rules"
       },
       {
         "kind": "from",
@@ -2204,6 +2260,13 @@
         "resolved": true,
         "scope": "module",
         "target": "dataclasses.dataclass"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.blackjack.rules",
+        "resolved": true,
+        "scope": "function",
+        "target": "json"
       },
       {
         "kind": "from",
