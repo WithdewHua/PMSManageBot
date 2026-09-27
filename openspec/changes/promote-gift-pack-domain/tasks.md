@@ -21,7 +21,10 @@
   验证：新增测试在当前代码上全部通过。
   - 交付：`tests/test_gift_pack_jobs.py`（过期扫描：汇总内容、限量/不限量文案、置位后不重发、发送失败不置位并下轮重试）；`tests/test_gift_pack_audience.py`（管理端 list/records 分页与总数、删除 404/400 分流与“被引用礼包标题含『不存在』即返回 404”的现状、六个管理端 500 分支的固定文案、开屏提醒失败静默）；`tests/test_gift_pack_rewards.py`（除邀请码外六类奖励在后续奖励失败时逐类回滚、会员续期的三种情形与永久会员提示、提交后媒体权限同步且同步时领取已落库、`.env` 写入成功后提交失败的现状残留、创建与售罄通知只入队一次及正文）；`tests/test_gift_pack_conditions.py`（八类领取拒绝的原有文案）。
   - 验证：新增 24 个用例在当前代码上全部通过；`pytest tests/` 460 passed / 3 skipped。
-- [ ] 1.4 在一次性 PostgreSQL 上新增并发测试：最后一份的争抢、同一用户并发领取、礼包领取与线路调度解锁交叉进行（两边奖励顺序相反）。验证：测试能通过 `CREDITS_TEST_DATABASE_URL` 这类开关重复运行；在当前代码上，不超发的断言通过；交叉加锁用例如果复现死锁，就标为 xfail 并注明由 5.1 修复。
+- [x] 1.4 在一次性 PostgreSQL 上新增并发测试：最后一份的争抢、同一用户并发领取、礼包领取与线路调度解锁交叉进行（两边奖励顺序相反）。验证：测试能通过 `CREDITS_TEST_DATABASE_URL` 这类开关重复运行；在当前代码上，不超发的断言通过；交叉加锁用例如果复现死锁，就标为 xfail 并注明由 5.1 修复。
+  - 交付：`scripts/refactor/smoke_gift_pack_concurrency.py` + `tests/refactor/test_gift_pack_concurrency.py`（由 `GIFT_PACK_TEST_DATABASE_URL` 开启，子进程跑脚本并过滤环境变量）。
+  - 验证（一次性 PostgreSQL 16 容器 `postgres:16-alpine`）：S1 八人抢一份 → 恰好一人成功、`claimed_count=1`、只有一条领取状态、只发放一次奖励，七人收到“礼包已被领完”；S2 同一用户八次并发领取 → 恰好一次成功、奖励只发一次；S3 奖励顺序为“先解锁线路调度（锁 plex_user）再发积分（锁 statistics）”，与线路解锁购买路径（先 statistics 再 plex_user）相反，已复现 ABBA 死锁（每轮一次），用例标记为 xfail 并要求 5.1 固定加锁顺序后取消。
+  - 说明：S3 用 `after_cursor_execute` 事件在持有行锁后短休休眠，把生产语句之间本来只有几条 Python 语句的窗口拉开，使反转可稳定复现；不对生产代码做任何修改。
 
 ## 2. 按子主题搬移（只搬不改）
 
