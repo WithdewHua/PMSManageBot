@@ -24,7 +24,7 @@
 
 ## 4. Repository Promotion
 
-- [ ] 4.1 Convert the split blackjack repository implementation to module-level query/write functions with explicit parameters and stable exports; verify public functions have no dependency on `BlackjackRepository` instances.
+- [x] 4.1 Convert the split blackjack repository implementation to module-level query/write functions with explicit parameters and stable exports; verify public functions have no dependency on `BlackjackRepository` instances.
 - [ ] 4.2 Provide caller-owned `*_tx(session, ...)` functions for hand lifecycle, settlement, tournament registration/actions/settlement, configuration, statistics, and retention records; verify all multi-write operations reuse one session and lock rows before calculating deltas.
 - [ ] 4.3 Move blackjack-specific model/config constants to explicit repository or rules modules as appropriate, preserving import paths needed by scheduler/jobstore compatibility; verify all 21-point modules import successfully.
 - [ ] 4.4 Migrate cross-domain blackjack callers (credits, luckywheel, badges, rankings, gift pack, and account/profile consumers) to module/service/`*_tx` APIs; verify no new direct foreign-model or facade import is introduced.
