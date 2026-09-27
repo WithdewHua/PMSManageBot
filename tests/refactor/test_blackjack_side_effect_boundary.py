@@ -117,6 +117,28 @@ def test_notifications_are_not_imported_by_service_transactions_owner() -> None:
     assert "app.core.scheduler" not in service_imports
 
 
+def test_tick_runs_the_phases_in_the_documented_order() -> None:
+    """报名截止 → 完赛提醒 → 完赛结算：阶段顺序是行为的一部分。"""
+
+    tick = next(
+        node
+        for node in ast.walk(_tree(BLACKJACK / "service.py"))
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "tick_tournaments"
+    )
+    order = []
+    for node in ast.walk(tick):
+        if not isinstance(node, ast.Tuple) or len(node.elts) != 3:
+            continue
+        label, handler = node.elts[0], node.elts[1]
+        if isinstance(label, ast.Constant) and isinstance(handler, ast.Name):
+            order.append((label.value, handler.id))
+    assert order == [
+        ("报名截止", "_tick_registration_deadlines"),
+        ("完赛提醒", "_tick_completion_reminders"),
+        ("完赛结算", "_tick_play_deadlines"),
+    ]
+
+
 def _call_line(path: Path, function: str, call: str) -> int:
     for node in ast.walk(_tree(path)):
         if not isinstance(node, ast.AsyncFunctionDef | ast.FunctionDef):

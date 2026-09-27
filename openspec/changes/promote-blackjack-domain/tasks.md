@@ -43,8 +43,11 @@
 - [x] 5.3 Move post-commit Telegram notifications, group broadcasts, badge notifications, and scheduler submissions behind service/job boundaries; verify repository transactions contain no network, notification, or scheduler side effects.
   - 验证方式：`tests/refactor/test_blackjack_side_effect_boundary.py`——repository 零副作用导入/调用，router 不直接发消息，`app.core.scheduler` 仅由 `jobs/cash` 导入，tick 工作流中通知调用行号晚于落库调用。
   - 锦标赛全部通知已随 5.2 进入 service（repository 返回后执行）；现金局奖池/免费次数播报仍由 jobs/notifications 的游标任务负责。
-- [ ] 5.4 Update blackjack jobs and notification modules to call services while preserving task IDs, persisted callable compatibility, execution order, and best-effort notification behavior; verify schedule registry snapshots remain unchanged.
-- [ ] 5.5 Add service tests for successful workflows, post-commit side-effect failure, retry-safe notification behavior, and scheduler invocation; verify committed game state is not rolled back by notification failures.
+- [x] 5.4 Update blackjack jobs and notification modules to call services while preserving task IDs, persisted callable compatibility, execution order, and best-effort notification behavior; verify schedule registry snapshots remain unchanged.
+  - `jobs/cash.py`、`jobs/tournament.py`、`notifications/*` 均已只调 service / 纯通知格式化；任务入口名未变。
+  - 验证：`tests/refactor/test_schedule_registry.py`（32 个周期任务 ID 与顺序不变、命名任务集合不变）、`tests/refactor/test_job_references.py`（持久化任务引用兼容）、`tests/refactor/test_b2_assembly.py`、新增 tick 阶段顺序断言。
+- [x] 5.5 Add service tests for successful workflows, post-commit side-effect failure, retry-safe notification behavior, and scheduler invocation; verify committed game state is not rolled back by notification failures.
+  - 验证方式：`tests/test_blackjack_service_workflows.py`——赛果通知失败仍已派奖、开赛通知失败仍是 RUNNING、单场失败不影响其他场、通知关闭仍推进去重游标（重试安全）、拉列表失败不抛出。
 
 ## 6. Interface Migration and Compatibility
 
