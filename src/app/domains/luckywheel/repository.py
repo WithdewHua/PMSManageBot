@@ -613,3 +613,26 @@ def list_expiring_blackjack_freespins(*, within_ms: int = 86400 * 1000) -> list[
     except Exception as exc:
         logger.error(f"查询即将过期的免费机会失败: {exc}")
         return []
+
+
+# ---------------------------------------------------------------- 礼包条件取数
+#
+# 转盘次数列属于 luckywheel，礼包只通过这些 `*_tx` 取数（design D2）。
+
+
+def count_paid_spins_tx(
+    session, tg_id: int, since: int, until: int, *, paid_only: bool = True
+) -> int:
+    """指定时间窗内的转盘次数（闭区间，秒级时间戳）。
+
+    默认只数付费转盘（`paid_only=True`），礼包条件里显式写了
+    `paid_only: false` 时按全部转盘计。
+    """
+    stmt = select(func.count(WheelStats.id)).where(
+        WheelStats.tg_id == int(tg_id),
+        WheelStats.timestamp >= int(since),
+        WheelStats.timestamp <= int(until),
+    )
+    if paid_only:
+        stmt = stmt.where(WheelStats.source == "paid")
+    return int(session.execute(stmt).scalar_one())

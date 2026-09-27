@@ -663,3 +663,16 @@ class TreasureRepository:
                 "total_prize_credits": 0,
                 "recent_participations": [],
             }
+
+
+def count_participated_issues_tx(session, tg_id: int, since: int, until: int) -> int:
+    """指定时间窗内参与过的夺宝期数（按 issue 去重，闭区间，毫秒时间戳）。"""
+    return int(
+        session.execute(
+            select(func.count(distinct(TreasureParticipation.issue_id))).where(
+                TreasureParticipation.tg_id == int(tg_id),
+                TreasureParticipation.created_at_ms >= int(since) * 1000,
+                TreasureParticipation.created_at_ms <= int(until) * 1000,
+            )
+        ).scalar_one()
+    )

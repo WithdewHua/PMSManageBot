@@ -271,3 +271,35 @@ _media_access_repository = MediaAccessRepository()
 def check_download_unlock(tg_id: int, service: str) -> dict:
     """该用户在指定服务上的下载/同步权限状态（含 Premium 自动解锁）。"""
     return _media_access_repository.check_download_unlock(tg_id, service)
+
+
+# 下载/同步解锁列属于 media_access（见 docs/architecture.md 宽表列归属）。
+_DOWNLOAD_UNLOCK_COLUMNS = {
+    "plex": (PlexUser, "sync_unlocked", "sync_unlock_time"),
+    "emby": (EmbyUser, "download_unlocked", "download_unlock_time"),
+}
+
+
+def unlock_download_tx(session, tg_id: int, service: str) -> dict:
+    """在调用方事务内永久解锁下载/同步权限，返回“已解锁”或“已跳过”。
+
+    只写永久解锁标记列：Premium 自带的下载权限不写这两列，避免 Premium
+    到期后永久权限被误判为已拥有（与 check_download_unlock 的语义区分）。
+    """
+    if service not in _DOWNLOAD_UNLOCK_COLUMNS:
+        raise ValueError(f"不支持的解锁类型: download/{service}")
+    model, flag_col, time_col = _DOWNLOAD_UNLOCK_COLUMNS[service]
+    user = (
+        session.execute(
+            select(model).where(model.tg_id == int(tg_id)).with_for_update()
+        )
+        .scalars()
+        .one_or_none()
+    )
+    if user is None:
+        raise ValueError(f"未找到绑定的 {service.capitalize()} 账号")
+    if int(getattr(user, flag_col) or 0) == 1:
+        return {"unlocked": False, "skipped": "already_unlocked", "service": service}
+    setattr(user, flag_col, 1)
+    setattr(user, time_col, int(time.time()))
+    return {"unlocked": True, "skipped": None, "service": service}

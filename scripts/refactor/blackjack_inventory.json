@@ -2221,7 +2221,7 @@
     },
     {
       "kind": "facade_import",
-      "line": 10,
+      "line": 5,
       "path": "src/app/domains/gift_pack/repository/rewards.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"

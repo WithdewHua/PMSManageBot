@@ -1,21 +1,21 @@
 """礼包 repository：用户上下文、条件与受众的取数和求值（由 part_1–part_3 与门面机械拆分）。"""
 
 import json
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import ClassVar
 
-from sqlalchemy import distinct, func, select
+from sqlalchemy import select
 
 from app.core.config import settings
-from app.domains.auction.models import AuctionBids
-from app.domains.badges.models import UserBadge
+from app.domains.auction import repository as auction_repository
+from app.domains.badges import repository as badges_repository
 from app.domains.blackjack import repository as blackjack_repository
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
-from app.domains.invitation.models import Invitation
-from app.domains.luckywheel.models import WheelStats
-from app.domains.prediction.models import PredictionBet
-from app.domains.treasure.models import TreasureParticipation
+from app.domains.invitation import repository as invitation_repository
+from app.domains.luckywheel import repository as luckywheel_repository
+from app.domains.prediction import repository as prediction_repository
+from app.domains.treasure import repository as treasure_repository
 
 from . import (
     _format_gift_pack_number,
@@ -81,13 +81,7 @@ class _GiftPackRepositoryConditions:
         if emby is not None and self._is_premium_active(emby[0], emby[1]):
             premium_services.append("emby")
 
-        badge_ids = set(
-            session.execute(
-                select(UserBadge.badge_id).where(
-                    UserBadge.tg_id == tg_id, UserBadge.is_active == 1
-                )
-            ).scalars()
-        )
+        badge_ids = badges_repository.active_badge_ids_tx(session, tg_id)
         claimed_pack_ids = set(
             session.execute(
                 select(GiftPackUserState.pack_id).where(
@@ -113,14 +107,13 @@ class _GiftPackRepositoryConditions:
     def _count_gift_pack_wheel_spins(
         session, tg_id: int, since: int, until: int, **qualifiers
     ) -> int:
-        stmt = select(func.count(WheelStats.id)).where(
-            WheelStats.tg_id == tg_id,
-            WheelStats.timestamp >= since,
-            WheelStats.timestamp <= until,
+        return luckywheel_repository.count_paid_spins_tx(
+            session,
+            tg_id,
+            since,
+            until,
+            paid_only=qualifiers.get("paid_only", True),
         )
-        if qualifiers.get("paid_only", True):
-            stmt = stmt.where(WheelStats.source == "paid")
-        return int(session.execute(stmt).scalar_one())
 
     @staticmethod
     def _count_gift_pack_blackjack_hands(
@@ -139,42 +132,22 @@ class _GiftPackRepositoryConditions:
     def _count_gift_pack_treasure_issues(
         session, tg_id: int, since: int, until: int, **qualifiers
     ) -> int:
-        return int(
-            session.execute(
-                select(func.count(distinct(TreasureParticipation.issue_id))).where(
-                    TreasureParticipation.tg_id == tg_id,
-                    TreasureParticipation.created_at_ms >= since * 1000,
-                    TreasureParticipation.created_at_ms <= until * 1000,
-                )
-            ).scalar_one()
+        return treasure_repository.count_participated_issues_tx(
+            session, tg_id, since, until
         )
 
     @staticmethod
     def _count_gift_pack_prediction_bets(
         session, tg_id: int, since: int, until: int, **qualifiers
     ) -> int:
-        return int(
-            session.execute(
-                select(func.count(PredictionBet.id)).where(
-                    PredictionBet.tg_id == tg_id,
-                    PredictionBet.created_at >= datetime.fromtimestamp(since, UTC),
-                    PredictionBet.created_at <= datetime.fromtimestamp(until, UTC),
-                )
-            ).scalar_one()
-        )
+        return prediction_repository.count_bets_tx(session, tg_id, since, until)
 
     @staticmethod
     def _count_gift_pack_auction_participations(
         session, tg_id: int, since: int, until: int, **qualifiers
     ) -> int:
-        return int(
-            session.execute(
-                select(func.count(distinct(AuctionBids.auction_id))).where(
-                    AuctionBids.bidder_id == tg_id,
-                    AuctionBids.bid_time >= since,
-                    AuctionBids.bid_time <= until,
-                )
-            ).scalar_one()
+        return auction_repository.count_participated_auctions_tx(
+            session, tg_id, since, until
         )
 
     @staticmethod
@@ -189,14 +162,8 @@ class _GiftPackRepositoryConditions:
     def _count_gift_pack_invitees(
         session, tg_id: int, since: int, until: int, **qualifiers
     ) -> int:
-        # Invitations have no event timestamp; only an all-time window is valid.
-        return int(
-            session.execute(
-                select(func.count(distinct(Invitation.used_by))).where(
-                    Invitation.owner == tg_id, Invitation.is_used == 1
-                )
-            ).scalar_one()
-        )
+        # 邀请码没有事件时间，只按“全部时间”统计
+        return invitation_repository.count_invitees_tx(session, tg_id, since, until)
 
     @staticmethod
     def _count_gift_pack_watched_hours(

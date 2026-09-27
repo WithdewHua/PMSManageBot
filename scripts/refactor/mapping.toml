@@ -1424,12 +1424,12 @@ reason = "db.py section: Gift Pack Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._GIFT_PACK_UNLOCK_COLUMNS"
-target = "app.domains.gift_pack.repository"
-planned_target = "app.domains.gift_pack.repository.rewards"
-planned_reason = "design D1 sub-topic: reward granting"
+target = "app.domains.lines.repository"
 class = "GiftPackRepository"
 kind = "attribute"
-reason = "db.py section: Gift Pack Operations"
+action = "manual"
+reason = "promote-gift-pack-domain 3.4 reviewed redistribution: the unlock column table is split by column ownership into lines.repository._LINE_SCHEDULE_UNLOCK_COLUMNS and media_access.repository._DOWNLOAD_UNLOCK_COLUMNS"
+b3_behavior_test = "tests/test_gift_pack_rewards.py::test_all_seven_reward_types_are_aggregated_in_stats"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._add_to_fund"
@@ -1557,6 +1557,9 @@ class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
 
+b3_ast_exception = "promote-gift-pack-domain reviewed counter delegation"
+b3_behavior_test = "tests/test_gift_pack_conditions.py::test_treasure_and_auction_counters_deduplicate_by_issue_and_auction"
+
 [[items]]
 id = "app.databases.db:DatabaseORM._count_gift_pack_blackjack_hands"
 target = "app.domains.gift_pack.repository"
@@ -1575,6 +1578,9 @@ class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
 
+b3_ast_exception = "promote-gift-pack-domain reviewed counter delegation"
+b3_behavior_test = "tests/test_gift_pack_conditions.py::test_invitees_and_watched_hours_are_historical_and_distinct"
+
 [[items]]
 id = "app.databases.db:DatabaseORM._count_gift_pack_prediction_bets"
 target = "app.domains.gift_pack.repository"
@@ -1583,6 +1589,9 @@ planned_reason = "design D1 sub-topic: user context, condition/audience reads an
 class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
+
+b3_ast_exception = "promote-gift-pack-domain reviewed counter delegation"
+b3_behavior_test = "tests/test_gift_pack_conditions.py::test_prediction_counter_uses_utc_datetime_boundaries"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._count_gift_pack_tournament_entries"
@@ -1602,6 +1611,9 @@ class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
 
+b3_ast_exception = "promote-gift-pack-domain reviewed counter delegation"
+b3_behavior_test = "tests/test_gift_pack_conditions.py::test_treasure_and_auction_counters_deduplicate_by_issue_and_auction"
+
 [[items]]
 id = "app.databases.db:DatabaseORM._count_gift_pack_watched_hours"
 target = "app.domains.gift_pack.repository"
@@ -1619,6 +1631,9 @@ planned_reason = "design D1 sub-topic: user context, condition/audience reads an
 class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
+
+b3_ast_exception = "promote-gift-pack-domain reviewed counter delegation"
+b3_behavior_test = "tests/test_gift_pack_conditions.py::test_wheel_counter_includes_time_boundaries_and_filters_free_spins"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._evaluate_conditions"
@@ -1795,6 +1810,9 @@ class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
 
+b3_ast_exception = "promote-gift-pack-domain reviewed unlock ownership handoff"
+b3_behavior_test = "tests/test_gift_pack_rewards.py::test_line_schedule_unlock_skips_already_unlocked_service"
+
 [[items]]
 id = "app.databases.db:DatabaseORM._grant_gift_pack_rewards"
 target = "app.domains.gift_pack.repository"
@@ -1812,6 +1830,9 @@ planned_reason = "design D1 sub-topic: reward granting"
 class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
+
+b3_ast_exception = "promote-gift-pack-domain reviewed invitation code issuance"
+b3_behavior_test = "tests/test_gift_pack_rewards.py::test_invite_codes_generated_and_in_snapshot"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._grant_tournament_wallet_tx"
@@ -1867,6 +1888,9 @@ planned_reason = "design D1 sub-topic: user context, condition/audience reads an
 class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
+
+b3_ast_exception = "promote-gift-pack-domain reviewed badge read delegation"
+b3_behavior_test = "tests/test_gift_pack_conditions.py::test_load_context_contains_live_state_sets_and_request_metric_cache"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._lock_blackjack_hand"
@@ -1942,6 +1966,9 @@ planned_reason = "design D1 sub-topic: reward granting"
 class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
+
+b3_ast_exception = "promote-gift-pack-domain reviewed privileged code persistence handoff"
+b3_behavior_test = "tests/test_gift_pack_rewards.py::test_privileged_invite_config_write_failure_rolls_back_claim"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._read_retention_cursor"
@@ -2063,6 +2090,9 @@ planned_reason = "design D1 sub-topic: pack definitions, admin list, stats, clai
 class = "GiftPackRepository"
 kind = "method"
 reason = "db.py section: Gift Pack Operations"
+
+b3_ast_exception = "promote-gift-pack-domain reviewed badge existence delegation"
+b3_behavior_test = "tests/test_gift_pack_audience.py::test_admin_references_and_deletion_guard"
 
 [[items]]
 id = "app.databases.db:DatabaseORM._validate_post_start_edit"
@@ -3859,9 +3889,11 @@ reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.databases.db:_GIFT_PACK_PRIVILEGED_CODES_LOCK"
-target = "app.domains.gift_pack.repository"
+target = "app.domains.invitation.repository"
 kind = "assignment"
-reason = "ambiguous: human review required"
+action = "manual"
+reason = "promote-gift-pack-domain 3.5 reviewed relocation: the privileged-code .env write and its module lock move to invitation (_INVITATION_PRIVILEGED_CODES_LOCK) in persist_privileged_codes_tx"
+b3_behavior_test = "tests/test_gift_pack_rewards.py::test_privileged_code_written_to_env_stays_when_commit_fails"
 
 [[items]]
 id = "app.databases.db:_format_gift_pack_number"

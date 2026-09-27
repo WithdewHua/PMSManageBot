@@ -1,5 +1,6 @@
 import time
 import traceback
+from collections.abc import Iterable
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import joinedload
@@ -485,7 +486,34 @@ def award_or_renew_badge(
 
 __all__ = [
     "BadgesRepository",
+    "active_badge_ids_tx",
     "award_or_renew_badge",
+    "badges_exist_tx",
     "create_badge",
     "get_badge_by_type",
 ]
+
+
+def active_badge_ids_tx(session, tg_id: int) -> set[int]:
+    """用户当前生效的勋章 ID 集合（礼包条件取数）。"""
+    return {
+        int(badge_id)
+        for badge_id in session.execute(
+            select(UserBadge.badge_id).where(
+                UserBadge.tg_id == int(tg_id), UserBadge.is_active == 1
+            )
+        ).scalars()
+    }
+
+
+def badges_exist_tx(session, badge_ids: Iterable[int]) -> set[int]:
+    """在这些 ID 里真实存在的勋章（礼包后台校验用）。"""
+    wanted = {int(badge_id) for badge_id in badge_ids}
+    if not wanted:
+        return set()
+    return {
+        int(badge_id)
+        for badge_id in session.execute(
+            select(Badge.id).where(Badge.id.in_(wanted))
+        ).scalars()
+    }

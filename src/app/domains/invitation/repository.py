@@ -1,5 +1,9 @@
+import threading
+from uuid import uuid4
+
 from sqlalchemy import func, select, update
 
+from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
 from app.domains.invitation.models import Invitation
@@ -123,3 +127,61 @@ class InvitationRepository:
         except Exception as e:
             logger.error(f"获取邀请人数失败: {e}")
             return 0
+
+
+def count_invitees_tx(session, tg_id: int, since: int, until: int) -> int:
+    """被邀请注册的人数（邀请码没有事件时间，只按“全部时间”统计）。"""
+    return int(
+        session.execute(
+            select(func.count(func.distinct(Invitation.used_by))).where(
+                Invitation.owner == int(tg_id), Invitation.is_used == 1
+            )
+        ).scalar_one()
+    )
+
+
+#: 特权码写 data/.env 是文档化的 pre-commit 例外（docs/architecture.md 已知例外）。
+_INVITATION_PRIVILEGED_CODES_LOCK = threading.Lock()
+
+
+def issue_codes_tx(
+    session, owner_tg_id: int, count: int, *, privileged: bool = False
+) -> list[str]:
+    """在调用方事务内为用户生成邀请码，返回新码列表。
+
+    与调用方的其余写入同生共死：事务回滚不会留下可用邀请码；
+    `uuid4().hex` 与既有码同为 32 位十六进制。
+    """
+    total = int(count)
+    if total <= 0:
+        raise ValueError("邀请码数量必须为正")
+    codes = [uuid4().hex for _ in range(total)]
+    for code in codes:
+        session.add(Invitation(code=code, owner=int(owner_tg_id), is_used=0))
+    session.flush()
+    return codes
+
+
+def persist_privileged_codes_tx(codes) -> None:
+    """把特权码写入配置（pre-commit 例外，调用方须在最后一次 flush 之后调用）。
+
+    配置文件不是事务性的：先更新内存列表再落盘，写失败就恢复内存列表并把异常
+    抛给调用方，让整个领取事务回滚（这是唯一被允许的 pre-commit 副作用）。
+    """
+    if not codes:
+        return
+    with _INVITATION_PRIVILEGED_CODES_LOCK:
+        original_codes = list(settings.PRIVILEGED_CODES)
+        new_codes = original_codes.copy()
+        for code in codes:
+            if code not in new_codes:
+                new_codes.append(code)
+        settings.PRIVILEGED_CODES[:] = new_codes
+        try:
+            settings.save_config_to_env_file(
+                {"PRIVILEGED_CODES": ",".join(new_codes)},
+                raise_on_error=True,
+            )
+        except Exception:
+            settings.PRIVILEGED_CODES[:] = original_codes
+            raise

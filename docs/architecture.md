@@ -97,7 +97,7 @@ core/（公共设施）
 
 - **读模型直读跨域表**：T5 的 rankings、reports、profile repository 可以跨表只读聚合，不可写入其他领域的数据。后续 `promote-remaining-domains` 核对查询。
 - **过渡门面**：`app.databases.db` 暂时组合 repository mixin，以保持旧调用面；门面文件本身不新增方法，新方法写入所属领域的 repository mixin，只允许本领域经 `db.xxx()` 调用，不新增跨域调用。`retire-legacy-db-facade` 删除它。旧的跨域 `db.xxx()` / `self.xxx()` 依赖登记在架构测试基线，按所属领域的提升变更清理。
-- **特权邀请码 `.env` 写入**：礼包领取目前有提交前写配置的明确例外，失败时回滚数据库领取；媒体权限同步仍在提交后进行。`move-privileged-codes-to-database` 将特权码移出 `.env`。
+- **特权邀请码 `.env` 写入**：唯一的提交前外部副作用例外，落在拥有该资源的 `invitation` 领域（`invitation.repository.persist_privileged_codes_tx`）：礼包在最后一次数据库 flush 之后、事务提交之前调用，写失败会恢复内存配置并回滚数据库领取；媒体权限同步仍在提交后进行。`move-privileged-codes-to-database` 将特权码移出 `.env`。
 - **入口层现存环**：活动领域触发自动勋章、badge_awards 反读活动数据（`promote-reward-domains`：提交后领域事件）；accounts 同步回填 invitation 邀请记录、invitation 兑换反调同步（`promote-account-domains`：回填归 invitation）；luckywheel 消耗 blackjack 来源免费次数时反读 blackjack 配置（`promote-blackjack-domain`：发放时保存参数）。搬迁阶段仅登记，不改变行为。
 - **TG 换绑跨域写入和漏迁**：当前实现原样搬迁，`promote-tg-rebind-domain` 会用各领域的 `reassign_tg_id_tx` 修复覆盖范围与写入边界。
 

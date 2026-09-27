@@ -316,10 +316,10 @@
       "b3_source_id": "app.databases.db_func:check_and_award_supreme_contributor_badge"
     },
     {
-      "key": "call|src/app/domains/badges/repository.py|288|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/badges/repository.py|289|imported|credits|register_cache_invalidation",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/badges/repository.py",
-      "line": 288,
+      "line": 289,
       "kind": "call",
       "source_domain": "badges",
       "target_domain": "credits",
@@ -950,10 +950,10 @@
       "b3_source_id": "app.domains.gift_pack.repository.part_2:_GiftPackRepositoryPart2.claim_gift_pack"
     },
     {
-      "key": "call|src/app/domains/gift_pack/repository/rewards.py|55|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/gift_pack/repository/rewards.py|47|imported|credits|register_cache_invalidation",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/rewards.py",
-      "line": 55,
+      "line": 47,
       "kind": "call",
       "source_domain": "gift_pack",
       "target_domain": "credits",
@@ -2090,20 +2090,20 @@
       "target": "get_plex_info_by_tg_id"
     },
     {
-      "key": "call|src/app/domains/prediction/repository/part_1.py|408|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/prediction/repository/part_1.py|409|imported|credits|register_cache_invalidation",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/prediction/repository/part_1.py",
-      "line": 408,
+      "line": 409,
       "kind": "call",
       "source_domain": "prediction",
       "target_domain": "credits",
       "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/prediction/repository/part_1.py|680|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/prediction/repository/part_1.py|681|imported|credits|register_cache_invalidation",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/prediction/repository/part_1.py",
-      "line": 680,
+      "line": 681,
       "kind": "call",
       "source_domain": "prediction",
       "target_domain": "credits",
@@ -3011,10 +3011,10 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/badges/repository.py|11|app.domains.credits.service|service",
+      "key": "import|src/app/domains/badges/repository.py|12|app.domains.credits.service|service",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/badges/repository.py",
-      "line": 11,
+      "line": 12,
       "kind": "import",
       "source_domain": "badges",
       "target_domain": "credits",
@@ -3547,103 +3547,15 @@
       "b3_source_id": "app.domains.gift_pack.repository.part_2:_GiftPackRepositoryPart2.claim_gift_pack"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/conditions.py|10|app.domains.auction.models|AuctionBids",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/conditions.py",
-      "line": 10,
-      "kind": "import",
-      "source_domain": "gift_pack",
-      "target_domain": "auction",
-      "target_module": "app.domains.auction.models",
-      "symbol": "AuctionBids"
-    },
-    {
-      "key": "import|src/app/domains/gift_pack/repository/conditions.py|11|app.domains.badges.models|UserBadge",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/conditions.py",
-      "line": 11,
-      "kind": "import",
-      "source_domain": "gift_pack",
-      "target_domain": "badges",
-      "target_module": "app.domains.badges.models",
-      "symbol": "UserBadge"
-    },
-    {
-      "key": "import|src/app/domains/gift_pack/repository/conditions.py|15|app.domains.invitation.models|Invitation",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/conditions.py",
-      "line": 15,
-      "kind": "import",
-      "source_domain": "gift_pack",
-      "target_domain": "invitation",
-      "target_module": "app.domains.invitation.models",
-      "symbol": "Invitation"
-    },
-    {
-      "key": "import|src/app/domains/gift_pack/repository/conditions.py|16|app.domains.luckywheel.models|WheelStats",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/conditions.py",
-      "line": 16,
-      "kind": "import",
-      "source_domain": "gift_pack",
-      "target_domain": "luckywheel",
-      "target_module": "app.domains.luckywheel.models",
-      "symbol": "WheelStats"
-    },
-    {
-      "key": "import|src/app/domains/gift_pack/repository/conditions.py|17|app.domains.prediction.models|PredictionBet",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/conditions.py",
-      "line": 17,
-      "kind": "import",
-      "source_domain": "gift_pack",
-      "target_domain": "prediction",
-      "target_module": "app.domains.prediction.models",
-      "symbol": "PredictionBet"
-    },
-    {
-      "key": "import|src/app/domains/gift_pack/repository/conditions.py|18|app.domains.treasure.models|TreasureParticipation",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/conditions.py",
-      "line": 18,
-      "kind": "import",
-      "source_domain": "gift_pack",
-      "target_domain": "treasure",
-      "target_module": "app.domains.treasure.models",
-      "symbol": "TreasureParticipation"
-    },
-    {
-      "key": "import|src/app/domains/gift_pack/repository/packs.py|10|app.domains.badges.models|Badge",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/packs.py",
-      "line": 10,
-      "kind": "import",
-      "source_domain": "gift_pack",
-      "target_domain": "badges",
-      "target_module": "app.domains.badges.models",
-      "symbol": "Badge"
-    },
-    {
-      "key": "import|src/app/domains/gift_pack/repository/rewards.py|12|app.domains.credits.service|service",
+      "key": "import|src/app/domains/gift_pack/repository/rewards.py|7|app.domains.credits.service|service",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/rewards.py",
-      "line": 12,
+      "line": 7,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "credits",
       "target_module": "app.domains.credits.service",
       "symbol": "service"
-    },
-    {
-      "key": "import|src/app/domains/gift_pack/repository/rewards.py|15|app.domains.invitation.models|Invitation",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/rewards.py",
-      "line": 15,
-      "kind": "import",
-      "source_domain": "gift_pack",
-      "target_domain": "invitation",
-      "target_module": "app.domains.invitation.models",
-      "symbol": "Invitation"
     },
     {
       "key": "import|src/app/domains/invitation/bot.py|10|app.domains.credits.service|service",
@@ -4016,10 +3928,10 @@
       "b3_source_id": "app.databases.db_func:@import:20"
     },
     {
-      "key": "import|src/app/domains/prediction/repository/part_1.py|8|app.domains.credits.service|service",
+      "key": "import|src/app/domains/prediction/repository/part_1.py|9|app.domains.credits.service|service",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/prediction/repository/part_1.py",
-      "line": 8,
+      "line": 9,
       "kind": "import",
       "source_domain": "prediction",
       "target_domain": "credits",

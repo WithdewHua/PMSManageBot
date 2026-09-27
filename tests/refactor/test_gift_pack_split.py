@@ -61,7 +61,9 @@ def test_declared_mixins_match_the_package_classes() -> None:
 
 def test_planned_members_live_in_their_reviewed_module() -> None:
     planned = _planned_members()
-    assert len(planned) == 55
+    # 55 个成员由 part_1–part_3 与门面机械拆分而来；promote-gift-pack-domain 3.4
+    # 把解锁列常量按列归属搬去 lines / media_access，因此这里降为 54。
+    assert len(planned) == 54
     misplaced: list[str] = []
     for path, members in _classes().values():
         for member in members:

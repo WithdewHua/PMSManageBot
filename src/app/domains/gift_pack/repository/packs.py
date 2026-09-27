@@ -7,7 +7,7 @@ from sqlalchemy import delete, func, select, update
 
 from app.core.db import get_session
 from app.core.log import logger
-from app.domains.badges.models import Badge
+from app.domains.badges import repository as badges_repository
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 
@@ -62,10 +62,18 @@ class _GiftPackRepositoryPacks:
                 else:
                     yield item
 
+        badge_ids = [
+            int(item["badge_id"])
+            for item in leaves(audience + requirements)
+            if item["type"] == "badge"
+        ]
+        existing_badges = badges_repository.badges_exist_tx(session, badge_ids)
+        for badge_id in badge_ids:
+            if badge_id not in existing_badges:
+                raise ValueError(f"引用的勋章不存在: {badge_id}")
+
         for item in leaves(audience + requirements):
             kind = item["type"]
-            if kind == "badge" and session.get(Badge, item["badge_id"]) is None:
-                raise ValueError(f"引用的勋章不存在: {item['badge_id']}")
             if kind == "claimed_pack":
                 if pack_id is not None and item["pack_id"] == pack_id:
                     raise ValueError("礼包不能引用自身作为已领取条件")

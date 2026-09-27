@@ -61,7 +61,8 @@ def test_gift_pack_baseline_covers_routes_jobs_and_tables() -> None:
 
     tables = {table["name"] for table in snapshot["metadata_tables"]}
     assert {"gift_pack", "gift_pack_user_state"} <= tables
-    assert len(snapshot["repository_members"]) == 55
+    # 55 -> 54：promote-gift-pack-domain 3.4 把解锁列常量按列归属搬出礼包
+    assert len(snapshot["repository_members"]) == 54
 
 
 def test_every_repository_member_has_a_reviewed_destination() -> None:

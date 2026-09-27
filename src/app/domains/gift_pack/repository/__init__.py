@@ -1,8 +1,3 @@
-import threading
-
-_GIFT_PACK_PRIVILEGED_CODES_LOCK = threading.Lock()
-
-
 def _format_gift_pack_number(value) -> str:
     """整数去掉小数点，其余按 %g 输出，如 100.0 -> 100、12.5 -> 12.5"""
     number = float(value or 0)

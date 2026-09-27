@@ -73,16 +73,19 @@
   - 礼包侧：`rewards.py` 用 `premium_repository.grant_premium_days_tx(session, …)`（repository→repository 的合法 `*_tx` 边），`claims.py` 提交后调用 `premium_service.sync_premium_media_access(tg_id, (service,))`。
   - 验证：新增 `tests/test_premium_grants.py`（新开/续期/已过期/永久会员跳过/未绑定报 NameError/回滚/行锁 AST/签名无 db/未绑定不推送/已解锁跳过/大转盘 Premium 奖品两个服务顺序）；全量 519 passed / 4 skipped。
   - 工具与基线：`pyproject.toml` 删除 3 条已失效的 `ignore_imports`（premium.service 不再直接 import SQLAlchemy 与 identity models）；基线 445 → 430 条（20 stale / 2 条 reviewed 新增：`sync_premium_media_access` 的重命名调用与导入），`b3_source_id` 58 条；`verify.py` 零新增差异（`claim_gift_pack` 与 `_handle_premium_reward` 登记了带行为测试的 AST 例外）。
-- [ ] 3.4 新增 `lines.repository.unlock_line_schedule_tx` 和 `media_access.repository.unlock_download_tx`，返回"已解锁"或"已跳过"。验证：写入的列、解锁时间和"已解锁则跳过"都与 `_grant_feature_unlock_tx` 一致；外层事务回滚时一并回滚。
-- [ ] 3.5 在 invitation 中新增 `issue_codes_tx`、`persist_privileged_codes_tx` 和 `count_invitees_tx`，把特权码例外挪过来；更新 `docs/architecture.md` 的例外清单。验证：
-  - 生码的格式和写入的行与原实现一致。
-  - `.env` 写入失败时恢复内存列表，并让领取整体回滚。
-  - 锁的行为不变。
-  - 计数与原计数器一致。
-- [ ] 3.6 新增条件计数函数：`luckywheel.repository.count_paid_spins_tx`、`treasure.repository.count_participated_issues_tx`、`prediction.repository.count_bets_tx`、`auction.repository.count_participated_auctions_tx`，以及 `badges.repository.active_badge_ids_tx` 和 `badges_exist_tx`。验证：每个函数在时间单位、去重规则和区间开闭上，与原礼包计数器的边界用例逐条一致。
-
-## 4. 纯计算与类型化异常
-
+- [x] 3.4 新增 `lines.repository.unlock_line_schedule_tx` 和 `media_access.repository.unlock_download_tx`，返回“已解锁”或“已跳过”。
+  - 交付：两个 `*_tx` 都在调用方事务内 `SELECT ... FOR UPDATE` 锁住媒体账号行，按各自的列归属写永久解锁标记（`line_schedule_unlocked` 归 lines，`sync_unlocked` / `download_unlocked` 归 media_access），已解锁过则返回 `{"unlocked": False, "skipped": "already_unlocked"}`，未绑定账号抛 `ValueError`。
+  - 礼包侧：`_grant_feature_unlock_tx` 只保留用户可见文案，写列全部委托给这两个 `*_tx`；原先的 `_GIFT_PACK_UNLOCK_COLUMNS` 常量按列归属拆成 `_LINE_SCHEDULE_UNLOCK_COLUMNS` 与 `_DOWNLOAD_UNLOCK_COLUMNS`（mapping 与 split plan 已按人工搬运登记）。
+  - 验证：`tests/test_gift_pack_rewards.py` 的 Premium 用户仍拿到永久标记、已解锁服务 skipped、未绑定报错三条用例全部通过（全量 519 passed / 4 skipped）。
+- [x] 3.5 在 invitation 中实现 `issue_codes_tx`、`persist_privileged_codes_tx` 和 `count_invitees_tx`，把特权码例外挪过来；更新 `docs/architecture.md` 的例外清单。
+  - 交付：`invitation/repository.py` 新增 `issue_codes_tx`（调用方事务内写 `Invitation` 行并 flush）、`persist_privileged_codes_tx`（模块锁 + 先改内存再落盘，写失败恢复内存并把异常抛给调用方 → 外围事务回滚）与 `count_invitees_tx`（按全部时间统计去重被邀请人）。
+  - 礼包侧：`_grant_invite_codes_tx` 与 `_persist_privileged_invite_codes` 改成调用 invitation；`_GIFT_PACK_PRIVILEGED_CODES_LOCK` 从礼包删除，锁随例外一起搬到 invitation（`_INVITATION_PRIVILEGED_CODES_LOCK`）。
+  - 文档：`docs/architecture.md` 明确这是唯一的提交前外部副作用例外且落在 invitation；`AGENTS.md` 同步更新例外描述。
+  - 验证：`test_invite_codes_generated_and_in_snapshot`、`test_invite_codes_rolled_back_when_other_reward_fails`、`test_privileged_invite_config_write_failure_rolls_back_claim`、`test_privileged_code_written_to_env_stays_when_commit_fails` 全部通过。
+- [x] 3.6 条件计数器落到各自领域：`luckywheel` 的 `count_paid_spins_tx`、`treasure` 的 `count_participated_issues_tx`、`prediction` 的 `count_bets_tx`、`auction` 的 `count_participated_auctions_tx`、`badges` 的 `active_badge_ids_tx` 与 `badges_exist_tx`。
+  - 交付：各领域 repository 以模块级 `*_tx` 暴露口径（转盘默认只数付费、可关；夺宝按 issue 去重且毫秒边界；竞拍按 auction 去重；预言家按 UTC datetime 闭区间；被邀请人按全部时间去重；勋章取生效集合与存在集合）。
+  - 礼包侧：`conditions.py` 的条件计数与 `badge_ids`、`packs.py` 的勋章引用校验全部改走这些 `*_tx`，礼包不再直接读别的领域的表。
+  - 验证：`tests/test_gift_pack_conditions.py` 的窗口边界、去重、UTC、准确率与被邀请人历史口径用例逐条通过（`paid_only=False` 也在 `test_wheel_counter_includes_time_boundaries_and_filters_free_spins` 里覆盖）。
 - [ ] 4.1 把 design D1、D4 列出的纯计算抽到 `gift_pack.rules`，包括：
   - 奖励登记表、标签和摘要。
   - 条件解析，把两套重复实现合并成一套。

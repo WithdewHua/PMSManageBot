@@ -1,4 +1,5 @@
 import time
+from datetime import UTC, datetime
 
 from sqlalchemy import case, func, select
 
@@ -730,3 +731,16 @@ class _PredictionRepositoryPart1:
                 "winner_count": int(winner_count),
                 "payout_pool": int(payout_pool),
             }
+
+
+def count_bets_tx(session, tg_id: int, since: int, until: int) -> int:
+    """指定时间窗内的大预言家下注次数（闭区间，秒级时间戳转 UTC datetime）。"""
+    return int(
+        session.execute(
+            select(func.count(PredictionBet.id)).where(
+                PredictionBet.tg_id == int(tg_id),
+                PredictionBet.created_at >= datetime.fromtimestamp(int(since), UTC),
+                PredictionBet.created_at <= datetime.fromtimestamp(int(until), UTC),
+            )
+        ).scalar_one()
+    )

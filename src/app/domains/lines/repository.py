@@ -812,3 +812,35 @@ class LinesRepository:
         except Exception as e:
             logger.error(f"获取使用线路 {line_name} 的用户失败: {e}")
             return []
+
+
+# 线路调度解锁列属于 lines（见 docs/architecture.md 宽表列归属），礼包只调这里。
+_LINE_SCHEDULE_UNLOCK_COLUMNS = {
+    "plex": (PlexUser, "line_schedule_unlocked", "line_schedule_unlock_time"),
+    "emby": (EmbyUser, "line_schedule_unlocked", "line_schedule_unlock_time"),
+}
+
+
+def unlock_line_schedule_tx(session, tg_id: int, service: str) -> dict:
+    """在调用方事务内永久解锁线路调度，返回“已解锁”或“已跳过”。
+
+    「已拥有」直接读永久解锁标记列，而不是把 Premium 也算作已解锁；已经永久
+    解锁过的服务记为 skipped，由调用方决定怎么告知用户。
+    """
+    if service not in _LINE_SCHEDULE_UNLOCK_COLUMNS:
+        raise ValueError(f"不支持的解锁类型: line_schedule/{service}")
+    model, flag_col, time_col = _LINE_SCHEDULE_UNLOCK_COLUMNS[service]
+    user = (
+        session.execute(
+            select(model).where(model.tg_id == int(tg_id)).with_for_update()
+        )
+        .scalars()
+        .one_or_none()
+    )
+    if user is None:
+        raise ValueError(f"未找到绑定的 {service.capitalize()} 账号")
+    if int(getattr(user, flag_col) or 0) == 1:
+        return {"unlocked": False, "skipped": "already_unlocked", "service": service}
+    setattr(user, flag_col, 1)
+    setattr(user, time_col, int(time.time()))
+    return {"unlocked": True, "skipped": None, "service": service}

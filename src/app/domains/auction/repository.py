@@ -631,3 +631,16 @@ class AuctionRepository:
         except Exception as e:
             logger.error(f"Error getting detailed auction stats: {e}")
             return self.get_auction_stats()
+
+
+def count_participated_auctions_tx(session, tg_id: int, since: int, until: int) -> int:
+    """指定时间窗内出价过的竞拍场次（按 auction 去重，闭区间，秒级时间戳）。"""
+    return int(
+        session.execute(
+            select(func.count(func.distinct(AuctionBids.auction_id))).where(
+                AuctionBids.bidder_id == int(tg_id),
+                AuctionBids.bid_time >= int(since),
+                AuctionBids.bid_time <= int(until),
+            )
+        ).scalar_one()
+    )
