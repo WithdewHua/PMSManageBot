@@ -185,40 +185,37 @@ def test_lock_running_misses_settled_tournament(orm):
 
 @pytest.mark.asyncio
 async def test_tick_settles_all_terminal_before_deadline(orm, monkeypatch):
-    from app.domains.blackjack.jobs import tournament as router
-
     t = add_tournament(orm)
     add_user(orm, 1)
     add_user(orm, 2)
     add_entry(orm, t["id"], 1, status=ENTRY_FINISHED, chips=1200, registered_at_ms=1)
     add_entry(orm, t["id"], 2, status=ENTRY_ELIMINATED, chips=800, registered_at_ms=2)
 
-    monkeypatch.setattr(router, "blackjack_service", blackjack_service)
-    monkeypatch.setattr(router, "_notify_enabled", lambda: False)
-    monkeypatch.setattr(router, "award_blackjack_champion_badge", AsyncMock())
+    monkeypatch.setattr(blackjack_service, "_notify_enabled", lambda: False)
+    award = AsyncMock()
+    monkeypatch.setattr(blackjack_service, "award_blackjack_champion_badge", award)
 
-    await router._tick_play_deadlines(_now_before_deadline(t), [_row(t)])
+    await blackjack_service._tick_play_deadlines(_now_before_deadline(t), [_row(t)])
     assert (
         blackjack_repository.get_blackjack_tournament(t["id"])["status"]
         == TOURNAMENT_SETTLED
     )
+    # 冠军勋章由 tick 工作流在同一阶段协调授予，入参就是结算出的冠军
+    award.assert_awaited_once_with(1)
 
 
 @pytest.mark.asyncio
 async def test_tick_does_not_settle_while_someone_is_playing(orm, monkeypatch):
-    from app.domains.blackjack.jobs import tournament as router
-
     t = add_tournament(orm)
     add_user(orm, 1)
     add_user(orm, 2)
     add_entry(orm, t["id"], 1, status=ENTRY_FINISHED, chips=1200)
     add_entry(orm, t["id"], 2, status=ENTRY_PLAYING, chips=800)
 
-    monkeypatch.setattr(router, "blackjack_service", blackjack_service)
     settle = MagicMock()
     monkeypatch.setattr(blackjack_service, "settle_blackjack_tournament", settle)
 
-    await router._tick_play_deadlines(_now_before_deadline(t), [_row(t)])
+    await blackjack_service._tick_play_deadlines(_now_before_deadline(t), [_row(t)])
     settle.assert_not_called()
     assert (
         blackjack_repository.get_blackjack_tournament(t["id"])["status"]
@@ -228,32 +225,30 @@ async def test_tick_does_not_settle_while_someone_is_playing(orm, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_tick_settles_at_deadline_even_with_playing_entry(orm, monkeypatch):
-    from app.domains.blackjack.jobs import tournament as router
-
     t = add_tournament(orm, play_deadline_ms=int(time.time() * 1000) - 1000)
     add_user(orm, 1)
     add_user(orm, 2)
     add_entry(orm, t["id"], 1, status=ENTRY_FINISHED, chips=1200, registered_at_ms=1)
     add_entry(orm, t["id"], 2, status=ENTRY_PLAYING, chips=800, registered_at_ms=2)
 
-    monkeypatch.setattr(router, "blackjack_service", blackjack_service)
-    monkeypatch.setattr(router, "_notify_enabled", lambda: False)
-    monkeypatch.setattr(router, "award_blackjack_champion_badge", AsyncMock())
+    monkeypatch.setattr(blackjack_service, "_notify_enabled", lambda: False)
+    monkeypatch.setattr(
+        blackjack_service, "award_blackjack_champion_badge", AsyncMock()
+    )
 
-    await router._tick_play_deadlines(int(t["play_deadline_ms"]) + 1, [_row(t)])
+    await blackjack_service._tick_play_deadlines(
+        int(t["play_deadline_ms"]) + 1, [_row(t)]
+    )
     settled = blackjack_repository.get_blackjack_tournament(t["id"])
     assert settled["status"] == TOURNAMENT_SETTLED
 
 
 @pytest.mark.asyncio
 async def test_tick_query_none_does_not_early_settle(orm, monkeypatch):
-    from app.domains.blackjack.jobs import tournament as router
-
     t = add_tournament(orm)
     add_user(orm, 1)
     add_entry(orm, t["id"], 1, status=ENTRY_FINISHED, chips=1000)
 
-    monkeypatch.setattr(router, "blackjack_service", blackjack_service)
     monkeypatch.setattr(
         blackjack_service,
         "list_blackjack_tournaments_with_playing_entries",
@@ -262,19 +257,16 @@ async def test_tick_query_none_does_not_early_settle(orm, monkeypatch):
     settle = MagicMock()
     monkeypatch.setattr(blackjack_service, "settle_blackjack_tournament", settle)
 
-    await router._tick_play_deadlines(_now_before_deadline(t), [_row(t)])
+    await blackjack_service._tick_play_deadlines(_now_before_deadline(t), [_row(t)])
     settle.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_tick_skips_settle_when_clear_fails(orm, monkeypatch):
-    from app.domains.blackjack.jobs import tournament as router
-
     t = add_tournament(orm)
     add_user(orm, 1)
     add_entry(orm, t["id"], 1, status=ENTRY_FINISHED, chips=1000)
 
-    monkeypatch.setattr(router, "blackjack_service", blackjack_service)
     monkeypatch.setattr(
         blackjack_service,
         "force_settle_tournament_hands",
@@ -283,7 +275,7 @@ async def test_tick_skips_settle_when_clear_fails(orm, monkeypatch):
     settle = MagicMock()
     monkeypatch.setattr(blackjack_service, "settle_blackjack_tournament", settle)
 
-    await router._tick_play_deadlines(_now_before_deadline(t), [_row(t)])
+    await blackjack_service._tick_play_deadlines(_now_before_deadline(t), [_row(t)])
     settle.assert_not_called()
 
 

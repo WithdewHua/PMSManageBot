@@ -177,14 +177,6 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.jobs.tournament",
-        "module_target": "app.core.config",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.config.settings"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.jobs.tournament",
         "module_target": "app.core.log",
         "resolved": true,
         "scope": "module",
@@ -197,108 +189,6 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.blackjack.service"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.jobs.tournament",
-        "module_target": "app.domains.blackjack.config",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.config.TOURNAMENT_REGISTERING"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.jobs.tournament",
-        "module_target": "app.domains.blackjack.config",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.config.TOURNAMENT_RUNNING"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.jobs.tournament",
-        "module_target": "app.domains.blackjack.notifications.tournament",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.notifications.tournament._broadcast_group"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.jobs.tournament",
-        "module_target": "app.domains.blackjack.notifications.tournament",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.notifications.tournament._format_cancelled"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.jobs.tournament",
-        "module_target": "app.domains.blackjack.notifications.tournament",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.notifications.tournament._format_created"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.jobs.tournament",
-        "module_target": "app.domains.blackjack.notifications.tournament",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.notifications.tournament._format_reminder"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.jobs.tournament",
-        "module_target": "app.domains.blackjack.notifications.tournament",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.notifications.tournament._format_result_dm"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.jobs.tournament",
-        "module_target": "app.domains.blackjack.notifications.tournament",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.notifications.tournament._format_result_group"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.jobs.tournament",
-        "module_target": "app.domains.blackjack.notifications.tournament",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.notifications.tournament._send_many"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.jobs.tournament",
-        "module_target": "app.domains.blackjack.notifications.tournament",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.notifications.tournament.notify_tournament_started"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.jobs.tournament",
-        "module_target": "app.domains.blackjack.service",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.service.award_blackjack_champion_badge"
-      },
-      {
-        "kind": "import",
-        "module": "app.domains.blackjack.jobs.tournament",
-        "resolved": true,
-        "scope": "function",
-        "target": "time"
-      },
-      {
-        "kind": "import",
-        "module": "app.domains.blackjack.jobs.tournament",
-        "resolved": true,
-        "scope": "function",
-        "target": "datetime"
       },
       {
         "kind": "from",
@@ -2666,12 +2556,35 @@
         "target": "app.domains.blackjack.rules"
       },
       {
+        "kind": "import",
+        "module": "app.domains.blackjack.service",
+        "resolved": true,
+        "scope": "module",
+        "target": "datetime"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "app.core.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.config.settings"
+      },
+      {
         "kind": "from",
         "module": "app.domains.blackjack.service",
         "module_target": "app.core.log",
         "resolved": true,
         "scope": "module",
         "target": "app.core.log.logger"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "app.core.log",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.log.uvicorn_logger"
       },
       {
         "kind": "from",
@@ -2688,6 +2601,86 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.blackjack.repository"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "app.domains.blackjack.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.config.TOURNAMENT_REGISTERING"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "app.domains.blackjack.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.config.TOURNAMENT_RUNNING"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "app.domains.blackjack.notifications.tournament",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.notifications.tournament._broadcast_group"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "app.domains.blackjack.notifications.tournament",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.notifications.tournament._format_cancelled"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "app.domains.blackjack.notifications.tournament",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.notifications.tournament._format_created"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "app.domains.blackjack.notifications.tournament",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.notifications.tournament._format_reminder"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "app.domains.blackjack.notifications.tournament",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.notifications.tournament._format_result_dm"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "app.domains.blackjack.notifications.tournament",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.notifications.tournament._format_result_group"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "app.domains.blackjack.notifications.tournament",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.notifications.tournament._send_many"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "app.domains.blackjack.notifications.tournament",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.notifications.tournament.notify_tournament_started"
       },
       {
         "kind": "from",
@@ -2728,6 +2721,13 @@
         "resolved": true,
         "scope": "function",
         "target": "app.domains.blackjack.config.CHAMPION_BADGE_VALID_DAYS"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.blackjack.service",
+        "resolved": true,
+        "scope": "function",
+        "target": "time"
       },
       {
         "kind": "from",
