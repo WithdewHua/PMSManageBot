@@ -151,6 +151,42 @@ def call_b():
     assert all(entry["source_domain"] == "a" for entry in violations)
 
 
+def test_cross_domain_types_imports_and_calls_are_allowed(tmp_path: Path) -> None:
+    """types 是共享词汇：任何角色都可跨域导入与调用（design D3）。"""
+    _write(
+        tmp_path,
+        "src/app/domains/a/repository.py",
+        """
+from app.domains.b.types import Money
+
+
+def spend():
+    return Money.of(1)
+""",
+    )
+    assert scan_cross_domain_calls(tmp_path) == []
+
+
+def test_types_role_does_not_whitelist_neighbour_roles(tmp_path: Path) -> None:
+    """只有 types 被放开，同一领域里的其它角色仍然登记为债务。"""
+    _write(
+        tmp_path,
+        "src/app/domains/a/repository.py",
+        """
+from app.domains.b.models import Ledger
+
+
+def spend():
+    return Ledger.query()
+""",
+    )
+    keys = {
+        (entry["target_module"], entry.get("symbol"))
+        for entry in scan_cross_domain_calls(tmp_path)
+    }
+    assert ("app.domains.b.models", "Ledger") in keys
+
+
 def test_cross_domain_import_and_direct_call_are_reported(tmp_path: Path) -> None:
     _write(
         tmp_path,

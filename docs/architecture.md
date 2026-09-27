@@ -68,6 +68,13 @@ core/（公共设施）
 | T1 账本 | `credits` | 积分余额查询、增减、转账及积分缓存 |
 | T0 基础 | `identity` | `statistics`、`plex_user`、`emby_user`、`overseerr` 宽表及按键查询和建档 |
 
+## 跨域导入规则
+
+- 跨域调用只允许目标领域的 `service` 或 `*_tx` repository helper；不得导入外域的 models、routers、jobs、notifications。
+- 共享词汇例外：`<domain>/types.py` 是纯值类型模块（`credits/types.py` 的 `CreditAccount`、`CreditMutation`、`CreditTransfer`），任何领域的任何角色都可以导入它。纯性由 import-linter 合约“Domain types are pure value modules”强制：types 不得导入本领域的 service/repository/models/config/exceptions，也不得导入 `app.core.db` 或 SQLAlchemy。
+- AST 检查（`tests/architecture/checks.py`）把 `types` 与 `service`、`exceptions`、`constants` 并列视为可跨域导入的角色，其余角色仍然登记为基线债务。
+- 积分写入的自登记：`credits.repository.add_tx` / `deduct_tx` / `move_tx` 在调用方 session 上按 cache key 登记提交后的缓存失效（`app.core.db.register_post_commit`，同一 key 幂等），所以调用方不需要记得失效缓存；显式的 `credits_service.register_cache_invalidation` 只为非由 mutation 推导的 key 保留，重复登记无副作用。
+
 ## 宽表列归属
 
 宽表模型放在 identity，其他领域可读，写入只由列组所属领域的 repository 执行。跨域写入调用所属领域的 `*_tx`。新增用户状态应建在本领域自己的表中，以 `tg_id` 为键，不往宽表增加列。本次只用文档和 review 检查列归属。

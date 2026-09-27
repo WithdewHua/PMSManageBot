@@ -481,6 +481,27 @@ ignore_imports = [
 unmatched_ignore_imports_alerting = "error"
 
 [[tool.importlinter.contracts]]
+name = "Domain types are pure value modules"
+type = "forbidden"
+source_modules = ["app.domains.*.types", "app.domains.*.types.*"]
+forbidden_modules = [
+    "app.domains.*.service",
+    "app.domains.*.repository",
+    "app.domains.*.repository.*",
+    "app.domains.*.router",
+    "app.domains.*.admin_router",
+    "app.domains.*.bot",
+    "app.domains.*.jobs",
+    "app.domains.*.notifications",
+    "app.domains.*.models",
+    "app.domains.*.config",
+    "app.domains.*.exceptions",
+    "app.core.db",
+    "sqlalchemy",
+]
+unmatched_ignore_imports_alerting = "error"
+
+[[tool.importlinter.contracts]]
 name = "Domain entry points do not touch data layer"
 type = "forbidden"
 source_modules = [

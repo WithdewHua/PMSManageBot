@@ -1,6 +1,7 @@
 import random
 import time
 import traceback
+from collections.abc import Iterable
 
 from app.core.log import logger
 from app.core.redis import Redis
@@ -489,3 +490,16 @@ user_info_cache = RedisCache(
     db=2,
     cache_key_prefix="user_info:",
 )
+
+
+def invalidate_user_credits(keys: Iterable[str]) -> None:
+    """Best-effort deletion of cached credit balances.
+
+    Called after the authoritative transaction commits: a cache that cannot be
+    reached is logged and ignored, because the database is the source of truth.
+    """
+    for key in dict.fromkeys(keys):
+        try:
+            user_credits_cache.delete(key)
+        except Exception as error:  # pragma: no cover - depends on Redis availability
+            logger.warning(f"Failed to invalidate credit cache {key}: {error}")

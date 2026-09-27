@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from math import isfinite
 
 from sqlalchemy import select, update
 
-from app.core.db import get_session
+from app.core.cache import invalidate_user_credits
+from app.core.db import get_session, register_post_commit
 from app.domains.credits.exceptions import CreditAccountNotFound, InsufficientCredits
 from app.domains.credits.types import (
     CreditAccount,
@@ -13,6 +15,24 @@ from app.domains.credits.types import (
     validate_amount,
 )
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
+
+
+def _cache_invalidation_key(cache_key: str) -> str:
+    return f"credit-cache:{cache_key}"
+
+
+def queue_cache_invalidation(session, cache_keys: Iterable[str]) -> None:
+    """Register post-commit cache invalidation for the mutated balances.
+
+    Every credit mutation queues its own invalidation, so a caller cannot forget
+    it; re-registering the same key is idempotent.
+    """
+    for cache_key in dict.fromkeys(cache_keys):
+        register_post_commit(
+            session,
+            _cache_invalidation_key(cache_key),
+            lambda key=cache_key: invalidate_user_credits((key,)),
+        )
 
 
 def _account_model(account: CreditAccount):
@@ -70,12 +90,14 @@ def add_tx(session, account: CreditAccount, amount: float) -> CreditMutation:
         .where(key_column == account.identifier)
         .values({credit_column: credit_column + (after - before)})
     )
+    cache_keys = _cache_keys(session, account, row)
+    queue_cache_invalidation(session, cache_keys)
     return CreditMutation(
         account=account,
         before=before,
         after=after,
         delta=delta,
-        cache_keys=_cache_keys(session, account, row),
+        cache_keys=cache_keys,
     )
 
 
@@ -96,12 +118,14 @@ def deduct_tx(session, account: CreditAccount, amount: float) -> CreditMutation:
         .where(key_column == account.identifier)
         .values({credit_column: credit_column + (after - before)})
     )
+    cache_keys = _cache_keys(session, account, row)
+    queue_cache_invalidation(session, cache_keys)
     return CreditMutation(
         account=account,
         before=before,
         after=after,
         delta=-delta,
-        cache_keys=_cache_keys(session, account, row),
+        cache_keys=cache_keys,
     )
 
 

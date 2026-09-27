@@ -64,6 +64,7 @@ def _role_for_module(module: str) -> str | None:
             "rules",
             "schemas",
             "service",
+            "types",
         }
         else None
     )
@@ -200,6 +201,7 @@ def _import_bindings(
                         "rules",
                         "schemas",
                         "service",
+                        "types",
                     }
                 ):
                     target_module = f"{imported_module}.{alias.name}"
@@ -278,6 +280,10 @@ def _import_allowed(
     target_role: str | None,
     symbol: str,
 ) -> bool:
+    # Value types are shared vocabulary: any role may import another domain's
+    # ``types`` module (purity is enforced by the import-linter contract).
+    if target_role == "types":
+        return True
     if source_role == "service":
         return target_role in {"service", "exceptions", "constants"}
     if source_role == "repository":
@@ -298,6 +304,8 @@ def _import_allowed(
 def _call_allowed(
     source_role: str | None, target_role: str | None, symbol: str
 ) -> bool:
+    if target_role == "types":
+        return True
     if source_role == "service":
         return target_role in {"service", "exceptions", "constants"}
     if source_role == "repository":

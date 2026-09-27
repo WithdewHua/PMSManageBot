@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from app.core.cache import user_credits_cache
-from app.core.log import logger
+from app.core.cache import invalidate_user_credits
 from app.domains.credits import repository
 from app.domains.credits.exceptions import CreditAccountNotFound
 from app.domains.credits.types import (
@@ -18,18 +17,12 @@ from app.domains.credits.types import (
 
 def invalidate_cache_keys(keys: Iterable[str]) -> None:
     """Best-effort cache invalidation after the authoritative transaction commits."""
-    for key in dict.fromkeys(keys):
-        try:
-            user_credits_cache.delete(key)
-        except Exception as error:  # pragma: no cover - depends on Redis availability
-            logger.warning(f"Failed to invalidate credit cache {key}: {error}")
+    invalidate_user_credits(keys)
 
 
 def add(account: CreditAccount, amount: float) -> CreditMutation:
-    """Add credits in a new transaction, invalidating cache after commit."""
-    mutation = repository.add(account, amount)
-    invalidate_cache_keys(mutation.cache_keys)
-    return mutation
+    """Add credits in a new transaction; the mutation queues cache invalidation."""
+    return repository.add(account, amount)
 
 
 def apply_tx(session, account: CreditAccount, delta: float) -> CreditMutation | None:
@@ -42,10 +35,8 @@ def apply_tx(session, account: CreditAccount, delta: float) -> CreditMutation | 
 
 
 def deduct(account: CreditAccount, amount: float) -> CreditMutation:
-    """Deduct credits in a new transaction, invalidating cache after commit."""
-    mutation = repository.deduct(account, amount)
-    invalidate_cache_keys(mutation.cache_keys)
-    return mutation
+    """Deduct credits in a new transaction; the mutation queues invalidation."""
+    return repository.deduct(account, amount)
 
 
 def read_optional(account: CreditAccount) -> float | None:
@@ -57,10 +48,8 @@ def read_optional(account: CreditAccount) -> float | None:
 
 
 def move(source: CreditAccount, target: CreditAccount) -> CreditTransfer:
-    """Move a whole unbound account balance and invalidate after commit."""
-    result = repository.move(source, target)
-    invalidate_cache_keys(result.cache_keys)
-    return result
+    """Move a whole unbound account balance; the move queues invalidation."""
+    return repository.move(source, target)
 
 
 def read(account: CreditAccount, *, for_update: bool = False) -> float:
@@ -70,10 +59,8 @@ def read(account: CreditAccount, *, for_update: bool = False) -> float:
 
 
 def transfer(sender_tg_id: int, recipient_tg_id: int, amount: float) -> CreditTransfer:
-    """Transfer credits and invalidate both accounts after one commit."""
-    result = repository.transfer(sender_tg_id, recipient_tg_id, amount)
-    invalidate_cache_keys(result.cache_keys)
-    return result
+    """Transfer credits; both mutations queue cache invalidation on commit."""
+    return repository.transfer(sender_tg_id, recipient_tg_id, amount)
 
 
 def collect_cache_keys(*mutations: CreditMutation | CreditTransfer) -> tuple[str, ...]:
@@ -86,12 +73,13 @@ def collect_cache_keys(*mutations: CreditMutation | CreditTransfer) -> tuple[str
 def register_cache_invalidation(
     session, *mutations: CreditMutation | CreditTransfer
 ) -> None:
-    """Schedule cache invalidation for the generic post-commit hook."""
-    keys = collect_cache_keys(*mutations)
-    if not keys:
-        return
-    callbacks = session.info.setdefault("post_commit_callbacks", [])
-    callbacks.append(lambda: invalidate_cache_keys(keys))
+    """Schedule cache invalidation for mutations already applied to the session.
+
+    Credit mutations queue their own invalidation, so this is only needed for
+    cache keys that were not derived from a mutation; re-registering the same
+    key is idempotent.
+    """
+    repository.queue_cache_invalidation(session, collect_cache_keys(*mutations))
 
 
 __all__ = [

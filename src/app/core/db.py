@@ -30,6 +30,10 @@ class Base(DeclarativeBase):
     """Base class for all ORM models"""
 
 
+#: Session info key holding the pending post-commit callbacks, keyed by resource.
+POST_COMMIT_CALLBACKS = "post_commit_callbacks"
+
+
 # Create session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -61,18 +65,40 @@ def get_session() -> Generator[Session, None, None]:
     try:
         yield session
         session.commit()
-        callbacks = session.info.pop("post_commit_callbacks", [])
-        for callback in callbacks:
-            try:
-                callback()
-            except Exception as error:  # pragma: no cover - side-effect failure
-                logger.warning(f"Post-commit callback failed: {error}")
+        run_post_commit_callbacks(session)
     except Exception:
         session.rollback()
-        session.info.pop("post_commit_callbacks", None)
+        session.info.pop(POST_COMMIT_CALLBACKS, None)
         raise
     finally:
         session.close()
+
+
+def register_post_commit(
+    session: Session, key: str, callback: Callable[[], None]
+) -> None:
+    """Queue ``callback`` to run once, after this session commits.
+
+    Registration is idempotent per key: a transaction that touches the same
+    cache entry (or any other external resource) many times runs a single
+    callback for it, and a rolled-back transaction runs none.
+    """
+    registry: dict[str, Callable[[], None]] = session.info.setdefault(
+        POST_COMMIT_CALLBACKS, {}
+    )
+    registry[key] = callback
+
+
+def run_post_commit_callbacks(session: Session) -> None:
+    """Run and clear the queued post-commit callbacks (best effort)."""
+    callbacks: dict[str, Callable[[], None]] = session.info.pop(
+        POST_COMMIT_CALLBACKS, {}
+    )
+    for key, callback in callbacks.items():
+        try:
+            callback()
+        except Exception as error:  # pragma: no cover - side-effect failure
+            logger.warning(f"Post-commit callback {key} failed: {error}")
 
 
 def get_db_session() -> Session:

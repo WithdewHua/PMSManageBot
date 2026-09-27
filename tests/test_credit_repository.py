@@ -2,11 +2,28 @@ from __future__ import annotations
 
 import pytest
 
+from app.core import cache as cache_module
 from app.core.db import get_session
 from app.domains.credits import repository, service
 from app.domains.credits.exceptions import CreditAccountNotFound, InsufficientCredits
 from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
+
+
+class _CacheSpy:
+    """Stand-in for the Redis credit cache that records deleted keys."""
+
+    def __init__(self) -> None:
+        self.deleted: list[str] = []
+
+    def delete(self, key: str) -> None:
+        self.deleted.append(key)
+
+
+def _spy_invalidations(monkeypatch) -> _CacheSpy:
+    spy = _CacheSpy()
+    monkeypatch.setattr(cache_module, "user_credits_cache", spy)
+    return spy
 
 
 def _add_credit_rows() -> None:
@@ -92,19 +109,21 @@ def test_transaction_owned_mutation_invalidates_after_commit(
                 plex_username="BoundUser",
             )
         )
-    invalidated: list[str] = []
-    monkeypatch.setattr(service, "invalidate_cache_keys", invalidated.extend)
+    spy = _spy_invalidations(monkeypatch)
 
     with get_session() as session:
         mutation = repository.add_tx(session, CreditAccount.tg(101), 1)
-        service.register_cache_invalidation(session, mutation)
-        assert invalidated == []
+        assert spy.deleted == []
 
-    assert invalidated == ["plex:bounduser"]
+    assert spy.deleted == ["plex:bounduser"]
+    assert mutation.cache_keys == ("plex:bounduser",)
 
 
-def test_transaction_owned_mutation_rolls_back_with_caller(session_env) -> None:
+def test_transaction_owned_mutation_rolls_back_with_caller(
+    session_env, monkeypatch
+) -> None:
     _add_credit_rows()
+    spy = _spy_invalidations(monkeypatch)
 
     with (
         pytest.raises(RuntimeError, match="settlement failed"),
@@ -114,14 +133,14 @@ def test_transaction_owned_mutation_rolls_back_with_caller(session_env) -> None:
         raise RuntimeError("settlement failed")
 
     assert service.read(CreditAccount.tg(101)) == 10.0
+    assert spy.deleted == []
 
 
 def test_transfer_locks_both_accounts_and_conserves_balance(
     session_env, monkeypatch
 ) -> None:
     _add_credit_rows()
-    invalidated: list[str] = []
-    monkeypatch.setattr(service, "invalidate_cache_keys", invalidated.extend)
+    spy = _spy_invalidations(monkeypatch)
 
     result = service.transfer(101, 202, 2)
 
@@ -130,7 +149,8 @@ def test_transfer_locks_both_accounts_and_conserves_balance(
     assert result.current_sender_balance == 7.9
     assert service.read(CreditAccount.tg(101)) == 7.9
     assert service.read(CreditAccount.tg(202)) == 6.0
-    assert invalidated == []
+    # 两个 TG 账号都没有绑定媒体行，因此没有可失效的缓存 key
+    assert spy.deleted == []
 
 
 def test_transfer_rejects_insufficient_sender_without_partial_update(
@@ -161,13 +181,12 @@ def test_standalone_service_invalidates_only_after_commit(
     session_env, monkeypatch
 ) -> None:
     _add_credit_rows()
-    invalidated: list[str] = []
-    monkeypatch.setattr(service, "invalidate_cache_keys", invalidated.extend)
+    spy = _spy_invalidations(monkeypatch)
 
     mutation = service.add(CreditAccount.tg(101), 2)
 
     assert mutation.after == 12.0
-    assert invalidated == []
+    assert spy.deleted == []
 
     # A Telegram account's cache keys are derived from its bound media rows.
     with get_session() as session:
@@ -182,4 +201,38 @@ def test_standalone_service_invalidates_only_after_commit(
         )
     mutation = service.add(CreditAccount.tg(101), 1)
     assert mutation.cache_keys == ("plex:bounduser",)
-    assert invalidated == ["plex:bounduser"]
+    assert spy.deleted == ["plex:bounduser"]
+
+
+def test_repeated_mutations_of_one_account_invalidate_its_key_once(
+    session_env, monkeypatch
+) -> None:
+    _add_credit_rows()
+    spy = _spy_invalidations(monkeypatch)
+
+    with get_session() as session:
+        first = repository.add_tx(session, CreditAccount.plex(501), 1)
+        second = repository.add_tx(session, CreditAccount.plex(501), 2)
+        # 显式登记同一条 key 不应产生第二次失效
+        service.register_cache_invalidation(session, first, second)
+        assert spy.deleted == []
+
+    assert spy.deleted == ["plex:plexuser"]
+    assert service.read(CreditAccount.plex(501)) == 10.0
+
+
+def test_move_then_explicit_registration_invalidates_each_key_once(
+    session_env, monkeypatch
+) -> None:
+    _add_credit_rows()
+    spy = _spy_invalidations(monkeypatch)
+
+    with get_session() as session:
+        result = repository.move_tx(
+            session, CreditAccount.plex(501), CreditAccount.tg(101)
+        )
+        service.register_cache_invalidation(session, result)
+        assert spy.deleted == []
+
+    assert spy.deleted == ["plex:plexuser"]
+    assert service.read(CreditAccount.tg(101)) == 17.0

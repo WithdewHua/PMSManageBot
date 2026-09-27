@@ -49,13 +49,19 @@
 
 ## 3. 各领域提供的 `*_tx`
 
-- [ ] 3.1 如果 1.1 的结论需要，实现 design D3：
+- [x] 3.1 如果 1.1 的结论需要，实现 design D3：（1.1 的结论是两条前提都要补）
   - 在 `tests/architecture/checks.py` 中把 `types` 列为可跨域导入的角色。
   - 新增 import-linter 的 `types` 纯度合约。
   - 让 credits 的 `add_tx`、`deduct_tx`、`move_tx` 自行在 session 上登记提交后的缓存失效，并按 key 去重。
   - 在 `docs/architecture.md` 和 AGENTS.md 中更新跨域导入规则。
 
   验证：检查规则的正反例测试通过；提交后缓存被失效、回滚后缓存不变的测试通过；`lint-imports` 通过。
+  - 交付：`tests/architecture/checks.py` 把 `types` 与 `service`/`exceptions`/`constants` 并列，`_import_allowed` 与 `_call_allowed` 对 `target_role == "types"` 直接放行；正反例测试分别是 `test_cross_domain_types_imports_and_calls_are_allowed` 与 `test_types_role_does_not_whitelist_neighbour_roles`。
+  - 纯性：`pyproject.toml` 新增 import-linter 合约 “Domain types are pure value modules”（禁止 types 导入本领域 service/repository/router/models/config/exceptions 以及 `app.core.db`、SQLAlchemy），`lint-imports` 11 kept / 0 broken。
+  - 自登记：`app.core.db` 的提交后回调改为按 key 幂等注册（`register_post_commit` / `run_post_commit_callbacks`），`app.core.cache.invalidate_user_credits` 提供失效原语；`credits.repository.add_tx`/`deduct_tx`/`move_tx` 各自登记失效，`credits_service.register_cache_invalidation` 改为转发（同一 key 只失效一次）。standalone 包装不再重复失效。
+  - 基线：`types` 合法化使 543 条跨域条目降到 445 条（stale 98、new 0），`audit_b3_baseline.py --write` 逐条保留 `b3_source_id`（56 条）并让 `contract_ignore_counts` 反映新合约；审计脚本改写走 `helpers.write_baseline`。
+  - 验证：`lint-imports` 11/0；`pytest tests/` 497 passed / 4 skipped；新增去重用例（同一事务多次改动同一账号只失效一次）与回滚不失效用例。
+  - 文档：`docs/architecture.md` 新增“跨域导入规则”一节，`AGENTS.md` 的 Imports 规则写入 types 例外。
 - [ ] 3.2 在 blackjack repository 中新增 `credit_tournament_wallet_tx`、`cash_hand_metrics_tx` 和 `count_tournament_entries_tx`，其中后者用常量排除已取消的赛事。验证：锁、SQL 增量、舍入和回滚测试通过；两个计数函数与原礼包计数器的边界用例（终态、非锦标赛、毫秒边界、准确率、已取消赛事）逐条一致。
 - [ ] 3.3 在 premium 中新增 `grant_premium_days_tx` 和 `sync_premium_media_access(tg_id)`，前者在调用方 session 内对媒体账号行加锁后读写。验证：新开、续期、已过期、永久会员（含提示）各用例与 `update_premium_status` 的结果一致；外层事务回滚时一并回滚；同步函数的签名里不再有门面实例。
 - [ ] 3.4 新增 `lines.repository.unlock_line_schedule_tx` 和 `media_access.repository.unlock_download_tx`，返回"已解锁"或"已跳过"。验证：写入的列、解锁时间和"已解锁则跳过"都与 `_grant_feature_unlock_tx` 一致；外层事务回滚时一并回滚。

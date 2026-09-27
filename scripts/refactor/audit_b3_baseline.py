@@ -16,7 +16,7 @@ from pathlib import Path
 
 from scripts.refactor.inventory import Item, inventory
 from tests.architecture.checks import scan_all
-from tests.architecture.helpers import owner_for_domain
+from tests.architecture.helpers import owner_for_domain, write_baseline
 
 ROOT = Path(__file__).resolve().parents[2]
 BASELINE = ROOT / "tests/architecture/baseline.json"
@@ -533,7 +533,8 @@ def audit(*, write: bool = False) -> dict[str, object]:
     }
     if write and not errors:
         baseline["cross_domain_calls"] = sorted(sealed, key=lambda item: item["key"])
-        BASELINE.write_text(json.dumps(baseline, ensure_ascii=False, indent=2) + "\n")
+        # 统一走 helpers 的写入口，让 contract_ignore_counts 始终反映 pyproject。
+        write_baseline(baseline, BASELINE)
     return result
 
 
