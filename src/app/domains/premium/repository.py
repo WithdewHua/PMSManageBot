@@ -560,3 +560,93 @@ class PremiumRepository:
         except Exception as e:
             logger.error(f"Error getting premium traffic debt users: {e}")
             return []
+
+    # ---------------------------------------------------------------- Premium 天数
+    #
+    # 礼包等跨域奖励要延长 Premium 到期时间：列属于 identity 宽表，写入由 premium
+    # 负责，所以通过这里的 `*_tx` 在调用方事务内加行锁后读写，媒体服务器同步由
+    # 调用方在提交之后执行（见 design D2）。
+
+    def grant_premium_days_tx(
+        self, session, tg_id: int, service: str, days: int = 30
+    ) -> datetime | None:
+        """锁住媒体账号行并延长 Premium 到期时间（调用方持有事务）。
+
+        行为与旧的 `update_premium_status` 一致：永久会员返回 None 且不写入；
+        未过期则从原到期时间续期，已过期或首次开通则从当前时间起算；首次成为
+        Premium 会写入 `premium_status_updated_at`。
+        """
+        model = PlexUser if service == "plex" else EmbyUser
+        if service not in ("plex", "emby"):
+            raise ValueError("不支持的服务类型")
+        row = (
+            session.execute(
+                select(model).where(model.tg_id == int(tg_id)).with_for_update()
+            )
+            .scalars()
+            .one_or_none()
+        )
+        if row is None:
+            raise NameError(
+                "请先绑定 Plex 账户" if service == "plex" else "请先绑定 Emby 账户"
+            )
+
+        current_expiry = row.premium_expiry_time
+        if bool(row.is_premium) and not current_expiry:
+            # 永久会员：跳过延长
+            return None
+
+        now = datetime.now(settings.TZ)
+        if (
+            current_expiry
+            and datetime.fromisoformat(str(current_expiry)).astimezone(settings.TZ)
+            > now
+        ):
+            new_expiry = datetime.fromisoformat(str(current_expiry)).astimezone(
+                settings.TZ
+            ) + timedelta(days=int(days))
+        else:
+            new_expiry = now + timedelta(days=int(days))
+
+        was_premium = bool(row.is_premium)
+        row.is_premium = 1
+        row.premium_expiry_time = new_expiry.isoformat()
+        if not was_premium:
+            row.premium_status_updated_at = int(now.timestamp())
+        session.flush()
+        return new_expiry
+
+    def get_premium_sync_target(self, tg_id: int, service: str) -> str | None:
+        """把 Premium 权限同步到媒体服务器所需的外部标识（Plex 邮箱 / Emby ID）。"""
+        try:
+            with get_session() as session:
+                if service == "plex":
+                    row = session.execute(
+                        select(PlexUser.plex_email).where(PlexUser.tg_id == int(tg_id))
+                    ).scalar_one_or_none()
+                elif service == "emby":
+                    row = session.execute(
+                        select(EmbyUser.emby_id).where(EmbyUser.tg_id == int(tg_id))
+                    ).scalar_one_or_none()
+                else:
+                    raise ValueError("不支持的服务类型")
+                return str(row) if row else None
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.warning(f"读取 {service} 同步标识失败 (tg_id={tg_id}): {e}")
+            return None
+
+
+# 模块级入口：跨域调用方（如礼包）只使用这些函数，不触碰门面实例。
+_premium_repository = PremiumRepository()
+
+
+def grant_premium_days_tx(
+    session, tg_id: int, service: str, days: int = 30
+) -> datetime | None:
+    return _premium_repository.grant_premium_days_tx(session, tg_id, service, days)
+
+
+def get_premium_sync_target(tg_id: int, service: str) -> str | None:
+    return _premium_repository.get_premium_sync_target(tg_id, service)

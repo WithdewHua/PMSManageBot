@@ -14,6 +14,7 @@ from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import EmbyUser, PlexUser
 from app.domains.invitation.models import Invitation
 from app.domains.luckywheel import repository as luckywheel_repository
+from app.domains.premium import repository as premium_repository
 
 from . import (
     _GIFT_PACK_PRIVILEGED_CODES_LOCK,
@@ -35,8 +36,6 @@ class _GiftPackRepositoryRewards:
                   待事务提交后同步下载权限到媒体服务器的服务列表,
                   待事务提交前写入配置的特权邀请码列表)
         """
-        # 延迟导入：app.premium 依赖本模块，模块级导入会形成循环
-        from app.domains.premium.service import update_premium_status
 
         snapshot: list[dict] = []
         pending_permission_sync: list[str] = []
@@ -71,9 +70,10 @@ class _GiftPackRepositoryRewards:
                     # 正常情况下已被 require_binding 资格拦住，这里是最后一道防线
                     raise ValueError("请先绑定媒体账号后再领取")
                 for service in services:
-                    # 传入 session 复用外层事务，使 Premium 写入与领取记录同生共死
-                    new_expiry = update_premium_status(
-                        self, tg_id, service, days, session=session
+                    # 复用外层事务（行锁在 premium 的 *_tx 里），Premium 写入与
+                    # 领取记录同生共死；媒体权限同步由提交后的 service 负责。
+                    new_expiry = premium_repository.grant_premium_days_tx(
+                        session, tg_id, service, days
                     )
                     if new_expiry is None:
                         # 永久会员：跳过延长，但不阻断领取

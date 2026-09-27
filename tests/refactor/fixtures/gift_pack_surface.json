@@ -368,10 +368,10 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.repository.claims",
-        "module_target": "app.domains.premium.service",
+        "module_target": "app.domains.premium",
         "resolved": true,
         "scope": "function",
-        "target": "app.domains.premium.service.sync_media_permission"
+        "target": "app.domains.premium.service"
       },
       {
         "kind": "import",
@@ -857,18 +857,18 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.repository.rewards",
-        "module_target": "app.domains.gift_pack.repository",
+        "module_target": "app.domains.premium",
         "resolved": true,
         "scope": "module",
-        "target": "app.domains.gift_pack.repository._GIFT_PACK_PRIVILEGED_CODES_LOCK"
+        "target": "app.domains.premium.repository"
       },
       {
         "kind": "from",
         "module": "app.domains.gift_pack.repository.rewards",
-        "module_target": "app.domains.premium.service",
+        "module_target": "app.domains.gift_pack.repository",
         "resolved": true,
-        "scope": "function",
-        "target": "app.domains.premium.service.update_premium_status"
+        "scope": "module",
+        "target": "app.domains.gift_pack.repository._GIFT_PACK_PRIVILEGED_CODES_LOCK"
       },
       {
         "kind": "import",

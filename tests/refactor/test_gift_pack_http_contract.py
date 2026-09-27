@@ -187,7 +187,8 @@ async def _build_contract(orm, monkeypatch) -> dict[str, Any]:
 
     # 外部副作用全部置为 no-op：契约只描述 HTTP 层可见行为
     monkeypatch.setattr(
-        "app.domains.premium.service.sync_media_permission", lambda *args: None
+        "app.domains.premium.service.sync_premium_media_access",
+        lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
         "app.domains.premium.service.apply_download_unlock_to_media", lambda *args: None

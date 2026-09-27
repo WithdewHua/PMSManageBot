@@ -939,34 +939,25 @@
       "target": "apply_download_unlock_to_media"
     },
     {
-      "key": "call|src/app/domains/gift_pack/repository/claims.py|244|imported|premium|sync_media_permission",
+      "key": "call|src/app/domains/gift_pack/repository/claims.py|244|imported|premium|sync_premium_media_access",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/claims.py",
       "line": 244,
       "kind": "call",
       "source_domain": "gift_pack",
       "target_domain": "premium",
-      "target": "sync_media_permission"
+      "target": "sync_premium_media_access",
+      "b3_source_id": "app.domains.gift_pack.repository.part_2:_GiftPackRepositoryPart2.claim_gift_pack"
     },
     {
-      "key": "call|src/app/domains/gift_pack/repository/rewards.py|56|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/gift_pack/repository/rewards.py|55|imported|credits|register_cache_invalidation",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/rewards.py",
-      "line": 56,
+      "line": 55,
       "kind": "call",
       "source_domain": "gift_pack",
       "target_domain": "credits",
       "target": "register_cache_invalidation"
-    },
-    {
-      "key": "call|src/app/domains/gift_pack/repository/rewards.py|75|imported|premium|update_premium_status",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/rewards.py",
-      "line": 75,
-      "kind": "call",
-      "source_domain": "gift_pack",
-      "target_domain": "premium",
-      "target": "update_premium_status"
     },
     {
       "key": "call|src/app/domains/invitation/admin_router.py|71|facade|identity|get_stats_by_tg_id",
@@ -2249,84 +2240,14 @@
       "target": "get_stats_by_tg_id"
     },
     {
-      "key": "call|src/app/domains/premium/service.py|142|facade|identity|get_plex_info_by_tg_id",
+      "key": "call|src/app/domains/premium/service.py|431|facade|traffic|get_premium_line_traffic_statistics",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/service.py",
-      "line": 142,
+      "line": 431,
       "kind": "facade_call",
       "source_domain": "premium",
-      "target_domain": "identity",
-      "target": "get_plex_info_by_tg_id"
-    },
-    {
-      "key": "call|src/app/domains/premium/service.py|146|facade|media_access|check_download_unlock",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/premium/service.py",
-      "line": 146,
-      "kind": "facade_call",
-      "source_domain": "premium",
-      "target_domain": "media_access",
-      "target": "check_download_unlock"
-    },
-    {
-      "key": "call|src/app/domains/premium/service.py|163|facade|identity|get_emby_info_by_tg_id",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/premium/service.py",
-      "line": 163,
-      "kind": "facade_call",
-      "source_domain": "premium",
-      "target_domain": "identity",
-      "target": "get_emby_info_by_tg_id"
-    },
-    {
-      "key": "call|src/app/domains/premium/service.py|166|facade|media_access|check_download_unlock",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/premium/service.py",
-      "line": 166,
-      "kind": "facade_call",
-      "source_domain": "premium",
-      "target_domain": "media_access",
-      "target": "check_download_unlock"
-    },
-    {
-      "key": "call|src/app/domains/premium/service.py|194|facade|identity|get_plex_info_by_tg_id",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/premium/service.py",
-      "line": 194,
-      "kind": "facade_call",
-      "source_domain": "premium",
-      "target_domain": "identity",
-      "target": "get_plex_info_by_tg_id"
-    },
-    {
-      "key": "call|src/app/domains/premium/service.py|203|facade|identity|get_emby_info_by_tg_id",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/premium/service.py",
-      "line": 203,
-      "kind": "facade_call",
-      "source_domain": "premium",
-      "target_domain": "identity",
-      "target": "get_emby_info_by_tg_id"
-    },
-    {
-      "key": "call|src/app/domains/premium/service.py|238|facade|identity|get_plex_info_by_tg_id",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/premium/service.py",
-      "line": 238,
-      "kind": "facade_call",
-      "source_domain": "premium",
-      "target_domain": "identity",
-      "target": "get_plex_info_by_tg_id"
-    },
-    {
-      "key": "call|src/app/domains/premium/service.py|277|facade|identity|get_emby_info_by_tg_id",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/premium/service.py",
-      "line": 277,
-      "kind": "facade_call",
-      "source_domain": "premium",
-      "target_domain": "identity",
-      "target": "get_emby_info_by_tg_id"
+      "target_domain": "traffic",
+      "target": "get_premium_line_traffic_statistics"
     },
     {
       "key": "call|src/app/domains/premium/service.py|48|facade|media_access|check_download_unlock",
@@ -2337,16 +2258,6 @@
       "source_domain": "premium",
       "target_domain": "media_access",
       "target": "check_download_unlock"
-    },
-    {
-      "key": "call|src/app/domains/premium/service.py|535|facade|traffic|get_premium_line_traffic_statistics",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/premium/service.py",
-      "line": 535,
-      "kind": "facade_call",
-      "source_domain": "premium",
-      "target_domain": "traffic",
-      "target": "get_premium_line_traffic_statistics"
     },
     {
       "key": "call|src/app/domains/premium/service.py|78|imported|lines|is_binded_premium_line",
@@ -3624,7 +3535,7 @@
       "symbol": "apply_download_unlock_to_media"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/claims.py|242|app.domains.premium.service|sync_media_permission",
+      "key": "import|src/app/domains/gift_pack/repository/claims.py|242|app.domains.premium.service|service",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/claims.py",
       "line": 242,
@@ -3632,7 +3543,8 @@
       "source_domain": "gift_pack",
       "target_domain": "premium",
       "target_module": "app.domains.premium.service",
-      "symbol": "sync_media_permission"
+      "symbol": "service",
+      "b3_source_id": "app.domains.gift_pack.repository.part_2:_GiftPackRepositoryPart2.claim_gift_pack"
     },
     {
       "key": "import|src/app/domains/gift_pack/repository/conditions.py|10|app.domains.auction.models|AuctionBids",
@@ -3732,17 +3644,6 @@
       "target_domain": "invitation",
       "target_module": "app.domains.invitation.models",
       "symbol": "Invitation"
-    },
-    {
-      "key": "import|src/app/domains/gift_pack/repository/rewards.py|39|app.domains.premium.service|update_premium_status",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/rewards.py",
-      "line": 39,
-      "kind": "import",
-      "source_domain": "gift_pack",
-      "target_domain": "premium",
-      "target_module": "app.domains.premium.service",
-      "symbol": "update_premium_status"
     },
     {
       "key": "import|src/app/domains/invitation/bot.py|10|app.domains.credits.service|service",
@@ -4226,32 +4127,10 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/premium/service.py|20|app.domains.identity.models|EmbyUser",
+      "key": "import|src/app/domains/premium/service.py|19|app.domains.lines.rules|is_binded_premium_line",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/service.py",
-      "line": 20,
-      "kind": "import",
-      "source_domain": "premium",
-      "target_domain": "identity",
-      "target_module": "app.domains.identity.models",
-      "symbol": "EmbyUser"
-    },
-    {
-      "key": "import|src/app/domains/premium/service.py|20|app.domains.identity.models|PlexUser",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/premium/service.py",
-      "line": 20,
-      "kind": "import",
-      "source_domain": "premium",
-      "target_domain": "identity",
-      "target_module": "app.domains.identity.models",
-      "symbol": "PlexUser"
-    },
-    {
-      "key": "import|src/app/domains/premium/service.py|21|app.domains.lines.rules|is_binded_premium_line",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/premium/service.py",
-      "line": 21,
+      "line": 19,
       "kind": "import",
       "source_domain": "premium",
       "target_domain": "lines",
@@ -4648,9 +4527,9 @@
     "Top-level architecture": 0,
     "External integration isolation": 0,
     "Legacy database facade freeze": 0,
-    "SQLAlchemy direct use scope": 18,
+    "SQLAlchemy direct use scope": 17,
     "Database engine import scope": 19,
-    "Domain model import scope": 20,
+    "Domain model import scope": 19,
     "Six-tier domain dependencies": 59,
     "Acyclic domain siblings": 18,
     "Domain internal layering": 7,

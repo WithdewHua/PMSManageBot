@@ -239,9 +239,9 @@ class _GiftPackRepositoryClaims:
         # 事务已提交：同步媒体服务器权限（best-effort，失败只告警不影响领取结果）
         for service in pending_permission_sync:
             try:
-                from app.domains.premium.service import sync_media_permission
+                from app.domains.premium import service as premium_service
 
-                sync_media_permission(self, tg_id, service)
+                premium_service.sync_premium_media_access(tg_id, (service,))
             except Exception as e:
                 logger.warning(
                     f"礼包领取后同步 {service} 权限失败 (pack_id={pack_id}, tg_id={tg_id}): {e}"

@@ -333,7 +333,7 @@ def test_all_seven_reward_types_are_aggregated_in_stats(orm, monkeypatch):
         lambda tg_id, service: None,
     )
     monkeypatch.setattr(
-        "app.domains.premium.service.sync_media_permission", lambda *args: None
+        "app.domains.premium.service.sync_premium_media_access", lambda *args: None
     )
     add_user(orm, 1)
     _bind_plex(1)
@@ -692,12 +692,16 @@ def test_premium_sync_runs_after_the_claim_commits(orm, monkeypatch):
 
     observed: list[tuple[int, str, int]] = []
 
-    def _record(db, tg_id, service):
+    def _record(tg_id, services=None):
         with get_session() as session:
             claimed = session.get(GiftPack, pack).claimed_count
-        observed.append((int(tg_id), service, int(claimed)))
+        observed.extend(
+            (int(tg_id), service, int(claimed)) for service in services or ()
+        )
 
-    monkeypatch.setattr("app.domains.premium.service.sync_media_permission", _record)
+    monkeypatch.setattr(
+        "app.domains.premium.service.sync_premium_media_access", _record
+    )
 
     orm.claim_gift_pack(pack, 1)
 

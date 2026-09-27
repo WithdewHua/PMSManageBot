@@ -3,7 +3,18 @@ from sqlalchemy import update as sql_update
 
 from app.core.db import get_session
 from app.domains.identity.models import PlexUser
+from app.domains.media_access import repository as media_access_repository
 from app.integrations.plex import Plex
+
+
+def is_download_unlocked(tg_id: int, service: str) -> bool:
+    """该用户在指定服务上是否已经拥有下载/同步权限（含 Premium 自动解锁）。
+
+    跨域调用方（premium 的权限同步、礼包解锁）用它判断“是否还需要推送到媒体
+    服务器”，避免直接读 media_access 的列。
+    """
+    status = media_access_repository.check_download_unlock(int(tg_id), service)
+    return bool(status.get("unlock_time"))
 
 
 def update_all_lib():

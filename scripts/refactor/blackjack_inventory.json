@@ -2347,14 +2347,7 @@
     },
     {
       "kind": "facade_import",
-      "line": 191,
-      "path": "src/app/domains/premium/service.py",
-      "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
-      "line": 529,
+      "line": 425,
       "path": "src/app/domains/premium/service.py",
       "symbol": "app.databases",
       "target_role": "blackjack.service"
@@ -2501,5 +2494,5 @@
     }
   ],
   "schema_version": 1,
-  "total": 357
+  "total": 356
 }

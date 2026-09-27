@@ -178,8 +178,6 @@ allowed_importers = [
 ]
 ignore_imports = [
     # restructure-backend-architecture: B3 legacy orchestration and utilities
-    # promote-line-domains: premium/custom-line service still owns SQL queries
-    "app.domains.premium.service -> sqlalchemy",
     # restructure-backend-architecture: B2 legacy API handlers
 
     "app.domains.crypto_donation.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
@@ -267,7 +265,6 @@ as_packages = false
 ignore_imports = [
     # restructure-backend-architecture: B3 orchestration and utility migration
     # promote-line-domains: remaining Premium/custom-line business logic
-    "app.domains.premium.service -> app.domains.identity.models",
     # restructure-backend-architecture: B2 legacy routers
 
     "app.domains.crypto_donation.router -> app.domains.crypto_donation.models", # promote-remaining-domains (B2 inherited)

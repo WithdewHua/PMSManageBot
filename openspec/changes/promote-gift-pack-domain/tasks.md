@@ -67,7 +67,12 @@
   - 礼包侧改走 `blackjack.repository.*_tx`：`conditions.py` 的两个计数器、`rewards.py` 的争霸赛余额奖励都不再直接写 `statistics.tournament_wallet_credits`，也不再导入 `blackjack.service`。
   - 验证：新增 `tests/test_blackjack_wallet.py`（事务内累加、两位小数舍入、调用方回滚、非正数额与缺行拒绝、AST 断言行锁/SQL 增量，以及礼包不再直接写该列）；`tests/refactor/test_blackjack_cross_domain.py` 新增“走 repository 的调用方只能调登记的 `*_tx`”。全量 505 passed / 4 skipped。
   - 基线：这三条礼包→21 点的边在新边界下合法，基线 445 → 442 条（`b3_source_id` 仍 56 条）。
-- [ ] 3.3 在 premium 中新增 `grant_premium_days_tx` 和 `sync_premium_media_access(tg_id)`，前者在调用方 session 内对媒体账号行加锁后读写。验证：新开、续期、已过期、永久会员（含提示）各用例与 `update_premium_status` 的结果一致；外层事务回滚时一并回滚；同步函数的签名里不再有门面实例。
+- [x] 3.3 在 premium 中新增 `grant_premium_days_tx` 和 `sync_premium_media_access(tg_id)`，前者在调用方 session 内对媒体账号行加锁后读写。验证：新开、续期、已过期、永久会员（含提示）各用例与 `update_premium_status` 的结果一致；外层事务回滚时一并回滚；同步函数的签名里不再有门面实例。
+  - 交付：`premium/repository.py` 新增 `grant_premium_days_tx`（`SELECT ... FOR UPDATE` 锁媒体行 + 调用方事务，永久会员返回 None，未过期从原到期时间续期，首次开通写 `premium_status_updated_at`）与 `get_premium_sync_target`，并以模块级函数暴露；`premium/service.py` 的 `update_premium_status` 改为自开事务调用 `grant_premium_days_tx` 后同步（名字与调用点不变，路由零改动），`sync_media_permission` 改名为 `sync_premium_media_access(tg_id, services=None)` 且不再接收门面实例，`apply_download_unlock_to_media` 也改为只读 premium 自己的 repository。
+  - `media_access` 新增 `service.is_download_unlocked(tg_id, service)`（配 `repository.check_download_unlock` 模块级入口），premium 的同步用它判断是否需要推送，不再直读 media_access 的列。
+  - 礼包侧：`rewards.py` 用 `premium_repository.grant_premium_days_tx(session, …)`（repository→repository 的合法 `*_tx` 边），`claims.py` 提交后调用 `premium_service.sync_premium_media_access(tg_id, (service,))`。
+  - 验证：新增 `tests/test_premium_grants.py`（新开/续期/已过期/永久会员跳过/未绑定报 NameError/回滚/行锁 AST/签名无 db/未绑定不推送/已解锁跳过/大转盘 Premium 奖品两个服务顺序）；全量 519 passed / 4 skipped。
+  - 工具与基线：`pyproject.toml` 删除 3 条已失效的 `ignore_imports`（premium.service 不再直接 import SQLAlchemy 与 identity models）；基线 445 → 430 条（20 stale / 2 条 reviewed 新增：`sync_premium_media_access` 的重命名调用与导入），`b3_source_id` 58 条；`verify.py` 零新增差异（`claim_gift_pack` 与 `_handle_premium_reward` 登记了带行为测试的 AST 例外）。
 - [ ] 3.4 新增 `lines.repository.unlock_line_schedule_tx` 和 `media_access.repository.unlock_download_tx`，返回"已解锁"或"已跳过"。验证：写入的列、解锁时间和"已解锁则跳过"都与 `_grant_feature_unlock_tx` 一致；外层事务回滚时一并回滚。
 - [ ] 3.5 在 invitation 中新增 `issue_codes_tx`、`persist_privileged_codes_tx` 和 `count_invitees_tx`，把特权码例外挪过来；更新 `docs/architecture.md` 的例外清单。验证：
   - 生码的格式和写入的行与原实现一致。

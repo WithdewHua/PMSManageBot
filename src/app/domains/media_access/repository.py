@@ -262,3 +262,12 @@ class MediaAccessRepository:
         except Exception as e:
             logger.error(f"获取下载权限解锁用户数量失败: {e}")
             return 0
+
+
+# 模块级入口：处于 service 端的调用方（如 premium 的权限同步）不持有门面实例。
+_media_access_repository = MediaAccessRepository()
+
+
+def check_download_unlock(tg_id: int, service: str) -> dict:
+    """该用户在指定服务上的下载/同步权限状态（含 Premium 自动解锁）。"""
+    return _media_access_repository.check_download_unlock(tg_id, service)

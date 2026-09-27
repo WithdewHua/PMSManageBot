@@ -207,14 +207,14 @@ def _handle_premium_reward(tg_id: int, name: str) -> float:
             days = int(days_match.group(1))
 
             try:
-                new_expiry = update_premium_status(db, tg_id, "plex", days)
+                new_expiry = update_premium_status(tg_id, "plex", days)
                 logger.info(
                     f"用户 {tg_id} 的 Plex Premium 已更新，新的到期时间为 {new_expiry or '永久会员'}"
                 )
             except NameError:
                 pass
             try:
-                new_expiry = update_premium_status(db, tg_id, "emby", days)
+                new_expiry = update_premium_status(tg_id, "emby", days)
                 logger.info(
                     f"用户 {tg_id} 的 Emby Premium 已更新，新的到期时间为 {new_expiry or '永久会员'}"
                 )

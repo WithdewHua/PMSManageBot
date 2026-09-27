@@ -2,9 +2,8 @@
 Premium 会员相关功能,包括检查过期状态和即将过期的用户。
 """
 
-from datetime import datetime, timedelta
-
-from sqlalchemy import update as sql_update
+from collections.abc import Sequence
+from datetime import datetime
 
 from app.core.cache import (
     emby_last_user_defined_line_cache,
@@ -17,8 +16,9 @@ from app.core.db import get_session
 from app.core.formatting import format_traffic_size
 from app.core.log import logger
 from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
-from app.domains.identity.models import EmbyUser, PlexUser
 from app.domains.lines.rules import is_binded_premium_line
+from app.domains.media_access import service as media_access_service
+from app.domains.premium import repository as premium_repository
 
 
 async def check_premium_expiry():
@@ -127,56 +127,55 @@ async def check_premium_expiring_soon(days: int = 3):
         logger.error(f"检查即将过期的 Premium 用户时出错: {e!s}")
 
 
-def sync_media_permission(db, tg_id: int, service: str) -> None:
-    """将 Premium 身份对应的下载/同步权限同步到媒体服务器
+def update_premium_status(tg_id: int, service: str, days: int = 30) -> datetime | None:
+    """给用户延长 Premium 天数，提交后再同步媒体权限。
 
-    这是一个 best-effort 的外部副作用：失败只记 warning，不影响 Premium 本身的发放。
-    从 `update_premium_status()` 中抽出，以便调用方在数据库事务提交之后再执行，
-    避免把 HTTP 往返关在事务（乃至行锁）里面。
-
-    :param db: 数据库操作对象
-    :param tg_id: 用户的 Telegram ID
-    :param service: 服务类型（"plex" 或 "emby"）
+    行为与旧实现一致：永久会员返回 None 且不写入；未过期从原到期时间续期，
+    否则从当前时间起算。写入本身在 `premium.repository.grant_premium_days_tx`
+    里完成（行锁 + 调用方事务），需要复用外层事务的调用方直接用那个 `*_tx`。
     """
-    if service == "plex":
-        user_info = db.get_plex_info_by_tg_id(tg_id)
-        if not user_info:
-            return
-        # 检查用户是否已经用积分单独解锁了下载权限
-        download_status = db.check_download_unlock(tg_id, "plex")
-        if download_status.get("unlock_time"):
-            logger.info(f"用户 {tg_id} 已用积分解锁 Plex 下载权限，跳过 Premium 授权")
-            return
-        # 用户未单独解锁，Premium 用户自动拥有下载权限，更新媒体服务器
-        try:
-            from app.integrations.plex import Plex
+    with get_session() as session:
+        new_expiry = premium_repository.grant_premium_days_tx(
+            session, tg_id, service, days
+        )
+    if new_expiry is not None:
+        sync_premium_media_access(tg_id, (service,))
+    return new_expiry
 
-            plex_email = user_info[3]  # plex_email
-            if plex_email:
-                plex = Plex()
-                plex.update_sync_for_user(plex_email, allow_sync=True)
+
+def sync_premium_media_access(
+    tg_id: int, services: Sequence[str] | None = None
+) -> None:
+    """把 Premium 对应的下载/同步权限同步到媒体服务器（提交后 best-effort）。
+
+    这是纯外部副作用：失败只记 warning，不影响 Premium 本身的发放，也不会把
+    HTTP 往返关进事务。`services` 为空时检查用户绑定过的 Plex 与 Emby；已经用
+    积分解锁下载权限的用户直接跳过，保持原有行为。签名里不再需要门面实例。
+    """
+    for service in services if services is not None else ("plex", "emby"):
+        if service not in ("plex", "emby"):
+            continue
+        target = premium_repository.get_premium_sync_target(tg_id, service)
+        if not target:
+            continue
+        if media_access_service.is_download_unlocked(tg_id, service):
+            logger.info(
+                f"用户 {tg_id} 已用积分解锁 {service.capitalize()} 下载权限，跳过 Premium 授权"
+            )
+            continue
+        try:
+            if service == "plex":
+                from app.integrations.plex import Plex
+
+                Plex().update_sync_for_user(target, allow_sync=True)
                 logger.info(f"已为 Premium 用户 {tg_id} 启用 Plex 同步权限")
-        except Exception as e:
-            logger.warning(f"为 Premium 用户 {tg_id} 启用 Plex 同步权限失败: {e}")
+            else:
+                from app.integrations.emby import Emby
 
-    elif service == "emby":
-        user_info = db.get_emby_info_by_tg_id(tg_id)
-        if not user_info:
-            return
-        download_status = db.check_download_unlock(tg_id, "emby")
-        if download_status.get("unlock_time"):
-            logger.info(f"用户 {tg_id} 已用积分解锁 Emby 下载权限，跳过 Premium 授权")
-            return
-        try:
-            from app.integrations.emby import Emby
-
-            emby_id = user_info[1]  # emby_id
-            if emby_id:
-                emby = Emby()
-                emby.update_download_permission_for_user(emby_id, allow_download=True)
+                Emby().update_download_permission_for_user(target, allow_download=True)
                 logger.info(f"已为 Premium 用户 {tg_id} 启用 Emby 下载权限")
         except Exception as e:
-            logger.warning(f"为 Premium 用户 {tg_id} 启用 Emby 下载权限失败: {e}")
+            logger.warning(f"为 Premium 用户 {tg_id} 启用 {service} 权限失败: {e}")
 
 
 def apply_download_unlock_to_media(tg_id: int, service: str) -> None:
@@ -188,130 +187,27 @@ def apply_download_unlock_to_media(tg_id: int, service: str) -> None:
     调用方须在数据库事务提交之后调用。失败时抛出 RuntimeError，由调用方
     决定如何处置（礼包领取：不回滚，说明并通知管理员人工处理）。
     """
-    from app.databases import db
-
+    target = premium_repository.get_premium_sync_target(tg_id, service)
     if service == "plex":
-        user_info = db.get_plex_info_by_tg_id(tg_id)
-        plex_email = user_info[3] if user_info else None
-        if not plex_email:
+        if not target:
             raise RuntimeError("未找到绑定的 Plex 账号邮箱")
         from app.integrations.plex import Plex
 
-        if not Plex().update_sync_for_user(plex_email, allow_sync=True):
+        if not Plex().update_sync_for_user(target, allow_sync=True):
             raise RuntimeError("Plex 同步权限更新失败")
     elif service == "emby":
-        user_info = db.get_emby_info_by_tg_id(tg_id)
-        emby_id = user_info[1] if user_info else None
-        if not emby_id:
+        if not target:
             raise RuntimeError("未找到绑定的 Emby 账号 ID")
         from app.integrations.emby import Emby
 
         ok, msg = Emby().update_download_permission_for_user(
-            emby_id, allow_download=True
+            target, allow_download=True
         )
         if not ok:
             raise RuntimeError(f"Emby 下载权限更新失败: {msg}")
     else:
         raise RuntimeError(f"未知的服务类型: {service}")
     logger.info(f"已为用户 {tg_id} 同步 {service} 下载权限到媒体服务器")
-
-
-def update_premium_status(
-    db, tg_id: int, service: str, days: int = 30, session=None
-) -> datetime:
-    """
-    更新用户的 Premium 状态，延长 Premium 会员时间
-    :param db: 数据库连接对象
-    :param tg_id: 用户的 Telegram ID
-    :param service: 服务类型（"plex" 或 "emby"）
-    :param days: 延长的天数，默认为30天
-    :param session: 可选的外层 SQLAlchemy Session。传入时复用调用方的事务，
-        使本次更新与调用方的其他写入同生共死；同时跳过媒体服务器权限同步，
-        由调用方在事务提交后自行调用 `sync_media_permission()`。
-        不传时保持原有行为：自开事务并立即同步权限。
-    :return: 新的 Premium 到期时间；用户为永久会员时返回 None
-    """
-    new_expiry = None
-    current_timestamp = int(datetime.now(settings.TZ).timestamp())
-    # 检查用户是否绑定了对应服务
-    if service == "plex":
-        user_info = db.get_plex_info_by_tg_id(tg_id)
-        if not user_info:
-            raise NameError("请先绑定 Plex 账户")
-
-        # 计算新的到期时间
-        current_expiry = user_info[10]  # premium_expiry_time字段
-        # 永久会员直接跳过
-        if bool(user_info[9]) and not current_expiry:
-            return None
-        if current_expiry and datetime.fromisoformat(current_expiry).astimezone(
-            settings.TZ
-        ) > datetime.now(settings.TZ):
-            # 如果当前还有Premium，从到期时间开始延长
-            new_expiry = datetime.fromisoformat(current_expiry).astimezone(
-                settings.TZ
-            ) + timedelta(days=days)
-        else:
-            # 从现在开始计算
-            new_expiry = datetime.now(settings.TZ) + timedelta(days=days)
-
-        # 更新数据库 - 设置is_premium=1和到期时间
-        update_values = {
-            "is_premium": 1,
-            "premium_expiry_time": new_expiry.isoformat(),
-        }
-        if not bool(user_info[9]):
-            update_values["premium_status_updated_at"] = current_timestamp
-        stmt = (
-            sql_update(PlexUser).where(PlexUser.tg_id == tg_id).values(**update_values)
-        )
-        if session is not None:
-            # 复用外层事务：由调用方决定提交还是回滚
-            session.execute(stmt)
-        else:
-            with get_session() as own_session:
-                own_session.execute(stmt)
-            sync_media_permission(db, tg_id, "plex")
-
-    elif service == "emby":
-        user_info = db.get_emby_info_by_tg_id(tg_id)
-        if not user_info:
-            raise NameError("请先绑定 Emby 账户")
-
-        # 计算新的到期时间
-        current_expiry = user_info[9]  # premium_expiry_time字段
-        # 永久会员直接跳过
-        if bool(user_info[8]) and not current_expiry:
-            return None
-        if current_expiry and datetime.fromisoformat(str(current_expiry)).astimezone(
-            settings.TZ
-        ) > datetime.now(settings.TZ):
-            # 如果当前还有Premium，从到期时间开始延长
-            new_expiry = datetime.fromisoformat(str(current_expiry)).astimezone(
-                settings.TZ
-            ) + timedelta(days=days)
-        else:
-            # 从现在开始计算
-            new_expiry = datetime.now(settings.TZ) + timedelta(days=days)
-
-        # 更新数据库 - 设置is_premium=1和到期时间
-        update_values = {
-            "is_premium": 1,
-            "premium_expiry_time": new_expiry.isoformat(),
-        }
-        if not bool(user_info[8]):
-            update_values["premium_status_updated_at"] = current_timestamp
-        stmt = (
-            sql_update(EmbyUser).where(EmbyUser.tg_id == tg_id).values(**update_values)
-        )
-        if session is not None:
-            session.execute(stmt)
-        else:
-            with get_session() as own_session:
-                own_session.execute(stmt)
-            sync_media_permission(db, tg_id, "emby")
-
-    return new_expiry
 
 
 def unbind_premium_line(db, service: str, username: str, tg_id: int):

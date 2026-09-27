@@ -2269,13 +2269,37 @@ kind = "method"
 reason = "db.py section: 线路调度功能相关方法"
 
 [[items]]
+id = "app.databases.db:DatabaseORM.claim_gift_pack@b3-key:premium-sync"
+target = "app.domains.gift_pack.repository"
+kind = "call"
+reason = "promote-gift-pack-domain 3.3 reviewed rename: the post-commit media sync is now premium.service.sync_premium_media_access(tg_id, services) without a facade instance"
+b3_key = "call|src/app/domains/gift_pack/repository/claims.py|imported|premium|sync_premium_media_access"
+b3_source_id = "app.domains.gift_pack.repository.part_2:_GiftPackRepositoryPart2.claim_gift_pack"
+b3_behavior_test = "tests/test_premium_grants.py::test_sync_function_has_no_facade_parameter"
+source_state = "frozen"
+
+
+[[items]]
+id = "app.databases.db:DatabaseORM.claim_gift_pack@b3-key:premium-service-import"
+target = "app.domains.gift_pack.repository"
+kind = "import"
+reason = "promote-gift-pack-domain 3.3 reviewed rename: claims.py imports premium.service for the facade-free sync helper"
+b3_key = "import|src/app/domains/gift_pack/repository/claims.py|app.domains.premium.service|service"
+b3_source_id = "app.domains.gift_pack.repository.part_2:_GiftPackRepositoryPart2.claim_gift_pack"
+b3_behavior_test = "tests/test_premium_grants.py::test_sync_function_has_no_facade_parameter"
+source_state = "frozen"
+
+
+[[items]]
 id = "app.databases.db:DatabaseORM.claim_gift_pack"
 target = "app.domains.gift_pack.repository"
 planned_target = "app.domains.gift_pack.repository.claims"
 planned_reason = "design D1 sub-topic: user list, prompt check, claim"
 class = "GiftPackRepository"
 kind = "method"
-reason = "db.py section: Gift Pack Operations"
+reason = "db.py section: Gift Pack Operations; promote-gift-pack-domain 3.3: the post-commit media sync call is now premium.service.sync_premium_media_access(tg_id, services)"
+b3_ast_exception = "promote-gift-pack-domain reviewed facade-free media sync"
+b3_behavior_test = "tests/test_premium_grants.py::test_sync_function_has_no_facade_parameter"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.claim_gift_pack_start_dm_candidates"
@@ -11113,7 +11137,9 @@ source_state = "frozen"
 id = "app.webapp.routers.activities.luckywheel:_handle_premium_reward"
 target = "app.domains.luckywheel.router"
 kind = "function"
-reason = "router module name"
+reason = "router module name; promote-gift-pack-domain 3.3: premium.service.update_premium_status(tg_id, service, days) no longer takes the database facade"
+b3_ast_exception = "promote-gift-pack-domain reviewed facade-free premium grant"
+b3_behavior_test = "tests/test_premium_grants.py::test_luckywheel_premium_reward_grants_both_services"
 source_state = "frozen"
 
 [[items]]

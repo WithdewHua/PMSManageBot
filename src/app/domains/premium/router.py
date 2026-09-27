@@ -101,7 +101,7 @@ async def unlock_premium(
             raise HTTPException(status_code=400, detail="积分不足")
 
         try:
-            new_expiry = update_premium_status(db, tg_id, service, days)
+            new_expiry = update_premium_status(tg_id, service, days)
         except Exception as e:
             logger.error(f"更新 Premium 状态失败: {e!s}")
             raise HTTPException(status_code=500, detail=f"更新 Premium 状态失败: {e!s}")
