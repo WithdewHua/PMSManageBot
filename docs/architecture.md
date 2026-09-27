@@ -191,7 +191,7 @@ B3 起，部署回退必须在维护窗口执行：停止所有 B3 调度器 →
 | 后续变更 | 负责领域或事项 |
 |---|---|
 | `make-credit-changes-atomic` | credits 与所有直接写积分的调用方 |
-| `promote-blackjack-domain` | blackjack；转盘免费次数的反向依赖 |
+| `promote-gift-pack-domain` | gift_pack；follows blackjack |
 | `promote-gift-pack-domain` | gift_pack |
 | `unify-business-configuration` | core.config 中业务配置和各领域 config |
 | `promote-activity-domains` | luckywheel、treasure、prediction、auction |
