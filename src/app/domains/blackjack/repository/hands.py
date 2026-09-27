@@ -1,22 +1,199 @@
+"""21 点 repository：现金局手牌的生命周期与动作（由 part_N 机械拆分）。"""
+
 import json
 import secrets
 import time
+from datetime import datetime
 
 from sqlalchemy import func, select, update
 
+from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
 from app.domains.blackjack.exceptions import blackjack_error
-from app.domains.blackjack.models import (
-    BlackjackHand,
-)
+from app.domains.blackjack.models import BlackjackHand
 from app.domains.credits import repository as credits_repository
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
 
 
-class _BlackjackRepositoryPart3:
+class _BlackjackRepositoryHands:
+    def _blackjack_hand_to_dict(self, hand: BlackjackHand) -> dict:
+        """把手牌行转为字典。
+
+        **有意包含 `deck_seed` 与 `next_card_index`**：本方法服务于服务端内部
+        （路由、结算、调度任务），响应层的 schema 显式列字段、不复用本 dump，
+        种子与游标不会因此泄漏到面向用户的响应里（见 schemas/blackjack.py）。
+        """
+        return {
+            "id": int(hand.id),
+            "tg_id": int(hand.tg_id),
+            "status": int(hand.status),
+            "bet_credits": int(hand.bet_credits),
+            "doubled": int(hand.doubled),
+            "deck_seed": str(hand.deck_seed),
+            "next_card_index": int(hand.next_card_index),
+            "player_cards": json.loads(hand.player_cards or "[]"),
+            "dealer_cards": json.loads(hand.dealer_cards or "[]"),
+            "outcome": hand.outcome,
+            "payout_credits": float(hand.payout_credits)
+            if hand.payout_credits is not None
+            else None,
+            "rake_credits": float(hand.rake_credits)
+            if hand.rake_credits is not None
+            else None,
+            "jackpot_won": float(hand.jackpot_won)
+            if hand.jackpot_won is not None
+            else None,
+            "relief_credits": float(hand.relief_credits)
+            if hand.relief_credits is not None
+            else None,
+            "decisions_total": int(hand.decisions_total),
+            "decisions_correct": int(hand.decisions_correct),
+            "rake_waived": int(hand.rake_waived) == 1,
+            "rake_bp_on_profit": int(hand.rake_bp_on_profit),
+            "rake_jackpot_bp": int(hand.rake_jackpot_bp),
+            "blackjack_payout": float(hand.blackjack_payout),
+            "dealer_hits_soft_17": int(hand.dealer_hits_soft_17),
+            "hand_timeout_minutes": int(hand.hand_timeout_minutes),
+            "surrender_enabled": int(hand.surrender_enabled) == 1,
+            # 该手牌属于哪一侧。响应层据此把用户引回正确的牌桌：两侧共用「同时至多
+            # 一手」这个不变量，故 `/current` 可能返回一手赛内牌，而现金局界面若把
+            # 它当自己的牌渲染，用户点任何动作都只会得到「找不到该手牌」
+            "tournament_id": int(hand.tournament_id)
+            if hand.tournament_id is not None
+            else None,
+            "created_at_ms": int(hand.created_at_ms),
+            "settled_at": int(hand.settled_at) if hand.settled_at is not None else None,
+        }
+
+    def sweep_timed_out_blackjack_hands(self, tg_id: int | None = None) -> int:
+        """结算所有已超时的进行中手牌，返回**实际结算成功**的手数。
+
+        **每手牌自成一个事务**，不与调用方共用、也不彼此共用。两层理由：
+
+        1. 不寄生在发牌或查询的事务里——否则调用方后续任何一次校验失败（速率、
+           门槛、余额）都会把已完成的结算连带回滚，用户的赔付被丢弃。
+        2. 不把整批放进一个事务——否则第 31 手上的任何异常（牌靴耗尽、约束冲突、
+           瞬时连接错误）都会回滚前 30 手已经算好的赔付，而返回值仍会把它们报成
+           已结算：积分没进账、手牌仍非终态、押注还扣着，日志却显示一切正常。
+
+        `tg_id` 为空表示全量扫描，供定时兜底任务使用。为什么需要全量兜底：
+        APScheduler 的 `misfire_grace_time` 会丢弃错过窗口过久的任务（重启即可
+        触发），而按用户的惰性清理只在该用户自己再次操作时发生——若用户再也不
+        回来，手牌会永久悬挂、押注不退，违反 spec「超时任务 SHALL 持久化，
+        服务重启 SHALL NOT 导致待处置的手牌被遗漏」。
+
+        超时判定下推到 SQL（`created_at_ms + 时限 <= now`）且只取 id：全量扫描
+        每 10 分钟跑一次且永不停歇，把整表的非终态行实体化成 ORM 对象再在 Python
+        里筛选，会随手牌表增长成为反复的全表水化。
+        """
+        from app.domains.blackjack import rules as engine
+
+        now_ms = int(time.time() * 1000)
+        # 奖池参数在循环外读一次：它对本批所有手牌都一样，而在每手的事务内读会
+        # 各自另开一个连接
+        jackpot_config = self.get_blackjack_config_dict()
+
+        try:
+            with get_session() as session:
+                stmt = select(BlackjackHand.id).where(
+                    BlackjackHand.status.notin_(engine.TERMINAL_STATUSES),
+                    BlackjackHand.created_at_ms
+                    + BlackjackHand.hand_timeout_minutes * 60000
+                    <= now_ms,
+                )
+                if tg_id is not None:
+                    stmt = stmt.where(BlackjackHand.tg_id == int(tg_id))
+                expired_ids = [int(r[0]) for r in session.execute(stmt).all()]
+        except Exception as e:
+            logger.error(f"扫描超时 21 点手牌失败 (tg_id={tg_id}): {e}")
+            return 0
+
+        swept = 0
+        for hand_id in expired_ids:
+            try:
+                with get_session() as session:
+                    hand = (
+                        session.execute(
+                            select(BlackjackHand)
+                            .where(BlackjackHand.id == hand_id)
+                            .with_for_update()
+                        )
+                        .scalars()
+                        .one_or_none()
+                    )
+                    if not hand or int(hand.status) in engine.TERMINAL_STATUSES:
+                        continue
+                    # 先抢占再结算：与用户的并发操作撞车时先到者赢
+                    if not self._claim_blackjack_hand(
+                        session, hand_id, allow_dealer_turn=True
+                    ):
+                        continue
+                    session.expire(hand)
+                    # 按 tournament_id 分派适配层：赛内手牌必须走筹码路径，
+                    # 否则会用筹码算出的数额去赔用户的**积分**
+                    self._settle_blackjack_hand_dispatch(
+                        session,
+                        hand,
+                        abandoned=True,
+                        jackpot_config=jackpot_config,
+                    )
+                    swept += 1
+            except Exception as e:
+                # 单手失败只丢这一手，其余照常结算；下一轮兜底会再试
+                logger.error(f"清理超时 21 点手牌失败 (hand={hand_id}): {e}")
+
+        if swept:
+            logger.info(f"已结算 {swept} 手超时的 21 点手牌 (tg_id={tg_id})")
+        return swept
+
+    def _blackjack_day_start_ms(self) -> int:
+        """当日零点（`settings.TZ`）的毫秒时间戳，免抽水判定的分界。"""
+        day_start = datetime.now(settings.TZ).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        return int(day_start.timestamp() * 1000)
+
+    def _count_blackjack_hands_today(self, session, tg_id: int) -> int:
+        """该用户当日已发的**现金局**手数（含进行中）。
+
+        走已有的 `(tg_id, created_at_ms)` 复合索引，不新增存储也不新增查询模式。
+
+        锦标赛赛内手牌不计入（`tournament_id IS NULL`）：赛内根本不产生抽水，
+        故不该消耗当日的免抽水额度——否则先打一场赛事就会把当天的免抽水吃掉。
+        """
+        return int(
+            session.execute(
+                select(func.count(BlackjackHand.id)).where(
+                    BlackjackHand.tg_id == int(tg_id),
+                    BlackjackHand.created_at_ms >= self._blackjack_day_start_ms(),
+                    BlackjackHand.tournament_id.is_(None),
+                )
+            ).scalar_one()
+            or 0
+        )
+
+    def get_blackjack_free_hands_remaining(self, tg_id: int) -> int:
+        """该用户今日剩余的免抽水手数，供下注界面标示。
+
+        仅供展示：真正是否免抽水由发牌事务内的同一口径重新判定并落到快照上，
+        故本方法与发牌之间的竞态只会让提示短暂失准，不会造成错误的抽水。
+        """
+        try:
+            with get_session() as session:
+                free_hands = int(
+                    self.get_blackjack_config_dict().get("free_hands_per_day", 1)
+                )
+                if free_hands <= 0:
+                    return 0
+                used = self._count_blackjack_hands_today(session, int(tg_id))
+                return max(0, free_hands - used)
+        except Exception as e:
+            logger.error(f"获取 21 点剩余免抽水手数失败 (tg_id={tg_id}): {e}")
+            return 0
+
     def create_blackjack_hand(self, tg_id: int, bet_credits: int) -> dict:
         """发牌：校验 → 扣注额 → 生成种子定序 → 发初始牌 → 天胡则直接结算。
 

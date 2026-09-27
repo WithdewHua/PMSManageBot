@@ -41,22 +41,22 @@ def test_module_tx_exports_have_explicit_caller_session() -> None:
         assert getattr(repository, name).__module__ == repository.__name__
 
 
+def _planned_mixin_modules() -> list[Path]:
+    """The modules the reviewed split plan declares for this repository."""
+    import tomllib
+
+    root = Path(__file__).parents[1]
+    with (root / "scripts/refactor/split_plans.toml").open("rb") as stream:
+        plan = tomllib.load(stream)["blackjack_repository"]
+    package = root / "src" / Path(*plan["package"].split("."))
+    return [package / f"{stem}.py" for stem in plan["mixins"]]
+
+
 def test_extracted_tx_methods_do_not_open_or_commit_sessions() -> None:
     tx_names: set[str] = set()
-    for filename in (
-        "part_1.py",
-        "part_2.py",
-        "part_3.py",
-        "part_4.py",
-        "part_5.py",
-        "part_6.py",
-        "part_7.py",
-    ):
-        path = (
-            Path(__file__).parents[1]
-            / "src/app/domains/blackjack/repository"
-            / filename
-        )
+    modules = _planned_mixin_modules()
+    assert len(modules) > 1
+    for path in modules:
         tree = ast.parse(path.read_text(encoding="utf-8"))
         tx_functions = [
             node
@@ -82,6 +82,17 @@ def test_extracted_tx_methods_do_not_open_or_commit_sessions() -> None:
             assert "close" not in call_names, node.name
 
     assert tx_names == set(TX_EXPORTS)
+
+
+def test_no_numbered_repository_modules_remain() -> None:
+    """子主题拆包后不允许再出现 part_<数字> 模块（design D1）。"""
+    package = Path(__file__).parents[1] / "src/app/domains/blackjack/repository"
+    numbered = [
+        path.name
+        for path in package.glob("part_*.py")
+        if path.stem.split("_")[-1].isdigit()
+    ]
+    assert numbered == []
 
 
 def test_module_tx_exports_forward_the_same_session(monkeypatch) -> None:

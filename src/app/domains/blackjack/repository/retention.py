@@ -1,16 +1,16 @@
-import json
+"""21 点 repository：连败救济、周返水与游标（由 part_N 机械拆分）。"""
+
 import time
+from datetime import datetime, timedelta
 
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 
+from app.core.config import settings
 from app.core.db import get_session
 from app.core.kv import SystemConfig
 from app.core.log import logger
-from app.domains.blackjack.models import (
-    BlackjackHand,
-    BlackjackWeeklyCashback,
-)
+from app.domains.blackjack.models import BlackjackHand, BlackjackWeeklyCashback
 from app.domains.credits import repository as credits_repository
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
@@ -18,56 +18,7 @@ from app.domains.identity.models import Statistics
 from app.domains.luckywheel import repository as luckywheel_repository
 
 
-class _BlackjackRepositoryPart1:
-    def _blackjack_hand_to_dict(self, hand: BlackjackHand) -> dict:
-        """把手牌行转为字典。
-
-        **有意包含 `deck_seed` 与 `next_card_index`**：本方法服务于服务端内部
-        （路由、结算、调度任务），响应层的 schema 显式列字段、不复用本 dump，
-        种子与游标不会因此泄漏到面向用户的响应里（见 schemas/blackjack.py）。
-        """
-        return {
-            "id": int(hand.id),
-            "tg_id": int(hand.tg_id),
-            "status": int(hand.status),
-            "bet_credits": int(hand.bet_credits),
-            "doubled": int(hand.doubled),
-            "deck_seed": str(hand.deck_seed),
-            "next_card_index": int(hand.next_card_index),
-            "player_cards": json.loads(hand.player_cards or "[]"),
-            "dealer_cards": json.loads(hand.dealer_cards or "[]"),
-            "outcome": hand.outcome,
-            "payout_credits": float(hand.payout_credits)
-            if hand.payout_credits is not None
-            else None,
-            "rake_credits": float(hand.rake_credits)
-            if hand.rake_credits is not None
-            else None,
-            "jackpot_won": float(hand.jackpot_won)
-            if hand.jackpot_won is not None
-            else None,
-            "relief_credits": float(hand.relief_credits)
-            if hand.relief_credits is not None
-            else None,
-            "decisions_total": int(hand.decisions_total),
-            "decisions_correct": int(hand.decisions_correct),
-            "rake_waived": int(hand.rake_waived) == 1,
-            "rake_bp_on_profit": int(hand.rake_bp_on_profit),
-            "rake_jackpot_bp": int(hand.rake_jackpot_bp),
-            "blackjack_payout": float(hand.blackjack_payout),
-            "dealer_hits_soft_17": int(hand.dealer_hits_soft_17),
-            "hand_timeout_minutes": int(hand.hand_timeout_minutes),
-            "surrender_enabled": int(hand.surrender_enabled) == 1,
-            # 该手牌属于哪一侧。响应层据此把用户引回正确的牌桌：两侧共用「同时至多
-            # 一手」这个不变量，故 `/current` 可能返回一手赛内牌，而现金局界面若把
-            # 它当自己的牌渲染，用户点任何动作都只会得到「找不到该手牌」
-            "tournament_id": int(hand.tournament_id)
-            if hand.tournament_id is not None
-            else None,
-            "created_at_ms": int(hand.created_at_ms),
-            "settled_at": int(hand.settled_at) if hand.settled_at is not None else None,
-        }
-
+class _BlackjackRepositoryRetention:
     def apply_blackjack_retention_tx(
         self,
         session,
@@ -453,14 +404,13 @@ class _BlackjackRepositoryPart1:
             )
         return payload
 
-    def get_blackjack_tournament_wallet(self, tg_id: int) -> float:
-        """该用户的争霸赛余额（仅可支付锦标赛报名费）。"""
-        try:
-            with get_session() as session:
-                stats = session.get(Statistics, int(tg_id))
-                if stats is None:
-                    return 0.0
-                return round(float(stats.tournament_wallet_credits or 0), 2)
-        except Exception as e:
-            logger.error(f"读取争霸赛余额失败 (tg_id={tg_id}): {e}")
-            return 0.0
+    def _blackjack_week_start_ms(self, *, now: datetime | None = None) -> int:
+        """本周一零点（`settings.TZ`）的毫秒时间戳。
+
+        与免抽水的自然日同一口径（周一为一周之始），免费机会的周配额与
+        周损失返还的结算周期都以它为界。"""
+        now = now or datetime.now(settings.TZ)
+        week_start = (now - timedelta(days=now.weekday())).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        return int(week_start.timestamp() * 1000)

@@ -48,11 +48,11 @@ def test_blackjack_inventory_covers_known_facade_and_cycle_edges() -> None:
         and path.startswith("src/app/domains/blackjack/")
         for path, symbol in keys
     )
-    part_1 = (ROOT / "src/app/domains/blackjack/repository/part_1.py").read_text()
-    assert "luckywheel_repository.count_blackjack_freespins_since_tx" in part_1
-    assert "luckywheel_repository.grant_free_spins_tx" in part_1
-    assert "LuckywheelFreeSpin" not in part_1
+    retention = (ROOT / "src/app/domains/blackjack/repository/retention.py").read_text()
+    assert "luckywheel_repository.count_blackjack_freespins_since_tx" in retention
+    assert "luckywheel_repository.grant_free_spins_tx" in retention
+    assert "LuckywheelFreeSpin" not in retention
     assert (
-        "src/app/domains/blackjack/repository/part_4.py",
+        "src/app/domains/blackjack/repository/hands.py",
         "blackjack_error('blackjack disabled')",
     ) in keys

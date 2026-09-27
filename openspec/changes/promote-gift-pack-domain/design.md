@@ -129,6 +129,7 @@
 | `wallet.py` | 争霸赛余额 |
 | `stats.py` | 统计 |
 | `tournaments.py` | 赛事的管理、报名、状态流转和查询 |
+| `tournament_entries.py` | 参赛记录、排名与一致性查询（`tournaments.py` 超过 1,000 行预算后拆出的第二层子主题）|
 | `tournament_play.py` | 锦标赛手牌与结算 |
 | `config_store.py` | 配置行的读写，避免与领域角色文件 `config.py` 重名 |
 

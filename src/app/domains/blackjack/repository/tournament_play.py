@@ -1,3 +1,5 @@
+"""21 点 repository：锦标赛手牌与赛事结算（由 part_N 机械拆分）。"""
+
 import json
 import secrets
 import time
@@ -6,16 +8,19 @@ from sqlalchemy import func, select, update
 
 from app.core.db import get_session
 from app.core.log import logger
-from app.domains.badges.models import UserBadge
 from app.domains.blackjack.exceptions import blackjack_error
 from app.domains.blackjack.models import (
     BlackjackHand,
     BlackjackTournament,
+    BlackjackTournamentEntry,
 )
+from app.domains.credits import repository as credits_repository
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
 
 
-class _BlackjackRepositoryPart6:
+class _BlackjackRepositoryTournamentPlay:
     def _settle_blackjack_tournament_hand(
         self,
         session,
@@ -161,27 +166,6 @@ class _BlackjackRepositoryPart6:
             # 捎回总手数，省掉路由层为算「剩余手数」而多打的一次赛事查询
             "total_hands": total_hands,
         }
-
-    def _settle_blackjack_hand_dispatch(
-        self,
-        session,
-        hand: BlackjackHand,
-        abandoned: bool = False,
-        jackpot_config: dict | None = None,
-    ) -> dict:
-        """按 `tournament_id` 选结算适配层。
-
-        超时任务、定时兜底与赛事清场三条入口共用本函数，避免三处各写一遍判断
-        ——漏掉任何一处都会让赛内手牌走现金局的适配层：那会给用户的**积分**
-        赔付一笔按筹码算出来的钱，并把筹码注额当积分注进幸运奖池。
-        """
-        if hand.tournament_id is not None:
-            return self._settle_blackjack_tournament_hand(
-                session, hand, abandoned=abandoned
-            )
-        return self._settle_blackjack_hand(
-            session, hand, abandoned=abandoned, jackpot_config=jackpot_config
-        )
 
     def create_blackjack_tournament_hand(
         self, tg_id: int, tournament_id: int, bet_chips: int
@@ -681,85 +665,144 @@ class _BlackjackRepositoryPart6:
             )
         return {"settled": settled, "remaining": remaining, "cleared": remaining == 0}
 
-    def award_or_renew_badge(
-        self,
-        tg_id: int,
-        badge_id: int,
-        valid_days: int,
-        cap_days: int | None = None,
-    ) -> dict:
-        """授予勋章；已持有则**续期**其加成而非重置。
+    def _compute_tournament_payouts(
+        self, eligible_count: int, structure: list, net_pool: float
+    ) -> list:
+        from app.domains.blackjack import rules
 
-        `UserBadge` 的语义是「持有永久、仅加成过期」（见模型注释），故续期只动
-        `expires_at`，不新建行——`UNIQUE(tg_id, badge_id)` 也不允许新建。
+        return rules.calculate_tournament_payouts(eligible_count, structure, net_pool)
 
-            首次   expires_at = now + valid_days
-            再次   expires_at = min(max(expires_at, now) + valid_days,
-                                    now + cap_days)
+    def settle_blackjack_tournament(self, tournament_id: int) -> dict:
+        with get_session() as session:
+            return self.settle_blackjack_tournament_tx(session, tournament_id)
 
-        `max(expires_at, now)` 就是「续期而非重置」的全部含义：加成还没过期就往后
-        接（连庄因此有连续的获得感），已经过期就从现在起算。外层 `cap_days` 防止
-        持续夺冠者把加成累积到无限长。
+    def settle_blackjack_tournament_tx(self, session, tournament_id: int) -> dict:
+        from app.domains.blackjack import rules as engine
 
-        **不改既有的授予路径**（`game_king` / `supreme_contributor` 那两处只做
-        「有则跳过」）：续期是本变更引入的新语义，混进去会让那两个勋章的行为
-        跟着变。
+        tournament = self._lock_running_tournament(session, int(tournament_id))
+        if not tournament:
+            existing = (
+                session.execute(
+                    select(BlackjackTournament).where(
+                        BlackjackTournament.id == int(tournament_id)
+                    )
+                )
+                .scalars()
+                .one_or_none()
+            )
+            if not existing:
+                raise blackjack_error("tournament not found")
+            return {
+                "settled": False,
+                "tournament": self._tournament_to_dict(existing),
+                "standings": [],
+                "champion_tg_id": None,
+                "prize_total": 0.0,
+            }
 
-        Returns: {awarded(bool), renewed(bool), expires_at, previous_expires_at}
-        """
-        now_ts = int(time.time())
-        span = int(valid_days) * 24 * 3600
-        try:
-            with get_session() as session:
-                existing = (
+        pending = session.execute(
+            select(func.count())
+            .select_from(BlackjackHand)
+            .where(
+                BlackjackHand.tournament_id == int(tournament_id),
+                BlackjackHand.status.notin_(engine.TERMINAL_STATUSES),
+            )
+        ).scalar_one()
+        if int(pending) > 0:
+            return {
+                "settled": False,
+                "tournament": self._tournament_to_dict(tournament),
+                "standings": [],
+                "champion_tg_id": None,
+                "prize_total": 0.0,
+            }
+
+        snapshot = self._tournament_to_dict(tournament)
+
+        # 先抢占：抢不到说明已被他人结算，绝不能继续派奖
+        if not self._claim_tournament_transition(
+            session,
+            int(tournament_id),
+            self.TOURNAMENT_RUNNING,
+            self.TOURNAMENT_SETTLED,
+        ):
+            session.expire(tournament)
+            return {
+                "settled": False,
+                "tournament": self._tournament_to_dict(tournament),
+                "standings": [],
+                "champion_tg_id": None,
+                "prize_total": 0.0,
+            }
+        session.expire(tournament)
+
+        entries = (
+            session.execute(
+                select(BlackjackTournamentEntry)
+                .where(BlackjackTournamentEntry.tournament_id == int(tournament_id))
+                .with_for_update()
+                .order_by(
+                    BlackjackTournamentEntry.chips.desc(),
+                    BlackjackTournamentEntry.registered_at_ms.asc(),
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        eligible = [e for e in entries if int(e.status) in self.ENTRY_ELIGIBLE]
+        ineligible = [e for e in entries if int(e.status) not in self.ENTRY_ELIGIBLE]
+
+        # 奖池按报名数推导（含无资格者的报名费——他们的钱留在池子里）
+        net_pool = snapshot["prize_pool_net"]
+        payouts = self._compute_tournament_payouts(
+            len(eligible), snapshot["payout_structure"], net_pool
+        )
+
+        prize_total = 0.0
+        for i, entry in enumerate(eligible):
+            entry.final_rank = i + 1
+            prize = float(payouts[i]) if i < len(payouts) else 0.0
+            entry.prize_credits = prize
+            if prize > 0:
+                stats = (
                     session.execute(
-                        select(UserBadge)
-                        .where(
-                            UserBadge.tg_id == int(tg_id),
-                            UserBadge.badge_id == int(badge_id),
-                        )
+                        select(Statistics)
+                        .where(Statistics.tg_id == int(entry.tg_id))
                         .with_for_update()
                     )
                     .scalars()
                     .one_or_none()
                 )
-
-                if not existing:
-                    session.add(
-                        UserBadge(
-                            tg_id=int(tg_id),
-                            badge_id=int(badge_id),
-                            credits_cost=0,
-                            redeemed_at=now_ts,
-                            expires_at=now_ts + span,
-                            is_active=1,
-                        )
+                if stats:
+                    mutation = credits_repository.add_tx(
+                        session, CreditAccount.tg(int(entry.tg_id)), prize
                     )
-                    return {
-                        "awarded": True,
-                        "renewed": False,
-                        "expires_at": now_ts + span,
-                        "previous_expires_at": None,
-                    }
+                    credits_service.register_cache_invalidation(session, mutation)
+                else:
+                    session.add(
+                        Statistics(tg_id=int(entry.tg_id), donation=0, credits=prize)
+                    )
+                prize_total = round(prize_total + prize, 2)
 
-                previous = int(existing.expires_at)
-                new_expires = max(previous, now_ts) + span
-                if cap_days:
-                    new_expires = min(new_expires, now_ts + int(cap_days) * 24 * 3600)
-                existing.expires_at = new_expires
-                # 加成过期后 is_active 可能已被置 0，续期时一并恢复
-                existing.is_active = 1
-                return {
-                    "awarded": False,
-                    "renewed": True,
-                    "expires_at": new_expires,
-                    "previous_expires_at": previous,
-                }
-        except Exception as e:
-            logger.error(f"授予/续期勋章失败 (tg_id={tg_id}, badge={badge_id}): {e}")
-            return {
-                "awarded": False,
-                "renewed": False,
-                "expires_at": None,
-                "previous_expires_at": None,
-            }
+        # 无资格者不排名次、不派奖，但仍写 0 以示「已结算且无派奖」，
+        # 与「尚未结算」的 NULL 区分开
+        for entry in ineligible:
+            entry.prize_credits = 0.0
+
+        session.flush()
+
+        standings = [self._tournament_entry_to_dict(e) for e in eligible + ineligible]
+        champion = int(eligible[0].tg_id) if eligible else None
+
+        logger.info(
+            f"21 点锦标赛 {tournament_id} 已结算：{len(eligible)} 人具备资格"
+            f"（{len(ineligible)} 人未完赛），派奖合计 {prize_total} 积分"
+        )
+        return {
+            "settled": True,
+            "tournament": self._tournament_to_dict(tournament),
+            "standings": standings,
+            "champion_tg_id": champion,
+            "prize_total": prize_total,
+        }
