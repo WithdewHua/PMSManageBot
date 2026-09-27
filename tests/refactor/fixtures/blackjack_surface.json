@@ -638,6 +638,14 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.repository.part_1",
+        "module_target": "app.domains.luckywheel",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.luckywheel.repository"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_1",
         "module_target": "app.domains.luckywheel.models",
         "resolved": true,
         "scope": "module",
@@ -3438,6 +3446,22 @@
           "autoincrement": "auto",
           "default": "blackjack",
           "name": "source",
+          "nullable": false,
+          "primary_key": false,
+          "type": "TEXT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": 0,
+          "name": "cost_credits_snapshot",
+          "nullable": false,
+          "primary_key": false,
+          "type": "FLOAT"
+        },
+        {
+          "autoincrement": "auto",
+          "default": "blackjack_free",
+          "name": "wheel_stats_source",
           "nullable": false,
           "primary_key": false,
           "type": "TEXT"
