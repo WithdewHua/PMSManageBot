@@ -1231,25 +1231,25 @@ reason = "distributed to destination mixins"
 
 [[items]]
 id = "app.databases.db:CHAMPION_BADGE_BONUS"
-target = "app.domains.blackjack.repository"
+target = "app.domains.blackjack.config"
 kind = "assignment"
 reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.databases.db:CHAMPION_BADGE_TYPE"
-target = "app.domains.blackjack.repository"
+target = "app.domains.blackjack.config"
 kind = "assignment"
 reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.databases.db:CHAMPION_BADGE_VALID_DAYS"
-target = "app.domains.blackjack.repository"
+target = "app.domains.blackjack.config"
 kind = "assignment"
 reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.databases.db:DEFAULT_BLACKJACK_CONFIG"
-target = "app.domains.blackjack.repository"
+target = "app.domains.blackjack.config"
 kind = "assignment"
 reason = "ambiguous: human review required"
 
@@ -3628,19 +3628,19 @@ reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.databases.db:JACKPOT_CONFIG_KEY"
-target = "app.domains.blackjack.repository"
+target = "app.domains.blackjack.config"
 kind = "assignment"
 reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.databases.db:JACKPOT_CONFIG_TYPE"
-target = "app.domains.blackjack.repository"
+target = "app.domains.blackjack.config"
 kind = "assignment"
 reason = "ambiguous: human review required"
 
 [[items]]
 id = "app.databases.db:JACKPOT_NOTIFY_CURSOR_KEY"
-target = "app.domains.blackjack.repository"
+target = "app.domains.blackjack.config"
 kind = "assignment"
 reason = "ambiguous: human review required"
 

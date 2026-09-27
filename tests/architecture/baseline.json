@@ -465,7 +465,7 @@
       "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/blackjack/repository/part_2.py|222|imported|credits|tg",
+      "key": "call|src/app/domains/blackjack/repository/part_2.py|221|imported|credits|tg",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_2.py",
       "line": 222,
@@ -475,7 +475,7 @@
       "target": "tg"
     },
     {
-      "key": "call|src/app/domains/blackjack/repository/part_2.py|224|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/blackjack/repository/part_2.py|223|imported|credits|register_cache_invalidation",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_2.py",
       "line": 224,
@@ -545,7 +545,7 @@
       "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/blackjack/repository/part_4.py|515|imported|credits|tg",
+      "key": "call|src/app/domains/blackjack/repository/part_4.py|514|imported|credits|tg",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_4.py",
       "line": 552,
@@ -555,7 +555,7 @@
       "target": "tg"
     },
     {
-      "key": "call|src/app/domains/blackjack/repository/part_4.py|517|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/blackjack/repository/part_4.py|516|imported|credits|register_cache_invalidation",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_4.py",
       "line": 554,
@@ -585,7 +585,7 @@
       "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/blackjack/repository/part_7.py|137|imported|credits|tg",
+      "key": "call|src/app/domains/blackjack/repository/part_7.py|134|imported|credits|tg",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_7.py",
       "line": 135,
@@ -595,7 +595,7 @@
       "target": "tg"
     },
     {
-      "key": "call|src/app/domains/blackjack/repository/part_7.py|139|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/blackjack/repository/part_7.py|136|imported|credits|register_cache_invalidation",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_7.py",
       "line": 137,
@@ -3862,7 +3862,7 @@
       "symbol": "LuckywheelFreeSpin"
     },
     {
-      "key": "import|src/app/domains/blackjack/repository/part_2.py|17|app.domains.credits.service|service",
+      "key": "import|src/app/domains/blackjack/repository/part_2.py|22|app.domains.credits.service|service",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_2.py",
       "line": 17,
@@ -3873,7 +3873,7 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/blackjack/repository/part_2.py|18|app.domains.credits.types|CreditAccount",
+      "key": "import|src/app/domains/blackjack/repository/part_2.py|23|app.domains.credits.types|CreditAccount",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_2.py",
       "line": 18,
@@ -3906,7 +3906,7 @@
       "symbol": "CreditAccount"
     },
     {
-      "key": "import|src/app/domains/blackjack/repository/part_4.py|16|app.domains.credits.service|service",
+      "key": "import|src/app/domains/blackjack/repository/part_4.py|20|app.domains.credits.service|service",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_4.py",
       "line": 16,
@@ -3917,7 +3917,7 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/blackjack/repository/part_4.py|17|app.domains.credits.types|CreditAccount",
+      "key": "import|src/app/domains/blackjack/repository/part_4.py|21|app.domains.credits.types|CreditAccount",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_4.py",
       "line": 17,
@@ -3961,7 +3961,7 @@
       "symbol": "UserBadge"
     },
     {
-      "key": "import|src/app/domains/blackjack/repository/part_7.py|16|app.domains.credits.service|service",
+      "key": "import|src/app/domains/blackjack/repository/part_7.py|17|app.domains.credits.service|service",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_7.py",
       "line": 14,
@@ -3972,7 +3972,7 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/blackjack/repository/part_7.py|17|app.domains.credits.types|CreditAccount",
+      "key": "import|src/app/domains/blackjack/repository/part_7.py|18|app.domains.credits.types|CreditAccount",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/part_7.py",
       "line": 15,

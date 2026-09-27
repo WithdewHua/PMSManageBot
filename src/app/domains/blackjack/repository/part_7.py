@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from app.core.db import get_session
 from app.core.kv import SystemConfig
 from app.core.log import logger
+from app.domains.blackjack.config import DEFAULT_BLACKJACK_CONFIG
 from app.domains.blackjack.exceptions import blackjack_error
 from app.domains.blackjack.models import (
     BlackjackHand,
@@ -16,10 +17,6 @@ from app.domains.credits import repository as credits_repository
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
-
-from . import (
-    DEFAULT_BLACKJACK_CONFIG,
-)
 
 
 class _BlackjackRepositoryPart7:

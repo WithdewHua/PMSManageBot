@@ -18,7 +18,7 @@ async def award_blackjack_champion_badge(tg_id: int) -> dict | None:
 
     Returns: 授予结果 dict，失败返回 None。
     """
-    from app.domains.blackjack.repository import (
+    from app.domains.blackjack.config import (
         CHAMPION_BADGE_BONUS,
         CHAMPION_BADGE_TYPE,
         CHAMPION_BADGE_VALID_DAYS,

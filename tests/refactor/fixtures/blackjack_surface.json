@@ -502,6 +502,62 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.repository",
+        "module_target": "app.domains.blackjack.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.config.CHAMPION_BADGE_BONUS"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository",
+        "module_target": "app.domains.blackjack.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.config.CHAMPION_BADGE_TYPE"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository",
+        "module_target": "app.domains.blackjack.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.config.CHAMPION_BADGE_VALID_DAYS"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository",
+        "module_target": "app.domains.blackjack.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.config.DEFAULT_BLACKJACK_CONFIG"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository",
+        "module_target": "app.domains.blackjack.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.config.JACKPOT_CONFIG_KEY"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository",
+        "module_target": "app.domains.blackjack.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.config.JACKPOT_CONFIG_TYPE"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository",
+        "module_target": "app.domains.blackjack.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.config.JACKPOT_NOTIFY_CURSOR_KEY"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository",
         "module_target": "app.domains.blackjack.repository.part_1",
         "resolved": true,
         "scope": "module",
@@ -810,6 +866,30 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.repository.part_2",
+        "module_target": "app.domains.blackjack.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.config.JACKPOT_CONFIG_KEY"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_2",
+        "module_target": "app.domains.blackjack.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.config.JACKPOT_CONFIG_TYPE"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_2",
+        "module_target": "app.domains.blackjack.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.config.JACKPOT_NOTIFY_CURSOR_KEY"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_2",
         "module_target": "app.domains.blackjack.exceptions",
         "resolved": true,
         "scope": "module",
@@ -854,30 +934,6 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.identity.models.Statistics"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.repository.part_2",
-        "module_target": "app.domains.blackjack.repository",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.repository.JACKPOT_CONFIG_KEY"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.repository.part_2",
-        "module_target": "app.domains.blackjack.repository",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.repository.JACKPOT_CONFIG_TYPE"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.repository.part_2",
-        "module_target": "app.domains.blackjack.repository",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.repository.JACKPOT_NOTIFY_CURSOR_KEY"
       },
       {
         "kind": "from",
@@ -1181,6 +1237,22 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.repository.part_4",
+        "module_target": "app.domains.blackjack.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.config.JACKPOT_CONFIG_KEY"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_4",
+        "module_target": "app.domains.blackjack.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.config.JACKPOT_CONFIG_TYPE"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_4",
         "module_target": "app.domains.blackjack.exceptions",
         "resolved": true,
         "scope": "module",
@@ -1241,22 +1313,6 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.identity.models.Statistics"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.repository.part_4",
-        "module_target": "app.domains.blackjack.repository",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.repository.JACKPOT_CONFIG_KEY"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.repository.part_4",
-        "module_target": "app.domains.blackjack.repository",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.repository.JACKPOT_CONFIG_TYPE"
       },
       {
         "kind": "from",
@@ -1598,6 +1654,13 @@
         "target": "json"
       },
       {
+        "kind": "import",
+        "module": "app.domains.blackjack.repository.part_7",
+        "resolved": true,
+        "scope": "module",
+        "target": "time"
+      },
+      {
         "kind": "from",
         "module": "app.domains.blackjack.repository.part_7",
         "module_target": "sqlalchemy",
@@ -1624,10 +1687,26 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.repository.part_7",
+        "module_target": "app.core.kv",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.kv.SystemConfig"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_7",
         "module_target": "app.core.log",
         "resolved": true,
         "scope": "module",
         "target": "app.core.log.logger"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_7",
+        "module_target": "app.domains.blackjack.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.config.DEFAULT_BLACKJACK_CONFIG"
       },
       {
         "kind": "from",
@@ -1692,14 +1771,6 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.identity.models.Statistics"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.repository.part_7",
-        "module_target": "app.domains.blackjack.repository",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.repository.DEFAULT_BLACKJACK_CONFIG"
       },
       {
         "kind": "from",
@@ -2429,26 +2500,26 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.service",
-        "module_target": "app.domains.blackjack.repository",
+        "module_target": "app.domains.blackjack.config",
         "resolved": true,
         "scope": "function",
-        "target": "app.domains.blackjack.repository.CHAMPION_BADGE_BONUS"
+        "target": "app.domains.blackjack.config.CHAMPION_BADGE_BONUS"
       },
       {
         "kind": "from",
         "module": "app.domains.blackjack.service",
-        "module_target": "app.domains.blackjack.repository",
+        "module_target": "app.domains.blackjack.config",
         "resolved": true,
         "scope": "function",
-        "target": "app.domains.blackjack.repository.CHAMPION_BADGE_TYPE"
+        "target": "app.domains.blackjack.config.CHAMPION_BADGE_TYPE"
       },
       {
         "kind": "from",
         "module": "app.domains.blackjack.service",
-        "module_target": "app.domains.blackjack.repository",
+        "module_target": "app.domains.blackjack.config",
         "resolved": true,
         "scope": "function",
-        "target": "app.domains.blackjack.repository.CHAMPION_BADGE_VALID_DAYS"
+        "target": "app.domains.blackjack.config.CHAMPION_BADGE_VALID_DAYS"
       },
       {
         "kind": "from",
@@ -2590,14 +2661,23 @@
     "strings": []
   },
   "facade_blackjack_methods": [
+    "apply_blackjack_retention_tx",
     "blackjack_double",
+    "blackjack_double_tx",
     "blackjack_hit",
+    "blackjack_hit_tx",
     "blackjack_stand",
+    "blackjack_stand_tx",
     "blackjack_surrender",
+    "blackjack_surrender_tx",
     "blackjack_tournament_double",
+    "blackjack_tournament_double_tx",
     "blackjack_tournament_hit",
+    "blackjack_tournament_hit_tx",
     "blackjack_tournament_stand",
+    "blackjack_tournament_stand_tx",
     "blackjack_tournament_surrender",
+    "blackjack_tournament_surrender_tx",
     "cancel_blackjack_tournament",
     "check_blackjack_tournament_consistency",
     "claim_unnotified_blackjack_freespins",
@@ -2605,12 +2685,17 @@
     "count_registering_blackjack_tournaments",
     "count_user_blackjack_tournament_titles",
     "create_blackjack_hand",
+    "create_blackjack_hand_tx",
     "create_blackjack_tournament",
     "create_blackjack_tournament_hand",
+    "create_blackjack_tournament_hand_tx",
     "get_blackjack_accuracy_rank",
     "get_blackjack_admin_stats",
+    "get_blackjack_admin_stats_tx",
     "get_blackjack_config",
     "get_blackjack_config_dict",
+    "get_blackjack_config_dict_tx",
+    "get_blackjack_config_tx",
     "get_blackjack_free_hands_remaining",
     "get_blackjack_freespin_summary",
     "get_blackjack_jackpot",
@@ -2622,17 +2707,22 @@
     "get_blackjack_win_rate_rank",
     "get_current_blackjack_hand",
     "get_user_blackjack_stats",
+    "get_user_blackjack_stats_tx",
     "get_user_blackjack_tournament_entry",
     "list_active_blackjack_hands",
     "list_blackjack_tournaments",
     "list_blackjack_tournaments_with_playing_entries",
     "list_expiring_blackjack_freespins",
     "register_blackjack_tournament",
+    "register_blackjack_tournament_tx",
     "release_blackjack_freespin",
     "seed_blackjack_jackpot",
     "set_blackjack_config",
+    "set_blackjack_config_tx",
     "settle_blackjack_hand_by_timeout",
+    "settle_blackjack_hand_by_timeout_tx",
     "settle_blackjack_tournament",
+    "settle_blackjack_tournament_tx",
     "settle_blackjack_weekly_cashback",
     "start_blackjack_tournament",
     "sweep_timed_out_blackjack_hands",

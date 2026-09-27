@@ -4,7 +4,7 @@ import ast
 import inspect
 from pathlib import Path
 
-from app.domains.blackjack import repository
+from app.domains.blackjack import config, repository
 
 TX_EXPORTS = (
     "create_blackjack_hand_tx",
@@ -27,6 +27,11 @@ TX_EXPORTS = (
     "get_user_blackjack_stats_tx",
     "get_blackjack_admin_stats_tx",
 )
+
+
+def test_repository_reexports_config_constants_for_compatibility() -> None:
+    for name in config.__all__:
+        assert getattr(repository, name) is getattr(config, name)
 
 
 def test_module_tx_exports_have_explicit_caller_session() -> None:

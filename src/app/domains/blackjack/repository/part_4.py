@@ -6,6 +6,10 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.blackjack.config import (
+    JACKPOT_CONFIG_KEY,
+    JACKPOT_CONFIG_TYPE,
+)
 from app.domains.blackjack.exceptions import blackjack_error
 from app.domains.blackjack.models import (
     BlackjackHand,
@@ -16,11 +20,6 @@ from app.domains.credits import repository as credits_repository
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
-
-from . import (
-    JACKPOT_CONFIG_KEY,
-    JACKPOT_CONFIG_TYPE,
-)
 
 
 class _BlackjackRepositoryPart4:

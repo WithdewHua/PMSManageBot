@@ -9,6 +9,11 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.kv import SystemConfig
 from app.core.log import logger
+from app.domains.blackjack.config import (
+    JACKPOT_CONFIG_KEY,
+    JACKPOT_CONFIG_TYPE,
+    JACKPOT_NOTIFY_CURSOR_KEY,
+)
 from app.domains.blackjack.exceptions import blackjack_error
 from app.domains.blackjack.models import (
     BlackjackHand,
@@ -17,12 +22,6 @@ from app.domains.credits import repository as credits_repository
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
-
-from . import (
-    JACKPOT_CONFIG_KEY,
-    JACKPOT_CONFIG_TYPE,
-    JACKPOT_NOTIFY_CURSOR_KEY,
-)
 
 
 class _BlackjackRepositoryPart2:
