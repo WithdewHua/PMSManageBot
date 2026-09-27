@@ -40,7 +40,9 @@
 - [x] 5.2 Implement tournament service workflows for registration, player actions, ticking, settlement, and champion award coordination; verify buy-in split, payout, badge award, and state transitions preserve existing results.
   - 报名/行动/结算原有 service 入口不变；tick 三阶段（`_tick_registration_deadlines`/`_tick_completion_reminders`/`_tick_play_deadlines`）与每周自动开赛工作流从 `jobs/tournament.py` 搬入 `service.py`（`tick_tournaments`/`create_weekly_tournament`），jobs 只保留同名任务适配入口。
   - 验证：`tests/test_blackjack_tournament_settle.py`（含冠军勋章 `award_awaited_once_with(1)`）、`tests/test_blackjack_tournament_auto_create.py`、`tests/test_blackjack_retention.py`（报名钱包/积分拆分）全通过。
-- [ ] 5.3 Move post-commit Telegram notifications, group broadcasts, badge notifications, and scheduler submissions behind service/job boundaries; verify repository transactions contain no network, notification, or scheduler side effects.
+- [x] 5.3 Move post-commit Telegram notifications, group broadcasts, badge notifications, and scheduler submissions behind service/job boundaries; verify repository transactions contain no network, notification, or scheduler side effects.
+  - 验证方式：`tests/refactor/test_blackjack_side_effect_boundary.py`——repository 零副作用导入/调用，router 不直接发消息，`app.core.scheduler` 仅由 `jobs/cash` 导入，tick 工作流中通知调用行号晚于落库调用。
+  - 锦标赛全部通知已随 5.2 进入 service（repository 返回后执行）；现金局奖池/免费次数播报仍由 jobs/notifications 的游标任务负责。
 - [ ] 5.4 Update blackjack jobs and notification modules to call services while preserving task IDs, persisted callable compatibility, execution order, and best-effort notification behavior; verify schedule registry snapshots remain unchanged.
 - [ ] 5.5 Add service tests for successful workflows, post-commit side-effect failure, retry-safe notification behavior, and scheduler invocation; verify committed game state is not rolled back by notification failures.
 
