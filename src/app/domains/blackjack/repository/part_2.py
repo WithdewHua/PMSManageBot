@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.kv import SystemConfig
 from app.core.log import logger
+from app.domains.blackjack.exceptions import blackjack_error
 from app.domains.blackjack.models import (
     BlackjackHand,
 )
@@ -393,7 +394,7 @@ class _BlackjackRepositoryPart2:
         管理员的显式操作，绝不能自动发生。用途是上线冷启动时让奖池有个初值。
         """
         if amount <= 0:
-            raise ValueError("jackpot seed must be positive")
+            raise blackjack_error("jackpot seed must be positive")
         with get_session() as session:
             balance = self._add_to_fund(
                 session, JACKPOT_CONFIG_TYPE, JACKPOT_CONFIG_KEY, float(amount)

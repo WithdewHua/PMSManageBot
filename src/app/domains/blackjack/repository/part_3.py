@@ -6,6 +6,7 @@ from sqlalchemy import func, select, update
 
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.blackjack.exceptions import blackjack_error
 from app.domains.blackjack.models import (
     BlackjackHand,
 )
@@ -32,11 +33,11 @@ class _BlackjackRepositoryPart3:
         config = self.get_blackjack_config_dict()
 
         if not config.get("enabled", False):
-            raise ValueError("blackjack disabled")
+            raise blackjack_error("blackjack disabled")
 
         bet_options = [int(b) for b in config.get("bet_options") or []]
         if int(bet_credits) not in bet_options:
-            raise ValueError(f"invalid bet: must be one of {bet_options}")
+            raise blackjack_error(f"invalid bet: must be one of {bet_options}")
 
         min_credits = int(config.get("min_credits", 30))
         timeout_minutes = int(config.get("hand_timeout_minutes", 15))
@@ -62,7 +63,7 @@ class _BlackjackRepositoryPart3:
                 .one_or_none()
             )
             if not stats:
-                raise ValueError("user stats not found")
+                raise blackjack_error("user stats not found")
 
             # 仍有进行中手牌则拒绝发牌，并引导用户回到该手牌。
             # 此处**只读不锁**：其余路径的加锁顺序均为 hand → statistics，
@@ -91,8 +92,10 @@ class _BlackjackRepositoryPart3:
             ).first()
             if blocking is not None:
                 if blocking[0] is not None:
-                    raise ValueError(f"hand in progress in tournament {blocking[0]}")
-                raise ValueError("hand in progress")
+                    raise blackjack_error(
+                        f"hand in progress in tournament {blocking[0]}"
+                    )
+                raise blackjack_error("hand in progress")
 
             # 速率下限：读该用户最近一手的 created_at_ms，同一事务、同一把锁、
             # 零额外依赖，且不会因缓存失效而失效。
@@ -109,15 +112,15 @@ class _BlackjackRepositoryPart3:
                 if last_ms is not None:
                     elapsed = (now_ms - int(last_ms)) / 1000.0
                     if elapsed < min_interval_seconds:
-                        raise ValueError("deal too frequent")
+                        raise blackjack_error("deal too frequent")
 
             # 门槛与余额。门槛按发牌前的积分判定；注额可等于门槛，
             # 故持有恰好 30 积分的用户可一次押空至 0（已确认接受的设计）。
             credits_before = float(stats.credits)
             if credits_before < float(min_credits):
-                raise ValueError(f"insufficient credits: need {min_credits}")
+                raise blackjack_error(f"insufficient credits: need {min_credits}")
             if credits_before < float(bet_credits):
-                raise ValueError("insufficient credits")
+                raise blackjack_error("insufficient credits")
 
             mutation = credits_repository.deduct_tx(
                 session, CreditAccount.tg(int(tg_id)), float(bet_credits)
@@ -270,9 +273,9 @@ class _BlackjackRepositoryPart3:
             hand = self._lock_blackjack_hand(session, tg_id, hand_id)
 
             if int(hand.status) in engine.TERMINAL_STATUSES:
-                raise ValueError("hand already finished")
+                raise blackjack_error("hand already finished")
             if int(hand.status) != engine.STATUS_PLAYER_TURN:
-                raise ValueError("not player turn")
+                raise blackjack_error("not player turn")
 
             # 评判所需的局面必须在抢占前捕获——抢占会推进状态，届时加倍是否可用
             # 等判定依据就变了
@@ -281,7 +284,7 @@ class _BlackjackRepositoryPart3:
             # 先原子抢占，再动任何数据：抢不到就说明手牌已被他人推进，
             # 此时若已写入新牌，事务提交会留下与 outcome 不符的牌面
             if not self._claim_blackjack_hand(session, hand_id):
-                raise ValueError("hand already finished")
+                raise blackjack_error("hand already finished")
             session.expire(hand)
 
             decision = self._record_blackjack_decision(
@@ -327,14 +330,14 @@ class _BlackjackRepositoryPart3:
             hand = self._lock_blackjack_hand(session, tg_id, hand_id)
 
             if int(hand.status) in engine.TERMINAL_STATUSES:
-                raise ValueError("hand already finished")
+                raise blackjack_error("hand already finished")
             if int(hand.status) != engine.STATUS_PLAYER_TURN:
-                raise ValueError("not player turn")
+                raise blackjack_error("not player turn")
 
             ctx = self._capture_decision_context(hand)
 
             if not self._claim_blackjack_hand(session, hand_id):
-                raise ValueError("hand already finished")
+                raise blackjack_error("hand already finished")
             session.expire(hand)
 
             decision = self._record_blackjack_decision(
@@ -365,16 +368,16 @@ class _BlackjackRepositoryPart3:
             hand = self._lock_blackjack_hand(session, tg_id, hand_id)
 
             if int(hand.status) in engine.TERMINAL_STATUSES:
-                raise ValueError("hand already finished")
+                raise blackjack_error("hand already finished")
             if int(hand.status) != engine.STATUS_PLAYER_TURN:
-                raise ValueError("not player turn")
+                raise blackjack_error("not player turn")
             if int(hand.doubled) == 1:
-                raise ValueError("already doubled")
+                raise blackjack_error("already doubled")
 
             player_cards = json.loads(hand.player_cards or "[]")
             # 加倍仅限手中恰为初始两张牌时；已要牌后不可加倍
             if not engine.can_double(player_cards, int(hand.status)):
-                raise ValueError("cannot double after hit")
+                raise blackjack_error("cannot double after hit")
 
             bet = int(hand.bet_credits)
             ctx = self._capture_decision_context(hand)
@@ -382,7 +385,7 @@ class _BlackjackRepositoryPart3:
             # **抢占必须早于扣分**：否则抢占失败时追加的注额已被扣掉，
             # 而结算又不会赔付，用户白损失一份注额
             if not self._claim_blackjack_hand(session, hand_id):
-                raise ValueError("hand already finished")
+                raise blackjack_error("hand already finished")
             session.expire(hand)
 
             stats = (
@@ -395,10 +398,10 @@ class _BlackjackRepositoryPart3:
                 .one_or_none()
             )
             if not stats:
-                raise ValueError("user stats not found")
+                raise blackjack_error("user stats not found")
             if float(stats.credits) < float(bet):
                 # 事务回滚会把 status 恢复为玩家回合，手牌不受影响
-                raise ValueError(f"insufficient credits to double: need {bet}")
+                raise blackjack_error(f"insufficient credits to double: need {bet}")
 
             # 余额校验通过后才记决策：校验失败会整体回滚，此时不该留下决策计数
             decision = self._record_blackjack_decision(
@@ -458,23 +461,23 @@ class _BlackjackRepositoryPart3:
             hand = self._lock_blackjack_hand(session, tg_id, hand_id)
 
             if int(hand.status) in engine.TERMINAL_STATUSES:
-                raise ValueError("hand already finished")
+                raise blackjack_error("hand already finished")
             if int(hand.status) != engine.STATUS_PLAYER_TURN:
-                raise ValueError("not player turn")
+                raise blackjack_error("not player turn")
 
             # 开关取该手牌的**快照**而非当前配置：管理员在玩家思考期间关闭开关，
             # 已渲染出投降按钮的手牌仍应可投降（spec：关闭投降不影响进行中手牌）
             if int(hand.surrender_enabled) != 1:
-                raise ValueError("surrender disabled")
+                raise blackjack_error("surrender disabled")
 
             if int(hand.doubled) == 1:
-                raise ValueError("cannot surrender after double")
+                raise blackjack_error("cannot surrender after double")
 
             player_cards = json.loads(hand.player_cards or "[]")
             if not engine.can_surrender(
                 player_cards, int(hand.status), int(hand.doubled) == 1
             ):
-                raise ValueError("cannot surrender after hit")
+                raise blackjack_error("cannot surrender after hit")
 
             bet = int(hand.bet_credits)
             ctx = self._capture_decision_context(hand)
@@ -482,7 +485,7 @@ class _BlackjackRepositoryPart3:
             # 抢占先于任何写入：抢不到就说明手牌已被他人推进或结算，
             # 此时若已入账，事务提交会造成重复赔付
             if not self._claim_blackjack_hand(session, hand_id):
-                raise ValueError("hand already finished")
+                raise blackjack_error("hand already finished")
             session.expire(hand)
 
             # 投降本身也是一次决策，与要牌/停牌/加倍同样计入准确率
@@ -591,11 +594,11 @@ class _BlackjackRepositoryPart3:
             .one_or_none()
         )
         if not hand:
-            raise ValueError("hand not found")
+            raise blackjack_error("hand not found")
         if int(hand.tg_id) != int(tg_id):
-            raise ValueError("hand not found")
+            raise blackjack_error("hand not found")
         if cash_only and hand.tournament_id is not None:
-            raise ValueError("hand not found")
+            raise blackjack_error("hand not found")
         return hand
 
     def _claim_blackjack_hand(
@@ -675,7 +678,7 @@ class _BlackjackRepositoryPart3:
                 .one_or_none()
             )
             if not hand:
-                raise ValueError("hand not found")
+                raise blackjack_error("hand not found")
 
             if not self._claim_blackjack_hand(session, int(hand_id)):
                 # 用户已抢先操作或已结算，本次不再介入

@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.blackjack.exceptions import blackjack_error
 from app.domains.blackjack.models import (
     BlackjackHand,
     BlackjackTournament,
@@ -316,7 +317,10 @@ class _BlackjackRepositoryPart4:
     def _validate_tournament_params(self, params: dict) -> dict:
         from app.domains.blackjack import rules
 
-        normalized = rules.validate_tournament_params(params)
+        try:
+            normalized = rules.validate_tournament_params(params)
+        except ValueError as exc:
+            raise blackjack_error(str(exc)) from exc
         normalized["payout_structure"] = json.dumps(normalized["payout_structure"])
         return normalized
 
@@ -358,13 +362,13 @@ class _BlackjackRepositoryPart4:
         config = self.get_blackjack_config_dict()
 
         if not config.get("enabled", False):
-            raise ValueError("blackjack disabled")
+            raise blackjack_error("blackjack disabled")
 
         now_ms = int(time.time() * 1000)
         from app.domains.blackjack import rules
 
         if rules.is_deadline_reached(now_ms, validated["register_deadline_ms"]):
-            raise ValueError("register deadline must be in the future")
+            raise blackjack_error("register deadline must be in the future")
 
         with get_session() as session:
             tournament = BlackjackTournament(
@@ -407,13 +411,13 @@ class _BlackjackRepositoryPart4:
                 .one_or_none()
             )
             if not tournament:
-                raise ValueError("tournament not found")
+                raise blackjack_error("tournament not found")
             if int(tournament.status) != self.TOURNAMENT_REGISTERING:
-                raise ValueError("tournament already started")
+                raise blackjack_error("tournament already started")
 
             # 已有报名时不得把人数上限压到报名数以下，否则 entrant_count 会越界
             if validated["max_entrants"] < int(tournament.entrant_count):
-                raise ValueError(
+                raise blackjack_error(
                     f"max_entrants must not be below current entrants "
                     f"({int(tournament.entrant_count)})"
                 )
@@ -438,7 +442,7 @@ class _BlackjackRepositoryPart4:
             if key == "seeded_prize_credits":
                 # 加码是纯利好，减码等于事后缩水已公示的奖池，故只放行增加
                 if float(value) < float(current):
-                    raise ValueError("seeded_prize_credits must not decrease")
+                    raise blackjack_error("seeded_prize_credits must not decrease")
                 continue
 
             if isinstance(current, (int, float)) and isinstance(value, (int, float)):
@@ -447,7 +451,7 @@ class _BlackjackRepositoryPart4:
                 # payout_structure 两端都是同一段 json.dumps 产出的字符串
                 same = str(value) == str(current)
             if not same:
-                raise ValueError(f"cannot change {key} after entrants joined")
+                raise blackjack_error(f"cannot change {key} after entrants joined")
 
     def register_blackjack_tournament(self, tg_id: int, tournament_id: int) -> dict:
         """报名：占名额 → 扣报名费 → 建 entry；满员则尝试开赛。
@@ -468,7 +472,7 @@ class _BlackjackRepositoryPart4:
         """
         config = self.get_blackjack_config_dict()
         if not config.get("enabled", False):
-            raise ValueError("blackjack disabled")
+            raise blackjack_error("blackjack disabled")
 
         now_ms = int(time.time() * 1000)
 
@@ -483,13 +487,13 @@ class _BlackjackRepositoryPart4:
                 .one_or_none()
             )
             if not tournament:
-                raise ValueError("tournament not found")
+                raise blackjack_error("tournament not found")
             if int(tournament.status) != self.TOURNAMENT_REGISTERING:
-                raise ValueError("tournament not open for registration")
+                raise blackjack_error("tournament not open for registration")
             from app.domains.blackjack import rules
 
             if rules.is_deadline_reached(now_ms, tournament.register_deadline_ms):
-                raise ValueError("registration closed")
+                raise blackjack_error("registration closed")
 
             buy_in = int(tournament.buy_in_credits)
             starting_chips = int(tournament.starting_chips)
@@ -508,7 +512,7 @@ class _BlackjackRepositoryPart4:
                 .one_or_none()
             )
             if existing:
-                raise ValueError("already registered")
+                raise blackjack_error("already registered")
 
             # 名额占位：CAS。抢不到即已满员
             claimed = session.execute(
@@ -521,7 +525,7 @@ class _BlackjackRepositoryPart4:
                 .values(entrant_count=BlackjackTournament.entrant_count + 1)
             )
             if claimed.rowcount == 0:
-                raise ValueError("tournament full")
+                raise blackjack_error("tournament full")
 
             # 扣报名费：争霸赛余额优先，不足部分从积分补足（拆分落 entry，
             # 取消退款按原路退回）。锁序 tournament → statistics，故此处才取
@@ -536,10 +540,10 @@ class _BlackjackRepositoryPart4:
                 .one_or_none()
             )
             if not stats:
-                raise ValueError("user stats not found")
+                raise blackjack_error("user stats not found")
             wallet = round(float(stats.tournament_wallet_credits or 0), 2)
             if wallet + float(stats.credits) < float(buy_in):
-                raise ValueError(f"insufficient credits: need {buy_in}")
+                raise blackjack_error(f"insufficient credits: need {buy_in}")
             wallet_paid = round(min(wallet, float(buy_in)), 2)
             credits_paid = round(float(buy_in) - wallet_paid, 2)
             stats.tournament_wallet_credits = round(wallet - wallet_paid, 2)
@@ -570,7 +574,7 @@ class _BlackjackRepositoryPart4:
             try:
                 session.flush()
             except IntegrityError:
-                raise ValueError("already registered")
+                raise blackjack_error("already registered")
             session.expire(tournament)
 
             entry_dict = self._tournament_entry_to_dict(entry)

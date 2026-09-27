@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.blackjack.exceptions import blackjack_error
 from app.domains.blackjack.models import (
     BlackjackHand,
     BlackjackTournament,
@@ -61,7 +62,7 @@ class _BlackjackRepositoryPart7:
                     .one_or_none()
                 )
                 if not existing:
-                    raise ValueError("tournament not found")
+                    raise blackjack_error("tournament not found")
                 return {
                     "settled": False,
                     "tournament": self._tournament_to_dict(existing),

@@ -4,6 +4,7 @@ from sqlalchemy import func, select, update
 
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.blackjack.exceptions import blackjack_error
 from app.domains.blackjack.models import (
     BlackjackHand,
     BlackjackTournament,
@@ -99,9 +100,9 @@ class _BlackjackRepositoryPart5:
                 .one_or_none()
             )
             if not tournament:
-                raise ValueError("tournament not found")
+                raise blackjack_error("tournament not found")
             if int(tournament.status) == self.TOURNAMENT_RUNNING:
-                raise ValueError("tournament already started")
+                raise blackjack_error("tournament already started")
             if int(tournament.status) in self.TOURNAMENT_TERMINAL:
                 return {
                     "cancelled": False,
@@ -560,7 +561,7 @@ class _BlackjackRepositoryPart5:
             .one_or_none()
         )
         if not entry:
-            raise ValueError("tournament entry not found")
+            raise blackjack_error("tournament entry not found")
         return entry
 
     def _apply_tournament_entry_terminal_status(

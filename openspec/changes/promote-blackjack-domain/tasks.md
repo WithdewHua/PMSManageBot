@@ -19,7 +19,7 @@
 
 - [x] 3.1 Extract cash settlement calculations (hand outcome, payout, rake, jackpot, relief, cashback inputs, and balance deltas) into pure `blackjack.rules` functions; verify rules have no SQLAlchemy/session/external imports and match frozen examples.
 - [x] 3.2 Extract tournament validation, payout, deadline, and entrant calculations into pure rules functions; verify invalid configurations and boundary cases return the existing business outcomes through focused tests.
-- [ ] 3.3 Define blackjack `DomainError` codes/subclasses and replace business `ValueError` raises in cash and tournament repository/service paths; verify each former user-facing message maps to the same HTTP status/detail.
+- [x] 3.3 Define blackjack `DomainError` codes/subclasses and replace business `ValueError` raises in cash and tournament repository/service paths; verify each former user-facing message maps to the same HTTP status/detail.
 - [ ] 3.4 Add rules and typed-error tests for disabled game, invalid bets/actions, ownership, timeout, registration/full tournament, payout configuration, and insufficient credits; verify no string-matching branches remain in routers.
 
 ## 4. Repository Promotion

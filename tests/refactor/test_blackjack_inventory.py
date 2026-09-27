@@ -27,6 +27,7 @@ def test_blackjack_inventory_is_deterministic_and_reviewed() -> None:
         "model_import",
         "value_error_raise",
         "value_error_handler",
+        "domain_error_raise",
         "side_effect",
     }
 
@@ -45,5 +46,5 @@ def test_blackjack_inventory_covers_known_facade_and_cycle_edges() -> None:
     ) in keys
     assert (
         "src/app/domains/blackjack/repository/part_4.py",
-        "ValueError('blackjack disabled')",
+        "blackjack_error('blackjack disabled')",
     ) in keys

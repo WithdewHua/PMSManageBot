@@ -51,6 +51,37 @@
       },
       {
         "kind": "from",
+        "module": "app.domains.blackjack.exceptions",
+        "module_target": "__future__",
+        "resolved": true,
+        "scope": "module",
+        "target": "__future__.annotations"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.blackjack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "re"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.exceptions",
+        "module_target": "typing",
+        "resolved": true,
+        "scope": "module",
+        "target": "typing.Any"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.exceptions",
+        "module_target": "app.core.errors",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.errors.DomainError"
+      },
+      {
+        "kind": "from",
         "module": "app.domains.blackjack.jobs.cash",
         "module_target": "datetime",
         "resolved": true,
@@ -772,6 +803,14 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.repository.part_2",
+        "module_target": "app.domains.blackjack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.exceptions.blackjack_error"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_2",
         "module_target": "app.domains.blackjack.models",
         "resolved": true,
         "scope": "module",
@@ -917,6 +956,14 @@
         "resolved": true,
         "scope": "module",
         "target": "app.core.log.logger"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_3",
+        "module_target": "app.domains.blackjack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.exceptions.blackjack_error"
       },
       {
         "kind": "from",
@@ -1127,6 +1174,14 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.repository.part_4",
+        "module_target": "app.domains.blackjack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.exceptions.blackjack_error"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_4",
         "module_target": "app.domains.blackjack.models",
         "resolved": true,
         "scope": "module",
@@ -1294,6 +1349,14 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.repository.part_5",
+        "module_target": "app.domains.blackjack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.exceptions.blackjack_error"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_5",
         "module_target": "app.domains.blackjack.models",
         "resolved": true,
         "scope": "module",
@@ -1419,6 +1482,14 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.repository.part_6",
+        "module_target": "app.domains.blackjack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.exceptions.blackjack_error"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_6",
         "module_target": "app.domains.blackjack.models",
         "resolved": true,
         "scope": "module",
@@ -1550,6 +1621,14 @@
         "resolved": true,
         "scope": "module",
         "target": "app.core.log.logger"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.part_7",
+        "module_target": "app.domains.blackjack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.exceptions.blackjack_error"
       },
       {
         "kind": "from",

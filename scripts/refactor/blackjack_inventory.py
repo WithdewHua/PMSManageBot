@@ -18,7 +18,11 @@ def _path_text(path: Path) -> str:
 
 
 def _role(path: str, kind: str) -> str:
-    if kind in {"value_error_raise", "value_error_handler"}:
+    if kind in {
+        "value_error_raise",
+        "value_error_handler",
+        "domain_error_raise",
+    }:
         return "blackjack.errors"
     if kind == "side_effect":
         return "blackjack.service"
@@ -126,11 +130,16 @@ def inventory(root: Path = SOURCE) -> dict[str, Any]:
                 and isinstance(node, ast.Raise)
                 and isinstance(node.exc, ast.Call)
                 and isinstance(node.exc.func, ast.Name)
-                and node.exc.func.id == "ValueError"
+                and node.exc.func.id in {"ValueError", "blackjack_error"}
             ):
+                kind = (
+                    "domain_error_raise"
+                    if node.exc.func.id == "blackjack_error"
+                    else "value_error_raise"
+                )
                 entries.append(
                     {
-                        "kind": "value_error_raise",
+                        "kind": kind,
                         "path": relative,
                         "line": node.lineno,
                         "symbol": ast.unparse(node.exc),
