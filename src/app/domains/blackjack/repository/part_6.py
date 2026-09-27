@@ -202,145 +202,151 @@ class _BlackjackRepositoryPart6:
 
         Returns: {hand, settled(bool), chips, ...}
         """
-        from app.domains.blackjack import rules as engine
 
         # 惰性清理走独立事务并先行提交，理由同现金局：不寄生在发牌事务里，
         # 否则后续任何一次校验失败都会把已完成的结算连带回滚
         self.sweep_timed_out_blackjack_hands(tg_id=int(tg_id))
 
         config = self.get_blackjack_config_dict()
-        min_interval_seconds = float(config.get("min_deal_interval_seconds", 1))
 
         with get_session() as session:
-            tournament = self._lock_running_tournament(session, int(tournament_id))
-            if not tournament:
-                exists = session.execute(
-                    select(BlackjackTournament.id).where(
-                        BlackjackTournament.id == int(tournament_id)
-                    )
-                ).first()
-                if not exists:
-                    raise blackjack_error("tournament not found")
-                raise blackjack_error("tournament not running")
-            # 截止必须用锁后的墙钟。进 session 之前冻住的 `now_ms` 若在等锁期间
-            # 已经过了完赛截止，继续用它会把新手牌送进清场与 CAS 之间。
-            now_ms = int(time.time() * 1000)
-            from app.domains.blackjack import rules
-
-            if rules.is_deadline_reached(now_ms, tournament.play_deadline_ms):
-                raise blackjack_error("tournament finished")
-
-            entry = self._lock_tournament_entry(session, int(tournament_id), int(tg_id))
-            if int(entry.status) == self.ENTRY_FINISHED:
-                raise blackjack_error("all hands played")
-            if int(entry.status) == self.ENTRY_ELIMINATED:
-                raise blackjack_error("eliminated")
-
-            total_hands = int(tournament.total_hands)
-            if int(entry.hands_played) >= total_hands:
-                raise blackjack_error("all hands played")
-
-            # 注额校验：区间内、步进的整数倍、不超过当前筹码
-            bet = int(bet_chips)
-            step = int(tournament.bet_step_chips)
-            min_bet = int(tournament.min_bet_chips)
-            max_bet = int(tournament.max_bet_chips)
-            if bet % step:
-                raise blackjack_error(f"bet must be a multiple of {step}")
-            if bet < min_bet or bet > max_bet:
-                raise blackjack_error(f"bet out of range: {min_bet}~{max_bet}")
-            if bet > int(entry.chips):
-                raise blackjack_error("insufficient chips")
-
-            # 见方法 docstring：这一行只锁不改，是全局「至多一手」不变量的串行化点
-            session.execute(
-                select(Statistics.tg_id)
-                .where(Statistics.tg_id == int(tg_id))
-                .with_for_update()
+            return self.create_blackjack_tournament_hand_tx(
+                session, tg_id, tournament_id, bet_chips, config=config
             )
 
-            # 「同时至多一手」与发牌速率两项**跨现金局与赛内共同计算**，
-            # 故此处不加 tournament_id 过滤。同样取阻塞方的归属，好把用户指回
-            # 正确的那张牌桌——现金局的牌与别场赛事的牌在本赛事界面里都看不见
-            blocking = session.execute(
-                select(BlackjackHand.tournament_id)
-                .where(
-                    BlackjackHand.tg_id == int(tg_id),
-                    BlackjackHand.status.notin_(engine.TERMINAL_STATUSES),
+    def create_blackjack_tournament_hand_tx(
+        self, session, tg_id: int, tournament_id: int, bet_chips: int, *, config: dict
+    ) -> dict:
+        from app.domains.blackjack import rules as engine
+
+        min_interval_seconds = float(config.get("min_deal_interval_seconds", 1))
+        tournament = self._lock_running_tournament(session, int(tournament_id))
+        if not tournament:
+            exists = session.execute(
+                select(BlackjackTournament.id).where(
+                    BlackjackTournament.id == int(tournament_id)
                 )
-                .limit(1)
             ).first()
-            if blocking is not None:
-                blocking_tid = blocking[0]
-                if blocking_tid is None:
-                    raise blackjack_error("hand in progress in cash game")
-                if int(blocking_tid) != int(tournament_id):
-                    raise blackjack_error(
-                        f"hand in progress in tournament {blocking_tid}"
-                    )
-                raise blackjack_error("hand in progress")
+            if not exists:
+                raise blackjack_error("tournament not found")
+            raise blackjack_error("tournament not running")
+        # 截止必须用锁后的墙钟。进 session 之前冻住的 `now_ms` 若在等锁期间
+        # 已经过了完赛截止，继续用它会把新手牌送进清场与 CAS 之间。
+        now_ms = int(time.time() * 1000)
+        from app.domains.blackjack import rules
 
-            if min_interval_seconds > 0:
-                last_ms = session.execute(
-                    select(func.max(BlackjackHand.created_at_ms)).where(
-                        BlackjackHand.tg_id == int(tg_id)
-                    )
-                ).scalar_one_or_none()
-                if last_ms is not None:
-                    elapsed = (now_ms - int(last_ms)) / 1000.0
-                    if elapsed < min_interval_seconds:
-                        raise blackjack_error("deal too frequent")
+        if rules.is_deadline_reached(now_ms, tournament.play_deadline_ms):
+            raise blackjack_error("tournament finished")
 
-            entry.chips = int(entry.chips) - bet
+        entry = self._lock_tournament_entry(session, int(tournament_id), int(tg_id))
+        if int(entry.status) == self.ENTRY_FINISHED:
+            raise blackjack_error("all hands played")
+        if int(entry.status) == self.ENTRY_ELIMINATED:
+            raise blackjack_error("eliminated")
 
-            deck_seed = secrets.token_hex(16)
-            deck = engine.build_deck(deck_seed)
-            player_cards, dealer_cards, next_index = engine.deal_initial(deck)
+        total_hands = int(tournament.total_hands)
+        if int(entry.hands_played) >= total_hands:
+            raise blackjack_error("all hands played")
 
-            hand = BlackjackHand(
-                tg_id=int(tg_id),
-                tournament_id=int(tournament_id),
-                status=engine.STATUS_PLAYER_TURN,
-                bet_credits=bet,
-                doubled=0,
-                deck_seed=deck_seed,
-                next_card_index=int(next_index),
-                player_cards=json.dumps(player_cards),
-                dealer_cards=json.dumps(dealer_cards),
-                # 参数快照取自**赛事**而非当前全局配置
-                blackjack_payout=float(tournament.blackjack_payout),
-                dealer_hits_soft_17=int(tournament.dealer_hits_soft_17),
-                surrender_enabled=int(tournament.surrender_enabled),
-                hand_timeout_minutes=int(tournament.hand_timeout_minutes),
-                # 赛内不抽水：快照写 0，结算路径读的本来就是快照。`rake_waived`
-                # 保持 0——那一列的语义是「当日首手免抽水」，赛内根本不在那个
-                # 体系里，标成 1 会让审计误以为它消耗了免抽水额度
-                rake_bp_on_profit=0,
-                rake_jackpot_bp=0,
-                rake_waived=0,
-                created_at_ms=now_ms,
+        # 注额校验：区间内、步进的整数倍、不超过当前筹码
+        bet = int(bet_chips)
+        step = int(tournament.bet_step_chips)
+        min_bet = int(tournament.min_bet_chips)
+        max_bet = int(tournament.max_bet_chips)
+        if bet % step:
+            raise blackjack_error(f"bet must be a multiple of {step}")
+        if bet < min_bet or bet > max_bet:
+            raise blackjack_error(f"bet out of range: {min_bet}~{max_bet}")
+        if bet > int(entry.chips):
+            raise blackjack_error("insufficient chips")
+
+        # 见方法 docstring：这一行只锁不改，是全局「至多一手」不变量的串行化点
+        session.execute(
+            select(Statistics.tg_id)
+            .where(Statistics.tg_id == int(tg_id))
+            .with_for_update()
+        )
+
+        # 「同时至多一手」与发牌速率两项**跨现金局与赛内共同计算**，
+        # 故此处不加 tournament_id 过滤。同样取阻塞方的归属，好把用户指回
+        # 正确的那张牌桌——现金局的牌与别场赛事的牌在本赛事界面里都看不见
+        blocking = session.execute(
+            select(BlackjackHand.tournament_id)
+            .where(
+                BlackjackHand.tg_id == int(tg_id),
+                BlackjackHand.status.notin_(engine.TERMINAL_STATUSES),
             )
-            session.add(hand)
-            session.flush()
+            .limit(1)
+        ).first()
+        if blocking is not None:
+            blocking_tid = blocking[0]
+            if blocking_tid is None:
+                raise blackjack_error("hand in progress in cash game")
+            if int(blocking_tid) != int(tournament_id):
+                raise blackjack_error(f"hand in progress in tournament {blocking_tid}")
+            raise blackjack_error("hand in progress")
 
-            initial = engine.evaluate_initial_deal(
-                player_cards,
-                dealer_cards,
-                blackjack_payout=float(hand.blackjack_payout),
-            )
-            if initial is not None:
-                result = self._settle_blackjack_tournament_hand(session, hand)
-                result["settled"] = True
-                return result
+        if min_interval_seconds > 0:
+            last_ms = session.execute(
+                select(func.max(BlackjackHand.created_at_ms)).where(
+                    BlackjackHand.tg_id == int(tg_id)
+                )
+            ).scalar_one_or_none()
+            if last_ms is not None:
+                elapsed = (now_ms - int(last_ms)) / 1000.0
+                if elapsed < min_interval_seconds:
+                    raise blackjack_error("deal too frequent")
 
-            return {
-                "hand": self._blackjack_hand_to_dict(hand),
-                "settled": False,
-                "chips": int(entry.chips),
-                "hands_played": int(entry.hands_played),
-                "entry_status": int(entry.status),
-                "total_hands": total_hands,
-            }
+        entry.chips = int(entry.chips) - bet
+
+        deck_seed = secrets.token_hex(16)
+        deck = engine.build_deck(deck_seed)
+        player_cards, dealer_cards, next_index = engine.deal_initial(deck)
+
+        hand = BlackjackHand(
+            tg_id=int(tg_id),
+            tournament_id=int(tournament_id),
+            status=engine.STATUS_PLAYER_TURN,
+            bet_credits=bet,
+            doubled=0,
+            deck_seed=deck_seed,
+            next_card_index=int(next_index),
+            player_cards=json.dumps(player_cards),
+            dealer_cards=json.dumps(dealer_cards),
+            # 参数快照取自**赛事**而非当前全局配置
+            blackjack_payout=float(tournament.blackjack_payout),
+            dealer_hits_soft_17=int(tournament.dealer_hits_soft_17),
+            surrender_enabled=int(tournament.surrender_enabled),
+            hand_timeout_minutes=int(tournament.hand_timeout_minutes),
+            # 赛内不抽水：快照写 0，结算路径读的本来就是快照。`rake_waived`
+            # 保持 0——那一列的语义是「当日首手免抽水」，赛内根本不在那个
+            # 体系里，标成 1 会让审计误以为它消耗了免抽水额度
+            rake_bp_on_profit=0,
+            rake_jackpot_bp=0,
+            rake_waived=0,
+            created_at_ms=now_ms,
+        )
+        session.add(hand)
+        session.flush()
+
+        initial = engine.evaluate_initial_deal(
+            player_cards,
+            dealer_cards,
+            blackjack_payout=float(hand.blackjack_payout),
+        )
+        if initial is not None:
+            result = self._settle_blackjack_tournament_hand(session, hand)
+            result["settled"] = True
+            return result
+
+        return {
+            "hand": self._blackjack_hand_to_dict(hand),
+            "settled": False,
+            "chips": int(entry.chips),
+            "hands_played": int(entry.hands_played),
+            "entry_status": int(entry.status),
+            "total_hands": total_hands,
+        }
 
     def _lock_tournament_hand(self, session, tg_id: int, hand_id: int) -> BlackjackHand:
         """取赛内手牌行并加锁，校验归属、确实属于某场赛事、且该赛事仍可操作。
@@ -383,114 +389,126 @@ class _BlackjackRepositoryPart6:
 
     def blackjack_tournament_hit(self, tg_id: int, hand_id: int) -> dict:
         """赛内要牌。**不记录决策评判**——赛内的正解与基本策略并不一致。"""
-        from app.domains.blackjack import rules as engine
 
         with get_session() as session:
-            hand = self._lock_tournament_hand(session, tg_id, hand_id)
+            return self.blackjack_tournament_hit_tx(session, tg_id, hand_id)
 
-            if int(hand.status) in engine.TERMINAL_STATUSES:
-                raise blackjack_error("hand already finished")
-            if int(hand.status) != engine.STATUS_PLAYER_TURN:
-                raise blackjack_error("not player turn")
-
-            # 先原子抢占，再动任何数据
-            if not self._claim_blackjack_hand(session, hand_id):
-                raise blackjack_error("hand already finished")
-            session.expire(hand)
-
-            player_cards = json.loads(hand.player_cards or "[]")
-            deck = engine.build_deck(str(hand.deck_seed))
-            card, next_index = engine.draw_card(deck, int(hand.next_card_index))
-            player_cards.append(card)
-
-            hand.player_cards = json.dumps(player_cards)
-            hand.next_card_index = int(next_index)
-            session.flush()
-
-            if engine.is_bust(player_cards):
-                result = self._settle_blackjack_tournament_hand(session, hand)
-                result["settled"] = bool(not result.get("already_settled"))
-                return result
-
-            self._release_blackjack_hand(session, hand_id)
-            session.expire(hand)
-            return {
-                "hand": self._blackjack_hand_to_dict(hand),
-                "settled": False,
-                **self._tournament_entry_state(
-                    session, int(hand.tournament_id), int(tg_id)
-                ),
-            }
-
-    def blackjack_tournament_stand(self, tg_id: int, hand_id: int) -> dict:
-        """赛内停牌：转入庄家回合并结算。"""
+    def blackjack_tournament_hit_tx(self, session, tg_id: int, hand_id: int) -> dict:
         from app.domains.blackjack import rules as engine
 
-        with get_session() as session:
-            hand = self._lock_tournament_hand(session, tg_id, hand_id)
+        hand = self._lock_tournament_hand(session, tg_id, hand_id)
 
-            if int(hand.status) in engine.TERMINAL_STATUSES:
-                raise blackjack_error("hand already finished")
-            if int(hand.status) != engine.STATUS_PLAYER_TURN:
-                raise blackjack_error("not player turn")
+        if int(hand.status) in engine.TERMINAL_STATUSES:
+            raise blackjack_error("hand already finished")
+        if int(hand.status) != engine.STATUS_PLAYER_TURN:
+            raise blackjack_error("not player turn")
 
-            if not self._claim_blackjack_hand(session, hand_id):
-                raise blackjack_error("hand already finished")
-            session.expire(hand)
+        # 先原子抢占，再动任何数据
+        if not self._claim_blackjack_hand(session, hand_id):
+            raise blackjack_error("hand already finished")
+        session.expire(hand)
 
+        player_cards = json.loads(hand.player_cards or "[]")
+        deck = engine.build_deck(str(hand.deck_seed))
+        card, next_index = engine.draw_card(deck, int(hand.next_card_index))
+        player_cards.append(card)
+
+        hand.player_cards = json.dumps(player_cards)
+        hand.next_card_index = int(next_index)
+        session.flush()
+
+        if engine.is_bust(player_cards):
             result = self._settle_blackjack_tournament_hand(session, hand)
             result["settled"] = bool(not result.get("already_settled"))
             return result
+
+        self._release_blackjack_hand(session, hand_id)
+        session.expire(hand)
+        return {
+            "hand": self._blackjack_hand_to_dict(hand),
+            "settled": False,
+            **self._tournament_entry_state(
+                session, int(hand.tournament_id), int(tg_id)
+            ),
+        }
+
+    def blackjack_tournament_stand(self, tg_id: int, hand_id: int) -> dict:
+        """赛内停牌：转入庄家回合并结算。"""
+
+        with get_session() as session:
+            return self.blackjack_tournament_stand_tx(session, tg_id, hand_id)
+
+    def blackjack_tournament_stand_tx(self, session, tg_id: int, hand_id: int) -> dict:
+        from app.domains.blackjack import rules as engine
+
+        hand = self._lock_tournament_hand(session, tg_id, hand_id)
+
+        if int(hand.status) in engine.TERMINAL_STATUSES:
+            raise blackjack_error("hand already finished")
+        if int(hand.status) != engine.STATUS_PLAYER_TURN:
+            raise blackjack_error("not player turn")
+
+        if not self._claim_blackjack_hand(session, hand_id):
+            raise blackjack_error("hand already finished")
+        session.expire(hand)
+
+        result = self._settle_blackjack_tournament_hand(session, hand)
+        result["settled"] = bool(not result.get("already_settled"))
+        return result
 
     def blackjack_tournament_double(self, tg_id: int, hand_id: int) -> dict:
         """赛内加倍：追加扣一份注额的筹码 → 只发一张 → 自动停牌结算。
 
         余额不足必须拒绝，否则存在把筹码打成负数的路径。
         """
-        from app.domains.blackjack import rules as engine
 
         with get_session() as session:
-            hand = self._lock_tournament_hand(session, tg_id, hand_id)
+            return self.blackjack_tournament_double_tx(session, tg_id, hand_id)
 
-            if int(hand.status) in engine.TERMINAL_STATUSES:
-                raise blackjack_error("hand already finished")
-            if int(hand.status) != engine.STATUS_PLAYER_TURN:
-                raise blackjack_error("not player turn")
-            if int(hand.doubled) == 1:
-                raise blackjack_error("already doubled")
+    def blackjack_tournament_double_tx(self, session, tg_id: int, hand_id: int) -> dict:
+        from app.domains.blackjack import rules as engine
 
-            player_cards = json.loads(hand.player_cards or "[]")
-            if not engine.can_double(player_cards, int(hand.status)):
-                raise blackjack_error("cannot double after hit")
+        hand = self._lock_tournament_hand(session, tg_id, hand_id)
 
-            bet = int(hand.bet_credits)
-            tournament_id = int(hand.tournament_id)
+        if int(hand.status) in engine.TERMINAL_STATUSES:
+            raise blackjack_error("hand already finished")
+        if int(hand.status) != engine.STATUS_PLAYER_TURN:
+            raise blackjack_error("not player turn")
+        if int(hand.doubled) == 1:
+            raise blackjack_error("already doubled")
 
-            # **抢占必须早于扣筹码**：否则抢占失败时追加的注额已被扣掉，
-            # 而结算又不会赔付，用户白损失一份注额
-            if not self._claim_blackjack_hand(session, hand_id):
-                raise blackjack_error("hand already finished")
-            session.expire(hand)
+        player_cards = json.loads(hand.player_cards or "[]")
+        if not engine.can_double(player_cards, int(hand.status)):
+            raise blackjack_error("cannot double after hit")
 
-            entry = self._lock_tournament_entry(session, tournament_id, int(tg_id))
-            if int(entry.chips) < bet:
-                # 事务回滚会把 status 恢复为玩家回合，手牌不受影响
-                raise blackjack_error(f"insufficient chips to double: need {bet}")
-            entry.chips = int(entry.chips) - bet
+        bet = int(hand.bet_credits)
+        tournament_id = int(hand.tournament_id)
 
-            player_cards = json.loads(hand.player_cards or "[]")
-            deck = engine.build_deck(str(hand.deck_seed))
-            card, next_index = engine.draw_card(deck, int(hand.next_card_index))
-            player_cards.append(card)
+        # **抢占必须早于扣筹码**：否则抢占失败时追加的注额已被扣掉，
+        # 而结算又不会赔付，用户白损失一份注额
+        if not self._claim_blackjack_hand(session, hand_id):
+            raise blackjack_error("hand already finished")
+        session.expire(hand)
 
-            hand.doubled = 1
-            hand.player_cards = json.dumps(player_cards)
-            hand.next_card_index = int(next_index)
-            session.flush()
+        entry = self._lock_tournament_entry(session, tournament_id, int(tg_id))
+        if int(entry.chips) < bet:
+            # 事务回滚会把 status 恢复为玩家回合，手牌不受影响
+            raise blackjack_error(f"insufficient chips to double: need {bet}")
+        entry.chips = int(entry.chips) - bet
 
-            result = self._settle_blackjack_tournament_hand(session, hand)
-            result["settled"] = bool(not result.get("already_settled"))
-            return result
+        player_cards = json.loads(hand.player_cards or "[]")
+        deck = engine.build_deck(str(hand.deck_seed))
+        card, next_index = engine.draw_card(deck, int(hand.next_card_index))
+        player_cards.append(card)
+
+        hand.doubled = 1
+        hand.player_cards = json.dumps(player_cards)
+        hand.next_card_index = int(next_index)
+        session.flush()
+
+        result = self._settle_blackjack_tournament_hand(session, hand)
+        result["settled"] = bool(not result.get("already_settled"))
+        return result
 
     def blackjack_tournament_surrender(self, tg_id: int, hand_id: int) -> dict:
         """赛内投降：返还一半基础注额的筹码，立即结算，不经庄家回合。
@@ -498,84 +516,90 @@ class _BlackjackRepositoryPart6:
         返还比例固定为二分之一，与现金局同一口径。筹码为整数，故返还额向下取整
         ——注额被约束为步进（默认 10）的整数倍，实际不会产生小数。
         """
-        from app.domains.blackjack import rules as engine
 
         with get_session() as session:
-            hand = self._lock_tournament_hand(session, tg_id, hand_id)
+            return self.blackjack_tournament_surrender_tx(session, tg_id, hand_id)
 
-            if int(hand.status) in engine.TERMINAL_STATUSES:
-                raise blackjack_error("hand already finished")
-            if int(hand.status) != engine.STATUS_PLAYER_TURN:
-                raise blackjack_error("not player turn")
-            if int(hand.surrender_enabled) != 1:
-                raise blackjack_error("surrender disabled")
+    def blackjack_tournament_surrender_tx(
+        self, session, tg_id: int, hand_id: int
+    ) -> dict:
+        from app.domains.blackjack import rules as engine
 
-            player_cards = json.loads(hand.player_cards or "[]")
-            if not engine.can_surrender(
-                player_cards, int(hand.status), int(hand.doubled) == 1
-            ):
-                raise blackjack_error("cannot surrender now")
+        hand = self._lock_tournament_hand(session, tg_id, hand_id)
 
-            bet = int(hand.bet_credits)
-            tournament_id = int(hand.tournament_id)
+        if int(hand.status) in engine.TERMINAL_STATUSES:
+            raise blackjack_error("hand already finished")
+        if int(hand.status) != engine.STATUS_PLAYER_TURN:
+            raise blackjack_error("not player turn")
+        if int(hand.surrender_enabled) != 1:
+            raise blackjack_error("surrender disabled")
 
-            if not self._claim_blackjack_hand(session, hand_id):
-                raise blackjack_error("hand already finished")
+        player_cards = json.loads(hand.player_cards or "[]")
+        if not engine.can_surrender(
+            player_cards, int(hand.status), int(hand.doubled) == 1
+        ):
+            raise blackjack_error("cannot surrender now")
+
+        bet = int(hand.bet_credits)
+        tournament_id = int(hand.tournament_id)
+
+        if not self._claim_blackjack_hand(session, hand_id):
+            raise blackjack_error("hand already finished")
+        session.expire(hand)
+
+        payout = int(bet // 2)
+        now_ts = int(time.time())
+
+        # 第二道幂等闸门。投降不经庄家回合，故 dealer_cards 与游标一律不动
+        session.flush()
+        claimed = session.execute(
+            update(BlackjackHand)
+            .where(
+                BlackjackHand.id == int(hand_id),
+                BlackjackHand.status.notin_(engine.TERMINAL_STATUSES),
+            )
+            .values(
+                status=engine.STATUS_SETTLED,
+                outcome=engine.OUTCOME_SURRENDER,
+                payout_credits=float(payout),
+                rake_credits=0.0,
+                settled_at=now_ts,
+            )
+        )
+        if claimed.rowcount == 0:
             session.expire(hand)
+            result = self._tournament_already_settled_result(session, hand)
+            result["settled"] = False
+            return result
+        session.expire(hand)
 
-            payout = int(bet // 2)
-            now_ts = int(time.time())
-
-            # 第二道幂等闸门。投降不经庄家回合，故 dealer_cards 与游标一律不动
-            session.flush()
-            claimed = session.execute(
-                update(BlackjackHand)
-                .where(
-                    BlackjackHand.id == int(hand_id),
-                    BlackjackHand.status.notin_(engine.TERMINAL_STATUSES),
-                )
-                .values(
-                    status=engine.STATUS_SETTLED,
-                    outcome=engine.OUTCOME_SURRENDER,
-                    payout_credits=float(payout),
-                    rake_credits=0.0,
-                    settled_at=now_ts,
+        entry = self._lock_tournament_entry(session, tournament_id, int(tg_id))
+        tournament = (
+            session.execute(
+                select(BlackjackTournament).where(
+                    BlackjackTournament.id == tournament_id
                 )
             )
-            if claimed.rowcount == 0:
-                session.expire(hand)
-                result = self._tournament_already_settled_result(session, hand)
-                result["settled"] = False
-                return result
-            session.expire(hand)
+            .scalars()
+            .one_or_none()
+        )
+        entry.chips = int(entry.chips) + payout
+        entry.hands_played = int(entry.hands_played) + 1
+        # 终态判定与结算适配层共用同一份规则，不在此另写一遍
+        self._apply_tournament_entry_terminal_status(entry, tournament)
+        session.flush()
 
-            entry = self._lock_tournament_entry(session, tournament_id, int(tg_id))
-            tournament = (
-                session.execute(
-                    select(BlackjackTournament).where(
-                        BlackjackTournament.id == tournament_id
-                    )
-                )
-                .scalars()
-                .one_or_none()
-            )
-            entry.chips = int(entry.chips) + payout
-            entry.hands_played = int(entry.hands_played) + 1
-            # 终态判定与结算适配层共用同一份规则，不在此另写一遍
-            self._apply_tournament_entry_terminal_status(entry, tournament)
-            session.flush()
-
-            return {
-                "hand": self._blackjack_hand_to_dict(hand),
-                "already_settled": False,
-                "settled": True,
-                "outcome": engine.OUTCOME_SURRENDER,
-                "payout_credits": float(payout),
-                "chips": int(entry.chips),
-                "hands_played": int(entry.hands_played),
-                "entry_status": int(entry.status),
-                "total_hands": int(tournament.total_hands) if tournament else None,
-            }
+        return {
+            "hand": self._blackjack_hand_to_dict(hand),
+            "already_settled": False,
+            "settled": True,
+            "outcome": engine.OUTCOME_SURRENDER,
+            "payout_credits": float(payout),
+            "chips": int(entry.chips),
+            "hands_played": int(entry.hands_played),
+            "entry_status": int(entry.status),
+            "total_hands": int(tournament.total_hands) if tournament else None,
+        }
 
     def force_settle_tournament_hands(self, tournament_id: int) -> dict:
         """结算某赛事全部尚未终结的手牌。
