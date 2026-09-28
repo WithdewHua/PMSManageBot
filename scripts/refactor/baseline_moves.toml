@@ -82,13 +82,8 @@ package_level = "src/app/domains/gift_pack/repository"
 "_resolve_gift_pack_conditions" = "src/app/domains/gift_pack/repository/conditions.py"
 "_validate_post_start_edit" = "src/app/domains/gift_pack/repository/packs.py"
 
-# 拆分必然产生的重复导入边：conditions.py 与 rewards.py 都要用 Invitation，
-# 一次模块级导入因此变成两条边。行为不变，3.5 把生码搬到
-# invitation.repository.issue_codes_tx 后这条边会消失。
-[[addition]]
-key = "import|src/app/domains/gift_pack/repository/rewards.py|14|app.domains.invitation.models|Invitation"
-source_key = "import|src/app/domains/gift_pack/repository/part_1.py|17|app.domains.invitation.models|Invitation"
-reason = "同一个 Invitation 导入被 conditions.py 与 rewards.py 同时使用（拆分的必然结果，3.5 后消失）"
+# 已应用并封存（礼包拆分）：rewards.py 的 Invitation 导入在 3.5 之后彻底消失，
+# 声明不再对应任何基线条目。原文见 git 历史。
 
 # 21 点 repository 的子主题拆分（tasks 2.3）：`symbols` 逐条登记类成员的新模块，
 # `package_level` 覆盖模块级条目（导入），它们按使用位置落在同一个包内。
@@ -233,13 +228,42 @@ package_level = "src/app/domains/blackjack/repository"
 "settle_blackjack_tournament" = "src/app/domains/blackjack/repository/tournament_play.py"
 "settle_blackjack_tournament_tx" = "src/app/domains/blackjack/repository/tournament_play.py"
 
-# 拆分后同一模块只需要一个导入点：原本两个 part 文件各有一条同样的导入，
-# 成员合并到一个子主题模块后只剩一条（边本身仍在包内，不是凭空消失）。
-[[removal]]
-key = "import|src/app/domains/blackjack/repository/part_1.py|15|app.domains.credits.service|service"
-reason = "part_1 与其它 part 的 credits 导入在新布局里合并成同一个模块的一条导入"
+# 已应用并封存（21 点拆分）：两条 part_1 导入在新布局里合并成同一个模块的
+# 一条导入，声明不再对应任何基线条目。原文见 git 历史。
 
-[[removal]]
-key = "import|src/app/domains/blackjack/repository/part_1.py|16|app.domains.credits.types|CreditAccount"
-reason = "同上：CreditAccount 导入合并到同一个子主题模块"
 
+# 大预言家 repository 的子主题拆分（task 3.1）：`symbols` 逐条登记类成员的新模块，
+# `package_level` 覆盖模块级条目（导入），它们按使用位置落在同一个包内。
+[[move]]
+source = "src/app/domains/prediction/repository/part_1.py"
+package_level = "src/app/domains/prediction/repository"
+
+[move.symbols]
+"_calc_prediction_odds" = "src/app/domains/prediction/repository/markets.py"
+"submit_prediction_market" = "src/app/domains/prediction/repository/markets.py"
+"list_prediction_submissions" = "src/app/domains/prediction/repository/markets.py"
+"review_prediction_submission" = "src/app/domains/prediction/repository/markets.py"
+"create_prediction_market" = "src/app/domains/prediction/repository/markets.py"
+"list_prediction_markets" = "src/app/domains/prediction/repository/markets.py"
+"get_prediction_market_by_id" = "src/app/domains/prediction/repository/markets.py"
+"place_prediction_bet" = "src/app/domains/prediction/repository/bets.py"
+"list_prediction_bets" = "src/app/domains/prediction/repository/bets.py"
+"list_prediction_user_positions" = "src/app/domains/prediction/repository/bets.py"
+"close_prediction_market_betting" = "src/app/domains/prediction/repository/settlement.py"
+"resolve_prediction_market" = "src/app/domains/prediction/repository/settlement.py"
+
+[[move]]
+source = "src/app/domains/prediction/repository/part_2.py"
+package_level = "src/app/domains/prediction/repository"
+
+[move.symbols]
+"_get_prediction_settled_market_meta" = "src/app/domains/prediction/repository/analytics.py"
+"get_prediction_user_stats" = "src/app/domains/prediction/repository/analytics.py"
+"_get_prediction_user_rank_stats" = "src/app/domains/prediction/repository/analytics.py"
+"get_prediction_net_profit_rank" = "src/app/domains/prediction/repository/analytics.py"
+"get_prediction_win_rate_rank" = "src/app/domains/prediction/repository/analytics.py"
+
+[[addition]]
+key = "import|src/app/domains/prediction/repository/settlement.py|10|app.domains.credits.service|service"
+source_key = "import|src/app/domains/prediction/repository/part_1.py|9|app.domains.credits.service|service"
+reason = "同一个 credits.service 导入被 bets.py 与 settlement.py 同时使用（拆分的必然结果，6.1 后消失）"

@@ -1504,7 +1504,7 @@ planned_target = "app.domains.blackjack.repository.retention"
 [[items]]
 id = "app.databases.db:DatabaseORM._calc_prediction_odds"
 target = "app.domains.prediction.repository"
-planned_target = "app.domains.prediction.rules"
+planned_target = "app.domains.prediction.repository.markets"
 class = "PredictionRepository"
 kind = "method"
 reason = "db.py section: Prediction Market (预测游戏) Operations"
@@ -24155,4 +24155,11 @@ b3_behavior_test = "tests/refactor/test_blackjack_cross_domain.py::test_external
     "_GiftPackRepositoryPacks",
     "_GiftPackRepositoryClaims",
     "_GiftPackRepositoryNotices",
+]
+"app.domains.prediction.repository" = [
+    "PredictionRepository",
+    "_PredictionRepositoryMarkets",
+    "_PredictionRepositoryBets",
+    "_PredictionRepositorySettlement",
+    "_PredictionRepositoryAnalytics",
 ]

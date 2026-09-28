@@ -1,14 +1,15 @@
+"""大预言家 repository：个人统计与排行（由 part_N 机械拆分）。"""
+
+from datetime import UTC, datetime
+
 from sqlalchemy import case, func, select
 
 from app.core.db import get_session
 from app.core.log import logger
-from app.domains.prediction.models import (
-    PredictionBet,
-    PredictionMarket,
-)
+from app.domains.prediction.models import PredictionBet, PredictionMarket
 
 
-class _PredictionRepositoryPart2:
+class _PredictionRepositoryAnalytics:
     def _get_prediction_settled_market_meta(
         self, session
     ) -> tuple[dict[int, dict], dict[int, int]]:
@@ -337,3 +338,16 @@ class _PredictionRepositoryPart2:
         except Exception as e:
             logger.error(f"Error getting prediction win rate rank: {e}")
             return []
+
+
+def count_bets_tx(session, tg_id: int, since: int, until: int) -> int:
+    """指定时间窗内的大预言家下注次数（闭区间，秒级时间戳转 UTC datetime）。"""
+    return int(
+        session.execute(
+            select(func.count(PredictionBet.id)).where(
+                PredictionBet.tg_id == int(tg_id),
+                PredictionBet.created_at >= datetime.fromtimestamp(int(since), UTC),
+                PredictionBet.created_at <= datetime.fromtimestamp(int(until), UTC),
+            )
+        ).scalar_one()
+    )

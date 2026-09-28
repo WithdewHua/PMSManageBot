@@ -1,11 +1,18 @@
-from .part_1 import _PredictionRepositoryPart1
-from .part_2 import _PredictionRepositoryPart2
+from .analytics import _PredictionRepositoryAnalytics
+from .bets import _PredictionRepositoryBets
+from .markets import _PredictionRepositoryMarkets
+from .settlement import _PredictionRepositorySettlement
 
 
-class PredictionRepository(_PredictionRepositoryPart1, _PredictionRepositoryPart2):
-    pass
+class PredictionRepository(
+    _PredictionRepositoryMarkets,
+    _PredictionRepositoryBets,
+    _PredictionRepositorySettlement,
+    _PredictionRepositoryAnalytics,
+):
+    """Private compatibility implementation."""
 
 
-from .part_1 import count_bets_tx as count_bets_tx
+from .analytics import count_bets_tx as count_bets_tx
 
 __all__ = ["PredictionRepository", "count_bets_tx"]

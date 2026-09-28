@@ -6,6 +6,7 @@
 
 [blackjack_repository]
 package = "app.domains.blackjack.repository"
+label = "21 点"
 facade = "_BlackjackRepositoryImplementation"
 facade_bases = ["SystemConfigRepository"]
 facade_members = ["award_or_renew_badge"]
@@ -157,3 +158,47 @@ ENTRY_ELIGIBLE = "tournaments"
 TOURNAMENT_MUTABLE_WITH_ENTRANTS = "tournaments"
 TOURNAMENT_MIN_PLAY_WINDOW_MS = "tournaments"
 TOURNAMENT_MS_PER_HAND = "tournaments"
+
+# 大预言家 repository 的子主题拆分（tasks 3.1）：`symbols` 逐条登记类成员的新模块，
+# `package_level` 覆盖模块级条目（导入）。纯计算进 rules 的搬移由 3.2 完成。
+[prediction_repository]
+package = "app.domains.prediction.repository"
+label = "大预言家"
+facade = "PredictionRepository"
+facade_bases = []
+facade_members = []
+sources = [
+    "part_1.py",
+    "part_2.py",
+]
+
+[prediction_repository.mixins]
+markets = "_PredictionRepositoryMarkets"
+bets = "_PredictionRepositoryBets"
+settlement = "_PredictionRepositorySettlement"
+analytics = "_PredictionRepositoryAnalytics"
+
+[prediction_repository.topics]
+markets = "题目与投稿的创建、审核、列表与详情"
+bets = "下注、个人持仓与下注记录"
+settlement = "截止与开奖结算"
+analytics = "个人统计与排行"
+
+[prediction_repository.targets]
+_calc_prediction_odds = "markets"
+submit_prediction_market = "markets"
+list_prediction_submissions = "markets"
+review_prediction_submission = "markets"
+create_prediction_market = "markets"
+list_prediction_markets = "markets"
+get_prediction_market_by_id = "markets"
+place_prediction_bet = "bets"
+list_prediction_bets = "bets"
+list_prediction_user_positions = "bets"
+close_prediction_market_betting = "settlement"
+resolve_prediction_market = "settlement"
+_get_prediction_settled_market_meta = "analytics"
+get_prediction_user_stats = "analytics"
+_get_prediction_user_rank_stats = "analytics"
+get_prediction_net_profit_rank = "analytics"
+get_prediction_win_rate_rank = "analytics"

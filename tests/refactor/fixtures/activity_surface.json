@@ -4379,37 +4379,46 @@
           {
             "kind": "from",
             "module": "app.domains.prediction.repository",
-            "module_target": "app.domains.prediction.repository.part_1",
+            "module_target": "app.domains.prediction.repository.analytics",
             "resolved": true,
             "scope": "module",
-            "target": "app.domains.prediction.repository.part_1._PredictionRepositoryPart1"
+            "target": "app.domains.prediction.repository.analytics._PredictionRepositoryAnalytics"
           },
           {
             "kind": "from",
             "module": "app.domains.prediction.repository",
-            "module_target": "app.domains.prediction.repository.part_2",
+            "module_target": "app.domains.prediction.repository.bets",
             "resolved": true,
             "scope": "module",
-            "target": "app.domains.prediction.repository.part_2._PredictionRepositoryPart2"
+            "target": "app.domains.prediction.repository.bets._PredictionRepositoryBets"
           },
           {
             "kind": "from",
             "module": "app.domains.prediction.repository",
-            "module_target": "app.domains.prediction.repository.part_1",
+            "module_target": "app.domains.prediction.repository.markets",
             "resolved": true,
             "scope": "module",
-            "target": "app.domains.prediction.repository.part_1.count_bets_tx"
-          },
-          {
-            "kind": "import",
-            "module": "app.domains.prediction.repository.part_1",
-            "resolved": true,
-            "scope": "module",
-            "target": "time"
+            "target": "app.domains.prediction.repository.markets._PredictionRepositoryMarkets"
           },
           {
             "kind": "from",
-            "module": "app.domains.prediction.repository.part_1",
+            "module": "app.domains.prediction.repository",
+            "module_target": "app.domains.prediction.repository.settlement",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.repository.settlement._PredictionRepositorySettlement"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository",
+            "module_target": "app.domains.prediction.repository.analytics",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.repository.analytics.count_bets_tx"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.analytics",
             "module_target": "datetime",
             "resolved": true,
             "scope": "module",
@@ -4417,7 +4426,7 @@
           },
           {
             "kind": "from",
-            "module": "app.domains.prediction.repository.part_1",
+            "module": "app.domains.prediction.repository.analytics",
             "module_target": "datetime",
             "resolved": true,
             "scope": "module",
@@ -4425,7 +4434,7 @@
           },
           {
             "kind": "from",
-            "module": "app.domains.prediction.repository.part_1",
+            "module": "app.domains.prediction.repository.analytics",
             "module_target": "sqlalchemy",
             "resolved": true,
             "scope": "module",
@@ -4433,7 +4442,7 @@
           },
           {
             "kind": "from",
-            "module": "app.domains.prediction.repository.part_1",
+            "module": "app.domains.prediction.repository.analytics",
             "module_target": "sqlalchemy",
             "resolved": true,
             "scope": "module",
@@ -4441,7 +4450,7 @@
           },
           {
             "kind": "from",
-            "module": "app.domains.prediction.repository.part_1",
+            "module": "app.domains.prediction.repository.analytics",
             "module_target": "sqlalchemy",
             "resolved": true,
             "scope": "module",
@@ -4449,7 +4458,7 @@
           },
           {
             "kind": "from",
-            "module": "app.domains.prediction.repository.part_1",
+            "module": "app.domains.prediction.repository.analytics",
             "module_target": "app.core.db",
             "resolved": true,
             "scope": "module",
@@ -4457,111 +4466,7 @@
           },
           {
             "kind": "from",
-            "module": "app.domains.prediction.repository.part_1",
-            "module_target": "app.core.kv",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.kv.SystemConfig"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.part_1",
-            "module_target": "app.domains.credits",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.credits.repository"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.part_1",
-            "module_target": "app.domains.credits",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.credits.service"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.part_1",
-            "module_target": "app.domains.credits.types",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.credits.types.CreditAccount"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.part_1",
-            "module_target": "app.domains.identity.models",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.identity.models.Statistics"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.part_1",
-            "module_target": "app.domains.prediction.models",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.prediction.models.PredictionBet"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.part_1",
-            "module_target": "app.domains.prediction.models",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.prediction.models.PredictionMarket"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.part_1",
-            "module_target": "app.domains.prediction.models",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.prediction.models.PredictionMarketSubmission"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.part_1",
-            "module_target": "app.core.telegram",
-            "resolved": true,
-            "scope": "function",
-            "target": "app.core.telegram.get_user_name_from_tg_id"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.part_2",
-            "module_target": "sqlalchemy",
-            "resolved": true,
-            "scope": "module",
-            "target": "sqlalchemy.case"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.part_2",
-            "module_target": "sqlalchemy",
-            "resolved": true,
-            "scope": "module",
-            "target": "sqlalchemy.func"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.part_2",
-            "module_target": "sqlalchemy",
-            "resolved": true,
-            "scope": "module",
-            "target": "sqlalchemy.select"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.part_2",
-            "module_target": "app.core.db",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.db.get_session"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.part_2",
+            "module": "app.domains.prediction.repository.analytics",
             "module_target": "app.core.log",
             "resolved": true,
             "scope": "module",
@@ -4569,7 +4474,7 @@
           },
           {
             "kind": "from",
-            "module": "app.domains.prediction.repository.part_2",
+            "module": "app.domains.prediction.repository.analytics",
             "module_target": "app.domains.prediction.models",
             "resolved": true,
             "scope": "module",
@@ -4577,7 +4482,244 @@
           },
           {
             "kind": "from",
-            "module": "app.domains.prediction.repository.part_2",
+            "module": "app.domains.prediction.repository.analytics",
+            "module_target": "app.domains.prediction.models",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.models.PredictionMarket"
+          },
+          {
+            "kind": "import",
+            "module": "app.domains.prediction.repository.bets",
+            "resolved": true,
+            "scope": "module",
+            "target": "time"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.bets",
+            "module_target": "sqlalchemy",
+            "resolved": true,
+            "scope": "module",
+            "target": "sqlalchemy.func"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.bets",
+            "module_target": "sqlalchemy",
+            "resolved": true,
+            "scope": "module",
+            "target": "sqlalchemy.select"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.bets",
+            "module_target": "app.core.db",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.core.db.get_session"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.bets",
+            "module_target": "app.domains.credits",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.credits.repository"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.bets",
+            "module_target": "app.domains.credits",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.credits.service"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.bets",
+            "module_target": "app.domains.credits.types",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.credits.types.CreditAccount"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.bets",
+            "module_target": "app.domains.identity.models",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.identity.models.Statistics"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.bets",
+            "module_target": "app.domains.prediction.models",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.models.PredictionBet"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.bets",
+            "module_target": "app.domains.prediction.models",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.models.PredictionMarket"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.bets",
+            "module_target": "app.core.telegram",
+            "resolved": true,
+            "scope": "function",
+            "target": "app.core.telegram.get_user_name_from_tg_id"
+          },
+          {
+            "kind": "import",
+            "module": "app.domains.prediction.repository.markets",
+            "resolved": true,
+            "scope": "module",
+            "target": "time"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.markets",
+            "module_target": "sqlalchemy",
+            "resolved": true,
+            "scope": "module",
+            "target": "sqlalchemy.case"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.markets",
+            "module_target": "sqlalchemy",
+            "resolved": true,
+            "scope": "module",
+            "target": "sqlalchemy.func"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.markets",
+            "module_target": "sqlalchemy",
+            "resolved": true,
+            "scope": "module",
+            "target": "sqlalchemy.select"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.markets",
+            "module_target": "app.core.db",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.core.db.get_session"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.markets",
+            "module_target": "app.domains.prediction.models",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.models.PredictionBet"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.markets",
+            "module_target": "app.domains.prediction.models",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.models.PredictionMarket"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.markets",
+            "module_target": "app.domains.prediction.models",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.models.PredictionMarketSubmission"
+          },
+          {
+            "kind": "import",
+            "module": "app.domains.prediction.repository.settlement",
+            "resolved": true,
+            "scope": "module",
+            "target": "time"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.settlement",
+            "module_target": "sqlalchemy",
+            "resolved": true,
+            "scope": "module",
+            "target": "sqlalchemy.func"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.settlement",
+            "module_target": "sqlalchemy",
+            "resolved": true,
+            "scope": "module",
+            "target": "sqlalchemy.select"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.settlement",
+            "module_target": "app.core.db",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.core.db.get_session"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.settlement",
+            "module_target": "app.core.kv",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.core.kv.SystemConfig"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.settlement",
+            "module_target": "app.domains.credits",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.credits.repository"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.settlement",
+            "module_target": "app.domains.credits",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.credits.service"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.settlement",
+            "module_target": "app.domains.credits.types",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.credits.types.CreditAccount"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.settlement",
+            "module_target": "app.domains.identity.models",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.identity.models.Statistics"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.settlement",
+            "module_target": "app.domains.prediction.models",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.models.PredictionBet"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.settlement",
             "module_target": "app.domains.prediction.models",
             "resolved": true,
             "scope": "module",

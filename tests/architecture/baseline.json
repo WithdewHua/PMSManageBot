@@ -2069,20 +2069,20 @@
       "target": "get_plex_info_by_tg_id"
     },
     {
-      "key": "call|src/app/domains/prediction/repository/part_1.py|409|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/prediction/repository/bets.py|72|imported|credits|register_cache_invalidation",
       "owner": "promote-activity-domains",
-      "path": "src/app/domains/prediction/repository/part_1.py",
-      "line": 409,
+      "path": "src/app/domains/prediction/repository/bets.py",
+      "line": 72,
       "kind": "call",
       "source_domain": "prediction",
       "target_domain": "credits",
       "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/prediction/repository/part_1.py|681|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/prediction/repository/settlement.py|163|imported|credits|register_cache_invalidation",
       "owner": "promote-activity-domains",
-      "path": "src/app/domains/prediction/repository/part_1.py",
-      "line": 681,
+      "path": "src/app/domains/prediction/repository/settlement.py",
+      "line": 163,
       "kind": "call",
       "source_domain": "prediction",
       "target_domain": "credits",
@@ -3884,10 +3884,21 @@
       "b3_source_id": "app.databases.db_func:@import:20"
     },
     {
-      "key": "import|src/app/domains/prediction/repository/part_1.py|9|app.domains.credits.service|service",
+      "key": "import|src/app/domains/prediction/repository/bets.py|9|app.domains.credits.service|service",
       "owner": "promote-activity-domains",
-      "path": "src/app/domains/prediction/repository/part_1.py",
+      "path": "src/app/domains/prediction/repository/bets.py",
       "line": 9,
+      "kind": "import",
+      "source_domain": "prediction",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/prediction/repository/settlement.py|10|app.domains.credits.service|service",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/prediction/repository/settlement.py",
+      "line": 10,
       "kind": "import",
       "source_domain": "prediction",
       "target_domain": "credits",
@@ -4379,18 +4390,7 @@
   "line_budgets": [],
   "model_registry": [],
   "mixin_duplicates": [],
-  "numbered_modules": [
-    {
-      "key": "numbered|src/app/domains/prediction/repository/part_1.py",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/prediction/repository/part_1.py"
-    },
-    {
-      "key": "numbered|src/app/domains/prediction/repository/part_2.py",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/prediction/repository/part_2.py"
-    }
-  ],
+  "numbered_modules": [],
   "contract_ignore_counts": {
     "Top-level architecture": 0,
     "External integration isolation": 0,

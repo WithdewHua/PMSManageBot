@@ -39,6 +39,7 @@ class SplitError(RuntimeError):
 class Plan:
     name: str
     package: str
+    label: str
     facade: str
     facade_bases: list[str]
     facade_members: list[str]
@@ -86,6 +87,7 @@ def load_plan(plan_path: Path, name: str | None, mapping_path: Path) -> Plan:
     plan = Plan(
         name=names[0],
         package=package,
+        label=section["label"],
         facade=section["facade"],
         facade_bases=list(section.get("facade_bases", [])),
         facade_members=list(section.get("facade_members", [])),
@@ -221,7 +223,7 @@ def render_mixin(plan: Plan, stem: str, members: list[Member]) -> str:
         body.extend(_member_text(plan, member))
     return "\n".join(
         [
-            f'"""21 点 repository：{plan.topics[stem]}（由 part_N 机械拆分）。"""',
+            f'"""{plan.label} repository：{plan.topics[stem]}（由 part_N 机械拆分）。"""',
             "",
             *_imports_used_by(plan, members),
             "",
