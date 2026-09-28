@@ -94,7 +94,6 @@ allowed_importers = [
 
     "app.domains.accounts.router", # promote-account-domains (B2 inherited)
 
-    "app.domains.auction.router", # promote-activity-domains (B2 inherited)
 
     "app.domains.badges.router", # promote-reward-domains (B2 inherited)
 
@@ -146,8 +145,6 @@ allowed_importers = [
     "app.domains.treasure.router", # promote-activity-domains (B2 inherited)
 
     "app.domains.vaultwarden.router", # promote-remaining-domains (B2 inherited)
-    "app.domains.auction.jobs", # promote-activity-domains (B2 inherited)
-    "app.domains.auction.notifications", # promote-activity-domains (B2 inherited)
     "app.domains.treasure.jobs", # promote-activity-domains (B2 inherited)
     "app.schedule", # B3 registry temporarily imports legacy job implementations until 5.5
     "app.domains.accounts.service", # B3 mechanical relocation; audit in 5.6
@@ -331,8 +328,6 @@ ignore_imports = [
 
     "app.domains.accounts.router -> app.databases.db", # promote-account-domains (B2 inherited)
 
-        "app.domains.auction.router -> app.databases.db", # promote-activity-domains (B2 inherited)
-
 
     "app.domains.badges.router -> app.databases.db", # promote-reward-domains (B2 inherited)
 
@@ -457,10 +452,8 @@ layers = [
     "(models)",
 ]
 ignore_imports = [
-    "app.domains.auction.router -> app.domains.auction.jobs", # promote-activity-domains (B2 inherited)
     "app.domains.blackjack.router.cash -> app.domains.blackjack.jobs.cash", # promote-blackjack-domain (B2 inherited)
     "app.domains.blackjack.router.tournament -> app.domains.blackjack.jobs.tournament", # promote-blackjack-domain (B2 inherited)
-    "app.domains.auction.notifications -> app.databases.db", # promote-activity-domains (B2 inherited)
     "app.domains.lines.router -> app.domains.lines.jobs", # B3 mechanical relocation; audit in 5.6
 ]
 unmatched_ignore_imports_alerting = "error"
@@ -531,7 +524,6 @@ ignore_imports = [
     # B2 mechanical relocation retains direct legacy data access.
     "app.domains.accounts.bot -> app.databases.db", # promote-account-domains (B2 inherited)
     "app.domains.accounts.router -> app.databases.db", # promote-account-domains (B2 inherited)
-    "app.domains.auction.router -> app.databases.db", # promote-activity-domains (B2 inherited)
     "app.domains.badges.router -> app.databases.db", # promote-reward-domains (B2 inherited)
     "app.domains.crypto_donation.router -> app.core.db", # promote-remaining-domains (B2 inherited)
     "app.domains.crypto_donation.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
@@ -578,8 +570,6 @@ ignore_imports = [
     "app.domains.profile.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
     "app.domains.reports.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
     "app.domains.vaultwarden.router -> app.domains.vaultwarden.models", # promote-remaining-domains (B2 inherited)
-    "app.domains.auction.jobs -> app.databases.db", # promote-activity-domains (B2 inherited)
-    "app.domains.auction.notifications -> app.databases.db", # promote-activity-domains (B2 inherited)
     "app.domains.accounts.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.credits.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.custom_lines.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6

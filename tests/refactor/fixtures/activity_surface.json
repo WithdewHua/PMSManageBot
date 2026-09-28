@@ -305,7 +305,6 @@
       "openapi_paths": {
         "/api/auction/admin/detailed-stats": {
           "get": {
-            "description": "获取详细竞拍统计（仅管理员）",
             "operationId": "get_detailed_auction_stats_admin_api_auction_admin_detailed_stats_get",
             "parameters": [
               {
@@ -369,7 +368,6 @@
         },
         "/api/auction/admin/list": {
           "get": {
-            "description": "获取所有竞拍活动列表（仅管理员）",
             "operationId": "get_all_auctions_admin_api_auction_admin_list_get",
             "parameters": [
               {
@@ -437,7 +435,6 @@
         },
         "/api/auction/admin/user/{user_id}/history": {
           "get": {
-            "description": "获取用户竞拍历史（仅管理员）",
             "operationId": "get_user_auction_history_admin_api_auction_admin_user__user_id__history_get",
             "parameters": [
               {
@@ -488,7 +485,6 @@
         },
         "/api/auction/admin/{auction_id}": {
           "delete": {
-            "description": "删除竞拍活动（仅管理员）",
             "operationId": "delete_auction_admin_api_auction_admin__auction_id__delete",
             "parameters": [
               {
@@ -527,7 +523,6 @@
             ]
           },
           "put": {
-            "description": "更新竞拍活动（仅管理员）",
             "operationId": "update_auction_admin_api_auction_admin__auction_id__put",
             "parameters": [
               {
@@ -578,7 +573,6 @@
         },
         "/api/auction/admin/{auction_id}/bids": {
           "get": {
-            "description": "获取竞拍出价历史（仅管理员）",
             "operationId": "get_auction_bids_admin_api_auction_admin__auction_id__bids_get",
             "parameters": [
               {
@@ -629,7 +623,6 @@
         },
         "/api/auction/admin/{auction_id}/finish": {
           "post": {
-            "description": "手动结束竞拍活动（仅管理员）",
             "operationId": "finish_auction_admin_api_auction_admin__auction_id__finish_post",
             "parameters": [
               {
@@ -670,7 +663,6 @@
         },
         "/api/auction/bid": {
           "post": {
-            "description": "出价",
             "operationId": "place_bid_api_auction_bid_post",
             "requestBody": {
               "content": {
@@ -712,7 +704,6 @@
         },
         "/api/auction/create": {
           "post": {
-            "description": "创建竞拍（仅管理员）",
             "operationId": "create_auction_api_auction_create_post",
             "requestBody": {
               "content": {
@@ -752,7 +743,6 @@
         },
         "/api/auction/finish-expired": {
           "post": {
-            "description": "结束过期竞拍（仅管理员）",
             "operationId": "finish_expired_auctions_api_auction_finish_expired_post",
             "responses": {
               "200": {
@@ -772,7 +762,6 @@
         },
         "/api/auction/list": {
           "get": {
-            "description": "获取竞拍列表",
             "operationId": "get_auction_list_api_auction_list_get",
             "responses": {
               "200": {
@@ -794,7 +783,6 @@
         },
         "/api/auction/stats": {
           "get": {
-            "description": "获取竞拍统计数据（仅管理员）",
             "operationId": "get_auction_stats_api_auction_stats_get",
             "responses": {
               "200": {
@@ -816,7 +804,6 @@
         },
         "/api/auction/{auction_id}": {
           "get": {
-            "description": "获取竞拍详情",
             "operationId": "get_auction_detail_api_auction__auction_id__get",
             "parameters": [
               {
@@ -878,19 +865,11 @@
           },
           {
             "kind": "from",
-            "module": "app.domains.auction.jobs",
-            "module_target": "datetime",
+            "module": "app.domains.auction.exceptions",
+            "module_target": "app.core.errors",
             "resolved": true,
             "scope": "module",
-            "target": "datetime.datetime"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.jobs",
-            "module_target": "app.core.config",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.config.settings"
+            "target": "app.core.errors.DomainError"
           },
           {
             "kind": "from",
@@ -903,49 +882,10 @@
           {
             "kind": "from",
             "module": "app.domains.auction.jobs",
-            "module_target": "app.core.scheduler",
+            "module_target": "app.domains.auction",
             "resolved": true,
             "scope": "module",
-            "target": "app.core.scheduler.Scheduler"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.jobs",
-            "module_target": "app.core.telegram",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.telegram.get_user_name_from_tg_id"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.jobs",
-            "module_target": "app.core.telegram",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.telegram.send_message_by_url"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.jobs",
-            "module_target": "app.databases",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.databases.db"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.jobs",
-            "module_target": "app.domains.auction.notifications",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.auction.notifications.send_channel_auction_notification"
-          },
-          {
-            "kind": "import",
-            "module": "app.domains.auction.jobs",
-            "resolved": true,
-            "scope": "function",
-            "target": "time"
+            "target": "app.domains.auction.service"
           },
           {
             "kind": "from",
@@ -1033,7 +973,7 @@
             "module_target": "app.core.log",
             "resolved": true,
             "scope": "module",
-            "target": "app.core.log.uvicorn_logger"
+            "target": "app.core.log.logger"
           },
           {
             "kind": "from",
@@ -1050,14 +990,6 @@
             "resolved": true,
             "scope": "module",
             "target": "app.core.telegram.send_message_by_url"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.notifications",
-            "module_target": "app.databases",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.databases.db"
           },
           {
             "kind": "import",
@@ -1180,14 +1112,6 @@
           {
             "kind": "from",
             "module": "app.domains.auction.router",
-            "module_target": "datetime",
-            "resolved": true,
-            "scope": "module",
-            "target": "datetime.timedelta"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.router",
             "module_target": "fastapi",
             "resolved": true,
             "scope": "module",
@@ -1224,14 +1148,6 @@
             "resolved": true,
             "scope": "module",
             "target": "fastapi.Request"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.router",
-            "module_target": "fastapi",
-            "resolved": true,
-            "scope": "module",
-            "target": "fastapi.status"
           },
           {
             "kind": "from",
@@ -1276,14 +1192,6 @@
           {
             "kind": "from",
             "module": "app.domains.auction.router",
-            "module_target": "app.core.scheduler",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.scheduler.Scheduler"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.router",
             "module_target": "app.core.schemas",
             "resolved": true,
             "scope": "module",
@@ -1292,58 +1200,26 @@
           {
             "kind": "from",
             "module": "app.domains.auction.router",
-            "module_target": "app.core.telegram",
+            "module_target": "app.domains.auction",
             "resolved": true,
             "scope": "module",
-            "target": "app.core.telegram.get_user_name_from_tg_id"
+            "target": "app.domains.auction.exceptions"
           },
           {
             "kind": "from",
             "module": "app.domains.auction.router",
-            "module_target": "app.core.telegram",
+            "module_target": "app.domains.auction",
             "resolved": true,
             "scope": "module",
-            "target": "app.core.telegram.send_message_by_url"
+            "target": "app.domains.auction.service"
           },
           {
             "kind": "from",
             "module": "app.domains.auction.router",
-            "module_target": "app.databases",
+            "module_target": "app.domains.auction.schemas",
             "resolved": true,
             "scope": "module",
-            "target": "app.databases.db"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.router",
-            "module_target": "app.domains.auction.jobs",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.auction.jobs.finish_expired_auctions_job"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.router",
-            "module_target": "app.domains.auction.jobs",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.auction.jobs.finish_single_auction_job"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.router",
-            "module_target": "app.domains.auction.notifications",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.auction.notifications.send_bid_notifications"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.router",
-            "module_target": "app.domains.auction.notifications",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.auction.notifications.send_channel_auction_notification"
+            "target": "app.domains.auction.schemas.AuctionBid"
           },
           {
             "kind": "from",
@@ -1403,29 +1279,6 @@
           },
           {
             "kind": "from",
-            "module": "app.domains.auction.router",
-            "module_target": "app.domains.credits",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.credits.service"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.router",
-            "module_target": "app.domains.credits.types",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.credits.types.CreditAccount"
-          },
-          {
-            "kind": "import",
-            "module": "app.domains.auction.router",
-            "resolved": true,
-            "scope": "function",
-            "target": "time"
-          },
-          {
-            "kind": "from",
             "module": "app.domains.auction.schemas",
             "module_target": "datetime",
             "resolved": true,
@@ -1447,6 +1300,117 @@
             "resolved": true,
             "scope": "module",
             "target": "pydantic.Field"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.service",
+            "module_target": "__future__",
+            "resolved": true,
+            "scope": "module",
+            "target": "__future__.annotations"
+          },
+          {
+            "kind": "import",
+            "module": "app.domains.auction.service",
+            "resolved": true,
+            "scope": "module",
+            "target": "time"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.service",
+            "module_target": "datetime",
+            "resolved": true,
+            "scope": "module",
+            "target": "datetime.datetime"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.service",
+            "module_target": "datetime",
+            "resolved": true,
+            "scope": "module",
+            "target": "datetime.timedelta"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.service",
+            "module_target": "app.core.config",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.core.config.settings"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.service",
+            "module_target": "app.core.log",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.core.log.logger"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.service",
+            "module_target": "app.core.scheduler",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.core.scheduler.Scheduler"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.service",
+            "module_target": "app.core.scheduler",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.core.scheduler.schedule_task"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.service",
+            "module_target": "app.core.telegram",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.core.telegram.get_user_name_from_tg_id"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.service",
+            "module_target": "app.domains.auction",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.auction.exceptions"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.service",
+            "module_target": "app.domains.auction",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.auction.notifications"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.service",
+            "module_target": "app.domains.auction",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.auction.repository"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.service",
+            "module_target": "app.domains.credits",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.credits.service"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.service",
+            "module_target": "app.domains.credits.types",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.credits.types.CreditAccount"
           },
           {
             "kind": "from",
@@ -1495,12 +1459,35 @@
             "resolved": true,
             "scope": "module",
             "target": "app.domains.auction.jobs.restore_auction_schedules"
+          },
+          {
+            "kind": "from",
+            "module": "app.schedule",
+            "module_target": "app.domains.auction.jobs",
+            "resolved": true,
+            "scope": "function",
+            "target": "app.domains.auction.jobs.finish_single_auction"
           }
         ],
         "strings": []
       },
       "repository_functions": [
-        "count_participated_auctions_tx"
+        "count_participated_auctions_tx",
+        "create_auction",
+        "delete_auction",
+        "finish_auction_by_id",
+        "finish_expired_auctions",
+        "get_active_auctions",
+        "get_all_auctions",
+        "get_auction_bids",
+        "get_auction_by_id",
+        "get_auction_participants",
+        "get_auction_stats",
+        "get_detailed_auction_stats",
+        "get_user_auction_history",
+        "get_user_highest_bid",
+        "place_bid",
+        "update_auction"
       ],
       "repository_members": [
         "create_auction",
@@ -7260,6 +7247,10 @@
     "app.webapp.routers.activities.treasure:_auto_create_next_treasure_issue_from"
   ],
   "named_tasks": [
+    {
+      "mapped": true,
+      "task_id": "auction.finish"
+    },
     {
       "mapped": true,
       "task_id": "blackjack.hand_timeout"

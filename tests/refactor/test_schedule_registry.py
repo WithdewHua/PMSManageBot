@@ -42,9 +42,11 @@ def test_register_all_has_32_jobs_and_two_startup_hooks(isolated_registry) -> No
     assert recorder.jobs[-1][2] == "check_and_award_game_king_badge"
     assert recorder.named_enabled
     assert set(scheduler_module.TASK_REGISTRY) == {
+        "auction.finish",
         "blackjack.hand_timeout",
         "treasure.open_next_issue",
     }
+    assert schedule.TASKS["auction.finish"] is not None
     assert schedule.TASKS["treasure.open_next_issue"] is not None
 
 
@@ -73,6 +75,7 @@ def test_named_tasks_register_before_api_thread_is_started(isolated_registry) ->
 
     schedule.register_tasks()
     assert set(scheduler_module.TASK_REGISTRY) == {
+        "auction.finish",
         "blackjack.hand_timeout",
         "treasure.open_next_issue",
     }

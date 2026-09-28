@@ -78,7 +78,11 @@
   - 新增 `TreasureError` 类型化异常，并保留 `user stats not found` 被遮蔽为 404“期数不存在”的历史映射；保留开奖查询未 flush 的已冻结行为与算法快照。
   - `treasure.open_next_issue` 的调度封装位于 service，jobs 仅承载持久化 callable；通知和调度均在事务提交后执行。
   - 更新 rejection/activity/blackjack fixtures、architecture baseline；`tests/refactor`、treasure 回归、architecture 和 `lint-imports` 已通过。
-- [ ] 5.2 提升 auction：repository 和 service；竞拍结束改为内存 jobstore 中的具名任务 `auction.finish`；通知文案移入 notifications，所需数据由 service 传入；删除操作显式指定 jobstore。验证：1.3 中竞拍的测试通过；调度快照中只有 design D5 允许的那一项差异；重启后恢复的任务与原来一致。
+- [x] 5.2 提升 auction：repository 和 service；竞拍结束改为内存 jobstore 中的具名任务 `auction.finish`；通知文案移入 notifications，所需数据由 service 传入；删除操作显式指定 jobstore。验证：1.3 中竞拍的测试通过；调度快照中只有 design D5 允许的那一项差异；重启后恢复的任务与原来一致。
+  - 新增 `auction.service` 与类型化 `AuctionError`；路由只负责认证、参数转换和 HTTP 异常映射，所有竞拍查询、出价、创建、更新、删除及结束流程经 service/repository API。
+  - `auction.finish` 在 `schedule.TASKS` 中注册，创建、更新和启动恢复使用 `schedule_task` 写入内存 jobstore，删除/手动结束显式从 `default` jobstore 移除，保留原任务 id、时间和启动恢复上限。
+  - 竞拍通知文案集中到 `auction.notifications`，通知函数只接收 service 提供的数据，不再查询数据库；jobs 只作为调度入口委托 service。
+  - 更新 activity surface、rejection、scheduler、B3 provenance 与 blackjack inventory fixtures；`tests/refactor`、auction 回归、architecture 和 `lint-imports` 已通过。
 
 ## 6. 基线清理与集成验证
 

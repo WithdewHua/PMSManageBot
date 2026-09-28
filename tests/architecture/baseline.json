@@ -207,16 +207,6 @@
       "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/auction/router.py|304|imported|credits|read_optional",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/auction/router.py",
-      "line": 304,
-      "kind": "call",
-      "source_domain": "auction",
-      "target_domain": "credits",
-      "target": "read_optional"
-    },
-    {
       "key": "call|src/app/domains/badge_awards/jobs.py|115|imported|badges|UserBadge",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/badge_awards/jobs.py",
@@ -2756,17 +2746,6 @@
       "symbol": "exceptions"
     },
     {
-      "key": "import|src/app/domains/auction/router.py|33|app.domains.credits.service|service",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/auction/router.py",
-      "line": 33,
-      "kind": "import",
-      "source_domain": "auction",
-      "target_domain": "credits",
-      "target_module": "app.domains.credits.service",
-      "symbol": "service"
-    },
-    {
       "key": "import|src/app/domains/badge_awards/jobs.py|10|app.domains.badges.models|UserBadge",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/badge_awards/jobs.py",
@@ -4236,11 +4215,11 @@
     "SQLAlchemy direct use scope": 16,
     "Database engine import scope": 18,
     "Domain model import scope": 19,
-    "Six-tier domain dependencies": 54,
+    "Six-tier domain dependencies": 53,
     "Acyclic domain siblings": 17,
-    "Domain internal layering": 5,
+    "Domain internal layering": 3,
     "Domain types are pure value modules": 0,
     "Domain rules are pure value computations": 0,
-    "Domain entry points do not touch data layer": 66
+    "Domain entry points do not touch data layer": 63
   }
 }

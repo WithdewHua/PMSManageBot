@@ -34,6 +34,7 @@ from app.core.kv import SystemConfig
 from app.core.schemas import TelegramUser
 from app.databases.db import DatabaseORM
 from app.domains.auction import router as auc
+from app.domains.auction import service as auction_service
 from app.domains.auction.models import Auctions
 from app.domains.auction.schemas import CreateAuctionRequest, PlaceBidRequest
 from app.domains.luckywheel import notifications as luckywheel_notifications
@@ -1150,13 +1151,21 @@ async def _build_auction(cases: dict[str, Any]) -> None:
             current_user=user,
         )
 
-    with _patched(DatabaseORM, "get_active_auctions", _raise(RuntimeError("boom"))):
+    with _patched(
+        auction_service.auction_repository,
+        "get_active_auctions",
+        _raise(RuntimeError("boom")),
+    ):
         await _capture(
             cases,
             f"{d}.get_auction_list.500_unexpected",
             auc.get_auction_list(request=_request(), current_user=_USER1),
         )
-    with _patched(DatabaseORM, "get_auction_stats", _raise(RuntimeError("boom"))):
+    with _patched(
+        auction_service.auction_repository,
+        "get_auction_stats",
+        _raise(RuntimeError("boom")),
+    ):
         await _capture(
             cases,
             f"{d}.get_auction_stats.500_unexpected",
@@ -1169,7 +1178,11 @@ async def _build_auction(cases: dict[str, Any]) -> None:
             auction_id=MISSING, request=_request(), current_user=_USER1
         ),
     )
-    with _patched(DatabaseORM, "get_auction_by_id", _raise(RuntimeError("boom"))):
+    with _patched(
+        auction_service.auction_repository,
+        "get_auction_by_id",
+        _raise(RuntimeError("boom")),
+    ):
         await _capture(
             cases,
             f"{d}.get_auction_detail.500_unexpected",
@@ -1179,7 +1192,9 @@ async def _build_auction(cases: dict[str, Any]) -> None:
         )
 
     # POST /create
-    with _patched(DatabaseORM, "create_auction", lambda *a, **k: None):
+    with _patched(
+        auction_service.auction_repository, "create_auction", lambda *a, **k: None
+    ):
         await _capture(
             cases,
             f"{d}.create_auction.500_db_returned_false",
@@ -1190,7 +1205,11 @@ async def _build_auction(cases: dict[str, Any]) -> None:
                 current_user=_ADMIN,
             ),
         )
-    with _patched(DatabaseORM, "create_auction", _raise(RuntimeError("boom"))):
+    with _patched(
+        auction_service.auction_repository,
+        "create_auction",
+        _raise(RuntimeError("boom")),
+    ):
         await _capture(
             cases,
             f"{d}.create_auction.500_unexpected",
@@ -1224,20 +1243,24 @@ async def _build_auction(cases: dict[str, Any]) -> None:
         f"{d}.place_bid.400_insufficient_credits",
         bid(AUCTION_ACTIVE, _USER2, 150),
     )
-    with _patched(DatabaseORM, "place_bid", lambda *a, **k: False):
+    with _patched(
+        auction_service.auction_repository, "place_bid", lambda *a, **k: False
+    ):
         await _capture(
             cases,
             f"{d}.place_bid.500_db_returned_false",
             bid(AUCTION_ACTIVE, _USER1, 150),
         )
-    with _patched(DatabaseORM, "place_bid", _raise(RuntimeError("boom"))):
+    with _patched(
+        auction_service.auction_repository, "place_bid", _raise(RuntimeError("boom"))
+    ):
         await _capture(
             cases, f"{d}.place_bid.500_unexpected", bid(AUCTION_ACTIVE, _USER1, 150)
         )
 
     # POST /finish-expired
     with _patched(
-        auc, "finish_expired_auctions_job", _async_raise(RuntimeError("boom"))
+        auction_service, "finish_expired_auctions", _async_raise(RuntimeError("boom"))
     ):
         await _capture(
             cases,
@@ -1246,7 +1269,11 @@ async def _build_auction(cases: dict[str, Any]) -> None:
         )
 
     # GET /admin/list
-    with _patched(DatabaseORM, "get_all_auctions", _raise(RuntimeError("boom"))):
+    with _patched(
+        auction_service.auction_repository,
+        "get_all_auctions",
+        _raise(RuntimeError("boom")),
+    ):
         await _capture(
             cases,
             f"{d}.get_all_auctions_admin.500_unexpected",
@@ -1264,7 +1291,9 @@ async def _build_auction(cases: dict[str, Any]) -> None:
             current_user=_ADMIN,
         ),
     )
-    with _patched(DatabaseORM, "update_auction", lambda *a, **k: False):
+    with _patched(
+        auction_service.auction_repository, "update_auction", lambda *a, **k: False
+    ):
         await _capture(
             cases,
             f"{d}.update_auction_admin.500_db_returned_false",
@@ -1284,7 +1313,9 @@ async def _build_auction(cases: dict[str, Any]) -> None:
             auction_id=MISSING, request=_request(), current_user=_ADMIN
         ),
     )
-    with _patched(DatabaseORM, "delete_auction", lambda *a, **k: False):
+    with _patched(
+        auction_service.auction_repository, "delete_auction", lambda *a, **k: False
+    ):
         await _capture(
             cases,
             f"{d}.delete_auction_admin.500_db_returned_false",
@@ -1314,7 +1345,11 @@ async def _build_auction(cases: dict[str, Any]) -> None:
             current_user=_ADMIN,
         ),
     )
-    with _patched(DatabaseORM, "finish_auction_by_id", lambda *a, **k: (False, None)):
+    with _patched(
+        auction_service.auction_repository,
+        "finish_auction_by_id",
+        lambda *a, **k: (False, None),
+    ):
         await _capture(
             cases,
             f"{d}.finish_auction_admin.500_db_returned_false",
@@ -1334,7 +1369,11 @@ async def _build_auction(cases: dict[str, Any]) -> None:
             auction_id=MISSING, request=_request(), current_user=_ADMIN
         ),
     )
-    with _patched(DatabaseORM, "get_auction_bids", _raise(RuntimeError("boom"))):
+    with _patched(
+        auction_service.auction_repository,
+        "get_auction_bids",
+        _raise(RuntimeError("boom")),
+    ):
         await _capture(
             cases,
             f"{d}.get_auction_bids_admin.500_unexpected",
@@ -1345,7 +1384,9 @@ async def _build_auction(cases: dict[str, Any]) -> None:
 
     # GET /admin/user/{user_id}/history
     with _patched(
-        DatabaseORM, "get_user_auction_history", _raise(RuntimeError("boom"))
+        auction_service.auction_repository,
+        "get_user_auction_history",
+        _raise(RuntimeError("boom")),
     ):
         await _capture(
             cases,
@@ -1357,7 +1398,9 @@ async def _build_auction(cases: dict[str, Any]) -> None:
 
     # GET /admin/detailed-stats
     with _patched(
-        DatabaseORM, "get_detailed_auction_stats", _raise(RuntimeError("boom"))
+        auction_service.auction_repository,
+        "get_detailed_auction_stats",
+        _raise(RuntimeError("boom")),
     ):
         await _capture(
             cases,
@@ -1427,12 +1470,31 @@ def _install_noops(monkeypatch) -> None:
             pred.prediction_service.prediction_notifications, name, _async_none
         )
 
-    monkeypatch.setattr(auc, "Scheduler", _StubScheduler)
-    monkeypatch.setattr(auc, "send_channel_auction_notification", _async_none)
-    monkeypatch.setattr(auc, "send_bid_notifications", _async_none)
-    monkeypatch.setattr(auc, "get_user_name_from_tg_id", lambda chat_id: "user")
-    monkeypatch.setattr(auc, "send_message_by_url", _async_none)
-    monkeypatch.setattr(auc, "finish_expired_auctions_job", _async_empty_list)
+    monkeypatch.setattr(auction_service, "Scheduler", _StubScheduler)
+    monkeypatch.setattr(auction_service, "schedule_task", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        auction_service.auction_notifications,
+        "send_channel_auction_notification",
+        _async_none,
+    )
+    monkeypatch.setattr(
+        auction_service.auction_notifications,
+        "send_bid_notifications",
+        _async_none,
+    )
+    monkeypatch.setattr(
+        auction_service.auction_notifications,
+        "send_auction_created_notification",
+        _async_none,
+    )
+    monkeypatch.setattr(
+        auction_service.auction_notifications,
+        "send_auction_finished_notifications",
+        _async_none,
+    )
+    monkeypatch.setattr(
+        auction_service.auction_notifications, "send_message_by_url", _async_none
+    )
 
 
 async def _build() -> dict[str, Any]:

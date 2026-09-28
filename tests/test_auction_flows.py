@@ -23,6 +23,7 @@ from app.core.schemas import TelegramUser
 from app.databases import db
 from app.domains.auction import jobs as auction_jobs
 from app.domains.auction import router as auc
+from app.domains.auction import service as auction_service
 from app.domains.auction.models import AuctionBids, Auctions
 from app.domains.auction.schemas import CreateAuctionRequest, PlaceBidRequest
 from app.domains.identity.models import Statistics
@@ -111,16 +112,33 @@ def auction_env(monkeypatch):
     async def _bid_notifications(**kwargs):
         calls["bids"].append(kwargs)
 
-    monkeypatch.setattr(auc, "Scheduler", _Recorder)
-    monkeypatch.setattr(auc, "send_message_by_url", _send)
-    monkeypatch.setattr(auc, "send_channel_auction_notification", _channel)
-    monkeypatch.setattr(auc, "send_bid_notifications", _bid_notifications)
-    monkeypatch.setattr(auc, "get_user_name_from_tg_id", lambda chat_id: "user")
-    monkeypatch.setattr(auction_jobs, "Scheduler", _Recorder)
-    monkeypatch.setattr(auction_jobs, "send_message_by_url", _send)
-    monkeypatch.setattr(auction_jobs, "send_channel_auction_notification", _channel)
+    monkeypatch.setattr(auction_service, "Scheduler", _Recorder)
     monkeypatch.setattr(
-        auction_jobs, "get_user_name_from_tg_id", lambda chat_id: "user"
+        auction_service,
+        "schedule_task",
+        lambda task_id, **kwargs: calls["jobs"].append(
+            {"op": "add", "task_id": task_id, **kwargs}
+        ),
+    )
+    monkeypatch.setattr(
+        auction_service.auction_notifications,
+        "send_message_by_url",
+        _send,
+    )
+    monkeypatch.setattr(
+        auction_service.auction_notifications,
+        "send_channel_auction_notification",
+        _channel,
+    )
+    monkeypatch.setattr(
+        auction_service.auction_notifications,
+        "send_bid_notifications",
+        _bid_notifications,
+    )
+    monkeypatch.setattr(
+        auction_service.auction_notifications,
+        "send_auction_created_notification",
+        lambda **kwargs: _channel(kwargs["title"]),
     )
     return calls
 
@@ -162,9 +180,11 @@ async def test_create_auction_persists_and_schedules_finish(orm, auction_env) ->
     assert stored["is_active"] == 1
     jobs = [job for job in auction_env["jobs"] if job["op"] == "add"]
     assert len(jobs) == 1
-    assert jobs[0]["id"] == f"finish_auction_{auction_id}"
-    assert jobs[0]["args"] == [auction_id]
-    assert len(background_tasks.tasks) == 1
+    assert jobs[0]["task_id"] == "auction.finish"
+    assert jobs[0]["job_id"] == f"finish_auction_{auction_id}"
+    assert jobs[0]["kwargs"] == {"auction_id": auction_id}
+    assert jobs[0]["jobstore"] == "default"
+    assert len(background_tasks.tasks) == 0
 
 
 async def test_update_auction_admin_updates_fields_and_reschedules(
@@ -304,7 +324,7 @@ async def test_finish_auction_admin_deducts_winner(orm, auction_env) -> None:
     stored = _auction(auction_id)
     assert stored["is_active"] == 0 and stored["winner_id"] == 1
     assert auction_env["sent"] == [1]
-    assert len(background_tasks.tasks) == 1
+    assert len(background_tasks.tasks) == 0
 
 
 async def test_finish_auction_without_bids_calls_send_message_with_none(

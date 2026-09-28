@@ -644,3 +644,110 @@ def count_participated_auctions_tx(session, tg_id: int, since: int, until: int) 
             )
         ).scalar_one()
     )
+
+
+# Module-level API used by the promoted service.  The transitional facade class
+# remains available to legacy callers until the final facade-removal task.
+_repository = AuctionRepository()
+
+
+def create_auction(
+    *,
+    title: str,
+    description: str,
+    starting_price: float,
+    end_time: int,
+    created_by: int,
+) -> int | None:
+    return _repository.create_auction(
+        title, description, starting_price, end_time, created_by
+    )
+
+
+def get_auction_by_id(auction_id: int) -> dict | None:
+    return _repository.get_auction_by_id(int(auction_id))
+
+
+def get_active_auctions(*, limit: int = 50) -> list[dict]:
+    return _repository.get_active_auctions(limit=int(limit))
+
+
+def place_bid(*, auction_id: int, bidder_id: int, bid_amount: float) -> bool:
+    return _repository.place_bid(int(auction_id), int(bidder_id), float(bid_amount))
+
+
+def get_auction_bids(*, auction_id: int, limit: int = 50) -> list[dict]:
+    return _repository.get_auction_bids(int(auction_id), limit=int(limit))
+
+
+def get_user_highest_bid(auction_id: int, user_id: int) -> float | None:
+    return _repository.get_user_highest_bid(int(auction_id), int(user_id))
+
+
+def get_auction_participants(
+    auction_id: int, *, exclude_user_id: int | None = None
+) -> list[int]:
+    return _repository.get_auction_participants(
+        int(auction_id), exclude_user_id=exclude_user_id
+    )
+
+
+def finish_expired_auctions() -> list[dict]:
+    return _repository.finish_expired_auctions()
+
+
+def get_auction_stats() -> dict:
+    return _repository.get_auction_stats()
+
+
+def get_all_auctions(
+    *, status: str | None = None, limit: int = 50, offset: int = 0
+) -> list[dict]:
+    return _repository.get_all_auctions(
+        status=status, limit=int(limit), offset=int(offset)
+    )
+
+
+def update_auction(auction_id: int, update_data: dict) -> bool:
+    return _repository.update_auction(int(auction_id), update_data)
+
+
+def delete_auction(auction_id: int) -> bool:
+    return _repository.delete_auction(int(auction_id))
+
+
+def finish_auction_by_id(auction_id: int) -> tuple:
+    return _repository.finish_auction_by_id(int(auction_id))
+
+
+def get_user_auction_history(user_id: int, *, limit: int = 20) -> list[dict]:
+    return _repository.get_user_auction_history(int(user_id), limit=int(limit))
+
+
+def get_detailed_auction_stats(
+    *, start_date: int | None = None, end_date: int | None = None
+) -> dict:
+    return _repository.get_detailed_auction_stats(
+        start_date=start_date, end_date=end_date
+    )
+
+
+__all__ = [
+    "AuctionRepository",
+    "count_participated_auctions_tx",
+    "create_auction",
+    "delete_auction",
+    "finish_auction_by_id",
+    "finish_expired_auctions",
+    "get_active_auctions",
+    "get_all_auctions",
+    "get_auction_bids",
+    "get_auction_by_id",
+    "get_auction_participants",
+    "get_auction_stats",
+    "get_detailed_auction_stats",
+    "get_user_auction_history",
+    "get_user_highest_bid",
+    "place_bid",
+    "update_auction",
+]

@@ -73,6 +73,7 @@ class RecurringJob:
 
 
 TASKS = {
+    "auction.finish": None,
     "blackjack.hand_timeout": _settle_blackjack_hand_on_timeout,
     "treasure.open_next_issue": None,
 }
@@ -357,6 +358,10 @@ def _jobs(now: datetime) -> list[RecurringJob]:
 def register_tasks() -> None:
     """Make one-shot tasks available before the API accepts any requests."""
     TASKS["blackjack.hand_timeout"] = _settle_blackjack_hand_on_timeout
+    from app.domains.auction.jobs import finish_single_auction
+
+    TASKS["auction.finish"] = finish_single_auction
+    register_task("auction.finish", finish_single_auction)
     register_task("blackjack.hand_timeout", _settle_blackjack_hand_on_timeout)
     treasure_task = _load_treasure_task()
     TASKS["treasure.open_next_issue"] = treasure_task
