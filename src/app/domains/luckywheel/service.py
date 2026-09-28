@@ -1,6 +1,177 @@
-"""Luckywheel workflows that coordinate repository operations for interfaces."""
+"""Luckywheel workflows with caller-owned atomic spin transactions."""
 
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from app.core.log import logger
+from app.domains.luckywheel import config as wheel_config
+from app.domains.luckywheel import notifications as luckywheel_notifications
 from app.domains.luckywheel import repository
+from app.domains.luckywheel import rules as luckywheel_rules
+from app.domains.luckywheel.schemas import (
+    LuckyWheelConfig,
+    LuckyWheelItem,
+    LuckyWheelSpinResult,
+    LuckyWheelTenSpinResult,
+)
+from app.domains.premium import service as premium_service
+
+
+@dataclass(frozen=True)
+class _CommittedSpin:
+    result: LuckyWheelSpinResult
+    invite_awarded: bool
+    privileged: bool
+    premium_services: tuple[str, ...]
+
+
+def get_wheel_config() -> LuckyWheelConfig:
+    return wheel_config.get_wheel_config()
+
+
+def save_wheel_config(config: LuckyWheelConfig) -> bool:
+    return wheel_config.save_wheel_config(config)
+
+
+def _to_committed_spin(data: dict) -> _CommittedSpin:
+    return _CommittedSpin(
+        result=LuckyWheelSpinResult(
+            item=LuckyWheelItem(
+                name=str(data["item_name"]),
+                probability=float(data["item_probability"]),
+            ),
+            credits_change=float(data["credits_change"]),
+            current_credits=float(data["current_credits"]),
+            used_free_spin=bool(data["used_free_spin"]),
+            free_spin_source=data.get("free_spin_source"),
+        ),
+        invite_awarded=bool(data["invite_awarded"]),
+        privileged=bool(data["privileged"]),
+        premium_services=tuple(data["premium_services"]),
+    )
+
+
+async def _post_commit(
+    spins: list[_CommittedSpin], tg_id: int, *, repeat_privileged_notice: bool = False
+) -> None:
+    services = tuple(
+        dict.fromkeys(service for spin in spins for service in spin.premium_services)
+    )
+    if services:
+        try:
+            premium_service.sync_premium_media_access(int(tg_id), services)
+        except Exception as error:
+            logger.warning(f"转盘 Premium 权限同步失败 (tg_id={tg_id}): {error}")
+    for spin in spins:
+        if spin.invite_awarded:
+            try:
+                await luckywheel_notifications.notify_invite_code_awarded(
+                    int(tg_id), privileged=spin.privileged
+                )
+            except Exception as error:
+                logger.error(f"转盘邀请码通知失败 (tg_id={tg_id}): {error}")
+    if repeat_privileged_notice and any(spin.privileged for spin in spins):
+        try:
+            await luckywheel_notifications.notify_invite_code_awarded(
+                int(tg_id), privileged=True
+            )
+        except Exception as error:
+            logger.error(f"转盘邀请码通知失败 (tg_id={tg_id}): {error}")
+
+
+async def spin(
+    tg_id: int,
+    *,
+    use_free_spin: bool = True,
+    config: LuckyWheelConfig | None = None,
+) -> LuckyWheelSpinResult:
+    """Execute a paid-or-free single spin and notify only after commit."""
+    current_config = config or get_wheel_config()
+    winner = luckywheel_rules.pick_prize(
+        current_config.items,
+        user_id=int(tg_id),
+        randomness=wheel_config.get_randomness_config(),
+    )
+    data = repository.spin(
+        tg_id=int(tg_id),
+        config=current_config,
+        winner_name=winner.name,
+        winner_probability=winner.probability,
+        use_free_spin=use_free_spin,
+    )
+    committed = _to_committed_spin(data)
+    if committed.privileged:
+        current_config.gen_privileged_code = False
+
+    await _post_commit([committed], int(tg_id))
+    return committed.result
+
+
+async def execute_single_spin(
+    config: LuckyWheelConfig,
+    user_id: int,
+    current_credits: float,
+    *,
+    cost_credits: float | None = None,
+    source: str = "paid",
+) -> tuple[LuckyWheelSpinResult, float, bool]:
+    """Compatibility workflow for callers that already claimed a free-spin row."""
+    del current_credits
+    winner = luckywheel_rules.pick_prize(
+        config.items,
+        user_id=int(user_id),
+        randomness=wheel_config.get_randomness_config(),
+    )
+    data = repository.spin(
+        tg_id=int(user_id),
+        config=config,
+        winner_name=winner.name,
+        winner_probability=winner.probability,
+        use_free_spin=False,
+        enforce_minimum=False,
+        cost_credits_override=cost_credits,
+        source_override=source,
+    )
+    committed = _to_committed_spin(data)
+    await _post_commit([committed], int(user_id))
+    return committed.result, committed.result.current_credits, committed.privileged
+
+
+async def spin_ten_times(
+    tg_id: int,
+    *,
+    config: LuckyWheelConfig | None = None,
+) -> LuckyWheelTenSpinResult:
+    """Execute all ten paid spins in one transaction and notify after commit."""
+    current_config = config or get_wheel_config()
+    randomness = wheel_config.get_randomness_config()
+    winners = [
+        (winner.name, float(winner.probability))
+        for winner in (
+            luckywheel_rules.pick_prize(
+                current_config.items,
+                user_id=int(tg_id),
+                randomness=randomness,
+            )
+            for _ in range(10)
+        )
+    ]
+    data_rows = repository.spin_ten(
+        tg_id=int(tg_id), config=current_config, winners=winners
+    )
+    committed_spins = [_to_committed_spin(data) for data in data_rows]
+    if any(spin.privileged for spin in committed_spins):
+        current_config.gen_privileged_code = False
+
+    await _post_commit(committed_spins, int(tg_id), repeat_privileged_notice=True)
+    return LuckyWheelTenSpinResult(
+        results=[spin.result for spin in committed_spins],
+        total_credits_change=round(
+            sum(spin.result.credits_change for spin in committed_spins), 2
+        ),
+        current_credits=committed_spins[-1].result.current_credits,
+    )
 
 
 def get_blackjack_freespin_summary(tg_id: int) -> dict:
@@ -26,7 +197,12 @@ def release_blackjack_freespin(spin_id: int, *, claimed_at_ms: int) -> bool:
 __all__ = [
     "claim_unnotified_blackjack_freespins",
     "consume_blackjack_freespin",
+    "execute_single_spin",
     "get_blackjack_freespin_summary",
+    "get_wheel_config",
     "list_expiring_blackjack_freespins",
     "release_blackjack_freespin",
+    "save_wheel_config",
+    "spin",
+    "spin_ten_times",
 ]

@@ -9,8 +9,21 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.kv import SystemConfig
 from app.core.log import logger
+from app.domains.credits import repository as credits_repository
+from app.domains.credits.exceptions import CreditAccountNotFound
+from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
+from app.domains.invitation import repository as invitation_repository
+from app.domains.luckywheel import config as wheel_config
+from app.domains.luckywheel import constants as wheel_constants
+from app.domains.luckywheel import rules as luckywheel_rules
+from app.domains.luckywheel.exceptions import (
+    insufficient_credits,
+    ten_spin_insufficient_credits,
+    user_not_found,
+)
 from app.domains.luckywheel.models import LuckywheelFreeSpin, WheelStats
+from app.domains.premium import repository as premium_repository
 
 FREE_SPIN_SOURCES = frozenset({"blackjack", "gift_pack"})
 
@@ -55,6 +68,230 @@ def grant_free_spins_tx(
     return rows
 
 
+def consume_free_spin_tx(
+    session, tg_id: int, *, now_ms: int | None = None
+) -> dict | None:
+    """Claim the earliest available free-spin row in the caller's transaction."""
+    claimed_at_ms = int(now_ms if now_ms is not None else time.time() * 1000)
+    row = (
+        session.execute(
+            select(LuckywheelFreeSpin)
+            .where(
+                LuckywheelFreeSpin.tg_id == int(tg_id),
+                LuckywheelFreeSpin.used_at_ms.is_(None),
+                LuckywheelFreeSpin.expires_at_ms > claimed_at_ms,
+            )
+            .order_by(LuckywheelFreeSpin.expires_at_ms, LuckywheelFreeSpin.id)
+            .with_for_update()
+            .limit(1)
+        )
+        .scalars()
+        .one_or_none()
+    )
+    if row is None:
+        return None
+    row.used_at_ms = claimed_at_ms
+    session.flush()
+    return {
+        "id": int(row.id),
+        "expires_at_ms": int(row.expires_at_ms),
+        "claimed_at_ms": claimed_at_ms,
+        "source": row.source or "blackjack",
+        "cost_credits_snapshot": float(row.cost_credits_snapshot or 0),
+        "wheel_stats_source": row.wheel_stats_source
+        or ("gift_pack_free" if row.source == "gift_pack" else "blackjack_free"),
+    }
+
+
+def add_wheel_spin_record_tx(
+    session,
+    tg_id: int,
+    item_name: str,
+    credits_change: float,
+    cost_credits: float,
+    source: str = "paid",
+) -> None:
+    """Append a wheel-statistics row to the caller's transaction."""
+    session.add(
+        WheelStats(
+            tg_id=int(tg_id),
+            item_name=item_name,
+            cost_credits=float(cost_credits),
+            credits_change=float(credits_change),
+            timestamp=int(time.time()),
+            date=datetime.now(settings.TZ).strftime("%Y-%m-%d"),
+            source=source,
+        )
+    )
+    session.flush()
+
+
+def spin_tx(
+    session,
+    *,
+    tg_id: int,
+    config,
+    winner_name: str,
+    winner_probability: float,
+    use_free_spin: bool = True,
+    enforce_minimum: bool = True,
+    cost_credits_override: float | None = None,
+    source_override: str | None = None,
+) -> dict:
+    """Execute one complete spin inside the caller-owned transaction."""
+    free_spin = consume_free_spin_tx(session, tg_id) if use_free_spin else None
+    balance_before, _ = credits_repository.get_tx(
+        session, CreditAccount.tg(int(tg_id)), for_update=True
+    )
+
+    if free_spin is None:
+        if enforce_minimum and balance_before < float(config.min_credits_required):
+            raise insufficient_credits(float(config.min_credits_required))
+        cost_credits = (
+            float(config.cost_credits)
+            if cost_credits_override is None
+            else float(cost_credits_override)
+        )
+        if cost_credits > 0:
+            paid = credits_repository.deduct_tx(
+                session, CreditAccount.tg(int(tg_id)), cost_credits
+            )
+            balance_after_cost = paid.after
+        else:
+            balance_after_cost = balance_before
+        source = source_override or "paid"
+        free_spin_source = wheel_constants.WHEEL_SOURCE_TO_FREE_SPIN_SOURCE.get(source)
+    else:
+        balance_after_cost = balance_before
+        cost_credits = float(free_spin.get("cost_credits_snapshot") or 0)
+        source = str(
+            free_spin.get("wheel_stats_source") or source_override or "blackjack_free"
+        )
+        free_spin_source = str(free_spin.get("source") or "blackjack")
+
+    effects = luckywheel_rules.prize_effects(winner_name, balance_after_cost)
+    privileged = False
+    issued_codes: list[str] = []
+    if effects.invite_codes:
+        wheel_config.ensure_wheel_config_tx(session, config)
+        privileged = wheel_config.consume_privileged_code_toggle_tx(session)
+        issued_codes = invitation_repository.issue_codes_tx(
+            session, int(tg_id), effects.invite_codes, privileged=privileged
+        )
+    premium_services: list[str] = []
+    if effects.premium_days:
+        for service in ("plex", "emby"):
+            try:
+                new_expiry = premium_repository.grant_premium_days_tx(
+                    session, int(tg_id), service, effects.premium_days
+                )
+            except NameError:
+                continue
+            if new_expiry is not None:
+                premium_services.append(service)
+
+    target_credits = max(0.0, round(balance_after_cost + effects.credits_change, 2))
+    actual_credits_change = round(target_credits - balance_after_cost, 2)
+    if actual_credits_change > 0:
+        credits_repository.add_tx(
+            session, CreditAccount.tg(int(tg_id)), actual_credits_change
+        )
+    elif actual_credits_change < 0:
+        credits_repository.deduct_tx(
+            session, CreditAccount.tg(int(tg_id)), -actual_credits_change
+        )
+
+    add_wheel_spin_record_tx(
+        session,
+        int(tg_id),
+        winner_name,
+        actual_credits_change,
+        cost_credits,
+        source,
+    )
+    if privileged:
+        invitation_repository.persist_privileged_codes_tx(issued_codes)
+    final_credits, _ = credits_repository.get_tx(
+        session, CreditAccount.tg(int(tg_id)), for_update=True
+    )
+    return {
+        "item_name": winner_name,
+        "item_probability": float(winner_probability),
+        "credits_change": actual_credits_change,
+        "current_credits": final_credits,
+        "cost_credits": cost_credits,
+        "source": source,
+        "free_spin_source": free_spin_source,
+        "used_free_spin": free_spin is not None or source != "paid",
+        "invite_awarded": bool(effects.invite_codes),
+        "privileged": privileged,
+        "issued_codes": issued_codes,
+        "premium_services": premium_services,
+    }
+
+
+def spin(
+    *,
+    tg_id: int,
+    config,
+    winner_name: str,
+    winner_probability: float,
+    use_free_spin: bool = True,
+    enforce_minimum: bool = True,
+    cost_credits_override: float | None = None,
+    source_override: str | None = None,
+) -> dict:
+    """Repository-owned transaction wrapper for a complete single spin."""
+    try:
+        with get_session() as session:
+            return spin_tx(
+                session,
+                tg_id=int(tg_id),
+                config=config,
+                winner_name=winner_name,
+                winner_probability=winner_probability,
+                use_free_spin=use_free_spin,
+                enforce_minimum=enforce_minimum,
+                cost_credits_override=cost_credits_override,
+                source_override=source_override,
+            )
+    except CreditAccountNotFound as error:
+        raise user_not_found(int(tg_id)) from error
+
+
+def spin_ten(
+    *,
+    tg_id: int,
+    config,
+    winners: list[tuple[str, float]],
+) -> list[dict]:
+    """Run ten paid spins in one repository-owned transaction."""
+    try:
+        with get_session() as session:
+            balance, _ = credits_repository.get_tx(
+                session, CreditAccount.tg(int(tg_id)), for_update=True
+            )
+            required = (
+                float(config.min_credits_required) + float(config.cost_credits)
+            ) * 10
+            if balance < required:
+                raise ten_spin_insufficient_credits(required)
+            return [
+                spin_tx(
+                    session,
+                    tg_id=int(tg_id),
+                    config=config,
+                    winner_name=name,
+                    winner_probability=probability,
+                    use_free_spin=False,
+                    enforce_minimum=False,
+                )
+                for name, probability in winners
+            ]
+    except CreditAccountNotFound as error:
+        raise user_not_found(int(tg_id)) from error
+
+
 def count_blackjack_freespins_since_tx(session, tg_id: int, since_ms: int) -> int:
     """Count blackjack-sourced free spins granted to a user since a timestamp."""
     return int(
@@ -70,48 +307,10 @@ def count_blackjack_freespins_since_tx(session, tg_id: int, since_ms: int) -> in
 
 
 def consume_blackjack_freespin(tg_id: int) -> dict | None:
-    """Atomically claim the earliest available free-spin ledger row."""
-    now_ms = int(time.time() * 1000)
+    """Legacy repository-owned wrapper around the source-agnostic transaction helper."""
     try:
         with get_session() as session:
-            spin_id = (
-                session.execute(
-                    select(LuckywheelFreeSpin.id)
-                    .where(
-                        LuckywheelFreeSpin.tg_id == int(tg_id),
-                        LuckywheelFreeSpin.used_at_ms.is_(None),
-                        LuckywheelFreeSpin.expires_at_ms > now_ms,
-                    )
-                    .order_by(LuckywheelFreeSpin.expires_at_ms, LuckywheelFreeSpin.id)
-                    .limit(1)
-                )
-                .scalars()
-                .one_or_none()
-            )
-            if spin_id is None:
-                return None
-            claimed = session.execute(
-                update(LuckywheelFreeSpin)
-                .where(
-                    LuckywheelFreeSpin.id == int(spin_id),
-                    LuckywheelFreeSpin.used_at_ms.is_(None),
-                )
-                .values(used_at_ms=now_ms)
-            )
-            if claimed.rowcount == 0:
-                return None
-            row = session.get(LuckywheelFreeSpin, int(spin_id))
-            return {
-                "id": int(spin_id),
-                "expires_at_ms": int(row.expires_at_ms),
-                "claimed_at_ms": now_ms,
-                "source": row.source or "blackjack",
-                "cost_credits_snapshot": float(row.cost_credits_snapshot or 0),
-                "wheel_stats_source": row.wheel_stats_source
-                or (
-                    "gift_pack_free" if row.source == "gift_pack" else "blackjack_free"
-                ),
-            }
+            return consume_free_spin_tx(session, tg_id)
     except Exception as exc:
         logger.error(f"认领免费大转盘机会失败 (tg_id={tg_id}): {exc}")
         return None

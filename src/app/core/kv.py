@@ -1,7 +1,16 @@
 import json
 import time
 
-from sqlalchemy import BIGINT, Index, String, Text, UniqueConstraint, select, update
+from sqlalchemy import (
+    BIGINT,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    select,
+    update,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base, get_session
@@ -103,14 +112,24 @@ class SystemConfigRepository:
                     existing_config.updated_at = current_time
                 else:
                     # 插入新配置
-                    new_config = SystemConfig(
-                        config_type=config_type,
-                        config_key=config_key,
-                        config_value=config_value,
-                        created_at=current_time,
-                        updated_at=current_time,
-                    )
-                    session.add(new_config)
+                    values = {
+                        "config_type": config_type,
+                        "config_key": config_key,
+                        "config_value": config_value,
+                        "created_at": current_time,
+                        "updated_at": current_time,
+                    }
+                    if session.get_bind().dialect.name == "sqlite":
+                        values["id"] = (
+                            int(
+                                session.execute(
+                                    select(func.max(SystemConfig.id))
+                                ).scalar_one()
+                                or 0
+                            )
+                            + 1
+                        )
+                    session.add(SystemConfig(**values))
 
                 logger.info(f"设置系统配置成功 (type={config_type}, key={config_key})")
                 return True
@@ -219,15 +238,24 @@ def upsert_tx(session, config_type: str, config_key: str, value: str) -> None:
         .values(config_value=value, updated_at=now)
     )
     if updated.rowcount == 0:
-        session.add(
-            SystemConfig(
-                config_type=config_type,
-                config_key=config_key,
-                config_value=value,
-                created_at=now,
-                updated_at=now,
+        values = {
+            "config_type": config_type,
+            "config_key": config_key,
+            "config_value": value,
+            "created_at": now,
+            "updated_at": now,
+        }
+        # SQLite does not autoincrement BIGINT primary keys. Production uses
+        # PostgreSQL sequences, while the disposable test database needs an
+        # explicit deterministic id for newly-created config documents.
+        if session.get_bind().dialect.name == "sqlite":
+            values["id"] = (
+                int(
+                    session.execute(select(func.max(SystemConfig.id))).scalar_one() or 0
+                )
+                + 1
             )
-        )
+        session.add(SystemConfig(**values))
     session.flush()
 
 

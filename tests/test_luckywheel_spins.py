@@ -17,7 +17,11 @@ from starlette.requests import Request
 from app.core.db import get_session
 from app.core.schemas import TelegramUser
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
+from app.domains.invitation import repository as invitation_repository
+from app.domains.luckywheel import notifications as luckywheel_notifications
 from app.domains.luckywheel import router as lw
+from app.domains.luckywheel import rules as luckywheel_rules
+from app.domains.luckywheel import service as luckywheel_service
 from app.domains.luckywheel.models import LuckywheelFreeSpin, WheelStats
 from app.domains.luckywheel.schemas import LuckyWheelConfig, LuckyWheelItem
 from app.domains.premium import service as premium_service
@@ -82,8 +86,10 @@ def wheel_env(orm, monkeypatch):
         "codes": [],
     }
 
-    monkeypatch.setattr(lw, "send_message_by_url", _noop)
-    monkeypatch.setattr(lw, "get_user_name_from_tg_id", lambda chat_id: "user")
+    monkeypatch.setattr(luckywheel_notifications, "send_message_by_url", _noop)
+    monkeypatch.setattr(
+        luckywheel_notifications, "get_user_name_from_tg_id", lambda chat_id: "user"
+    )
     monkeypatch.setattr(
         premium_service, "sync_premium_media_access", lambda *a, **k: None
     )
@@ -91,19 +97,27 @@ def wheel_env(orm, monkeypatch):
     monkeypatch.setattr(
         lw, "save_wheel_config", lambda config: state["saved"].append(config)
     )
+
+    def _issue_codes(session, tg_id, count, *, privileged=False):
+        state["codes"].append(
+            {"tg_id": tg_id, "num": count, "is_privileged": privileged}
+        )
+        return [f"test-code-{len(state['codes'])}"]
+
+    monkeypatch.setattr(invitation_repository, "issue_codes_tx", _issue_codes)
     monkeypatch.setattr(
-        lw,
-        "add_redeem_code",
-        lambda tg_id=None, num=1, is_privileged=False: state["codes"].append(
-            {"tg_id": tg_id, "num": num, "is_privileged": is_privileged}
-        ),
+        invitation_repository, "persist_privileged_codes_tx", lambda codes: None
     )
     return state
 
 
 def _force_prize(monkeypatch, name: str) -> None:
     item = LuckyWheelItem(name=name, probability=100.0)
-    monkeypatch.setattr(lw, "random_select_winner", lambda items, user_id=None: item)
+    monkeypatch.setattr(
+        luckywheel_rules,
+        "pick_prize",
+        lambda items, user_id=None, randomness=None: item,
+    )
 
 
 def _credits(tg_id: int) -> float:
@@ -258,7 +272,7 @@ async def test_free_spin_is_released_when_the_spin_fails(
     async def _boom(**kwargs):
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(lw, "execute_single_spin", _boom)
+    monkeypatch.setattr(luckywheel_service, "spin", _boom)
 
     with pytest.raises(HTTPException) as excinfo:
         await _spin(1)
@@ -372,9 +386,8 @@ async def test_privileged_toggle_is_consumed_by_exactly_one_code(
     await _spin(1)
 
     assert [call["is_privileged"] for call in wheel_env["codes"]] == [True, False]
-    # 第一次抽中后开关被写回为关闭
-    saved = wheel_env["saved"]
-    assert saved and saved[0].gen_privileged_code is False
+    # 第一次抽中后，事务内条件更新与本次请求配置副本都关闭开关
+    assert wheel_env["config"].gen_privileged_code is False
 
 
 async def test_premium_prize_is_skipped_for_unbound_accounts(
@@ -473,3 +486,100 @@ async def test_free_spins_summary_reports_progress(orm, wheel_env) -> None:
     assert summary.hands_since_freespin == 7
     assert summary.hand_threshold == 20
     assert summary.expires_at_ms_list
+
+
+async def test_spin_transaction_rolls_back_all_writes_when_statistics_fails(
+    orm, wheel_env, monkeypatch
+) -> None:
+    add_user(orm, 1, credits=100.0)
+    _force_prize(monkeypatch, "积分 +30")
+    monkeypatch.setattr(
+        luckywheel_service.repository,
+        "add_wheel_spin_record_tx",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("stats failed")),
+    )
+
+    with pytest.raises(RuntimeError, match="stats failed"):
+        await luckywheel_service.spin(1, config=wheel_env["config"])
+
+    assert _credits(1) == 100.0
+    assert _wheel_records() == []
+
+
+async def test_free_spin_is_restored_by_transaction_rollback(
+    orm, wheel_env, monkeypatch
+) -> None:
+    add_user(orm, 1, credits=5.0)
+    _grant_free_spin(1)
+    _force_prize(monkeypatch, "积分 +10")
+    monkeypatch.setattr(
+        luckywheel_service.repository,
+        "add_wheel_spin_record_tx",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("stats failed")),
+    )
+
+    with pytest.raises(RuntimeError, match="stats failed"):
+        await luckywheel_service.spin(1, config=wheel_env["config"])
+
+    assert _credits(1) == 5.0
+    row = _free_spin_row(1)
+    assert row is not None and row["used_at_ms"] is None
+    assert _wheel_records() == []
+
+
+async def test_invitation_failure_rolls_back_fee_and_ledger(
+    orm, wheel_env, monkeypatch
+) -> None:
+    add_user(orm, 1, credits=100.0)
+    _force_prize(monkeypatch, "邀请码 1 枚")
+    monkeypatch.setattr(
+        invitation_repository,
+        "issue_codes_tx",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("invite failed")),
+    )
+
+    with pytest.raises(RuntimeError, match="invite failed"):
+        await luckywheel_service.spin(1, config=wheel_env["config"])
+
+    assert _credits(1) == 100.0
+    assert _wheel_records() == []
+
+
+async def test_premium_failure_rolls_back_fee_and_ledger(
+    orm, wheel_env, monkeypatch
+) -> None:
+    add_user(orm, 1, credits=100.0)
+    _force_prize(monkeypatch, "Premium 7 天")
+    monkeypatch.setattr(
+        luckywheel_service.repository.premium_repository,
+        "grant_premium_days_tx",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("premium failed")),
+    )
+
+    with pytest.raises(RuntimeError, match="premium failed"):
+        await luckywheel_service.spin(1, config=wheel_env["config"])
+
+    assert _credits(1) == 100.0
+    assert _wheel_records() == []
+
+
+async def test_notification_failure_does_not_undo_committed_spin(
+    orm, wheel_env, monkeypatch
+) -> None:
+    add_user(orm, 1, credits=100.0)
+    _force_prize(monkeypatch, "邀请码 1 枚")
+
+    async def _notification_failure(*args, **kwargs):
+        raise RuntimeError("notification failed")
+
+    monkeypatch.setattr(
+        luckywheel_notifications,
+        "notify_invite_code_awarded",
+        _notification_failure,
+    )
+
+    result = await luckywheel_service.spin(1, config=wheel_env["config"])
+
+    assert result.item.name == "邀请码 1 枚"
+    assert _credits(1) == 90.0
+    assert len(_wheel_records()) == 1

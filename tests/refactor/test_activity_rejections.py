@@ -36,6 +36,7 @@ from app.databases.db import DatabaseORM
 from app.domains.auction import router as auc
 from app.domains.auction.models import Auctions
 from app.domains.auction.schemas import CreateAuctionRequest, PlaceBidRequest
+from app.domains.luckywheel import notifications as luckywheel_notifications
 from app.domains.luckywheel import router as lw
 from app.domains.luckywheel.schemas import (
     LuckyWheelConfigUpdateRequest,
@@ -483,7 +484,7 @@ async def _build_luckywheel(cases: dict[str, Any]) -> None:
             current_user=_ADMIN,
         ),
     )
-    with _patched(DatabaseORM, "set_lucky_wheel_config", lambda *a, **k: False):
+    with _patched(lw, "save_wheel_config", lambda config: False):
         await _capture(
             cases,
             f"{d}.update_config.save_config_failure",
@@ -535,10 +536,7 @@ async def _build_luckywheel(cases: dict[str, Any]) -> None:
             current_user=_USER2,
         ),
     )
-    with (
-        _patched(lw.credits_service, "read_optional", lambda account: 100.0),
-        _patched(lw, "execute_single_spin", _async_raise(RuntimeError("boom"))),
-    ):
+    with _patched(lw.luckywheel_service, "spin", _async_raise(RuntimeError("boom"))):
         await _capture(
             cases,
             f"{d}.spin_wheel.500_unexpected",
@@ -551,26 +549,7 @@ async def _build_luckywheel(cases: dict[str, Any]) -> None:
 
     # 免费机会路径：抽奖失败时补偿释放（现状行为，改造后由事务回滚替代）
     released: dict[str, Any] = {}
-    free_spin = {
-        "id": 7,
-        "claimed_at_ms": 111,
-        "cost_credits_snapshot": 10,
-        "wheel_stats_source": "blackjack_free",
-        "source": "blackjack",
-    }
-    with (
-        _patched(
-            lw.luckywheel_service, "consume_blackjack_freespin", lambda tg_id: free_spin
-        ),
-        _patched(
-            lw.luckywheel_service,
-            "release_blackjack_freespin",
-            lambda spin_id, *, claimed_at_ms: (
-                released.update(spin_id=spin_id, claimed_at_ms=claimed_at_ms) or True
-            ),
-        ),
-        _patched(lw, "execute_single_spin", _async_raise(RuntimeError("boom"))),
-    ):
+    with _patched(lw.luckywheel_service, "spin", _async_raise(RuntimeError("boom"))):
         captured = await _capture(
             cases,
             f"{d}.spin_wheel.500_free_spin_released",
@@ -601,19 +580,15 @@ async def _build_luckywheel(cases: dict[str, Any]) -> None:
             current_user=_USER2,
         ),
     )
-    with (
-        _patched(lw.credits_service, "read_optional", lambda account: 100.0),
-        _patched(lw, "execute_single_spin", _async_raise(RuntimeError("boom"))),
-    ):
-        await _capture(
-            cases,
-            f"{d}.spin_wheel_ten_times.500_unexpected",
-            lw.spin_wheel_ten_times(
-                request=_request(),
-                background_tasks=BackgroundTasks(),
-                current_user=_USER1,
-            ),
-        )
+    await _capture(
+        cases,
+        f"{d}.spin_wheel_ten_times.500_unexpected",
+        lw.spin_wheel_ten_times(
+            request=_request(),
+            background_tasks=BackgroundTasks(),
+            current_user=_USER1,
+        ),
+    )
 
     # GET /user-status：404 被兜底 except 吞成 500
     await _capture(
@@ -1376,7 +1351,7 @@ def _install_noops(monkeypatch) -> None:
         },
     )
     monkeypatch.setattr(lw, "get_user_name_from_tg_id", lambda chat_id: "user")
-    monkeypatch.setattr(lw, "send_message_by_url", _async_none)
+    monkeypatch.setattr(luckywheel_notifications, "send_message_by_url", _async_none)
 
     monkeypatch.setattr(eth_rpc, "latest_block_hash_int", _async_none)
     monkeypatch.setattr(tr, "notify_treasure_issue_created", _async_none)

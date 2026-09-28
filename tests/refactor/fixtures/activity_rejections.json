@@ -273,10 +273,7 @@
   },
   "luckywheel.spin_wheel.500_free_spin_released": {
     "detail": "转盘操作失败",
-    "effects": {
-      "claimed_at_ms": 111,
-      "spin_id": 7
-    },
+    "effects": {},
     "status": 500
   },
   "luckywheel.spin_wheel.500_unexpected": {

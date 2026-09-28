@@ -1829,104 +1829,24 @@
       "target": "get_plex_info_by_plex_id"
     },
     {
-      "key": "call|src/app/domains/luckywheel/router.py|210|imported|premium|update_premium_status",
+      "key": "call|src/app/domains/luckywheel/router.py|250|imported|credits|read_optional",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/luckywheel/router.py",
-      "line": 210,
+      "line": 250,
+      "kind": "call",
+      "source_domain": "luckywheel",
+      "target_domain": "credits",
+      "target": "read_optional"
+    },
+    {
+      "key": "call|src/app/domains/luckywheel/router.py|79|imported|premium|update_premium_status",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/luckywheel/router.py",
+      "line": 79,
       "kind": "call",
       "source_domain": "luckywheel",
       "target_domain": "premium",
       "target": "update_premium_status"
-    },
-    {
-      "key": "call|src/app/domains/luckywheel/router.py|217|imported|premium|update_premium_status",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/luckywheel/router.py",
-      "line": 217,
-      "kind": "call",
-      "source_domain": "luckywheel",
-      "target_domain": "premium",
-      "target": "update_premium_status"
-    },
-    {
-      "key": "call|src/app/domains/luckywheel/router.py|234|imported|invitation|add_redeem_code",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/luckywheel/router.py",
-      "line": 234,
-      "kind": "call",
-      "source_domain": "luckywheel",
-      "target_domain": "invitation",
-      "target": "add_redeem_code"
-    },
-    {
-      "key": "call|src/app/domains/luckywheel/router.py|257|imported|credits|deduct",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/luckywheel/router.py",
-      "line": 257,
-      "kind": "call",
-      "source_domain": "luckywheel",
-      "target_domain": "credits",
-      "target": "deduct"
-    },
-    {
-      "key": "call|src/app/domains/luckywheel/router.py|291|imported|credits|add",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/luckywheel/router.py",
-      "line": 291,
-      "kind": "call",
-      "source_domain": "luckywheel",
-      "target_domain": "credits",
-      "target": "add"
-    },
-    {
-      "key": "call|src/app/domains/luckywheel/router.py|293|imported|credits|deduct",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/luckywheel/router.py",
-      "line": 293,
-      "kind": "call",
-      "source_domain": "luckywheel",
-      "target_domain": "credits",
-      "target": "deduct"
-    },
-    {
-      "key": "call|src/app/domains/luckywheel/router.py|294|imported|credits|read",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/luckywheel/router.py",
-      "line": 294,
-      "kind": "call",
-      "source_domain": "luckywheel",
-      "target_domain": "credits",
-      "target": "read"
-    },
-    {
-      "key": "call|src/app/domains/luckywheel/router.py|429|imported|credits|read_optional",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/luckywheel/router.py",
-      "line": 429,
-      "kind": "call",
-      "source_domain": "luckywheel",
-      "target_domain": "credits",
-      "target": "read_optional"
-    },
-    {
-      "key": "call|src/app/domains/luckywheel/router.py|505|imported|credits|read_optional",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/luckywheel/router.py",
-      "line": 505,
-      "kind": "call",
-      "source_domain": "luckywheel",
-      "target_domain": "credits",
-      "target": "read_optional"
-    },
-    {
-      "key": "call|src/app/domains/luckywheel/router.py|581|imported|credits|read_optional",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/luckywheel/router.py",
-      "line": 581,
-      "kind": "call",
-      "source_domain": "luckywheel",
-      "target_domain": "credits",
-      "target": "read_optional"
     },
     {
       "key": "call|src/app/domains/media_access/repository.py|230|imported|credits|register_cache_invalidation",
@@ -3785,10 +3705,21 @@
       "symbol": "PlexLinesResponse"
     },
     {
-      "key": "import|src/app/domains/luckywheel/router.py|20|app.domains.badge_awards.jobs|check_and_award_game_king_badge",
+      "key": "import|src/app/domains/luckywheel/repository.py|13|app.domains.credits.exceptions|CreditAccountNotFound",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/luckywheel/repository.py",
+      "line": 13,
+      "kind": "import",
+      "source_domain": "luckywheel",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.exceptions",
+      "symbol": "CreditAccountNotFound"
+    },
+    {
+      "key": "import|src/app/domains/luckywheel/router.py|18|app.domains.badge_awards.jobs|check_and_award_game_king_badge",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/luckywheel/router.py",
-      "line": 20,
+      "line": 18,
       "kind": "import",
       "source_domain": "luckywheel",
       "target_domain": "badge_awards",
@@ -3797,10 +3728,10 @@
       "b3_source_id": "app.databases.db_func:check_and_award_game_king_badge"
     },
     {
-      "key": "import|src/app/domains/luckywheel/router.py|21|app.domains.credits.service|service",
+      "key": "import|src/app/domains/luckywheel/router.py|19|app.domains.credits.service|service",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/luckywheel/router.py",
-      "line": 21,
+      "line": 19,
       "kind": "import",
       "source_domain": "luckywheel",
       "target_domain": "credits",
@@ -3808,21 +3739,10 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/luckywheel/router.py|23|app.domains.invitation.service|add_redeem_code",
+      "key": "import|src/app/domains/luckywheel/router.py|35|app.domains.premium.service|update_premium_status",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/luckywheel/router.py",
-      "line": 23,
-      "kind": "import",
-      "source_domain": "luckywheel",
-      "target_domain": "invitation",
-      "target_module": "app.domains.invitation.service",
-      "symbol": "add_redeem_code"
-    },
-    {
-      "key": "import|src/app/domains/luckywheel/router.py|33|app.domains.premium.service|update_premium_status",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/luckywheel/router.py",
-      "line": 33,
+      "line": 35,
       "kind": "import",
       "source_domain": "luckywheel",
       "target_domain": "premium",

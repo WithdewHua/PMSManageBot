@@ -55,10 +55,11 @@
 
 ## 4. luckywheel
 
-- [ ] 4.1 按 design D2 实现单事务抽奖：`rules.pick_prize` 和 `rules.prize_effects`，repository 在一个事务里完成消耗或扣费、发奖和写统计，提交后发送通知；特权码开关改用条件更新；十连在同一事务中循环。验证：
-  - 1.2 的测试通过。
-  - 每一步注入失败时整体回滚，免费次数恢复。
-  - 并发抽中邀请码时，只发出一个特权码。
+- [x] 4.1 按 design D2 实现单事务抽奖：`rules.pick_prize` 和 `rules.prize_effects`，repository 在一个事务里完成消耗或扣费、发奖和写统计，提交后发送通知；特权码开关改用条件更新；十连在同一事务中循环。验证：
+  - 新增 `luckywheel.rules`、`config`、`notifications` 与类型化异常；单抽和十连均通过 repository-owned transaction wrapper 执行。
+  - 1.2 的 25 个行为测试通过；统计写入、邀请码发放和 Premium 发放失败时，积分/免费账本整体回滚；通知失败只发生在提交后且不撤销抽奖。
+  - `scripts/refactor/smoke_luckywheel_concurrency.py` 与 `tests/refactor/test_luckywheel_concurrency.py` 验证 PostgreSQL 并发抽中邀请码时两次抽奖只消费一个特权开关。
+  - 更新拒绝分支中免费次数的失败效果（由补偿释放改为事务回滚）及活动面快照。
 - [ ] 4.2 把账本函数改为与来源无关的命名，映射只保留一份；实现 `FreeSpinProgressProvider`，并在 `app/subscriptions.py` 中注册 21 点的实现；删除 luckywheel 对 21 点配置行和 `blackjack_hands_since_freespin` 的读取；更新 `scripts/blackjack_retention_audit.py`。验证：
   - `GET /api/luckywheel/free-spins` 和 21 点相关接口的响应与夹具一致。
   - 管理员修改 21 点的阈值后，汇总立即反映新阈值。
