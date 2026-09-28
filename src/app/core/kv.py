@@ -1,6 +1,7 @@
+import json
 import time
 
-from sqlalchemy import BIGINT, Index, String, Text, UniqueConstraint, select
+from sqlalchemy import BIGINT, Index, String, Text, UniqueConstraint, select, update
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base, get_session
@@ -175,3 +176,103 @@ class SystemConfigRepository:
         except Exception as e:
             logger.error(f"获取所有配置失败 (type={config_type}): {e!s}")
             return {}
+
+
+# --------------------------------------------------------------------------- #
+# 事务内配置读写（调用方持有 session 与事务边界）
+#
+# 这些模块级函数不吞异常：读取失败不能被当成“没有配置”。旧的
+# `SystemConfigRepository` 保留原签名，供尚未迁移的调用方使用。
+# --------------------------------------------------------------------------- #
+
+
+def get_tx(
+    session,
+    config_type: str,
+    config_key: str,
+    *,
+    for_update: bool = False,
+) -> str | None:
+    """在调用方事务里读取配置值；`for_update=True` 时对配置行加锁。
+
+    PostgreSQL 上行锁让“读出—判断—写回”串行化；SQLite 会忽略 `FOR UPDATE`，
+    但其写锁本身已串行化。列查询不经过 ORM 标识映射，锁住后读到的一定是最新值。
+    """
+    stmt = select(SystemConfig.config_value).where(
+        SystemConfig.config_type == config_type,
+        SystemConfig.config_key == config_key,
+    )
+    if for_update:
+        stmt = stmt.with_for_update()
+    return session.execute(stmt).scalar_one_or_none()
+
+
+def upsert_tx(session, config_type: str, config_key: str, value: str) -> None:
+    """在调用方事务里写入配置值（存在则更新，不存在则插入）。"""
+    now = int(time.time())
+    updated = session.execute(
+        update(SystemConfig)
+        .where(
+            SystemConfig.config_type == config_type,
+            SystemConfig.config_key == config_key,
+        )
+        .values(config_value=value, updated_at=now)
+    )
+    if updated.rowcount == 0:
+        session.add(
+            SystemConfig(
+                config_type=config_type,
+                config_key=config_key,
+                config_value=value,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+    session.flush()
+
+
+def compare_and_update_tx(
+    session,
+    config_type: str,
+    config_key: str,
+    predicate,
+    **changes,
+) -> bool:
+    """在配置行锁内对 JSON 文档做条件更新，返回是否真的改动了。
+
+    读出文档 → `predicate(document)` 为真才合并 `changes` 并写回。配置行不存在
+    或文档无法解析时返回 `False`，不产生副作用；这样“一次性开关”在并发下只会
+    被消费一次，其余调用读到已翻转的值而放弃。
+
+    这是 design 「领域配置的 JSON 文档存储」的 `compare_and_update(predicate,
+    **changes)`，按项目约定带上 `_tx` 后缀并由调用方提供 session。
+    """
+    raw = get_tx(session, config_type, config_key, for_update=True)
+    if raw is None:
+        return False
+    try:
+        document = json.loads(raw)
+    except (TypeError, ValueError) as error:
+        logger.error(
+            f"配置文档无法解析 (type={config_type}, key={config_key}): {error!s}"
+        )
+        return False
+    if not isinstance(document, dict) or not predicate(document):
+        return False
+    document.update(changes)
+    upsert_tx(
+        session,
+        config_type,
+        config_key,
+        json.dumps(document, ensure_ascii=False),
+    )
+    return True
+
+
+__all__ = [
+    "SystemConfig",
+    "SystemConfigRepository",
+    "compare_and_update_tx",
+    "get_tx",
+    "upsert_tx",
+]
