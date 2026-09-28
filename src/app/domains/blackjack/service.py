@@ -20,6 +20,7 @@ from app.domains.blackjack.notifications.tournament import (
 )
 from app.domains.blackjack.repository import analytics as blackjack_analytics
 from app.domains.luckywheel import service as luckywheel_service
+from app.domains.luckywheel.types import FreeSpinProgress
 
 
 async def award_blackjack_champion_badge(tg_id: int) -> dict | None:
@@ -90,6 +91,10 @@ async def award_blackjack_champion_badge(tg_id: int) -> dict | None:
 
 def get_blackjack_config_dict() -> dict:
     return blackjack_repository.get_blackjack_config_dict()
+
+
+def free_spin_progress(tg_id: int) -> FreeSpinProgress:
+    return blackjack_repository.free_spin_progress(tg_id)
 
 
 def get_blackjack_skill_ranks(min_hands: int | None = None) -> dict:
@@ -208,17 +213,15 @@ def list_expiring_blackjack_freespins(*, within_ms: int = 86400 * 1000) -> list[
 
 
 def get_blackjack_freespin_summary(tg_id: int) -> dict:
-    return luckywheel_service.get_blackjack_freespin_summary(tg_id)
+    return luckywheel_service.free_spin_summary(tg_id)
 
 
 def consume_blackjack_freespin(tg_id: int) -> dict | None:
-    return luckywheel_service.consume_blackjack_freespin(tg_id)
+    return luckywheel_service.consume_free_spin(tg_id)
 
 
 def release_blackjack_freespin(spin_id: int, *, claimed_at_ms: int) -> bool:
-    return luckywheel_service.release_blackjack_freespin(
-        spin_id, claimed_at_ms=claimed_at_ms
-    )
+    return luckywheel_service.release_free_spin(spin_id, claimed_at_ms=claimed_at_ms)
 
 
 def get_blackjack_tournament_wallet(tg_id: int) -> float:

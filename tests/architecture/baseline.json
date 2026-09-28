@@ -386,10 +386,10 @@
       "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/blackjack/repository/retention.py|108|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/blackjack/repository/retention.py|124|imported|credits|register_cache_invalidation",
       "owner": "promote-blackjack-domain",
       "path": "src/app/domains/blackjack/repository/retention.py",
-      "line": 108,
+      "line": 124,
       "kind": "call",
       "source_domain": "blackjack",
       "target_domain": "credits",
@@ -3705,10 +3705,10 @@
       "symbol": "PlexLinesResponse"
     },
     {
-      "key": "import|src/app/domains/luckywheel/repository.py|13|app.domains.credits.exceptions|CreditAccountNotFound",
+      "key": "import|src/app/domains/luckywheel/repository.py|12|app.domains.credits.exceptions|CreditAccountNotFound",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/luckywheel/repository.py",
-      "line": 13,
+      "line": 12,
       "kind": "import",
       "source_domain": "luckywheel",
       "target_domain": "credits",

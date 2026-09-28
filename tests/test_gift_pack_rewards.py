@@ -105,7 +105,7 @@ def test_wheel_free_spins_granted_with_gift_pack_source(orm):
 
     result = gift_pack_service.claim_gift_pack(pack, 1)
 
-    assert luckywheel_repository.get_blackjack_freespin_summary(1)["available"] == 3
+    assert luckywheel_repository.free_spin_summary(1)["available"] == 3
     item = result["results"][0]
     assert item["count"] == 3
     assert before + 7 * 86400 <= item["expires_at"] <= int(time.time()) + 7 * 86400

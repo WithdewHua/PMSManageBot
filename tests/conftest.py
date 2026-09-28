@@ -19,6 +19,9 @@ from app.domains.blackjack.config import ENTRY_PLAYING, TOURNAMENT_RUNNING
 from app.domains.blackjack.models import BlackjackTournament, BlackjackTournamentEntry
 from app.domains.identity.models import Statistics
 from app.model_registry import metadata
+from app.subscriptions import register_subscriptions
+
+register_subscriptions()
 
 
 @pytest.fixture

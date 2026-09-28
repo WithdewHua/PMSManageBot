@@ -508,7 +508,7 @@ async def _build_luckywheel(cases: dict[str, Any]) -> None:
     # GET /free-spins 没有兜底分支：服务异常直接冒泡（生产由 ASGI 兜底为 500）
     with _patched(
         lw.luckywheel_service,
-        "get_blackjack_freespin_summary",
+        "free_spin_summary",
         _raise(RuntimeError("boom")),
     ):
         await _capture(
@@ -1331,17 +1331,15 @@ async def _build_auction(cases: dict[str, Any]) -> None:
 
 def _install_noops(monkeypatch) -> None:
     """把外部副作用替换成 no-op：契约只关心 HTTP 层可见的行为。"""
-    monkeypatch.setattr(
-        lw.luckywheel_service, "consume_blackjack_freespin", lambda tg_id: None
-    )
+    monkeypatch.setattr(lw.luckywheel_service, "consume_free_spin", lambda tg_id: None)
     monkeypatch.setattr(
         lw.luckywheel_service,
-        "release_blackjack_freespin",
+        "release_free_spin",
         lambda spin_id, *, claimed_at_ms: True,
     )
     monkeypatch.setattr(
         lw.luckywheel_service,
-        "get_blackjack_freespin_summary",
+        "free_spin_summary",
         lambda tg_id: {
             "enabled": True,
             "available": 0,

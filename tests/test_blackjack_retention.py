@@ -766,40 +766,40 @@ def test_consume_freespin_claims_oldest_expiry(orm):
     later = _add_free_spin(1, expires_in_ms=7 * 86400 * 1000)
     sooner = _add_free_spin(1, expires_in_ms=1 * 86400 * 1000)
 
-    claimed = luckywheel_repository.consume_blackjack_freespin(1)
+    claimed = luckywheel_repository.consume_free_spin(1)
 
     assert claimed is not None
     assert claimed["id"] == sooner  # 先消耗最早到期的
     assert claimed["expires_at_ms"] > 0
 
-    claimed2 = luckywheel_repository.consume_blackjack_freespin(1)
+    claimed2 = luckywheel_repository.consume_free_spin(1)
     assert claimed2["id"] == later
 
-    assert luckywheel_repository.consume_blackjack_freespin(1) is None  # 用尽
+    assert luckywheel_repository.consume_free_spin(1) is None  # 用尽
 
 
 def test_consume_freespin_skips_expired(orm):
     add_user(orm, 1, credits=100.0)
     _add_free_spin(1, expires_in_ms=-1000)  # 已过期
 
-    assert luckywheel_repository.consume_blackjack_freespin(1) is None
+    assert luckywheel_repository.consume_free_spin(1) is None
 
 
 def test_release_freespin_restores_availability(orm):
     add_user(orm, 1, credits=100.0)
     spin_id = _add_free_spin(1)
 
-    claimed = luckywheel_repository.consume_blackjack_freespin(1)
+    claimed = luckywheel_repository.consume_free_spin(1)
     assert claimed["id"] == spin_id
 
     # 补偿路径：只回退本方写入的时戳
     assert (
-        luckywheel_repository.release_blackjack_freespin(
+        luckywheel_repository.release_free_spin(
             spin_id, claimed_at_ms=claimed["claimed_at_ms"]
         )
         is True
     )
-    assert luckywheel_repository.consume_blackjack_freespin(1) is not None  # 机会回来了
+    assert luckywheel_repository.consume_free_spin(1) is not None  # 机会回来了
 
 
 async def test_free_spin_execute_skips_cost(orm, monkeypatch):
@@ -813,7 +813,7 @@ async def test_free_spin_execute_skips_cost(orm, monkeypatch):
     add_user(orm, 1, credits=25.0)  # 低于普通门槛 30
     _add_free_spin(1)
 
-    claimed = luckywheel_repository.consume_blackjack_freespin(1)
+    claimed = luckywheel_repository.consume_free_spin(1)
     assert claimed is not None
 
     config = LuckyWheelConfig(
@@ -852,7 +852,7 @@ async def test_free_spin_negative_prize_truncates_at_zero(orm, monkeypatch):
 
     add_user(orm, 1, credits=0.0)
     _add_free_spin(1)
-    claimed = luckywheel_repository.consume_blackjack_freespin(1)
+    claimed = luckywheel_repository.consume_free_spin(1)
     assert claimed is not None
 
     config = LuckyWheelConfig(
@@ -874,12 +874,12 @@ async def test_free_spin_negative_prize_truncates_at_zero(orm, monkeypatch):
 
 def test_freespin_summary_reports_state(orm):
     add_user(orm, 1, credits=100.0)
-    summary = luckywheel_repository.get_blackjack_freespin_summary(1)
+    summary = luckywheel_repository.free_spin_summary(1)
     assert summary["available"] == 0
 
     _add_free_spin(1)
     _add_free_spin(1)
-    summary = luckywheel_repository.get_blackjack_freespin_summary(1)
+    summary = luckywheel_repository.free_spin_summary(1)
     assert summary["available"] == 2
     assert len(summary["expires_at_ms_list"]) == 2
     assert summary["hands_since_freespin"] == 0
@@ -994,7 +994,7 @@ async def test_admin_notification_failure_does_not_break_spin(orm, monkeypatch):
 
     add_user(orm, 1, credits=25.0)
     _add_free_spin(1)
-    claimed = luckywheel_repository.consume_blackjack_freespin(1)
+    claimed = luckywheel_repository.consume_free_spin(1)
     assert claimed is not None
 
     config = lw.LuckyWheelConfig(
@@ -1106,11 +1106,11 @@ def test_consume_returns_source_and_orders_by_expiry_across_sources(orm):
     gift_later = _add_free_spin(1, source="gift_pack", expires_in_ms=3 * 86400 * 1000)
     bj_sooner = _add_free_spin(1, expires_in_ms=1 * 86400 * 1000)
 
-    first = luckywheel_repository.consume_blackjack_freespin(1)
+    first = luckywheel_repository.consume_free_spin(1)
     assert first["id"] == bj_sooner
     assert first["source"] == "blackjack"
 
-    second = luckywheel_repository.consume_blackjack_freespin(1)
+    second = luckywheel_repository.consume_free_spin(1)
     assert second["id"] == gift_later
     assert second["source"] == "gift_pack"
 
@@ -1125,7 +1125,7 @@ async def test_spin_records_free_spin_source(orm, spin_source, wheel_source):
 
     add_user(orm, 1, credits=0.0)
     _add_free_spin(1, source=spin_source)
-    claimed = luckywheel_repository.consume_blackjack_freespin(1)
+    claimed = luckywheel_repository.consume_free_spin(1)
 
     config = lw.LuckyWheelConfig(
         items=[lw.LuckyWheelItem(name="谢谢参与", probability=100.0)],

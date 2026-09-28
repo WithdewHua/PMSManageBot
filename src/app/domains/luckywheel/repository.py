@@ -1,4 +1,3 @@
-import json
 import time
 from datetime import datetime, timedelta
 from math import isfinite
@@ -12,7 +11,6 @@ from app.core.log import logger
 from app.domains.credits import repository as credits_repository
 from app.domains.credits.exceptions import CreditAccountNotFound
 from app.domains.credits.types import CreditAccount
-from app.domains.identity.models import Statistics
 from app.domains.invitation import repository as invitation_repository
 from app.domains.luckywheel import config as wheel_config
 from app.domains.luckywheel import constants as wheel_constants
@@ -23,9 +21,23 @@ from app.domains.luckywheel.exceptions import (
     user_not_found,
 )
 from app.domains.luckywheel.models import LuckywheelFreeSpin, WheelStats
+from app.domains.luckywheel.types import FreeSpinProgressProvider
 from app.domains.premium import repository as premium_repository
 
 FREE_SPIN_SOURCES = frozenset({"blackjack", "gift_pack"})
+_free_spin_progress_provider: FreeSpinProgressProvider | None = None
+
+
+def register_free_spin_progress_provider(provider: FreeSpinProgressProvider) -> None:
+    """Register the source-owned progress provider during application assembly."""
+    global _free_spin_progress_provider
+    _free_spin_progress_provider = provider
+
+
+def clear_free_spin_progress_provider() -> None:
+    """Reset the provider for isolated tests and process teardown."""
+    global _free_spin_progress_provider
+    _free_spin_progress_provider = None
 
 
 def grant_free_spins_tx(
@@ -37,21 +49,19 @@ def grant_free_spins_tx(
     granted_at_ms: int,
     expires_at_ms: int,
     cost_credits: float = 0.0,
-    wheel_stats_source: str = "blackjack_free",
 ) -> list[LuckywheelFreeSpin]:
     """Grant free spins in a caller-owned transaction."""
     if int(count) <= 0:
         raise ValueError("free spin count must be positive")
     if source not in FREE_SPIN_SOURCES:
         raise ValueError(f"unsupported free spin source: {source}")
-    if not wheel_stats_source.strip():
-        raise ValueError("wheel stats source must not be empty")
     if int(expires_at_ms) <= int(granted_at_ms):
         raise ValueError("free spin expiry must be after grant time")
     normalized_cost = float(cost_credits)
     if not isfinite(normalized_cost) or normalized_cost < 0:
         raise ValueError("free spin cost must be finite and non-negative")
 
+    wheel_stats_source = wheel_constants.wheel_source_for_free_spin(source)
     rows = [
         LuckywheelFreeSpin(
             tg_id=int(tg_id),
@@ -96,10 +106,10 @@ def consume_free_spin_tx(
         "id": int(row.id),
         "expires_at_ms": int(row.expires_at_ms),
         "claimed_at_ms": claimed_at_ms,
-        "source": row.source or "blackjack",
+        "source": row.source,
         "cost_credits_snapshot": float(row.cost_credits_snapshot or 0),
         "wheel_stats_source": row.wheel_stats_source
-        or ("gift_pack_free" if row.source == "gift_pack" else "blackjack_free"),
+        or wheel_constants.wheel_source_for_free_spin(row.source),
     }
 
 
@@ -306,8 +316,8 @@ def count_blackjack_freespins_since_tx(session, tg_id: int, since_ms: int) -> in
     )
 
 
-def consume_blackjack_freespin(tg_id: int) -> dict | None:
-    """Legacy repository-owned wrapper around the source-agnostic transaction helper."""
+def consume_free_spin(tg_id: int) -> dict | None:
+    """Repository-owned wrapper around the source-agnostic transaction helper."""
     try:
         with get_session() as session:
             return consume_free_spin_tx(session, tg_id)
@@ -316,7 +326,7 @@ def consume_blackjack_freespin(tg_id: int) -> dict | None:
         return None
 
 
-def release_blackjack_freespin(spin_id: int, *, claimed_at_ms: int) -> bool:
+def release_free_spin(spin_id: int, *, claimed_at_ms: int) -> bool:
     """Release a free-spin claim only when its CAS timestamp still matches."""
     try:
         with get_session() as session:
@@ -334,20 +344,11 @@ def release_blackjack_freespin(spin_id: int, *, claimed_at_ms: int) -> bool:
         return False
 
 
-def get_blackjack_freespin_summary(tg_id: int) -> dict:
-    """Return free-spin availability and progress without importing blackjack."""
+def free_spin_summary(tg_id: int) -> dict:
+    """Return ledger availability plus progress supplied by the registered source."""
     now_ms = int(time.time() * 1000)
     try:
         with get_session() as session:
-            raw = session.execute(
-                select(SystemConfig.config_value).where(
-                    SystemConfig.config_type == "blackjack",
-                    SystemConfig.config_key == "config",
-                )
-            ).scalar_one_or_none()
-            config = json.loads(raw) if raw else {}
-            enabled = bool(config.get("freespins_enabled", True))
-            threshold = int(config.get("freespins_hand_threshold", 20) or 0)
             spins = (
                 session.execute(
                     select(LuckywheelFreeSpin.expires_at_ms)
@@ -361,14 +362,19 @@ def get_blackjack_freespin_summary(tg_id: int) -> dict:
                 .scalars()
                 .all()
             )
-            stats = session.get(Statistics, int(tg_id))
-            hands = int(stats.blackjack_hands_since_freespin or 0) if stats else 0
+        progress = (
+            _free_spin_progress_provider(int(tg_id))
+            if _free_spin_progress_provider is not None
+            else None
+        )
         return {
-            "enabled": enabled,
+            "enabled": bool(progress.enabled) if progress else False,
             "available": len(spins),
             "expires_at_ms_list": [int(value) for value in spins],
-            "hands_since_freespin": hands,
-            "hand_threshold": threshold,
+            "hands_since_freespin": (
+                int(progress.hands_since_freespin) if progress else 0
+            ),
+            "hand_threshold": int(progress.hand_threshold) if progress else 0,
         }
     except Exception as exc:
         logger.error(f"读取免费机会概览失败 (tg_id={tg_id}): {exc}")
@@ -389,7 +395,6 @@ def grant_free_spins(
     granted_at_ms: int,
     expires_at_ms: int,
     cost_credits: float = 0.0,
-    wheel_stats_source: str = "blackjack_free",
 ) -> list[LuckywheelFreeSpin]:
     """Grant free spins in a repository-owned transaction."""
     with get_session() as session:
@@ -401,7 +406,6 @@ def grant_free_spins(
             granted_at_ms=granted_at_ms,
             expires_at_ms=expires_at_ms,
             cost_credits=cost_credits,
-            wheel_stats_source=wheel_stats_source,
         )
 
 

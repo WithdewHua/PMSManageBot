@@ -15,6 +15,7 @@ from app.domains.luckywheel.schemas import (
     LuckyWheelSpinResult,
     LuckyWheelTenSpinResult,
 )
+from app.domains.luckywheel.types import FreeSpinProgressProvider
 from app.domains.premium import service as premium_service
 
 
@@ -174,8 +175,16 @@ async def spin_ten_times(
     )
 
 
-def get_blackjack_freespin_summary(tg_id: int) -> dict:
-    return repository.get_blackjack_freespin_summary(tg_id)
+def register_free_spin_progress_provider(provider: FreeSpinProgressProvider) -> None:
+    repository.register_free_spin_progress_provider(provider)
+
+
+def clear_free_spin_progress_provider() -> None:
+    repository.clear_free_spin_progress_provider()
+
+
+def free_spin_summary(tg_id: int) -> dict:
+    return repository.free_spin_summary(tg_id)
 
 
 def claim_unnotified_blackjack_freespins() -> list[dict]:
@@ -186,22 +195,24 @@ def list_expiring_blackjack_freespins(*, within_ms: int = 86400 * 1000) -> list[
     return repository.list_expiring_blackjack_freespins(within_ms=within_ms)
 
 
-def consume_blackjack_freespin(tg_id: int) -> dict | None:
-    return repository.consume_blackjack_freespin(tg_id)
+def consume_free_spin(tg_id: int) -> dict | None:
+    return repository.consume_free_spin(tg_id)
 
 
-def release_blackjack_freespin(spin_id: int, *, claimed_at_ms: int) -> bool:
-    return repository.release_blackjack_freespin(spin_id, claimed_at_ms=claimed_at_ms)
+def release_free_spin(spin_id: int, *, claimed_at_ms: int) -> bool:
+    return repository.release_free_spin(spin_id, claimed_at_ms=claimed_at_ms)
 
 
 __all__ = [
     "claim_unnotified_blackjack_freespins",
-    "consume_blackjack_freespin",
+    "clear_free_spin_progress_provider",
+    "consume_free_spin",
     "execute_single_spin",
-    "get_blackjack_freespin_summary",
+    "free_spin_summary",
     "get_wheel_config",
     "list_expiring_blackjack_freespins",
-    "release_blackjack_freespin",
+    "register_free_spin_progress_provider",
+    "release_free_spin",
     "save_wheel_config",
     "spin",
     "spin_ten_times",

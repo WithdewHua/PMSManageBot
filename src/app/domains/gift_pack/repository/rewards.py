@@ -191,7 +191,6 @@ class _GiftPackRepositoryRewards:
             granted_at_ms=now_ms,
             expires_at_ms=expires_at_ms,
             cost_credits=0,
-            wheel_stats_source="gift_pack_free",
         )
         return {
             "type": "wheel_free_spins",

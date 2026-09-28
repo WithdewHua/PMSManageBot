@@ -334,6 +334,10 @@ def get_blackjack_config_dict() -> dict:
     return _repository.get_blackjack_config_dict()
 
 
+def free_spin_progress(tg_id: int):
+    return _repository.free_spin_progress(tg_id)
+
+
 # analytics 是只读聚合模块，导入必须排在包级包装函数之后（它反过来要用
 # get_blackjack_config_dict），否则会形成部分初始化循环导入。
 from . import analytics
@@ -415,6 +419,7 @@ __all__ = [
     "create_blackjack_tournament_hand_tx",
     "credit_tournament_wallet_tx",
     "force_settle_tournament_hands",
+    "free_spin_progress",
     "get_blackjack_admin_stats",
     "get_blackjack_admin_stats_tx",
     "get_blackjack_config",

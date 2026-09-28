@@ -709,21 +709,21 @@
     },
     {
       "kind": "facade_import",
-      "line": 102,
+      "line": 118,
       "path": "src/app/domains/blackjack/repository/retention.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 320,
+      "line": 335,
       "path": "src/app/domains/blackjack/repository/retention.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 341,
+      "line": 356,
       "path": "src/app/domains/blackjack/repository/retention.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
@@ -2074,91 +2074,91 @@
     },
     {
       "kind": "facade_import",
-      "line": 41,
+      "line": 42,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "app.domains.blackjack.config",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 352,
+      "line": 355,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "notify_tournament_started",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 355,
+      "line": 358,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_notify_enabled",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 359,
+      "line": 362,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_notify_enabled",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 367,
+      "line": 370,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_send_many",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 412,
+      "line": 415,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_notify_enabled",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 425,
+      "line": 428,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_send_many",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 489,
+      "line": 492,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_notify_enabled",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 500,
+      "line": 503,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_send_many",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 505,
+      "line": 508,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_broadcast_group",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 609,
+      "line": 612,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_notify_enabled",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 610,
+      "line": 613,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_broadcast_group",
       "target_role": "blackjack.service"
     },
     {
       "kind": "value_error_handler",
-      "line": 612,
+      "line": 615,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
@@ -2463,8 +2463,15 @@
       "path": "src/app/schedule.py",
       "symbol": "app.domains.blackjack.jobs.tournament",
       "target_role": "blackjack.service"
+    },
+    {
+      "kind": "facade_import",
+      "line": 3,
+      "path": "src/app/subscriptions.py",
+      "symbol": "app.domains.blackjack",
+      "target_role": "blackjack.service"
     }
   ],
   "schema_version": 1,
-  "total": 352
+  "total": 353
 }

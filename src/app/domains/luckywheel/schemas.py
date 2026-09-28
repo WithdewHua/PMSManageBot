@@ -41,9 +41,9 @@ class LuckyWheelSpinResult(BaseModel):
 
 
 class LuckyWheelFreespinSummaryResponse(BaseModel):
-    """21 点联动免费机会概览（转盘页展示）"""
+    """免费机会账本概览（转盘页展示）"""
 
-    enabled: bool = Field(..., description="打满送免费机会机制是否启用")
+    enabled: bool = Field(..., description="已注册的免费机会来源进度机制是否启用")
     available: int = Field(..., ge=0, description="当前可用次数（未用且未过期）")
     expires_at_ms_list: list[int] = Field(
         default_factory=list, description="各张机会的到期时间（毫秒，升序）"

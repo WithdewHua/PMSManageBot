@@ -158,8 +158,8 @@ async def get_free_spins(
     request: Request,
     current_user: TelegramUser = Depends(get_telegram_user),
 ):
-    """21 点打满手数获得的免费机会概览：可用次数、到期时间、手数进度。"""
-    summary = luckywheel_service.get_blackjack_freespin_summary(int(current_user.id))
+    """免费机会账本概览：可用次数、到期时间、已注册来源的进度。"""
+    summary = luckywheel_service.free_spin_summary(int(current_user.id))
     return LuckyWheelFreespinSummaryResponse(
         enabled=bool(summary.get("enabled")),
         available=int(summary.get("available") or 0),

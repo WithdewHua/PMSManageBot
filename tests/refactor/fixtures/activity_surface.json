@@ -2034,7 +2034,7 @@
         },
         "/api/luckywheel/free-spins": {
           "get": {
-            "description": "21 点打满手数获得的免费机会概览：可用次数、到期时间、手数进度。",
+            "description": "免费机会账本概览：可用次数、到期时间、已注册来源的进度。",
             "operationId": "get_free_spins_api_luckywheel_free_spins_get",
             "responses": {
               "200": {
@@ -2317,11 +2317,27 @@
           },
           {
             "kind": "from",
+            "module": "app.domains.blackjack.repository.retention",
+            "module_target": "app.domains.luckywheel.types",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.luckywheel.types.FreeSpinProgress"
+          },
+          {
+            "kind": "from",
             "module": "app.domains.blackjack.service",
             "module_target": "app.domains.luckywheel",
             "resolved": true,
             "scope": "module",
             "target": "app.domains.luckywheel.service"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.blackjack.service",
+            "module_target": "app.domains.luckywheel.types",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.luckywheel.types.FreeSpinProgress"
           },
           {
             "kind": "from",
@@ -2519,13 +2535,6 @@
             "module": "app.domains.luckywheel.repository",
             "resolved": true,
             "scope": "module",
-            "target": "json"
-          },
-          {
-            "kind": "import",
-            "module": "app.domains.luckywheel.repository",
-            "resolved": true,
-            "scope": "module",
             "target": "time"
           },
           {
@@ -2635,14 +2644,6 @@
           {
             "kind": "from",
             "module": "app.domains.luckywheel.repository",
-            "module_target": "app.domains.identity.models",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.identity.models.Statistics"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.luckywheel.repository",
             "module_target": "app.domains.invitation",
             "resolved": true,
             "scope": "module",
@@ -2711,6 +2712,14 @@
             "resolved": true,
             "scope": "module",
             "target": "app.domains.luckywheel.models.WheelStats"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.repository",
+            "module_target": "app.domains.luckywheel.types",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.luckywheel.types.FreeSpinProgressProvider"
           },
           {
             "kind": "from",
@@ -3148,10 +3157,42 @@
           {
             "kind": "from",
             "module": "app.domains.luckywheel.service",
+            "module_target": "app.domains.luckywheel.types",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.luckywheel.types.FreeSpinProgressProvider"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.service",
             "module_target": "app.domains.premium",
             "resolved": true,
             "scope": "module",
             "target": "app.domains.premium.service"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.types",
+            "module_target": "__future__",
+            "resolved": true,
+            "scope": "module",
+            "target": "__future__.annotations"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.types",
+            "module_target": "dataclasses",
+            "resolved": true,
+            "scope": "module",
+            "target": "dataclasses.dataclass"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.types",
+            "module_target": "typing",
+            "resolved": true,
+            "scope": "module",
+            "target": "typing.Protocol"
           },
           {
             "kind": "from",
@@ -3176,6 +3217,14 @@
             "resolved": true,
             "scope": "module",
             "target": "app.domains.luckywheel.models"
+          },
+          {
+            "kind": "from",
+            "module": "app.subscriptions",
+            "module_target": "app.domains.luckywheel",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.luckywheel.service"
           }
         ],
         "strings": []
@@ -3183,15 +3232,17 @@
       "repository_functions": [
         "add_wheel_spin_record_tx",
         "claim_unnotified_blackjack_freespins",
-        "consume_blackjack_freespin",
+        "clear_free_spin_progress_provider",
+        "consume_free_spin",
         "consume_free_spin_tx",
         "count_blackjack_freespins_since_tx",
         "count_paid_spins_tx",
-        "get_blackjack_freespin_summary",
+        "free_spin_summary",
         "grant_free_spins",
         "grant_free_spins_tx",
         "list_expiring_blackjack_freespins",
-        "release_blackjack_freespin",
+        "register_free_spin_progress_provider",
+        "release_free_spin",
         "spin",
         "spin_ten",
         "spin_tx"

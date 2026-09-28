@@ -16,9 +16,25 @@ from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
 from app.domains.luckywheel import repository as luckywheel_repository
+from app.domains.luckywheel.types import FreeSpinProgress
 
 
 class _BlackjackRepositoryRetention:
+    def free_spin_progress(self, tg_id: int) -> FreeSpinProgress:
+        """Return live 21-point progress for the luckywheel provider boundary."""
+        config = self.get_blackjack_config_dict()
+        with get_session() as session:
+            stats = session.get(Statistics, int(tg_id))
+            hands = int(stats.blackjack_hands_since_freespin or 0) if stats else 0
+        enabled = bool(config.get("freespins_enabled", True))
+        return FreeSpinProgress(
+            enabled=enabled,
+            hands_since_freespin=hands,
+            hand_threshold=(
+                int(config.get("freespins_hand_threshold", 20) or 0) if enabled else 0
+            ),
+        )
+
     def apply_blackjack_retention_tx(
         self,
         session,
@@ -150,7 +166,6 @@ class _BlackjackRepositoryRetention:
                         granted_at_ms=now_ms,
                         expires_at_ms=expires_at_ms,
                         cost_credits=0,
-                        wheel_stats_source="blackjack_free",
                     )
                     result["freespins"].extend(
                         {"expires_at_ms": row.expires_at_ms} for row in rows

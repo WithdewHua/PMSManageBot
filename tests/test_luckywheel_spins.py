@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import json
 import time
 
 import pytest
@@ -16,6 +17,7 @@ from starlette.requests import Request
 
 from app.core.db import get_session
 from app.core.schemas import TelegramUser
+from app.domains.blackjack import repository as blackjack_repository
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 from app.domains.invitation import repository as invitation_repository
 from app.domains.luckywheel import notifications as luckywheel_notifications
@@ -486,6 +488,18 @@ async def test_free_spins_summary_reports_progress(orm, wheel_env) -> None:
     assert summary.hands_since_freespin == 7
     assert summary.hand_threshold == 20
     assert summary.expires_at_ms_list
+
+
+async def test_free_spin_summary_reads_live_blackjack_threshold(orm, wheel_env) -> None:
+    add_user(orm, 1, credits=0.0)
+    config = blackjack_repository.get_blackjack_config_dict()
+    config["freespins_hand_threshold"] = 7
+    assert blackjack_repository.set_blackjack_config("config", json.dumps(config))
+
+    summary = await lw.get_free_spins(request=_request(), current_user=_user(1))
+
+    assert summary.enabled is True
+    assert summary.hand_threshold == 7
 
 
 async def test_spin_transaction_rolls_back_all_writes_when_statistics_fails(

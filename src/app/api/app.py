@@ -50,6 +50,9 @@ from app.domains.reports.router import router as system_router
 from app.domains.traffic.admin_router import router as traffic_admin
 from app.domains.treasure.router import router as treasure_router
 from app.domains.vaultwarden.router import router as vaultwarden_router
+from app.subscriptions import register_subscriptions
+
+register_subscriptions()
 
 app = FastAPI(
     title="PMSManageBot API",

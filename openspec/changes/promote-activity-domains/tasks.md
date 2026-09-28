@@ -60,10 +60,11 @@
   - 1.2 的 25 个行为测试通过；统计写入、邀请码发放和 Premium 发放失败时，积分/免费账本整体回滚；通知失败只发生在提交后且不撤销抽奖。
   - `scripts/refactor/smoke_luckywheel_concurrency.py` 与 `tests/refactor/test_luckywheel_concurrency.py` 验证 PostgreSQL 并发抽中邀请码时两次抽奖只消费一个特权开关。
   - 更新拒绝分支中免费次数的失败效果（由补偿释放改为事务回滚）及活动面快照。
-- [ ] 4.2 把账本函数改为与来源无关的命名，映射只保留一份；实现 `FreeSpinProgressProvider`，并在 `app/subscriptions.py` 中注册 21 点的实现；删除 luckywheel 对 21 点配置行和 `blackjack_hands_since_freespin` 的读取；更新 `scripts/blackjack_retention_audit.py`。验证：
-  - `GET /api/luckywheel/free-spins` 和 21 点相关接口的响应与夹具一致。
-  - 管理员修改 21 点的阈值后，汇总立即反映新阈值。
-  - luckywheel 中不再出现 `blackjack` 的配置读取。
+- [x] 4.2 把账本函数改为与来源无关的命名，映射只保留一份；实现 `FreeSpinProgressProvider`，并在 `app/subscriptions.py` 中注册 21 点的实现；删除 luckywheel 对 21 点配置行和 `blackjack_hands_since_freespin` 的读取；更新 `scripts/blackjack_retention_audit.py`。验证：
+  - `GET /api/luckywheel/free-spins` 和 21 点相关接口的响应与夹具一致；活动面快照与 rejection fixture 通过。
+  - 新增实时阈值测试，管理员修改 21 点阈值后汇总立即反映新值。
+  - luckywheel 的汇总不再读取 21 点配置文档或 `blackjack_hands_since_freespin`；通知游标仍由账本通知任务维护。
+  - `tests/architecture tests/refactor` 266 passed / 8 skipped；相关 luckywheel、blackjack、gift-pack 回归 107 passed。
 - [ ] 4.3 转盘的入口只调用 service，在源头抛出类型化异常，每个路由的 `except Exception` 之前先原样抛出领域异常。验证：错误映射与夹具一致；路由中不再有字符串分支。
 
 ## 5. treasure 与 auction

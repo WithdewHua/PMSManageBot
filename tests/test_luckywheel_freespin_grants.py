@@ -20,7 +20,6 @@ def test_grant_free_spins_tx_uses_caller_transaction(session_env) -> None:
             granted_at_ms=100,
             expires_at_ms=200,
             cost_credits=0,
-            wheel_stats_source="blackjack_free",
         )
         assert len(rows) == 2
         assert all(row.id is not None for row in rows)
@@ -45,10 +44,9 @@ def test_consumption_reads_immutable_snapshot_after_configuration_changes(
             granted_at_ms=100,
             expires_at_ms=2000000000000,
             cost_credits=7.5,
-            wheel_stats_source="gift_pack_free",
         )
 
-    claimed = luckywheel_repository.consume_blackjack_freespin(101)
+    claimed = luckywheel_repository.consume_free_spin(101)
     assert claimed is not None
     assert claimed["cost_credits_snapshot"] == 7.5
     assert claimed["wheel_stats_source"] == "gift_pack_free"
@@ -64,7 +62,6 @@ def test_grant_free_spins_tx_rolls_back_with_caller_transaction(session_env) -> 
             source="gift_pack",
             granted_at_ms=100,
             expires_at_ms=200,
-            wheel_stats_source="gift_pack_free",
         )
         raise RuntimeError("abort")
 
@@ -92,7 +89,6 @@ def test_grant_free_spins_tx_rejects_invalid_snapshots(session_env, kwargs) -> N
             "granted_at_ms": 100,
             "expires_at_ms": 200,
             "cost_credits": 0,
-            "wheel_stats_source": "blackjack_free",
         }
         values.update(kwargs)
         with pytest.raises(ValueError):

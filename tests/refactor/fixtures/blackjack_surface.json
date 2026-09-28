@@ -1271,6 +1271,14 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.repository.retention",
+        "module_target": "app.domains.luckywheel.types",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.luckywheel.types.FreeSpinProgress"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.retention",
         "module_target": "app.domains.blackjack",
         "resolved": true,
         "scope": "function",
@@ -2836,6 +2844,14 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.service",
+        "module_target": "app.domains.luckywheel.types",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.luckywheel.types.FreeSpinProgress"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
         "module_target": "app.domains.blackjack.config",
         "resolved": true,
         "scope": "function",
@@ -2975,6 +2991,14 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.blackjack.jobs.tournament.blackjack_tournament_tick_job"
+      },
+      {
+        "kind": "from",
+        "module": "app.subscriptions",
+        "module_target": "app.domains.blackjack",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.blackjack.service"
       }
     ],
     "strings": []
