@@ -387,7 +387,6 @@ ignore_imports = [
 
     "app.domains.lines.service -> app.databases.db", # promote-line-domains (B2 inherited)
 
-    "app.domains.luckywheel.router -> app.databases.db", # promote-activity-domains (B2 inherited)
 
 
     "app.domains.media_access.router -> app.databases.db", # promote-line-domains (B2 inherited)
@@ -558,7 +557,6 @@ ignore_imports = [
     "app.domains.credits.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.custom_lines.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.traffic.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
-    "app.domains.luckywheel.router -> app.databases.db", # promote-activity-domains (B2 inherited)
     "app.domains.media_access.router -> app.databases.db", # promote-line-domains (B2 inherited)
     "app.domains.premium.admin_router -> app.databases.db", # promote-line-domains (B2 inherited)
     "app.domains.premium.router -> app.databases.db", # promote-line-domains (B2 inherited)

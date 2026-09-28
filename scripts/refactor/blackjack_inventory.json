@@ -2277,13 +2277,6 @@
     },
     {
       "kind": "facade_import",
-      "line": 17,
-      "path": "src/app/domains/luckywheel/router.py",
-      "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
       "line": 11,
       "path": "src/app/domains/media_access/router.py",
       "symbol": "app.databases",
@@ -2473,5 +2466,5 @@
     }
   ],
   "schema_version": 1,
-  "total": 353
+  "total": 352
 }

@@ -716,6 +716,17 @@ class LuckywheelRepository:
         return self.set_system_config("lucky_wheel", config_key, config_json)
 
 
+_repository = LuckywheelRepository()
+
+
+def get_wheel_stats() -> dict:
+    return _repository.get_wheel_stats()
+
+
+def get_user_wheel_stats(tg_id: int) -> dict:
+    return _repository.get_user_wheel_stats(int(tg_id))
+
+
 FREESPIN_NOTIFY_CURSOR_KEY = "freespin_notify_cursor"
 
 

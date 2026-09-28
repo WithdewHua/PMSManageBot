@@ -2734,13 +2734,6 @@
             "module": "app.domains.luckywheel.router",
             "resolved": true,
             "scope": "module",
-            "target": "json"
-          },
-          {
-            "kind": "import",
-            "module": "app.domains.luckywheel.router",
-            "resolved": true,
-            "scope": "module",
             "target": "re"
           },
           {
@@ -2749,13 +2742,6 @@
             "resolved": true,
             "scope": "module",
             "target": "time"
-          },
-          {
-            "kind": "import",
-            "module": "app.domains.luckywheel.router",
-            "resolved": true,
-            "scope": "module",
-            "target": "traceback"
           },
           {
             "kind": "from",
@@ -2872,42 +2858,10 @@
           {
             "kind": "from",
             "module": "app.domains.luckywheel.router",
-            "module_target": "app.databases",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.databases.db"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.luckywheel.router",
             "module_target": "app.domains.badge_awards.jobs",
             "resolved": true,
             "scope": "module",
             "target": "app.domains.badge_awards.jobs.check_and_award_game_king_badge"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.luckywheel.router",
-            "module_target": "app.domains.credits",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.credits.service"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.luckywheel.router",
-            "module_target": "app.domains.credits.types",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.credits.types.CreditAccount"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.luckywheel.router",
-            "module_target": "app.domains.luckywheel",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.luckywheel.config"
           },
           {
             "kind": "from",
@@ -2932,14 +2886,6 @@
             "resolved": true,
             "scope": "module",
             "target": "app.domains.luckywheel.notifications"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.luckywheel.router",
-            "module_target": "app.domains.luckywheel",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.luckywheel.rules"
           },
           {
             "kind": "from",
@@ -3093,10 +3039,34 @@
           {
             "kind": "from",
             "module": "app.domains.luckywheel.service",
+            "module_target": "app.domains.credits",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.credits.service"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.service",
+            "module_target": "app.domains.credits.types",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.credits.types.CreditAccount"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.service",
             "module_target": "app.domains.luckywheel",
             "resolved": true,
             "scope": "module",
             "target": "app.domains.luckywheel.config"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.service",
+            "module_target": "app.domains.luckywheel",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.luckywheel.exceptions"
           },
           {
             "kind": "from",
@@ -3129,6 +3099,14 @@
             "resolved": true,
             "scope": "module",
             "target": "app.domains.luckywheel.schemas.LuckyWheelConfig"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.service",
+            "module_target": "app.domains.luckywheel.schemas",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.luckywheel.schemas.LuckyWheelConfigUpdateRequest"
           },
           {
             "kind": "from",
@@ -3238,6 +3216,8 @@
         "count_blackjack_freespins_since_tx",
         "count_paid_spins_tx",
         "free_spin_summary",
+        "get_user_wheel_stats",
+        "get_wheel_stats",
         "grant_free_spins",
         "grant_free_spins_tx",
         "list_expiring_blackjack_freespins",

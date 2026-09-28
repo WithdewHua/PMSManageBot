@@ -61,6 +61,13 @@ def get_randomness_config() -> dict:
     return luckywheel_rules.RandomnessConfig.to_dict()
 
 
+def save_randomness_config(config: dict) -> bool:
+    """Persist the runtime randomness document in the wheel domain."""
+    return _config_repository.set_system_config(
+        CONFIG_TYPE, RANDOMNESS_CONFIG_KEY, json.dumps(config)
+    )
+
+
 def save_wheel_config(config: LuckyWheelConfig) -> bool:
     """Persist the complete wheel configuration in its domain-owned document."""
     try:
@@ -98,5 +105,6 @@ __all__ = [
     "ensure_wheel_config_tx",
     "get_randomness_config",
     "get_wheel_config",
+    "save_randomness_config",
     "save_wheel_config",
 ]

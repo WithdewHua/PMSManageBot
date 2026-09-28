@@ -20,12 +20,17 @@ from app.core.schemas import TelegramUser
 from app.domains.blackjack import repository as blackjack_repository
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 from app.domains.invitation import repository as invitation_repository
+from app.domains.luckywheel import exceptions as luckywheel_exceptions
 from app.domains.luckywheel import notifications as luckywheel_notifications
 from app.domains.luckywheel import router as lw
 from app.domains.luckywheel import rules as luckywheel_rules
 from app.domains.luckywheel import service as luckywheel_service
 from app.domains.luckywheel.models import LuckywheelFreeSpin, WheelStats
-from app.domains.luckywheel.schemas import LuckyWheelConfig, LuckyWheelItem
+from app.domains.luckywheel.schemas import (
+    LuckyWheelConfig,
+    LuckyWheelConfigUpdateRequest,
+    LuckyWheelItem,
+)
 from app.domains.premium import service as premium_service
 from tests.conftest import add_user, next_id
 
@@ -96,6 +101,7 @@ def wheel_env(orm, monkeypatch):
         premium_service, "sync_premium_media_access", lambda *a, **k: None
     )
     monkeypatch.setattr(lw, "get_wheel_config", lambda: state["config"])
+    monkeypatch.setattr(luckywheel_service, "get_wheel_config", lambda: state["config"])
     monkeypatch.setattr(
         lw, "save_wheel_config", lambda config: state["saved"].append(config)
     )
@@ -488,6 +494,18 @@ async def test_free_spins_summary_reports_progress(orm, wheel_env) -> None:
     assert summary.hands_since_freespin == 7
     assert summary.hand_threshold == 20
     assert summary.expires_at_ms_list
+
+
+def test_service_validation_raises_typed_luckywheel_error() -> None:
+    with pytest.raises(
+        luckywheel_exceptions.LuckywheelError,
+        match="奖品概率总和必须为 100%",
+    ):
+        luckywheel_service.update_wheel_config(
+            LuckyWheelConfigUpdateRequest(
+                items=[LuckyWheelItem(name="x", probability=50.0)]
+            )
+        )
 
 
 async def test_free_spin_summary_reads_live_blackjack_threshold(orm, wheel_env) -> None:

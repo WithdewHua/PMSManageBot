@@ -65,7 +65,10 @@
   - 新增实时阈值测试，管理员修改 21 点阈值后汇总立即反映新值。
   - luckywheel 的汇总不再读取 21 点配置文档或 `blackjack_hands_since_freespin`；通知游标仍由账本通知任务维护。
   - `tests/architecture tests/refactor` 266 passed / 8 skipped；相关 luckywheel、blackjack、gift-pack 回归 107 passed。
-- [ ] 4.3 转盘的入口只调用 service，在源头抛出类型化异常，每个路由的 `except Exception` 之前先原样抛出领域异常。验证：错误映射与夹具一致；路由中不再有字符串分支。
+- [x] 4.3 转盘的入口只调用 service，在源头抛出类型化异常，每个路由的 `except Exception` 之前先原样抛出领域异常。验证：错误映射与夹具一致；路由中不再有字符串分支。
+  - luckywheel 配置、随机性配置、用户状态及统计查询统一经 `luckywheel.service`；路由不再导入数据库 facade、积分 service 或领域配置读取实现。
+  - 新增配置/随机性校验的 `LuckywheelError` 工厂，路由统一先映射领域错误再处理未知异常；rejection fixture 保持 164 个失败分支逐项一致。
+  - `tests/architecture`、`tests/refactor` 与 luckywheel/blackjack 回归通过，`lint-imports` 12/12 contracts kept。
 
 ## 5. treasure 与 auction
 

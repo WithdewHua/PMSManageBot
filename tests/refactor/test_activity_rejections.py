@@ -468,7 +468,9 @@ async def _build_luckywheel(cases: dict[str, Any]) -> None:
     d = "luckywheel"
 
     # GET /config 没有自己的兜底：get_wheel_config 内部吞掉异常，只有替换它才看得到
-    with _patched(lw, "get_wheel_config", _raise(RuntimeError("boom"))):
+    with _patched(
+        lw.luckywheel_service, "get_wheel_config", _raise(RuntimeError("boom"))
+    ):
         await _capture(cases, f"{d}.get_config.load_failure", lw.get_config())
 
     # PUT /config
@@ -484,7 +486,7 @@ async def _build_luckywheel(cases: dict[str, Any]) -> None:
             current_user=_ADMIN,
         ),
     )
-    with _patched(lw, "save_wheel_config", lambda config: False):
+    with _patched(lw.luckywheel_service, "save_wheel_config", lambda config: False):
         await _capture(
             cases,
             f"{d}.update_config.save_config_failure",
@@ -494,7 +496,9 @@ async def _build_luckywheel(cases: dict[str, Any]) -> None:
                 current_user=_ADMIN,
             ),
         )
-    with _patched(lw, "save_wheel_config", _raise(RuntimeError("boom"))):
+    with _patched(
+        lw.luckywheel_service, "save_wheel_config", _raise(RuntimeError("boom"))
+    ):
         await _capture(
             cases,
             f"{d}.update_config.save_failure",
@@ -598,7 +602,9 @@ async def _build_luckywheel(cases: dict[str, Any]) -> None:
     )
 
     # GET /randomness-stats
-    with _patched(lw, "get_wheel_config", _raise(RuntimeError("boom"))):
+    with _patched(
+        lw.luckywheel_service, "get_wheel_config", _raise(RuntimeError("boom"))
+    ):
         await _capture(
             cases,
             f"{d}.get_randomness_statistics.500_unexpected",
@@ -608,7 +614,11 @@ async def _build_luckywheel(cases: dict[str, Any]) -> None:
         )
 
     # GET /randomness-config：配置读取内部吞异常，只有替换它才看得到 500
-    with _patched(lw, "get_randomness_config_from_redis", _raise(RuntimeError("boom"))):
+    with _patched(
+        lw.luckywheel_service,
+        "get_randomness_config",
+        _raise(RuntimeError("boom")),
+    ):
         await _capture(
             cases,
             f"{d}.get_randomness_config.500_unexpected",
@@ -634,7 +644,11 @@ async def _build_luckywheel(cases: dict[str, Any]) -> None:
             current_user=_ADMIN,
         ),
     )
-    with _patched(DatabaseORM, "set_lucky_wheel_config", lambda *a, **k: False):
+    with _patched(
+        lw.luckywheel_service.wheel_config,
+        "save_randomness_config",
+        lambda config: False,
+    ):
         await _capture(
             cases,
             f"{d}.update_randomness_config.500_write_failure",
@@ -644,7 +658,11 @@ async def _build_luckywheel(cases: dict[str, Any]) -> None:
                 current_user=_ADMIN,
             ),
         )
-    with _patched(lw, "get_randomness_config_from_redis", _raise(RuntimeError("boom"))):
+    with _patched(
+        lw.luckywheel_service,
+        "get_randomness_config",
+        _raise(RuntimeError("boom")),
+    ):
         await _capture(
             cases,
             f"{d}.update_randomness_config.500_unexpected",
@@ -654,13 +672,19 @@ async def _build_luckywheel(cases: dict[str, Any]) -> None:
         )
 
     # GET /stats、GET /user-activity-stats
-    with _patched(DatabaseORM, "get_wheel_stats", _raise(RuntimeError("boom"))):
+    with _patched(
+        lw.luckywheel_service, "get_wheel_stats", _raise(RuntimeError("boom"))
+    ):
         await _capture(
             cases,
             f"{d}.get_wheel_statistics.500_unexpected",
             lw.get_wheel_statistics(request=_request(), current_user=_ADMIN),
         )
-    with _patched(DatabaseORM, "get_user_wheel_stats", _raise(RuntimeError("boom"))):
+    with _patched(
+        lw.luckywheel_service,
+        "get_user_wheel_stats",
+        _raise(RuntimeError("boom")),
+    ):
         await _capture(
             cases,
             f"{d}.get_user_activity_stats.500_unexpected",

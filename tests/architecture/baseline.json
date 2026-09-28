@@ -1829,20 +1829,10 @@
       "target": "get_plex_info_by_plex_id"
     },
     {
-      "key": "call|src/app/domains/luckywheel/router.py|250|imported|credits|read_optional",
+      "key": "call|src/app/domains/luckywheel/router.py|76|imported|premium|update_premium_status",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/luckywheel/router.py",
-      "line": 250,
-      "kind": "call",
-      "source_domain": "luckywheel",
-      "target_domain": "credits",
-      "target": "read_optional"
-    },
-    {
-      "key": "call|src/app/domains/luckywheel/router.py|79|imported|premium|update_premium_status",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/luckywheel/router.py",
-      "line": 79,
+      "line": 76,
       "kind": "call",
       "source_domain": "luckywheel",
       "target_domain": "premium",
@@ -3716,10 +3706,10 @@
       "symbol": "CreditAccountNotFound"
     },
     {
-      "key": "import|src/app/domains/luckywheel/router.py|18|app.domains.badge_awards.jobs|check_and_award_game_king_badge",
+      "key": "import|src/app/domains/luckywheel/router.py|15|app.domains.badge_awards.jobs|check_and_award_game_king_badge",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/luckywheel/router.py",
-      "line": 18,
+      "line": 15,
       "kind": "import",
       "source_domain": "luckywheel",
       "target_domain": "badge_awards",
@@ -3728,21 +3718,10 @@
       "b3_source_id": "app.databases.db_func:check_and_award_game_king_badge"
     },
     {
-      "key": "import|src/app/domains/luckywheel/router.py|19|app.domains.credits.service|service",
+      "key": "import|src/app/domains/luckywheel/router.py|28|app.domains.premium.service|update_premium_status",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/luckywheel/router.py",
-      "line": 19,
-      "kind": "import",
-      "source_domain": "luckywheel",
-      "target_domain": "credits",
-      "target_module": "app.domains.credits.service",
-      "symbol": "service"
-    },
-    {
-      "key": "import|src/app/domains/luckywheel/router.py|35|app.domains.premium.service|update_premium_status",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/luckywheel/router.py",
-      "line": 35,
+      "line": 28,
       "kind": "import",
       "source_domain": "luckywheel",
       "target_domain": "premium",
@@ -4298,11 +4277,11 @@
     "SQLAlchemy direct use scope": 16,
     "Database engine import scope": 18,
     "Domain model import scope": 19,
-    "Six-tier domain dependencies": 56,
+    "Six-tier domain dependencies": 55,
     "Acyclic domain siblings": 17,
     "Domain internal layering": 6,
     "Domain types are pure value modules": 0,
     "Domain rules are pure value computations": 0,
-    "Domain entry points do not touch data layer": 69
+    "Domain entry points do not touch data layer": 68
   }
 }

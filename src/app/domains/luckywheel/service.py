@@ -5,18 +5,25 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.core.log import logger
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.luckywheel import config as wheel_config
+from app.domains.luckywheel import exceptions as luckywheel_exceptions
 from app.domains.luckywheel import notifications as luckywheel_notifications
 from app.domains.luckywheel import repository
 from app.domains.luckywheel import rules as luckywheel_rules
 from app.domains.luckywheel.schemas import (
     LuckyWheelConfig,
+    LuckyWheelConfigUpdateRequest,
     LuckyWheelItem,
     LuckyWheelSpinResult,
     LuckyWheelTenSpinResult,
 )
 from app.domains.luckywheel.types import FreeSpinProgressProvider
 from app.domains.premium import service as premium_service
+
+DEFAULT_WHEEL_CONFIG = wheel_config.DEFAULT_WHEEL_CONFIG
+RandomnessConfig = luckywheel_rules.RandomnessConfig
 
 
 @dataclass(frozen=True)
@@ -28,11 +35,147 @@ class _CommittedSpin:
 
 
 def get_wheel_config() -> LuckyWheelConfig:
-    return wheel_config.get_wheel_config()
+    try:
+        return wheel_config.get_wheel_config()
+    except luckywheel_exceptions.LuckywheelError:
+        raise
+    except Exception as error:
+        raise luckywheel_exceptions.config_load_failed() from error
 
 
 def save_wheel_config(config: LuckyWheelConfig) -> bool:
     return wheel_config.save_wheel_config(config)
+
+
+def update_wheel_config(
+    config_update_request: LuckyWheelConfigUpdateRequest,
+) -> None:
+    total_probability = sum(item.probability for item in config_update_request.items)
+    if abs(total_probability - 100.0) > 0.01:
+        raise luckywheel_exceptions.invalid_probability_total(total_probability)
+
+    current_config = get_wheel_config()
+    new_config = LuckyWheelConfig(
+        items=config_update_request.items,
+        cost_credits=(
+            config_update_request.cost_credits or current_config.cost_credits
+        ),
+        min_credits_required=(
+            config_update_request.min_credits_required
+            or current_config.min_credits_required
+        ),
+        gen_privileged_code=config_update_request.gen_privileged_code,
+    )
+    try:
+        saved = save_wheel_config(new_config)
+    except Exception as error:
+        raise luckywheel_exceptions.update_failed() from error
+    if saved is False:
+        raise luckywheel_exceptions.config_save_failed()
+
+
+def get_user_status(tg_id: int) -> dict:
+    config = get_wheel_config()
+    current_credits = credits_service.read_optional(CreditAccount.tg(int(tg_id)))
+    if current_credits is None:
+        raise luckywheel_exceptions.user_status_failed()
+    return {
+        "can_participate": current_credits >= config.min_credits_required,
+        "current_credits": current_credits,
+        "min_credits_required": config.min_credits_required,
+        "cost_credits": config.cost_credits,
+    }
+
+
+def get_randomness_config() -> dict:
+    try:
+        return wheel_config.get_randomness_config()
+    except luckywheel_exceptions.LuckywheelError:
+        raise
+    except Exception as error:
+        raise luckywheel_exceptions.randomness_read_failed() from error
+
+
+def save_randomness_config(config: dict) -> None:
+    try:
+        if "protection_threshold" in config:
+            threshold = float(config["protection_threshold"])
+            if not (0 < threshold <= 50):
+                raise luckywheel_exceptions.randomness_write_failed()
+        if "protection_factor" in config:
+            factor = float(config["protection_factor"])
+            if not (1.0 <= factor <= 3.0):
+                raise luckywheel_exceptions.randomness_write_failed()
+    except luckywheel_exceptions.LuckywheelError:
+        raise
+    except (TypeError, ValueError, OverflowError) as error:
+        raise luckywheel_exceptions.randomness_write_failed() from error
+    luckywheel_rules.RandomnessConfig.from_dict(config)
+    try:
+        if not wheel_config.save_randomness_config(config):
+            raise luckywheel_exceptions.randomness_write_failed()
+    except luckywheel_exceptions.LuckywheelError:
+        raise
+    except Exception as error:
+        raise luckywheel_exceptions.randomness_write_failed() from error
+
+
+def update_randomness_config(config_data: dict) -> None:
+    try:
+        current_config = get_randomness_config()
+        updated_config = current_config.copy()
+        updated_config.update(config_data)
+        save_randomness_config(updated_config)
+    except luckywheel_exceptions.LuckywheelError:
+        raise
+    except Exception as error:
+        raise luckywheel_exceptions.update_failed() from error
+
+
+def random_select_winner(
+    items: list[LuckyWheelItem], user_id: int | None = None
+) -> LuckyWheelItem:
+    return luckywheel_rules.pick_prize(
+        items,
+        user_id=user_id,
+        randomness=get_randomness_config(),
+    )
+
+
+def get_randomness_stats(items: list[LuckyWheelItem], iterations: int = 10000) -> dict:
+    if not items or iterations <= 0:
+        return {}
+    win_counts = {item.name: 0 for item in items}
+    for _ in range(iterations):
+        try:
+            winner = random_select_winner(items)
+            win_counts[winner.name] += 1
+        except Exception as error:
+            logger.warning(f"转盘随机性模拟单次抽取失败: {error}")
+            continue
+    total_probability = sum(item.probability for item in items if item.probability > 0)
+    stats = {}
+    for item in items:
+        if item.probability > 0:
+            actual_rate = (win_counts[item.name] / iterations) * 100
+            expected_rate = (item.probability / total_probability) * 100
+            deviation = abs(actual_rate - expected_rate)
+            stats[item.name] = {
+                "expected_rate": round(expected_rate, 2),
+                "actual_rate": round(actual_rate, 2),
+                "deviation": round(deviation, 2),
+                "win_count": win_counts[item.name],
+                "is_fair": deviation < 1.0,
+            }
+    return stats
+
+
+def get_wheel_stats() -> dict:
+    return repository.get_wheel_stats()
+
+
+def get_user_wheel_stats(tg_id: int) -> dict:
+    return repository.get_user_wheel_stats(int(tg_id))
 
 
 def _to_committed_spin(data: dict) -> _CommittedSpin:
@@ -204,16 +347,26 @@ def release_free_spin(spin_id: int, *, claimed_at_ms: int) -> bool:
 
 
 __all__ = [
+    "DEFAULT_WHEEL_CONFIG",
     "claim_unnotified_blackjack_freespins",
     "clear_free_spin_progress_provider",
     "consume_free_spin",
     "execute_single_spin",
     "free_spin_summary",
+    "get_randomness_config",
+    "get_randomness_stats",
+    "get_user_status",
+    "get_user_wheel_stats",
     "get_wheel_config",
+    "get_wheel_stats",
     "list_expiring_blackjack_freespins",
+    "random_select_winner",
     "register_free_spin_progress_provider",
     "release_free_spin",
+    "save_randomness_config",
     "save_wheel_config",
     "spin",
     "spin_ten_times",
+    "update_randomness_config",
+    "update_wheel_config",
 ]
