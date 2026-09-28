@@ -51,7 +51,7 @@
     `tests/refactor/test_prediction_concurrency.py`；一次性 `postgres:18-alpine`
     实例上并发下注/开奖通过且无死锁。
   - `pytest tests/architecture` 34 passed；`lint-imports` 12/12。
-- [ ] 3.3 在 `prediction.service` 中暴露两个排行函数；rankings 的 router 改为调用 `rankings.service` 中新增的包装函数。验证：两个排行接口的响应与夹具一致；在摘除 prediction 的 mixin 之后，排行仍然返回数据。
+- [x] 3.3 在 `prediction.service` 中暴露两个排行函数；rankings 的 router 改为调用 `rankings.service` 中新增的包装函数。新增排行 service 边界与响应形状测试；prediction repository mixin 不参与 rankings router 调用链。验证：排行测试通过；`tests/refactor` 232 passed / 7 skipped；全量 `pytest tests/` 651 passed / 7 skipped。
 
 ## 4. luckywheel
 

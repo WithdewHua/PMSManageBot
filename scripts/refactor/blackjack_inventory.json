@@ -2382,14 +2382,14 @@
     },
     {
       "kind": "service_call",
-      "line": 7,
+      "line": 8,
       "path": "src/app/domains/rankings/service.py",
       "symbol": "blackjack_service.get_blackjack_skill_ranks",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 11,
+      "line": 12,
       "path": "src/app/domains/rankings/service.py",
       "symbol": "blackjack_service.get_blackjack_max_win_rank",
       "target_role": "blackjack.service"

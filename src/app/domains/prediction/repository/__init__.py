@@ -157,6 +157,14 @@ def get_prediction_user_stats(tg_id: int) -> dict:
     return _repository.get_prediction_user_stats(tg_id)
 
 
+def get_prediction_net_profit_rank() -> list[dict]:
+    return _repository.get_prediction_net_profit_rank()
+
+
+def get_prediction_win_rate_rank() -> list[dict]:
+    return _repository.get_prediction_win_rate_rank()
+
+
 def list_prediction_markets_closing_soon(
     now_ts: int, deadline_upper_ts: int
 ) -> list[dict]:
@@ -175,7 +183,9 @@ __all__ = [
     "count_bets_tx",
     "create_prediction_market",
     "get_prediction_market_by_id",
+    "get_prediction_net_profit_rank",
     "get_prediction_user_stats",
+    "get_prediction_win_rate_rank",
     "list_prediction_bets",
     "list_prediction_markets",
     "list_prediction_markets_closing_soon",

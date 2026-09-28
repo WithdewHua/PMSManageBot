@@ -228,7 +228,7 @@ async def resolve_prediction_market(
 
             positions = prediction_repository.list_prediction_user_positions(market_id)
             for position in positions:
-                tg_id = int(position.get("tg_id"))
+                tg_id = int(position.get("tg_id") or 0)
                 await prediction_notifications.notify_prediction_user_settlement(
                     tg_id=tg_id,
                     market_id=int(market_id),
@@ -271,12 +271,24 @@ def get_prediction_user_stats(tg_id: int) -> dict:
     return prediction_repository.get_prediction_user_stats(tg_id)
 
 
+def get_prediction_net_profit_rank() -> list[dict]:
+    """Expose the prediction-owned net-profit ranking to read-model services."""
+    return prediction_repository.get_prediction_net_profit_rank()
+
+
+def get_prediction_win_rate_rank() -> list[dict]:
+    """Expose the prediction-owned win-rate ranking to read-model services."""
+    return prediction_repository.get_prediction_win_rate_rank()
+
+
 __all__ = [
     "check_prediction_markets_closing_soon",
     "close_prediction_market_betting",
     "create_prediction_market",
     "get_prediction_market_by_id",
+    "get_prediction_net_profit_rank",
     "get_prediction_user_stats",
+    "get_prediction_win_rate_rank",
     "list_prediction_bets",
     "list_prediction_markets",
     "list_prediction_submissions",

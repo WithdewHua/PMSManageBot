@@ -391,7 +391,7 @@ async def get_prediction_game_rankings(
 
         try:
             logger.debug("正在查询大预言家净盈亏排行")
-            net_profit_data = db.get_prediction_net_profit_rank()
+            net_profit_data = rankings_service.get_prediction_net_profit_rank()
             if net_profit_data:
                 prediction_net_profit_rank = [
                     {
@@ -416,7 +416,7 @@ async def get_prediction_game_rankings(
 
         try:
             logger.debug("正在查询大预言家胜率排行")
-            win_rate_data = db.get_prediction_win_rate_rank()
+            win_rate_data = rankings_service.get_prediction_win_rate_rank()
             if win_rate_data:
                 prediction_win_rate_rank = [
                     {

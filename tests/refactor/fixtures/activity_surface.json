@@ -5085,6 +5085,14 @@
           },
           {
             "kind": "from",
+            "module": "app.domains.rankings.service",
+            "module_target": "app.domains.prediction",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.service"
+          },
+          {
+            "kind": "from",
             "module": "app.domains.tg_rebind.repository",
             "module_target": "app.domains.prediction.models",
             "resolved": true,
@@ -5131,7 +5139,9 @@
         "count_bets_tx",
         "create_prediction_market",
         "get_prediction_market_by_id",
+        "get_prediction_net_profit_rank",
         "get_prediction_user_stats",
+        "get_prediction_win_rate_rank",
         "list_prediction_bets",
         "list_prediction_markets",
         "list_prediction_markets_closing_soon",
