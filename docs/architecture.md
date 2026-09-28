@@ -199,6 +199,21 @@ B3 起，部署回退必须在维护窗口执行：停止所有 B3 调度器 →
 - 生产形态彩排：`scripts/refactor/rehearse_blackjack.py` 对脱敏副本运行，通知与缓存失效置为 no-op，副本内一次性关闭救济/返水/奖池以便精确对账：`/health=200`、`/openapi.json=200`（196 条 path）、未认证 `/api/rankings/credits=401`；`register_all → migrate_persisted_jobs → scheduler.start` 成功，32 条周期任务加命名任务 `blackjack.hand_timeout`／`treasure.open_next_issue` 注册完成，jobstore 迁移 0 条（生产 jobstore 为空）；真实用户手牌结算后积分严格等于 `结算前 − 押注 + 赔付`。本地容器与远程临时 dump 均已删除。
 - 回退：本次不改变任务名，故不需要 jobstore 引用回写；回退即回滚镜像并执行 `alembic downgrade b9c0d1e2f3a4`，执行前先停调度器，避免继续写入新快照列。
 
+## gift_pack 领域边界
+
+- 纯计算全部在 `app.domains.gift_pack.rules`：奖励登记表与文案、条件解析（旧格式与新格式两套合并为一）、生命周期与 `phase_ref`、余量、受众规模、自动补绑定条件、开始后编辑校验，以及 `required_metrics` / `evaluate`（求值只读预取好的计数，窗口未开始时按 0 计，不产生查询）。规则模块由 import-linter「Domain rules are pure value computations」守住，只允许为类型注解导入本领域模型。
+- repository 拆成五个子主题模块：`conditions.py`（用户上下文、8 个领域计数器委托、按 `required_metrics` 预取、受众与行锁）、`rewards.py`（奖励发放）、`packs.py`（CRUD、引用校验、管理端列表与记录、余量）、`claims.py`（用户列表、开屏提醒、领取事务）、`notices.py`（开始私信认领、过期扫描）。`repository/__init__.py` 组合 mixin 后暴露 15 个模块级函数，`DatabaseORM` 不含任何礼包方法。
+- 领取事务固定加锁顺序：锁礼包行 → 锁领取状态行 → 按 `required_metrics` 预取计数 → 纯计算求值 → 依 `statistics` → `plex_user` → `emby_user` 预锁本次要写的行（`_prelock_gift_pack_reward_rows_tx`）→ 按礼包 JSON 顺序发放 → 计数与领取状态 → 特权码持久化放在最后 → 提交。奖励顺序因此不会造成 ABBA 死锁。
+- 跨域写入一律经目标领域的 `*_tx`：积分 `credits.repository.add_tx`（提交后缓存失效已由该 helper 自行登记）、转盘次数 `luckywheel.repository.grant_free_spins_tx`、会员天数 `premium.repository.grant_premium_days_tx`、争霸赛余额 `blackjack.repository.credit_tournament_wallet_tx`、线路调度解锁 `lines.repository.unlock_line_schedule_tx`、下载解锁 `media_access.repository.unlock_download_tx`、邀请码与特权码 `invitation.repository.issue_codes_tx` / `persist_privileged_codes_tx`；条件计数委托各领域的 `count_*_tx`。礼包代码不再导入外域 models。
+- 提交后的副作用由 `service.py` 执行，顺序为：积分缓存失效（已登记在 session 上）、媒体权限同步、通知。`notifications.py` 不读数据，文案所需的礼包标题由 service 传入；`_notify_detached` 同时支持事件循环线程（直接建任务）与线程池（`run_coroutine_threadsafe` 提交到主循环），无事件循环时退化为 `asyncio.run`。
+- 错误契约：`gift_pack/exceptions.py` 提供 `GiftPackError(DomainError, ValueError)` 与携带逐项进度的 `ConditionsNotMet`；router 只读结构化状态码与 `payload["detail"]`，不做子串匹配。
+
+## gift_pack 迁移、验证与彩排证据
+
+- 一次性 PostgreSQL 16 并发验证：`scripts/refactor/smoke_gift_pack_concurrency.py`（pytest 入口 `tests/refactor/test_gift_pack_concurrency.py`，用 `GIFT_PACK_TEST_DATABASE_URL` 触发）验证最后一份不超发、同一用户并发只成功一次，并复现「领取与线路解锁加锁顺序相反」的 ABBA 死锁；5.1 固定加锁顺序后该场景稳定通过（测试断言 `s3.deadlock is False`，xfail 已删除）。
+- 元数据：相对 blackjack 完成态（`5b8da148`）`scripts/refactor/check_metadata_pg.py` 输出 `{"differences": [], "ok": true}`——礼包本轮不新增表或列。相对 B2 冻结基线只多出 blackjack 免费次数快照的两列。
+- 回退：本轮无 schema 变更，回退即回滚镜像；领取的加锁顺序改动只影响并发路径，不改变对外响应。
+
 ## 后续变更与领域
 
 | 后续变更 | 负责领域或事项 |

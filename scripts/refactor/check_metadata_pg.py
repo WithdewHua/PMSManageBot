@@ -81,7 +81,12 @@ def _run_worker(
 def _create_baseline(tool_root: Path, base_root: Path, url: str) -> None:
     code = f"""
 from sqlalchemy import create_engine
-from app.model_registry import metadata
+try:
+    from app.model_registry import metadata
+except ModuleNotFoundError:  # B2 之前的树里元数据还在 legacy models 模块
+    from app.models.models import Base as _Base
+
+    metadata = _Base.metadata
 engine = create_engine({url!r})
 with engine.begin() as connection:
     metadata.drop_all(connection)
@@ -97,7 +102,12 @@ import json
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import create_engine
-from app.model_registry import metadata
+try:
+    from app.model_registry import metadata
+except ModuleNotFoundError:  # B2 之前的树里元数据还在 legacy models 模块
+    from app.models.models import Base as _Base
+
+    metadata = _Base.metadata
 engine = create_engine({url!r})
 with engine.connect() as connection:
     context = MigrationContext.configure(connection)
@@ -115,7 +125,12 @@ engine.dispose()
 def _cleanup_baseline(tool_root: Path, base_root: Path, url: str) -> None:
     code = f"""
 from sqlalchemy import create_engine
-from app.model_registry import metadata
+try:
+    from app.model_registry import metadata
+except ModuleNotFoundError:  # B2 之前的树里元数据还在 legacy models 模块
+    from app.models.models import Base as _Base
+
+    metadata = _Base.metadata
 engine = create_engine({url!r})
 with engine.begin() as connection:
     metadata.drop_all(connection)

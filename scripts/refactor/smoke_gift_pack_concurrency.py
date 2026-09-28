@@ -47,8 +47,8 @@ def main() -> int:
     from sqlalchemy.orm import sessionmaker
 
     import app.core.db as db_module
-    from app.databases import db as db_facade
     from app.domains.credits import service as credits_service
+    from app.domains.gift_pack import service as gift_pack_service
     from app.domains.gift_pack.models import GiftPack, GiftPackUserState
     from app.domains.identity.models import PlexUser, Statistics
     from app.domains.lines import service as lines_service
@@ -68,7 +68,6 @@ def main() -> int:
     db_module.SessionLocal = sessionmaker(
         autocommit=False, autoflush=False, bind=engine
     )
-    db_facade.engine = engine
 
     failures: list[str] = []
     report: dict[str, object] = {}
@@ -133,8 +132,10 @@ def main() -> int:
             )
 
     def make_pack(now: int, rewards: list[dict], **kwargs) -> int:
+        from app.domains.gift_pack import repository as gift_pack_repository
+
         return int(
-            db_facade.create_gift_pack(
+            gift_pack_repository.create_gift_pack(
                 "并发礼包", rewards, now - 3600, now + 3600, **kwargs
             )
         )
@@ -151,7 +152,7 @@ def main() -> int:
 
     def claim_s1(index: int) -> None:
         try:
-            db_facade.claim_gift_pack(pack_s1, 1000 + index)
+            gift_pack_service.claim_gift_pack(pack_s1, 1000 + index)
             successes.append(index)
         except ValueError as exc:
             rejections.append(str(exc))
@@ -185,7 +186,7 @@ def main() -> int:
 
     def claim_s2(index: int) -> None:
         try:
-            db_facade.claim_gift_pack(pack_s2, 2000)
+            gift_pack_service.claim_gift_pack(pack_s2, 2000)
             with lock:
                 outcomes.append("ok")
         except ValueError as exc:
@@ -272,7 +273,7 @@ def main() -> int:
         ) -> None:
             barrier.wait()
             try:
-                db_facade.claim_gift_pack(pack_s3, 3000)
+                gift_pack_service.claim_gift_pack(pack_s3, 3000)
                 round_outcomes.append("claim-ok")
             except Exception as exc:
                 if is_deadlock(exc):

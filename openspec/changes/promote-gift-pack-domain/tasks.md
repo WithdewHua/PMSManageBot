@@ -2,11 +2,11 @@
 
 ## 1. 前置核对与行为冻结
 
-- [ ] 1.1 核对 `promote-blackjack-domain` 的任务已全部完成，并记录它对 D3 两个前提的处理方式：`types` 能否跨域导入；积分缓存失效由谁登记。如果试点的做法与 D3 不同，先更新 design D3 再往下做。验证：试点 tasks 全部勾选；D3 中写有核对结论。
+- [x] 1.1 核对 `promote-blackjack-domain` 的任务已全部完成，并记录它对 D3 两个前提的处理方式：`types` 能否跨域导入；积分缓存失效由谁登记。如果试点的做法与 D3 不同，先更新 design D3 再往下做。验证：试点 tasks 全部勾选；D3 中写有核对结论。
 - [x] 1.2 冻结礼包的行为快照：OpenAPI 与路由顺序、两项调度任务（id、触发器、首跑延迟）、领取的各类结果（成功、每种拒绝、发放阶段拒绝、500）、管理端 8 个接口的响应；把 repository 全部 55 个成员登记进 `scripts/refactor/mapping.toml` 并写明目标位置。验证：连续生成两次，快照逐字节一致；覆盖检查没有未映射的成员。
   - 交付：`scripts/refactor/gift_pack_snapshot.py` + `tests/refactor/fixtures/gift_pack_surface.json`（11 条路由、10 条 OpenAPI path、2 项调度任务含触发器与首跑延迟、15 个门面方法、55 个 repository 成员、3 张表）；`tests/refactor/fixtures/gift_pack_http_contract.json` + `tests/refactor/test_gift_pack_http_contract.py`（28 个用例：领取成功与各类拒绝、发放阶段拒绝、500、用户列表与开屏提醒、管理端 8 个接口）。
   - 验证：两个夹具连续生成逐字节一致（md5 不变）；`test_gift_pack_baseline.py` 断言快照与夹具相等且 55 个成员都有 `planned_target`；时间戳、随机邀请码、邮箱在快照里已归一化，行 id 从固定基数分配，与执行顺序无关。
-- [ ] 1.3 补齐描述现有行为的测试：
+- [x] 1.3 补齐描述现有行为的测试：
   - 管理端 list 和 records 接口。
   - 删除接口的 404/400 分流，包括"标题含'不存在'时返回 404"这一现状。
   - 各个 500 分支。
@@ -86,7 +86,10 @@
   - 交付：各领域 repository 以模块级 `*_tx` 暴露口径（转盘默认只数付费、可关；夺宝按 issue 去重且毫秒边界；竞拍按 auction 去重；预言家按 UTC datetime 闭区间；被邀请人按全部时间去重；勋章取生效集合与存在集合）。
   - 礼包侧：`conditions.py` 的条件计数与 `badge_ids`、`packs.py` 的勋章引用校验全部改走这些 `*_tx`，礼包不再直接读别的领域的表。
   - 验证：`tests/test_gift_pack_conditions.py` 的窗口边界、去重、UTC、准确率与被邀请人历史口径用例逐条通过（`paid_only=False` 也在 `test_wheel_counter_includes_time_boundaries_and_filters_free_spins` 里覆盖）。
-- [ ] 4.1 把 design D1、D4 列出的纯计算抽到 `gift_pack.rules`。
+
+## 4. 纯规则与类型化错误
+
+- [x] 4.1 把 design D1、D4 列出的纯计算抽到 `gift_pack.rules`。
   - [x] 4.1a 奖励登记表、标签和摘要；条件解析（两套实现合并成一套）；生命周期、`phase_ref`、余量、受众规模、自动补绑定条件、开始后的编辑校验；`required_metrics` 与 `evaluate`（求值只读预取好的计数，`metric_value` 在窗口未开始时按 0 计，取数计划由 repository 执行）。
     - 交付：`gift_pack/rules.py`（约 500 行，未超过 1,000 行因此仍是单模块）；repository 只剩取数（`_load_gift_pack_user_context`、8 个 `*_count_*`/计数器委托、`_gift_pack_metrics`、受众锁定）与写入。
     - 验证：新增 import-linter 合约「Domain rules are pure value computations」（直接导入层面禁止 `app.core.db`、`sqlalchemy`、repository/service/router/jobs/notifications；模型只作为类型注解来源并已登记）；`tests/test_gift_pack_rules.py` 14 个用例覆盖旧格式条件、12 种条件、any_of 全子项进度、窗口未开始不取数、指标身份去重、生命周期/相位/余量/受众规模、文案与开始后编辑校验。
@@ -98,7 +101,10 @@
   - 唯一行为差异已固定：被引用的礼包无论引用者标题里有没有“不存在”，删除都返回 400；`tests/test_gift_pack_audience.py` 的用例改名并断言行新语义。
   - 工具：`verify.py` 抽出 `_reviewed_exception_entry`，让“登记过的变更”既能解释 AST 差异、也能解释少掉的导入绑定（礼包 router 不再需要 `json`），并补了负向单测。
   - 验证：新增 `tests/test_gift_pack_errors.py`（22 条旧文案 → 错误码/状态码/detail 逐条、进度结构、ValueError 兼容、外域包装、repository 无裸 ValueError、router 无子串判断、删除/编辑/开始后编辑三个状态码用例）；全量 554 passed / 4 skipped；`verify.py` 与改动前同为 154 条既有差异。
-- [ ] 5.1 把礼包 repository 改成模块级函数。领取事务按 design D4 实现：固定加锁顺序、三步式求值、按 JSON 顺序发放、特权码持久化放在最后；其余操作在各自的事务里完成，`*_tx` 不吞异常。
+
+## 5. service 化与门面摘除
+
+- [x] 5.1 把礼包 repository 改成模块级函数。领取事务按 design D4 实现：固定加锁顺序、三步式求值、按 JSON 顺序发放、特权码持久化放在最后；其余操作在各自的事务里完成，`*_tx` 不吞异常。
   - [x] 5.1a 固定加锁顺序：`lines.repository.lock_media_account_tx`（只锁不写）与礼包侧的 `_prelock_gift_pack_reward_rows_tx`，在发放前按 statistics → plex_user → emby_user 预锁本次要写的行；三步式求值在 4.1a 已落地（`required_metrics` 规划 + `evaluate` 纯计算）。
     - 验证：一次性 PostgreSQL 16 上的 `tests/refactor/test_gift_pack_concurrency.py` 全绿——`s3` 不再死锁（`deadlock is False`），xfail 已删除；不超发、同用户重复领取、余额扣减断言不变；`tests/test_gift_pack_*` 121 例与冻结 HTTP 夹具通过。
   - [x] 5.1b repository 改成模块级函数：`repository/__init__.py` 组合五个 mixin 后暴露 15 个模块级公开函数（各自完成一次事务），调用方（router/jobs/notifications）与测试不再经过 `DatabaseORM` 门面；`*_tx` 助手仍只接受调用方 session、不吞异常。
@@ -127,7 +133,7 @@
 
 ## 6. 集成验证
 
-- [ ] 6.1 运行全量回归：`pytest tests/`、`ruff check`、`ruff format --check`、`lint-imports`、`pre-commit run --all-files`。验证：全部通过；OpenAPI、路由、调度、Bot 快照与 1.2 一致。
-- [ ] 6.2 在一次性 PostgreSQL 上运行 1.4 的并发测试和各类回滚测试，并用 `check_metadata_pg.py` 做元数据比对。验证：不超发、不死锁、没有部分提交；元数据没有差异。
+- [x] 6.1 运行全量回归：`pytest tests/`、`ruff check`、`ruff format --check`、`lint-imports`、`pre-commit run --all-files`。验证：全部通过；OpenAPI、路由、调度、Bot 快照与 1.2 一致。
+- [x] 6.2 在一次性 PostgreSQL 上运行 1.4 的并发测试和各类回滚测试，并用 `check_metadata_pg.py` 做元数据比对。验证：不超发、不死锁、没有部分提交；元数据没有差异。
 - [ ] 6.3 生产形态本地彩排：在完整数据库副本上领取一个含全部奖励类型的礼包，通知替换为 no-op。验证：奖励、领取状态、积分缓存和媒体同步的调用参数与预期一致；日志里没有异常。
-- [ ] 6.4 核对 `docs/architecture.md` 与实现一致，内容包括提升模板、特权码例外的新位置，以及跨域写入一律经 `*_tx`；然后运行 `openspec validate promote-gift-pack-domain --strict`。验证：校验通过；工作区干净。
+- [x] 6.4 核对 `docs/architecture.md` 与实现一致，内容包括提升模板、特权码例外的新位置，以及跨域写入一律经 `*_tx`；然后运行 `openspec validate promote-gift-pack-domain --strict`。验证：校验通过；工作区干净。
