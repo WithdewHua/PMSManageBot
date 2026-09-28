@@ -92,4 +92,4 @@
 - 移除已无数据层依赖的活动入口 import-linter 豁免，刷新 activity/blackjack/inventory/B3 fixtures；`tests/refactor` 232 passed / 8 skipped、architecture 34 passed、`lint-imports` 12/12。
 - [x] 6.2 生产形态本地彩排：在 PostgreSQL 生产形态副本上，完成付费单抽、免费次数单抽、十连、夺宝满员开奖、预言开奖和竞拍结束（外部服务和通知用替身）。新增 `scripts/refactor/rehearse_activity.py` 与 `tests/refactor/test_activity_rehearsal.py`，使用固定高位彩排用户、可重复清理和干净子进程环境；报告同时核对积分、转盘账本来源、夺宝派奖与自动开期持久任务、预言池/荣耀池和 auction.finish 内存任务的创建/移除。一次性 `postgres:18-alpine` schema rehearsal 全部检查通过：付费单抽后 490、免费单抽不扣费、十连后 390；夺宝赢家/输家分别 510/490；预言真实池 200、可派奖 190、荣耀池 +4；竞拍赢家扣 25 且结束任务被移除。
 - 彩排保留旧 treasure 开奖路径中“填满参与记录尚未 flush”的行为口径：动态选择 B 使已提交参与者中奖，避免把已冻结的 `NoResultFound` 分支误当作新回归。
-- [ ] 6.3 运行全量回归：`pytest tests/`、`ruff check`、`ruff format --check`、`lint-imports`、`pre-commit run --all-files`，然后运行 `openspec validate promote-activity-domains --strict`。验证：全部通过；工作区干净。
+- [x] 6.3 运行全量回归：`pytest tests/`、`ruff check`、`ruff format --check`、`lint-imports`、`pre-commit run --all-files`，然后运行 `openspec validate promote-activity-domains --strict`。验证：`pytest tests/` 657 passed / 9 skipped；Ruff、architecture 34 passed、`lint-imports` 12/12、pre-commit 和 OpenSpec strict 全部通过；工作区干净。
