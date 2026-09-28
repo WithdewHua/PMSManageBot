@@ -150,13 +150,22 @@ def test_schedule_task_persists_name_as_first_arg(
         named.schedule_task(
             "missing", run_date=run_date, job_id="missing", misfire_grace_time=60
         )
-    with pytest.raises(ValueError, match="persistent jobstore"):
+    # 未注册的任务在哪个 jobstore 都拒绝
+    with pytest.raises(LookupError, match="unregistered task"):
+        named.schedule_task(
+            "missing",
+            run_date=run_date,
+            job_id="missing",
+            misfire_grace_time=60,
+            jobstore="default",
+        )
+    with pytest.raises(ValueError, match="unknown jobstore"):
         named.schedule_task(
             "blackjack.hand_timeout",
             run_date=run_date,
             job_id="invalid",
             misfire_grace_time=None,
-            jobstore="default",
+            jobstore="elsewhere",
         )
     with pytest.raises(ValueError, match="asyncio executor"):
         named.schedule_task(
@@ -174,3 +183,79 @@ def test_schedule_task_persists_name_as_first_arg(
             misfire_grace_time=None,
             args=("wrong",),
         )
+
+
+@pytest.mark.asyncio
+async def test_memory_jobstore_named_task_lifecycle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """具名任务在内存 jobstore 中的调度：执行、按 id 替换、按 jobstore 删除。"""
+    jobstores = {
+        "default": MemoryJobStore(),
+        "sqlalchemy": SQLAlchemyJobStore(url="sqlite:///:memory:"),
+    }
+    async_scheduler = AsyncIOScheduler(jobstores=jobstores, timezone=UTC)
+    async_scheduler.start()
+
+    instance = object.__new__(named.Scheduler)
+    instance.scheduler = async_scheduler
+    instance.jobstores = jobstores
+    # 内存 jobstore 不受持久化守卫约束，只要求任务是注册过的具名任务
+    instance.named_persistent_only = True
+    monkeypatch.setattr(named, "Scheduler", lambda: instance)
+
+    calls: list[int] = []
+
+    async def finish_auction(*, auction_id: int) -> None:
+        calls.append(auction_id)
+
+    named.register_task("auction.finish", finish_auction)
+    run_date = datetime(2026, 9, 27, tzinfo=UTC)
+
+    try:
+        named.schedule_task(
+            "auction.finish",
+            run_date=run_date,
+            job_id="finish_auction_1",
+            kwargs={"auction_id": 1},
+            misfire_grace_time=60,
+            jobstore="default",
+            replace_existing=True,
+        )
+        job = async_scheduler.get_job("finish_auction_1", jobstore="default")
+        assert job is not None
+        assert job.func is named.run_task
+        assert job.args == ("auction.finish",)
+        assert job.kwargs == {"auction_id": 1}
+        assert job.misfire_grace_time == 60
+
+        # 执行：run_task 解析具名任务并把 kwargs 交给处理函数
+        await named.run_task(*job.args, **job.kwargs)
+        assert calls == [1]
+
+        # 按 id 替换：同一个 id 只留一个任务，参数已更新
+        named.schedule_task(
+            "auction.finish",
+            run_date=run_date,
+            job_id="finish_auction_1",
+            kwargs={"auction_id": 2},
+            misfire_grace_time=60,
+            jobstore="default",
+            replace_existing=True,
+        )
+        jobs = [
+            item
+            for item in async_scheduler.get_jobs(jobstore="default")
+            if item.id == "finish_auction_1"
+        ]
+        assert len(jobs) == 1
+        assert jobs[0].kwargs == {"auction_id": 2}
+
+        # 按 jobstore 删除：内存中的删除不影响持久化存储
+        instance.remove_job("finish_auction_1", jobstore="default")
+        assert async_scheduler.get_job("finish_auction_1", jobstore="default") is None
+        assert (
+            async_scheduler.get_job("finish_auction_1", jobstore="sqlalchemy") is None
+        )
+    finally:
+        async_scheduler.shutdown()

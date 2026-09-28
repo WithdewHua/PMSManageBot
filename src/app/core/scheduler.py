@@ -152,27 +152,35 @@ def schedule_task(
     misfire_grace_time: int | None,
     **job_options: Any,
 ) -> Any:
-    """Persist a named task; callers must choose their legacy misfire policy explicitly.
+    """Schedule a registered named task, choosing its misfire policy explicitly.
 
-    Use ``None`` for blackjack timeouts and ``60`` for treasure auto-reopen.
+    ``jobstore="sqlalchemy"`` (the default) persists the job across restarts;
+    ``jobstore="default"`` keeps it in memory and is rebuilt by startup recovery.
+    Task parameters travel through ``kwargs``; the task name itself is the
+    positional argument ``run_task`` resolves at execution time.
+
+    Use ``None`` for blackjack timeouts, ``60`` for treasure auto-reopen and
+    auction finishes.
     """
     if name not in TASK_REGISTRY:
         raise LookupError(f"unregistered task: {name}")
-    if job_options.get("jobstore", "sqlalchemy") != "sqlalchemy":
-        raise ValueError("named one-shot tasks require the persistent jobstore")
+    scheduler = Scheduler()
+    jobstore = job_options.get("jobstore", "sqlalchemy")
+    if jobstore not in ("sqlalchemy", "default"):
+        raise ValueError(f"unknown jobstore: {jobstore}")
     if job_options.get("executor", "default") != "default":
         raise ValueError("named one-shot tasks require the asyncio executor")
     reserved = {"func", "trigger", "id", "args", "kwargs", "run_date"}
     if reserved.intersection(job_options):
         raise ValueError("named task arguments cannot override scheduler internals")
-    return Scheduler().add_async_job(
+    return scheduler.add_async_job(
         func=run_task,
         trigger="date",
         id=job_id,
         run_date=run_date,
         args=(name,),
         kwargs=dict(kwargs or {}),
-        jobstore="sqlalchemy",
+        jobstore=jobstore,
         misfire_grace_time=misfire_grace_time,
         **{key: value for key, value in job_options.items() if key != "jobstore"},
     )
