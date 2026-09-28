@@ -7,6 +7,8 @@ rules 只接受普通 dict 与模型快照，不做任何 I/O：这里逐条钉�
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from app.domains.gift_pack import rules
@@ -453,3 +455,141 @@ def test_post_start_edit_validation() -> None:
                 "audience": [{"type": "user_list", "mode": "exclude", "tg_ids": [1]}],
             },
         )
+
+
+# --------------------------------------------------------------------------- #
+# 4.1b：列表状态、提醒节流、统计聚合与输入校验
+# --------------------------------------------------------------------------- #
+
+
+def test_gift_pack_status_preserves_claimed_and_lifecycle_precedence() -> None:
+    assert (
+        rules.gift_pack_status(
+            claimed=True,
+            is_enabled=False,
+            lifecycle="ended",
+            remaining=0,
+            requirements_met=False,
+        )
+        == "claimed"
+    )
+    assert (
+        rules.gift_pack_status(
+            claimed=False,
+            is_enabled=True,
+            lifecycle="claim_only",
+            remaining=3,
+            requirements_met=False,
+        )
+        == "in_progress"
+    )
+    assert (
+        rules.gift_pack_status(
+            claimed=False,
+            is_enabled=True,
+            lifecycle="active",
+            remaining=0,
+            requirements_met=True,
+        )
+        == "sold_out"
+    )
+
+
+def test_gift_pack_sort_key_orders_lifecycle_before_end_time() -> None:
+    items = [
+        {"lifecycle": "ended", "end_at": 1},
+        {"lifecycle": "active", "end_at": 9},
+        {"lifecycle": "claim_only", "end_at": 2},
+        {"lifecycle": "upcoming", "end_at": 3},
+    ]
+    assert sorted(items, key=rules.gift_pack_sort_key) == [
+        items[2],
+        items[1],
+        items[3],
+        items[0],
+    ]
+
+
+def test_gift_pack_reminder_throttle_uses_count_and_local_day() -> None:
+    assert rules.reminder_allowed(
+        count=0, maximum=2, last_prompt_date=None, today="2026-09-28"
+    )
+    assert not rules.reminder_allowed(
+        count=2, maximum=2, last_prompt_date=None, today="2026-09-28"
+    )
+    assert not rules.reminder_allowed(
+        count=1, maximum=2, last_prompt_date="2026-09-28", today="2026-09-28"
+    )
+    assert rules.reminder_allowed(
+        count=1, maximum=2, last_prompt_date="2026-09-27", today="2026-09-28"
+    )
+
+
+def test_aggregate_reward_snapshots_keeps_registry_order_and_skips_invalid_rows() -> (
+    None
+):
+    totals, invalid = rules.aggregate_reward_snapshots(
+        [
+            json.dumps(
+                [
+                    {"type": "credits", "amount": 10},
+                    {"type": "premium_days", "days": 3, "skipped": True},
+                ],
+                ensure_ascii=False,
+            ),
+            json.dumps([{"type": "credits", "amount": 2.5}]),
+            "not-json",
+        ]
+    )
+    assert invalid == 1
+    assert totals == [
+        {
+            "type": "credits",
+            "label": "积分",
+            "total": 12.5,
+            "grants": 2,
+            "skipped": 0,
+        },
+        {
+            "type": "premium_days",
+            "label": "Premium 天数",
+            "total": 0,
+            "grants": 0,
+            "skipped": 1,
+            "skipped_label": "因永久会员跳过",
+            "skipped_lifetime": 1,
+        },
+    ]
+
+
+def test_validate_gift_pack_fields_preserves_create_and_update_errors() -> None:
+    with pytest.raises(GiftPackError, match="结束时间必须晚于开始时间"):
+        rules.validate_gift_pack_fields(
+            rewards=[{"type": "credits", "amount": 1}],
+            start_at=10,
+            end_at=10,
+            task_end_at=None,
+            total_quantity=None,
+            audience=[],
+            notify_audience_on_start=False,
+        )
+    with pytest.raises(GiftPackError, match="限量份数不能小于已领取份数"):
+        rules.validate_gift_pack_fields(
+            rewards=[{"type": "credits", "amount": 1}],
+            start_at=10,
+            end_at=20,
+            task_end_at=None,
+            total_quantity=2,
+            audience=[],
+            notify_audience_on_start=False,
+            claimed_count=3,
+        )
+    rules.validate_gift_pack_fields(
+        rewards=[{"type": "credits", "amount": 1}],
+        start_at=10,
+        end_at=20,
+        task_end_at=15,
+        total_quantity=3,
+        audience=[{"type": "user_list", "mode": "include", "tg_ids": [1]}],
+        notify_audience_on_start=True,
+    )

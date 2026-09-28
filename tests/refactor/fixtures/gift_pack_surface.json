@@ -1066,6 +1066,22 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.rules",
+        "module_target": "collections.abc",
+        "resolved": true,
+        "scope": "module",
+        "target": "collections.abc.Iterable"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.rules",
+        "module_target": "collections.abc",
+        "resolved": true,
+        "scope": "module",
+        "target": "collections.abc.Mapping"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.rules",
         "module_target": "datetime",
         "resolved": true,
         "scope": "module",

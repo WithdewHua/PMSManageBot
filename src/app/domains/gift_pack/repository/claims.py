@@ -65,18 +65,13 @@ class _GiftPackRepositoryClaims:
                     met, progress = rules._evaluate_conditions(
                         requirements, ctx, pack, ref, metrics=metrics
                     )
-                    if claimed:
-                        status = "claimed"
-                    elif not pack.is_enabled:
-                        status = "disabled"
-                    elif lifecycle == "upcoming":
-                        status = "upcoming"
-                    elif lifecycle == "ended":
-                        status = "ended"
-                    elif remaining is not None and remaining <= 0:
-                        status = "sold_out"
-                    else:
-                        status = "claimable" if met else "in_progress"
+                    status = rules.gift_pack_status(
+                        claimed=claimed,
+                        is_enabled=bool(pack.is_enabled),
+                        lifecycle=lifecycle,
+                        remaining=remaining,
+                        requirements_met=met,
+                    )
                     result.append(
                         {
                             "id": int(pack.id),
@@ -115,8 +110,7 @@ class _GiftPackRepositoryClaims:
                             else None,
                         }
                     )
-                order = {"active": 0, "claim_only": 0, "upcoming": 1, "ended": 2}
-                result.sort(key=lambda x: (order.get(x["lifecycle"], 3), x["end_at"]))
+                result.sort(key=rules.gift_pack_sort_key)
                 return result
         except Exception as e:
             logger.error(f"获取用户礼包列表失败 (tg_id={tg_id}): {e}")
@@ -317,8 +311,15 @@ class _GiftPackRepositoryClaims:
                         )
                         maximum, destination = int(pack.max_task_prompt_count), tasks
                     last = getattr(state, time_field)
-                    if int(getattr(state, count_field) or 0) >= maximum or (
-                        last is not None and rules._gift_pack_local_date(last) == today
+                    if not rules.reminder_allowed(
+                        count=int(getattr(state, count_field) or 0),
+                        maximum=maximum,
+                        last_prompt_date=(
+                            rules._gift_pack_local_date(last)
+                            if last is not None
+                            else None
+                        ),
+                        today=today,
                     ):
                         continue
                     setattr(

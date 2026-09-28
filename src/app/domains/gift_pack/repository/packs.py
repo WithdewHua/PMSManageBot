@@ -66,27 +66,21 @@ class _GiftPackRepositoryPacks:
         notify_audience_on_start: bool = False,
     ) -> int:
         """Create a pack, normalizing legacy eligibility and binding requirements."""
-        if not rewards:
-            raise gift_pack_error("礼包至少需要一项奖励")
-        if end_at <= start_at:
-            raise gift_pack_error("结束时间必须晚于开始时间")
-        if task_end_at is not None and (not start_at < task_end_at <= end_at):
-            raise gift_pack_error("任务截止时间必须晚于开始时间且不晚于结束时间")
-        if total_quantity is not None and total_quantity <= 0:
-            raise gift_pack_error("限量份数必须大于 0")
         audience = list(audience or [])
+        rules.validate_gift_pack_fields(
+            rewards=rewards,
+            start_at=start_at,
+            end_at=end_at,
+            task_end_at=task_end_at,
+            total_quantity=total_quantity,
+            audience=audience,
+            notify_audience_on_start=notify_audience_on_start,
+        )
         if requirements is None and eligibility:
             requirements = rules._legacy_gift_pack_requirements(eligibility)
         requirements = rules._gift_pack_conditions_with_binding(
             requirements or [], rewards
         )
-        if notify_audience_on_start and (
-            not any(
-                item["type"] == "user_list" and item["mode"] == "include"
-                for item in audience
-            )
-        ):
-            raise gift_pack_error("开启开始通知要求受众顶层包含 include 指定名单")
         with get_session() as session:
             self._validate_gift_pack_references(session, audience, requirements)
             now = int(time.time())
@@ -168,18 +162,6 @@ class _GiftPackRepositoryPacks:
                     fields["eligibility"] or {}
                 )
             new = {**old, **{k: v for k, v in fields.items() if k in old}}
-            if not new["rewards"]:
-                raise gift_pack_error("礼包至少需要一项奖励")
-            if new["end_at"] <= new["start_at"]:
-                raise gift_pack_error("结束时间必须晚于开始时间")
-            if new["task_end_at"] is not None and (
-                not new["start_at"] < new["task_end_at"] <= new["end_at"]
-            ):
-                raise gift_pack_error("任务截止时间必须晚于开始时间且不晚于结束时间")
-            if new["total_quantity"] is not None and (
-                new["total_quantity"] <= 0 or new["total_quantity"] < pack.claimed_count
-            ):
-                raise gift_pack_error("限量份数不能小于已领取份数且必须大于 0")
             new["audience"] = list(new["audience"] or [])
             new["requirements"] = rules._gift_pack_conditions_with_binding(
                 new["requirements"] or [], new["rewards"]
@@ -187,13 +169,16 @@ class _GiftPackRepositoryPacks:
             notify = fields.get(
                 "notify_audience_on_start", pack.notify_audience_on_start
             )
-            if notify and (
-                not any(
-                    item["type"] == "user_list" and item["mode"] == "include"
-                    for item in new["audience"]
-                )
-            ):
-                raise gift_pack_error("开启开始通知要求受众顶层包含 include 指定名单")
+            rules.validate_gift_pack_fields(
+                rewards=new["rewards"],
+                start_at=new["start_at"],
+                end_at=new["end_at"],
+                task_end_at=new["task_end_at"],
+                total_quantity=new["total_quantity"],
+                audience=new["audience"],
+                notify_audience_on_start=bool(notify),
+                claimed_count=int(pack.claimed_count),
+            )
             if int(time.time()) >= int(pack.start_at):
                 rules._validate_post_start_edit(old, new)
             self._validate_gift_pack_references(
@@ -390,46 +375,11 @@ class _GiftPackRepositoryPacks:
                         )
                     ).all()
                 ]
-                aggregates: dict[str, dict] = {}
-                for raw in snapshots:
-                    try:
-                        items = json.loads(raw)
-                        for item in items:
-                            reward_type = item.get("type")
-                            meta = rules.GIFT_PACK_REWARD_TYPES.get(reward_type)
-                            if meta is None:
-                                continue
-                            entry = aggregates.setdefault(
-                                reward_type,
-                                {
-                                    "type": reward_type,
-                                    "label": meta["stat_label"],
-                                    "total": 0,
-                                    "grants": 0,
-                                    "skipped": 0,
-                                },
-                            )
-                            if item.get("skipped"):
-                                entry["skipped"] += 1
-                                continue
-                            field = meta["stat_field"]
-                            entry["total"] += (
-                                float(item.get(field) or 0) if field else 1
-                            )
-                            entry["grants"] += 1
-                    except (ValueError, TypeError) as e:
-                        logger.warning(f"解析礼包发放快照失败 (pack_id={pack_id}): {e}")
-                reward_totals = []
-                for reward_type, meta in rules.GIFT_PACK_REWARD_TYPES.items():
-                    entry = aggregates.get(reward_type)
-                    if entry is None:
-                        continue
-                    entry["total"] = round(entry["total"], 2)
-                    if meta["skipped_label"]:
-                        entry["skipped_label"] = meta["skipped_label"]
-                    if reward_type == "premium_days":
-                        entry["skipped_lifetime"] = entry["skipped"]
-                    reward_totals.append(entry)
+                reward_totals, invalid_snapshots = rules.aggregate_reward_snapshots(
+                    snapshots
+                )
+                for _ in range(invalid_snapshots):
+                    logger.warning(f"解析礼包发放快照失败 (pack_id={pack_id})")
                 return {
                     "pack_id": int(pack.id),
                     "title": pack.title,

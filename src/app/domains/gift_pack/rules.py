@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Mapping
 from datetime import datetime
 
 from app.core.config import settings
@@ -464,6 +465,135 @@ def _gift_pack_remaining(pack: GiftPack) -> int | None:
     if pack.total_quantity is None:
         return None
     return max(0, int(pack.total_quantity) - int(pack.claimed_count))
+
+
+_LIFECYCLE_SORT_ORDER = {"active": 0, "claim_only": 0, "upcoming": 1, "ended": 2}
+
+
+def gift_pack_status(
+    *,
+    claimed: bool,
+    is_enabled: bool,
+    lifecycle: str,
+    remaining: int | None,
+    requirements_met: bool,
+) -> str:
+    """Derive the user-facing list status without reading a model or database."""
+    if claimed:
+        return "claimed"
+    if not is_enabled:
+        return "disabled"
+    if lifecycle == "upcoming":
+        return "upcoming"
+    if lifecycle == "ended":
+        return "ended"
+    if remaining is not None and remaining <= 0:
+        return "sold_out"
+    return "claimable" if requirements_met else "in_progress"
+
+
+def gift_pack_sort_key(item: Mapping[str, object]) -> tuple[int, int]:
+    """Sort list payloads by lifecycle, then by end time."""
+    lifecycle = str(item.get("lifecycle") or "")
+    return (
+        _LIFECYCLE_SORT_ORDER.get(lifecycle, 3),
+        int(item.get("end_at") or 0),
+    )
+
+
+def reminder_allowed(
+    *, count: int, maximum: int, last_prompt_date: str | None, today: str
+) -> bool:
+    """Return whether one reminder class may be emitted today."""
+    return int(count) < int(maximum) and last_prompt_date != today
+
+
+def aggregate_reward_snapshots(
+    snapshots: Iterable[str],
+) -> tuple[list[dict], int]:
+    """Aggregate persisted reward snapshots in registry order.
+
+    The second return value counts malformed snapshots so the repository can keep
+    its warning behavior without putting logging or I/O into this pure function.
+    """
+    aggregates: dict[str, dict] = {}
+    invalid = 0
+    for raw in snapshots:
+        try:
+            items = json.loads(raw)
+            for item in items:
+                reward_type = item.get("type")
+                meta = GIFT_PACK_REWARD_TYPES.get(reward_type)
+                if meta is None:
+                    continue
+                entry = aggregates.setdefault(
+                    reward_type,
+                    {
+                        "type": reward_type,
+                        "label": meta["stat_label"],
+                        "total": 0,
+                        "grants": 0,
+                        "skipped": 0,
+                    },
+                )
+                if item.get("skipped"):
+                    entry["skipped"] += 1
+                    continue
+                field = meta["stat_field"]
+                entry["total"] += float(item.get(field) or 0) if field else 1
+                entry["grants"] += 1
+        except (ValueError, TypeError):
+            invalid += 1
+
+    reward_totals = []
+    for reward_type, meta in GIFT_PACK_REWARD_TYPES.items():
+        entry = aggregates.get(reward_type)
+        if entry is None:
+            continue
+        entry["total"] = round(entry["total"], 2)
+        if meta["skipped_label"]:
+            entry["skipped_label"] = meta["skipped_label"]
+        if reward_type == "premium_days":
+            entry["skipped_lifetime"] = entry["skipped"]
+        reward_totals.append(entry)
+    return reward_totals, invalid
+
+
+def validate_gift_pack_fields(
+    *,
+    rewards: list[dict],
+    start_at: int,
+    end_at: int,
+    task_end_at: int | None,
+    total_quantity: int | None,
+    audience: list[dict] | None,
+    notify_audience_on_start: bool,
+    claimed_count: int | None = None,
+) -> None:
+    """Validate merged create/update fields while preserving legacy messages."""
+    if not rewards:
+        raise gift_pack_error("礼包至少需要一项奖励")
+    if end_at <= start_at:
+        raise gift_pack_error("结束时间必须晚于开始时间")
+    if task_end_at is not None and not start_at < task_end_at <= end_at:
+        raise gift_pack_error("任务截止时间必须晚于开始时间且不晚于结束时间")
+    if total_quantity is not None and total_quantity <= 0:
+        raise gift_pack_error(
+            "限量份数不能小于已领取份数且必须大于 0"
+            if claimed_count is not None
+            else "限量份数必须大于 0"
+        )
+    if (
+        claimed_count is not None
+        and total_quantity is not None
+        and total_quantity < claimed_count
+    ):
+        raise gift_pack_error("限量份数不能小于已领取份数且必须大于 0")
+    if notify_audience_on_start and not any(
+        item["type"] == "user_list" and item["mode"] == "include"
+        for item in audience or []
+    ):
+        raise gift_pack_error("开启开始通知要求受众顶层包含 include 指定名单")
 
 
 def _validate_post_start_edit(old: dict, new: dict) -> None:
