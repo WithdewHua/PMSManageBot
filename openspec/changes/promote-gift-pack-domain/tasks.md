@@ -135,5 +135,5 @@
 
 - [x] 6.1 运行全量回归：`pytest tests/`、`ruff check`、`ruff format --check`、`lint-imports`、`pre-commit run --all-files`。验证：全部通过；OpenAPI、路由、调度、Bot 快照与 1.2 一致。
 - [x] 6.2 在一次性 PostgreSQL 上运行 1.4 的并发测试和各类回滚测试，并用 `check_metadata_pg.py` 做元数据比对。验证：不超发、不死锁、没有部分提交；元数据没有差异。
-- [ ] 6.3 生产形态本地彩排：在完整数据库副本上领取一个含全部奖励类型的礼包，通知替换为 no-op。验证：奖励、领取状态、积分缓存和媒体同步的调用参数与预期一致；日志里没有异常。
+- [x] 6.3 生产形态本地彩排：在完整数据库副本上领取一个含全部奖励类型的礼包，通知替换为 no-op。验证：奖励、领取状态、积分缓存和媒体同步的调用参数与预期一致；日志里没有异常。
 - [x] 6.4 核对 `docs/architecture.md` 与实现一致，内容包括提升模板、特权码例外的新位置，以及跨域写入一律经 `*_tx`；然后运行 `openspec validate promote-gift-pack-domain --strict`。验证：校验通过；工作区干净。

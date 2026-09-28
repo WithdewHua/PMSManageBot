@@ -107,6 +107,9 @@ def test_wallet_helper_locks_the_row_and_increments_in_sql() -> None:
     assert "round" in calls  # func.round(..., 2)
     source = WALLET_MODULE.read_text(encoding="utf-8")
     assert "update(Statistics)" in source
+    # PostgreSQL 没有 round(double precision, integer)：必须显式 cast 成 NUMERIC，
+    # 否则真实环境会抛 UndefinedFunction（SQLite 的宽松 round 掩盖了这个差异）。
+    assert "cast(" in source and "Numeric" in source
 
 
 def test_gift_pack_repository_does_not_write_the_wallet_column() -> None:
@@ -136,3 +139,24 @@ def test_gift_pack_repository_does_not_write_the_wallet_column() -> None:
     assert any(
         "blackjack_repository.credit_tournament_wallet_tx" in source for source in users
     )
+
+
+def test_wallet_update_compiles_to_a_numeric_round_on_postgresql() -> None:
+    """按 PostgreSQL 方言编译时，舍入参数必须是 NUMERIC，而不是双精度。"""
+    from sqlalchemy import Numeric, cast, func, update
+    from sqlalchemy.dialects import postgresql
+
+    statement = (
+        update(Statistics)
+        .where(Statistics.tg_id == 1)
+        .values(
+            tournament_wallet_credits=func.round(
+                cast(Statistics.tournament_wallet_credits + 12.25, Numeric), 2
+            )
+        )
+    )
+    compiled = str(statement.compile(dialect=postgresql.dialect())).upper()
+    assert "ROUND(CAST(" in compiled, compiled
+    assert "AS NUMERIC)" in compiled, compiled
+    # 不能是 round(double precision, integer)：PostgreSQL 没有这个重载
+    assert "ROUND(TOURNAMENT_WALLET_CREDITS" not in compiled, compiled

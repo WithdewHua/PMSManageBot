@@ -1907,6 +1907,22 @@
         "module_target": "sqlalchemy",
         "resolved": true,
         "scope": "module",
+        "target": "sqlalchemy.Numeric"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.wallet",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.cast"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.repository.wallet",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
         "target": "sqlalchemy.func"
       },
       {

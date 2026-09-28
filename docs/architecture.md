@@ -212,6 +212,8 @@ B3 起，部署回退必须在维护窗口执行：停止所有 B3 调度器 →
 
 - 一次性 PostgreSQL 16 并发验证：`scripts/refactor/smoke_gift_pack_concurrency.py`（pytest 入口 `tests/refactor/test_gift_pack_concurrency.py`，用 `GIFT_PACK_TEST_DATABASE_URL` 触发）验证最后一份不超发、同一用户并发只成功一次，并复现「领取与线路解锁加锁顺序相反」的 ABBA 死锁；5.1 固定加锁顺序后该场景稳定通过（测试断言 `s3.deadlock is False`，xfail 已删除）。
 - 元数据：相对 blackjack 完成态（`5b8da148`）`scripts/refactor/check_metadata_pg.py` 输出 `{"differences": [], "ok": true}`——礼包本轮不新增表或列。相对 B2 冻结基线只多出 blackjack 免费次数快照的两列。
+- 生产形态彩排：`scripts/refactor/rehearse_gift_pack.py`（pytest 入口 `tests/refactor/test_gift_pack_rehearsal.py`，用 `GIFT_PACK_REHEARSAL_DATABASE_URL` 触发）在 quince 生产库的本地副本（PostgreSQL 18）上领取含全部奖励类型的礼包，通知与媒体同步置为 no-op 并记录调用参数：`ok=true`、3 轮全部检查通过——逐项发放快照与持久化的 `GiftPackUserState.reward_snapshot` 一致、`claimed_count` 自增、积分与争霸赛余额按金额增加、邀请码落库、线路/下载解锁标记写入、Premium 到期时间延长、免费次数入账、积分缓存失效已登记、下载与权限同步的 `(tg_id, service)` 参数与固定顺序一致、无特权码写入、售罄通知恰好派发一次、日志无异常。副本与临时 dump 已删除，生产容器未重启。
+- 彩排发现的真实缺陷（已修）：`blackjack.repository.credit_tournament_wallet_tx` 曾用 `round(double precision, integer)` 写争霸赛余额，PostgreSQL 没有该重载（`UndefinedFunction`），而 SQLite 的宽松 `round` 让单测全绿。现改为 `round(CAST(col + delta AS NUMERIC), 2)`，并加回归守卫 `tests/test_blackjack_wallet.py::test_wallet_update_compiles_to_a_numeric_round_on_postgresql`（按 PostgreSQL 方言编译 SQL 断言必须出现 `ROUND(CAST(... AS NUMERIC)`）。
 - 回退：本轮无 schema 变更，回退即回滚镜像；领取的加锁顺序改动只影响并发路径，不改变对外响应。
 
 ## 后续变更与领域

@@ -1,6 +1,6 @@
 """21 点 repository：争霸赛余额（由 part_N 机械拆分）。"""
 
-from sqlalchemy import func, select, update
+from sqlalchemy import Numeric, cast, func, select, update
 
 from app.core.db import get_session
 from app.core.log import logger
@@ -48,8 +48,15 @@ class _BlackjackRepositoryWallet:
             update(Statistics)
             .where(Statistics.tg_id == int(tg_id))
             .values(
+                # PostgreSQL 没有 round(double precision, integer)，必须先把
+                # 浮点表达式转成 NUMERIC 再取两位，否则整个更新语句会报
+                # UndefinedFunction（SQLite 的 round 太宽松，掩盖了这个差异）。
                 tournament_wallet_credits=func.round(
-                    Statistics.tournament_wallet_credits + (after - before), 2
+                    cast(
+                        Statistics.tournament_wallet_credits + (after - before),
+                        Numeric,
+                    ),
+                    2,
                 )
             )
         )
