@@ -6,7 +6,6 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Re
 from pydantic import BaseModel
 
 from app.core.auth import get_telegram_user, require_telegram_auth
-from app.core.config import settings
 from app.core.formatting import get_service_label
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
@@ -14,6 +13,7 @@ from app.core.telegram import get_user_name_from_tg_id, notify_admins_by_url
 from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.domains.premium import service as premium_service
 from app.domains.premium.service import update_premium_status
 
 
@@ -63,7 +63,7 @@ async def unlock_premium(
     )
 
     # 检查 Premium 解锁功能是否开放
-    if not settings.PREMIUM_UNLOCK_ENABLED:
+    if not premium_service.is_premium_unlock_enabled():
         raise HTTPException(status_code=403, detail="Premium 解锁功能暂未开放")
 
     # 验证参数
@@ -74,7 +74,7 @@ async def unlock_premium(
         raise HTTPException(status_code=400, detail="解锁天数必须在 1-365 天之间")
 
     # 验证费用计算（含折扣）
-    daily_price = settings.PREMIUM_DAILY_CREDITS
+    daily_price = premium_service.get_premium_daily_credits()
     base_cost = days * daily_price
 
     # 计算折扣

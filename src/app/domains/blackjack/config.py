@@ -1,5 +1,14 @@
 """Blackjack-owned runtime configuration and stable accounting constants."""
 
+from __future__ import annotations
+
+from copy import deepcopy
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, StrictInt
+
+from app.core.domain_config import DomainConfig, JsonDocument
+
 # 21 点默认配置。首次读取时落库，之后由管理员在面板上调整。
 # 首次上线默认停用（enabled=False），待管理员核对配置与小范围试玩后再开放。
 DEFAULT_BLACKJACK_CONFIG = {
@@ -49,17 +58,63 @@ DEFAULT_BLACKJACK_CONFIG = {
     },
 }
 
+
+class BlackjackConfigModel(BaseModel):
+    """Typed JSON document for the live blackjack configuration."""
+
+    model_config = ConfigDict(frozen=True, extra="allow")
+
+    enabled: bool = False
+    bet_options: list[StrictInt] = Field(default_factory=lambda: [5, 15, 30])
+    min_credits: StrictInt = 30
+    rake_bp_on_profit: StrictInt = 300
+    rake_burn_bp: StrictInt = 180
+    rake_jackpot_bp: StrictInt = 120
+    dealer_hits_soft_17: bool = False
+    blackjack_payout: float = 1.5
+    surrender_enabled: bool = True
+    hand_timeout_minutes: StrictInt = 15
+    min_deal_interval_seconds: StrictInt = 1
+    jackpot_enabled: bool = True
+    jackpot_suited_bj_pct: StrictInt = 10
+    jackpot_notify_enabled: bool = True
+    free_hands_per_day: StrictInt = 1
+    relief_enabled: bool = True
+    relief_threshold: StrictInt = 8
+    relief_multiplier: float = 1.0
+    cashback_enabled: bool = True
+    cashback_rate: float = 0.15
+    cashback_min_payout: float = 1.0
+    freespins_enabled: bool = True
+    freespins_hand_threshold: StrictInt = 20
+    freespins_weekly_cap: StrictInt = 5
+    freespins_expiry_days: StrictInt = 7
+    rank_min_hands: StrictInt = 100
+    badge_min_hands: StrictInt = 2000
+    badge_min_accuracy: StrictInt = 80
+    tournament_notify_enabled: bool = True
+    tournament_remind_lead_hours: StrictInt = 6
+    tournament_badge_cap_days: StrictInt = 90
+    tournament_auto_create_enabled: bool = True
+    tournament_defaults: dict[str, Any] = Field(
+        default_factory=lambda: deepcopy(
+            DEFAULT_BLACKJACK_CONFIG["tournament_defaults"]
+        )
+    )
+
+
+BLACKJACK_CONFIG = DomainConfig(
+    "blackjack.game",
+    BlackjackConfigModel,
+    JsonDocument("blackjack", "config"),
+    default=BlackjackConfigModel.model_validate(DEFAULT_BLACKJACK_CONFIG),
+)
+
+
 # 冠军勋章配置。再次夺冠时续期而非重置。
 CHAMPION_BADGE_TYPE = "blackjack_champion"
 CHAMPION_BADGE_BONUS = 0.05
 CHAMPION_BADGE_VALID_DAYS = 30
-
-# 幸运奖池余额的存放位置，与其他 domain 的奖池完全隔离。
-JACKPOT_CONFIG_TYPE = "blackjack"
-JACKPOT_CONFIG_KEY = "jackpot_fund"
-JACKPOT_NOTIFY_CURSOR_KEY = "jackpot_notify_cursor"
-CASHBACK_CURSOR_KEY = "cashback_settled_through"
-FREESPIN_NOTIFY_CURSOR_KEY = "freespin_notify_cursor"
 
 # Persisted tournament status values shared by interfaces and repository queries.
 TOURNAMENT_REGISTERING = 1
@@ -72,7 +127,7 @@ ENTRY_ELIMINATED = 3
 ENTRY_ELIGIBLE = (ENTRY_FINISHED, ENTRY_ELIMINATED)
 
 __all__ = [
-    "CASHBACK_CURSOR_KEY",
+    "BLACKJACK_CONFIG",
     "CHAMPION_BADGE_BONUS",
     "CHAMPION_BADGE_TYPE",
     "CHAMPION_BADGE_VALID_DAYS",
@@ -81,10 +136,6 @@ __all__ = [
     "ENTRY_ELIMINATED",
     "ENTRY_FINISHED",
     "ENTRY_PLAYING",
-    "FREESPIN_NOTIFY_CURSOR_KEY",
-    "JACKPOT_CONFIG_KEY",
-    "JACKPOT_CONFIG_TYPE",
-    "JACKPOT_NOTIFY_CURSOR_KEY",
     "TOURNAMENT_CANCELLED",
     "TOURNAMENT_REGISTERING",
     "TOURNAMENT_RUNNING",

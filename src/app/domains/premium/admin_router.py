@@ -10,6 +10,7 @@ from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
 from app.core.telegram import send_message_by_url
 from app.databases import db
+from app.domains.lines import service as lines_service
 from app.domains.lines.service import (
     disable_line_schedules_and_notify,
     handle_free_premium_lines_change,
@@ -17,6 +18,8 @@ from app.domains.lines.service import (
     unbind_plex_premium_free,
     unbind_specified_line_for_all_users,
 )
+from app.domains.premium import service as premium_service
+from app.domains.traffic import service as traffic_service
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -33,10 +36,9 @@ async def set_premium_free(
     check_admin_permission(user)
 
     try:
-        enabled = data.get("enabled", False)
-        old_status = settings.PREMIUM_FREE
-        settings.PREMIUM_FREE = bool(enabled)
-        settings.save_config_to_env_file({"PREMIUM_FREE": str(enabled).lower()})
+        enabled = bool(data.get("enabled", False))
+        old_status = lines_service.is_premium_free_enabled()
+        lines_service.set_premium_free(enabled)
 
         # 如果从开启变为关闭，需要处理现有用户的高级线路绑定
         if old_status and not enabled:
@@ -151,14 +153,13 @@ async def set_premium_daily_credits(
     check_admin_permission(user)
 
     try:
-        credits = data.get("credits", 15)
+        credits = data.get("credits", premium_service.get_premium_daily_credits())
 
         # 验证积分值的合理性
-        if not isinstance(credits, int) or credits < 0:
+        if isinstance(credits, bool) or not isinstance(credits, int) or credits < 0:
             return BaseResponse(success=False, message="积分值必须是非负整数")
 
-        settings.PREMIUM_DAILY_CREDITS = credits
-        settings.save_config_to_env_file({"PREMIUM_DAILY_CREDITS": str(credits)})
+        premium_service.set_premium_daily_credits(credits)
 
         logger.info(
             f"管理员 {user.username or user.id} 设置解锁 Premium 每日所需积分为: {credits}"
@@ -182,7 +183,9 @@ async def set_premium_user_traffic_limit(
     check_admin_permission(user)
 
     try:
-        traffic_limit = data.get("traffic_limit", settings.PREMIUM_USER_TRAFFIC_LIMIT)
+        traffic_limit = data.get(
+            "traffic_limit", traffic_service.get_premium_user_traffic_limit()
+        )
 
         if (
             isinstance(traffic_limit, bool)
@@ -191,10 +194,7 @@ async def set_premium_user_traffic_limit(
         ):
             return BaseResponse(success=False, message="流量额度必须是非负整数")
 
-        settings.PREMIUM_USER_TRAFFIC_LIMIT = traffic_limit
-        settings.save_config_to_env_file(
-            {"PREMIUM_USER_TRAFFIC_LIMIT": str(traffic_limit)}
-        )
+        traffic_service.set_premium_user_traffic_limit(traffic_limit)
 
         logger.info(
             f"管理员 {user.username or user.id} 设置高级用户每日免费 Premium 流量额度为: {traffic_limit} 字节"
@@ -219,11 +219,8 @@ async def set_premium_unlock_enabled(
     check_admin_permission(user)
 
     try:
-        enabled = data.get("enabled", False)
-        settings.PREMIUM_UNLOCK_ENABLED = bool(enabled)
-        settings.save_config_to_env_file(
-            {"PREMIUM_UNLOCK_ENABLED": str(enabled).lower()}
-        )
+        enabled = bool(data.get("enabled", False))
+        premium_service.set_premium_unlock_enabled(enabled)
 
         logger.info(
             f"管理员 {user.username or user.id} 设置 Premium 解锁开放状态为: {enabled}"
@@ -354,3 +351,23 @@ async def delete_premium_line(
 ):
     """删除高级线路（兼容性接口，推荐使用 /lines/premium/{line_name}）"""
     return await delete_premium_line_generic(line_name, request, user)
+
+
+@router.post("/settings/credits-cost-per-10gb")
+@require_telegram_auth
+async def set_credits_cost_per_10gb(
+    request: Request,
+    data: dict = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """设置每 10GB 超额流量扣除的积分。"""
+    check_admin_permission(user)
+    try:
+        credits = data.get("credits", premium_service.get_credits_cost_per_10gb())
+        if isinstance(credits, bool) or not isinstance(credits, int) or credits < 0:
+            return BaseResponse(success=False, message="积分值必须是非负整数")
+        premium_service.set_credits_cost_per_10gb(credits)
+        return BaseResponse(success=True, message=f"每 10GB 流量扣费已设置为 {credits}")
+    except Exception as error:
+        logger.error(f"设置每 10GB 流量扣费失败: {error!s}")
+        return BaseResponse(success=False, message="设置失败")

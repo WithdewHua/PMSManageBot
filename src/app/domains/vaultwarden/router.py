@@ -20,6 +20,7 @@ from app.core.telegram import get_user_name_from_tg_id
 from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.domains.vaultwarden import service as vaultwarden_service
 from app.domains.vaultwarden.models import VaultwardenRedeemRecords
 from app.domains.vaultwarden.notifications import _notify_admins_vaultwarden_redeem
 from app.domains.vaultwarden.schemas import (
@@ -49,10 +50,10 @@ async def get_vaultwarden_redeem_info(
         user_id = telegram_user.id
 
         # 检查功能是否启用
-        if not settings.VAULTWARDEN_ENABLED:
+        if not vaultwarden_service.is_enabled():
             return VaultwardenRedeemInfoResponse(
                 enabled=False,
-                required_credits=settings.VAULTWARDEN_REDEEM_CREDITS,
+                required_credits=vaultwarden_service.get_redeem_credits(),
                 current_credits=0,
                 can_redeem=False,
                 error_message="Vaultwarden 兑换功能未启用",
@@ -72,7 +73,7 @@ async def get_vaultwarden_redeem_info(
         user_credits = stats_info[2]
 
         # 获取兑换所需积分
-        required_credits = settings.VAULTWARDEN_REDEEM_CREDITS
+        required_credits = vaultwarden_service.get_redeem_credits()
 
         # 判断用户是否有足够的积分
         can_redeem = user_credits >= required_credits
@@ -115,7 +116,7 @@ async def redeem_vaultwarden_account(
         email = data.email
 
         # 检查功能是否启用
-        if not settings.VAULTWARDEN_ENABLED:
+        if not vaultwarden_service.is_enabled():
             return VaultwardenRedeemResponse(
                 success=False, message="Vaultwarden 兑换功能未启用"
             )
@@ -140,7 +141,7 @@ async def redeem_vaultwarden_account(
         user_credits = stats_info[2]
 
         # 获取兑换所需积分
-        required_credits = settings.VAULTWARDEN_REDEEM_CREDITS
+        required_credits = vaultwarden_service.get_redeem_credits()
 
         # 检查积分是否足够
         if user_credits < required_credits:

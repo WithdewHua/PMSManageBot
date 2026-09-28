@@ -113,6 +113,22 @@ core/（公共设施）
 
 - **基础设施与密钥**：系统环境 / `data/.env`，由 core.config 只读加载（如 Telegram token、数据库 URL、外部服务地址）。不在业务事务内更新。
 - **运行时业务配置**：使用各领域带类型的 `DomainConfig`，持久化于 core.kv 的 `SystemConfig` 键值表；不向 `.env` 新增可变业务配置。现存业务配置由 `unify-business-configuration` 迁移。
+
+### 业务配置归属（D1）
+
+| 领域 | 配置项 |
+|---|---|
+| `accounts` | `plex_register`、`emby_register` |
+| `invitation` | `invitation_credits` |
+| `premium` | `premium_unlock_enabled`、`premium_daily_credits`、`credits_cost_per_10gb` |
+| `donation` | `donation_multiplier` |
+| `crypto_donation` | `upay_crypto_types` |
+| `lines` | `premium_free`、`line_schedule_unlock_credits` |
+| `traffic` | `user_traffic_limit`、`premium_user_traffic_limit` |
+| `media_access` | `unlock_credits`、`download_unlock_credits`、`nsfw_libs` |
+| `vaultwarden` | `enabled`、`redeem_credits` |
+| `credits` | `transfer_enabled` |
+| `luckywheel` / `blackjack` / `badges` | Existing domain-owned configuration documents and rows |
 - **遗留例外**：礼包特权码目前在 `.env`，见上文例外；线路目录迁移由 `move-line-catalog-to-database` 负责。
 
 ## 基线计数

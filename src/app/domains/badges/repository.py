@@ -7,6 +7,7 @@ from sqlalchemy.orm import joinedload
 
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.badges.config import BADGE_CENTER_CONFIG
 from app.domains.badges.models import Badge, UserBadge
 from app.domains.credits import repository as credits_repository
 from app.domains.credits import service as credits_service
@@ -62,10 +63,8 @@ class BadgesRepository:
         Returns:
             (是否启用, 提示信息)
         """
-        enabled_str = self.get_system_config("badge_center", "enabled")
-        enabled = enabled_str == "1" if enabled_str else False
-        message = self.get_system_config("badge_center", "message")
-        return enabled, message
+        config = BADGE_CENTER_CONFIG.get()
+        return config.enabled, config.message
 
     def set_badge_center_config(
         self, enabled: bool, message: str | None = None
@@ -81,9 +80,10 @@ class BadgesRepository:
             是否成功
         """
         try:
-            self.set_system_config("badge_center", "enabled", "1" if enabled else "0")
+            changes = {"enabled": bool(enabled)}
             if message is not None:
-                self.set_system_config("badge_center", "message", message)
+                changes["message"] = message
+            BADGE_CENTER_CONFIG.update(**changes)
             return True
         except Exception as e:
             logger.error(f"设置勋章中心配置失败: {e}")

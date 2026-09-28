@@ -18,6 +18,7 @@ from app.core.telegram import (
 from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.domains.donation import service as donation_service
 from app.domains.donation.schemas import (
     DonationRegistrationConfirmResponse,
     DonationRegistrationCreate,
@@ -292,7 +293,7 @@ async def confirm_donation_registration(
                         mutation = credits_service.apply_tx(
                             session,
                             CreditAccount.tg(int(user_id)),
-                            amount * settings.DONATION_MULTIPLIER,
+                            amount * donation_service.get_donation_multiplier(),
                         )
                         if mutation is not None:
                             credits_service.register_cache_invalidation(
@@ -317,7 +318,7 @@ async def confirm_donation_registration(
                     # 普通捐赠：记录捐赠金额和积分
                     db.add_user_data(
                         user_id,
-                        credits=amount * settings.DONATION_MULTIPLIER,
+                        credits=amount * donation_service.get_donation_multiplier(),
                         donation=amount,
                     )
 

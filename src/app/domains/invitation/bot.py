@@ -4,11 +4,11 @@ from uuid import NAMESPACE_URL, uuid3
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
-from app.core.config import settings
 from app.core.telegram import send_message
 from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.domains.invitation import service as invitation_service
 
 
 # 生成邀请码
@@ -22,7 +22,7 @@ async def exchange(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     _credits = _info[2]
     # 检查剩余积分
-    if _credits < settings.INVITATION_CREDITS:
+    if _credits < invitation_service.get_invitation_credits():
         await send_message(
             chat_id=chat_id, text="错误：您的积分不足，无法兑换邀请码", context=context
         )
@@ -40,7 +40,7 @@ async def exchange(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # > 再更新积分情况
     try:
         credits_service.deduct(
-            CreditAccount.tg(int(chat_id)), settings.INVITATION_CREDITS
+            CreditAccount.tg(int(chat_id)), invitation_service.get_invitation_credits()
         )
     except Exception:
         await send_message(

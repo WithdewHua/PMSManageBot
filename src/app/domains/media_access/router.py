@@ -3,7 +3,6 @@ from time import time
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
 
 from app.core.auth import get_telegram_user, require_telegram_auth
-from app.core.config import settings
 from app.core.formatting import get_service_label
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
@@ -11,6 +10,7 @@ from app.core.telegram import get_user_name_from_tg_id, notify_admins_by_url
 from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.domains.media_access import service as media_access_service
 from app.domains.media_access.rules import caculate_credits_fund
 from app.integrations.emby import Emby
 from app.integrations.plex import Plex
@@ -38,7 +38,7 @@ async def get_nsfw_info(
     try:
         if operation == "unlock":
             # 解锁操作返回所需积分
-            return {"cost": settings.UNLOCK_CREDITS}
+            return {"cost": media_access_service.get_unlock_credits()}
         else:
             # 锁定操作计算可返还积分
             if service == "plex":
@@ -53,7 +53,9 @@ async def get_nsfw_info(
                 unlock_time = info[4]
 
             # 计算可返还积分
-            credits_fund = caculate_credits_fund(unlock_time, settings.UNLOCK_CREDITS)
+            credits_fund = caculate_credits_fund(
+                unlock_time, media_access_service.get_unlock_credits()
+            )
             return {"refund": credits_fund}
     except Exception as e:
         logger.error(f"获取 NSFW 信息时发生错误: {e!s}")
@@ -101,7 +103,7 @@ async def nsfw_operation(
                 if all_lib == 1:
                     raise HTTPException(status_code=400, detail="您已拥有全部库权限")
 
-                if credits < settings.UNLOCK_CREDITS:
+                if credits < media_access_service.get_unlock_credits():
                     raise HTTPException(status_code=400, detail="积分不足")
 
                 # 更新权限
@@ -118,7 +120,8 @@ async def nsfw_operation(
                 # 更新数据库
                 try:
                     credits = credits_service.deduct(
-                        CreditAccount.tg(int(tg_id)), settings.UNLOCK_CREDITS
+                        CreditAccount.tg(int(tg_id)),
+                        media_access_service.get_unlock_credits(),
                     ).after
                 except Exception as error:
                     raise HTTPException(
@@ -142,12 +145,14 @@ async def nsfw_operation(
                 if all_lib == 1:
                     raise HTTPException(status_code=400, detail="您已拥有全部库权限")
 
-                if credits < settings.UNLOCK_CREDITS:
+                if credits < media_access_service.get_unlock_credits():
                     raise HTTPException(status_code=400, detail="积分不足")
 
                 # 更新权限
                 _emby = Emby()
-                flag, msg = _emby.add_user_library(user_id=emby_id)
+                flag, msg = _emby.add_user_library(
+                    user_id=emby_id, library=media_access_service.get_nsfw_libs()
+                )
                 if not flag:
                     raise HTTPException(status_code=500, detail=f"更新权限失败: {msg}")
 
@@ -157,7 +162,8 @@ async def nsfw_operation(
                 # 更新数据库
                 try:
                     credits = credits_service.deduct(
-                        CreditAccount.tg(int(tg_id)), settings.UNLOCK_CREDITS
+                        CreditAccount.tg(int(tg_id)),
+                        media_access_service.get_unlock_credits(),
                     ).after
                 except Exception as error:
                     raise HTTPException(
@@ -186,14 +192,14 @@ async def nsfw_operation(
 
                 # 计算返还积分
                 credits_fund = caculate_credits_fund(
-                    unlock_time, settings.UNLOCK_CREDITS
+                    unlock_time, media_access_service.get_unlock_credits()
                 )
                 credits += credits_fund
 
                 # 更新权限
                 _plex = Plex()
                 sections = _plex.get_libraries()
-                for section in settings.NSFW_LIBS:
+                for section in media_access_service.get_nsfw_libs():
                     if section in sections:
                         sections.remove(section)
 
@@ -233,13 +239,15 @@ async def nsfw_operation(
 
                 # 计算返还积分
                 credits_fund = caculate_credits_fund(
-                    unlock_time, settings.UNLOCK_CREDITS
+                    unlock_time, media_access_service.get_unlock_credits()
                 )
                 credits += credits_fund
 
                 # 更新权限
                 _emby = Emby()
-                flag, msg = _emby.remove_user_library(user_id=emby_id)
+                flag, msg = _emby.remove_user_library(
+                    user_id=emby_id, library=media_access_service.get_nsfw_libs()
+                )
                 if not flag:
                     raise HTTPException(status_code=500, detail=f"更新权限失败: {msg}")
 
@@ -267,7 +275,7 @@ async def nsfw_operation(
 
 👤 用户: {user_name}（TG ID: {tg_id}）
 {service_emoji} 服务: {service_name}
-💎 花费: {settings.UNLOCK_CREDITS} 积分
+💎 花费: {media_access_service.get_unlock_credits()} 积分
 💰 剩余: {credits:.2f} 积分""",
             )
 
@@ -303,7 +311,7 @@ async def get_download_permission_status(
             "is_unlocked": unlock_status["is_unlocked"],
             "is_premium": unlock_status["is_premium"],
             "unlock_time": unlock_status["unlock_time"],
-            "unlock_cost": settings.DOWNLOAD_UNLOCK_CREDITS,
+            "unlock_cost": media_access_service.get_download_unlock_credits(),
         }
     except Exception as e:
         logger.error(f"获取下载权限状态失败: {e}")
@@ -366,7 +374,7 @@ async def unlock_download_permission(
 
         logger.info(
             f"用户 {get_user_name_from_tg_id(tg_id)} 解锁 {service} 下载权限，"
-            f"消耗 {settings.DOWNLOAD_UNLOCK_CREDITS} 积分"
+            f"消耗 {media_access_service.get_download_unlock_credits()} 积分"
         )
 
         # 发送管理员通知
@@ -377,7 +385,7 @@ async def unlock_download_permission(
 
 👤 用户: {user_name}（TG ID: {tg_id}）
 {service_emoji} 服务: {service_name}
-💎 花费: {settings.DOWNLOAD_UNLOCK_CREDITS} 积分
+💎 花费: {media_access_service.get_download_unlock_credits()} 积分
 💰 剩余: {remaining_credits:.2f} 积分"""
 
         background_tasks.add_task(
@@ -387,7 +395,7 @@ async def unlock_download_permission(
 
         return BaseResponse(
             success=True,
-            message=f"解锁成功！消耗 {settings.DOWNLOAD_UNLOCK_CREDITS} 积分，剩余 {remaining_credits:.2f} 积分",
+            message=f"解锁成功！消耗 {media_access_service.get_download_unlock_credits()} 积分，剩余 {remaining_credits:.2f} 积分",
         )
 
     except Exception as e:

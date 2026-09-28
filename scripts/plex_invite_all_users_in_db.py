@@ -3,6 +3,7 @@ from sqlalchemy import select
 from app.core.config import settings
 from app.core.db import get_session
 from app.domains.identity.models import PlexUser
+from app.domains.media_access import service as media_access_service
 from app.integrations.plex import Plex
 
 plex = Plex()
@@ -12,7 +13,7 @@ with get_session() as session:
     plex_users = session.execute(stmt).all()
 
 all_libs = plex.get_libraries()
-not_all_libs = list(set(all_libs) - set(settings.NSFW_LIBS))
+not_all_libs = list(set(all_libs) - set(media_access_service.get_nsfw_libs()))
 
 for plex_email, all_lib in plex_users:
     if plex_email != settings.PLEX_ADMIN_EMAIL:

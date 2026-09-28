@@ -11,6 +11,7 @@ from app.core.db import get_session
 from app.core.kv import SystemConfig
 from app.core.log import logger
 from app.domains.blackjack.models import BlackjackHand, BlackjackWeeklyCashback
+from app.domains.blackjack.repository.constants import CASHBACK_CURSOR_KEY
 from app.domains.credits import repository as credits_repository
 from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
@@ -173,7 +174,6 @@ class _BlackjackRepositoryRetention:
     # 周返还游标：system_config(config_type=blackjack) 中记录已处理到的
     # 周起始（毫秒）。首次运行时写入锚点，此后每次运行把锚点之后的全部
     # 完整自然周逐周结算并推进——服务器停机跨周也能补漏，不会永久跳过某周
-    CASHBACK_CURSOR_KEY = "cashback_settled_through"
 
     def settle_blackjack_weekly_cashback(self) -> dict:
         """结算应结而未结的全部完整自然周的 21 点损失返还。
@@ -214,12 +214,12 @@ class _BlackjackRepositoryRetention:
             # 历史；需要补救时管理员可在停用前手动触发本方法
             with get_session() as session:
                 cursor_row, cursor = self._read_retention_cursor(
-                    session, self.CASHBACK_CURSOR_KEY
+                    session, CASHBACK_CURSOR_KEY
                 )
                 now_week_start = self._blackjack_week_start_ms()
                 if cursor < now_week_start:
                     self._write_retention_cursor(
-                        session, cursor_row, self.CASHBACK_CURSOR_KEY, now_week_start
+                        session, cursor_row, CASHBACK_CURSOR_KEY, now_week_start
                     )
                     session.commit()
             return {"enabled": False, "anchored": False, "settled_weeks": []}
@@ -231,7 +231,7 @@ class _BlackjackRepositoryRetention:
             now_week_start = self._blackjack_week_start_ms()
 
             cursor_row, cursor = self._read_retention_cursor(
-                session, self.CASHBACK_CURSOR_KEY, for_update=True
+                session, CASHBACK_CURSOR_KEY, for_update=True
             )
             if cursor_row is None or cursor <= 0:
                 # 首次运行（或游标值损坏归零）：锚定到刚结束的那个完整周（即
@@ -244,7 +244,7 @@ class _BlackjackRepositoryRetention:
                 self._write_retention_cursor(
                     session,
                     cursor_row,
-                    self.CASHBACK_CURSOR_KEY,
+                    CASHBACK_CURSOR_KEY,
                     now_week_start - week_ms,
                 )
                 session.commit()
@@ -258,7 +258,7 @@ class _BlackjackRepositoryRetention:
                 )
                 settled_weeks.append({"week_start_ms": week_start, "users": users})
                 self._write_retention_cursor(
-                    session, cursor_row, self.CASHBACK_CURSOR_KEY, week_start
+                    session, cursor_row, CASHBACK_CURSOR_KEY, week_start
                 )
                 session.commit()  # 逐周提交：中途失败时已结的周不丢
                 week_start += week_ms

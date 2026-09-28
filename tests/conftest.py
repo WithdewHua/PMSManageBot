@@ -6,7 +6,37 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 import time
+
+# Importing app loads Settings. Point it at a disposable directory before any
+# app module is imported so the repository's data/.env cannot affect tests.
+_TEST_DATA_DIR = tempfile.mkdtemp(prefix="pmsmanagebot-tests-")
+os.environ["DATA_DIR"] = _TEST_DATA_DIR
+for _key in (
+    "PLEX_REGISTER",
+    "EMBY_REGISTER",
+    "NSFW_LIBS",
+    "UNLOCK_CREDITS",
+    "INVITATION_CREDITS",
+    "PREMIUM_DAILY_CREDITS",
+    "DONATION_MULTIPLIER",
+    "LINE_SCHEDULE_UNLOCK_CREDITS",
+    "DOWNLOAD_UNLOCK_CREDITS",
+    "USER_TRAFFIC_LIMIT",
+    "PREMIUM_USER_TRAFFIC_LIMIT",
+    "CREDITS_COST_PER_10GB",
+    "PREMIUM_UNLOCK_ENABLED",
+    "CREDITS_TRANSFER_ENABLED",
+    "PREMIUM_FREE",
+    "UPAY_CRYPTO_TYPES",
+    "VAULTWARDEN_ENABLED",
+    "VAULTWARDEN_REDEEM_CREDITS",
+    "STREAM_BACKEND",
+    "PREMIUM_STREAM_BACKEND",
+):
+    os.environ.pop(_key, None)
 
 import pytest
 from sqlalchemy import create_engine
@@ -28,6 +58,10 @@ register_subscriptions()
 def session_env():
     """每个用例一张干净的内存库，并重绑 `app.databases.session`。"""
     import app.core.db as session_mod
+    from app.business_config import CONFIGS
+
+    for config in CONFIGS:
+        config.invalidate()
 
     engine = create_engine(
         "sqlite://",
@@ -47,6 +81,36 @@ def session_env():
     session_mod.engine = previous_engine
     session_mod.SessionLocal = previous_factory
     engine.dispose()
+    for config in CONFIGS:
+        config.invalidate()
+
+
+@pytest.fixture
+def business_config(session_env):
+    """Create isolated DomainConfig declarations backed by the test database."""
+    from app.core.domain_config import DomainConfig
+
+    configs = []
+
+    class BusinessConfigHarness:
+        def make(self, name, model, storage, **kwargs):
+            config = DomainConfig(name, model, storage, **kwargs)
+            configs.append(config)
+            return config
+
+        @staticmethod
+        def update(config, **changes):
+            config.invalidate()
+            return config.update(**changes)
+
+        @staticmethod
+        def clear(config):
+            config.invalidate()
+
+    yield BusinessConfigHarness()
+
+    for config in configs:
+        config.invalidate()
 
 
 @pytest.fixture

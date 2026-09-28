@@ -1,6 +1,5 @@
-from app.core.kv import SystemConfigRepository
 from app.domains.blackjack.config import (
-    CASHBACK_CURSOR_KEY,
+    BLACKJACK_CONFIG,
     CHAMPION_BADGE_BONUS,
     CHAMPION_BADGE_TYPE,
     CHAMPION_BADGE_VALID_DAYS,
@@ -9,10 +8,6 @@ from app.domains.blackjack.config import (
     ENTRY_ELIMINATED,
     ENTRY_FINISHED,
     ENTRY_PLAYING,
-    FREESPIN_NOTIFY_CURSOR_KEY,
-    JACKPOT_CONFIG_KEY,
-    JACKPOT_CONFIG_TYPE,
-    JACKPOT_NOTIFY_CURSOR_KEY,
     TOURNAMENT_CANCELLED,
     TOURNAMENT_REGISTERING,
     TOURNAMENT_RUNNING,
@@ -20,6 +15,13 @@ from app.domains.blackjack.config import (
 )
 
 from .config_store import _BlackjackRepositoryConfigStore
+from .constants import (
+    CASHBACK_CURSOR_KEY,
+    FREESPIN_NOTIFY_CURSOR_KEY,
+    JACKPOT_CONFIG_KEY,
+    JACKPOT_CONFIG_TYPE,
+    JACKPOT_NOTIFY_CURSOR_KEY,
+)
 from .hands import _BlackjackRepositoryHands
 from .jackpot import _BlackjackRepositoryJackpot
 from .retention import _BlackjackRepositoryRetention
@@ -32,7 +34,6 @@ from .wallet import _BlackjackRepositoryWallet
 
 
 class _BlackjackRepositoryImplementation(
-    SystemConfigRepository,
     _BlackjackRepositoryHands,
     _BlackjackRepositorySettlement,
     _BlackjackRepositoryJackpot,
@@ -270,6 +271,7 @@ def count_tournament_entries_tx(session, tg_id: int, since: int, until: int) -> 
 
 
 __all__ = [
+    "BLACKJACK_CONFIG",
     "CASHBACK_CURSOR_KEY",
     "CHAMPION_BADGE_BONUS",
     "CHAMPION_BADGE_TYPE",

@@ -294,9 +294,10 @@ class Emby:
 
         return libraries
 
-    def add_user_library(self, user_id, library: str | list[str] = settings.NSFW_LIBS):
+    def add_user_library(self, user_id, library: str | list[str] | None = None):
         if isinstance(library, str):
             library = [library]
+        library = library or []
 
         headers = {"accept": "application/json", "Content-Type": "application/json"}
         params = {"api_key": self.api_token}
@@ -345,7 +346,7 @@ class Emby:
         except Exception as e:
             return False, str(e)
 
-    def remove_user_library(self, user_id, library=settings.NSFW_LIBS):
+    def remove_user_library(self, user_id, library):
         headers = {"accept": "application/json", "Content-Type": "application/json"}
         params = {"api_key": self.api_token}
 

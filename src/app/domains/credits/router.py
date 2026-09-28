@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Body, Depends, Request
 
 from app.core.auth import get_telegram_user, require_telegram_auth
-from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
 from app.core.telegram import send_message_by_url
@@ -26,7 +25,7 @@ async def transfer_credits(
     """
     try:
         # 检查积分转移功能是否开启
-        if not settings.CREDITS_TRANSFER_ENABLED:
+        if not credits_service.is_transfer_enabled():
             return CreditsTransferResponse(success=False, message="积分转移功能已关闭")
 
         sender_id = user.id

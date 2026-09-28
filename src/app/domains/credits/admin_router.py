@@ -5,9 +5,9 @@ from app.core.auth import (
     get_telegram_user,
     require_telegram_auth,
 )
-from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
+from app.domains.credits import service as credits_service
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -24,10 +24,7 @@ async def set_credits_transfer_enabled(
 
     try:
         enabled = data.get("enabled", False)
-        settings.CREDITS_TRANSFER_ENABLED = bool(enabled)
-        settings.save_config_to_env_file(
-            {"CREDITS_TRANSFER_ENABLED": str(enabled).lower()}
-        )
+        credits_service.set_transfer_enabled(bool(enabled))
 
         logger.info(
             f"管理员 {user.username or user.id} 设置积分转移功能状态为: {enabled}"

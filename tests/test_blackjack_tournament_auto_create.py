@@ -8,7 +8,7 @@ import pytest
 
 from app.domains.blackjack import repository as blackjack_repository
 from app.domains.blackjack import service as blackjack_service
-from app.domains.blackjack.config import TOURNAMENT_REGISTERING
+from app.domains.blackjack.config import BLACKJACK_CONFIG, TOURNAMENT_REGISTERING
 from app.domains.blackjack.jobs.tournament import (
     auto_create_blackjack_tournament_job,
 )
@@ -78,11 +78,8 @@ def before_registration_deadline(monkeypatch):
 async def test_auto_create_uses_week_aligned_deadlines(
     orm, explicit_ids, monkeypatch, before_registration_deadline
 ):
+    BLACKJACK_CONFIG.update(**_config())
     monkeypatch.setattr(blackjack_service, "_notify_enabled", lambda: False)
-    monkeypatch.setattr(blackjack_service, "get_blackjack_config_dict", _config)
-    monkeypatch.setattr(
-        blackjack_repository._repository, "get_blackjack_config_dict", _config
-    )
 
     await auto_create_blackjack_tournament_job()
 
@@ -126,11 +123,8 @@ async def test_auto_create_double_fire_is_idempotent(
     orm, explicit_ids, monkeypatch, before_registration_deadline
 ):
     """任务重复触发：第一轮建了周赛，第二轮必须被闸门挡下。"""
+    BLACKJACK_CONFIG.update(**_config())
     monkeypatch.setattr(blackjack_service, "_notify_enabled", lambda: False)
-    monkeypatch.setattr(blackjack_service, "get_blackjack_config_dict", _config)
-    monkeypatch.setattr(
-        blackjack_repository._repository, "get_blackjack_config_dict", _config
-    )
 
     await auto_create_blackjack_tournament_job()
     await auto_create_blackjack_tournament_job()
@@ -148,11 +142,7 @@ async def test_auto_create_respects_switches(orm, monkeypatch):
         {"enabled": False},
         {"tournament_auto_create_enabled": False},
     ):
-        monkeypatch.setattr(
-            blackjack_repository._repository,
-            "get_blackjack_config_dict",
-            lambda overrides=overrides: _config(**overrides),
-        )
+        BLACKJACK_CONFIG.update(**_config(**overrides))
         await auto_create_blackjack_tournament_job()
 
     assert blackjack_repository.list_blackjack_tournaments(limit=10) == []
@@ -161,10 +151,7 @@ async def test_auto_create_respects_switches(orm, monkeypatch):
 @pytest.mark.asyncio
 async def test_auto_create_skips_when_count_unavailable(orm, monkeypatch):
     """闸门查询失败返回 None 时按「无法确认」跳过，宁可漏一期也不重复建。"""
-    monkeypatch.setattr(blackjack_service, "get_blackjack_config_dict", _config)
-    monkeypatch.setattr(
-        blackjack_repository._repository, "get_blackjack_config_dict", _config
-    )
+    BLACKJACK_CONFIG.update(**_config())
     monkeypatch.setattr(
         blackjack_service,
         "count_registering_blackjack_tournaments",

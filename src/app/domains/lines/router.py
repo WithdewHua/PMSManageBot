@@ -17,6 +17,7 @@ from app.core.telegram import get_user_name_from_tg_id, notify_admins_by_url
 from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.domains.lines import service as lines_service
 from app.domains.lines.jobs import auto_switch_user_lines
 from app.domains.lines.rules import is_binded_premium_line
 from app.domains.lines.service import (
@@ -81,7 +82,7 @@ async def get_emby_lines(
                 EmbyLineInfo(name=line, tags=db.get_line_tags(line), is_premium=True)
             )
     # 如果不是premium用户，检查免费高级线路
-    elif settings.PREMIUM_FREE:
+    elif lines_service.is_premium_free_enabled():
         # 从数据库获取免费高级线路列表
         free_premium_lines = db.get_free_premium_lines()
 
@@ -243,7 +244,7 @@ async def get_plex_lines(
                         name=line, tags=db.get_line_tags(line), is_premium=True
                     )
                 )
-        elif settings.PREMIUM_FREE:
+        elif lines_service.is_premium_free_enabled():
             # 普通用户在免费开放期间可以看到免费的高级线路
             free_premium_lines = db.get_free_premium_lines()
 
@@ -509,7 +510,7 @@ async def get_emby_lines_by_user(
                     )
                 )
         # 如果不是premium用户,检查免费高级线路
-        elif settings.PREMIUM_FREE:
+        elif lines_service.is_premium_free_enabled():
             # 从数据库获取免费高级线路列表
             free_premium_lines = db.get_free_premium_lines()
 
@@ -577,7 +578,7 @@ async def get_plex_lines_by_user(
                         name=line, tags=db.get_line_tags(line), is_premium=True
                     )
                 )
-        elif settings.PREMIUM_FREE:
+        elif lines_service.is_premium_free_enabled():
             # 普通用户在免费开放期间可以看到免费的高级线路
             free_premium_lines = db.get_free_premium_lines()
 
@@ -686,7 +687,7 @@ async def check_line_schedule_unlock_status(
             "is_unlocked": result["is_unlocked"],
             "is_premium": result["is_premium"],
             "unlock_time": result["unlock_time"],
-            "unlock_credits": settings.LINE_SCHEDULE_UNLOCK_CREDITS,
+            "unlock_credits": lines_service.get_line_schedule_unlock_credits(),
         }
     except Exception as e:
         logger.error(f"检查线路调度解锁状态失败: {e}")
@@ -720,7 +721,7 @@ async def unlock_line_schedule(
             )
 
         # 检查积分是否足够
-        credits_needed = settings.LINE_SCHEDULE_UNLOCK_CREDITS
+        credits_needed = lines_service.get_line_schedule_unlock_credits()
         current_credits = credits_service.read_optional(CreditAccount.tg(int(user.id)))
         if not current_credits:
             return LineScheduleUnlockResponse(

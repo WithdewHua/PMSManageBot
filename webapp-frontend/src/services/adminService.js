@@ -302,3 +302,36 @@ export async function setDownloadUnlockCredits(credits) {
     throw error;
   }
 }
+
+
+export async function setCreditsCostPer10Gb(credits) {
+  const response = await apiClient.post('/api/admin/settings/credits-cost-per-10gb', { credits });
+  return response;
+}
+
+export async function setNsfwLibs(libs) {
+  const response = await apiClient.post('/api/admin/settings/nsfw-libs', { libs });
+  return response;
+}
+
+export async function setDonationMultiplier(multiplier) {
+  const response = await apiClient.post('/api/admin/settings/donation-multiplier', { multiplier });
+  return response;
+}
+
+export async function setUpayCryptoTypes(cryptoTypes) {
+  const response = await apiClient.post('/api/admin/settings/upay-crypto-types', {
+    crypto_types: cryptoTypes
+  });
+  return response;
+}
+
+export async function setVaultwardenEnabled(enabled) {
+  const response = await apiClient.post('/api/admin/settings/vaultwarden-enabled', { enabled });
+  return response;
+}
+
+export async function setVaultwardenRedeemCredits(credits) {
+  const response = await apiClient.post('/api/admin/settings/vaultwarden-redeem-credits', { credits });
+  return response;
+}

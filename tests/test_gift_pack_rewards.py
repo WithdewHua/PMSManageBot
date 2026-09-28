@@ -17,6 +17,7 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.kv import SystemConfig
 from app.core.schemas import TelegramUser
+from app.domains.accounts import service as accounts_service
 from app.domains.gift_pack import repository as gift_pack_repository
 from app.domains.gift_pack import service as gift_pack_service
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
@@ -286,7 +287,7 @@ async def test_privileged_invite_allows_registration_without_writing_env(
     )
     saves = []
     monkeypatch.setattr(settings, "PRIVILEGED_CODES", [])
-    monkeypatch.setattr(settings, "EMBY_REGISTER", False)
+    accounts_service.set_registration_enabled("emby", False)
     monkeypatch.setattr(settings, "TG_ADMIN_CHAT_ID", [])
 
     def _capture_save(self, config_data, *, raise_on_error=False):

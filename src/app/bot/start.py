@@ -3,8 +3,8 @@ import textwrap
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
-from app.core.config import settings
 from app.core.telegram import send_message
+from app.domains.invitation import service as invitation_service
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -13,7 +13,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     公共命令：
     /info - 查看个人信息
-    /exchange - 生成邀请码，消耗 {settings.INVITATION_CREDITS} 积分
+    /exchange - 生成邀请码，消耗 {invitation_service.get_invitation_credits()} 积分
     /credits\_rank - 查看积分榜
     /donation\_rank - 查看捐赠榜
     /play\_duration\_rank - 查看观看时长榜

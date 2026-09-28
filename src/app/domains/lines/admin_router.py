@@ -10,6 +10,7 @@ from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
 from app.core.telegram import send_message_by_url
 from app.databases import db
+from app.domains.lines import service as lines_service
 from app.domains.lines.service import (
     disable_line_schedules_and_notify,
     unbind_specified_line_for_all_users,
@@ -138,14 +139,13 @@ async def set_line_schedule_unlock_credits(
     check_admin_permission(user)
 
     try:
-        credits = data.get("credits", settings.LINE_SCHEDULE_UNLOCK_CREDITS)
+        credits = data.get("credits", lines_service.get_line_schedule_unlock_credits())
 
         # 验证积分值的合理性
-        if not isinstance(credits, int) or credits < 0:
+        if isinstance(credits, bool) or not isinstance(credits, int) or credits < 0:
             return BaseResponse(success=False, message="积分值必须是非负整数")
 
-        settings.LINE_SCHEDULE_UNLOCK_CREDITS = credits
-        settings.save_config_to_env_file({"LINE_SCHEDULE_UNLOCK_CREDITS": str(credits)})
+        lines_service.set_line_schedule_unlock_credits(credits)
 
         logger.info(
             f"管理员 {user.username or user.id} 设置解锁线路调度功能所需积分为: {credits}"

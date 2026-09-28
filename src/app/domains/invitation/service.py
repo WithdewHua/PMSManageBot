@@ -8,6 +8,15 @@ from app.core.log import logger
 from app.core.telegram import get_user_name_from_tg_id
 from app.databases.db import db
 from app.domains.identity.models import Statistics
+from app.domains.invitation.config import INVITATION_CONFIG
+
+
+def get_invitation_credits() -> int:
+    return int(INVITATION_CONFIG.get().invitation_credits)
+
+
+def set_invitation_credits(credits: int) -> int:
+    return int(INVITATION_CONFIG.update(invitation_credits=credits).invitation_credits)
 
 
 def add_redeem_code(tg_id=None, num=1, is_privileged=False):

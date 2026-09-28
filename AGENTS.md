@@ -255,7 +255,7 @@ The domain inventory, ownership of wide-table columns, existing exceptions and m
 | SQLAlchemy query, write or transactional helper | Owning domain's `repository.py` / `repository/`; model in `models.py` |
 | Pure calculations / validation / error types | `rules.py` / `exceptions.py` in that domain |
 | External API client / common infrastructure | `integrations/` / `core/` respectively |
-| Runtime business setting / infrastructure secret | Domain `config.py` backed by `SystemConfig` / read-only `data/.env` via core.config |
+| Runtime business setting / infrastructure secret | Business settings use domain `config.py` backed by `SystemConfig`; infrastructure secrets and deployment settings remain read-only in `data/.env` via `core.config` |
 
 **Transition (B-stage mechanical move):** Existing `db.xxx()` calls remain intact. The `app.databases.db` singleton temporarily composes domain repository mixins; the facade file itself gets no new methods. A new database operation goes in its owning domain's repository mixin and may be called as `db.xxx()` from that same domain, but do not add new cross-domain `db.xxx()` calls. Move old code without altering behavior or broadly replacing existing calls; later `promote-*` changes introduce services and remove the facade. Do not add compatibility import modules for moved code. Modules exceeding 1,000 lines become same-named packages split by subtopic.
 
@@ -266,7 +266,7 @@ A function with no codebase callers is **not necessarily dead**. Before removing
 ## Environment & Configuration
 
 - Copy `.env.example` to `data/.env` and fill in values before running locally.
-- `Settings` (`pydantic-settings` `BaseSettings`; currently `app/config.py`, moving to `app/core/config.py`) loads in priority order: system env → `data/.env` → defaults.
+- `Settings` (`pydantic-settings` `BaseSettings`; currently `app/core/config.py`) loads infrastructure settings from system env → `data/.env` → defaults. Runtime business settings are typed `DomainConfig` declarations persisted in `SystemConfig`; legacy business keys in `.env` are read only for first-run seeding.
 - Never hardcode secrets or service URLs — always read from `settings.*`.
 - Key variables: `TG_API_TOKEN`, `PLEX_BASE_URL`, `EMBY_BASE_URL`, `DATABASE_URL`,
   `REDIS_HOST`, `WEBAPP_URL`, `SESSION_SECRET_KEY`.

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class LuckyWheelItem(BaseModel):
@@ -10,6 +10,8 @@ class LuckyWheelItem(BaseModel):
 
 class LuckyWheelConfig(BaseModel):
     """幸运大转盘配置"""
+
+    model_config = ConfigDict(frozen=True)
 
     items: list[LuckyWheelItem] = Field(..., description="转盘奖品列表")
     cost_credits: int = Field(default=10, ge=1, description="参与转盘需要的积分")

@@ -144,7 +144,7 @@ set_blackjack_config = "config_store"
 get_blackjack_config_dict = "config_store"
 
 # part_1/part_4 里遗留的类常量（config.py 已有同名常量，这里保持原样搬移）。
-CASHBACK_CURSOR_KEY = "retention"
+CASHBACK_CURSOR_KEY = "constants"
 TOURNAMENT_REGISTERING = "tournaments"
 TOURNAMENT_RUNNING = "tournaments"
 TOURNAMENT_SETTLED = "tournaments"

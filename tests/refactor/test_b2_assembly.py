@@ -35,7 +35,16 @@ EXPECTED_HANDLER_CALLBACKS = [
 
 
 def test_api_route_and_openapi_surfaces_are_assembled():
-    assert len(_route_surface(current_app)) == 212
+    surface = _route_surface(current_app)
+    assert len(surface) == 218
+    assert {
+        "/api/admin/settings/credits-cost-per-10gb",
+        "/api/admin/settings/nsfw-libs",
+        "/api/admin/settings/donation-multiplier",
+        "/api/admin/settings/upay-crypto-types",
+        "/api/admin/settings/vaultwarden-enabled",
+        "/api/admin/settings/vaultwarden-redeem-credits",
+    } <= {path for path, *_ in surface}
     assert current_app.openapi()["paths"]
     assert [type(item).__name__ for item in current_app.user_middleware] == [
         "Middleware",

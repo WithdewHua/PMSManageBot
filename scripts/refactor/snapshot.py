@@ -256,7 +256,17 @@ async def _commands() -> list[dict[str, str]]:
             self.bot = Bot()
 
     application = Application()
-    await main.set_bot_commands(application)
+    from app.core.legacy_env import LEGACY_ENV
+    from app.domains.invitation import service as invitation_service
+
+    original_get_invitation_credits = invitation_service.get_invitation_credits
+    invitation_service.get_invitation_credits = lambda: int(
+        LEGACY_ENV.read("INVITATION_CREDITS")
+    )
+    try:
+        await main.set_bot_commands(application)
+    finally:
+        invitation_service.get_invitation_credits = original_get_invitation_credits
     return [
         {"command": item.command, "description": item.description}
         for item in application.bot.commands

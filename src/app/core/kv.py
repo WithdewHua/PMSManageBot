@@ -11,6 +11,10 @@ from sqlalchemy import (
     select,
     update,
 )
+from sqlalchemy import (
+    delete as sql_delete,
+)
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base, get_session
@@ -69,13 +73,7 @@ class SystemConfigRepository:
             配置值，如果不存在返回 None
         """
         try:
-            with get_session() as session:
-                stmt = select(SystemConfig.config_value).where(
-                    SystemConfig.config_type == config_type,
-                    SystemConfig.config_key == config_key,
-                )
-                result = session.execute(stmt).scalar_one_or_none()
-                return result
+            return get(config_type, config_key)
         except Exception as e:
             logger.error(
                 f"获取系统配置失败 (type={config_type}, key={config_key}): {e!s}"
@@ -97,40 +95,8 @@ class SystemConfigRepository:
             是否成功
         """
         try:
-            current_time = int(time.time())
             with get_session() as session:
-                # 尝试查找现有配置
-                stmt = select(SystemConfig).where(
-                    SystemConfig.config_type == config_type,
-                    SystemConfig.config_key == config_key,
-                )
-                existing_config = session.execute(stmt).scalar_one_or_none()
-
-                if existing_config:
-                    # 更新现有配置
-                    existing_config.config_value = config_value
-                    existing_config.updated_at = current_time
-                else:
-                    # 插入新配置
-                    values = {
-                        "config_type": config_type,
-                        "config_key": config_key,
-                        "config_value": config_value,
-                        "created_at": current_time,
-                        "updated_at": current_time,
-                    }
-                    if session.get_bind().dialect.name == "sqlite":
-                        values["id"] = (
-                            int(
-                                session.execute(
-                                    select(func.max(SystemConfig.id))
-                                ).scalar_one()
-                                or 0
-                            )
-                            + 1
-                        )
-                    session.add(SystemConfig(**values))
-
+                upsert_tx(session, config_type, config_key, config_value)
                 logger.info(f"设置系统配置成功 (type={config_type}, key={config_key})")
                 return True
         except Exception as e:
@@ -152,23 +118,16 @@ class SystemConfigRepository:
         """
         try:
             with get_session() as session:
-                stmt = select(SystemConfig).where(
-                    SystemConfig.config_type == config_type,
-                    SystemConfig.config_key == config_key,
-                )
-                config = session.execute(stmt).scalar_one_or_none()
-
-                if config:
-                    session.delete(config)
+                deleted = delete_tx(session, config_type, config_key)
+                if deleted:
                     logger.info(
                         f"删除系统配置成功 (type={config_type}, key={config_key})"
                     )
-                    return True
                 else:
                     logger.info(
                         f"系统配置不存在 (type={config_type}, key={config_key})"
                     )
-                    return True
+                return True
         except Exception as e:
             logger.error(
                 f"删除系统配置失败 (type={config_type}, key={config_key}): {e!s}"
@@ -195,6 +154,62 @@ class SystemConfigRepository:
         except Exception as e:
             logger.error(f"获取所有配置失败 (type={config_type}): {e!s}")
             return {}
+
+
+# --------------------------------------------------------------------------- #
+# 模块级配置读写
+# --------------------------------------------------------------------------- #
+
+
+def get(config_type: str, config_key: str) -> str | None:
+    """Read one configuration value using a short-lived session.
+
+    Unlike the legacy facade method, database errors propagate to the caller so
+    a failed read cannot be mistaken for a missing row.
+    """
+    with get_session() as session:
+        return get_tx(session, config_type, config_key)
+
+
+def upsert(config_type: str, config_key: str, value: str) -> None:
+    """Upsert one value using a short-lived session."""
+    with get_session() as session:
+        upsert_tx(session, config_type, config_key, value)
+
+
+def delete(config_type: str, config_key: str) -> bool:
+    """Delete one value using a short-lived session."""
+    with get_session() as session:
+        return delete_tx(session, config_type, config_key)
+
+
+def get_all(config_type: str) -> dict[str, str]:
+    """Read all values for one configuration type without swallowing errors."""
+    with get_session() as session:
+        rows = session.execute(
+            select(SystemConfig.config_key, SystemConfig.config_value).where(
+                SystemConfig.config_type == config_type
+            )
+        ).all()
+        return {key: value for key, value in rows}
+
+
+def _new_config_values(
+    session, config_type: str, config_key: str, value: str, now: int
+) -> dict:
+    values = {
+        "config_type": config_type,
+        "config_key": config_key,
+        "config_value": value,
+        "created_at": now,
+        "updated_at": now,
+    }
+    if session.get_bind().dialect.name == "sqlite":
+        values["id"] = (
+            int(session.execute(select(func.max(SystemConfig.id))).scalar_one() or 0)
+            + 1
+        )
+    return values
 
 
 # --------------------------------------------------------------------------- #
@@ -238,25 +253,50 @@ def upsert_tx(session, config_type: str, config_key: str, value: str) -> None:
         .values(config_value=value, updated_at=now)
     )
     if updated.rowcount == 0:
-        values = {
-            "config_type": config_type,
-            "config_key": config_key,
-            "config_value": value,
-            "created_at": now,
-            "updated_at": now,
-        }
         # SQLite does not autoincrement BIGINT primary keys. Production uses
         # PostgreSQL sequences, while the disposable test database needs an
         # explicit deterministic id for newly-created config documents.
-        if session.get_bind().dialect.name == "sqlite":
-            values["id"] = (
-                int(
-                    session.execute(select(func.max(SystemConfig.id))).scalar_one() or 0
-                )
-                + 1
+        session.add(
+            SystemConfig(
+                **_new_config_values(session, config_type, config_key, value, now)
             )
-        session.add(SystemConfig(**values))
+        )
     session.flush()
+
+
+def insert_if_absent_tx(session, config_type: str, config_key: str, value: str) -> str:
+    """Insert a value once and return the value that won the unique key.
+
+    The savepoint keeps a duplicate-key race from poisoning the caller's
+    transaction. After the competing insert wins, the committed document is
+    read back under the same caller-owned session.
+    """
+    now = int(time.time())
+    try:
+        with session.begin_nested():
+            session.add(
+                SystemConfig(
+                    **_new_config_values(session, config_type, config_key, value, now)
+                )
+            )
+            session.flush()
+    except IntegrityError:
+        existing = get_tx(session, config_type, config_key, for_update=True)
+        if existing is None:
+            raise
+        return existing
+    return value
+
+
+def delete_tx(session, config_type: str, config_key: str) -> bool:
+    """Delete one configuration row and report whether it existed."""
+    result = session.execute(
+        sql_delete(SystemConfig).where(
+            SystemConfig.config_type == config_type,
+            SystemConfig.config_key == config_key,
+        )
+    )
+    return bool(result.rowcount)
 
 
 def compare_and_update_tx(
@@ -301,6 +341,12 @@ __all__ = [
     "SystemConfig",
     "SystemConfigRepository",
     "compare_and_update_tx",
+    "delete",
+    "delete_tx",
+    "get",
+    "get_all",
     "get_tx",
+    "insert_if_absent_tx",
+    "upsert",
     "upsert_tx",
 ]

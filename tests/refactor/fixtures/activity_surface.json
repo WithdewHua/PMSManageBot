@@ -1475,7 +1475,7 @@
             "GET"
           ],
           "name": "get_auction_list",
-          "order": 158,
+          "order": 164,
           "path": "/api/auction/list",
           "response_model": "AuctionListResponse"
         },
@@ -1485,7 +1485,7 @@
             "GET"
           ],
           "name": "get_auction_stats",
-          "order": 159,
+          "order": 165,
           "path": "/api/auction/stats",
           "response_model": "AuctionStatsResponse"
         },
@@ -1495,7 +1495,7 @@
             "GET"
           ],
           "name": "get_auction_detail",
-          "order": 160,
+          "order": 166,
           "path": "/api/auction/{auction_id}",
           "response_model": "AuctionDetailResponse"
         },
@@ -1505,7 +1505,7 @@
             "POST"
           ],
           "name": "create_auction",
-          "order": 161,
+          "order": 167,
           "path": "/api/auction/create",
           "response_model": null
         },
@@ -1515,7 +1515,7 @@
             "POST"
           ],
           "name": "place_bid",
-          "order": 162,
+          "order": 168,
           "path": "/api/auction/bid",
           "response_model": "PlaceBidResponse"
         },
@@ -1525,7 +1525,7 @@
             "POST"
           ],
           "name": "finish_expired_auctions",
-          "order": 163,
+          "order": 169,
           "path": "/api/auction/finish-expired",
           "response_model": null
         },
@@ -1535,7 +1535,7 @@
             "GET"
           ],
           "name": "get_all_auctions_admin",
-          "order": 164,
+          "order": 170,
           "path": "/api/auction/admin/list",
           "response_model": null
         },
@@ -1545,7 +1545,7 @@
             "PUT"
           ],
           "name": "update_auction_admin",
-          "order": 165,
+          "order": 171,
           "path": "/api/auction/admin/{auction_id}",
           "response_model": null
         },
@@ -1555,7 +1555,7 @@
             "DELETE"
           ],
           "name": "delete_auction_admin",
-          "order": 166,
+          "order": 172,
           "path": "/api/auction/admin/{auction_id}",
           "response_model": null
         },
@@ -1565,7 +1565,7 @@
             "POST"
           ],
           "name": "finish_auction_admin",
-          "order": 167,
+          "order": 173,
           "path": "/api/auction/admin/{auction_id}/finish",
           "response_model": null
         },
@@ -1575,7 +1575,7 @@
             "GET"
           ],
           "name": "get_auction_bids_admin",
-          "order": 168,
+          "order": 174,
           "path": "/api/auction/admin/{auction_id}/bids",
           "response_model": null
         },
@@ -1585,7 +1585,7 @@
             "GET"
           ],
           "name": "get_user_auction_history_admin",
-          "order": 169,
+          "order": 175,
           "path": "/api/auction/admin/user/{user_id}/history",
           "response_model": null
         },
@@ -1595,7 +1595,7 @@
             "GET"
           ],
           "name": "get_detailed_auction_stats_admin",
-          "order": 170,
+          "order": 176,
           "path": "/api/auction/admin/detailed-stats",
           "response_model": null
         }
@@ -2237,6 +2237,22 @@
           },
           {
             "kind": "from",
+            "module": "app.business_config",
+            "module_target": "app.domains.luckywheel.config",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.luckywheel.config.RANDOMNESS_CONFIG"
+          },
+          {
+            "kind": "from",
+            "module": "app.business_config",
+            "module_target": "app.domains.luckywheel.config",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.luckywheel.config.WHEEL_CONFIG"
+          },
+          {
+            "kind": "from",
             "module": "app.domains.badge_awards.jobs",
             "module_target": "app.domains.luckywheel.models",
             "resolved": true,
@@ -2309,6 +2325,30 @@
           {
             "kind": "from",
             "module": "app.domains.luckywheel.config",
+            "module_target": "pydantic",
+            "resolved": true,
+            "scope": "module",
+            "target": "pydantic.BaseModel"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.config",
+            "module_target": "pydantic",
+            "resolved": true,
+            "scope": "module",
+            "target": "pydantic.ConfigDict"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.config",
+            "module_target": "pydantic",
+            "resolved": true,
+            "scope": "module",
+            "target": "pydantic.Field"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.config",
             "module_target": "app.core",
             "resolved": true,
             "scope": "module",
@@ -2317,18 +2357,18 @@
           {
             "kind": "from",
             "module": "app.domains.luckywheel.config",
-            "module_target": "app.core.log",
+            "module_target": "app.core.domain_config",
             "resolved": true,
             "scope": "module",
-            "target": "app.core.log.logger"
+            "target": "app.core.domain_config.DomainConfig"
           },
           {
             "kind": "from",
             "module": "app.domains.luckywheel.config",
-            "module_target": "app.domains.luckywheel",
+            "module_target": "app.core.domain_config",
             "resolved": true,
             "scope": "module",
-            "target": "app.domains.luckywheel.rules"
+            "target": "app.core.domain_config.JsonDocument"
           },
           {
             "kind": "from",
@@ -2520,6 +2560,14 @@
             "resolved": true,
             "scope": "module",
             "target": "sqlalchemy.update"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.repository",
+            "module_target": "app.core",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.core.kv"
           },
           {
             "kind": "from",
@@ -2923,6 +2971,14 @@
             "module_target": "pydantic",
             "resolved": true,
             "scope": "module",
+            "target": "pydantic.ConfigDict"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.schemas",
+            "module_target": "pydantic",
+            "resolved": true,
+            "scope": "module",
             "target": "pydantic.Field"
           },
           {
@@ -3165,7 +3221,7 @@
             "GET"
           ],
           "name": "get_config",
-          "order": 120,
+          "order": 126,
           "path": "/api/luckywheel/config",
           "response_model": "LuckyWheelConfig"
         },
@@ -3175,7 +3231,7 @@
             "PUT"
           ],
           "name": "update_config",
-          "order": 121,
+          "order": 127,
           "path": "/api/luckywheel/config",
           "response_model": null
         },
@@ -3185,7 +3241,7 @@
             "GET"
           ],
           "name": "get_free_spins",
-          "order": 122,
+          "order": 128,
           "path": "/api/luckywheel/free-spins",
           "response_model": "LuckyWheelFreespinSummaryResponse"
         },
@@ -3195,7 +3251,7 @@
             "POST"
           ],
           "name": "spin_wheel",
-          "order": 123,
+          "order": 129,
           "path": "/api/luckywheel/spin",
           "response_model": "LuckyWheelSpinResult"
         },
@@ -3205,7 +3261,7 @@
             "POST"
           ],
           "name": "spin_wheel_ten_times",
-          "order": 124,
+          "order": 130,
           "path": "/api/luckywheel/spin-ten",
           "response_model": "LuckyWheelTenSpinResult"
         },
@@ -3215,7 +3271,7 @@
             "GET"
           ],
           "name": "get_user_status",
-          "order": 125,
+          "order": 131,
           "path": "/api/luckywheel/user-status",
           "response_model": null
         },
@@ -3225,7 +3281,7 @@
             "GET"
           ],
           "name": "get_randomness_statistics",
-          "order": 126,
+          "order": 132,
           "path": "/api/luckywheel/randomness-stats",
           "response_model": null
         },
@@ -3235,7 +3291,7 @@
             "PUT"
           ],
           "name": "update_randomness_config",
-          "order": 127,
+          "order": 133,
           "path": "/api/luckywheel/randomness-config",
           "response_model": null
         },
@@ -3245,7 +3301,7 @@
             "GET"
           ],
           "name": "get_randomness_config",
-          "order": 128,
+          "order": 134,
           "path": "/api/luckywheel/randomness-config",
           "response_model": null
         },
@@ -3255,7 +3311,7 @@
             "GET"
           ],
           "name": "get_wheel_statistics",
-          "order": 129,
+          "order": 135,
           "path": "/api/luckywheel/stats",
           "response_model": null
         },
@@ -3265,7 +3321,7 @@
             "GET"
           ],
           "name": "get_user_activity_stats",
-          "order": 130,
+          "order": 136,
           "path": "/api/luckywheel/user-activity-stats",
           "response_model": null
         }
@@ -5395,7 +5451,7 @@
             "GET"
           ],
           "name": "list_markets",
-          "order": 178,
+          "order": 184,
           "path": "/api/prediction/list",
           "response_model": "PredictionMarketListResponse"
         },
@@ -5405,7 +5461,7 @@
             "GET"
           ],
           "name": "get_market_detail",
-          "order": 179,
+          "order": 185,
           "path": "/api/prediction/{market_id:int}",
           "response_model": "PredictionMarketDetailResponse"
         },
@@ -5415,7 +5471,7 @@
             "GET"
           ],
           "name": "list_market_bets",
-          "order": 180,
+          "order": 186,
           "path": "/api/prediction/{market_id:int}/bets",
           "response_model": "PredictionBetListResponse"
         },
@@ -5425,7 +5481,7 @@
             "POST"
           ],
           "name": "place_bet",
-          "order": 181,
+          "order": 187,
           "path": "/api/prediction/{market_id:int}/bet",
           "response_model": "dict"
         },
@@ -5435,7 +5491,7 @@
             "POST"
           ],
           "name": "create_market",
-          "order": 182,
+          "order": 188,
           "path": "/api/prediction/create",
           "response_model": "dict"
         },
@@ -5445,7 +5501,7 @@
             "POST"
           ],
           "name": "submit_market",
-          "order": 183,
+          "order": 189,
           "path": "/api/prediction/submit",
           "response_model": "dict"
         },
@@ -5455,7 +5511,7 @@
             "GET"
           ],
           "name": "list_submissions",
-          "order": 184,
+          "order": 190,
           "path": "/api/prediction/submissions",
           "response_model": "PredictionSubmissionListResponse"
         },
@@ -5465,7 +5521,7 @@
             "POST"
           ],
           "name": "review_submission",
-          "order": 185,
+          "order": 191,
           "path": "/api/prediction/submissions/{submission_id:int}/review",
           "response_model": "dict"
         },
@@ -5475,7 +5531,7 @@
             "POST"
           ],
           "name": "close_market_betting",
-          "order": 186,
+          "order": 192,
           "path": "/api/prediction/{market_id:int}/close",
           "response_model": "dict"
         },
@@ -5485,7 +5541,7 @@
             "POST"
           ],
           "name": "resolve_market",
-          "order": 187,
+          "order": 193,
           "path": "/api/prediction/{market_id:int}/resolve",
           "response_model": "dict"
         },
@@ -5495,7 +5551,7 @@
             "GET"
           ],
           "name": "get_user_prediction_stats",
-          "order": 188,
+          "order": 194,
           "path": "/api/prediction/user-stats",
           "response_model": null
         }
@@ -7015,7 +7071,7 @@
             "GET"
           ],
           "name": "get_user_treasure_stats",
-          "order": 171,
+          "order": 177,
           "path": "/api/treasure/user-stats",
           "response_model": null
         },
@@ -7025,7 +7081,7 @@
             "GET"
           ],
           "name": "list_issues",
-          "order": 172,
+          "order": 178,
           "path": "/api/treasure/list",
           "response_model": "TreasureIssueListResponse"
         },
@@ -7035,7 +7091,7 @@
             "GET"
           ],
           "name": "get_issue_detail",
-          "order": 173,
+          "order": 179,
           "path": "/api/treasure/{issue_id}",
           "response_model": "TreasureIssueDetailResponse"
         },
@@ -7045,7 +7101,7 @@
             "GET"
           ],
           "name": "list_participations",
-          "order": 174,
+          "order": 180,
           "path": "/api/treasure/{issue_id}/participations",
           "response_model": "TreasureParticipationListResponse"
         },
@@ -7055,7 +7111,7 @@
             "POST"
           ],
           "name": "join_issue",
-          "order": 175,
+          "order": 181,
           "path": "/api/treasure/{issue_id}/join",
           "response_model": "TreasureJoinResponse"
         },
@@ -7065,7 +7121,7 @@
             "POST"
           ],
           "name": "create_issue",
-          "order": 176,
+          "order": 182,
           "path": "/api/treasure/create",
           "response_model": "dict"
         },
@@ -7075,7 +7131,7 @@
             "POST"
           ],
           "name": "cancel_issue",
-          "order": 177,
+          "order": 183,
           "path": "/api/treasure/{issue_id}/cancel",
           "response_model": "dict"
         }

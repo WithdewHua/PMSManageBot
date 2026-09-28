@@ -4,7 +4,36 @@ from sqlalchemy import update as sql_update
 from app.core.db import get_session
 from app.domains.identity.models import PlexUser
 from app.domains.media_access import repository as media_access_repository
+from app.domains.media_access.config import MEDIA_ACCESS_CONFIG
 from app.integrations.plex import Plex
+
+
+def get_unlock_credits() -> int:
+    return int(MEDIA_ACCESS_CONFIG.get().unlock_credits)
+
+
+def get_download_unlock_credits() -> int:
+    return int(MEDIA_ACCESS_CONFIG.get().download_unlock_credits)
+
+
+def get_nsfw_libs() -> list[str]:
+    return list(MEDIA_ACCESS_CONFIG.get().nsfw_libs)
+
+
+def set_unlock_credits(credits: int) -> int:
+    return int(MEDIA_ACCESS_CONFIG.update(unlock_credits=credits).unlock_credits)
+
+
+def set_download_unlock_credits(credits: int) -> int:
+    return int(
+        MEDIA_ACCESS_CONFIG.update(
+            download_unlock_credits=credits
+        ).download_unlock_credits
+    )
+
+
+def set_nsfw_libs(libs: list[str]) -> list[str]:
+    return list(MEDIA_ACCESS_CONFIG.update(nsfw_libs=libs).nsfw_libs)
 
 
 def is_download_unlocked(tg_id: int, service: str) -> bool:

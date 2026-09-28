@@ -1,5 +1,16 @@
 from app.core.log import logger
 from app.domains.donation import repository as donation_repository
+from app.domains.donation.config import DONATION_CONFIG
+
+
+def get_donation_multiplier() -> int:
+    return int(DONATION_CONFIG.get().donation_multiplier)
+
+
+def set_donation_multiplier(multiplier: int) -> int:
+    return int(
+        DONATION_CONFIG.update(donation_multiplier=multiplier).donation_multiplier
+    )
 
 
 def update_donation_credits(old_multiplier, new_multiplier):

@@ -8,10 +8,21 @@ from __future__ import annotations
 
 import json
 
+import pytest
 from sqlalchemy import event, select
 
+import app.core.kv as core_kv
 from app.core.db import get_session
-from app.core.kv import SystemConfig, compare_and_update_tx, get_tx, upsert_tx
+from app.core.kv import (
+    SystemConfig,
+    SystemConfigRepository,
+    compare_and_update_tx,
+    delete_tx,
+    get,
+    get_tx,
+    insert_if_absent_tx,
+    upsert_tx,
+)
 from tests.conftest import next_id
 
 
@@ -111,3 +122,44 @@ def test_compare_and_update_rejects_absent_and_unparseable_documents(
             )
             is False
         )
+
+
+class _BrokenSessionContext:
+    def __enter__(self):
+        raise RuntimeError("database unavailable")
+
+    def __exit__(self, *_args):
+        return False
+
+
+def test_get_distinguishes_missing_value_from_read_error(
+    session_env, monkeypatch
+) -> None:
+    assert get("lucky_wheel", "missing") is None
+
+    monkeypatch.setattr(core_kv, "get_session", _BrokenSessionContext)
+    with pytest.raises(RuntimeError, match="database unavailable"):
+        get("lucky_wheel", "missing")
+    assert SystemConfigRepository().get_system_config("lucky_wheel", "missing") is None
+
+
+def test_insert_if_absent_returns_the_value_that_won_the_unique_key(
+    session_env,
+) -> None:
+    with get_session() as session:
+        assert insert_if_absent_tx(session, "domain", "field", "first") == "first"
+
+    with get_session() as session:
+        assert insert_if_absent_tx(session, "domain", "field", "second") == "first"
+        assert get_tx(session, "domain", "field") == "first"
+
+
+def test_delete_tx_is_idempotent_and_old_setter_uses_module_api(session_env) -> None:
+    repository = SystemConfigRepository()
+    assert repository.set_system_config("domain", "field", "value") is True
+
+    with get_session() as session:
+        assert delete_tx(session, "domain", "field") is True
+    with get_session() as session:
+        assert delete_tx(session, "domain", "field") is False
+        assert get_tx(session, "domain", "field") is None

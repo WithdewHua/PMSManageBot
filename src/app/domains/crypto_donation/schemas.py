@@ -7,12 +7,12 @@ from enum import Enum
 
 from pydantic import BaseModel, Field, validator
 
-from app.core.config import settings
+from app.domains.crypto_donation import service as crypto_donation_service
 
 
 def get_supported_crypto_types():
     """获取支持的加密货币类型列表"""
-    return settings.UPAY_CRYPTO_TYPES
+    return crypto_donation_service.get_supported_crypto_types()
 
 
 class CryptoType(str, Enum):

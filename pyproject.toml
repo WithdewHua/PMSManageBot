@@ -199,6 +199,7 @@ type = "protected"
 protected_modules = ["app.core.db"]
 allowed_importers = [
     "app.core.kv",
+    "app.core.domain_config",
     "app.core.scheduler", # B3 jobstore migration delegates atomic SQL to core.db only
     "app.domains.*.models",
     "app.domains.*.repository",

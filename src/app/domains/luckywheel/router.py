@@ -221,7 +221,9 @@ async def get_randomness_statistics(
         check_admin_permission(current_user)
         config = luckywheel_service.get_wheel_config()
         randomness_config = luckywheel_service.get_randomness_config()
-        stats = luckywheel_service.get_randomness_stats(config.items, iterations)
+        stats = luckywheel_service.get_randomness_stats(
+            config.items, iterations, randomness=randomness_config
+        )
         deviations = [stat["deviation"] for stat in stats.values()]
         average_deviation = (
             round(sum(deviations) / len(deviations), 2) if deviations else 0

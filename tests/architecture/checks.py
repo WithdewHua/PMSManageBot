@@ -614,10 +614,95 @@ def scan_numbered_modules(root: Path) -> list[dict[str, Any]]:
     return sorted(violations, key=lambda item: item["key"])
 
 
+def scan_config_access(root: Path) -> list[dict[str, Any]]:
+    """Enforce ownership and layer rules for DomainConfig calls."""
+    violations: list[dict[str, Any]] = []
+    methods = {"get", "get_tx", "update", "seed"}
+    for path in python_files(root):
+        module = module_name(path, root)
+        source_domain = _domain_for_module(module)
+        source_role = _role_for_module(module)
+        if module.startswith("app.integrations"):
+            source_role = "integrations"
+        if source_domain is None and source_role != "integrations":
+            continue
+        tree = parse_python(path)
+        bindings: dict[str, str] = {}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module:
+                parts = node.module.split(".")
+                if len(parts) >= 4 and parts[:3] == ["app", "domains", parts[2]]:
+                    target_domain = parts[2]
+                    if parts[-1] == "config":
+                        for alias in node.names:
+                            bindings[alias.asname or alias.name] = target_domain
+                elif len(parts) == 3 and parts[:2] == ["app", "domains"]:
+                    target_domain = parts[2]
+                    for alias in node.names:
+                        if alias.name == "config":
+                            bindings[alias.asname or alias.name] = target_domain
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name.startswith("app.domains.") and alias.name.endswith(
+                        ".config"
+                    ):
+                        target_domain = alias.name.split(".")[2]
+                        bindings[alias.asname or alias.name.split(".")[1]] = (
+                            target_domain
+                        )
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not isinstance(
+                node.func, ast.Attribute
+            ):
+                continue
+            if node.func.attr not in methods:
+                continue
+            value = node.func.value
+            binding_name = None
+            if isinstance(value, ast.Name):
+                binding_name = value.id
+            elif isinstance(value, ast.Attribute) and isinstance(value.value, ast.Name):
+                binding_name = value.value.id
+            if binding_name not in bindings:
+                continue
+            target_domain = bindings[binding_name]
+            method = node.func.attr
+            allowed = False
+            if method in {"get", "get_tx"}:
+                allowed = source_role in {"service", "repository"}
+            else:
+                allowed = source_domain == target_domain and source_role in {
+                    "service",
+                    "repository",
+                    "router",
+                    "admin_router",
+                    "jobs",
+                }
+            if allowed:
+                continue
+            relative = relative_path(path, root)
+            key = f"config|{relative}|{node.lineno}|{target_domain}|{method}"
+            violations.append(
+                make_violation(
+                    key,
+                    owner_for_domain(source_domain),
+                    path=relative,
+                    line=node.lineno,
+                    source_domain=source_domain,
+                    source_role=source_role,
+                    target_domain=target_domain,
+                    operation=method,
+                )
+            )
+    return sorted(violations, key=lambda item: item["key"])
+
+
 def scan_all(root: Path) -> dict[str, list[dict[str, Any]]]:
     """Run all architecture scanners without reading or writing the baseline."""
     return {
         "cross_domain_calls": scan_cross_domain_calls(root),
+        "config_access": scan_config_access(root),
         "line_budgets": scan_line_budgets(root),
         "model_registry": scan_model_registry(root),
         "mixin_duplicates": scan_mixin_duplicates(root),

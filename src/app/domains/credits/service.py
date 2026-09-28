@@ -6,6 +6,7 @@ from collections.abc import Iterable
 
 from app.core.cache import invalidate_user_credits
 from app.domains.credits import repository
+from app.domains.credits.config import CREDITS_CONFIG
 from app.domains.credits.exceptions import CreditAccountNotFound
 from app.domains.credits.types import (
     CreditAccount,
@@ -13,6 +14,14 @@ from app.domains.credits.types import (
     CreditTransfer,
     validate_amount,
 )
+
+
+def is_transfer_enabled() -> bool:
+    return bool(CREDITS_CONFIG.get().transfer_enabled)
+
+
+def set_transfer_enabled(enabled: bool):
+    return CREDITS_CONFIG.update(transfer_enabled=enabled)
 
 
 def invalidate_cache_keys(keys: Iterable[str]) -> None:

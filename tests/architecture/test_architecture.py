@@ -11,6 +11,7 @@ import pytest
 
 from .checks import (
     scan_all,
+    scan_config_access,
     scan_cross_domain_calls,
     scan_line_budgets,
     scan_mixin_duplicates,
@@ -31,6 +32,35 @@ def _write(root: Path, relative: str, content: str) -> None:
     path = root / relative
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+
+
+def test_config_access_allows_reads_and_owner_writes(tmp_path: Path) -> None:
+    _write(
+        tmp_path,
+        "src/app/domains/accounts/service.py",
+        "from app.domains.invitation import config as invitation_config\n"
+        "def read(): return invitation_config.INVITATION_CONFIG.get()\n"
+        "def write(): return invitation_config.INVITATION_CONFIG.update(invitation_credits=1)\n",
+    )
+    _write(
+        tmp_path,
+        "src/app/domains/accounts/rules.py",
+        "from app.domains.invitation import config as invitation_config\n"
+        "def read(): return invitation_config.INVITATION_CONFIG.get()\n",
+    )
+    _write(
+        tmp_path,
+        "src/app/integrations/client.py",
+        "from app.domains.invitation import config as invitation_config\n"
+        "def read(): return invitation_config.INVITATION_CONFIG.get()\n",
+    )
+    violations = scan_config_access(tmp_path)
+    assert len(violations) == 3
+    assert {item["source_role"] for item in violations} == {
+        "service",
+        "rules",
+        "integrations",
+    }
 
 
 def test_current_layout_matches_the_architecture_baseline() -> None:
@@ -289,6 +319,7 @@ def test_baseline_writer_round_trips_without_refreshing_repository_baseline(
 ) -> None:
     baseline = {
         "cross_domain_calls": [],
+        "config_access": [],
         "line_budgets": [],
         "model_registry": [],
         "mixin_duplicates": [],

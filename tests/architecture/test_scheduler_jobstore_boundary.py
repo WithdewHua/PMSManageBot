@@ -27,7 +27,8 @@ def test_scheduler_is_the_only_new_database_engine_importer() -> None:
     )
     current = (PROJECT_ROOT / "pyproject.toml").read_text()
     assert _allowed_importers(current) - _allowed_importers(original) == {
-        "app.core.scheduler"
+        "app.core.scheduler",
+        "app.core.domain_config",
     }
     assert not _allowed_importers(original) - _allowed_importers(current)
     assert "app.core.*" not in _allowed_importers(current)

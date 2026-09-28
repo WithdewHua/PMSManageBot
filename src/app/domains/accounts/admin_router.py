@@ -5,9 +5,9 @@ from app.core.auth import (
     get_telegram_user,
     require_telegram_auth,
 )
-from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
+from app.domains.accounts import service as accounts_service
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -24,8 +24,7 @@ async def set_plex_register(
 
     try:
         enabled = data.get("enabled", False)
-        settings.PLEX_REGISTER = bool(enabled)
-        settings.save_config_to_env_file({"PLEX_REGISTER": str(enabled).lower()})
+        accounts_service.set_registration_enabled("plex", bool(enabled))
 
         logger.info(
             f"管理员 {user.username or user.id} 设置 Plex 注册状态为: {enabled}"
@@ -50,8 +49,7 @@ async def set_emby_register(
 
     try:
         enabled = data.get("enabled", False)
-        settings.EMBY_REGISTER = bool(enabled)
-        settings.save_config_to_env_file({"EMBY_REGISTER": str(enabled).lower()})
+        accounts_service.set_registration_enabled("emby", bool(enabled))
 
         logger.info(
             f"管理员 {user.username or user.id} 设置 Emby 注册状态为: {enabled}"

@@ -4,6 +4,7 @@ from math import isfinite
 
 from sqlalchemy import func, select, update
 
+from app.core import kv as core_kv
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.kv import SystemConfig
@@ -703,7 +704,7 @@ class LuckywheelRepository:
         Returns:
             配置的 JSON 字符串
         """
-        return self.get_system_config("lucky_wheel", config_key)
+        return core_kv.get("lucky_wheel", config_key)
 
     def set_lucky_wheel_config(self, config_key: str, config_json: str) -> bool:
         """
@@ -716,7 +717,8 @@ class LuckywheelRepository:
         Returns:
             是否成功
         """
-        return self.set_system_config("lucky_wheel", config_key, config_json)
+        core_kv.upsert("lucky_wheel", config_key, config_json)
+        return True
 
 
 _repository = LuckywheelRepository()

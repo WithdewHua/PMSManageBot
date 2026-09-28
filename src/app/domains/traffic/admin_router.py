@@ -5,9 +5,9 @@ from app.core.auth import (
     get_telegram_user,
     require_telegram_auth,
 )
-from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
+from app.domains.traffic import service as traffic_service
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -23,7 +23,9 @@ async def set_user_traffic_limit(
     check_admin_permission(user)
 
     try:
-        traffic_limit = data.get("traffic_limit", settings.USER_TRAFFIC_LIMIT)
+        traffic_limit = data.get(
+            "traffic_limit", traffic_service.get_user_traffic_limit()
+        )
 
         if (
             isinstance(traffic_limit, bool)
@@ -32,8 +34,7 @@ async def set_user_traffic_limit(
         ):
             return BaseResponse(success=False, message="流量额度必须是非负整数")
 
-        settings.USER_TRAFFIC_LIMIT = traffic_limit
-        settings.save_config_to_env_file({"USER_TRAFFIC_LIMIT": str(traffic_limit)})
+        traffic_service.set_user_traffic_limit(traffic_limit)
 
         logger.info(
             f"管理员 {user.username or user.id} 设置普通用户每日免费 Premium 流量额度为: {traffic_limit} 字节"

@@ -449,12 +449,35 @@
                       hide-details
                       @change="updateCreditsTransferEnabled"
                     ></v-switch>
-                  </div>
-                </div>
-              </v-card-text>
-            </v-card>
+                   </div>
 
-            <!-- 勋章管理 -->
+                   <v-divider class="my-3"></v-divider>
+                   <div class="text-subtitle-2 mb-2">新增业务配置</div>
+                   <v-row dense>
+                     <v-col cols="12" md="4">
+                       <v-text-field v-model.number="adminSettings.credits_cost_per_10gb" label="每 10GB 扣费积分" type="number" min="0" density="compact" variant="outlined" hide-details @blur="updateCreditsCostPer10Gb" @keyup.enter="updateCreditsCostPer10Gb" />
+                     </v-col>
+                     <v-col cols="12" md="4">
+                       <v-text-field v-model.number="adminSettings.donation_multiplier" label="捐赠积分倍率" type="number" min="0" density="compact" variant="outlined" hide-details @blur="updateDonationMultiplier" @keyup.enter="updateDonationMultiplier" />
+                     </v-col>
+                     <v-col cols="12" md="4">
+                       <v-text-field v-model.number="adminSettings.vaultwarden_redeem_credits" label="Vaultwarden 兑换积分" type="number" min="0" density="compact" variant="outlined" hide-details @blur="updateVaultwardenRedeemCredits" @keyup.enter="updateVaultwardenRedeemCredits" />
+                     </v-col>
+                     <v-col cols="12" md="6">
+                       <v-combobox v-model="adminSettings.nsfw_libs" label="NSFW 媒体库" multiple chips closable-chips density="compact" variant="outlined" hide-details @change="updateNsfwLibs" />
+                     </v-col>
+                     <v-col cols="12" md="6">
+                       <v-combobox v-model="adminSettings.upay_crypto_types" label="UPAY 加密货币类型" multiple chips closable-chips density="compact" variant="outlined" hide-details @change="updateUpayCryptoTypes" />
+                     </v-col>
+                     <v-col cols="12">
+                       <v-switch v-model="adminSettings.vaultwarden_enabled" label="Vaultwarden 兑换开放" color="success" density="compact" hide-details @change="updateVaultwardenEnabled" />
+                     </v-col>
+                   </v-row>
+                 </div>
+               </v-card-text>
+             </v-card>
+
+             <!-- 勋章管理 -->
             <v-card class="admin-card-enhanced mb-4">
               <v-card-title class="text-center">
                 <v-icon start color="amber-darken-2">mdi-medal</v-icon> 勋章管理
@@ -2877,7 +2900,28 @@ import BlackjackTournamentAdminPanel from '@/components/BlackjackTournamentAdmin
 import GiftPackAdminPanel from '@/components/GiftPackAdminPanel.vue'
 import BadgeEditorDialog from '@/components/BadgeEditorDialog.vue'
 import CustomLineManagement from '@/components/CustomLineManagement.vue'
-import { getAdminSettings, setPlexRegister, setEmbyRegister, setPremiumFree, setFreePremiumLines, setInvitationCredits, setUnlockCredits, setPremiumDailyCredits, setUserTrafficLimit, setPremiumUserTrafficLimit, setPremiumUnlockEnabled, setCreditsTransferEnabled, setLineScheduleUnlockCredits, setDownloadUnlockCredits } from '@/services/adminService.js'
+import {
+  getAdminSettings,
+  setPlexRegister,
+  setEmbyRegister,
+  setPremiumFree,
+  setFreePremiumLines,
+  setInvitationCredits,
+  setUnlockCredits,
+  setPremiumDailyCredits,
+  setUserTrafficLimit,
+  setPremiumUserTrafficLimit,
+  setPremiumUnlockEnabled,
+  setCreditsTransferEnabled,
+  setLineScheduleUnlockCredits,
+  setDownloadUnlockCredits,
+  setCreditsCostPer10Gb,
+  setNsfwLibs,
+  setDonationMultiplier,
+  setUpayCryptoTypes,
+  setVaultwardenEnabled,
+  setVaultwardenRedeemCredits
+} from '@/services/adminService.js'
 import { getWheelStats } from '@/services/wheelService.js'
 import { getBlackjackConfig, getBlackjackAdminStats } from '@/services/blackjackService.js'
 import { getAuctionStats, getAllAuctions, finishExpiredAuctions, finishAuction, deleteAuction, createAuction, getAuctionBids, updateAuction } from '@/services/auctionService.js'
@@ -2926,6 +2970,12 @@ export default {
         premium_user_traffic_limit_gb: 24,
         line_schedule_unlock_credits: 264,
         download_unlock_credits: 368,
+        credits_cost_per_10gb: 5,
+        nsfw_libs: [],
+        donation_multiplier: 5,
+        upay_crypto_types: [],
+        vaultwarden_enabled: false,
+        vaultwarden_redeem_credits: 500,
         loaded: false // 添加标记，避免重复加载
       },
       adminLoading: false,
@@ -3507,6 +3557,89 @@ export default {
       }
     },
     
+    async updateCreditsCostPer10Gb() {
+      const value = Number(this.adminSettings.credits_cost_per_10gb)
+      if (!Number.isInteger(value) || value < 0) {
+        this.showMessage('积分值必须是非负整数', 'error')
+        await this.fetchAdminSettings()
+        return
+      }
+      try {
+        await setCreditsCostPer10Gb(value)
+        this.showMessage('每 10GB 流量扣费设置已更新')
+      } catch (err) {
+        await this.fetchAdminSettings()
+        this.showMessage('更新每 10GB 流量扣费失败', 'error')
+      }
+    },
+
+    async updateNsfwLibs() {
+      const previous = [...this.adminSettings.nsfw_libs]
+      try {
+        await setNsfwLibs(this.adminSettings.nsfw_libs)
+        this.showMessage('NSFW 媒体库设置已更新')
+      } catch (err) {
+        this.adminSettings.nsfw_libs = previous
+        await this.fetchAdminSettings()
+        this.showMessage('更新 NSFW 媒体库失败', 'error')
+      }
+    },
+
+    async updateDonationMultiplier() {
+      const value = Number(this.adminSettings.donation_multiplier)
+      if (!Number.isInteger(value) || value < 0) {
+        this.showMessage('倍率必须是非负整数', 'error')
+        await this.fetchAdminSettings()
+        return
+      }
+      try {
+        await setDonationMultiplier(value)
+        this.showMessage('捐赠积分倍率已更新')
+      } catch (err) {
+        await this.fetchAdminSettings()
+        this.showMessage('更新捐赠积分倍率失败', 'error')
+      }
+    },
+
+    async updateUpayCryptoTypes() {
+      const previous = [...this.adminSettings.upay_crypto_types]
+      try {
+        await setUpayCryptoTypes(this.adminSettings.upay_crypto_types)
+        this.showMessage('UPAY 加密货币类型已更新')
+      } catch (err) {
+        this.adminSettings.upay_crypto_types = previous
+        await this.fetchAdminSettings()
+        this.showMessage('更新 UPAY 加密货币类型失败', 'error')
+      }
+    },
+
+    async updateVaultwardenEnabled() {
+      try {
+        await setVaultwardenEnabled(this.adminSettings.vaultwarden_enabled)
+        this.showMessage('Vaultwarden 开关已更新')
+      } catch (err) {
+        this.adminSettings.vaultwarden_enabled = !this.adminSettings.vaultwarden_enabled
+        await this.fetchAdminSettings()
+        this.showMessage('更新 Vaultwarden 开关失败', 'error')
+      }
+    },
+
+    async updateVaultwardenRedeemCredits() {
+      const value = Number(this.adminSettings.vaultwarden_redeem_credits)
+      if (!Number.isInteger(value) || value < 0) {
+        this.showMessage('积分值必须是非负整数', 'error')
+        await this.fetchAdminSettings()
+        return
+      }
+      try {
+        await setVaultwardenRedeemCredits(value)
+        this.showMessage('Vaultwarden 兑换积分已更新')
+      } catch (err) {
+        await this.fetchAdminSettings()
+        this.showMessage('更新 Vaultwarden 兑换积分失败', 'error')
+      }
+    },
+
     async updatePlexRegister() {
       try {
         await setPlexRegister(this.adminSettings.plex_register)

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy import update as sql_update
 
+from app.core import kv as core_kv
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
@@ -32,9 +33,7 @@ def _get_settled_through_date() -> str:
     按被夸大的时长结算过的幽灵记录，此时宁可少补也不能重复补——重复补偿会把
     时长二次计入，比不补更糟。水位线随首次结算完成后即进入正常推进。
     """
-    stored = db.get_system_config(
-        GHOST_SETTLEMENT_CONFIG_TYPE, GHOST_SETTLEMENT_CONFIG_KEY
-    )
+    stored = core_kv.get(GHOST_SETTLEMENT_CONFIG_TYPE, GHOST_SETTLEMENT_CONFIG_KEY)
     if stored:
         return stored
     return (datetime.now(settings.TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
@@ -42,9 +41,7 @@ def _get_settled_through_date() -> str:
 
 def _set_settled_through_date(date_str: str) -> None:
     """结算完成后推进水位线"""
-    db.set_system_config(
-        GHOST_SETTLEMENT_CONFIG_TYPE, GHOST_SETTLEMENT_CONFIG_KEY, date_str
-    )
+    core_kv.upsert(GHOST_SETTLEMENT_CONFIG_TYPE, GHOST_SETTLEMENT_CONFIG_KEY, date_str)
 
 
 from app.domains.watch_rewards.constants import GHOST_SCAN_DAYS
@@ -201,10 +198,12 @@ def clean_tautulli_ghost_sessions(scan_days: int = GHOST_SCAN_DAYS) -> dict:
 
 
 from app.domains.accounts.service import update_plex_info
+from app.domains.premium import service as premium_service
 from app.domains.premium.rules import (
     _resolve_premium_status_for_settlement,
     _settle_premium_traffic_usage,
 )
+from app.domains.traffic import service as traffic_service
 
 
 def update_plex_credits():
@@ -212,6 +211,8 @@ def update_plex_credits():
     logger.info("开始更新 Plex 用户积分及观看时长")
     notification_tasks = []
     deduction_records = []
+    premium_config = premium_service.get_premium_config()
+    traffic_config = traffic_service.get_traffic_config()
     ghost_compensation: dict = {}
     # 邀请人奖励累积字典: {inviter_tg_id: {"total_bonus": float, "details": [{"username": str, "base_credits": float, "bonus": float}]}}
     inviter_rewards: dict = {}
@@ -276,6 +277,9 @@ def update_plex_credits():
                 current_is_premium=bool(is_premium),
                 premium_status_updated_at=premium_status_updated_at,
                 settlement_date=settlement_date,
+                user_traffic_limit=traffic_config.user_traffic_limit,
+                premium_user_traffic_limit=traffic_config.premium_user_traffic_limit,
+                credits_cost_per_10gb=premium_config.credits_cost_per_10gb,
             )
             # 获取用户昨日的 premium 流量使用情况（用于流量费用计算）
             traffic_usage_premium = db.get_user_daily_traffic(
@@ -298,6 +302,9 @@ def update_plex_credits():
                 debt_bytes=debt_bytes,
                 debt_updated_date=debt_updated_date,
                 settlement_date=settlement_date,
+                user_traffic_limit=traffic_config.user_traffic_limit,
+                premium_user_traffic_limit=traffic_config.premium_user_traffic_limit,
+                credits_cost_per_10gb=premium_config.credits_cost_per_10gb,
             )
             traffic_usage_exceed = premium_traffic_result["exceed_bytes"]
             traffic_cost_credits = premium_traffic_result["traffic_cost_credits"]
@@ -580,6 +587,8 @@ Plex 邀请奖励通知
 def update_emby_credits():
     """更新 emby 积分及观看时长"""
     logger.info("开始更新 Emby 用户积分及观看时长")
+    premium_config = premium_service.get_premium_config()
+    traffic_config = traffic_service.get_traffic_config()
     # 获取所有用户的观看时长
     emby = Emby()
     notification_tasks = []
@@ -617,6 +626,9 @@ def update_emby_credits():
                 current_is_premium=bool(is_premium),
                 premium_status_updated_at=premium_status_updated_at,
                 settlement_date=settlement_date,
+                user_traffic_limit=traffic_config.user_traffic_limit,
+                premium_user_traffic_limit=traffic_config.premium_user_traffic_limit,
+                credits_cost_per_10gb=premium_config.credits_cost_per_10gb,
             )
             # 获取用户昨日的 premium 流量使用情况（用于流量费用计算）
             traffic_usage_premium = db.get_user_daily_traffic(
@@ -639,6 +651,9 @@ def update_emby_credits():
                 debt_bytes=debt_bytes,
                 debt_updated_date=debt_updated_date,
                 settlement_date=settlement_date,
+                user_traffic_limit=traffic_config.user_traffic_limit,
+                premium_user_traffic_limit=traffic_config.premium_user_traffic_limit,
+                credits_cost_per_10gb=premium_config.credits_cost_per_10gb,
             )
             traffic_usage_exceed = premium_traffic_result["exceed_bytes"]
             traffic_cost_credits = premium_traffic_result["traffic_cost_credits"]

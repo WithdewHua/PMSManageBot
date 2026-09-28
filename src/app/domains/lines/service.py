@@ -4,15 +4,37 @@ from app.core.cache import (
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
 )
-from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
 from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
 from app.databases.db import DatabaseORM
 from app.domains.lines import repository as lines_repository
+from app.domains.lines.config import LINES_CONFIG
 from app.domains.lines.rules import is_binded_premium_line
 from app.integrations.emby import Emby
+
+
+def is_premium_free_enabled() -> bool:
+    return bool(LINES_CONFIG.get().premium_free)
+
+
+def get_line_schedule_unlock_credits() -> int:
+    return int(LINES_CONFIG.get().line_schedule_unlock_credits)
+
+
+def set_premium_free(enabled: bool):
+    return LINES_CONFIG.update(premium_free=enabled)
+
+
+def set_line_schedule_unlock_credits(credits: int) -> int:
+    return int(
+        LINES_CONFIG.update(
+            line_schedule_unlock_credits=credits
+        ).line_schedule_unlock_credits
+    )
+
+
 from app.integrations.plex import Plex
 
 
@@ -26,7 +48,7 @@ def unlock_line_schedule_with_credit(tg_id: int, service: str, cost: float) -> b
 async def unbind_emby_premium_free():
     """解绑所有 Emby Premium Free（恢复普通用户）"""
 
-    if settings.PREMIUM_FREE:
+    if is_premium_free_enabled():
         logger.info("Emby Premium Free 功能未启用，跳过解绑操作")
         return True, None
 
@@ -71,7 +93,7 @@ async def unbind_emby_premium_free():
 async def unbind_plex_premium_free():
     """解绑所有 Plex Premium Free（恢复普通用户）"""
 
-    if settings.PREMIUM_FREE:
+    if is_premium_free_enabled():
         logger.info("Plex Premium Free 功能未启用，跳过解绑操作")
         return True, None
 
@@ -351,7 +373,7 @@ def check_line_permission(is_premium: bool, line: str) -> tuple[bool, str]:
         return True, ""
 
     # 高级线路需要进一步检查
-    if settings.PREMIUM_FREE:
+    if is_premium_free_enabled():
         # 检查该高级线路是否在免费列表中
         free_premium_lines = db.get_free_premium_lines()
         if line in free_premium_lines:

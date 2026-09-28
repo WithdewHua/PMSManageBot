@@ -9,6 +9,7 @@ from app.core.telegram import send_message_by_url
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.custom_lines.models import CustomLine
+from app.domains.donation import service as donation_service
 
 
 async def _send_expiring_soon_notifications(lines: list[CustomLine], current_time: int):
@@ -214,7 +215,7 @@ async def settle_custom_line_traffic(
                 credits_to_reward = (
                     float(monthly_traffic_gb)
                     * price_per_gb
-                    * settings.DONATION_MULTIPLIER
+                    * donation_service.get_donation_multiplier()
                     * 0.8
                 )
 

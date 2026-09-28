@@ -9,13 +9,13 @@ from sqlalchemy.exc import IntegrityError
 from app.core.db import get_session
 from app.core.kv import SystemConfig
 from app.core.log import logger
-from app.domains.blackjack.config import (
+from app.domains.blackjack.exceptions import blackjack_error
+from app.domains.blackjack.models import BlackjackHand
+from app.domains.blackjack.repository.constants import (
     JACKPOT_CONFIG_KEY,
     JACKPOT_CONFIG_TYPE,
     JACKPOT_NOTIFY_CURSOR_KEY,
 )
-from app.domains.blackjack.exceptions import blackjack_error
-from app.domains.blackjack.models import BlackjackHand
 
 
 class _BlackjackRepositoryJackpot:

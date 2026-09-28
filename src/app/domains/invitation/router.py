@@ -23,10 +23,12 @@ from app.core.telegram import (
     send_message_by_url,
 )
 from app.databases import db
+from app.domains.accounts import service as accounts_service
 from app.domains.accounts.jobs import refresh_emby_user_info
 from app.domains.accounts.service import update_plex_info
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.domains.invitation import service as invitation_service
 from app.domains.invitation.schemas import (
     BatchCheckPrivilegedCodesRequest,
     BatchCheckPrivilegedCodesResponse,
@@ -39,6 +41,7 @@ from app.domains.invitation.schemas import (
     RedeemInviteCodeRequest,
     RedeemResponse,
 )
+from app.domains.media_access import service as media_access_service
 from app.integrations.emby import Emby
 from app.integrations.plex import Plex
 
@@ -75,7 +78,7 @@ async def get_invite_points_info(
         user_credits = stats_info[2]
 
         # 获取邀请码所需积分
-        required_points = settings.INVITATION_CREDITS
+        required_points = invitation_service.get_invitation_credits()
 
         # 判断用户是否有足够的积分
         can_generate = user_credits >= required_points
@@ -125,7 +128,7 @@ async def generate_invite_code(
         user_credits = stats_info[2]
 
         # 获取邀请码所需积分
-        required_points = settings.INVITATION_CREDITS
+        required_points = invitation_service.get_invitation_credits()
 
         # 检查剩余积分
         if user_credits < required_points:
@@ -170,7 +173,10 @@ async def generate_invite_code(
 async def get_register_status():
     """获取媒体服务的注册状态"""
     try:
-        return {"plex": settings.PLEX_REGISTER, "emby": settings.EMBY_REGISTER}
+        return {
+            "plex": accounts_service.is_registration_enabled("plex"),
+            "emby": accounts_service.is_registration_enabled("emby"),
+        }
     except Exception as e:
         logger.error(f"获取服务注册状态失败: {e!s}")
         raise HTTPException(
@@ -199,7 +205,7 @@ async def redeem_plex_code(
         background_tasks.add_task(refresh_tg_user_profile, tg_id=telegram_user_id)
 
         # 检查是否允许注册
-        if not settings.PLEX_REGISTER and not is_privileged:
+        if not accounts_service.is_registration_enabled("plex") and not is_privileged:
             return RedeemResponse(success=False, message="Plex 当前不接受新用户注册")
 
         # 验证邮箱格式
@@ -229,7 +235,9 @@ async def redeem_plex_code(
             )
 
         # 发送邀请
-        if not _plex.invite_friend(email):
+        if not _plex.invite_friend(
+            email, excluded_libraries=media_access_service.get_nsfw_libs()
+        ):
             return RedeemResponse(
                 success=False, message="邀请失败，请稍后再试或联系管理员"
             )
@@ -348,7 +356,7 @@ async def redeem_emby_code(
         background_tasks.add_task(refresh_tg_user_profile, tg_id=telegram_user_id)
 
         # 检查是否允许注册（特权码跳过检查）
-        if not settings.EMBY_REGISTER and not is_privileged:
+        if not accounts_service.is_registration_enabled("emby") and not is_privileged:
             return RedeemResponse(success=False, message="Emby 当前不接受新用户注册")
 
         # 验证用户名
@@ -557,7 +565,9 @@ async def redeem_invite_code_for_credits(
             )
 
         # 计算可获得的积分 (通常是生成邀请码所需积分的一半或某个比例)
-        credits_earned = settings.INVITATION_CREDITS * 0.8  # 80%的回收率
+        credits_earned = (
+            invitation_service.get_invitation_credits() * 0.8
+        )  # 80%的回收率
 
         # 更新积分
         try:

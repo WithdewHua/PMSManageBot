@@ -12,6 +12,7 @@ SOURCE_ROOT = PROJECT_ROOT / "src"
 BASELINE_PATH = Path(__file__).with_name("baseline.json")
 ARCHITECTURE_CATEGORIES = (
     "cross_domain_calls",
+    "config_access",
     "line_budgets",
     "model_registry",
     "mixin_duplicates",

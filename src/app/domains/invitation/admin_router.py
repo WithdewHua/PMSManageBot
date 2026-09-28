@@ -5,11 +5,11 @@ from app.core.auth import (
     get_telegram_user,
     require_telegram_auth,
 )
-from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
 from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
+from app.domains.invitation import service as invitation_service
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -28,11 +28,10 @@ async def set_invitation_credits(
         credits = data.get("credits", 288)
 
         # 验证积分值的合理性
-        if not isinstance(credits, int) or credits < 0:
+        if isinstance(credits, bool) or not isinstance(credits, int) or credits < 0:
             return BaseResponse(success=False, message="积分值必须是非负整数")
 
-        settings.INVITATION_CREDITS = credits
-        settings.save_config_to_env_file({"INVITATION_CREDITS": str(credits)})
+        invitation_service.set_invitation_credits(credits)
 
         logger.info(
             f"管理员 {user.username or user.id} 设置邀请码生成所需积分为: {credits}"

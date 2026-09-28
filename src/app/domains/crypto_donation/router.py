@@ -21,6 +21,7 @@ from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.domains.crypto_donation import service as crypto_donation_service
 from app.domains.crypto_donation.models import CryptoDonationOrders
 from app.domains.crypto_donation.schemas import (
     CryptoDonationOrderCreate,
@@ -30,6 +31,7 @@ from app.domains.crypto_donation.schemas import (
     CryptoTypesResponse,
     UPayCallbackData,
 )
+from app.domains.donation import service as donation_service
 from app.domains.identity.models import EmbyUser, PlexUser
 from app.integrations.upay import UPayService
 
@@ -58,7 +60,9 @@ def check_user_binding(user_id: int) -> bool:
 async def get_crypto_types():
     """获取支持的加密货币类型"""
     try:
-        return CryptoTypesResponse(data=settings.UPAY_CRYPTO_TYPES)
+        return CryptoTypesResponse(
+            data=crypto_donation_service.get_supported_crypto_types()
+        )
     except Exception as e:
         logger.error(f"获取加密货币类型失败: {e}")
         raise HTTPException(
@@ -389,7 +393,7 @@ async def upay_payment_callback(request: Request):
 
             # 计算新的积分（捐赠金额的积分奖励，应用捐赠倍数）
             credits_reward = round(
-                donation_amount_cny * settings.DONATION_MULTIPLIER, 2
+                donation_amount_cny * donation_service.get_donation_multiplier(), 2
             )
             # 更新用户捐赠金额和积分
             donation_success = db.update_user_donation(new_donation, user_id)
@@ -406,7 +410,7 @@ async def upay_payment_callback(request: Request):
             if donation_success and credits_success:
                 logger.info(
                     f"用户 {user_id} Crypto 捐赠处理成功: "
-                    f"捐赠金额 {donation_amount_cny:.2f} CNY, 积分奖励 {credits_reward} (倍数: {settings.DONATION_MULTIPLIER})"
+                    f"捐赠金额 {donation_amount_cny:.2f} CNY, 积分奖励 {credits_reward} (倍数: {donation_service.get_donation_multiplier()})"
                 )
 
                 # 发送用户通知 - 支付成功

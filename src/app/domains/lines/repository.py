@@ -3,6 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import select, update
 
+from app.core import kv as core_kv
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
@@ -102,7 +103,7 @@ class LinesRepository:
 
     def get_free_premium_lines(self) -> list[str]:
         """获取所有免费高级线路列表"""
-        configs = self.get_all_configs_by_type("free_premium_line")
+        configs = core_kv.get_all("free_premium_line")
         return [key for key, value in configs.items() if value == "1"]
 
     def set_free_premium_lines(self, lines: list[str]) -> bool:
@@ -122,11 +123,11 @@ class LinesRepository:
 
             # 删除不再免费的线路
             for line in existing_lines - new_lines:
-                self.delete_system_config("free_premium_line", line)
+                core_kv.delete("free_premium_line", line)
 
             # 添加新的免费线路
             for line in new_lines:
-                self.set_system_config("free_premium_line", line, "1")
+                core_kv.upsert("free_premium_line", line, "1")
 
             logger.info(f"设置免费高级线路成功，共 {len(lines)} 条线路")
             return True
@@ -136,7 +137,7 @@ class LinesRepository:
 
     def is_free_premium_line(self, line_name: str) -> bool:
         """检查线路是否为免费高级线路"""
-        value = self.get_system_config("free_premium_line", line_name)
+        value = core_kv.get("free_premium_line", line_name)
         return value == "1"
 
     def get_line_tags(self, line_name: str) -> list[str]:
@@ -149,7 +150,7 @@ class LinesRepository:
         Returns:
             标签列表
         """
-        tags_str = self.get_system_config("line_tag", line_name)
+        tags_str = core_kv.get("line_tag", line_name)
         if tags_str:
             tags = tags_str.split(",")
             return [tag.strip() for tag in tags if tag.strip()]
@@ -168,15 +169,16 @@ class LinesRepository:
         """
         if not tags:
             # 如果标签为空，删除该配置
-            return self.delete_system_config("line_tag", line_name)
+            return core_kv.delete("line_tag", line_name)
 
         # 去重并转换为逗号分隔的字符串
         tags_str = ",".join(set(tags))
-        return self.set_system_config("line_tag", line_name, tags_str)
+        core_kv.upsert("line_tag", line_name, tags_str)
+        return True
 
     def delete_line_tags(self, line_name: str) -> bool:
         """删除线路的所有标签"""
-        return self.delete_system_config("line_tag", line_name)
+        return core_kv.delete("line_tag", line_name)
 
     def get_all_line_tags(self) -> dict:
         """
@@ -185,7 +187,7 @@ class LinesRepository:
         Returns:
             字典 {line_name: [tags]}
         """
-        configs = self.get_all_configs_by_type("line_tag")
+        configs = core_kv.get_all("line_tag")
         result = {}
         for line_name, tags_str in configs.items():
             tags = tags_str.split(",")

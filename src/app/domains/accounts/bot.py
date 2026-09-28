@@ -3,15 +3,17 @@ from telegram.ext import CommandHandler, ContextTypes
 
 from app.core.config import settings
 from app.core.telegram import send_message
+from app.domains.accounts import service as accounts_service
 
 
 async def get_register_status(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
     chat_id = update._effective_chat.id
+    config = accounts_service.get_registration_config()
     text = f"""
-Plex: {"可注册" if settings.PLEX_REGISTER else "注册关闭"}
-Emby: {"可注册" if settings.EMBY_REGISTER else "注册关闭"}
+    Plex: {"可注册" if config.plex_register else "注册关闭"}
+    Emby: {"可注册" if config.emby_register else "注册关闭"}
     """
     await send_message(chat_id=chat_id, text=text, parse_mode="HTML", context=context)
 
@@ -34,10 +36,7 @@ async def set_register(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             chat_id=chat_id, text="错误: 请指定正确的媒体服务器", context=context
         )
         return
-    if server.lower() == "plex":
-        settings.PLEX_REGISTER = flag != "0"
-    elif server.lower() == "emby":
-        settings.EMBY_REGISTER = flag != "0"
+    accounts_service.set_registration_enabled(server, flag != "0")
     await send_message(
         chat_id=chat_id,
         text=f"信息: 设置 {server} 注册状态为 {'开启' if flag != '0' else '关闭'}",

@@ -8,6 +8,7 @@ from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
 from app.databases import db
 from app.domains.identity.models import EmbyUser, PlexUser
+from app.domains.reports import service as reports_service
 
 router = APIRouter(prefix="/api/system", tags=["system"])
 
@@ -87,15 +88,16 @@ async def get_system_stats(
 async def get_system_status():
     """获取系统状态信息（公开接口，不需要登录）"""
     try:
+        business_config = reports_service.get_business_config_overview()
         status_data = {
             "site_name": settings.SITE_NAME,
             "emby_entry_url": settings.EMBY_ENTRY_URL or settings.EMBY_BASE_URL,
-            "plex_register": settings.PLEX_REGISTER,
-            "emby_register": settings.EMBY_REGISTER,
-            "premium_unlock_enabled": settings.PREMIUM_UNLOCK_ENABLED,
-            "premium_free": settings.PREMIUM_FREE,
-            "premium_daily_credits": settings.PREMIUM_DAILY_CREDITS,
-            "credits_transfer_enabled": settings.CREDITS_TRANSFER_ENABLED,
+            "plex_register": business_config["plex_register"],
+            "emby_register": business_config["emby_register"],
+            "premium_unlock_enabled": business_config["premium_unlock_enabled"],
+            "premium_free": business_config["premium_free"],
+            "premium_daily_credits": business_config["premium_daily_credits"],
+            "credits_transfer_enabled": business_config["credits_transfer_enabled"],
             "community_links": {
                 "group": getattr(settings, "TG_GROUP", ""),
                 "channel": getattr(

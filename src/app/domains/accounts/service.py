@@ -5,10 +5,27 @@ from app.core.cache import plex_token_cache
 from app.core.db import get_session
 from app.core.log import logger
 from app.databases.db import db
+from app.domains.accounts.config import ACCOUNTS_CONFIG
 from app.domains.identity.models import EmbyUser, PlexUser
 from app.integrations.emby import Emby
 from app.integrations.plex import Plex
 from app.integrations.tautulli import Tautulli, get_user_total_duration
+
+
+def get_registration_config() -> object:
+    return ACCOUNTS_CONFIG.get()
+
+
+def set_registration_enabled(server: str, enabled: bool) -> object:
+    field = {"plex": "plex_register", "emby": "emby_register"}.get(server.lower())
+    if field is None:
+        raise ValueError(f"unsupported registration server: {server}")
+    return ACCOUNTS_CONFIG.update(**{field: bool(enabled)})
+
+
+def is_registration_enabled(server: str) -> bool:
+    config = get_registration_config()
+    return bool(getattr(config, f"{server.lower()}_register"))
 
 
 def update_plex_info(

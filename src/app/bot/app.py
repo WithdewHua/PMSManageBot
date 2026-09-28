@@ -3,11 +3,11 @@
 from telegram import BotCommand
 
 from app.bot.start import start_handler
-from app.core.config import settings
 from app.core.log import logger
 from app.domains.accounts import bot as accounts_bot
 from app.domains.donation import bot as donation_bot
 from app.domains.invitation import bot as invitation_bot
+from app.domains.invitation import service as invitation_service
 from app.domains.profile import bot as profile_bot
 from app.domains.rankings import bot as rankings_bot
 from app.domains.reports import bot as reports_bot
@@ -36,7 +36,10 @@ async def set_bot_commands(application):
         BotCommand("info", "查看个人信息"),
         BotCommand("server_status", "查看服务器在线人数/状态"),
         BotCommand("rank_24h", "查看24小时观看时长榜"),
-        BotCommand("exchange", f"生成邀请码(消耗 {settings.INVITATION_CREDITS} 积分)"),
+        BotCommand(
+            "exchange",
+            f"生成邀请码(消耗 {invitation_service.get_invitation_credits()} 积分)",
+        ),
         BotCommand("credits_rank", "查看积分榜"),
         BotCommand("donation_rank", "查看捐赠榜"),
         BotCommand("play_duration_rank", "查看观看时长榜"),

@@ -12,8 +12,8 @@ PHOTO_STAT = "Folders: {0}, Subfolders: {1}, Photos: {2}"
 
 MOVIE_STAT = "{0}"
 
-# Library names you do not want shown. Logging before exclusion.
-LIB_IGNORE = settings.NSFW_LIBS
+
+# Library names are read through reports.service from media_access.
 
 # Customize user stats display
 # User: USER1 -> 1 hr 32 min 00 sec

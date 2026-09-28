@@ -20,41 +20,17 @@ class PrizeEffects:
 
 
 class RandomnessConfig:
-    """Runtime random-selection tuning retained for the admin statistics API."""
-
-    USE_WEIGHTED_PROTECTION = True
-    PROTECTION_THRESHOLD = 2.0
-    PROTECTION_FACTOR = 1.2
-    USE_TIME_SEED_MIXING = True
-    USE_USER_SEED_MIXING = True
+    """Backward-compatible view over the pure default randomness document."""
 
     @classmethod
     def to_dict(cls) -> dict:
-        return {
-            "use_weighted_protection": cls.USE_WEIGHTED_PROTECTION,
-            "protection_threshold": cls.PROTECTION_THRESHOLD,
-            "protection_factor": cls.PROTECTION_FACTOR,
-            "use_time_seed_mixing": cls.USE_TIME_SEED_MIXING,
-            "use_user_seed_mixing": cls.USE_USER_SEED_MIXING,
-        }
+        return dict(DEFAULT_RANDOMNESS)
 
     @classmethod
-    def from_dict(cls, config_dict: dict) -> None:
-        cls.USE_WEIGHTED_PROTECTION = config_dict.get(
-            "use_weighted_protection", cls.USE_WEIGHTED_PROTECTION
-        )
-        cls.PROTECTION_THRESHOLD = config_dict.get(
-            "protection_threshold", cls.PROTECTION_THRESHOLD
-        )
-        cls.PROTECTION_FACTOR = config_dict.get(
-            "protection_factor", cls.PROTECTION_FACTOR
-        )
-        cls.USE_TIME_SEED_MIXING = config_dict.get(
-            "use_time_seed_mixing", cls.USE_TIME_SEED_MIXING
-        )
-        cls.USE_USER_SEED_MIXING = config_dict.get(
-            "use_user_seed_mixing", cls.USE_USER_SEED_MIXING
-        )
+    def from_dict(cls, config_dict: dict) -> dict:
+        merged = dict(DEFAULT_RANDOMNESS)
+        merged.update(config_dict)
+        return merged
 
 
 DEFAULT_RANDOMNESS = {
@@ -85,7 +61,7 @@ def pick_prize(
     if not valid_items:
         raise ValueError("没有有效的奖品（概率必须大于0）")
 
-    options = {**RandomnessConfig.to_dict(), **(randomness or {})}
+    options = {**DEFAULT_RANDOMNESS, **(randomness or {})}
     secure_random = secrets.SystemRandom()
     if options["use_time_seed_mixing"]:
         secure_random.seed(time.time_ns() % 1_000_000)

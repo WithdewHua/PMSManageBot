@@ -70,6 +70,10 @@ if __name__ == "__main__":
     # 初始化数据库
     init_db()
 
+    from app.business_config import seed_all
+
+    seed_all()
+
     from app.subscriptions import register_subscriptions
 
     register_subscriptions()

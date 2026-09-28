@@ -4,8 +4,11 @@ from sqlalchemy import case, distinct, func, select
 
 from app.core.db import get_session
 from app.core.log import logger
-from app.domains.blackjack.config import JACKPOT_CONFIG_KEY, JACKPOT_CONFIG_TYPE
 from app.domains.blackjack.models import BlackjackHand
+from app.domains.blackjack.repository.constants import (
+    JACKPOT_CONFIG_KEY,
+    JACKPOT_CONFIG_TYPE,
+)
 
 
 class _BlackjackRepositoryStats:

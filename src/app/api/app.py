@@ -27,6 +27,7 @@ from app.domains.blackjack.router import (
 )
 from app.domains.credits.admin_router import router as credits_admin
 from app.domains.credits.router import router as credits
+from app.domains.crypto_donation.admin_router import router as crypto_donation_admin
 from app.domains.crypto_donation.router import router as crypto_donation_router
 from app.domains.custom_lines.admin_router import router as custom_lines_admin
 from app.domains.custom_lines.router import router as custom_lines
@@ -49,6 +50,7 @@ from app.domains.reports.admin_router import router as reports_admin
 from app.domains.reports.router import router as system_router
 from app.domains.traffic.admin_router import router as traffic_admin
 from app.domains.treasure.router import router as treasure_router
+from app.domains.vaultwarden.admin_router import router as vaultwarden_admin
 from app.domains.vaultwarden.router import router as vaultwarden_router
 from app.subscriptions import register_subscriptions
 
@@ -161,6 +163,8 @@ _include_named_routes(
         traffic_admin,
         credits_admin,
         custom_lines_admin,
+        crypto_donation_admin,
+        vaultwarden_admin,
     ),
     (
         "get_admin_settings",
@@ -184,6 +188,12 @@ _include_named_routes(
         "set_credits_transfer_enabled",
         "set_line_schedule_unlock_credits",
         "set_download_unlock_credits",
+        "set_credits_cost_per_10gb",
+        "set_nsfw_libs",
+        "set_donation_multiplier",
+        "set_upay_crypto_types",
+        "set_vaultwarden_enabled",
+        "set_vaultwarden_redeem_credits",
         "get_lines_config",
         "add_normal_line_generic",
         "add_premium_line_generic",

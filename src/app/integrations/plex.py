@@ -182,12 +182,11 @@ class Plex:
             self.my_plex_account.user(user_id), self.plex_server, sections=libs
         )
 
-    def invite_friend(self, user, libs=None):
+    def invite_friend(self, user, libs=None, *, excluded_libraries=None):
         try:
             if libs is None:
-                libs = list(
-                    set(self.get_libraries()).difference(set(settings.NSFW_LIBS))
-                )
+                excluded = set(excluded_libraries or [])
+                libs = list(set(self.get_libraries()).difference(excluded))
             self.my_plex_account.inviteFriend(user, self.plex_server, sections=libs)
         except Exception as e:
             logger.error(e)

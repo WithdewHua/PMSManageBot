@@ -10,6 +10,7 @@ import pytest
 from app.domains.blackjack import repository as blackjack_repository
 from app.domains.blackjack import service as blackjack_service
 from app.domains.blackjack.config import (
+    BLACKJACK_CONFIG,
     ENTRY_ELIMINATED,
     ENTRY_FINISHED,
     ENTRY_PLAYING,
@@ -130,11 +131,7 @@ async def test_reminders_advance_the_dedupe_cursor_without_sending(orm, monkeypa
     add_user(orm, 1)
     add_entry(orm, t["id"], 1, status=ENTRY_PLAYING, hands_played=0)
 
-    monkeypatch.setattr(
-        blackjack_service,
-        "get_blackjack_config_dict",
-        lambda: {"tournament_remind_lead_hours": 6},
-    )
+    BLACKJACK_CONFIG.update(tournament_remind_lead_hours=6)
     monkeypatch.setattr(blackjack_service, "_notify_enabled", lambda: False)
     send = AsyncMock()
     monkeypatch.setattr(blackjack_service, "_send_many", send)

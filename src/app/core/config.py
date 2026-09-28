@@ -19,7 +19,6 @@ class Settings(BaseSettings):
     DATA_DIR: str = ""
 
     # plex
-    PLEX_REGISTER: bool = False
     PLEX_BASE_URL: str = ""
     PLEX_API_TOKEN: str = ""
     PLEX_ADMIN_USER: str = ""
@@ -28,28 +27,6 @@ class Settings(BaseSettings):
     # Overseerr
     OVERSEERR_BASE_URL: str = ""
     OVERSEERR_API_TOKEN: str = ""
-
-    # library
-    NSFW_LIBS: list = ["NSFW", "NC17 Movies", "Hentai"]
-
-    # credits
-    UNLOCK_CREDITS: int = 100
-    INVITATION_CREDITS: int = 288
-    PREMIUM_DAILY_CREDITS: int = 15
-    DONATION_MULTIPLIER: int = 5  # 捐赠积分倍数
-    LINE_SCHEDULE_UNLOCK_CREDITS: int = 264  # 解锁线路调度功能所需积分
-    DOWNLOAD_UNLOCK_CREDITS: int = 368  # 解锁下载/同步功能所需积分
-    USER_TRAFFIC_LIMIT: int = (
-        12 * 1024 * 1024 * 1024
-    )  # 每日用户免费 Premium 流量额度，单位为字节（12GB）
-    PREMIUM_USER_TRAFFIC_LIMIT: int = (
-        24 * 1024 * 1024 * 1024
-    )  # 每日高级用户免费 Premium 流量额度，单位为字节（24GB）
-    CREDITS_COST_PER_10GB: int = 5  # 超出当日可用免费额度后，每 10GB 流量消耗的积分
-
-    # 功能开放设置
-    PREMIUM_UNLOCK_ENABLED: bool = False  # 是否开放 premium 解锁功能
-    CREDITS_TRANSFER_ENABLED: bool = True  # 积分转移功能开关
 
     # TG
     TG_API_TOKEN: str = ""
@@ -81,7 +58,6 @@ class Settings(BaseSettings):
     TAUTULLI_VERIFY_SSL: bool = False
 
     # emby
-    EMBY_REGISTER: bool = True
     EMBY_BASE_URL: str = ""
     EMBY_ENTRY_URL: str = ""  # 可指定 Emby 入口 URL，默认与 EMBY_BASE_URL 相同
     EMBY_API_TOKEN: str = ""
@@ -92,7 +68,6 @@ class Settings(BaseSettings):
     # 后端线路
     STREAM_BACKEND: list[str] = []
     PREMIUM_STREAM_BACKEND: list[str] = []
-    PREMIUM_FREE: bool = False
 
     # redis
     REDIS_HOST: str = "localhost"
@@ -108,23 +83,9 @@ class Settings(BaseSettings):
     UPAY_SECRET_KEY: str = ""  # UPAY 签名密钥
     UPAY_NOTIFY_URL: str = ""  # 支付完成异步通知地址
     UPAY_REDIRECT_URL: str = ""  # 支付完成后跳转地址
-    # 支持的加密货币类型配置
-    UPAY_CRYPTO_TYPES: list[str] = [
-        "USDC-Polygon",
-        "USDC-ArbitrumOne",
-        "USDC-BSC",
-        "USDC-ERC20",
-        "USDT-Polygon",
-        "USDT-ArbitrumOne",
-        "USDT-BSC",
-        "USDT-ERC20",
-    ]
-
-    # Vaultwarden 配置
-    VAULTWARDEN_ENABLED: bool = False  # 是否启用 Vaultwarden 兑换功能
-    VAULTWARDEN_BASE_URL: str = ""  # Vaultwarden 服务地址
-    VAULTWARDEN_ADMIN_TOKEN: str = ""  # Vaultwarden 管理员 Token
-    VAULTWARDEN_REDEEM_CREDITS: int = 500  # 兑换 Vaultwarden 账户所需积分
+    # Vaultwarden infrastructure configuration
+    VAULTWARDEN_BASE_URL: str = ""
+    VAULTWARDEN_ADMIN_TOKEN: str = ""
 
     # 数据库配置
     DATABASE_TYPE: str = "sqlite"  # 数据库类型: sqlite, postgresql
@@ -347,71 +308,9 @@ class Settings(BaseSettings):
             if raise_on_error:
                 raise
 
-    def get_saveable_config(self) -> dict[str, Any]:
-        """
-        获取可保存的配置项（排除敏感信息）
-        可以根据需要自定义哪些配置项不应该被保存
-        """
-        # 定义不应该保存到文件的敏感配置项
-        sensitive_keys = {
-            "TG_API_TOKEN",
-            "PLEX_API_TOKEN",
-            "OVERSEERR_API_TOKEN",
-            "EMBY_API_TOKEN",
-            "TAUTULLI_APIKEY",
-            "REDIS_PASSWORD",
-            "WEBAPP_SESSION_SECRET_KEY",
-            "UPAY_SECRET_KEY",
-        }
-
-        config = {}
-        for key in dir(self):
-            if (
-                not key.startswith("_")
-                and key.isupper()
-                and key not in sensitive_keys
-                and not callable(getattr(self, key))
-            ):
-                value = getattr(self, key)
-                # 只保存基本类型
-                if isinstance(value, (str, int, bool)):
-                    config[key] = value
-                if isinstance(value, list):
-                    value = [str(v) for v in value]
-                    config[key] = ",".join(value)
-
-        return config
-
-    def save_current_config(self, include_sensitive: bool = False):
-        """
-        保存当前配置到 .env 文件
-
-        Args:
-            include_sensitive: 是否包含敏感信息（如 API 密钥等）
-        """
-        if include_sensitive:
-            # 保存所有配置项
-            config = {}
-            for key in dir(self):
-                if (
-                    not key.startswith("_")
-                    and key.isupper()
-                    and not callable(getattr(self, key))
-                ):
-                    value = getattr(self, key)
-                    if isinstance(value, (str, int, bool)):
-                        config[key] = value
-                    if isinstance(value, list):
-                        value = [str(v) for v in value]
-                        config[key] = ",".join(value)
-        else:
-            # 只保存非敏感配置项
-            config = self.get_saveable_config()
-
-        self.save_config_to_env_file(config)
-
     class Config:
         case_sensitive = True
+        extra = "ignore"
         # 支持从 .env 文件读取环境变量
         env_file = ".env"
         env_file_encoding = "utf-8"

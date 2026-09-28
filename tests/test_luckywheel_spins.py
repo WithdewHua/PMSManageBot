@@ -15,6 +15,7 @@ from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy import event, select
 from starlette.requests import Request
 
+from app.core import kv
 from app.core.db import get_session
 from app.core.schemas import TelegramUser
 from app.domains.blackjack import repository as blackjack_repository
@@ -394,8 +395,10 @@ async def test_privileged_toggle_is_consumed_by_exactly_one_code(
     await _spin(1)
 
     assert [call["is_privileged"] for call in wheel_env["codes"]] == [True, False]
-    # 第一次抽中后，事务内条件更新与本次请求配置副本都关闭开关
-    assert wheel_env["config"].gen_privileged_code is False
+    # 第一次抽中后，事务内条件更新把持久化开关关闭
+    with get_session() as session:
+        stored = json.loads(kv.get_tx(session, "lucky_wheel", "config"))
+    assert stored["gen_privileged_code"] is False
 
 
 async def test_premium_prize_is_skipped_for_unbound_accounts(

@@ -6,6 +6,7 @@ from app.core.telegram import get_user_name_from_tg_id, send_message
 from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.domains.donation import service as donation_service
 
 
 # 管理员命令: 设置捐赠信息
@@ -42,7 +43,7 @@ async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         try:
             credits_service.add(
                 CreditAccount.tg(int(tg_id)),
-                donation * settings.DONATION_MULTIPLIER,
+                donation * donation_service.get_donation_multiplier(),
             )
         except Exception:
             await send_message(

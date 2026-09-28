@@ -1,31 +1,32 @@
 import math
 from datetime import datetime
 
-from app.core.config import settings
+
+def _get_premium_daily_limit(
+    is_premium: bool,
+    *,
+    user_traffic_limit: int,
+    premium_user_traffic_limit: int,
+) -> int:
+    return premium_user_traffic_limit if is_premium else user_traffic_limit
 
 
-def _get_premium_daily_limit(is_premium: bool) -> int:
-    return (
-        settings.PREMIUM_USER_TRAFFIC_LIMIT
-        if is_premium
-        else settings.USER_TRAFFIC_LIMIT
-    )
-
-
-def _get_traffic_cost_credits(chargeable_bytes: int) -> float:
+def _get_traffic_cost_credits(
+    chargeable_bytes: int, *, credits_cost_per_10gb: int
+) -> float:
     if chargeable_bytes <= 0:
         return 0
 
     gb_tiers = math.ceil(chargeable_bytes / (10 * 1024 * 1024 * 1024))
-    return round(gb_tiers * settings.CREDITS_COST_PER_10GB, 2)
+    return round(gb_tiers * credits_cost_per_10gb, 2)
 
 
-def _parse_debt_date(date_str: str | None) -> datetime | None:
+def _parse_debt_date(date_str: str | None, *, tzinfo) -> datetime | None:
     if not date_str:
         return None
 
     try:
-        return datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=settings.TZ)
+        return datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=tzinfo)
     except ValueError:
         return None
 
@@ -39,7 +40,7 @@ def _resolve_premium_status_for_settlement(
         return current_is_premium
 
     status_updated_at = datetime.fromtimestamp(
-        premium_status_updated_at, tz=settings.TZ
+        premium_status_updated_at, tz=settlement_date.tzinfo
     )
     settlement_day_end = settlement_date.replace(
         hour=23, minute=59, second=59, microsecond=999999
@@ -56,11 +57,18 @@ def _settle_premium_traffic_usage(
     debt_bytes: int,
     debt_updated_date: str | None,
     settlement_date: datetime,
+    user_traffic_limit: int,
+    premium_user_traffic_limit: int,
+    credits_cost_per_10gb: int,
 ) -> dict:
-    daily_limit = _get_premium_daily_limit(is_premium)
+    daily_limit = _get_premium_daily_limit(
+        is_premium,
+        user_traffic_limit=user_traffic_limit,
+        premium_user_traffic_limit=premium_user_traffic_limit,
+    )
     max_debt_bytes = daily_limit * 2
     previous_debt = max(int(debt_bytes or 0), 0)
-    debt_date = _parse_debt_date(debt_updated_date)
+    debt_date = _parse_debt_date(debt_updated_date, tzinfo=settlement_date.tzinfo)
     gap_days = 0
 
     if debt_date and debt_date.date() < settlement_date.date():
@@ -76,7 +84,9 @@ def _settle_premium_traffic_usage(
     chargeable_bytes = max(end_of_day_debt_raw - max_debt_bytes, 0)
     next_debt_bytes = min(end_of_day_debt_raw, max_debt_bytes)
     exceed_bytes = max(traffic_usage_premium - effective_limit, 0)
-    traffic_cost_credits = _get_traffic_cost_credits(chargeable_bytes)
+    traffic_cost_credits = _get_traffic_cost_credits(
+        chargeable_bytes, credits_cost_per_10gb=credits_cost_per_10gb
+    )
 
     return {
         "daily_limit": daily_limit,

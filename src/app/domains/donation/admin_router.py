@@ -7,13 +7,13 @@ from app.core.auth import (
     get_telegram_user,
     require_telegram_auth,
 )
-from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import BaseResponse, TelegramUser
 from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.domains.donation import service as donation_service
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -49,7 +49,7 @@ async def submit_donation_record(
         if success:
             credits_service.add(
                 CreditAccount.tg(int(tg_id)),
-                float(amount) * settings.DONATION_MULTIPLIER,
+                float(amount) * donation_service.get_donation_multiplier(),
             )
 
             # 获取用户显示名称
@@ -92,3 +92,27 @@ async def submit_donation_record(
     except Exception as e:
         logger.error(f"提交捐赠记录失败: {e!s}")
         return BaseResponse(success=False, message="提交失败")
+
+
+@router.post("/settings/donation-multiplier")
+@require_telegram_auth
+async def set_donation_multiplier(
+    request: Request,
+    data: dict = Body(...),
+    user: TelegramUser = Depends(get_telegram_user),
+):
+    """设置捐赠金额兑换积分的倍率。"""
+    check_admin_permission(user)
+    try:
+        multiplier = data.get("multiplier", donation_service.get_donation_multiplier())
+        if (
+            isinstance(multiplier, bool)
+            or not isinstance(multiplier, int)
+            or multiplier < 0
+        ):
+            return BaseResponse(success=False, message="倍率必须是非负整数")
+        donation_service.set_donation_multiplier(multiplier)
+        return BaseResponse(success=True, message=f"捐赠积分倍率已设置为 {multiplier}")
+    except Exception as error:
+        logger.error(f"设置捐赠积分倍率失败: {error!s}")
+        return BaseResponse(success=False, message="设置失败")

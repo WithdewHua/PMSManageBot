@@ -32,19 +32,24 @@ def _members() -> dict[str, str]:
     for path in sorted(_directory(_plan()).glob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in tree.body:
-            if not isinstance(node, ast.ClassDef):
-                continue
-            for member in node.body:
-                if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    found[member.name] = path.stem
-                elif isinstance(member, ast.AnnAssign) and isinstance(
-                    member.target, ast.Name
-                ):
-                    found[member.target.id] = path.stem
-                elif isinstance(member, ast.Assign):
-                    for target in member.targets:
-                        if isinstance(target, ast.Name):
-                            found[target.id] = path.stem
+            if isinstance(node, ast.ClassDef):
+                for member in node.body:
+                    if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        found[member.name] = path.stem
+                    elif isinstance(member, ast.AnnAssign) and isinstance(
+                        member.target, ast.Name
+                    ):
+                        found[member.target.id] = path.stem
+                    elif isinstance(member, ast.Assign):
+                        for target in member.targets:
+                            if isinstance(target, ast.Name):
+                                found[target.id] = path.stem
+            elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+                found[node.target.id] = path.stem
+            elif isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        found[target.id] = path.stem
     return found
 
 

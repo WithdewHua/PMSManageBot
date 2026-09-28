@@ -19,6 +19,39 @@ from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.domains.lines.rules import is_binded_premium_line
 from app.domains.media_access import service as media_access_service
 from app.domains.premium import repository as premium_repository
+from app.domains.premium.config import PREMIUM_CONFIG
+
+
+def get_premium_config():
+    return PREMIUM_CONFIG.get()
+
+
+def is_premium_unlock_enabled() -> bool:
+    return bool(PREMIUM_CONFIG.get().premium_unlock_enabled)
+
+
+def get_premium_daily_credits() -> int:
+    return int(PREMIUM_CONFIG.get().premium_daily_credits)
+
+
+def set_premium_unlock_enabled(enabled: bool):
+    return PREMIUM_CONFIG.update(premium_unlock_enabled=enabled)
+
+
+def set_premium_daily_credits(credits: int) -> int:
+    return int(
+        PREMIUM_CONFIG.update(premium_daily_credits=credits).premium_daily_credits
+    )
+
+
+def get_credits_cost_per_10gb() -> int:
+    return int(PREMIUM_CONFIG.get().credits_cost_per_10gb)
+
+
+def set_credits_cost_per_10gb(credits: int) -> int:
+    return int(
+        PREMIUM_CONFIG.update(credits_cost_per_10gb=credits).credits_cost_per_10gb
+    )
 
 
 async def check_premium_expiry():

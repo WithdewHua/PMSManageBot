@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
 from app.domains.identity.models import EmbyUser, PlexUser
+from app.domains.traffic import service as traffic_service
 from app.domains.traffic.models import LineTrafficStats
 
 
@@ -30,10 +31,11 @@ class PremiumRepository:
                     "remaining_free": 0,
                 }
 
+            traffic_config = traffic_service.get_traffic_config()
             daily_limit = (
-                settings.PREMIUM_USER_TRAFFIC_LIMIT
+                traffic_config.premium_user_traffic_limit
                 if user[0]
-                else settings.USER_TRAFFIC_LIMIT
+                else traffic_config.user_traffic_limit
             )
             current_debt = int(user[1] or 0)
             debt_updated_date = user[2]
@@ -79,10 +81,11 @@ class PremiumRepository:
                     "remaining_free": 0,
                 }
 
+            traffic_config = traffic_service.get_traffic_config()
             daily_limit = (
-                settings.PREMIUM_USER_TRAFFIC_LIMIT
+                traffic_config.premium_user_traffic_limit
                 if user[0]
-                else settings.USER_TRAFFIC_LIMIT
+                else traffic_config.user_traffic_limit
             )
             current_debt = int(user[1] or 0)
             debt_updated_date = user[2]

@@ -5,8 +5,11 @@ import time
 
 from sqlalchemy import select, update
 
-from app.domains.blackjack.config import JACKPOT_CONFIG_KEY, JACKPOT_CONFIG_TYPE
 from app.domains.blackjack.models import BlackjackHand
+from app.domains.blackjack.repository.constants import (
+    JACKPOT_CONFIG_KEY,
+    JACKPOT_CONFIG_TYPE,
+)
 from app.domains.credits import repository as credits_repository
 from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics

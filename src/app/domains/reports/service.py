@@ -7,8 +7,43 @@ import pytz
 
 from app.core.config import settings
 from app.core.log import logger
+from app.domains.accounts import service as accounts_service
+from app.domains.credits import service as credits_service
+from app.domains.crypto_donation import service as crypto_donation_service
+from app.domains.donation import service as donation_service
+from app.domains.invitation import service as invitation_service
+from app.domains.lines import service as lines_service
+from app.domains.media_access import service as media_access_service
+from app.domains.premium import service as premium_service
+from app.domains.traffic import service as traffic_service
+from app.domains.vaultwarden import service as vaultwarden_service
 from app.integrations.emby import Emby
 from app.integrations.tautulli import Tautulli
+
+
+def get_business_config_overview() -> dict:
+    """Read the current business configuration for status/report endpoints."""
+    accounts = accounts_service.get_registration_config()
+    return {
+        "plex_register": accounts.plex_register,
+        "emby_register": accounts.emby_register,
+        "premium_free": lines_service.is_premium_free_enabled(),
+        "premium_unlock_enabled": premium_service.is_premium_unlock_enabled(),
+        "premium_daily_credits": premium_service.get_premium_daily_credits(),
+        "credits_transfer_enabled": credits_service.is_transfer_enabled(),
+        "invitation_credits": invitation_service.get_invitation_credits(),
+        "unlock_credits": media_access_service.get_unlock_credits(),
+        "download_unlock_credits": media_access_service.get_download_unlock_credits(),
+        "line_schedule_unlock_credits": lines_service.get_line_schedule_unlock_credits(),
+        "user_traffic_limit": traffic_service.get_user_traffic_limit(),
+        "premium_user_traffic_limit": traffic_service.get_premium_user_traffic_limit(),
+        "credits_cost_per_10gb": premium_service.get_credits_cost_per_10gb(),
+        "nsfw_libs": media_access_service.get_nsfw_libs(),
+        "donation_multiplier": donation_service.get_donation_multiplier(),
+        "upay_crypto_types": crypto_donation_service.get_supported_crypto_types(),
+        "vaultwarden_enabled": vaultwarden_service.is_enabled(),
+        "vaultwarden_redeem_credits": vaultwarden_service.get_redeem_credits(),
+    }
 
 
 def utc_now_iso():
@@ -91,11 +126,14 @@ def get_most_watched_stats(home_stats, stats_type):
 
 from app.domains.reports.constants import (
     ARTIST_STAT,
-    LIB_IGNORE,
     MOVIE_STAT,
     PHOTO_STAT,
     SHOW_STAT,
 )
+
+
+def get_lib_ignore() -> list[str]:
+    return media_access_service.get_nsfw_libs()
 
 
 def get_library_stats(libraries):
@@ -104,6 +142,7 @@ def get_library_stats(libraries):
     sections_stats_lst = []
 
     logger.info("Checking library stats.")
+    lib_ignore = get_lib_ignore()
     for section in libraries:
         # library = tautulli.get_library_media_info(section['section_id'])
         # total_size += library['total_file_size']
@@ -126,7 +165,7 @@ def get_library_stats(libraries):
         elif section["section_type"] == "movie":
             section_count = MOVIE_STAT.format(section["count"])
 
-        if section["section_name"] not in LIB_IGNORE and section_count:
+        if section["section_name"] not in lib_ignore and section_count:
             sections_stats_lst += [
                 "{}: {}".format(section["section_name"], section_count)
             ]

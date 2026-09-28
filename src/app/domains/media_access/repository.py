@@ -10,6 +10,7 @@ from app.domains.credits import repository as credits_repository
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
+from app.domains.media_access.config import MEDIA_ACCESS_CONFIG
 
 
 class MediaAccessRepository:
@@ -215,7 +216,7 @@ class MediaAccessRepository:
                 if credits is None:
                     return False, "用户不存在", 0
 
-                required_credits = settings.DOWNLOAD_UNLOCK_CREDITS
+                required_credits = MEDIA_ACCESS_CONFIG.get().download_unlock_credits
                 if credits < required_credits:
                     return (
                         False,

@@ -2343,7 +2343,7 @@
         "POST"
       ],
       "name": "prompt_check",
-      "order": 201,
+      "order": 207,
       "path": "/api/gift-packs/prompt-check",
       "response_model": "GiftPackPromptCheckResponse"
     },
@@ -2353,7 +2353,7 @@
         "GET"
       ],
       "name": "list_gift_packs",
-      "order": 202,
+      "order": 208,
       "path": "/api/gift-packs",
       "response_model": "GiftPackListResponse"
     },
@@ -2363,7 +2363,7 @@
         "POST"
       ],
       "name": "claim_gift_pack",
-      "order": 203,
+      "order": 209,
       "path": "/api/gift-packs/{pack_id}/claim",
       "response_model": "GiftPackClaimResponse"
     },
@@ -2373,7 +2373,7 @@
         "POST"
       ],
       "name": "admin_resolve_gift_pack_users",
-      "order": 204,
+      "order": 210,
       "path": "/api/gift-packs/admin/resolve-users",
       "response_model": "dict"
     },
@@ -2383,7 +2383,7 @@
         "GET"
       ],
       "name": "admin_list_gift_packs",
-      "order": 205,
+      "order": 211,
       "path": "/api/gift-packs/admin/list",
       "response_model": "GiftPackAdminListResponse"
     },
@@ -2393,7 +2393,7 @@
         "POST"
       ],
       "name": "admin_create_gift_pack",
-      "order": 206,
+      "order": 212,
       "path": "/api/gift-packs/admin",
       "response_model": "GiftPackAdminItem"
     },
@@ -2403,7 +2403,7 @@
         "PUT"
       ],
       "name": "admin_update_gift_pack",
-      "order": 207,
+      "order": 213,
       "path": "/api/gift-packs/admin/{pack_id}",
       "response_model": "GiftPackAdminItem"
     },
@@ -2413,7 +2413,7 @@
         "POST"
       ],
       "name": "admin_set_gift_pack_enabled",
-      "order": 208,
+      "order": 214,
       "path": "/api/gift-packs/admin/{pack_id}/enabled",
       "response_model": "GiftPackAdminItem"
     },
@@ -2423,7 +2423,7 @@
         "DELETE"
       ],
       "name": "admin_delete_gift_pack",
-      "order": 209,
+      "order": 215,
       "path": "/api/gift-packs/admin/{pack_id}",
       "response_model": null
     },
@@ -2433,7 +2433,7 @@
         "GET"
       ],
       "name": "admin_gift_pack_stats",
-      "order": 210,
+      "order": 216,
       "path": "/api/gift-packs/admin/{pack_id}/stats",
       "response_model": "GiftPackStatsResponse"
     },
@@ -2443,7 +2443,7 @@
         "GET"
       ],
       "name": "admin_gift_pack_records",
-      "order": 211,
+      "order": 217,
       "path": "/api/gift-packs/admin/{pack_id}/records",
       "response_model": "GiftPackClaimRecordListResponse"
     }

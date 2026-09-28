@@ -110,7 +110,6 @@ def save_randomness_config(config: dict) -> None:
         raise
     except (TypeError, ValueError, OverflowError) as error:
         raise luckywheel_exceptions.randomness_write_failed() from error
-    luckywheel_rules.RandomnessConfig.from_dict(config)
     try:
         if not wheel_config.save_randomness_config(config):
             raise luckywheel_exceptions.randomness_write_failed()
@@ -142,13 +141,20 @@ def random_select_winner(
     )
 
 
-def get_randomness_stats(items: list[LuckyWheelItem], iterations: int = 10000) -> dict:
+def get_randomness_stats(
+    items: list[LuckyWheelItem],
+    iterations: int = 10000,
+    randomness: dict | None = None,
+) -> dict:
     if not items or iterations <= 0:
         return {}
     win_counts = {item.name: 0 for item in items}
     for _ in range(iterations):
         try:
-            winner = random_select_winner(items)
+            winner = luckywheel_rules.pick_prize(
+                items,
+                randomness=randomness or luckywheel_rules.RandomnessConfig.to_dict(),
+            )
             win_counts[winner.name] += 1
         except Exception as error:
             logger.warning(f"转盘随机性模拟单次抽取失败: {error}")
@@ -245,9 +251,6 @@ async def spin(
         use_free_spin=use_free_spin,
     )
     committed = _to_committed_spin(data)
-    if committed.privileged:
-        current_config.gen_privileged_code = False
-
     await _post_commit([committed], int(tg_id))
     return committed.result
 

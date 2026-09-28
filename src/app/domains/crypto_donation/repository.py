@@ -6,6 +6,7 @@ from sqlalchemy import func, select, update
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.crypto_donation.config import CRYPTO_DONATION_CONFIG
 from app.domains.crypto_donation.models import CryptoDonationOrders
 
 
@@ -21,7 +22,7 @@ class CryptoDonationRepository:
         """创建 crypto 捐赠订单"""
         try:
             # 验证加密货币类型是否支持
-            if crypto_type not in settings.UPAY_CRYPTO_TYPES:
+            if crypto_type not in CRYPTO_DONATION_CONFIG.get().upay_crypto_types:
                 logger.error(f"不支持的加密货币类型: {crypto_type}")
                 return False
 

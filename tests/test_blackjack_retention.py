@@ -18,13 +18,16 @@ from sqlalchemy import event
 from app.core.kv import SystemConfig
 from app.domains.blackjack import repository as blackjack_repository
 from app.domains.blackjack.config import (
-    CASHBACK_CURSOR_KEY,
+    BLACKJACK_CONFIG,
+    DEFAULT_BLACKJACK_CONFIG,
     ENTRY_PLAYING,
-    FREESPIN_NOTIFY_CURSOR_KEY,
     TOURNAMENT_REGISTERING,
 )
 from app.domains.blackjack.models import BlackjackTournamentEntry
-from app.domains.blackjack.repository import DEFAULT_BLACKJACK_CONFIG
+from app.domains.blackjack.repository.constants import (
+    CASHBACK_CURSOR_KEY,
+    FREESPIN_NOTIFY_CURSOR_KEY,
+)
 from app.domains.luckywheel import repository as luckywheel_repository
 from app.domains.luckywheel.models import WheelStats
 from tests.conftest import (
@@ -69,14 +72,9 @@ def lose_once(orm, tg_id: int, *, bet: int = 15, doubled: int = 0) -> dict:
     return blackjack_repository.blackjack_stand(tg_id, hand_id)
 
 
-def patch_cfg(monkeypatch, orm, **overrides) -> None:
-    """把 21 点配置固定为「默认值 + 用例覆盖」，屏蔽落库配置的干扰。"""
-    merged = {**DEFAULT_BLACKJACK_CONFIG, **overrides}
-    monkeypatch.setattr(
-        blackjack_repository._repository,
-        "get_blackjack_config_dict",
-        lambda: dict(merged),
-    )
+def patch_cfg(_monkeypatch, _orm, **overrides) -> None:
+    """通过业务配置声明写入用例覆盖，模拟管理员修改后的实时值。"""
+    BLACKJACK_CONFIG.update(**{**DEFAULT_BLACKJACK_CONFIG, **overrides})
 
 
 def freespins_count(orm, tg_id: int) -> int:
