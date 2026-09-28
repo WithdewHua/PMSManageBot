@@ -867,9 +867,13 @@ async def _build_prediction(cases: dict[str, Any]) -> None:
         ("400_english_fallback", "invalid option"),
         ("400_amount_must_be_positive", "amount must be > 0"),
     ):
-        with _patched(DatabaseORM, "place_prediction_bet", _raise(ValueError(message))):
+        with _patched(
+            pred.prediction_service, "place_prediction_bet", _raise(ValueError(message))
+        ):
             await _capture(cases, f"{d}.place_bet.{branch}", bet(MARKET_OPEN, _USER1))
-    with _patched(DatabaseORM, "place_prediction_bet", _raise(RuntimeError("boom"))):
+    with _patched(
+        pred.prediction_service, "place_prediction_bet", _raise(RuntimeError("boom"))
+    ):
         await _capture(cases, f"{d}.place_bet.500_unexpected", bet(MARKET_OPEN, _USER1))
 
     # POST /create：截止时间检查抛 400，却先被兜底 except 吞成 500
@@ -891,7 +895,9 @@ async def _build_prediction(cases: dict[str, Any]) -> None:
         ("400_english_fallback", "title is required", FUTURE),
     ):
         with _patched(
-            DatabaseORM, "create_prediction_market", _raise(ValueError(message))
+            pred.prediction_service,
+            "create_prediction_market",
+            _raise(ValueError(message)),
         ):
             await _capture(
                 cases,
@@ -905,7 +911,9 @@ async def _build_prediction(cases: dict[str, Any]) -> None:
                 ),
             )
     with _patched(
-        DatabaseORM, "create_prediction_market", _raise(RuntimeError("boom"))
+        pred.prediction_service,
+        "create_prediction_market",
+        _raise(RuntimeError("boom")),
     ):
         await _capture(
             cases,
@@ -930,7 +938,9 @@ async def _build_prediction(cases: dict[str, Any]) -> None:
         ("400_english_fallback", "title is required"),
     ):
         with _patched(
-            DatabaseORM, "submit_prediction_market", _raise(ValueError(message))
+            pred.prediction_service,
+            "submit_prediction_market",
+            _raise(ValueError(message)),
         ):
             await _capture(
                 cases,
@@ -942,7 +952,9 @@ async def _build_prediction(cases: dict[str, Any]) -> None:
                 ),
             )
     with _patched(
-        DatabaseORM, "submit_prediction_market", _raise(RuntimeError("boom"))
+        pred.prediction_service,
+        "submit_prediction_market",
+        _raise(RuntimeError("boom")),
     ):
         await _capture(
             cases,
@@ -962,7 +974,9 @@ async def _build_prediction(cases: dict[str, Any]) -> None:
         ("400_english_fallback", "invalid fee split"),
     ):
         with _patched(
-            DatabaseORM, "review_prediction_submission", _raise(ValueError(message))
+            pred.prediction_service,
+            "review_prediction_submission",
+            _raise(ValueError(message)),
         ):
             await _capture(
                 cases,
@@ -975,7 +989,9 @@ async def _build_prediction(cases: dict[str, Any]) -> None:
                 ),
             )
     with _patched(
-        DatabaseORM, "review_prediction_submission", _raise(RuntimeError("boom"))
+        pred.prediction_service,
+        "review_prediction_submission",
+        _raise(RuntimeError("boom")),
     ):
         await _capture(
             cases,
@@ -994,7 +1010,9 @@ async def _build_prediction(cases: dict[str, Any]) -> None:
         ("400_english_fallback", "market not open"),
     ):
         with _patched(
-            DatabaseORM, "close_prediction_market_betting", _raise(ValueError(message))
+            pred.prediction_service,
+            "close_prediction_market_betting",
+            _raise(ValueError(message)),
         ):
             await _capture(
                 cases,
@@ -1004,7 +1022,9 @@ async def _build_prediction(cases: dict[str, Any]) -> None:
                 ),
             )
     with _patched(
-        DatabaseORM, "close_prediction_market_betting", _raise(RuntimeError("boom"))
+        pred.prediction_service,
+        "close_prediction_market_betting",
+        _raise(RuntimeError("boom")),
     ):
         await _capture(
             cases,
@@ -1020,7 +1040,9 @@ async def _build_prediction(cases: dict[str, Any]) -> None:
         ("400_english_fallback", "invalid result option"),
     ):
         with _patched(
-            DatabaseORM, "resolve_prediction_market", _raise(ValueError(message))
+            pred.prediction_service,
+            "resolve_prediction_market",
+            _raise(ValueError(message)),
         ):
             await _capture(
                 cases,
@@ -1034,7 +1056,9 @@ async def _build_prediction(cases: dict[str, Any]) -> None:
                 ),
             )
     with _patched(
-        DatabaseORM, "resolve_prediction_market", _raise(RuntimeError("boom"))
+        pred.prediction_service,
+        "resolve_prediction_market",
+        _raise(RuntimeError("boom")),
     ):
         await _capture(
             cases,
@@ -1049,7 +1073,9 @@ async def _build_prediction(cases: dict[str, Any]) -> None:
         )
 
     # 只读接口
-    with _patched(DatabaseORM, "list_prediction_markets", _raise(RuntimeError("boom"))):
+    with _patched(
+        pred.prediction_service, "list_prediction_markets", _raise(RuntimeError("boom"))
+    ):
         await _capture(
             cases,
             f"{d}.list_markets.500_unexpected",
@@ -1062,7 +1088,9 @@ async def _build_prediction(cases: dict[str, Any]) -> None:
             request=_request(), market_id=MISSING, current_user=_USER1
         ),
     )
-    with _patched(DatabaseORM, "list_prediction_bets", _raise(RuntimeError("boom"))):
+    with _patched(
+        pred.prediction_service, "list_prediction_bets", _raise(RuntimeError("boom"))
+    ):
         await _capture(
             cases,
             f"{d}.list_market_bets.500_unexpected",
@@ -1071,7 +1099,9 @@ async def _build_prediction(cases: dict[str, Any]) -> None:
             ),
         )
     with _patched(
-        DatabaseORM, "list_prediction_submissions", _raise(RuntimeError("boom"))
+        pred.prediction_service,
+        "list_prediction_submissions",
+        _raise(RuntimeError("boom")),
     ):
         await _capture(
             cases,
@@ -1079,7 +1109,9 @@ async def _build_prediction(cases: dict[str, Any]) -> None:
             pred.list_submissions(request=_request(), current_user=_USER1),
         )
     with _patched(
-        DatabaseORM, "get_prediction_user_stats", _raise(RuntimeError("boom"))
+        pred.prediction_service,
+        "get_prediction_user_stats",
+        _raise(RuntimeError("boom")),
     ):
         await _capture(
             cases,
@@ -1360,7 +1392,9 @@ def _install_noops(monkeypatch) -> None:
         "notify_prediction_submission_reviewed",
         "notify_prediction_user_settlement",
     ):
-        monkeypatch.setattr(pred, name, _async_none)
+        monkeypatch.setattr(
+            pred.prediction_service.prediction_notifications, name, _async_none
+        )
 
     monkeypatch.setattr(auc, "Scheduler", _StubScheduler)
     monkeypatch.setattr(auc, "send_channel_auction_notification", _async_none)

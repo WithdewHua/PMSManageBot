@@ -2291,13 +2291,6 @@
     },
     {
       "kind": "facade_import",
-      "line": 13,
-      "path": "src/app/domains/prediction/router.py",
-      "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
       "line": 12,
       "path": "src/app/domains/premium/admin_router.py",
       "symbol": "app.databases",
@@ -2473,5 +2466,5 @@
     }
   ],
   "schema_version": 1,
-  "total": 353
+  "total": 352
 }

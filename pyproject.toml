@@ -192,7 +192,6 @@ ignore_imports = [
     "app.domains.accounts.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.credits.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.custom_lines.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
-    "app.domains.prediction.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.traffic.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.accounts.service -> sqlalchemy", # B3 mechanical relocation; audit in 5.6
     "app.domains.custom_lines.service -> sqlalchemy", # B3 mechanical relocation; audit in 5.6
@@ -242,7 +241,6 @@ ignore_imports = [
     "app.domains.invitation.service -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.lines.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.media_access.service -> app.core.db", # B3 mechanical relocation; audit in 5.6
-    "app.domains.prediction.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.traffic.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.watch_rewards.service -> app.core.db", # B3 mechanical relocation; audit in 5.6
 ]
@@ -292,7 +290,6 @@ ignore_imports = [
     "app.domains.media_access.service -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.traffic.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.watch_rewards.service -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
-    "app.domains.prediction.jobs -> app.domains.prediction.models", # B3 mechanical relocation; audit in 5.6
 ]
 unmatched_ignore_imports_alerting = "error"
 
@@ -394,8 +391,6 @@ ignore_imports = [
 
 
     "app.domains.media_access.router -> app.databases.db", # promote-line-domains (B2 inherited)
-
-    "app.domains.prediction.router -> app.databases.db", # promote-activity-domains (B2 inherited)
 
 
     "app.domains.premium.admin_router -> app.databases.db", # promote-line-domains (B2 inherited)
@@ -562,11 +557,9 @@ ignore_imports = [
     "app.domains.accounts.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.credits.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.custom_lines.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
-    "app.domains.prediction.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.traffic.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.luckywheel.router -> app.databases.db", # promote-activity-domains (B2 inherited)
     "app.domains.media_access.router -> app.databases.db", # promote-line-domains (B2 inherited)
-    "app.domains.prediction.router -> app.databases.db", # promote-activity-domains (B2 inherited)
     "app.domains.premium.admin_router -> app.databases.db", # promote-line-domains (B2 inherited)
     "app.domains.premium.router -> app.databases.db", # promote-line-domains (B2 inherited)
     "app.domains.profile.bot -> app.databases.db", # promote-remaining-domains (B2 inherited)
@@ -597,7 +590,6 @@ ignore_imports = [
     "app.domains.credits.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.custom_lines.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.lines.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
-    "app.domains.prediction.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.traffic.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.crypto_donation.jobs -> app.databases.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.lines.jobs -> app.databases.db", # B3 mechanical relocation; audit in 5.6
@@ -608,7 +600,6 @@ ignore_imports = [
     "app.domains.credits.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.lines.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.traffic.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
-    "app.domains.prediction.jobs -> app.domains.prediction.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.custom_lines.jobs -> app.domains.traffic.repository", # B3 mechanical relocation; audit in 5.6
 ]
 unmatched_ignore_imports_alerting = "error"

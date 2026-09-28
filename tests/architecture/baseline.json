@@ -2069,54 +2069,34 @@
       "target": "get_plex_info_by_tg_id"
     },
     {
-      "key": "call|src/app/domains/prediction/repository/bets.py|72|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/prediction/repository/bets.py|73|imported|credits|register_cache_invalidation",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/prediction/repository/bets.py",
-      "line": 72,
+      "line": 73,
       "kind": "call",
       "source_domain": "prediction",
       "target_domain": "credits",
       "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/prediction/repository/settlement.py|163|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/prediction/repository/settlement.py|130|imported|credits|register_cache_invalidation",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/prediction/repository/settlement.py",
-      "line": 163,
+      "line": 130,
       "kind": "call",
       "source_domain": "prediction",
       "target_domain": "credits",
       "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/prediction/router.py|309|imported|credits|read_optional",
+      "key": "call|src/app/domains/prediction/repository/settlement.py|178|imported|credits|register_cache_invalidation",
       "owner": "promote-activity-domains",
-      "path": "src/app/domains/prediction/router.py",
-      "line": 309,
+      "path": "src/app/domains/prediction/repository/settlement.py",
+      "line": 178,
       "kind": "call",
       "source_domain": "prediction",
       "target_domain": "credits",
-      "target": "read_optional"
-    },
-    {
-      "key": "call|src/app/domains/prediction/router.py|312|facade|identity|add_user_data",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/prediction/router.py",
-      "line": 312,
-      "kind": "facade_call",
-      "source_domain": "prediction",
-      "target_domain": "identity",
-      "target": "add_user_data"
-    },
-    {
-      "key": "call|src/app/domains/prediction/router.py|318|imported|credits|add",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/prediction/router.py",
-      "line": 318,
-      "kind": "call",
-      "source_domain": "prediction",
-      "target_domain": "credits",
-      "target": "add"
+      "target": "register_cache_invalidation"
     },
     {
       "key": "call|src/app/domains/premium/admin_router.py|316|facade|lines|get_free_premium_lines",
@@ -3895,10 +3875,10 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/prediction/repository/settlement.py|10|app.domains.credits.service|service",
+      "key": "import|src/app/domains/prediction/repository/settlement.py|14|app.domains.credits.service|service",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/prediction/repository/settlement.py",
-      "line": 10,
+      "line": 14,
       "kind": "import",
       "source_domain": "prediction",
       "target_domain": "credits",
@@ -3906,27 +3886,27 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/prediction/router.py|14|app.domains.badge_awards.jobs|check_and_award_game_king_badge",
+      "key": "import|src/app/domains/prediction/repository/settlement.py|169|app.domains.credits.service|service",
+      "owner": "promote-activity-domains",
+      "path": "src/app/domains/prediction/repository/settlement.py",
+      "line": 169,
+      "kind": "import",
+      "source_domain": "prediction",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/prediction/router.py|13|app.domains.badge_awards.jobs|check_and_award_game_king_badge",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/prediction/router.py",
-      "line": 14,
+      "line": 13,
       "kind": "import",
       "source_domain": "prediction",
       "target_domain": "badge_awards",
       "target_module": "app.domains.badge_awards.jobs",
       "symbol": "check_and_award_game_king_badge",
       "b3_source_id": "app.databases.db_func:check_and_award_game_king_badge"
-    },
-    {
-      "key": "import|src/app/domains/prediction/router.py|15|app.domains.credits.service|service",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/prediction/router.py",
-      "line": 15,
-      "kind": "import",
-      "source_domain": "prediction",
-      "target_domain": "credits",
-      "target_module": "app.domains.credits.service",
-      "symbol": "service"
     },
     {
       "key": "import|src/app/domains/premium/admin_router.py|13|app.domains.lines.service|disable_line_schedules_and_notify",
@@ -4395,14 +4375,14 @@
     "Top-level architecture": 0,
     "External integration isolation": 0,
     "Legacy database facade freeze": 0,
-    "SQLAlchemy direct use scope": 17,
-    "Database engine import scope": 19,
-    "Domain model import scope": 20,
-    "Six-tier domain dependencies": 57,
+    "SQLAlchemy direct use scope": 16,
+    "Database engine import scope": 18,
+    "Domain model import scope": 19,
+    "Six-tier domain dependencies": 56,
     "Acyclic domain siblings": 17,
     "Domain internal layering": 6,
     "Domain types are pure value modules": 0,
     "Domain rules are pure value computations": 0,
-    "Domain entry points do not touch data layer": 73
+    "Domain entry points do not touch data layer": 69
   }
 }

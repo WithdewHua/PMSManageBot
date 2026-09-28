@@ -10,18 +10,9 @@ from app.core.auth import (
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
-from app.databases import db
 from app.domains.badge_awards.jobs import check_and_award_game_king_badge
-from app.domains.credits import service as credits_service
-from app.domains.credits.types import CreditAccount
-from app.domains.prediction.notifications import (
-    notify_prediction_bet_placed,
-    notify_prediction_market_created,
-    notify_prediction_market_resolved,
-    notify_prediction_submission_created,
-    notify_prediction_submission_reviewed,
-    notify_prediction_user_settlement,
-)
+from app.domains.prediction import service as prediction_service
+from app.domains.prediction.exceptions import PredictionError
 from app.domains.prediction.schemas import (
     PredictionBetItem,
     PredictionBetListResponse,
@@ -49,7 +40,9 @@ async def list_markets(
     current_user: TelegramUser = Depends(get_telegram_user),
 ):
     try:
-        markets = db.list_prediction_markets(limit=limit, include_closed=include_closed)
+        markets = prediction_service.list_prediction_markets(
+            limit=limit, include_closed=include_closed
+        )
         items = [PredictionMarketItem(**m) for m in markets]
         return PredictionMarketListResponse(markets=items, total=len(items))
     except Exception as e:
@@ -64,7 +57,7 @@ async def get_market_detail(
     market_id: int,
     current_user: TelegramUser = Depends(get_telegram_user),
 ):
-    market = db.get_prediction_market_by_id(
+    market = prediction_service.get_prediction_market_by_id(
         market_id=market_id, tg_id=int(current_user.id)
     )
     if not market:
@@ -108,7 +101,7 @@ async def list_market_bets(
     current_user: TelegramUser = Depends(get_telegram_user),
 ):
     try:
-        rows = db.list_prediction_bets(market_id=market_id, limit=limit)
+        rows = prediction_service.list_prediction_bets(market_id, limit=limit)
         items = [PredictionBetItem(**r) for r in rows]
         return PredictionBetListResponse(bets=items, total=len(items))
     except Exception as e:
@@ -126,27 +119,12 @@ async def place_bet(
     current_user: TelegramUser = Depends(get_telegram_user),
 ):
     try:
-        result = db.place_prediction_bet(
+        result = await prediction_service.place_prediction_bet(
             market_id=market_id,
             tg_id=int(current_user.id),
             option=int(data.option),
             amount=int(data.amount),
         )
-
-        # 押注群组通知（失败不影响接口返回）
-        try:
-            market = result.get("market") or {}
-            await notify_prediction_bet_placed(
-                market_id=int(market.get("id") or market_id),
-                title=str(market.get("title") or ""),
-                bettor_tg_id=int(current_user.id),
-                option=int(data.option),
-                amount=int(data.amount),
-                real_yes_pool=int(market.get("real_yes_pool") or 0),
-                real_no_pool=int(market.get("real_no_pool") or 0),
-            )
-        except Exception as e:
-            logger.warning(f"Prediction bet notify failed: {e}")
 
         background_tasks.add_task(
             check_and_award_game_king_badge,
@@ -154,6 +132,11 @@ async def place_bet(
         )
 
         return {"success": True, **result}
+    except PredictionError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=e.payload.get("detail", e.message),
+        ) from e
     except ValueError as e:
         msg = str(e).lower()
         if "not found" in msg:
@@ -182,7 +165,7 @@ async def create_market(
         if int(data.betting_deadline) <= int(time.time()):
             raise HTTPException(status_code=400, detail="截止时间必须晚于当前时间")
 
-        market_id = db.create_prediction_market(
+        market_id = await prediction_service.create_prediction_market(
             title=data.title,
             description=data.description,
             betting_deadline=data.betting_deadline,
@@ -192,19 +175,12 @@ async def create_market(
             max_bet_per_user=int(data.max_bet_per_user),
         )
 
-        # 新题目群组通知（失败不影响创建）
-        try:
-            market = db.get_prediction_market_by_id(market_id=int(market_id))
-            if market:
-                await notify_prediction_market_created(
-                    market_id=int(market_id),
-                    title=str(market.get("title") or ""),
-                    betting_deadline=market.get("betting_deadline"),
-                )
-        except Exception as e:
-            logger.warning(f"Prediction create notify failed: {e}")
-
         return {"success": True, "market_id": int(market_id)}
+    except PredictionError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=e.payload.get("detail", e.message),
+        ) from e
     except ValueError as e:
         msg = str(e).lower()
         if "betting_deadline" in msg:
@@ -226,24 +202,19 @@ async def submit_market(
         if int(data.betting_deadline) <= int(time.time()):
             raise HTTPException(status_code=400, detail="截止时间必须晚于当前时间")
 
-        submission_id = db.submit_prediction_market(
+        submission_id = await prediction_service.submit_prediction_market(
             title=data.title,
             description=data.description,
             betting_deadline=int(data.betting_deadline),
             submitter_tg_id=int(current_user.id),
         )
 
-        try:
-            await notify_prediction_submission_created(
-                submission_id=int(submission_id),
-                title=str(data.title),
-                betting_deadline=int(data.betting_deadline),
-                submitter_tg_id=int(current_user.id),
-            )
-        except Exception as e:
-            logger.warning(f"Prediction submission notify failed: {e}")
-
         return {"success": True, "submission_id": int(submission_id)}
+    except PredictionError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=e.payload.get("detail", e.message),
+        ) from e
     except ValueError as e:
         msg = str(e).lower()
         if "betting_deadline" in msg:
@@ -268,7 +239,7 @@ async def list_submissions(
         if int(current_user.id) not in admin_ids:
             submitter_tg_id = int(current_user.id)
 
-        rows = db.list_prediction_submissions(
+        rows = prediction_service.list_prediction_submissions(
             status=status,
             limit=limit,
             submitter_tg_id=submitter_tg_id,
@@ -290,7 +261,7 @@ async def review_submission(
 ):
     check_admin_permission(current_user)
     try:
-        res = db.review_prediction_submission(
+        res = await prediction_service.review_prediction_submission(
             submission_id=int(submission_id),
             admin_tg_id=int(current_user.id),
             approved=bool(data.approved),
@@ -299,54 +270,12 @@ async def review_submission(
             description=data.description,
             betting_deadline=data.betting_deadline,
         )
-
-        reward_credits = 0
-        if bool(data.approved):
-            # 审核通过奖励投稿用户 1 积分（失败不影响审核流程）
-            try:
-                submitter_tg_id = int(res.get("submitter_tg_id") or 0)
-                if submitter_tg_id > 0:
-                    current_credits = credits_service.read_optional(
-                        CreditAccount.tg(submitter_tg_id)
-                    )
-                    if current_credits is None and not db.add_user_data(
-                        tg_id=submitter_tg_id,
-                        credits=0,
-                        donation=0,
-                    ):
-                        raise RuntimeError("failed to initialize submitter credits")
-                    credits_service.add(CreditAccount.tg(submitter_tg_id), 1)
-                    reward_credits = 1
-            except Exception as e:
-                logger.warning(f"Prediction submission reward credits failed: {e}")
-
-        if bool(data.approved) and res.get("market_id"):
-            try:
-                market = db.get_prediction_market_by_id(market_id=int(res["market_id"]))
-                if market:
-                    await notify_prediction_market_created(
-                        market_id=int(market.get("id") or res["market_id"]),
-                        title=str(market.get("title") or ""),
-                        betting_deadline=market.get("betting_deadline"),
-                    )
-            except Exception as e:
-                logger.warning(f"Prediction publish notify failed: {e}")
-
-        # 通知投稿用户审核结果（通过/不通过都通知）
-        try:
-            await notify_prediction_submission_reviewed(
-                submitter_tg_id=int(res.get("submitter_tg_id") or 0),
-                submission_id=int(submission_id),
-                approved=bool(data.approved),
-                title=str(res.get("title") or data.title or ""),
-                review_note=data.review_note,
-                reward_credits=int(reward_credits),
-                market_id=int(res["market_id"]) if res.get("market_id") else None,
-            )
-        except Exception as e:
-            logger.warning(f"Prediction submission review notify failed: {e}")
-
         return {"success": True, **res}
+    except PredictionError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=e.payload.get("detail", e.message),
+        ) from e
     except ValueError as e:
         msg = str(e).lower()
         if "not found" in msg:
@@ -370,8 +299,15 @@ async def close_market_betting(
 ):
     check_admin_permission(current_user)
     try:
-        res = db.close_prediction_market_betting(market_id=market_id)
+        res = prediction_service.close_prediction_market_betting(market_id)
         return {"success": True, **res}
+    except PredictionError as e:
+        detail = (
+            e.message
+            if e.code == "prediction.market_not_open"
+            else e.payload.get("detail", e.message)
+        )
+        raise HTTPException(status_code=e.status_code, detail=detail) from e
     except ValueError as e:
         msg = str(e).lower()
         if "not found" in msg:
@@ -393,80 +329,18 @@ async def resolve_market(
 ):
     check_admin_permission(current_user)
     try:
-        res = db.resolve_prediction_market(
+        res = await prediction_service.resolve_prediction_market(
             market_id=market_id,
             result_option=int(data.result_option),
             resolved_by=int(current_user.id),
             resolution_note=data.resolution_note,
         )
-
-        # 结算群组通知（失败不影响接口返回）
-        try:
-            market = db.get_prediction_market_by_id(market_id=int(market_id))
-            if market:
-                background_tasks.add_task(
-                    notify_prediction_market_resolved,
-                    market_id=int(market_id),
-                    title=str(market.get("title") or ""),
-                    result_option=int(res.get("result_option") or data.result_option),
-                    total_real_pool=int(res.get("total_real_pool") or 0),
-                    payout_pool=int(res.get("payout_pool") or 0),
-                    total_fee=int(res.get("total_fee") or 0),
-                    fee_burned=int(res.get("fee_burned") or 0),
-                    fee_to_glory=int(res.get("fee_to_glory") or 0),
-                    winner_count=int(res.get("winner_count") or 0),
-                    resolution_note=market.get("resolution_note"),
-                )
-
-                # 结算个人通知（BackgroundTasks，命中与未命中都通知）
-                try:
-                    user_positions = db.list_prediction_user_positions(
-                        market_id=int(market_id)
-                    )
-                    result_option = int(res.get("result_option") or data.result_option)
-                    total_real_pool = int(res.get("total_real_pool") or 0)
-                    payout_pool = float(res.get("payout_pool") or 0)
-                    winner_pool = (
-                        int(market.get("real_yes_pool") or 0)
-                        if result_option == 1
-                        else int(market.get("real_no_pool") or 0)
-                    )
-
-                    for pos in user_positions:
-                        tg_id = int(pos.get("tg_id"))
-                        yes_amount = int(pos.get("yes_amount") or 0)
-                        no_amount = int(pos.get("no_amount") or 0)
-                        win_amount = yes_amount if result_option == 1 else no_amount
-
-                        payout_amount = 0.0
-                        if winner_pool > 0 and payout_pool > 0 and win_amount > 0:
-                            ratio = float(win_amount) / float(winner_pool)
-                            payout_amount = round(float(payout_pool) * ratio, 2)
-
-                        background_tasks.add_task(
-                            notify_prediction_user_settlement,
-                            tg_id=tg_id,
-                            market_id=int(market_id),
-                            title=str(market.get("title") or ""),
-                            result_option=result_option,
-                            yes_amount=yes_amount,
-                            no_amount=no_amount,
-                            payout_amount=payout_amount,
-                        )
-
-                    logger.info(
-                        "Prediction resolve personal notifications queued: "
-                        f"market_id={int(market_id)}, users={len(user_positions)}, "
-                        f"total_real_pool={total_real_pool}"
-                    )
-                except Exception as e:
-                    logger.warning(
-                        f"Prediction resolve personal notify queue failed: {e}"
-                    )
-        except Exception as e:
-            logger.warning(f"Prediction resolve notify failed: {e}")
-
         return {"success": True, **res}
+    except PredictionError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=e.payload.get("detail", e.message),
+        ) from e
     except ValueError as e:
         msg = str(e).lower()
         if "not found" in msg:
@@ -484,7 +358,7 @@ async def get_user_prediction_stats(
 ):
     """获取用户大预言家个人统计。"""
     try:
-        stats = db.get_prediction_user_stats(int(current_user.id))
+        stats = prediction_service.get_prediction_user_stats(int(current_user.id))
         return {"success": True, "data": stats}
     except Exception as e:
         logger.error(f"获取大预言家用户统计失败: {e}")

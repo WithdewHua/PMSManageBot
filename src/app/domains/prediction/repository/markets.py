@@ -5,6 +5,7 @@ import time
 from sqlalchemy import case, func, select
 
 from app.core.db import get_session
+from app.domains.prediction import exceptions as prediction_exceptions
 from app.domains.prediction.models import (
     PredictionBet,
     PredictionMarket,
@@ -35,11 +36,11 @@ class _PredictionRepositoryMarkets:
         description: str | None = None,
     ) -> int:
         if not str(title or "").strip():
-            raise ValueError("title is required")
+            raise prediction_exceptions.title_required()
 
         now_ts = int(time.time())
         if int(betting_deadline) <= int(now_ts):
-            raise ValueError("betting_deadline must be in the future")
+            raise prediction_exceptions.deadline_invalid()
 
         with get_session() as session:
             submission = PredictionMarketSubmission(
@@ -112,9 +113,9 @@ class _PredictionRepositoryMarkets:
                 .one_or_none()
             )
             if not submission:
-                raise ValueError("submission not found")
+                raise prediction_exceptions.submission_not_found()
             if int(submission.status) != 0:
-                raise ValueError("submission already reviewed")
+                raise prediction_exceptions.submission_already_reviewed()
 
             now_ts = int(time.time())
             final_title = str(
@@ -130,9 +131,9 @@ class _PredictionRepositoryMarkets:
             )
 
             if not final_title:
-                raise ValueError("title is required")
+                raise prediction_exceptions.title_required()
             if final_deadline <= int(now_ts):
-                raise ValueError("betting_deadline must be in the future")
+                raise prediction_exceptions.review_deadline_invalid()
 
             market_id: int | None = None
             if bool(approved):
@@ -193,14 +194,14 @@ class _PredictionRepositoryMarkets:
         max_bet_per_user: int = 500,
     ) -> int:
         if not title.strip():
-            raise ValueError("title is required")
+            raise prediction_exceptions.title_required()
         if int(fee_burn_bp) + int(fee_glory_bp) != int(fee_rate_bp):
-            raise ValueError("invalid fee split")
+            raise prediction_exceptions.invalid_fee_split()
         if betting_deadline is None:
-            raise ValueError("betting_deadline is required")
+            raise prediction_exceptions.deadline_missing()
         now_ts = int(time.time())
         if int(betting_deadline) <= int(now_ts):
-            raise ValueError("betting_deadline must be in the future")
+            raise prediction_exceptions.deadline_invalid()
 
         with get_session() as session:
             market = PredictionMarket(
@@ -345,3 +346,33 @@ class _PredictionRepositoryMarkets:
                 "my_no_amount": int(my_no),
                 "created_at": m.created_at,
             }
+
+
+def list_prediction_markets_closing_soon(
+    now_ts: int, deadline_upper_ts: int
+) -> list[dict]:
+    """读取未来窗口内仍可下注的题目，供截止提醒 service 使用。"""
+    with get_session() as session:
+        rows = (
+            session.execute(
+                select(PredictionMarket)
+                .where(
+                    PredictionMarket.status == 1,
+                    PredictionMarket.betting_deadline.is_not(None),
+                    PredictionMarket.betting_deadline > int(now_ts),
+                    PredictionMarket.betting_deadline <= int(deadline_upper_ts),
+                )
+                .order_by(PredictionMarket.betting_deadline.asc())
+            )
+            .scalars()
+            .all()
+        )
+        return [
+            {
+                "id": int(m.id),
+                "title": str(m.title or ""),
+                "betting_deadline": int(m.betting_deadline),
+            }
+            for m in rows
+            if m.betting_deadline is not None
+        ]

@@ -4083,27 +4083,27 @@
           },
           {
             "kind": "from",
-            "module": "app.domains.prediction.jobs",
-            "module_target": "time",
+            "module": "app.domains.prediction.exceptions",
+            "module_target": "__future__",
             "resolved": true,
             "scope": "module",
-            "target": "time.time"
+            "target": "__future__.annotations"
           },
           {
             "kind": "from",
-            "module": "app.domains.prediction.jobs",
-            "module_target": "sqlalchemy",
+            "module": "app.domains.prediction.exceptions",
+            "module_target": "typing",
             "resolved": true,
             "scope": "module",
-            "target": "sqlalchemy.select"
+            "target": "typing.Any"
           },
           {
             "kind": "from",
-            "module": "app.domains.prediction.jobs",
-            "module_target": "app.core.db",
+            "module": "app.domains.prediction.exceptions",
+            "module_target": "app.core.errors",
             "resolved": true,
             "scope": "module",
-            "target": "app.core.db.get_session"
+            "target": "app.core.errors.DomainError"
           },
           {
             "kind": "from",
@@ -4116,18 +4116,10 @@
           {
             "kind": "from",
             "module": "app.domains.prediction.jobs",
-            "module_target": "app.domains.prediction.models",
+            "module_target": "app.domains.prediction",
             "resolved": true,
             "scope": "module",
-            "target": "app.domains.prediction.models.PredictionMarket"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.jobs",
-            "module_target": "app.domains.prediction.notifications",
-            "resolved": true,
-            "scope": "function",
-            "target": "app.domains.prediction.notifications.notify_prediction_markets_closing_soon"
+            "target": "app.domains.prediction.service"
           },
           {
             "kind": "from",
@@ -4403,10 +4395,26 @@
           {
             "kind": "from",
             "module": "app.domains.prediction.repository",
+            "module_target": "app.domains.prediction.repository.markets",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.repository.markets.list_prediction_markets_closing_soon"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository",
             "module_target": "app.domains.prediction.repository.settlement",
             "resolved": true,
             "scope": "module",
             "target": "app.domains.prediction.repository.settlement._PredictionRepositorySettlement"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository",
+            "module_target": "app.domains.prediction.repository.settlement",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.repository.settlement.reward_prediction_submission"
           },
           {
             "kind": "from",
@@ -4554,6 +4562,14 @@
           {
             "kind": "from",
             "module": "app.domains.prediction.repository.bets",
+            "module_target": "app.domains.prediction",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.exceptions"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.bets",
             "module_target": "app.domains.prediction.models",
             "resolved": true,
             "scope": "module",
@@ -4617,6 +4633,14 @@
           {
             "kind": "from",
             "module": "app.domains.prediction.repository.markets",
+            "module_target": "app.domains.prediction",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.exceptions"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.markets",
             "module_target": "app.domains.prediction.models",
             "resolved": true,
             "scope": "module",
@@ -4664,18 +4688,18 @@
           {
             "kind": "from",
             "module": "app.domains.prediction.repository.settlement",
-            "module_target": "app.core.db",
+            "module_target": "app.core",
             "resolved": true,
             "scope": "module",
-            "target": "app.core.db.get_session"
+            "target": "app.core.kv"
           },
           {
             "kind": "from",
             "module": "app.domains.prediction.repository.settlement",
-            "module_target": "app.core.kv",
+            "module_target": "app.core.db",
             "resolved": true,
             "scope": "module",
-            "target": "app.core.kv.SystemConfig"
+            "target": "app.core.db.get_session"
           },
           {
             "kind": "from",
@@ -4704,10 +4728,26 @@
           {
             "kind": "from",
             "module": "app.domains.prediction.repository.settlement",
-            "module_target": "app.domains.identity.models",
+            "module_target": "app.domains.identity",
             "resolved": true,
             "scope": "module",
-            "target": "app.domains.identity.models.Statistics"
+            "target": "app.domains.identity.repository"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.settlement",
+            "module_target": "app.domains.prediction",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.exceptions"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.settlement",
+            "module_target": "app.domains.prediction",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.rules"
           },
           {
             "kind": "from",
@@ -4724,6 +4764,38 @@
             "resolved": true,
             "scope": "module",
             "target": "app.domains.prediction.models.PredictionMarket"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.settlement",
+            "module_target": "app.domains.credits",
+            "resolved": true,
+            "scope": "function",
+            "target": "app.domains.credits.repository"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.settlement",
+            "module_target": "app.domains.credits",
+            "resolved": true,
+            "scope": "function",
+            "target": "app.domains.credits.service"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.settlement",
+            "module_target": "app.domains.credits.types",
+            "resolved": true,
+            "scope": "function",
+            "target": "app.domains.credits.types.CreditAccount"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.repository.settlement",
+            "module_target": "app.domains.identity",
+            "resolved": true,
+            "scope": "function",
+            "target": "app.domains.identity.repository"
           },
           {
             "kind": "import",
@@ -4823,14 +4895,6 @@
           {
             "kind": "from",
             "module": "app.domains.prediction.router",
-            "module_target": "app.databases",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.databases.db"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.router",
             "module_target": "app.domains.badge_awards.jobs",
             "resolved": true,
             "scope": "module",
@@ -4839,66 +4903,18 @@
           {
             "kind": "from",
             "module": "app.domains.prediction.router",
-            "module_target": "app.domains.credits",
+            "module_target": "app.domains.prediction",
             "resolved": true,
             "scope": "module",
-            "target": "app.domains.credits.service"
+            "target": "app.domains.prediction.service"
           },
           {
             "kind": "from",
             "module": "app.domains.prediction.router",
-            "module_target": "app.domains.credits.types",
+            "module_target": "app.domains.prediction.exceptions",
             "resolved": true,
             "scope": "module",
-            "target": "app.domains.credits.types.CreditAccount"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.router",
-            "module_target": "app.domains.prediction.notifications",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.prediction.notifications.notify_prediction_bet_placed"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.router",
-            "module_target": "app.domains.prediction.notifications",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.prediction.notifications.notify_prediction_market_created"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.router",
-            "module_target": "app.domains.prediction.notifications",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.prediction.notifications.notify_prediction_market_resolved"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.router",
-            "module_target": "app.domains.prediction.notifications",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.prediction.notifications.notify_prediction_submission_created"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.router",
-            "module_target": "app.domains.prediction.notifications",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.prediction.notifications.notify_prediction_submission_reviewed"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.router",
-            "module_target": "app.domains.prediction.notifications",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.prediction.notifications.notify_prediction_user_settlement"
+            "target": "app.domains.prediction.exceptions.PredictionError"
           },
           {
             "kind": "from",
@@ -4998,6 +5014,14 @@
           },
           {
             "kind": "from",
+            "module": "app.domains.prediction.rules",
+            "module_target": "__future__",
+            "resolved": true,
+            "scope": "module",
+            "target": "__future__.annotations"
+          },
+          {
+            "kind": "from",
             "module": "app.domains.prediction.schemas",
             "module_target": "datetime",
             "resolved": true,
@@ -5019,6 +5043,45 @@
             "resolved": true,
             "scope": "module",
             "target": "pydantic.Field"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.service",
+            "module_target": "__future__",
+            "resolved": true,
+            "scope": "module",
+            "target": "__future__.annotations"
+          },
+          {
+            "kind": "import",
+            "module": "app.domains.prediction.service",
+            "resolved": true,
+            "scope": "module",
+            "target": "time"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.service",
+            "module_target": "app.core.log",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.core.log.logger"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.service",
+            "module_target": "app.domains.prediction",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.notifications"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.service",
+            "module_target": "app.domains.prediction",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.prediction.repository"
           },
           {
             "kind": "from",
@@ -5064,7 +5127,22 @@
         "strings": []
       },
       "repository_functions": [
-        "count_bets_tx"
+        "close_prediction_market_betting",
+        "count_bets_tx",
+        "create_prediction_market",
+        "get_prediction_market_by_id",
+        "get_prediction_user_stats",
+        "list_prediction_bets",
+        "list_prediction_markets",
+        "list_prediction_markets_closing_soon",
+        "list_prediction_submissions",
+        "list_prediction_user_positions",
+        "place_prediction_bet",
+        "resolve_prediction_market",
+        "resolve_prediction_market_with_payouts",
+        "review_prediction_submission",
+        "reward_prediction_submission",
+        "submit_prediction_market"
       ],
       "repository_members": [
         "_calc_prediction_odds",

@@ -36,7 +36,7 @@
 - [x] 3.1 把 `part_1` 和 `part_2` 按子主题搬移为 `markets.py`、`bets.py`、`settlement.py`、`analytics.py`（只搬不改），用重键脚本处理基线键，并删除 `numbered_modules` 中的两个例外。验证：`verify.py` 逐项 AST 零差异；序号模块检查通过；本次提交只含搬移、导入和基线的改动。
   - 交付：`split_plans.toml` 新增 `prediction_repository` 计划（17 个成员：markets 7 / bets 3 / settlement 2 / analytics 5），`split_repository_members.py` 的 mixin 文档字符串改用计划里的 `label`（21 点回填）。`mapping.toml` 新增 `[repository_mixins]` 声明，`_calc_prediction_odds` 的 planned_target 改为 `...repository.markets`（纯计算到 rules 的提取属于 3.2）。`baseline_moves.toml` 登记两个 part 的成员落点与 `settlement.py` 的重复 credits.service 导入（并清掉已封存、条目已消失的历史声明）；`rewrite_baseline_keys.py` 改写 3 条键并新增 1 条；`baseline.json` 删除 2 条 numbered_modules 例外。模块级 `count_bets_tx` 随拆分搬入 `analytics.py`，`__init__.py` 的公开导出不变。新增 `tests/refactor/test_prediction_repository_split.py`（按 planned_target 锁定落点）。
   - 验证：`verify.py --base $(cat scripts/refactor/BASE)` 错误集合与搬移前逐条相同（156 条，零新增 AST 差异）；序号模块扫描为空；`pytest tests/architecture tests/refactor` 266 passed / 6 skipped；`lint-imports` 12 条合约全通过；活动面快照的 diff 只涉及 prediction 的导入列表。
-- [ ] 3.2 提升 prediction：
+- [x] 3.2 提升 prediction：
   - `rules.settle_market` 逐字保留派奖计算。
   - 结算时统计行按 `tg_id` 升序加锁；荣耀池改用 `core.kv` 的 `*_tx`。
   - 在源头抛出类型化异常。
@@ -47,7 +47,10 @@
   验证：
   - 1.3 中预言的全部测试通过，三种分支的派奖额和荣耀池变化逐字一致。
   - 错误映射与夹具一致。
-  - 在一次性 PostgreSQL 上并发下注和开奖，不死锁。
+  - 新增 `scripts/refactor/smoke_prediction_concurrency.py` 与
+    `tests/refactor/test_prediction_concurrency.py`；一次性 `postgres:18-alpine`
+    实例上并发下注/开奖通过且无死锁。
+  - `pytest tests/architecture` 34 passed；`lint-imports` 12/12。
 - [ ] 3.3 在 `prediction.service` 中暴露两个排行函数；rankings 的 router 改为调用 `rankings.service` 中新增的包装函数。验证：两个排行接口的响应与夹具一致；在摘除 prediction 的 mixin 之后，排行仍然返回数据。
 
 ## 4. luckywheel

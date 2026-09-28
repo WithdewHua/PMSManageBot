@@ -9,6 +9,7 @@ from app.domains.credits import repository as credits_repository
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
+from app.domains.prediction import exceptions as prediction_exceptions
 from app.domains.prediction.models import PredictionBet, PredictionMarket
 
 
@@ -21,9 +22,9 @@ class _PredictionRepositoryBets:
         amount: int,
     ) -> dict:
         if int(option) not in [0, 1]:
-            raise ValueError("invalid option")
+            raise prediction_exceptions.invalid_option()
         if int(amount) <= 0:
-            raise ValueError("amount must be > 0")
+            raise prediction_exceptions.amount_must_be_positive()
 
         now_ts = int(time.time())
         with get_session() as session:
@@ -37,11 +38,11 @@ class _PredictionRepositoryBets:
                 .one_or_none()
             )
             if not market:
-                raise ValueError("market not found")
+                raise prediction_exceptions.market_not_found()
             if int(market.status) != 1:
-                raise ValueError("market not open")
+                raise prediction_exceptions.market_not_open()
             if market.betting_deadline and int(now_ts) >= int(market.betting_deadline):
-                raise ValueError("betting closed")
+                raise prediction_exceptions.betting_closed()
 
             user_total = session.execute(
                 select(func.coalesce(func.sum(PredictionBet.amount), 0)).where(
@@ -50,7 +51,7 @@ class _PredictionRepositoryBets:
                 )
             ).scalar_one()
             if int(user_total or 0) + int(amount) > int(market.max_bet_per_user):
-                raise ValueError("max bet per user exceeded")
+                raise prediction_exceptions.max_bet_exceeded()
 
             stats = (
                 session.execute(
@@ -62,9 +63,9 @@ class _PredictionRepositoryBets:
                 .one_or_none()
             )
             if not stats:
-                raise ValueError("user stats not found")
+                raise prediction_exceptions.user_stats_not_found()
             if float(stats.credits) < float(amount):
-                raise ValueError("insufficient credits")
+                raise prediction_exceptions.insufficient_credits()
 
             mutation = credits_repository.deduct_tx(
                 session, CreditAccount.tg(int(tg_id)), float(amount)

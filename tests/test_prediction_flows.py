@@ -127,7 +127,9 @@ def prediction_env(monkeypatch):
         "notify_prediction_submission_reviewed",
         "notify_prediction_user_settlement",
     ):
-        monkeypatch.setattr(pred, name, _notify_spy(name))
+        monkeypatch.setattr(
+            pred.prediction_service.prediction_notifications, name, _notify_spy(name)
+        )
     return calls
 
 
