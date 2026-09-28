@@ -18,7 +18,7 @@ The system SHALL apply each accepted credit gain or cost as an atomic change to 
 - **THEN** the resulting balance reflects every successful update without a lost write
 
 ### Requirement: Insufficient funds prevent deduction
-The system SHALL reject a credit cost that exceeds the available balance, and SHALL not reduce the balance below zero or commit any other writes that must succeed or fail with that cost.
+The system SHALL reject a credit cost that exceeds the available balance, and SHALL not reduce the balance below zero or commit any other writes that must succeed or fail with that cost. The only exception is the premium traffic charge applied during daily watch-reward settlement, which by design MAY reduce the balance below zero.
 
 #### Scenario: Competing deductions
 - **WHEN** two concurrent costs each observe a balance sufficient for only one of them

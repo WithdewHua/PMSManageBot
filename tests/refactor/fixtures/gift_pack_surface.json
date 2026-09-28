@@ -1,21 +1,5 @@
 {
-  "facade_gift_pack_methods": [
-    "claim_gift_pack",
-    "claim_gift_pack_start_dm_candidates",
-    "create_gift_pack",
-    "delete_gift_pack",
-    "get_expired_unnotified_gift_packs",
-    "get_gift_pack_by_id",
-    "get_gift_pack_claim_records",
-    "get_gift_pack_stats",
-    "get_gift_packs_admin",
-    "get_gift_packs_for_user",
-    "mark_gift_pack_expiry_notified",
-    "prompt_check_gift_packs",
-    "resolve_gift_pack_users",
-    "set_gift_pack_enabled",
-    "update_gift_pack"
-  ],
+  "facade_gift_pack_methods": [],
   "gift_pack_references": {
     "imports": [
       {
@@ -25,14 +9,6 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.gift_pack.router.router"
-      },
-      {
-        "kind": "from",
-        "module": "app.databases.db",
-        "module_target": "app.domains.gift_pack.repository",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.gift_pack.repository.GiftPackRepository"
       },
       {
         "kind": "from",

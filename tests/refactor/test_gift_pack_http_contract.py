@@ -130,43 +130,45 @@ def _seed(orm) -> dict[str, int]:
     _bind_plex(1)
 
     packs: dict[str, int] = {}
-    packs["full"] = orm.create_gift_pack("full pack", list(ALL_REWARDS), PAST, FUTURE)
-    packs["disabled"] = orm.create_gift_pack(
+    packs["full"] = gift_pack_repository.create_gift_pack(
+        "full pack", list(ALL_REWARDS), PAST, FUTURE
+    )
+    packs["disabled"] = gift_pack_repository.create_gift_pack(
         "disabled pack",
         [{"type": "credits", "amount": 1}],
         PAST,
         FUTURE,
         is_enabled=False,
     )
-    packs["future"] = orm.create_gift_pack(
+    packs["future"] = gift_pack_repository.create_gift_pack(
         "future pack", [{"type": "credits", "amount": 1}], FUTURE - 10, FUTURE
     )
-    packs["ended"] = orm.create_gift_pack(
+    packs["ended"] = gift_pack_repository.create_gift_pack(
         "ended pack", [{"type": "credits", "amount": 1}], PAST - 100, PAST - 10
     )
-    packs["sold_out"] = orm.create_gift_pack(
+    packs["sold_out"] = gift_pack_repository.create_gift_pack(
         "sold out pack",
         [{"type": "credits", "amount": 1}],
         PAST,
         FUTURE,
         total_quantity=1,
     )
-    packs["claimed"] = orm.create_gift_pack(
+    packs["claimed"] = gift_pack_repository.create_gift_pack(
         "claimed pack", [{"type": "credits", "amount": 1}], PAST, FUTURE
     )
-    packs["conditions"] = orm.create_gift_pack(
+    packs["conditions"] = gift_pack_repository.create_gift_pack(
         "conditions pack",
         [{"type": "credits", "amount": 1}],
         PAST,
         FUTURE,
         requirements=[{"type": "credits", "min": 10_000}],
     )
-    packs["needs_binding"] = orm.create_gift_pack(
+    packs["needs_binding"] = gift_pack_repository.create_gift_pack(
         "binding pack", [{"type": "premium_days", "days": 3}], PAST, FUTURE
     )
 
-    orm.claim_gift_pack(packs["sold_out"], 3)
-    orm.claim_gift_pack(packs["claimed"], 1)
+    gift_pack_repository.claim_gift_pack(packs["sold_out"], 3)
+    gift_pack_repository.claim_gift_pack(packs["claimed"], 1)
     return packs
 
 

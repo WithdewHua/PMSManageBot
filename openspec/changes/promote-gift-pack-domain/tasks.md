@@ -114,14 +114,16 @@
   验证：调度快照与 1.2 一致；两项 job 的测试通过。
   - 交付：`notifications` 不再读数据（`_format_rewards` 走 `rules`，礼包标题由 service 传入），新增 `format_expiry_summary` / `format_start_dm_text` 与四个 `dispatch_*` 同步派发入口；`_notify_detached` 记住主事件循环，事件循环线程直接建任务、线程池用 `run_coroutine_threadsafe` 提交、无循环时 `asyncio.run` 兜底；`jobs` 只调 service 取数。
 - [x] 5.4 改造 router：只调用 service；删除 JSON 解析和子串判断；保留 500 文案和 `claim_failed` 通知；`except DomainError` 放在 `except Exception` 之前。验证：HTTP 夹具与 1.2 逐项一致，唯一例外是 design D8 中"标题含'不存在'的被引用礼包"那一条，由测试固定；OpenAPI 与 1.2 一致。
-- [ ] 5.5 摘掉 mixin 并清理合约：
+- [x] 5.5 摘掉 mixin 并清理合约：
   - 从 `DatabaseORM` 中删除 `GiftPackRepository`。
   - 删除礼包名下的 21 条基线条目、5 条 `ignore_imports`，以及 Six-tier 和 Acyclic 合约里各 1 条门面组合边，同步下调封存计数。
   - 从门面冻结合约的 `allowed_importers` 中删除礼包的 3 个模块。
   - 删除 `scripts/refactor/verify.py` 和 `split_repository.py` 中礼包的特例。
   - 把测试改为调用公开的 service 或 repository 函数。
 
-  验证：`PYTHONPATH=src .venv/bin/lint-imports --no-cache`、`pytest tests/architecture tests/refactor` 通过；门面上查不到任何礼包方法；礼包代码里不再导入外域的 models。
+  验证：`PYTHONPATH=src .venv/bin/lint-imports --no-cache`（12/12 kept）、`pytest tests/architecture tests/refactor` 通过；门面上查不到任何礼包方法（快照 `facade_gift_pack_methods == []`）；礼包代码里不再导入外域的 models。
+  - 交付：`DatabaseORM` 删掉 `GiftPackRepository`；`pyproject.toml` 清掉礼包的 4 条 ignore_imports（门面组合边 2 条 + 入口点越层 3 条按阶段已逐条移除）与 `allowed_importers` 里的 3 个模块；`verify.py` 的门面自引用白名单收敛到 1 条、`split_repository.py` 去掉礼包函数名特例；基线条目 422 → 418。
+  - 已登记的礼包 AST 变更（`b3_ast_exception` + `b3_behavior_test`）：14 个搬移单元 + 1 条导入绑定，`verify.py` 仍是 154 条既有差异、零新增。
 
 ## 6. 集成验证
 

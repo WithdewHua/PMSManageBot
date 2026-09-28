@@ -116,7 +116,7 @@ REASSIGNED_TG_ID_COLUMNS: tuple[str, ...]  # "table.column"，供架构测试核
 
 按照 D3 的列归属表，每列由所属领域在自己的函数里合并：
 
-- 积分：credits 用 `move_tx` 把旧行积分整额移到新行；`move_tx` 自己登记提交后的缓存失效。
+- 积分：credits 用 `move_tx` 把旧行积分整额移到新行，包括会员流量费形成的负余额（由 `fix-live-defects` 的 D1 修正，原来负余额不会被迁移）；`move_tx` 自己登记提交后的缓存失效。
 - 捐赠额：donation 相加。
 - 锦标赛钱包余额、21 点连败计数、免费转盘进度：blackjack 相加。
 

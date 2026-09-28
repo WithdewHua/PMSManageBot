@@ -23,12 +23,9 @@ class VerificationError(ValueError):
     """The current tree violates an equivalence invariant."""
 
 
-# D4 permits exactly these four DatabaseORM self references.
+# 门面自引用白名单：礼包的方法与常量已搬进 repository 子主题模块与 rules。
 _SELF_REFERENCES = {
     "_badge_to_dict",
-    "_gift_pack_condition_label",
-    "_resolve_gift_pack_conditions",
-    "_GIFT_PACK_COUNT_METHODS",
 }
 _PREMIUM_LAZY = {
     "check_premium_expiry",

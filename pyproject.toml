@@ -108,7 +108,6 @@ allowed_importers = [
 
     "app.domains.donation.router", # promote-remaining-domains (B2 inherited)
 
-    "app.domains.gift_pack.router", # promote-gift-pack-domain (B2 inherited)
 
     "app.domains.invitation.admin_router", # promote-account-domains (B2 inherited)
 
@@ -149,8 +148,6 @@ allowed_importers = [
     "app.domains.vaultwarden.router", # promote-remaining-domains (B2 inherited)
     "app.domains.auction.jobs", # promote-activity-domains (B2 inherited)
     "app.domains.auction.notifications", # promote-activity-domains (B2 inherited)
-    "app.domains.gift_pack.jobs", # promote-gift-pack-domain (B2 inherited)
-    "app.domains.gift_pack.notifications", # promote-gift-pack-domain (B2 inherited)
     "app.domains.treasure.jobs", # promote-activity-domains (B2 inherited)
     "app.schedule", # B3 registry temporarily imports legacy job implementations until 5.5
     "app.domains.accounts.service", # B3 mechanical relocation; audit in 5.6
@@ -319,7 +316,6 @@ ignore_imports = [
     "app.databases.db -> app.domains.badges.repository",
     "app.databases.db -> app.domains.crypto_donation.repository",
     "app.databases.db -> app.domains.donation.repository",
-    "app.databases.db -> app.domains.gift_pack.repository",
     "app.databases.db -> app.domains.identity.repository",
     "app.databases.db -> app.domains.invitation.repository",
     "app.databases.db -> app.domains.lines.repository",
@@ -441,7 +437,6 @@ ignore_imports = [
     "app.databases.db -> app.domains.badges.repository",
     "app.databases.db -> app.domains.crypto_donation.repository",
     "app.databases.db -> app.domains.donation.repository",
-    "app.databases.db -> app.domains.gift_pack.repository",
     "app.databases.db -> app.domains.identity.repository",
     "app.databases.db -> app.domains.invitation.repository",
     "app.databases.db -> app.domains.lines.repository",

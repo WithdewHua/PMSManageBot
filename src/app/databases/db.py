@@ -7,7 +7,6 @@ from app.domains.auction.repository import AuctionRepository
 from app.domains.badges.repository import BadgesRepository
 from app.domains.crypto_donation.repository import CryptoDonationRepository
 from app.domains.donation.repository import DonationRepository
-from app.domains.gift_pack.repository import GiftPackRepository
 from app.domains.identity.repository import IdentityRepository
 from app.domains.invitation.repository import InvitationRepository
 from app.domains.lines.repository import LinesRepository
@@ -42,7 +41,6 @@ class DatabaseORM(
     SystemConfigRepository,
     BadgesRepository,
     WatchRewardsRepository,
-    GiftPackRepository,
 ):
     """
     基于 ORM 的数据库操作类

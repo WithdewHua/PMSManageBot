@@ -42,7 +42,8 @@ def test_gift_pack_behavior_surface_matches_frozen_fixture() -> None:
     assert first["routes"]
     assert first["scheduler_jobs"]
     assert first["repository_members"]
-    assert first["facade_gift_pack_methods"]
+    # 5.5 之后门面上不再有礼包方法（快照保留该字段用于固定这一事实）
+    assert first["facade_gift_pack_methods"] == []
     assert first["metadata_tables"]
 
 

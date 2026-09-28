@@ -116,11 +116,8 @@ def split_repository(path: Path, *, max_lines: int = 900) -> dict[Path, str]:
         members = members[1:]
     if not members:
         raise SplitError("cannot split an empty repository")
-    retain = {
-        "_gift_pack_condition_label",
-        "_resolve_gift_pack_conditions",
-        "_strip_gift_pack_conditions",
-    }
+    # 门面级函数／常量保留在 __init__（礼包的纯计算已搬去 rules，这里不再列名）
+    retain: set[str] = set()
     # Static class references must continue to resolve against the final public
     # class, not against a private mixin in a submodule.
     explicit_refs = {

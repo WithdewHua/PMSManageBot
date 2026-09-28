@@ -431,7 +431,11 @@ def test_load_context_contains_live_state_sets_and_request_metric_cache(orm):
         )
         session.flush()
 
-        context = orm._load_gift_pack_user_context(session, 1)
+        context = (
+            gift_pack_repository.GiftPackRepository()._load_gift_pack_user_context(
+                session, 1
+            )
+        )
 
     assert context["has_stats"] is True
     assert context["credits"] == 42.0
@@ -474,7 +478,9 @@ def test_condition_progress_and_any_of_group_report_all_children(orm, monkeypatc
         },
     ]
 
-    metrics = orm._gift_pack_metrics(object(), 1, items, pack, ref=200)
+    metrics = gift_pack_repository.GiftPackRepository()._gift_pack_metrics(
+        object(), 1, items, pack, ref=200
+    )
     ok, progress = rules.evaluate(items, context, pack, ref=200, metrics=metrics)
 
     assert ok is False
@@ -516,9 +522,17 @@ def test_wheel_counter_includes_time_boundaries_and_filters_free_spins(orm):
                 )
             )
         session.flush()
-        assert orm._count_gift_pack_wheel_spins(session, 1, 100, 200) == 2
         assert (
-            orm._count_gift_pack_wheel_spins(session, 1, 100, 200, paid_only=False) == 3
+            gift_pack_repository.GiftPackRepository._count_gift_pack_wheel_spins(
+                session, 1, 100, 200
+            )
+            == 2
+        )
+        assert (
+            gift_pack_repository.GiftPackRepository._count_gift_pack_wheel_spins(
+                session, 1, 100, 200, paid_only=False
+            )
+            == 3
         )
 
 
@@ -542,12 +556,22 @@ def test_blackjack_counter_excludes_tournaments_filters_bet_and_calculates_accur
     _update_hand(pending, status=1, decisions_total=4, decisions_correct=4)
 
     with get_session() as session:
-        assert orm._count_gift_pack_blackjack_hands(session, 1, 100, 200) == 2
         assert (
-            orm._count_gift_pack_blackjack_hands(session, 1, 100, 200, min_bet=10) == 1
+            gift_pack_repository.GiftPackRepository._count_gift_pack_blackjack_hands(
+                session, 1, 100, 200
+            )
+            == 2
         )
-        count, accuracy = orm._count_gift_pack_blackjack_hands(
-            session, 1, 100, 200, min_accuracy=80
+        assert (
+            gift_pack_repository.GiftPackRepository._count_gift_pack_blackjack_hands(
+                session, 1, 100, 200, min_bet=10
+            )
+            == 1
+        )
+        count, accuracy = (
+            gift_pack_repository.GiftPackRepository._count_gift_pack_blackjack_hands(
+                session, 1, 100, 200, min_accuracy=80
+            )
         )
 
     assert count == 2
@@ -628,8 +652,18 @@ def test_treasure_and_auction_counters_deduplicate_by_issue_and_auction(orm):
             ]
         )
         session.flush()
-        assert orm._count_gift_pack_treasure_issues(session, 1, 100, 200) == 2
-        assert orm._count_gift_pack_auction_participations(session, 1, 100, 200) == 2
+        assert (
+            gift_pack_repository.GiftPackRepository._count_gift_pack_treasure_issues(
+                session, 1, 100, 200
+            )
+            == 2
+        )
+        assert (
+            gift_pack_repository.GiftPackRepository._count_gift_pack_auction_participations(
+                session, 1, 100, 200
+            )
+            == 2
+        )
 
 
 def test_prediction_counter_uses_utc_datetime_boundaries(orm):
@@ -666,7 +700,12 @@ def test_prediction_counter_uses_utc_datetime_boundaries(orm):
             ]
         )
         session.flush()
-        assert orm._count_gift_pack_prediction_bets(session, 1, 100, 200) == 2
+        assert (
+            gift_pack_repository.GiftPackRepository._count_gift_pack_prediction_bets(
+                session, 1, 100, 200
+            )
+            == 2
+        )
 
 
 def test_tournament_counter_excludes_cancelled_events_and_applies_time_window(orm):
@@ -681,7 +720,12 @@ def test_tournament_counter_excludes_cancelled_events_and_applies_time_window(or
     add_entry(orm, outside["id"], 1, registered_at_ms=999999)
 
     with get_session() as session:
-        assert orm._count_gift_pack_tournament_entries(session, 1, 100, 200) == 2
+        assert (
+            gift_pack_repository.GiftPackRepository._count_gift_pack_tournament_entries(
+                session, 1, 100, 200
+            )
+            == 2
+        )
 
 
 def test_invitees_and_watched_hours_are_historical_and_distinct(orm):
@@ -704,10 +748,15 @@ def test_invitees_and_watched_hours_are_historical_and_distinct(orm):
             ]
         )
         session.flush()
-        assert orm._count_gift_pack_invitees(session, 1, 100, 200) == 2
-        assert orm._count_gift_pack_watched_hours(session, 1, 0, 1) == pytest.approx(
-            4.0
+        assert (
+            gift_pack_repository.GiftPackRepository._count_gift_pack_invitees(
+                session, 1, 100, 200
+            )
+            == 2
         )
+        assert gift_pack_repository.GiftPackRepository._count_gift_pack_watched_hours(
+            session, 1, 0, 1
+        ) == pytest.approx(4.0)
 
 
 # ---------------------------------------------------------------------------
@@ -730,7 +779,9 @@ def test_metric_cache_is_shared_by_same_metric_window_and_qualifiers(orm, monkey
     first = {"type": "wheel_spins", "min": 4, "window": {"kind": "pack"}}
     second = {"type": "wheel_spins", "min": 5, "window": {"kind": "pack"}}
 
-    metrics = orm._gift_pack_metrics(object(), 1, [first, second], pack, ref=500)
+    metrics = gift_pack_repository.GiftPackRepository()._gift_pack_metrics(
+        object(), 1, [first, second], pack, ref=500
+    )
 
     assert rules.metric_value(first, pack, 500, metrics) == 4
     assert rules.metric_value(second, pack, 500, metrics) == 4
@@ -751,7 +802,9 @@ def test_pack_window_before_start_returns_zero_without_count_query(orm, monkeypa
     items = [{"type": "wheel_spins", "min": 1, "window": {"kind": "pack"}}]
 
     # 窗口未开始：先不取数，求值时按 0 计
-    metrics = orm._gift_pack_metrics(object(), 1, items, pack, ref=499)
+    metrics = gift_pack_repository.GiftPackRepository()._gift_pack_metrics(
+        object(), 1, items, pack, ref=499
+    )
     assert metrics == {}
 
     assert rules.metric_value(items[0], pack, 499, metrics) == 0
@@ -782,8 +835,10 @@ def test_blackjack_accuracy_with_no_decisions_is_zero(orm):
     _update_hand(hand_id, decisions_total=0, decisions_correct=0)
 
     with get_session() as session:
-        count, accuracy = orm._count_gift_pack_blackjack_hands(
-            session, 1, 100, 200, min_accuracy=1
+        count, accuracy = (
+            gift_pack_repository.GiftPackRepository._count_gift_pack_blackjack_hands(
+                session, 1, 100, 200, min_accuracy=1
+            )
         )
 
     assert count == 1
