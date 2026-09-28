@@ -6461,19 +6461,12 @@
             "target": "app.domains.treasure.schemas.TreasureParticipationListResponse"
           },
           {
-            "kind": "import",
-            "module": "app.domains.treasure.router",
-            "resolved": true,
-            "scope": "function",
-            "target": "aiohttp"
-          },
-          {
             "kind": "from",
             "module": "app.domains.treasure.router",
-            "module_target": "app.core.config",
+            "module_target": "app.integrations",
             "resolved": true,
-            "scope": "function",
-            "target": "app.core.config.settings"
+            "scope": "module",
+            "target": "app.integrations.eth_rpc"
           },
           {
             "kind": "from",
