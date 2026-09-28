@@ -266,7 +266,7 @@ async def get_wheel_game_rankings(
 
         try:
             logger.debug("正在查询幸运大转盘积分赚取排行")
-            wheel_credits_data = db.get_wheel_credits_rank()
+            wheel_credits_data = rankings_service.get_wheel_credits_rank()
             if wheel_credits_data:
                 wheel_credits_rank = [
                     {
@@ -285,7 +285,7 @@ async def get_wheel_game_rankings(
 
         try:
             logger.debug("正在查询幸运大转盘邀请码获得排行")
-            wheel_invite_code_data = db.get_wheel_invite_code_rank()
+            wheel_invite_code_data = rankings_service.get_wheel_invite_code_rank()
             if wheel_invite_code_data:
                 wheel_invite_code_rank = [
                     {
@@ -329,7 +329,7 @@ async def get_treasure_game_rankings(
 
         try:
             logger.debug("正在查询夺宝奇兵中奖期数排行")
-            treasure_win_issue_data = db.get_treasure_win_issue_rank()
+            treasure_win_issue_data = rankings_service.get_treasure_win_issue_rank()
             if treasure_win_issue_data:
                 treasure_win_issue_rank = [
                     {
@@ -347,7 +347,7 @@ async def get_treasure_game_rankings(
 
         try:
             logger.debug("正在查询夺宝奇兵中奖积分排行")
-            treasure_win_credits_data = db.get_treasure_win_credits_rank()
+            treasure_win_credits_data = rankings_service.get_treasure_win_credits_rank()
             if treasure_win_credits_data:
                 treasure_win_credits_rank = [
                     {

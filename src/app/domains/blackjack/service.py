@@ -19,6 +19,8 @@ from app.domains.blackjack.notifications.tournament import (
     notify_tournament_started,
 )
 from app.domains.blackjack.repository import analytics as blackjack_analytics
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.luckywheel import service as luckywheel_service
 from app.domains.luckywheel.types import FreeSpinProgress
 
@@ -31,7 +33,7 @@ async def award_blackjack_champion_badge(tg_id: int) -> dict | None:
 
     与 `game_king` 的关键区别是**再次夺冠要续期而非跳过**：`game_king` 是一次性
     成就，而冠军是可以反复拿的，若沿用「有则跳过」，连庄的人第二次夺冠什么都得
-    不到。续期语义见 `db.award_or_renew_badge`。
+    不到。续期语义见 `badges_service.award_or_renew_badge`。
 
     加成 5% 每日观看积分、30 天有效期，上限由配置的 `tournament_badge_cap_days`
     给出。**这是一条增发路径**（约 0.4 积分/天/人），量级相对大转盘的回收可忽略，
@@ -95,6 +97,10 @@ def get_blackjack_config_dict() -> dict:
 
 def free_spin_progress(tg_id: int) -> FreeSpinProgress:
     return blackjack_repository.free_spin_progress(tg_id)
+
+
+def get_current_credits(tg_id: int) -> float:
+    return float(credits_service.read_optional(CreditAccount.tg(int(tg_id))) or 0)
 
 
 def get_blackjack_skill_ranks(min_hands: int | None = None) -> dict:

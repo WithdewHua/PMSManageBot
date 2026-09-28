@@ -9,7 +9,7 @@ package = "app.domains.blackjack.repository"
 label = "21 点"
 facade = "_BlackjackRepositoryImplementation"
 facade_bases = ["SystemConfigRepository"]
-facade_members = ["award_or_renew_badge"]
+facade_members = []
 sources = [
     "part_1.py",
     "part_2.py",
@@ -133,7 +133,6 @@ blackjack_tournament_surrender = "tournament_play"
 blackjack_tournament_surrender_tx = "tournament_play"
 force_settle_tournament_hands = "tournament_play"
 _settle_blackjack_hand_dispatch = "settlement"
-award_or_renew_badge = "facade"
 _compute_tournament_payouts = "tournament_play"
 settle_blackjack_tournament = "tournament_play"
 settle_blackjack_tournament_tx = "tournament_play"

@@ -16,8 +16,8 @@ from starlette.requests import Request
 from app.core.db import get_session
 from app.core.kv import SystemConfig
 from app.core.schemas import TelegramUser
-from app.databases import db
 from app.domains.identity.models import Statistics
+from app.domains.prediction import repository as prediction_repository
 from app.domains.prediction import router as pred
 from app.domains.prediction.models import (
     PredictionBet,
@@ -139,7 +139,9 @@ def prediction_env(monkeypatch):
 
 
 async def test_place_bet_deducts_credits_and_updates_pools(orm, prediction_env) -> None:
-    market_id = db.create_prediction_market(title="m", betting_deadline=FUTURE)
+    market_id = prediction_repository.create_prediction_market(
+        title="m", betting_deadline=FUTURE
+    )
     add_user(orm, 1, credits=100.0)
 
     result = await pred.place_bet(
@@ -162,7 +164,7 @@ async def test_place_bet_deducts_credits_and_updates_pools(orm, prediction_env) 
 
 
 async def test_place_bet_rejects_over_personal_cap(orm, prediction_env) -> None:
-    market_id = db.create_prediction_market(
+    market_id = prediction_repository.create_prediction_market(
         title="m", betting_deadline=FUTURE, max_bet_per_user=5
     )
     add_user(orm, 1, credits=100.0)
@@ -188,9 +190,13 @@ async def test_place_bet_rejects_over_personal_cap(orm, prediction_env) -> None:
 async def test_place_bet_rejects_closed_unknown_and_unaffordable(
     orm, prediction_env
 ) -> None:
-    open_market = db.create_prediction_market(title="open", betting_deadline=FUTURE)
-    closed_market = db.create_prediction_market(title="closed", betting_deadline=FUTURE)
-    db.close_prediction_market_betting(market_id=closed_market)
+    open_market = prediction_repository.create_prediction_market(
+        title="open", betting_deadline=FUTURE
+    )
+    closed_market = prediction_repository.create_prediction_market(
+        title="closed", betting_deadline=FUTURE
+    )
+    prediction_repository.close_prediction_market_betting(market_id=closed_market)
     add_user(orm, 1, credits=100.0)
     add_user(orm, 2, credits=5.0)
 
@@ -278,7 +284,9 @@ async def test_review_rejection_keeps_market_absent(orm, prediction_env) -> None
 
 
 async def test_close_market_betting_marks_status(orm, prediction_env) -> None:
-    market_id = db.create_prediction_market(title="m", betting_deadline=FUTURE)
+    market_id = prediction_repository.create_prediction_market(
+        title="m", betting_deadline=FUTURE
+    )
 
     closed = await pred.close_market_betting(
         request=_request(), market_id=market_id, current_user=ADMIN
@@ -300,19 +308,21 @@ async def test_close_market_betting_marks_status(orm, prediction_env) -> None:
 
 
 def _bet(market_id: int, tg_id: int, option: int, amount: int) -> None:
-    db.place_prediction_bet(
+    prediction_repository.place_prediction_bet(
         market_id=market_id, tg_id=tg_id, option=option, amount=amount
     )
 
 
 def test_resolve_default_branch_splits_pool_among_winners(orm, prediction_env) -> None:
-    market_id = db.create_prediction_market(title="m", betting_deadline=FUTURE)
+    market_id = prediction_repository.create_prediction_market(
+        title="m", betting_deadline=FUTURE
+    )
     add_user(orm, 1, credits=100.0)
     add_user(orm, 2, credits=100.0)
     _bet(market_id, 1, 1, 100)  # YES
     _bet(market_id, 2, 0, 100)  # NO
 
-    result = db.resolve_prediction_market(
+    result = prediction_repository.resolve_prediction_market(
         market_id=market_id, result_option=1, resolved_by=ADMIN.id
     )
 
@@ -330,11 +340,13 @@ def test_resolve_default_branch_splits_pool_among_winners(orm, prediction_env) -
 
 
 def test_resolve_without_winners_moves_pool_to_glory(orm, prediction_env) -> None:
-    market_id = db.create_prediction_market(title="m", betting_deadline=FUTURE)
+    market_id = prediction_repository.create_prediction_market(
+        title="m", betting_deadline=FUTURE
+    )
     add_user(orm, 2, credits=100.0)
     _bet(market_id, 2, 0, 100)  # 只有 NO
 
-    result = db.resolve_prediction_market(
+    result = prediction_repository.resolve_prediction_market(
         market_id=market_id, result_option=1, resolved_by=ADMIN.id
     )
 
@@ -346,12 +358,14 @@ def test_resolve_without_winners_moves_pool_to_glory(orm, prediction_env) -> Non
 
 
 def test_resolve_when_everyone_wins_compensates_from_glory(orm, prediction_env) -> None:
-    market_id = db.create_prediction_market(title="m", betting_deadline=FUTURE)
+    market_id = prediction_repository.create_prediction_market(
+        title="m", betting_deadline=FUTURE
+    )
     add_user(orm, 1, credits=100.0)
     _seed_glory_fund("10")
     _bet(market_id, 1, 1, 100)  # 只有 YES
 
-    result = db.resolve_prediction_market(
+    result = prediction_repository.resolve_prediction_market(
         market_id=market_id, result_option=1, resolved_by=ADMIN.id
     )
 
@@ -363,15 +377,17 @@ def test_resolve_when_everyone_wins_compensates_from_glory(orm, prediction_env) 
 
 
 def test_resolve_rejected_when_already_settled(orm, prediction_env) -> None:
-    market_id = db.create_prediction_market(title="m", betting_deadline=FUTURE)
+    market_id = prediction_repository.create_prediction_market(
+        title="m", betting_deadline=FUTURE
+    )
     add_user(orm, 1, credits=100.0)
     _bet(market_id, 1, 1, 100)
-    db.resolve_prediction_market(
+    prediction_repository.resolve_prediction_market(
         market_id=market_id, result_option=1, resolved_by=ADMIN.id
     )
 
     with pytest.raises(ValueError) as excinfo:
-        db.resolve_prediction_market(
+        prediction_repository.resolve_prediction_market(
             market_id=market_id, result_option=1, resolved_by=ADMIN.id
         )
 
@@ -379,10 +395,12 @@ def test_resolve_rejected_when_already_settled(orm, prediction_env) -> None:
 
 
 async def test_resolve_route_maps_already_settled_to_400(orm, prediction_env) -> None:
-    market_id = db.create_prediction_market(title="m", betting_deadline=FUTURE)
+    market_id = prediction_repository.create_prediction_market(
+        title="m", betting_deadline=FUTURE
+    )
     add_user(orm, 1, credits=100.0)
     _bet(market_id, 1, 1, 100)
-    db.resolve_prediction_market(
+    prediction_repository.resolve_prediction_market(
         market_id=market_id, result_option=1, resolved_by=ADMIN.id
     )
 

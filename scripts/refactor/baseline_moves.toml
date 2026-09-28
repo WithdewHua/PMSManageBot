@@ -87,7 +87,6 @@ package_level = "src/app/domains/gift_pack/repository"
 
 # 21 点 repository 的子主题拆分（tasks 2.3）：`symbols` 逐条登记类成员的新模块，
 # `package_level` 覆盖模块级条目（导入），它们按使用位置落在同一个包内。
-# `award_or_renew_badge` 搬进门面组合类，因此登记到 `__init__.py`。
 
 [[move]]
 source = "src/app/domains/blackjack/repository/part_1.py"
@@ -200,7 +199,6 @@ package_level = "src/app/domains/blackjack/repository"
 "_lock_tournament_hand" = "src/app/domains/blackjack/repository/tournament_play.py"
 "_settle_blackjack_hand_dispatch" = "src/app/domains/blackjack/repository/settlement.py"
 "_settle_blackjack_tournament_hand" = "src/app/domains/blackjack/repository/tournament_play.py"
-"award_or_renew_badge" = "src/app/domains/blackjack/repository/__init__.py"
 "blackjack_tournament_double" = "src/app/domains/blackjack/repository/tournament_play.py"
 "blackjack_tournament_double_tx" = "src/app/domains/blackjack/repository/tournament_play.py"
 "blackjack_tournament_hit" = "src/app/domains/blackjack/repository/tournament_play.py"

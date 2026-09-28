@@ -86,6 +86,9 @@
 
 ## 6. 基线清理与集成验证
 
-- [ ] 6.1 从门面删除四个领域的 mixin；按 design D6 删除 7 处显式缓存登记，并接手清除 blackjack 遗留的 18 条条目；清除 53 条基线条目，以及 21 行标给本变更的忽略项、6 行标为 B3 的忽略项和 8 行门面组合边；用重键脚本改写 3 条以 badge_awards 为目标的条目；下调封存计数。验证：`lint-imports`、`pytest tests/architecture`、`pytest tests/refactor` 通过；21 点现金局接口的响应与夹具一致；`baseline.json` 中本变更名下只剩这 3 条勋章相关的条目，blackjack 名下只剩 1 条以 badge_awards 为目标的条目（由 reward 清除）。
+- [x] 6.1 从门面删除四个领域的 mixin；按 design D6 删除 7 处显式缓存登记，并接手清除 blackjack 遗留的 18 条条目；清除 53 条基线条目，以及 21 行标给本变更的忽略项、6 行标为 B3 的忽略项和 8 行门面组合边；用重键脚本改写 3 条以 badge_awards 为目标的条目；下调封存计数。验证：`lint-imports`、`pytest tests/architecture`、`pytest tests/refactor` 通过；21 点现金局接口的响应与夹具一致；`baseline.json` 中本变更剩 3 条 badge_awards 边、blackjack 剩 1 条 badge_awards 边，封存总数为 371。
+- 删除 `DatabaseORM` 中 auction、luckywheel、prediction、treasure 四个 repository mixin；活动测试与 rankings 读模型改用领域 repository/service API。
+- 由 `credits.repository.*_tx` 自动登记缓存失效，移除 auction/prediction/blackjack 的显式 `credits_service.register_cache_invalidation` 调用；现金局余额读取通过 `blackjack.service.get_current_credits`；删除无调用方的 blackjack `award_or_renew_badge` facade 适配器。
+- 移除已无数据层依赖的活动入口 import-linter 豁免，刷新 activity/blackjack/inventory/B3 fixtures；`tests/refactor` 232 passed / 8 skipped、architecture 34 passed、`lint-imports` 12/12。
 - [ ] 6.2 生产形态本地彩排：在完整数据库副本上，完成付费单抽、免费次数单抽、十连、夺宝满员开奖、预言开奖和竞拍结束（外部服务和通知用替身）。验证：积分、账本、奖池、荣耀池和调度的变化，与旧实现在同一份数据上的结果一致。
 - [ ] 6.3 运行全量回归：`pytest tests/`、`ruff check`、`ruff format --check`、`lint-imports`、`pre-commit run --all-files`，然后运行 `openspec validate promote-activity-domains --strict`。验证：全部通过；工作区干净。

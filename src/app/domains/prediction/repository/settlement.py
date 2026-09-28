@@ -11,7 +11,6 @@ from sqlalchemy import func, select
 from app.core import kv as core_kv
 from app.core.db import get_session
 from app.domains.credits import repository as credits_repository
-from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity import repository as identity_repository
 from app.domains.prediction import exceptions as prediction_exceptions
@@ -124,10 +123,9 @@ class _PredictionRepositorySettlement:
                 # 缺失的行在调用方事务里就地建档，避免并发结算互相死锁。
                 for uid in sorted(payout_map):
                     identity_repository.ensure_statistics_tx(session, uid)
-                    mutation = credits_repository.add_tx(
+                    credits_repository.add_tx(
                         session, CreditAccount.tg(uid), float(payout_map[uid])
                     )
-                    credits_service.register_cache_invalidation(session, mutation)
 
             market.status = 3
             market.result_option = int(result_option)
@@ -165,15 +163,7 @@ class _PredictionRepositorySettlement:
 
 def reward_prediction_submission(submitter_tg_id: int) -> int:
     """审核通过后的 1 积分奖励；调用方在提交审核后尽力执行。"""
-    from app.domains.credits import repository as credits_repository
-    from app.domains.credits import service as credits_service
-    from app.domains.credits.types import CreditAccount
-    from app.domains.identity import repository as identity_repository
-
     with get_session() as session:
         identity_repository.ensure_statistics_tx(session, int(submitter_tg_id))
-        mutation = credits_repository.add_tx(
-            session, CreditAccount.tg(int(submitter_tg_id)), 1
-        )
-        credits_service.register_cache_invalidation(session, mutation)
+        credits_repository.add_tx(session, CreditAccount.tg(int(submitter_tg_id)), 1)
         return 1

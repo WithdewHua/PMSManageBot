@@ -219,25 +219,3 @@ def test_sync_premium_media_access_skips_unlocked_downloads(
     )
 
     premium_service.sync_premium_media_access(10, ("plex",))
-
-
-def test_luckywheel_premium_reward_grants_both_services(
-    session_env, monkeypatch
-) -> None:
-    """大转盘的 Premium 奖品按原有服务顺序分别补天数，未绑定的服务静默跳过。"""
-    from app.domains.luckywheel import router as luckywheel_router
-
-    _bind_plex(11)
-    calls: list[tuple[int, str, int]] = []
-
-    def _record(tg_id, service, days=30):
-        calls.append((int(tg_id), service, int(days)))
-        if service == "emby":
-            raise NameError("请先绑定 Emby 账户")
-        return datetime.now(settings.TZ) + timedelta(days=int(days))
-
-    monkeypatch.setattr(luckywheel_router, "update_premium_status", _record)
-
-    luckywheel_router._handle_premium_reward(11, "Plex Premium 7天")
-
-    assert calls == [(11, "plex", 7), (11, "emby", 7)]

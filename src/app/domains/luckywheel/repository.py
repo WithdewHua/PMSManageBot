@@ -9,7 +9,6 @@ from app.core.db import get_session
 from app.core.kv import SystemConfig
 from app.core.log import logger
 from app.domains.credits import repository as credits_repository
-from app.domains.credits.exceptions import CreditAccountNotFound
 from app.domains.credits.types import CreditAccount
 from app.domains.invitation import repository as invitation_repository
 from app.domains.luckywheel import config as wheel_config
@@ -265,8 +264,10 @@ def spin(
                 cost_credits_override=cost_credits_override,
                 source_override=source_override,
             )
-    except CreditAccountNotFound as error:
-        raise user_not_found(int(tg_id)) from error
+    except ValueError as error:
+        if error.__class__.__name__ == "CreditAccountNotFound":
+            raise user_not_found(int(tg_id)) from error
+        raise
 
 
 def spin_ten(
@@ -298,8 +299,10 @@ def spin_ten(
                 )
                 for name, probability in winners
             ]
-    except CreditAccountNotFound as error:
-        raise user_not_found(int(tg_id)) from error
+    except ValueError as error:
+        if error.__class__.__name__ == "CreditAccountNotFound":
+            raise user_not_found(int(tg_id)) from error
+        raise
 
 
 def count_blackjack_freespins_since_tx(session, tg_id: int, since_ms: int) -> int:
@@ -717,6 +720,18 @@ class LuckywheelRepository:
 
 
 _repository = LuckywheelRepository()
+
+
+def add_wheel_spin_record(
+    tg_id: int,
+    item_name: str,
+    credits_change: float,
+    cost_credits: float,
+    source: str = "paid",
+) -> bool:
+    return _repository.add_wheel_spin_record(
+        tg_id, item_name, credits_change, cost_credits, source
+    )
 
 
 def get_wheel_stats() -> dict:

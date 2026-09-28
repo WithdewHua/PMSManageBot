@@ -80,7 +80,7 @@ def test_registered_planned_targets_agree_with_the_plan() -> None:
         for entry in items
         if str(entry.get("planned_target", "")).startswith(package)
     }
-    assert len(registered) == 77
+    assert len(registered) == 76
     for symbol, target in registered.items():
         expected = (
             package

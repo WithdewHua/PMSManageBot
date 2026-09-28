@@ -120,11 +120,9 @@ allowed_importers = [
 
     "app.domains.lines.service", # promote-line-domains (B2 inherited)
 
-    "app.domains.luckywheel.router", # promote-activity-domains (B2 inherited)
 
     "app.domains.media_access.router", # promote-line-domains (B2 inherited)
 
-    "app.domains.prediction.router", # promote-activity-domains (B2 inherited)
 
     "app.domains.premium.admin_router", # promote-line-domains (B2 inherited)
 
@@ -142,10 +140,8 @@ allowed_importers = [
 
     "app.domains.reports.router", # promote-remaining-domains (B2 inherited)
 
-    "app.domains.treasure.router", # promote-activity-domains (B2 inherited)
 
     "app.domains.vaultwarden.router", # promote-remaining-domains (B2 inherited)
-    "app.domains.treasure.jobs", # promote-activity-domains (B2 inherited)
     "app.schedule", # B3 registry temporarily imports legacy job implementations until 5.5
     "app.domains.accounts.service", # B3 mechanical relocation; audit in 5.6
     "app.domains.blackjack.service", # B3 mechanical relocation; audit in 5.6
@@ -306,22 +302,18 @@ layers = [
 ignore_imports = [
     # restructure-backend-architecture: transitional facade composition hides
     # domain-to-domain dependencies; AST cross-domain checks still cover self/db.
-    "app.databases.db -> app.domains.auction.repository",
     "app.databases.db -> app.domains.badges.repository",
     "app.databases.db -> app.domains.crypto_donation.repository",
     "app.databases.db -> app.domains.donation.repository",
     "app.databases.db -> app.domains.identity.repository",
     "app.databases.db -> app.domains.invitation.repository",
     "app.databases.db -> app.domains.lines.repository",
-    "app.databases.db -> app.domains.luckywheel.repository",
     "app.databases.db -> app.domains.media_access.repository",
-    "app.databases.db -> app.domains.prediction.repository",
     "app.databases.db -> app.domains.premium.repository",
     "app.databases.db -> app.domains.rankings.repository",
     "app.databases.db -> app.domains.reports.repository",
     "app.databases.db -> app.domains.tg_rebind.repository",
     "app.databases.db -> app.domains.traffic.repository",
-    "app.databases.db -> app.domains.treasure.repository",
     "app.databases.db -> app.domains.watch_rewards.repository",
 
     "app.domains.accounts.bot -> app.databases.db", # promote-account-domains (B2 inherited)
@@ -421,22 +413,18 @@ type = "acyclic_siblings"
 ancestors = ["app.domains"]
 ignore_imports = [
     # restructure-backend-architecture: transitional facade composition
-    "app.databases.db -> app.domains.auction.repository",
     "app.databases.db -> app.domains.badges.repository",
     "app.databases.db -> app.domains.crypto_donation.repository",
     "app.databases.db -> app.domains.donation.repository",
     "app.databases.db -> app.domains.identity.repository",
     "app.databases.db -> app.domains.invitation.repository",
     "app.databases.db -> app.domains.lines.repository",
-    "app.databases.db -> app.domains.luckywheel.repository",
     "app.databases.db -> app.domains.media_access.repository",
-    "app.databases.db -> app.domains.prediction.repository",
     "app.databases.db -> app.domains.premium.repository",
     "app.databases.db -> app.domains.rankings.repository",
     "app.databases.db -> app.domains.reports.repository",
     "app.databases.db -> app.domains.tg_rebind.repository",
     "app.databases.db -> app.domains.traffic.repository",
-    "app.databases.db -> app.domains.treasure.repository",
     "app.databases.db -> app.domains.watch_rewards.repository",
 ]
 unmatched_ignore_imports_alerting = "error"

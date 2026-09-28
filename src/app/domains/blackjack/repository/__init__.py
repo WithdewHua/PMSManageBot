@@ -1,11 +1,4 @@
-import time
-
-from sqlalchemy import select
-
-from app.core.db import get_session
 from app.core.kv import SystemConfigRepository
-from app.core.log import logger
-from app.domains.badges.models import UserBadge
 from app.domains.blackjack.config import (
     CASHBACK_CURSOR_KEY,
     CHAMPION_BADGE_BONUS,
@@ -52,89 +45,6 @@ class _BlackjackRepositoryImplementation(
     _BlackjackRepositoryConfigStore,
 ):
     """Private compatibility implementation for the module-level API."""
-
-    def award_or_renew_badge(
-        self,
-        tg_id: int,
-        badge_id: int,
-        valid_days: int,
-        cap_days: int | None = None,
-    ) -> dict:
-        """授予勋章；已持有则**续期**其加成而非重置。
-
-        `UserBadge` 的语义是「持有永久、仅加成过期」（见模型注释），故续期只动
-        `expires_at`，不新建行——`UNIQUE(tg_id, badge_id)` 也不允许新建。
-
-            首次   expires_at = now + valid_days
-            再次   expires_at = min(max(expires_at, now) + valid_days,
-                                    now + cap_days)
-
-        `max(expires_at, now)` 就是「续期而非重置」的全部含义：加成还没过期就往后
-        接（连庄因此有连续的获得感），已经过期就从现在起算。外层 `cap_days` 防止
-        持续夺冠者把加成累积到无限长。
-
-        **不改既有的授予路径**（`game_king` / `supreme_contributor` 那两处只做
-        「有则跳过」）：续期是本变更引入的新语义，混进去会让那两个勋章的行为
-        跟着变。
-
-        Returns: {awarded(bool), renewed(bool), expires_at, previous_expires_at}
-        """
-        now_ts = int(time.time())
-        span = int(valid_days) * 24 * 3600
-        try:
-            with get_session() as session:
-                existing = (
-                    session.execute(
-                        select(UserBadge)
-                        .where(
-                            UserBadge.tg_id == int(tg_id),
-                            UserBadge.badge_id == int(badge_id),
-                        )
-                        .with_for_update()
-                    )
-                    .scalars()
-                    .one_or_none()
-                )
-
-                if not existing:
-                    session.add(
-                        UserBadge(
-                            tg_id=int(tg_id),
-                            badge_id=int(badge_id),
-                            credits_cost=0,
-                            redeemed_at=now_ts,
-                            expires_at=now_ts + span,
-                            is_active=1,
-                        )
-                    )
-                    return {
-                        "awarded": True,
-                        "renewed": False,
-                        "expires_at": now_ts + span,
-                        "previous_expires_at": None,
-                    }
-
-                previous = int(existing.expires_at)
-                new_expires = max(previous, now_ts) + span
-                if cap_days:
-                    new_expires = min(new_expires, now_ts + int(cap_days) * 24 * 3600)
-                existing.expires_at = new_expires
-                # 加成过期后 is_active 可能已被置 0，续期时一并恢复
-                existing.is_active = 1
-                return {
-                    "awarded": False,
-                    "renewed": True,
-                    "expires_at": new_expires,
-                    "previous_expires_at": previous,
-                }
-        except Exception as e:
-            logger.error(f"授予/续期勋章失败 (tg_id={tg_id}, badge={badge_id}): {e}")
-            return {
-                "awarded": False,
-                "renewed": False,
-                "expires_at": None,
-                "previous_expires_at": None,
-            }
 
 
 _repository = _BlackjackRepositoryImplementation()
@@ -309,15 +219,6 @@ def force_settle_tournament_hands(tournament_id: int) -> dict:
     return _repository.force_settle_tournament_hands(tournament_id)
 
 
-def award_or_renew_badge(
-    tg_id: int,
-    badge_id: int,
-    valid_days: int,
-    cap_days: int | None = None,
-) -> dict:
-    return _repository.award_or_renew_badge(tg_id, badge_id, valid_days, cap_days)
-
-
 def settle_blackjack_tournament(tournament_id: int) -> dict:
     return _repository.settle_blackjack_tournament(tournament_id)
 
@@ -387,7 +288,6 @@ __all__ = [
     "TOURNAMENT_RUNNING",
     "TOURNAMENT_SETTLED",
     "apply_blackjack_retention_tx",
-    "award_or_renew_badge",
     "blackjack_double",
     "blackjack_double_tx",
     "blackjack_hit",

@@ -8,7 +8,6 @@ from sqlalchemy import select, update
 from app.domains.blackjack.config import JACKPOT_CONFIG_KEY, JACKPOT_CONFIG_TYPE
 from app.domains.blackjack.models import BlackjackHand
 from app.domains.credits import repository as credits_repository
-from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
 
@@ -206,10 +205,7 @@ class _BlackjackRepositorySettlement:
         credited = round(payout + jackpot_won, 2)
         if credited > 0:
             if stats:
-                mutation = credits_repository.add_tx(
-                    session, CreditAccount.tg(tg_id), credited
-                )
-                credits_service.register_cache_invalidation(session, mutation)
+                credits_repository.add_tx(session, CreditAccount.tg(tg_id), credited)
             else:
                 session.add(
                     Statistics(tg_id=tg_id, donation=0, credits=float(credited))

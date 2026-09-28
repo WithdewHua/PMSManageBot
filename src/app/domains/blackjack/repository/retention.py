@@ -12,7 +12,6 @@ from app.core.kv import SystemConfig
 from app.core.log import logger
 from app.domains.blackjack.models import BlackjackHand, BlackjackWeeklyCashback
 from app.domains.credits import repository as credits_repository
-from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
 from app.domains.luckywheel import repository as luckywheel_repository
@@ -118,10 +117,7 @@ class _BlackjackRepositoryRetention:
                 from app.domains.blackjack import rules
 
                 relief = rules.calculate_relief_credits(hand.bet_credits, multiplier)
-                mutation = credits_repository.add_tx(
-                    session, CreditAccount.tg(tg_id), relief
-                )
-                credits_service.register_cache_invalidation(session, mutation)
+                credits_repository.add_tx(session, CreditAccount.tg(tg_id), relief)
                 session.execute(
                     update(BlackjackHand)
                     .where(BlackjackHand.id == int(hand.id))

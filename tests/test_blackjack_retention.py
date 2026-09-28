@@ -16,7 +16,6 @@ import pytest
 from sqlalchemy import event
 
 from app.core.kv import SystemConfig
-from app.databases import db
 from app.domains.blackjack import repository as blackjack_repository
 from app.domains.blackjack.config import (
     CASHBACK_CURSOR_KEY,
@@ -1197,7 +1196,9 @@ def test_audit_script_ignores_gift_pack_freespins(orm, monkeypatch, capsys):
 
     _add_free_spin(1, source="gift_pack")
     _add_free_spin(1, source="gift_pack")
-    db.add_wheel_spin_record(1, "积分 +50", 50.0, 0.0, source="gift_pack_free")
+    luckywheel_repository.add_wheel_spin_record(
+        1, "积分 +50", 50.0, 0.0, source="gift_pack_free"
+    )
 
     assert run() == baseline
     assert "已发放 1 张" in baseline

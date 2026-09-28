@@ -36,8 +36,6 @@ from app.domains.blackjack.schemas import (
     BlackjackPublicConfigResponse,
     BlackjackUserStatsResponse,
 )
-from app.domains.credits import service as credits_service
-from app.domains.credits.types import CreditAccount
 
 router = APIRouter(prefix="/blackjack", tags=["21点"])
 
@@ -100,9 +98,7 @@ def _build_action_response(
         message=message,
         hand=BlackjackHandResponse.from_hand(result["hand"]),
         settled=bool(result.get("settled")),
-        current_credits=float(
-            credits_service.read_optional(CreditAccount.tg(int(tg_id))) or 0
-        ),
+        current_credits=float(blackjack_service.get_current_credits(int(tg_id))),
         decision=BlackjackDecisionFeedback(**decision) if decision else None,
         jackpot_balance=blackjack_service.get_blackjack_jackpot(),
         relief_credits=float(result.get("relief_credits") or 0),
@@ -279,8 +275,7 @@ async def get_current_hand(
         return BlackjackCurrentHandResponse(
             hand=BlackjackHandResponse.from_hand(hand) if hand else None,
             current_credits=float(
-                credits_service.read_optional(CreditAccount.tg(int(current_user.id)))
-                or 0
+                blackjack_service.get_current_credits(int(current_user.id))
             ),
             jackpot_balance=blackjack_service.get_blackjack_jackpot(),
             free_hands_remaining=blackjack_service.get_blackjack_free_hands_remaining(

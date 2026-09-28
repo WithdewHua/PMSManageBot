@@ -1,21 +1,7 @@
 {
   "domains": {
     "auction": {
-      "facade_methods": [
-        "create_auction",
-        "delete_auction",
-        "finish_auction_by_id",
-        "finish_expired_auctions",
-        "get_active_auctions",
-        "get_all_auctions",
-        "get_auction_bids",
-        "get_auction_by_id",
-        "get_auction_participants",
-        "get_auction_stats",
-        "get_detailed_auction_stats",
-        "get_user_auction_history",
-        "update_auction"
-      ],
+      "facade_methods": [],
       "metadata_tables": [
         {
           "columns": [
@@ -857,14 +843,6 @@
           },
           {
             "kind": "from",
-            "module": "app.databases.db",
-            "module_target": "app.domains.auction.repository",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.auction.repository.AuctionRepository"
-          },
-          {
-            "kind": "from",
             "module": "app.domains.auction.exceptions",
             "module_target": "app.core.errors",
             "resolved": true,
@@ -1075,23 +1053,7 @@
             "module_target": "app.domains.credits",
             "resolved": true,
             "scope": "module",
-            "target": "app.domains.credits.exceptions"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.repository",
-            "module_target": "app.domains.credits",
-            "resolved": true,
-            "scope": "module",
             "target": "app.domains.credits.repository"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.repository",
-            "module_target": "app.domains.credits",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.credits.service"
           },
           {
             "kind": "from",
@@ -1656,13 +1618,8 @@
     },
     "luckywheel": {
       "facade_methods": [
-        "add_wheel_spin_record",
-        "get_lucky_wheel_config",
-        "get_user_wheel_stats",
         "get_wheel_credits_rank",
-        "get_wheel_invite_code_rank",
-        "get_wheel_stats",
-        "set_lucky_wheel_config"
+        "get_wheel_invite_code_rank"
       ],
       "metadata_tables": [
         {
@@ -2280,14 +2237,6 @@
           },
           {
             "kind": "from",
-            "module": "app.databases.db",
-            "module_target": "app.domains.luckywheel.repository",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.luckywheel.repository.LuckywheelRepository"
-          },
-          {
-            "kind": "from",
             "module": "app.domains.badge_awards.jobs",
             "module_target": "app.domains.luckywheel.models",
             "resolved": true,
@@ -2615,14 +2564,6 @@
           {
             "kind": "from",
             "module": "app.domains.luckywheel.repository",
-            "module_target": "app.domains.credits.exceptions",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.credits.exceptions.CreditAccountNotFound"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.luckywheel.repository",
             "module_target": "app.domains.credits.types",
             "resolved": true,
             "scope": "module",
@@ -2715,13 +2656,6 @@
             "resolved": true,
             "scope": "module",
             "target": "app.domains.premium.repository"
-          },
-          {
-            "kind": "import",
-            "module": "app.domains.luckywheel.router",
-            "resolved": true,
-            "scope": "module",
-            "target": "re"
           },
           {
             "kind": "import",
@@ -2929,14 +2863,6 @@
             "resolved": true,
             "scope": "module",
             "target": "app.domains.luckywheel.schemas.LuckyWheelTenSpinResult"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.luckywheel.router",
-            "module_target": "app.domains.premium.service",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.premium.service.update_premium_status"
           },
           {
             "kind": "from",
@@ -3195,6 +3121,7 @@
         "strings": []
       },
       "repository_functions": [
+        "add_wheel_spin_record",
         "add_wheel_spin_record_tx",
         "claim_unnotified_blackjack_freespins",
         "clear_free_spin_progress_provider",
@@ -3346,22 +3273,7 @@
       "scheduler_jobs": []
     },
     "prediction": {
-      "facade_methods": [
-        "close_prediction_market_betting",
-        "create_prediction_market",
-        "get_prediction_market_by_id",
-        "get_prediction_net_profit_rank",
-        "get_prediction_user_stats",
-        "get_prediction_win_rate_rank",
-        "list_prediction_bets",
-        "list_prediction_markets",
-        "list_prediction_submissions",
-        "list_prediction_user_positions",
-        "place_prediction_bet",
-        "resolve_prediction_market",
-        "review_prediction_submission",
-        "submit_prediction_market"
-      ],
+      "facade_methods": [],
       "metadata_tables": [
         {
           "columns": [
@@ -4408,14 +4320,6 @@
           },
           {
             "kind": "from",
-            "module": "app.databases.db",
-            "module_target": "app.domains.prediction.repository",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.prediction.repository.PredictionRepository"
-          },
-          {
-            "kind": "from",
             "module": "app.domains.badge_awards.jobs",
             "module_target": "app.domains.prediction.models",
             "resolved": true,
@@ -4887,14 +4791,6 @@
           {
             "kind": "from",
             "module": "app.domains.prediction.repository.bets",
-            "module_target": "app.domains.credits",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.credits.service"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.bets",
             "module_target": "app.domains.credits.types",
             "resolved": true,
             "scope": "module",
@@ -5061,14 +4957,6 @@
           {
             "kind": "from",
             "module": "app.domains.prediction.repository.settlement",
-            "module_target": "app.domains.credits",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.credits.service"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.settlement",
             "module_target": "app.domains.credits.types",
             "resolved": true,
             "scope": "module",
@@ -5113,38 +5001,6 @@
             "resolved": true,
             "scope": "module",
             "target": "app.domains.prediction.models.PredictionMarket"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.settlement",
-            "module_target": "app.domains.credits",
-            "resolved": true,
-            "scope": "function",
-            "target": "app.domains.credits.repository"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.settlement",
-            "module_target": "app.domains.credits",
-            "resolved": true,
-            "scope": "function",
-            "target": "app.domains.credits.service"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.settlement",
-            "module_target": "app.domains.credits.types",
-            "resolved": true,
-            "scope": "function",
-            "target": "app.domains.credits.types.CreditAccount"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.settlement",
-            "module_target": "app.domains.identity",
-            "resolved": true,
-            "scope": "function",
-            "target": "app.domains.identity.repository"
           },
           {
             "kind": "import",
@@ -5664,15 +5520,8 @@
     },
     "treasure": {
       "facade_methods": [
-        "cancel_treasure_issue",
-        "create_treasure_issue",
-        "get_treasure_issue_by_id",
         "get_treasure_win_credits_rank",
-        "get_treasure_win_issue_rank",
-        "get_user_treasure_stats",
-        "join_treasure_issue",
-        "list_treasure_issues",
-        "list_treasure_participations"
+        "get_treasure_win_issue_rank"
       ],
       "metadata_tables": [
         {
@@ -6409,14 +6258,6 @@
             "resolved": true,
             "scope": "module",
             "target": "app.domains.treasure.router.router"
-          },
-          {
-            "kind": "from",
-            "module": "app.databases.db",
-            "module_target": "app.domains.treasure.repository",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.treasure.repository.TreasureRepository"
           },
           {
             "kind": "from",

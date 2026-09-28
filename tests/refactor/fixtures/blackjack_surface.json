@@ -374,51 +374,12 @@
         "target": "datetime"
       },
       {
-        "kind": "import",
-        "module": "app.domains.blackjack.repository",
-        "resolved": true,
-        "scope": "module",
-        "target": "time"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.repository",
-        "module_target": "sqlalchemy",
-        "resolved": true,
-        "scope": "module",
-        "target": "sqlalchemy.select"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.repository",
-        "module_target": "app.core.db",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.db.get_session"
-      },
-      {
         "kind": "from",
         "module": "app.domains.blackjack.repository",
         "module_target": "app.core.kv",
         "resolved": true,
         "scope": "module",
         "target": "app.core.kv.SystemConfigRepository"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.repository",
-        "module_target": "app.core.log",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.log.logger"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.repository",
-        "module_target": "app.domains.badges.models",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.badges.models.UserBadge"
       },
       {
         "kind": "from",
@@ -898,14 +859,6 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.repository.hands",
-        "module_target": "app.domains.credits",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.credits.service"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.repository.hands",
         "module_target": "app.domains.credits.types",
         "resolved": true,
         "scope": "module",
@@ -1239,14 +1192,6 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.repository.retention",
-        "module_target": "app.domains.credits",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.credits.service"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.repository.retention",
         "module_target": "app.domains.credits.types",
         "resolved": true,
         "scope": "module",
@@ -1361,14 +1306,6 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.credits.repository"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.repository.settlement",
-        "module_target": "app.domains.credits",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.credits.service"
       },
       {
         "kind": "from",
@@ -1650,14 +1587,6 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.repository.tournament_play",
-        "module_target": "app.domains.credits",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.credits.service"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.repository.tournament_play",
         "module_target": "app.domains.credits.types",
         "resolved": true,
         "scope": "module",
@@ -1852,14 +1781,6 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.credits.repository"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.repository.tournaments",
-        "module_target": "app.domains.credits",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.credits.service"
       },
       {
         "kind": "from",
@@ -2219,22 +2140,6 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.blackjack.schemas.BlackjackUserStatsResponse"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.router.cash",
-        "module_target": "app.domains.credits",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.credits.service"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.router.cash",
-        "module_target": "app.domains.credits.types",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.credits.types.CreditAccount"
       },
       {
         "kind": "from",
@@ -2832,6 +2737,22 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.blackjack.repository.analytics"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "app.domains.credits",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.credits.service"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "app.domains.credits.types",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.credits.types.CreditAccount"
       },
       {
         "kind": "from",

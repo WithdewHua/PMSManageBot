@@ -268,14 +268,7 @@
     },
     {
       "kind": "facade_import",
-      "line": 8,
-      "path": "src/app/domains/blackjack/repository/__init__.py",
-      "symbol": "app.domains.badges.models",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
-      "line": 9,
+      "line": 2,
       "path": "src/app/domains/blackjack/repository/__init__.py",
       "symbol": "app.domains.blackjack.config",
       "target_role": "blackjack.service"
@@ -331,308 +324,308 @@
     },
     {
       "kind": "facade_import",
-      "line": 18,
+      "line": 17,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "app.domains.identity.models",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 92,
+      "line": 91,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "domain_error_raise",
-      "line": 212,
+      "line": 211,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('blackjack disabled')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 216,
+      "line": 215,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error(f'invalid bet: must be one of {bet_options}')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "facade_import",
-      "line": 234,
+      "line": 233,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "domain_error_raise",
-      "line": 250,
+      "line": 249,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('user stats not found')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 279,
+      "line": 278,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error(f'hand in progress in tournament {blocking[0]}')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 280,
+      "line": 279,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('hand in progress')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 297,
+      "line": 296,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('deal too frequent')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 303,
+      "line": 302,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error(f'insufficient credits: need {min_credits}')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 305,
+      "line": 304,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('insufficient credits')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "facade_import",
-      "line": 392,
+      "line": 390,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 422,
+      "line": 420,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 457,
+      "line": 455,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
+    },
+    {
+      "kind": "domain_error_raise",
+      "line": 460,
+      "path": "src/app/domains/blackjack/repository/hands.py",
+      "symbol": "blackjack_error('hand already finished')",
+      "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
       "line": 462,
       "path": "src/app/domains/blackjack/repository/hands.py",
-      "symbol": "blackjack_error('hand already finished')",
-      "target_role": "blackjack.errors"
-    },
-    {
-      "kind": "domain_error_raise",
-      "line": 464,
-      "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('not player turn')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 473,
+      "line": 471,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('hand already finished')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "facade_import",
-      "line": 522,
+      "line": 520,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
+    },
+    {
+      "kind": "domain_error_raise",
+      "line": 525,
+      "path": "src/app/domains/blackjack/repository/hands.py",
+      "symbol": "blackjack_error('hand already finished')",
+      "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
       "line": 527,
       "path": "src/app/domains/blackjack/repository/hands.py",
-      "symbol": "blackjack_error('hand already finished')",
-      "target_role": "blackjack.errors"
-    },
-    {
-      "kind": "domain_error_raise",
-      "line": 529,
-      "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('not player turn')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 534,
+      "line": 532,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('hand already finished')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "facade_import",
-      "line": 568,
+      "line": 566,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "domain_error_raise",
-      "line": 573,
+      "line": 571,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('hand already finished')",
+      "target_role": "blackjack.errors"
+    },
+    {
+      "kind": "domain_error_raise",
+      "line": 573,
+      "path": "src/app/domains/blackjack/repository/hands.py",
+      "symbol": "blackjack_error('not player turn')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
       "line": 575,
       "path": "src/app/domains/blackjack/repository/hands.py",
-      "symbol": "blackjack_error('not player turn')",
-      "target_role": "blackjack.errors"
-    },
-    {
-      "kind": "domain_error_raise",
-      "line": 577,
-      "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('already doubled')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 582,
+      "line": 580,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('cannot double after hit')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 590,
+      "line": 588,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('hand already finished')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 603,
+      "line": 601,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('user stats not found')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 606,
+      "line": 604,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error(f'insufficient credits to double: need {bet}')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "facade_import",
-      "line": 667,
+      "line": 662,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "domain_error_raise",
-      "line": 672,
+      "line": 667,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('hand already finished')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 674,
+      "line": 669,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('not player turn')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 679,
+      "line": 674,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('surrender disabled')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 682,
+      "line": 677,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('cannot surrender after double')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 688,
+      "line": 683,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('cannot surrender after hit')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 696,
+      "line": 691,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('hand already finished')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 803,
+      "line": 795,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('hand not found')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 805,
+      "line": 797,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('hand not found')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 807,
+      "line": 799,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('hand not found')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "facade_import",
-      "line": 835,
+      "line": 827,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 855,
+      "line": 847,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "domain_error_raise",
-      "line": 894,
+      "line": 886,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "blackjack_error('hand not found')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "facade_import",
-      "line": 919,
+      "line": 911,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 950,
+      "line": 942,
       "path": "src/app/domains/blackjack/repository/hands.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
@@ -681,28 +674,28 @@
     },
     {
       "kind": "facade_import",
-      "line": 17,
+      "line": 16,
       "path": "src/app/domains/blackjack/repository/retention.py",
       "symbol": "app.domains.identity.models",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 118,
+      "line": 117,
       "path": "src/app/domains/blackjack/repository/retention.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 335,
+      "line": 331,
       "path": "src/app/domains/blackjack/repository/retention.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 356,
+      "line": 352,
       "path": "src/app/domains/blackjack/repository/retention.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
@@ -723,14 +716,14 @@
     },
     {
       "kind": "facade_import",
-      "line": 13,
+      "line": 12,
       "path": "src/app/domains/blackjack/repository/settlement.py",
       "symbol": "app.domains.identity.models",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 49,
+      "line": 48,
       "path": "src/app/domains/blackjack/repository/settlement.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
@@ -800,329 +793,329 @@
     },
     {
       "kind": "facade_import",
-      "line": 20,
+      "line": 19,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "app.domains.identity.models",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 57,
+      "line": 56,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 204,
+      "line": 203,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "domain_error_raise",
-      "line": 215,
+      "line": 214,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('tournament not found')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 216,
+      "line": 215,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('tournament not running')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "facade_import",
-      "line": 220,
+      "line": 219,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "domain_error_raise",
-      "line": 223,
+      "line": 222,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('tournament finished')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 227,
+      "line": 226,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('all hands played')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 229,
+      "line": 228,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('eliminated')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 233,
+      "line": 232,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('all hands played')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 241,
+      "line": 240,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error(f'bet must be a multiple of {step}')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 243,
+      "line": 242,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error(f'bet out of range: {min_bet}~{max_bet}')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 245,
+      "line": 244,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('insufficient chips')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 268,
+      "line": 267,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('hand in progress in cash game')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 270,
+      "line": 269,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error(f'hand in progress in tournament {blocking_tid}')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 271,
+      "line": 270,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('hand in progress')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 282,
+      "line": 281,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('deal too frequent')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 349,
+      "line": 348,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('hand not found')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 361,
+      "line": 360,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('tournament not found')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 363,
+      "line": 362,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('tournament not running')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "facade_import",
-      "line": 364,
+      "line": 363,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "domain_error_raise",
-      "line": 371,
+      "line": 370,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('tournament finished')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "facade_import",
-      "line": 381,
+      "line": 380,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "domain_error_raise",
-      "line": 386,
+      "line": 385,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('hand already finished')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 388,
+      "line": 387,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('not player turn')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 392,
+      "line": 391,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('hand already finished')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "facade_import",
-      "line": 426,
+      "line": 425,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "domain_error_raise",
-      "line": 431,
+      "line": 430,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('hand already finished')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 433,
+      "line": 432,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('not player turn')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 436,
+      "line": 435,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('hand already finished')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "facade_import",
-      "line": 453,
+      "line": 452,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "domain_error_raise",
-      "line": 458,
+      "line": 457,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('hand already finished')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 460,
+      "line": 459,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('not player turn')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 462,
+      "line": 461,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('already doubled')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 466,
+      "line": 465,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('cannot double after hit')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 474,
+      "line": 473,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('hand already finished')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 480,
+      "line": 479,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error(f'insufficient chips to double: need {bet}')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "facade_import",
-      "line": 510,
+      "line": 509,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "domain_error_raise",
-      "line": 515,
+      "line": 514,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('hand already finished')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 517,
+      "line": 516,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('not player turn')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 519,
+      "line": 518,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('surrender disabled')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 525,
+      "line": 524,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('cannot surrender now')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 531,
+      "line": 530,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('hand already finished')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "facade_import",
-      "line": 606,
+      "line": 605,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 671,
+      "line": 670,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 680,
+      "line": 679,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "domain_error_raise",
-      "line": 694,
+      "line": 693,
       "path": "src/app/domains/blackjack/repository/tournament_play.py",
       "symbol": "blackjack_error('tournament not found')",
       "target_role": "blackjack.errors"
@@ -1143,182 +1136,182 @@
     },
     {
       "kind": "facade_import",
-      "line": 16,
+      "line": 15,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "app.domains.identity.models",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 69,
+      "line": 68,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 127,
+      "line": 126,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "value_error_handler",
-      "line": 131,
+      "line": 130,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 132,
+      "line": 131,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error(str(exc))",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 174,
+      "line": 173,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error('blackjack disabled')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "facade_import",
-      "line": 177,
+      "line": 176,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "domain_error_raise",
-      "line": 180,
+      "line": 179,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error('register deadline must be in the future')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 223,
+      "line": 222,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error('tournament not found')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 225,
+      "line": 224,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error('tournament already started')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 229,
+      "line": 228,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error(f'max_entrants must not be below current entrants ({int(tournament.entrant_count)})')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 254,
+      "line": 253,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error('seeded_prize_credits must not decrease')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 263,
+      "line": 262,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error(f'cannot change {key} after entrants joined')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 269,
+      "line": 268,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error('blackjack disabled')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 298,
+      "line": 297,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error('blackjack disabled')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 310,
+      "line": 309,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error('tournament not found')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 312,
+      "line": 311,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error('tournament not open for registration')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "facade_import",
-      "line": 313,
+      "line": 312,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"
     },
     {
       "kind": "domain_error_raise",
-      "line": 316,
+      "line": 315,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error('registration closed')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 332,
+      "line": 331,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error('already registered')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 344,
+      "line": 343,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error('tournament full')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 356,
+      "line": 355,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error('user stats not found')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 359,
+      "line": 358,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error(f'insufficient credits: need {buy_in}')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 383,
+      "line": 381,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error('already registered')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 548,
+      "line": 546,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error('tournament not found')",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "domain_error_raise",
-      "line": 550,
+      "line": 548,
       "path": "src/app/domains/blackjack/repository/tournaments.py",
       "symbol": "blackjack_error('tournament already started')",
       "target_role": "blackjack.errors"
@@ -1402,210 +1395,224 @@
     },
     {
       "kind": "facade_import",
-      "line": 45,
+      "line": 43,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "app.domains.blackjack.jobs.cash",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 107,
+      "line": 101,
+      "path": "src/app/domains/blackjack/router/cash.py",
+      "symbol": "blackjack_service.get_current_credits",
+      "target_role": "blackjack.service"
+    },
+    {
+      "kind": "service_call",
+      "line": 103,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_blackjack_jackpot",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 125,
+      "line": 121,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.create_blackjack_hand",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 133,
+      "line": 129,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "_schedule_blackjack_timeout",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 139,
+      "line": 135,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "background_tasks.add_task",
       "target_role": "blackjack.service"
     },
     {
       "kind": "value_error_handler",
-      "line": 145,
+      "line": 141,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "service_call",
-      "line": 164,
+      "line": 160,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.blackjack_hit",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 168,
+      "line": 164,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "background_tasks.add_task",
       "target_role": "blackjack.service"
     },
     {
       "kind": "value_error_handler",
-      "line": 173,
+      "line": 169,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "service_call",
-      "line": 192,
+      "line": 188,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.blackjack_stand",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 195,
+      "line": 191,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "background_tasks.add_task",
       "target_role": "blackjack.service"
     },
     {
       "kind": "value_error_handler",
-      "line": 200,
+      "line": 196,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "service_call",
-      "line": 219,
+      "line": 215,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.blackjack_double",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 222,
+      "line": 218,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "background_tasks.add_task",
       "target_role": "blackjack.service"
     },
     {
       "kind": "value_error_handler",
-      "line": 227,
+      "line": 223,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "service_call",
-      "line": 246,
+      "line": 242,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.blackjack_surrender",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 249,
+      "line": 245,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "background_tasks.add_task",
       "target_role": "blackjack.service"
     },
     {
       "kind": "value_error_handler",
-      "line": 254,
+      "line": 250,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "service_call",
-      "line": 276,
+      "line": 272,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_current_blackjack_hand",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 285,
+      "line": 278,
+      "path": "src/app/domains/blackjack/router/cash.py",
+      "symbol": "blackjack_service.get_current_credits",
+      "target_role": "blackjack.service"
+    },
+    {
+      "kind": "service_call",
+      "line": 280,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_blackjack_jackpot",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 286,
+      "line": 281,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_blackjack_free_hands_remaining",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 303,
+      "line": 298,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_user_blackjack_stats",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 321,
+      "line": 316,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_blackjack_config_dict",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 335,
+      "line": 330,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_blackjack_jackpot",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 361,
+      "line": 356,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_blackjack_config_dict",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 396,
+      "line": 391,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.set_blackjack_config",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 401,
+      "line": 396,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_blackjack_config_dict",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 423,
+      "line": 418,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.seed_blackjack_jackpot",
       "target_role": "blackjack.service"
     },
     {
       "kind": "value_error_handler",
-      "line": 429,
+      "line": 424,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "service_call",
-      "line": 452,
+      "line": 447,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_blackjack_admin_stats",
       "target_role": "blackjack.service"
@@ -2053,91 +2060,91 @@
     },
     {
       "kind": "facade_import",
-      "line": 42,
+      "line": 44,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "app.domains.blackjack.config",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 355,
+      "line": 361,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "notify_tournament_started",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 358,
+      "line": 364,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_notify_enabled",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 362,
+      "line": 368,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_notify_enabled",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 370,
+      "line": 376,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_send_many",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 415,
+      "line": 421,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_notify_enabled",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 428,
+      "line": 434,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_send_many",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 492,
+      "line": 498,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_notify_enabled",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 503,
+      "line": 509,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_send_many",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 508,
+      "line": 514,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_broadcast_group",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 612,
+      "line": 618,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_notify_enabled",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 613,
+      "line": 619,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_broadcast_group",
       "target_role": "blackjack.service"
     },
     {
       "kind": "value_error_handler",
-      "line": 615,
+      "line": 621,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
@@ -2354,14 +2361,14 @@
     },
     {
       "kind": "service_call",
-      "line": 8,
+      "line": 25,
       "path": "src/app/domains/rankings/service.py",
       "symbol": "blackjack_service.get_blackjack_skill_ranks",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 12,
+      "line": 29,
       "path": "src/app/domains/rankings/service.py",
       "symbol": "blackjack_service.get_blackjack_max_win_rank",
       "target_role": "blackjack.service"
@@ -2431,5 +2438,5 @@
     }
   ],
   "schema_version": 1,
-  "total": 347
+  "total": 348
 }

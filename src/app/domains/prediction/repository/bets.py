@@ -6,7 +6,6 @@ from sqlalchemy import func, select
 
 from app.core.db import get_session
 from app.domains.credits import repository as credits_repository
-from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import Statistics
 from app.domains.prediction import exceptions as prediction_exceptions
@@ -67,10 +66,9 @@ class _PredictionRepositoryBets:
             if float(stats.credits) < float(amount):
                 raise prediction_exceptions.insufficient_credits()
 
-            mutation = credits_repository.deduct_tx(
+            credits_repository.deduct_tx(
                 session, CreditAccount.tg(int(tg_id)), float(amount)
             )
-            credits_service.register_cache_invalidation(session, mutation)
 
             bet = PredictionBet(
                 market_id=int(market.id),

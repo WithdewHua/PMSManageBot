@@ -20,8 +20,8 @@ from starlette.requests import Request
 
 from app.core.db import get_session
 from app.core.schemas import TelegramUser
-from app.databases import db
 from app.domains.auction import jobs as auction_jobs
+from app.domains.auction import repository as auction_repository
 from app.domains.auction import router as auc
 from app.domains.auction import service as auction_service
 from app.domains.auction.models import AuctionBids, Auctions
@@ -83,7 +83,7 @@ def _create_auction(**overrides) -> int:
         "created_by": 99,
     }
     payload.update(overrides)
-    auction_id = db.create_auction(**payload)
+    auction_id = auction_repository.create_auction(**payload)
     assert auction_id is not None
     return int(auction_id)
 
@@ -214,7 +214,7 @@ async def test_update_auction_admin_updates_fields_and_reschedules(
 
 async def test_delete_auction_admin_removes_row_and_job(orm, auction_env) -> None:
     auction_id = _create_auction()
-    db.place_bid(auction_id=auction_id, bidder_id=1, bid_amount=150.0)
+    auction_repository.place_bid(auction_id=auction_id, bidder_id=1, bid_amount=150.0)
 
     result = await auc.delete_auction_admin(
         auction_id=auction_id, request=_request(), current_user=ADMIN
@@ -253,7 +253,7 @@ async def test_place_bid_updates_price_and_records_bid(orm, auction_env) -> None
 async def test_place_bid_rejections(orm, auction_env) -> None:
     active = _create_auction()
     inactive = _create_auction()
-    db.finish_auction_by_id(inactive)
+    auction_repository.finish_auction_by_id(inactive)
     expired = _create_auction(end_time=PAST)
     own = _create_auction(created_by=1)
     add_user(orm, 1, credits=1000.0)
@@ -308,7 +308,7 @@ async def test_place_bid_rejections(orm, auction_env) -> None:
 async def test_finish_auction_admin_deducts_winner(orm, auction_env) -> None:
     auction_id = _create_auction()
     add_user(orm, 1, credits=1000.0)
-    db.place_bid(auction_id=auction_id, bidder_id=1, bid_amount=150.0)
+    auction_repository.place_bid(auction_id=auction_id, bidder_id=1, bid_amount=150.0)
     background_tasks = BackgroundTasks()
 
     result = await auc.finish_auction_admin(
@@ -352,13 +352,13 @@ def test_finish_auction_by_id_twice_deducts_winner_again(orm, auction_env) -> No
     """
     auction_id = _create_auction()
     add_user(orm, 1, credits=1000.0)
-    db.place_bid(auction_id=auction_id, bidder_id=1, bid_amount=150.0)
+    auction_repository.place_bid(auction_id=auction_id, bidder_id=1, bid_amount=150.0)
 
-    first, _ = db.finish_auction_by_id(auction_id)
+    first, _ = auction_repository.finish_auction_by_id(auction_id)
     assert first is True
     assert _credits(1) == 850.0
 
-    second, winner = db.finish_auction_by_id(auction_id)
+    second, winner = auction_repository.finish_auction_by_id(auction_id)
 
     assert second is True
     assert winner["winner_id"] == 1
@@ -367,7 +367,7 @@ def test_finish_auction_by_id_twice_deducts_winner_again(orm, auction_env) -> No
 
 async def test_finish_auction_admin_rejects_inactive_auction(orm, auction_env) -> None:
     auction_id = _create_auction()
-    db.finish_auction_by_id(auction_id)
+    auction_repository.finish_auction_by_id(auction_id)
 
     with pytest.raises(HTTPException) as excinfo:
         await auc.finish_auction_admin(
@@ -408,13 +408,13 @@ def test_finish_expired_auctions_group_by_returns_max_bidder_on_sqlite(
     auction_id = _create_auction()
     add_user(orm, 1, credits=1000.0)
     add_user(orm, 2, credits=1000.0)
-    db.place_bid(auction_id=auction_id, bidder_id=1, bid_amount=150.0)
-    db.place_bid(auction_id=auction_id, bidder_id=2, bid_amount=200.0)
+    auction_repository.place_bid(auction_id=auction_id, bidder_id=1, bid_amount=150.0)
+    auction_repository.place_bid(auction_id=auction_id, bidder_id=2, bid_amount=200.0)
     # `place_bid` 只接受未过期竞拍，先把出价写入再把结束时间改到过去
     with get_session() as session:
         session.get(Auctions, auction_id).end_time = PAST
 
-    finished = db.finish_expired_auctions()
+    finished = auction_repository.finish_expired_auctions()
 
     assert len(finished) == 1
     assert finished[0]["winner_id"] == 2

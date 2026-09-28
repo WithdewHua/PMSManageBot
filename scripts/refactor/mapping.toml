@@ -2241,14 +2241,6 @@ kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
 [[items]]
-id = "app.databases.db:DatabaseORM.award_or_renew_badge"
-target = "app.domains.blackjack.repository"
-class = "BlackjackRepository"
-kind = "method"
-reason = "db.py section: 赛内手牌：结算适配层与动作"
-
-planned_target = "app.domains.blackjack.repository"
-[[items]]
 id = "app.databases.db:DatabaseORM.blackjack_double"
 target = "app.domains.blackjack.repository"
 class = "BlackjackRepository"

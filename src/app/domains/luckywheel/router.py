@@ -1,4 +1,3 @@
-import re
 import time
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
@@ -25,7 +24,6 @@ from app.domains.luckywheel.schemas import (
     LuckyWheelSpinResult,
     LuckyWheelTenSpinResult,
 )
-from app.domains.premium.service import update_premium_status
 
 DEFAULT_WHEEL_CONFIG = luckywheel_service.DEFAULT_WHEEL_CONFIG
 FREE_SPIN_SOURCE_TO_WHEEL_SOURCE = luckywheel_constants.FREE_SPIN_SOURCE_TO_WHEEL_SOURCE
@@ -63,22 +61,6 @@ async def execute_single_spin(
         )
     finally:
         luckywheel_notifications.send_message_by_url = previous
-
-
-def _handle_premium_reward(tg_id: int, name: str) -> float:
-    """Legacy compatibility helper; new spins grant Premium in the repository."""
-    days_match = re.search(r"(\d+)", name)
-    if not days_match:
-        return 0.0
-    days = int(days_match.group(1))
-    for service_name in ("plex", "emby"):
-        try:
-            update_premium_status(int(tg_id), service_name, days)
-        except NameError:
-            continue
-        except Exception as error:
-            logger.error(f"更新 Premium 状态失败: {error}")
-    return 0.0
 
 
 @router.get("/config", response_model=LuckyWheelConfig)
