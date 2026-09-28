@@ -54,13 +54,9 @@ def test_gift_pack_concurrency_against_postgresql() -> None:
     assert lines, f"没有输出结果\n{completed.stdout}\n{completed.stderr}"
     payload = json.loads(lines[-1])
 
-    if payload.get("s3", {}).get("deadlock"):
-        pytest.xfail(
-            "礼包领取与线路调度解锁的加锁顺序相反（ABBA），已在当前代码复现死锁；"
-            "由 5.1 固定加锁顺序后修复"
-        )
-
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert payload["ok"] is True
     assert payload["s1"]["winners"] == 1
     assert payload["s2"]["successes"] == 1
+    # 固定加锁顺序后，礼包领取与线路解锁交叉进行不再死锁
+    assert payload["s3"]["deadlock"] is False

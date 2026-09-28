@@ -98,7 +98,10 @@
   - 唯一行为差异已固定：被引用的礼包无论引用者标题里有没有“不存在”，删除都返回 400；`tests/test_gift_pack_audience.py` 的用例改名并断言行新语义。
   - 工具：`verify.py` 抽出 `_reviewed_exception_entry`，让“登记过的变更”既能解释 AST 差异、也能解释少掉的导入绑定（礼包 router 不再需要 `json`），并补了负向单测。
   - 验证：新增 `tests/test_gift_pack_errors.py`（22 条旧文案 → 错误码/状态码/detail 逐条、进度结构、ValueError 兼容、外域包装、repository 无裸 ValueError、router 无子串判断、删除/编辑/开始后编辑三个状态码用例）；全量 554 passed / 4 skipped；`verify.py` 与改动前同为 154 条既有差异。
-- [ ] 5.1 把礼包 repository 改成模块级函数。领取事务按 design D4 实现：固定加锁顺序、三步式求值、按 JSON 顺序发放、特权码持久化放在最后；其余操作在各自的事务里完成，`*_tx` 不吞异常。验证：
+- [ ] 5.1 把礼包 repository 改成模块级函数。领取事务按 design D4 实现：固定加锁顺序、三步式求值、按 JSON 顺序发放、特权码持久化放在最后；其余操作在各自的事务里完成，`*_tx` 不吞异常。
+  - [x] 5.1a 固定加锁顺序：`lines.repository.lock_media_account_tx`（只锁不写）与礼包侧的 `_prelock_gift_pack_reward_rows_tx`，在发放前按 statistics → plex_user → emby_user 预锁本次要写的行；三步式求值在 4.1a 已落地（`required_metrics` 规划 + `evaluate` 纯计算）。
+    - 验证：一次性 PostgreSQL 16 上的 `tests/refactor/test_gift_pack_concurrency.py` 全绿——`s3` 不再死锁（`deadlock is False`），xfail 已删除；不超发、同用户重复领取、余额扣减断言不变；`tests/test_gift_pack_*` 121 例与冻结 HTTP 夹具通过。
+  - [ ] 5.1b 其余部分：repository 改成模块级函数、`*_tx` 不吞异常、特权码持久化放最后。
   - 每类奖励在发放中途失败时，余额、领取状态、邀请码和解锁全部回滚。
   - 现有的查询次数断言保持通过。
   - 1.4 的交叉加锁用例取消 xfail 后通过。

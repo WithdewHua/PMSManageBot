@@ -819,6 +819,14 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.repository.rewards",
+        "module_target": "app.domains.identity",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.identity.repository"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.rewards",
         "module_target": "app.domains.invitation",
         "resolved": true,
         "scope": "module",
@@ -2335,6 +2343,7 @@
     "_lock_gift_pack_audience",
     "_lock_gift_pack_stats",
     "_persist_privileged_invite_codes",
+    "_prelock_gift_pack_reward_rows_tx",
     "_validate_gift_pack_references",
     "claim_gift_pack",
     "claim_gift_pack_start_dm_candidates",

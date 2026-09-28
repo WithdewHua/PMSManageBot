@@ -8,14 +8,40 @@ from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.gift_pack import rules
 from app.domains.gift_pack.exceptions import gift_pack_error
+from app.domains.identity import repository as identity_repository
 from app.domains.invitation import repository as invitation_repository
 from app.domains.lines import repository as lines_repository
 from app.domains.luckywheel import repository as luckywheel_repository
 from app.domains.media_access import repository as media_access_repository
 from app.domains.premium import repository as premium_repository
 
+#: 会写 statistics 行的奖励；: 会写媒体账号行的奖励。
+_STATS_REWARD_TYPES = frozenset({"credits", "tournament_wallet"})
+_MEDIA_REWARD_TYPES = frozenset(
+    {"premium_days", "line_schedule_unlock", "download_unlock"}
+)
+
 
 class _GiftPackRepositoryRewards:
+    @staticmethod
+    def _prelock_gift_pack_reward_rows_tx(
+        session, tg_id: int, rewards: list[dict]
+    ) -> None:
+        """按固定顺序预锁本次发放要写的行：statistics → plex_user → emby_user
+
+        奖励的配置顺序会决定各写入方首次加锁的顺序，而 lines 解锁是
+        statistics → plex_user。这里先把所有目标行按同一顺序锁住，
+        后续写入方的 FOR UPDATE 不会再获取新锁，因此奖励顺序不会造成 ABBA 死锁。
+        """
+        types = {reward.get("type") for reward in rewards}
+        if types & _STATS_REWARD_TYPES:
+            identity_repository.ensure_statistics_tx(session, int(tg_id))
+        if types & _MEDIA_REWARD_TYPES:
+            for service in ("plex", "emby"):
+                lines_repository.lock_media_account_tx(
+                    session, int(tg_id), service=service
+                )
+
     def _grant_gift_pack_rewards(
         self, session, tg_id: int, rewards: list[dict], context: dict
     ) -> tuple[list[dict], list[str], list[str], list[str]]:

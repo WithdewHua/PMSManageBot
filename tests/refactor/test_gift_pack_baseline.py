@@ -63,13 +63,15 @@ def test_gift_pack_baseline_covers_routes_jobs_and_tables() -> None:
     assert {"gift_pack", "gift_pack_user_state"} <= tables
     # 55 -> 54：3.4 把解锁列常量按列归属搬去 lines / media_access；
     # 54 -> 38：4.1 把 17 个纯计算搬去 rules，repository 新增 _gift_pack_metrics。
-    assert len(snapshot["repository_members"]) == 38
+    assert len(snapshot["repository_members"]) == 39
 
 
 #: 拆分之后新增的 repository 成员（没有对应的冻结来源，需要在这里点名）。
 ADDED_AFTER_SPLIT = {
     # promote-gift-pack-domain 4.1：按 rules.required_metrics 预取条件计数
     "_gift_pack_metrics",
+    # promote-gift-pack-domain 5.1：固定加锁顺序的预锁
+    "_prelock_gift_pack_reward_rows_tx",
 }
 
 

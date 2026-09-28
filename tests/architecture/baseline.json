@@ -929,20 +929,20 @@
       "target": "add_redeem_code"
     },
     {
-      "key": "call|src/app/domains/gift_pack/repository/claims.py|234|imported|premium|apply_download_unlock_to_media",
+      "key": "call|src/app/domains/gift_pack/repository/claims.py|236|imported|premium|apply_download_unlock_to_media",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/claims.py",
-      "line": 234,
+      "line": 236,
       "kind": "call",
       "source_domain": "gift_pack",
       "target_domain": "premium",
       "target": "apply_download_unlock_to_media"
     },
     {
-      "key": "call|src/app/domains/gift_pack/repository/claims.py|255|imported|premium|sync_premium_media_access",
+      "key": "call|src/app/domains/gift_pack/repository/claims.py|257|imported|premium|sync_premium_media_access",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/claims.py",
-      "line": 255,
+      "line": 257,
       "kind": "call",
       "source_domain": "gift_pack",
       "target_domain": "premium",
@@ -950,10 +950,10 @@
       "b3_source_id": "app.domains.gift_pack.repository.part_2:_GiftPackRepositoryPart2.claim_gift_pack"
     },
     {
-      "key": "call|src/app/domains/gift_pack/repository/rewards.py|49|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/gift_pack/repository/rewards.py|75|imported|credits|register_cache_invalidation",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/rewards.py",
-      "line": 49,
+      "line": 75,
       "kind": "call",
       "source_domain": "gift_pack",
       "target_domain": "credits",
@@ -3524,10 +3524,10 @@
       "symbol": "check_and_award_supreme_contributor_badge"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/claims.py|232|app.domains.premium.service|apply_download_unlock_to_media",
+      "key": "import|src/app/domains/gift_pack/repository/claims.py|234|app.domains.premium.service|apply_download_unlock_to_media",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/claims.py",
-      "line": 232,
+      "line": 234,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "premium",
@@ -3535,10 +3535,10 @@
       "symbol": "apply_download_unlock_to_media"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/claims.py|253|app.domains.premium.service|service",
+      "key": "import|src/app/domains/gift_pack/repository/claims.py|255|app.domains.premium.service|service",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/claims.py",
-      "line": 253,
+      "line": 255,
       "kind": "import",
       "source_domain": "gift_pack",
       "target_domain": "premium",

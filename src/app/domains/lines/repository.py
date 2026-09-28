@@ -821,6 +821,24 @@ _LINE_SCHEDULE_UNLOCK_COLUMNS = {
 }
 
 
+def lock_media_account_tx(session, tg_id: int, /, *, service: str) -> bool:
+    """按固定顺序预锁已绑定的媒体账号行，返回是否锁到了行。
+
+    预锁本身不写任何列：调用方（礼包领取）先按 statistics → plex → emby 的
+    顺序把所有要写的行锁住，再按奖励配置顺序发放，各写入方的 FOR UPDATE
+    只是同一把锁，因此奖励顺序不会改变加锁顺序。
+    """
+    if service not in _LINE_SCHEDULE_UNLOCK_COLUMNS:
+        raise ValueError(f"不支持的媒体账号: {service}")
+    model, _, _ = _LINE_SCHEDULE_UNLOCK_COLUMNS[service]
+    return (
+        session.execute(
+            select(model).where(model.tg_id == int(tg_id)).with_for_update()
+        ).scalar_one_or_none()
+        is not None
+    )
+
+
 def unlock_line_schedule_tx(session, tg_id: int, service: str) -> dict:
     """在调用方事务内永久解锁线路调度，返回“已解锁”或“已跳过”。
 

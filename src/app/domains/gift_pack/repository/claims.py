@@ -190,6 +190,8 @@ class _GiftPackRepositoryClaims:
                 raise ConditionsNotMet(progress)
 
             rewards = json.loads(pack.rewards)
+            # 固定加锁顺序：先 statistics，再 plex_user / emby_user
+            self._prelock_gift_pack_reward_rows_tx(session, tg_id, rewards)
             (
                 snapshot,
                 pending_permission_sync,
