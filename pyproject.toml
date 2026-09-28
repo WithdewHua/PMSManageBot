@@ -374,7 +374,6 @@ ignore_imports = [
 
     "app.domains.donation.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
 
-    "app.domains.gift_pack.router -> app.databases.db", # promote-gift-pack-domain (B2 inherited)
 
     "app.domains.invitation.admin_router -> app.databases.db", # promote-account-domains (B2 inherited)
 
@@ -475,7 +474,6 @@ ignore_imports = [
     "app.domains.blackjack.router.tournament -> app.domains.blackjack.jobs.tournament", # promote-blackjack-domain (B2 inherited)
     "app.domains.treasure.router -> app.domains.treasure.jobs", # promote-activity-domains (B2 inherited)
     "app.domains.auction.notifications -> app.databases.db", # promote-activity-domains (B2 inherited)
-    "app.domains.gift_pack.notifications -> app.databases.db", # promote-gift-pack-domain (B2 inherited)
     "app.domains.lines.router -> app.domains.lines.jobs", # B3 mechanical relocation; audit in 5.6
 ]
 unmatched_ignore_imports_alerting = "error"
@@ -560,7 +558,6 @@ ignore_imports = [
     "app.domains.donation.router -> app.core.db", # promote-remaining-domains (B2 inherited)
     "app.domains.donation.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
     "app.domains.donation.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
-    "app.domains.gift_pack.router -> app.databases.db", # promote-gift-pack-domain (B2 inherited)
     "app.domains.invitation.admin_router -> app.databases.db", # promote-account-domains (B2 inherited)
     "app.domains.invitation.bot -> app.databases.db", # promote-account-domains (B2 inherited)
     "app.domains.invitation.router -> app.databases.db", # promote-account-domains (B2 inherited)
@@ -600,8 +597,6 @@ ignore_imports = [
     "app.domains.vaultwarden.router -> app.domains.vaultwarden.models", # promote-remaining-domains (B2 inherited)
     "app.domains.auction.jobs -> app.databases.db", # promote-activity-domains (B2 inherited)
     "app.domains.auction.notifications -> app.databases.db", # promote-activity-domains (B2 inherited)
-    "app.domains.gift_pack.jobs -> app.databases.db", # promote-gift-pack-domain (B2 inherited)
-    "app.domains.gift_pack.notifications -> app.databases.db", # promote-gift-pack-domain (B2 inherited)
     "app.domains.treasure.jobs -> app.databases.db", # promote-activity-domains (B2 inherited)
     "app.domains.accounts.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.credits.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6

@@ -929,27 +929,6 @@
       "target": "add_redeem_code"
     },
     {
-      "key": "call|src/app/domains/gift_pack/repository/claims.py|236|imported|premium|apply_download_unlock_to_media",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/claims.py",
-      "line": 236,
-      "kind": "call",
-      "source_domain": "gift_pack",
-      "target_domain": "premium",
-      "target": "apply_download_unlock_to_media"
-    },
-    {
-      "key": "call|src/app/domains/gift_pack/repository/claims.py|257|imported|premium|sync_premium_media_access",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/claims.py",
-      "line": 257,
-      "kind": "call",
-      "source_domain": "gift_pack",
-      "target_domain": "premium",
-      "target": "sync_premium_media_access",
-      "b3_source_id": "app.domains.gift_pack.repository.part_2:_GiftPackRepositoryPart2.claim_gift_pack"
-    },
-    {
       "key": "call|src/app/domains/gift_pack/repository/rewards.py|75|imported|credits|register_cache_invalidation",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/rewards.py",
@@ -3524,29 +3503,6 @@
       "symbol": "check_and_award_supreme_contributor_badge"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/claims.py|234|app.domains.premium.service|apply_download_unlock_to_media",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/claims.py",
-      "line": 234,
-      "kind": "import",
-      "source_domain": "gift_pack",
-      "target_domain": "premium",
-      "target_module": "app.domains.premium.service",
-      "symbol": "apply_download_unlock_to_media"
-    },
-    {
-      "key": "import|src/app/domains/gift_pack/repository/claims.py|255|app.domains.premium.service|service",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/claims.py",
-      "line": 255,
-      "kind": "import",
-      "source_domain": "gift_pack",
-      "target_domain": "premium",
-      "target_module": "app.domains.premium.service",
-      "symbol": "service",
-      "b3_source_id": "app.domains.gift_pack.repository.part_2:_GiftPackRepositoryPart2.claim_gift_pack"
-    },
-    {
       "key": "import|src/app/domains/gift_pack/repository/rewards.py|7|app.domains.credits.service|service",
       "owner": "promote-gift-pack-domain",
       "path": "src/app/domains/gift_pack/repository/rewards.py",
@@ -4442,11 +4398,11 @@
     "SQLAlchemy direct use scope": 17,
     "Database engine import scope": 19,
     "Domain model import scope": 20,
-    "Six-tier domain dependencies": 59,
+    "Six-tier domain dependencies": 58,
     "Acyclic domain siblings": 18,
-    "Domain internal layering": 7,
+    "Domain internal layering": 6,
     "Domain types are pure value modules": 0,
     "Domain rules are pure value computations": 0,
-    "Domain entry points do not touch data layer": 76
+    "Domain entry points do not touch data layer": 73
   }
 }

@@ -225,42 +225,7 @@ class _GiftPackRepositoryClaims:
             remaining = rules._gift_pack_remaining(pack)
             pack_title = pack.title
 
-        # 事务已提交：把下载权限解锁同步到媒体服务器。失败不回滚领取——数据库
-        # 已记为解锁、是权威状态；在响应条目中说明，并由调用方通知管理员人工处理。
-        # 已持久化的发放快照记录的是数据库状态，不受这里的说明影响
-        download_sync_failed: list[dict] = []
-        for service in pending_download_sync:
-            try:
-                from app.domains.premium.service import apply_download_unlock_to_media
-
-                apply_download_unlock_to_media(tg_id, service)
-            except Exception as e:
-                logger.error(
-                    f"礼包下载权限解锁同步 {service} 失败 (pack_id={pack_id}, tg_id={tg_id}): {e}"
-                )
-                download_sync_failed.append({"service": service, "error": str(e)})
-                for item in snapshot:
-                    if (
-                        item.get("type") == "download_unlock"
-                        and item.get("service") == service
-                    ):
-                        item["message"] = (
-                            f"{service.capitalize()} 已解锁下载权限，但同步到媒体服务器"
-                            "未完成，管理员将尽快人工处理"
-                        )
-
-        # 事务已提交：同步媒体服务器权限（best-effort，失败只告警不影响领取结果）
-        for service in pending_permission_sync:
-            try:
-                from app.domains.premium import service as premium_service
-
-                premium_service.sync_premium_media_access(tg_id, (service,))
-            except Exception as e:
-                logger.warning(
-                    f"礼包领取后同步 {service} 权限失败 (pack_id={pack_id}, tg_id={tg_id}): {e}"
-                )
-
-        return {
+        result = {
             "success": True,
             "pack_id": int(pack_id),
             "title": pack_title,
@@ -270,8 +235,10 @@ class _GiftPackRepositoryClaims:
             "total_quantity": total_quantity,
             "sold_out": total_quantity is not None
             and claimed_count >= int(total_quantity),
-            "download_sync_failed": download_sync_failed,
+            "download_sync_failed": [],
         }
+        # 媒体权限同步属于提交后的副作用，由 service 执行（design D7）
+        return result, pending_permission_sync, pending_download_sync
 
     def prompt_check_gift_packs(self, tg_id: int) -> dict:
         """POST reminder check: lock audience, then throttle each reminder class separately."""

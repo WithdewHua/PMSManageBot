@@ -16,6 +16,8 @@ import pytest
 from sqlalchemy import event, select
 
 from app.core.db import get_session
+from app.domains.gift_pack import repository as gift_pack_repository
+from app.domains.gift_pack import service as gift_pack_service
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 from app.domains.identity.models import Statistics
 from app.domains.luckywheel.models import WheelStats
@@ -149,6 +151,19 @@ def _pack_item(items: list[dict], pack_id: int) -> dict:
 # Audience visibility and locking (OpenSpec 3.6, 4.1)
 
 
+GIFT_PACK_CLOCK_MODULES = tuple(
+    importlib.import_module(f"app.domains.gift_pack.repository.{topic}")
+    for topic in ("conditions", "rewards", "packs", "claims", "notices")
+)
+
+
+def _advance_gift_pack_clock(monkeypatch, now: int) -> None:
+    """只拨礼包子主题模块的时钟，不动全局 time 模块。"""
+    for module in GIFT_PACK_CLOCK_MODULES:
+        if hasattr(module, "time"):
+            monkeypatch.setattr(module, "time", SimpleNamespace(time=lambda: now))
+
+
 def test_include_and_exclude_audiences_are_live_and_claimed_packs_remain_visible(orm):
     now = int(time.time())
     add_user(orm, 1)
@@ -169,21 +184,27 @@ def test_include_and_exclude_audiences_are_live_and_claimed_packs_remain_visible
         )
     )
 
-    assert {item["id"] for item in orm.get_gift_packs_for_user(1)} == {
+    assert {item["id"] for item in gift_pack_repository.get_gift_packs_for_user(1)} == {
         include_id,
         exclude_id,
     }
-    assert [item["id"] for item in orm.get_gift_packs_for_user(2)] == [include_id]
-    assert [item["id"] for item in orm.get_gift_packs_for_user(3)] == [exclude_id]
+    assert [item["id"] for item in gift_pack_repository.get_gift_packs_for_user(2)] == [
+        include_id
+    ]
+    assert [item["id"] for item in gift_pack_repository.get_gift_packs_for_user(3)] == [
+        exclude_id
+    ]
 
     # A claimed item remains visible even when a live include list is edited.
-    orm.claim_gift_pack(include_id, 1)
+    gift_pack_service.claim_gift_pack(include_id, 1)
     _set_pack_json(
         include_id,
         "audience",
         [{"type": "user_list", "mode": "include", "tg_ids": [2]}],
     )
-    assert include_id in {item["id"] for item in orm.get_gift_packs_for_user(1)}
+    assert include_id in {
+        item["id"] for item in gift_pack_repository.get_gift_packs_for_user(1)
+    }
 
 
 def test_non_list_audience_is_locked_by_prompt_and_survives_state_change(orm):
@@ -200,7 +221,7 @@ def test_non_list_audience_is_locked_by_prompt_and_survives_state_change(orm):
         )
     )
 
-    response = orm.prompt_check_gift_packs(1)
+    response = gift_pack_repository.prompt_check_gift_packs(1)
     assert response["packs"] == []
     assert [item["id"] for item in response["task_packs"]] == [pack_id]
     locked = _state(pack_id, 1)
@@ -209,9 +230,9 @@ def test_non_list_audience_is_locked_by_prompt_and_survives_state_change(orm):
 
     _set_credits(1, 140)
     _add_wheel_spin(1, now)
-    item = _pack_item(orm.get_gift_packs_for_user(1), pack_id)
+    item = _pack_item(gift_pack_repository.get_gift_packs_for_user(1), pack_id)
     assert item["status"] == "claimable"
-    assert orm.claim_gift_pack(pack_id, 1)["success"] is True
+    assert gift_pack_service.claim_gift_pack(pack_id, 1)["success"] is True
 
 
 def test_list_membership_is_never_locked_even_after_non_list_audience_lock(orm):
@@ -228,7 +249,7 @@ def test_list_membership_is_never_locked_even_after_non_list_audience_lock(orm):
         )
     )
 
-    response = orm.prompt_check_gift_packs(1)
+    response = gift_pack_repository.prompt_check_gift_packs(1)
     assert [item["id"] for item in response["packs"]] == [pack_id]
     assert _state(pack_id, 1).audience_locked_at is not None
 
@@ -240,7 +261,9 @@ def test_list_membership_is_never_locked_even_after_non_list_audience_lock(orm):
             {"type": "credits", "max": 50},
         ],
     )
-    assert pack_id not in {item["id"] for item in orm.get_gift_packs_for_user(1)}
+    assert pack_id not in {
+        item["id"] for item in gift_pack_repository.get_gift_packs_for_user(1)
+    }
 
 
 def test_upcoming_audience_is_not_locked_and_is_rechecked_when_pack_starts(
@@ -256,18 +279,15 @@ def test_upcoming_audience_is_not_locked_and_is_rechecked_when_pack_starts(
         )
     )
 
-    item = _pack_item(orm.get_gift_packs_for_user(1), pack_id)
+    item = _pack_item(gift_pack_repository.get_gift_packs_for_user(1), pack_id)
     assert item["status"] == "upcoming"
     assert _state(pack_id, 1) is None
 
     _set_credits(1, 100)
-    gift_pack_module = importlib.import_module(orm.get_gift_packs_for_user.__module__)
-    monkeypatch.setattr(
-        gift_pack_module,
-        "time",
-        SimpleNamespace(time=lambda: now + 101),
-    )
-    assert pack_id not in {item["id"] for item in orm.get_gift_packs_for_user(1)}
+    _advance_gift_pack_clock(monkeypatch, now + 101)
+    assert pack_id not in {
+        item["id"] for item in gift_pack_repository.get_gift_packs_for_user(1)
+    }
     assert _state(pack_id, 1) is None
 
 
@@ -294,7 +314,7 @@ def test_list_returns_structured_progress_and_freezes_count_at_task_deadline(orm
     for timestamp in (now - 50, now - 40, now - 30):
         _add_wheel_spin(1, timestamp)
 
-    item = _pack_item(orm.get_gift_packs_for_user(1), pack_id)
+    item = _pack_item(gift_pack_repository.get_gift_packs_for_user(1), pack_id)
     assert item["status"] == "in_progress"
     assert item["task_closed"] is True
     assert item["requirements"][0]["current"] == 2
@@ -314,13 +334,13 @@ def test_prompt_separates_task_and_claim_counts_and_throttles_each_class(orm):
         )
     )
 
-    first = orm.prompt_check_gift_packs(1)
+    first = gift_pack_repository.prompt_check_gift_packs(1)
     assert first["packs"] == []
     assert [item["id"] for item in first["task_packs"]] == [pack_id]
     assert _state(pack_id, 1).task_prompt_count == 1
 
     # Same-day task reminders are throttled, not duplicated.
-    second = orm.prompt_check_gift_packs(1)
+    second = gift_pack_repository.prompt_check_gift_packs(1)
     assert second == {"packs": [], "task_packs": []}
 
     with get_session() as session:
@@ -331,13 +351,13 @@ def test_prompt_separates_task_and_claim_counts_and_throttles_each_class(orm):
             )
         ).scalar_one()
         state.last_task_prompted_at = now - 86400
-    third = orm.prompt_check_gift_packs(1)
+    third = gift_pack_repository.prompt_check_gift_packs(1)
     assert [item["id"] for item in third["task_packs"]] == [pack_id]
     assert _state(pack_id, 1).task_prompt_count == 2
 
     # Reaching the task cap does not prevent a later claim reminder.
     _set_credits(1, 50)
-    fourth = orm.prompt_check_gift_packs(1)
+    fourth = gift_pack_repository.prompt_check_gift_packs(1)
     assert [item["id"] for item in fourth["packs"]] == [pack_id]
     assert fourth["task_packs"] == []
     assert _state(pack_id, 1).prompt_count == 1
@@ -363,7 +383,7 @@ def test_task_prompt_limit_zero_and_claim_only_phase_suppress_task_prompt(orm):
         )
     )
 
-    response = orm.prompt_check_gift_packs(1)
+    response = gift_pack_repository.prompt_check_gift_packs(1)
     assert response["packs"] == []
     assert response["task_packs"] == []
     # Locking is independent of sending a reminder, including in claim-only.
@@ -385,11 +405,11 @@ def test_same_day_task_prompt_does_not_block_claim_prompt_after_user_qualifies(o
             requirements=[{"type": "credits", "min": 50}],
         )
     )
-    first = orm.prompt_check_gift_packs(1)
+    first = gift_pack_repository.prompt_check_gift_packs(1)
     assert [item["id"] for item in first["task_packs"]] == [pack_id]
 
     _set_credits(1, 50)
-    second = orm.prompt_check_gift_packs(1)
+    second = gift_pack_repository.prompt_check_gift_packs(1)
     assert [item["id"] for item in second["packs"]] == [pack_id]
     assert _state(pack_id, 1).prompt_count == 1
 
@@ -413,9 +433,9 @@ def test_claim_rechecks_frozen_requirement_and_hides_pack_from_outside_audience(
     _add_wheel_spin(1, now - 50)
 
     with pytest.raises(ValueError, match="礼包不存在"):
-        orm.claim_gift_pack(pack_id, 2)
+        gift_pack_service.claim_gift_pack(pack_id, 2)
     with pytest.raises(ValueError):
-        orm.claim_gift_pack(pack_id, 1)
+        gift_pack_service.claim_gift_pack(pack_id, 1)
 
     with get_session() as session:
         pack = session.get(GiftPack, pack_id)
@@ -455,11 +475,13 @@ def test_started_pack_rejects_start_reward_and_requirement_structure_changes(orm
     now = int(time.time())
 
     with pytest.raises(ValueError, match="start_at|开始时间"):
-        orm.update_gift_pack(pack_id, start_at=now + 100)
+        gift_pack_repository.update_gift_pack(pack_id, start_at=now + 100)
     with pytest.raises(ValueError, match="奖励"):
-        orm.update_gift_pack(pack_id, rewards=[{"type": "credits", "amount": 99}])
+        gift_pack_repository.update_gift_pack(
+            pack_id, rewards=[{"type": "credits", "amount": 99}]
+        )
     with pytest.raises(ValueError, match="requirements|领取条件"):
-        orm.update_gift_pack(
+        gift_pack_repository.update_gift_pack(
             pack_id,
             requirements=[{"type": "blackjack_hands", "min": 50}],
         )
@@ -472,14 +494,14 @@ def test_started_pack_allows_lower_targets_but_rejects_higher_targets(orm):
     )
 
     assert (
-        orm.update_gift_pack(
+        gift_pack_repository.update_gift_pack(
             pack_id,
             requirements=[{"type": "wheel_spins", "min": 40}],
         )
         is True
     )
     with pytest.raises(ValueError, match="requirements|领取条件|目标"):
-        orm.update_gift_pack(
+        gift_pack_repository.update_gift_pack(
             pack_id,
             requirements=[{"type": "wheel_spins", "min": 60}],
         )
@@ -494,9 +516,12 @@ def test_started_pack_allows_end_extension_and_list_membership_changes_only(orm)
         ],
     )
 
-    assert orm.update_gift_pack(pack_id, end_at=int(time.time()) + 2000) is True
     assert (
-        orm.update_gift_pack(
+        gift_pack_repository.update_gift_pack(pack_id, end_at=int(time.time()) + 2000)
+        is True
+    )
+    assert (
+        gift_pack_repository.update_gift_pack(
             pack_id,
             audience=[
                 {"type": "user_list", "mode": "include", "tg_ids": [1, 2]},
@@ -506,7 +531,7 @@ def test_started_pack_allows_end_extension_and_list_membership_changes_only(orm)
         is True
     )
     with pytest.raises(ValueError, match="audience|受众"):
-        orm.update_gift_pack(
+        gift_pack_repository.update_gift_pack(
             pack_id,
             audience=[
                 {"type": "user_list", "mode": "include", "tg_ids": [1, 2]},
@@ -522,7 +547,9 @@ def test_started_pack_cannot_introduce_a_task_deadline(orm):
     )
 
     with pytest.raises(ValueError, match="task_end_at|任务截止"):
-        orm.update_gift_pack(pack_id, task_end_at=int(time.time()) + 100)
+        gift_pack_repository.update_gift_pack(
+            pack_id, task_end_at=int(time.time()) + 100
+        )
 
 
 def test_started_pack_can_extend_or_clear_existing_task_deadline(orm):
@@ -533,8 +560,8 @@ def test_started_pack_can_extend_or_clear_existing_task_deadline(orm):
         task_end_at=now + 100,
     )
 
-    assert orm.update_gift_pack(pack_id, task_end_at=now + 200) is True
-    assert orm.update_gift_pack(pack_id, task_end_at=None) is True
+    assert gift_pack_repository.update_gift_pack(pack_id, task_end_at=now + 200) is True
+    assert gift_pack_repository.update_gift_pack(pack_id, task_end_at=None) is True
 
 
 # ---------------------------------------------------------------------------
@@ -556,14 +583,14 @@ def test_start_dm_candidate_scan_marks_once_excludes_claimed_and_finds_new_membe
             notify_audience_on_start=1,
         )
     )
-    orm.claim_gift_pack(pack_id, 2)
+    gift_pack_service.claim_gift_pack(pack_id, 2)
 
-    first = orm.claim_gift_pack_start_dm_candidates(limit=200)
+    first = gift_pack_repository.claim_gift_pack_start_dm_candidates(limit=200)
     assert {item["tg_id"] for item in first} == {1, 3}
     assert all(item["pack_id"] == pack_id for item in first)
     assert all("requirements_summary" in item for item in first)
 
-    assert orm.claim_gift_pack_start_dm_candidates(limit=200) == []
+    assert gift_pack_repository.claim_gift_pack_start_dm_candidates(limit=200) == []
     _set_pack_json(
         pack_id,
         "audience",
@@ -572,7 +599,7 @@ def test_start_dm_candidate_scan_marks_once_excludes_claimed_and_finds_new_membe
             {"type": "credits", "max": 50},
         ],
     )
-    third = orm.claim_gift_pack_start_dm_candidates(limit=200)
+    third = gift_pack_repository.claim_gift_pack_start_dm_candidates(limit=200)
     assert {item["tg_id"] for item in third} == {4}
 
     with get_session() as session:
@@ -616,7 +643,7 @@ def test_start_dm_router_requests_200_at_a_time_with_content_and_spacing(monkeyp
         return candidates
 
     monkeypatch.setattr(
-        router.db,
+        gift_pack_repository,
         "claim_gift_pack_start_dm_candidates",
         claim_candidates,
         raising=False,
@@ -654,7 +681,10 @@ def test_get_list_never_writes_audience_lock_even_when_user_is_eligible(orm):
         )
     )
 
-    assert _pack_item(orm.get_gift_packs_for_user(1), pack_id)["status"] == "claimable"
+    assert (
+        _pack_item(gift_pack_repository.get_gift_packs_for_user(1), pack_id)["status"]
+        == "claimable"
+    )
     assert _state(pack_id, 1) is None
 
 
@@ -673,17 +703,16 @@ def test_claim_rechecks_sliding_window_instead_of_trusting_previous_list(
         )
     )
     _add_wheel_spin(1, now - 7 * 86400 + 3)
-    assert _pack_item(orm.get_gift_packs_for_user(1), pack_id)["status"] == "claimable"
+    assert (
+        _pack_item(gift_pack_repository.get_gift_packs_for_user(1), pack_id)["status"]
+        == "claimable"
+    )
 
-    # Advance only gift-pack method modules' clocks; never patch the global
-    # time module used by SQLite, logging, pytest and the rest of the app.
-    claim_module = importlib.import_module(orm.claim_gift_pack.__module__)
-    list_module = importlib.import_module(orm.get_gift_packs_for_user.__module__)
-    for module in {claim_module, list_module}:
-        monkeypatch.setattr(module, "time", SimpleNamespace(time=lambda: now + 5))
+    # 只拨礼包子主题模块的时钟；不动全局 time 模块（SQLite、日志、pytest 都在用）
+    _advance_gift_pack_clock(monkeypatch, now + 5)
     with pytest.raises(ValueError):
-        orm.claim_gift_pack(pack_id, 1)
-    item = _pack_item(orm.get_gift_packs_for_user(1), pack_id)
+        gift_pack_service.claim_gift_pack(pack_id, 1)
+    item = _pack_item(gift_pack_repository.get_gift_packs_for_user(1), pack_id)
     assert item["status"] == "in_progress"
     assert item["requirements"][0]["current"] == 0
     with get_session() as session:
@@ -694,12 +723,12 @@ def test_started_pack_quantity_can_only_expand(orm):
     now = int(time.time())
     add_user(orm, 1)
     pack_id = _add_pack(_pack(start_at=now - 10, end_at=now + 1000, total_quantity=2))
-    assert orm.update_gift_pack(pack_id, total_quantity=3) is True
+    assert gift_pack_repository.update_gift_pack(pack_id, total_quantity=3) is True
     with pytest.raises(ValueError, match="份数|total_quantity"):
-        orm.update_gift_pack(pack_id, total_quantity=2)
-    assert orm.update_gift_pack(pack_id, total_quantity=None) is True
+        gift_pack_repository.update_gift_pack(pack_id, total_quantity=2)
+    assert gift_pack_repository.update_gift_pack(pack_id, total_quantity=None) is True
     with pytest.raises(ValueError, match="份数|total_quantity"):
-        orm.update_gift_pack(pack_id, total_quantity=4)
+        gift_pack_repository.update_gift_pack(pack_id, total_quantity=4)
 
 
 def test_upcoming_pack_can_change_start_reward_and_condition_freely(orm):
@@ -714,7 +743,7 @@ def test_upcoming_pack_can_change_start_reward_and_condition_freely(orm):
     )
 
     assert (
-        orm.update_gift_pack(
+        gift_pack_repository.update_gift_pack(
             pack_id,
             start_at=now + 1800,
             rewards=[{"type": "credits", "amount": 20}],
@@ -739,21 +768,21 @@ def test_admin_references_and_deletion_guard(orm):
         "end_at": now + 3600,
     }
     with pytest.raises(ValueError, match="勋章"):
-        orm.create_gift_pack(
+        gift_pack_repository.create_gift_pack(
             **fields, requirements=[{"type": "badge", "badge_id": 999999}]
         )
     with pytest.raises(ValueError, match="礼包"):
-        orm.create_gift_pack(
+        gift_pack_repository.create_gift_pack(
             **fields, requirements=[{"type": "claimed_pack", "pack_id": 999999}]
         )
 
-    source_id = orm.create_gift_pack(**fields)
+    source_id = gift_pack_repository.create_gift_pack(**fields)
     with pytest.raises(ValueError, match="自身"):
-        orm.update_gift_pack(
+        gift_pack_repository.update_gift_pack(
             source_id, requirements=[{"type": "claimed_pack", "pack_id": source_id}]
         )
 
-    dependent_id = orm.create_gift_pack(
+    dependent_id = gift_pack_repository.create_gift_pack(
         **{**fields, "title": "dependent"},
         requirements=[
             {
@@ -766,8 +795,8 @@ def test_admin_references_and_deletion_guard(orm):
         ],
     )
     with pytest.raises(ValueError, match=str(dependent_id)):
-        orm.delete_gift_pack(source_id)
-    assert orm.get_gift_pack_by_id(source_id) is not None
+        gift_pack_repository.delete_gift_pack(source_id)
+    assert gift_pack_repository.get_gift_pack_by_id(source_id) is not None
 
 
 def test_admin_resolves_mixed_identifiers_and_rejects_ambiguous_match(orm, monkeypatch):
@@ -797,7 +826,7 @@ def test_admin_resolves_mixed_identifiers_and_rejects_ambiguous_match(orm, monke
         "app.core.telegram.load_tg_user_info_cache",
         lambda: {2: {"username": "cached", "first_name": "Cached"}},
     )
-    result = orm.resolve_gift_pack_users(
+    result = gift_pack_repository.resolve_gift_pack_users(
         "1, alice ALICE@example.com，shared\n@cached unknown 1"
     )
     by_token = {item["token"]: item for item in result["resolved"]}
@@ -815,22 +844,22 @@ def test_named_pack_stats_include_audience_rate_and_task_reminders(orm):
     for tg_id in (1, 2, 3):
         add_user(orm, tg_id)
     now = int(time.time())
-    pack_id = orm.create_gift_pack(
+    pack_id = gift_pack_repository.create_gift_pack(
         title="named stats",
         rewards=[{"type": "credits", "amount": 1}],
         start_at=now - 10,
         end_at=now + 3600,
         audience=[{"type": "user_list", "mode": "include", "tg_ids": [1, 2, 3]}],
     )
-    orm.claim_gift_pack(pack_id, 1)
+    gift_pack_service.claim_gift_pack(pack_id, 1)
     with get_session() as session:
         session.add(GiftPackUserState(pack_id=pack_id, tg_id=2, task_prompt_count=1))
-    stats = orm.get_gift_pack_stats(pack_id)
+    stats = gift_pack_repository.get_gift_pack_stats(pack_id)
     assert stats["claimed_users"] == 1
     assert stats["task_prompted_users"] == 1
     assert stats["audience_size"] == 3
     assert stats["claim_rate"] == 33.33
-    listed = orm.get_gift_pack_by_id(pack_id)
+    listed = gift_pack_repository.get_gift_pack_by_id(pack_id)
     assert listed["audience_size"] == 3
     assert listed["claim_rate"] == 33.33
     assert listed["audience_summary"]
@@ -847,7 +876,6 @@ async def test_admin_resolve_users_endpoint_requires_admin_and_returns_matches(
     from app.domains.gift_pack import router
 
     add_user(orm, 1)
-    monkeypatch.setattr(router, "db", orm)
 
     def check_admin(user):
         if user.id != 1:
@@ -887,7 +915,6 @@ async def test_admin_create_accepts_all_seven_rewards_with_new_conditions(
     from app.domains.gift_pack import router
     from app.domains.gift_pack.schemas import GiftPackCreateRequest
 
-    monkeypatch.setattr(router, "db", orm)
     monkeypatch.setattr(router, "check_admin_permission", lambda user: None)
     now = int(time.time())
     data = GiftPackCreateRequest(
@@ -941,7 +968,6 @@ async def test_admin_update_returns_post_start_violation_message(orm, monkeypatc
 
     now = int(time.time())
     pack_id = _add_pack(_pack(start_at=now - 10, end_at=now + 3600))
-    monkeypatch.setattr(router, "db", orm)
     monkeypatch.setattr(router, "check_admin_permission", lambda user: None)
     request = Request(
         {
@@ -977,7 +1003,6 @@ async def test_admin_update_and_enabled_return_current_pack(orm, monkeypatch):
 
     now = int(time.time())
     pack_id = _add_pack(_pack(start_at=now + 60, end_at=now + 3600))
-    monkeypatch.setattr(router, "db", orm)
     monkeypatch.setattr(router, "check_admin_permission", lambda user: None)
     request = Request(
         {
@@ -1028,7 +1053,6 @@ async def test_claim_route_returns_structured_current_progress_on_recheck_failur
             ],
         )
     )
-    monkeypatch.setattr(router, "db", orm)
     request = Request(
         {
             "type": "http",
@@ -1055,7 +1079,7 @@ async def test_claim_route_returns_structured_current_progress_on_recheck_failur
 
 def test_prestart_reward_edit_can_explicitly_remove_auto_binding(orm):
     now = int(time.time())
-    pack_id = orm.create_gift_pack(
+    pack_id = gift_pack_repository.create_gift_pack(
         title="reward switch",
         rewards=[{"type": "premium_days", "days": 7}],
         start_at=now + 3600,
@@ -1068,7 +1092,7 @@ def test_prestart_reward_edit_can_explicitly_remove_auto_binding(orm):
     # An explicit empty list removes the binding requirement after switching to
     # a reward that does not need a media account. Other explicit bound
     # conditions must remain intact; the backend cannot infer their provenance.
-    orm.update_gift_pack(
+    gift_pack_repository.update_gift_pack(
         pack_id,
         rewards=[{"type": "credits", "amount": 10}],
         requirements=[],
@@ -1096,7 +1120,6 @@ async def test_prompt_endpoint_returns_task_packs_for_popup(orm, monkeypatch):
             requirements=[{"type": "credits", "min": 1000}],
         )
     )
-    monkeypatch.setattr(router, "db", orm)
     request = Request(
         {
             "type": "http",
@@ -1125,7 +1148,7 @@ def test_earlier_pack_prompt_does_not_suppress_new_task_pack(orm):
             max_task_prompt_count=2,
         )
     )
-    first = orm.prompt_check_gift_packs(1)
+    first = gift_pack_repository.prompt_check_gift_packs(1)
     assert [item["id"] for item in first["task_packs"]] == [old_id]
 
     new_id = _add_pack(
@@ -1136,7 +1159,7 @@ def test_earlier_pack_prompt_does_not_suppress_new_task_pack(orm):
             max_task_prompt_count=2,
         )
     )
-    second = orm.prompt_check_gift_packs(1)
+    second = gift_pack_repository.prompt_check_gift_packs(1)
     assert second["packs"] == []
     assert [item["id"] for item in second["task_packs"]] == [new_id]
     assert _state(old_id, 1).task_prompt_count == 1
@@ -1154,8 +1177,8 @@ def test_prompt_returns_new_task_pack_after_an_earlier_pack_was_claimed(orm):
             max_task_prompt_count=2,
         )
     )
-    orm.prompt_check_gift_packs(1)
-    orm.claim_gift_pack(earlier_id, 1)
+    gift_pack_repository.prompt_check_gift_packs(1)
+    gift_pack_service.claim_gift_pack(earlier_id, 1)
 
     task_id = _add_pack(
         _pack(
@@ -1165,7 +1188,7 @@ def test_prompt_returns_new_task_pack_after_an_earlier_pack_was_claimed(orm):
             max_task_prompt_count=2,
         )
     )
-    reminder = orm.prompt_check_gift_packs(1)
+    reminder = gift_pack_repository.prompt_check_gift_packs(1)
     assert reminder["packs"] == []
     assert [item["id"] for item in reminder["task_packs"]] == [task_id]
 
@@ -1202,7 +1225,6 @@ async def test_admin_list_and_records_endpoints_report_rows_and_totals(
     now = int(time.time())
     add_user(orm, 1)
     pack_id = _add_pack(_pack(start_at=now - 10, end_at=now + 3600))
-    monkeypatch.setattr(router, "db", orm)
     monkeypatch.setattr(router, "check_admin_permission", lambda user: None)
     request = Request(
         {
@@ -1222,7 +1244,7 @@ async def test_admin_list_and_records_endpoints_report_rows_and_totals(
     assert [item.id for item in listing.packs] == [pack_id]
     assert listing.packs[0].can_delete is True
 
-    orm.claim_gift_pack(pack_id, 1)
+    gift_pack_service.claim_gift_pack(pack_id, 1)
     records = await router.admin_gift_pack_records(
         request=request, pack_id=pack_id, page=1, page_size=20, telegram_user=admin
     )
@@ -1250,7 +1272,6 @@ async def test_delete_route_splits_404_and_400_despite_title_quirk(orm, monkeypa
 
     now = int(time.time())
     add_user(orm, 1)
-    monkeypatch.setattr(router, "db", orm)
     monkeypatch.setattr(router, "check_admin_permission", lambda user: None)
     request = Request(
         {
@@ -1273,7 +1294,7 @@ async def test_delete_route_splits_404_and_400_despite_title_quirk(orm, monkeypa
 
     # 已有领取记录 → 400
     claimed = _add_pack(_pack(start_at=now - 10, end_at=now + 3600))
-    orm.claim_gift_pack(claimed, 1)
+    gift_pack_service.claim_gift_pack(claimed, 1)
     assert await _http_outcome(delete(claimed)) == (
         400,
         "该礼包已有用户领取，只能停用不能删除",
@@ -1319,7 +1340,6 @@ async def test_admin_error_branches_return_fixed_details(orm, monkeypatch):
     now = int(time.time())
     add_user(orm, 1)
     pack_id = _add_pack(_pack(start_at=now - 10, end_at=now + 3600))
-    monkeypatch.setattr(router, "db", orm)
     monkeypatch.setattr(router, "check_admin_permission", lambda user: None)
     request = Request(
         {
@@ -1391,12 +1411,12 @@ async def test_admin_error_branches_return_fixed_details(orm, monkeypatch):
     ]
     for detail, method, call in cases:
         with monkeypatch.context() as patcher:
-            patcher.setattr(orm, method, _boom)
+            patcher.setattr(gift_pack_repository, method, _boom)
             assert await _http_outcome(call()) == (500, detail)
 
     # 开屏提醒是锦上添花：失败时静默返回空列表，不抛 500
     with monkeypatch.context() as patcher:
-        patcher.setattr(orm, "prompt_check_gift_packs", _boom)
+        patcher.setattr(gift_pack_repository, "prompt_check_gift_packs", _boom)
         response = await router.prompt_check(request=request, telegram_user=admin)
     assert response.packs == []
     assert response.task_packs == []

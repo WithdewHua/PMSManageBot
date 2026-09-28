@@ -17,6 +17,8 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.kv import SystemConfig
 from app.core.schemas import TelegramUser
+from app.domains.gift_pack import repository as gift_pack_repository
+from app.domains.gift_pack import service as gift_pack_service
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 from app.domains.invitation.models import Invitation
@@ -54,7 +56,9 @@ def _assign_wheel_stats_id(mapper, connection, target):
 
 def _pack(orm, rewards: list, **kwargs) -> int:
     now = int(time.time())
-    return orm.create_gift_pack("test pack", rewards, now - 10, now + 3600, **kwargs)
+    return gift_pack_repository.create_gift_pack(
+        "test pack", rewards, now - 10, now + 3600, **kwargs
+    )
 
 
 def _bind_plex(tg_id: int, **cols) -> None:
@@ -99,7 +103,7 @@ def test_wheel_free_spins_granted_with_gift_pack_source(orm):
     pack = _pack(orm, [{"type": "wheel_free_spins", "count": 3, "expiry_days": 7}])
     before = int(time.time())
 
-    result = orm.claim_gift_pack(pack, 1)
+    result = gift_pack_service.claim_gift_pack(pack, 1)
 
     assert luckywheel_repository.get_blackjack_freespin_summary(1)["available"] == 3
     item = result["results"][0]
@@ -115,7 +119,7 @@ def test_gift_pack_free_spins_not_notified_and_not_capped(orm):
     add_user(orm, 1)
     pack = _pack(orm, [{"type": "wheel_free_spins", "count": 5, "expiry_days": 7}])
     luckywheel_repository.claim_unnotified_blackjack_freespins()  # 初始化游标
-    orm.claim_gift_pack(pack, 1)
+    gift_pack_service.claim_gift_pack(pack, 1)
 
     with get_session() as session:
         session.execute(
@@ -141,7 +145,7 @@ def test_tournament_wallet_credited_not_credits(orm):
         ],
     )
 
-    result = orm.claim_gift_pack(pack, 1)
+    result = gift_pack_service.claim_gift_pack(pack, 1)
 
     stats = get_stats(1)
     assert stats["tournament_wallet_credits"] == 60.0
@@ -165,7 +169,7 @@ def test_download_unlock_for_premium_user_sets_permanent_flag(orm, monkeypatch):
     _bind_plex(1, is_premium=1, premium_expiry_time="2099-01-01T00:00:00")
     pack = _pack(orm, [{"type": "download_unlock"}])
 
-    orm.claim_gift_pack(pack, 1)
+    gift_pack_service.claim_gift_pack(pack, 1)
 
     assert _user_col(PlexUser, 1, "sync_unlocked") == 1
 
@@ -176,7 +180,7 @@ def test_line_schedule_unlock_skips_already_unlocked_service(orm):
     _bind_emby(1, line_schedule_unlocked=1)
     pack = _pack(orm, [{"type": "line_schedule_unlock"}])
 
-    result = orm.claim_gift_pack(pack, 1)
+    result = gift_pack_service.claim_gift_pack(pack, 1)
 
     by_service = {r["service"]: r for r in result["results"]}
     assert by_service["emby"]["skipped"] == "already_unlocked"
@@ -192,7 +196,7 @@ def test_unlock_requires_binding(orm):
     pack = _pack(orm, [{"type": "line_schedule_unlock"}])
 
     with pytest.raises(ValueError):
-        orm.claim_gift_pack(pack, 1)
+        gift_pack_service.claim_gift_pack(pack, 1)
 
 
 # ------------------------------------------------------ 邀请码
@@ -202,7 +206,7 @@ def test_invite_codes_generated_and_in_snapshot(orm):
     add_user(orm, 1)
     pack = _pack(orm, [{"type": "invite_codes", "count": 20}])
 
-    result = orm.claim_gift_pack(pack, 1)
+    result = gift_pack_service.claim_gift_pack(pack, 1)
 
     codes = result["results"][0]["codes"]
     assert len(codes) == 20 == len(set(codes))
@@ -210,7 +214,9 @@ def test_invite_codes_generated_and_in_snapshot(orm):
     assert sorted(_invitations(1)) == sorted(codes)
 
     # 已领取礼包的发放内容中可再次查看
-    listed = next(p for p in orm.get_gift_packs_for_user(1) if p["id"] == pack)
+    listed = next(
+        p for p in gift_pack_repository.get_gift_packs_for_user(1) if p["id"] == pack
+    )
     assert listed["reward_snapshot"][0]["codes"] == codes
 
 
@@ -227,10 +233,14 @@ def test_invite_codes_rolled_back_when_other_reward_fails(orm, monkeypatch):
     def _boom(*args, **kwargs):
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(orm, "_grant_tournament_wallet_tx", _boom)
+    monkeypatch.setattr(
+        gift_pack_repository.GiftPackRepository,
+        "_grant_tournament_wallet_tx",
+        staticmethod(_boom),
+    )
 
     with pytest.raises(RuntimeError):
-        orm.claim_gift_pack(pack, 1)
+        gift_pack_service.claim_gift_pack(pack, 1)
 
     assert _invitations(1) == []
     with get_session() as session:
@@ -255,7 +265,7 @@ def test_privileged_invite_config_write_failure_rolls_back_claim(orm, monkeypatc
     monkeypatch.setattr(type(settings), "save_config_to_env_file", _fail_save)
 
     with pytest.raises(OSError, match="cannot persist"):
-        orm.claim_gift_pack(pack, 1)
+        gift_pack_service.claim_gift_pack(pack, 1)
 
     assert settings.PRIVILEGED_CODES == original_codes
     assert _invitations(1) == []
@@ -283,7 +293,7 @@ async def test_privileged_invite_allows_registration_without_writing_env(
         saves.append(dict(config_data))
 
     monkeypatch.setattr(type(settings), "save_config_to_env_file", _capture_save)
-    code = orm.claim_gift_pack(pack, 1)["results"][0]["codes"][0]
+    code = gift_pack_service.claim_gift_pack(pack, 1)["results"][0]["codes"][0]
 
     from app.domains.invitation import router as invitation
 
@@ -351,10 +361,11 @@ def test_all_seven_reward_types_are_aggregated_in_stats(orm, monkeypatch):
         ],
     )
 
-    orm.claim_gift_pack(pack, 1)
+    gift_pack_service.claim_gift_pack(pack, 1)
 
     totals = {
-        item["type"]: item for item in orm.get_gift_pack_stats(pack)["reward_totals"]
+        item["type"]: item
+        for item in gift_pack_repository.get_gift_pack_stats(pack)["reward_totals"]
     }
     assert set(totals) == {
         "credits",
@@ -411,7 +422,7 @@ async def test_download_sync_failure_keeps_claim_and_notifies_admin(orm, monkeyp
 
     detached = []
     admin_messages = []
-    monkeypatch.setattr(gift_pack_router, "_notify_detached", detached.append)
+    monkeypatch.setattr(gift_pack_notifications, "_notify_detached", detached.append)
     monkeypatch.setattr(
         gift_pack_notifications,
         "get_user_name_from_tg_id",
@@ -490,7 +501,7 @@ def test_each_reward_rolls_back_when_a_later_reward_fails(orm, reward):
     pack = _pack(orm, [reward, {"type": "unsupported_reward"}])
 
     with pytest.raises(ValueError, match="不支持的奖励类型"):
-        orm.claim_gift_pack(pack, 1)
+        gift_pack_service.claim_gift_pack(pack, 1)
 
     stats = get_stats(1)
     assert stats["credits"] == 100.0
@@ -513,7 +524,7 @@ def test_premium_days_reward_extends_active_membership_from_expiry(orm):
     _bind_plex(1, is_premium=1, premium_expiry_time=current.isoformat())
     pack = _pack(orm, [{"type": "premium_days", "days": 7}])
 
-    item = orm.claim_gift_pack(pack, 1)["results"][0]
+    item = gift_pack_service.claim_gift_pack(pack, 1)["results"][0]
 
     new_expiry = datetime.fromisoformat(item["new_expiry"])
     assert abs((new_expiry - (current + timedelta(days=7))).total_seconds()) < 120
@@ -529,7 +540,7 @@ def test_premium_days_reward_starts_membership_for_new_user(orm):
     pack = _pack(orm, [{"type": "premium_days", "days": 7}])
 
     before = datetime.now(settings.TZ)
-    item = orm.claim_gift_pack(pack, 1)["results"][0]
+    item = gift_pack_service.claim_gift_pack(pack, 1)["results"][0]
 
     new_expiry = datetime.fromisoformat(item["new_expiry"])
     assert abs((new_expiry - (before + timedelta(days=7))).total_seconds()) < 120
@@ -541,7 +552,7 @@ def test_premium_days_reward_skips_lifetime_member(orm):
     _bind_plex(1, is_premium=1)  # 永久会员：没有到期时间
     pack = _pack(orm, [{"type": "premium_days", "days": 7}])
 
-    item = orm.claim_gift_pack(pack, 1)["results"][0]
+    item = gift_pack_service.claim_gift_pack(pack, 1)["results"][0]
 
     assert item["success"] is True
     assert item["skipped"] == "lifetime"
@@ -561,7 +572,6 @@ async def test_claim_response_reports_lifetime_skip_in_message(orm, monkeypatch)
     add_user(orm, 1)
     _bind_plex(1, is_premium=1)
     pack = _pack(orm, [{"type": "premium_days", "days": 7}])
-    monkeypatch.setattr(router, "db", orm)
     request = Request(
         {
             "type": "http",
@@ -604,7 +614,7 @@ def test_privileged_code_written_to_env_stays_when_commit_fails(orm, monkeypatch
     with monkeypatch.context() as patcher:
         patcher.setattr(Session, "commit", _fail_commit)
         with pytest.raises(RuntimeError, match="commit failed"):
-            orm.claim_gift_pack(pack, 1)
+            gift_pack_service.claim_gift_pack(pack, 1)
 
     assert len(saves) == 1
     written = saves[0]["PRIVILEGED_CODES"].split(",")
@@ -628,7 +638,6 @@ async def test_created_and_sold_out_notifications_are_queued_once(orm, monkeypat
 
     now = int(time.time())
     add_user(orm, 1)
-    monkeypatch.setattr(router, "db", orm)
     monkeypatch.setattr(router, "check_admin_permission", lambda user: None)
     request = Request(
         {
@@ -641,10 +650,15 @@ async def test_created_and_sold_out_notifications_are_queued_once(orm, monkeypat
     request.state.telegram_data = {}
     admin = TelegramUser(id=1, first_name="Admin")
 
-    create_tasks = BackgroundTasks()
+    from app.domains.gift_pack import notifications as gift_pack_notifications
+
+    created_calls: list = []
+    monkeypatch.setattr(
+        gift_pack_notifications, "_notify_detached", created_calls.append
+    )
     created = await router.admin_create_gift_pack(
         request=request,
-        background_tasks=create_tasks,
+        background_tasks=BackgroundTasks(),
         data=GiftPackCreateRequest(
             title="限量礼包",
             rewards=[{"type": "credits", "amount": 5}],
@@ -654,19 +668,23 @@ async def test_created_and_sold_out_notifications_are_queued_once(orm, monkeypat
         ),
         telegram_user=admin,
     )
-    created_funcs = [task.func for task in create_tasks.tasks]
-    assert created_funcs == [notifications.notify_gift_pack_created]
+    # 创建通知在提交后立刻派发一次（不再依赖 FastAPI BackgroundTasks）
+    assert len(created_calls) == 1
+    await created_calls[0]
 
-    claim_tasks = BackgroundTasks()
+    sold_out_calls: list = []
+    monkeypatch.setattr(
+        gift_pack_notifications, "_notify_detached", sold_out_calls.append
+    )
     await router.claim_gift_pack(
         request=request,
         pack_id=created.id,
-        background_tasks=claim_tasks,
+        background_tasks=BackgroundTasks(),
         telegram_user=TelegramUser(id=1, first_name="test"),
     )
-    sold_out_funcs = [task.func for task in claim_tasks.tasks]
-    assert sold_out_funcs == [notifications.notify_gift_pack_sold_out]
-    assert claim_tasks.tasks[0].args == (created.id, "限量礼包", 1)
+    # 限量领完只派发一次
+    assert len(sold_out_calls) == 1
+    await sold_out_calls[0]
 
     sent: list[str] = []
 
@@ -703,7 +721,7 @@ def test_premium_sync_runs_after_the_claim_commits(orm, monkeypatch):
         "app.domains.premium.service.sync_premium_media_access", _record
     )
 
-    orm.claim_gift_pack(pack, 1)
+    gift_pack_service.claim_gift_pack(pack, 1)
 
     assert observed == [(1, "plex", 1)]
     assert _user_col(PlexUser, 1, "is_premium") == 1

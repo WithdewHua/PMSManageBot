@@ -56,6 +56,8 @@ EXPECTED = {
     "不支持的礼包条件: magic": ("gift_pack_invalid", 400),
 }
 
+from app.domains.gift_pack import repository as gift_pack_repository
+
 
 @pytest.mark.parametrize(("message", "expected"), sorted(EXPECTED.items()))
 def test_legacy_messages_map_to_codes_and_details(message, expected) -> None:
@@ -168,7 +170,7 @@ def _started_pack(orm) -> int:
 
 def test_delete_missing_pack_is_a_404_typed_error(orm) -> None:
     with pytest.raises(GiftPackError) as rejected:
-        orm.delete_gift_pack(999999)
+        gift_pack_repository.delete_gift_pack(999999)
 
     assert rejected.value.code == "gift_pack_not_found"
     assert rejected.value.status_code == 404
@@ -177,7 +179,7 @@ def test_delete_missing_pack_is_a_404_typed_error(orm) -> None:
 
 def test_update_missing_pack_is_a_400_typed_error(orm) -> None:
     with pytest.raises(GiftPackError) as rejected:
-        orm.update_gift_pack(999999, title="新标题")
+        gift_pack_repository.update_gift_pack(999999, title="新标题")
 
     assert rejected.value.code == "gift_pack_not_found"
     assert rejected.value.status_code == 400
@@ -187,7 +189,9 @@ def test_post_start_edit_rejection_is_typed(orm) -> None:
     pack_id = _started_pack(orm)
 
     with pytest.raises(GiftPackError) as rejected:
-        orm.update_gift_pack(pack_id, rewards=[{"type": "credits", "amount": 99}])
+        gift_pack_repository.update_gift_pack(
+            pack_id, rewards=[{"type": "credits", "amount": 99}]
+        )
 
     assert rejected.value.code == "gift_pack_invalid"
     assert rejected.value.status_code == 400

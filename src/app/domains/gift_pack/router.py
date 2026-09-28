@@ -26,15 +26,8 @@ from app.core.auth import (
 from app.core.log import uvicorn_logger as logger
 from app.core.schemas import TelegramUser
 from app.core.telegram import get_user_name_from_tg_id
-from app.databases import db
+from app.domains.gift_pack import service as gift_pack_service
 from app.domains.gift_pack.exceptions import GiftPackError
-from app.domains.gift_pack.notifications import (
-    _notify_detached,
-    notify_gift_pack_claim_failed,
-    notify_gift_pack_created,
-    notify_gift_pack_download_sync_failed,
-    notify_gift_pack_sold_out,
-)
 from app.domains.gift_pack.schemas import (
     GiftPackAdminItem,
     GiftPackAdminListResponse,
@@ -74,7 +67,7 @@ async def prompt_check(
     返回空列表表示不弹窗。
     """
     try:
-        result = db.prompt_check_gift_packs(telegram_user.id)
+        result = gift_pack_service.prompt_check(telegram_user.id)
         return GiftPackPromptCheckResponse(
             packs=[GiftPackPromptItem(**pack) for pack in result["packs"]],
             task_packs=[
@@ -94,7 +87,7 @@ async def list_gift_packs(
 ):
     """礼包中心列表：含每个礼包对当前用户的状态与余量"""
     try:
-        packs = db.get_gift_packs_for_user(telegram_user.id)
+        packs = gift_pack_service.list_gift_packs_for_user(telegram_user.id)
         return GiftPackListResponse(
             packs=[GiftPackItem(**pack) for pack in packs], total=len(packs)
         )
@@ -116,7 +109,7 @@ async def claim_gift_pack(
     """领取礼包，返回逐项发放结果"""
     tg_id = telegram_user.id
     try:
-        result = db.claim_gift_pack(pack_id, tg_id)
+        result = gift_pack_service.claim_gift_pack(pack_id, tg_id)
     except GiftPackError as e:
         # 类型化拒绝自带状态码与 detail：条件不满足时 detail 是逐项进度对象
         raise HTTPException(
@@ -131,27 +124,10 @@ async def claim_gift_pack(
         logger.error(f"领取礼包失败 (pack_id={pack_id}, tg_id={tg_id}): {e}")
         # 用 detached task 而非 BackgroundTasks：下面要抛 HTTPException，
         # BackgroundTasks 在异常路径上不会执行，通知会被静默吞掉
-        _notify_detached(notify_gift_pack_claim_failed(pack_id, tg_id, str(e)))
+        gift_pack_service.notify_claim_failed(pack_id, tg_id, str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="奖励发放失败，本次领取已回滚，请稍后重试或联系管理员",
-        )
-
-    # 下载权限同步失败：领取已成功，通知管理员人工补同步
-    if result.get("download_sync_failed"):
-        _notify_detached(
-            notify_gift_pack_download_sync_failed(
-                pack_id, tg_id, result["download_sync_failed"]
-            )
-        )
-
-    # 限量领完：里程碑通知（并发下只有一个事务能把计数加到满，只会触发一次）
-    if result["sold_out"]:
-        background_tasks.add_task(
-            notify_gift_pack_sold_out,
-            pack_id,
-            result["title"],
-            result["total_quantity"],
         )
 
     results = [GiftPackClaimRewardResult(**item) for item in result["results"]]
@@ -187,7 +163,7 @@ async def admin_resolve_gift_pack_users(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="名单不能为空"
         )
     try:
-        return db.resolve_gift_pack_users(text)
+        return gift_pack_service.admin_resolve_users(text)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
@@ -208,7 +184,7 @@ async def admin_list_gift_packs(
     """管理员：礼包列表"""
     check_admin_permission(telegram_user)
     try:
-        packs, total = db.get_gift_packs_admin(page=page, page_size=page_size)
+        packs, total = gift_pack_service.admin_list(page=page, page_size=page_size)
         return GiftPackAdminListResponse(
             packs=[GiftPackAdminItem(**pack) for pack in packs], total=total
         )
@@ -230,7 +206,7 @@ async def admin_create_gift_pack(
     """管理员：创建礼包"""
     check_admin_permission(telegram_user)
     try:
-        pack_id = db.create_gift_pack(
+        pack_id = gift_pack_service.admin_create(
             title=data.title,
             rewards=[r.model_dump() for r in data.rewards],
             start_at=data.start_at,
@@ -256,13 +232,12 @@ async def admin_create_gift_pack(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建礼包失败"
         )
 
-    pack = db.get_gift_pack_by_id(pack_id)
+    pack = gift_pack_service.admin_get(pack_id)
     if not pack:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="创建礼包失败"
         )
     # 礼包上线：里程碑通知
-    background_tasks.add_task(notify_gift_pack_created, pack)
     return GiftPackAdminItem(**pack)
 
 
@@ -284,7 +259,7 @@ async def admin_update_gift_pack(
             if key in fields:
                 values = getattr(data, key)
                 fields[key] = [item.model_dump() for item in values] if values else None
-        db.update_gift_pack(pack_id, **fields)
+        gift_pack_service.admin_update(pack_id, **fields)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
@@ -293,7 +268,7 @@ async def admin_update_gift_pack(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="编辑礼包失败"
         )
 
-    pack = db.get_gift_pack_by_id(pack_id)
+    pack = gift_pack_service.admin_get(pack_id)
     if not pack:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="礼包不存在")
     return GiftPackAdminItem(**pack)
@@ -309,9 +284,9 @@ async def admin_set_gift_pack_enabled(
 ):
     """管理员：启用 / 停用礼包"""
     check_admin_permission(telegram_user)
-    if not db.set_gift_pack_enabled(pack_id, data.is_enabled):
+    if not gift_pack_service.admin_set_enabled(pack_id, data.is_enabled):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="礼包不存在")
-    pack = db.get_gift_pack_by_id(pack_id)
+    pack = gift_pack_service.admin_get(pack_id)
     if not pack:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="礼包不存在")
     return GiftPackAdminItem(**pack)
@@ -327,7 +302,7 @@ async def admin_delete_gift_pack(
     """管理员：删除礼包（已有领取记录时拒绝，只能停用）"""
     check_admin_permission(telegram_user)
     try:
-        db.delete_gift_pack(pack_id)
+        gift_pack_service.admin_delete(pack_id)
         return {"success": True, "message": "礼包已删除"}
     except GiftPackError as e:
         raise HTTPException(
@@ -353,7 +328,7 @@ async def admin_gift_pack_stats(
 ):
     """管理员：礼包领取统计"""
     check_admin_permission(telegram_user)
-    stats = db.get_gift_pack_stats(pack_id)
+    stats = gift_pack_service.admin_stats(pack_id)
     if not stats:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="礼包不存在")
     return GiftPackStatsResponse(**stats)
@@ -371,7 +346,7 @@ async def admin_gift_pack_records(
     """管理员：礼包领取记录（分页）"""
     check_admin_permission(telegram_user)
     try:
-        records, total = db.get_gift_pack_claim_records(
+        records, total = gift_pack_service.admin_claim_records(
             pack_id, page=page, page_size=page_size
         )
         items: list[GiftPackClaimRecordItem] = []

@@ -68,14 +68,6 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.jobs",
-        "module_target": "app.core.config",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.config.settings"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.jobs",
         "module_target": "app.core.log",
         "resolved": true,
         "scope": "module",
@@ -100,26 +92,18 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.jobs",
-        "module_target": "app.databases",
+        "module_target": "app.domains.gift_pack",
         "resolved": true,
         "scope": "module",
-        "target": "app.databases.db"
+        "target": "app.domains.gift_pack.notifications"
       },
       {
         "kind": "from",
         "module": "app.domains.gift_pack.jobs",
-        "module_target": "app.domains.gift_pack.notifications",
+        "module_target": "app.domains.gift_pack",
         "resolved": true,
         "scope": "module",
-        "target": "app.domains.gift_pack.notifications._format_rewards"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.jobs",
-        "module_target": "app.domains.gift_pack.notifications",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.gift_pack.notifications._format_time"
+        "target": "app.domains.gift_pack.service"
       },
       {
         "kind": "from",
@@ -275,14 +259,6 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.notifications",
-        "module_target": "app.databases",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.databases.db"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.notifications",
         "module_target": "app.domains.gift_pack",
         "resolved": true,
         "scope": "module",
@@ -405,22 +381,6 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.gift_pack.models.GiftPackUserState"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.claims",
-        "module_target": "app.domains.premium.service",
-        "resolved": true,
-        "scope": "function",
-        "target": "app.domains.premium.service.apply_download_unlock_to_media"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.claims",
-        "module_target": "app.domains.premium",
-        "resolved": true,
-        "scope": "function",
-        "target": "app.domains.premium.service"
       },
       {
         "kind": "from",
@@ -979,10 +939,10 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.router",
-        "module_target": "app.databases",
+        "module_target": "app.domains.gift_pack",
         "resolved": true,
         "scope": "module",
-        "target": "app.databases.db"
+        "target": "app.domains.gift_pack.service"
       },
       {
         "kind": "from",
@@ -991,46 +951,6 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.gift_pack.exceptions.GiftPackError"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.router",
-        "module_target": "app.domains.gift_pack.notifications",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.gift_pack.notifications._notify_detached"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.router",
-        "module_target": "app.domains.gift_pack.notifications",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.gift_pack.notifications.notify_gift_pack_claim_failed"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.router",
-        "module_target": "app.domains.gift_pack.notifications",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.gift_pack.notifications.notify_gift_pack_created"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.router",
-        "module_target": "app.domains.gift_pack.notifications",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.gift_pack.notifications.notify_gift_pack_download_sync_failed"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.router",
-        "module_target": "app.domains.gift_pack.notifications",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.gift_pack.notifications.notify_gift_pack_sold_out"
       },
       {
         "kind": "from",
@@ -1262,6 +1182,69 @@
         "resolved": true,
         "scope": "module",
         "target": "pydantic.model_validator"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.service",
+        "module_target": "__future__",
+        "resolved": true,
+        "scope": "module",
+        "target": "__future__.annotations"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.service",
+        "resolved": true,
+        "scope": "module",
+        "target": "time"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.service",
+        "module_target": "app.core.log",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.log.logger"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.service",
+        "module_target": "app.domains.gift_pack",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.notifications"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.service",
+        "module_target": "app.domains.gift_pack",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.repository"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.service",
+        "module_target": "app.domains.gift_pack.exceptions",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.exceptions.GiftPackError"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.service",
+        "module_target": "app.domains.premium.service",
+        "resolved": true,
+        "scope": "function",
+        "target": "app.domains.premium.service.apply_download_unlock_to_media"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.service",
+        "module_target": "app.domains.premium",
+        "resolved": true,
+        "scope": "function",
+        "target": "app.domains.premium.service"
       },
       {
         "kind": "from",

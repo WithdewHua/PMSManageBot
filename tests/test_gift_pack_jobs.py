@@ -13,6 +13,8 @@ from sqlalchemy import event
 
 from app.core.db import get_session
 from app.domains.gift_pack import jobs as gift_pack_jobs
+from app.domains.gift_pack import repository as gift_pack_repository
+from app.domains.gift_pack import service as gift_pack_service
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 from tests.conftest import add_user, next_id
 
@@ -29,7 +31,7 @@ for _model in (GiftPack, GiftPackUserState):
 def _pack_with_claim(orm, *, total_quantity: int | None = None) -> int:
     """建一个可领取的礼包、领取一次，再把结束时间挪到过去。"""
     now = int(time.time())
-    pack_id = orm.create_gift_pack(
+    pack_id = gift_pack_repository.create_gift_pack(
         "过期礼包",
         [{"type": "credits", "amount": 5}],
         now - 3600,
@@ -37,7 +39,7 @@ def _pack_with_claim(orm, *, total_quantity: int | None = None) -> int:
         total_quantity=total_quantity,
     )
     add_user(orm, 1)
-    orm.claim_gift_pack(pack_id, 1)
+    gift_pack_service.claim_gift_pack(pack_id, 1)
     with get_session() as session:
         pack = session.get(GiftPack, pack_id)
         assert pack is not None
@@ -61,7 +63,6 @@ async def test_scan_sends_summary_once_and_marks_expiry(orm, monkeypatch):
     async def _notify(text, **kwargs):
         messages.append((text, kwargs))
 
-    monkeypatch.setattr(gift_pack_jobs, "db", orm)
     monkeypatch.setattr(gift_pack_jobs, "notify_admins_by_url", _notify)
 
     await gift_pack_jobs.scan_expired_gift_packs()
@@ -86,7 +87,6 @@ async def test_scan_leaves_pack_unnotified_when_sending_fails(orm, monkeypatch):
     async def _boom(*args, **kwargs):
         raise RuntimeError("telegram down")
 
-    monkeypatch.setattr(gift_pack_jobs, "db", orm)
     monkeypatch.setattr(gift_pack_jobs, "notify_admins_by_url", _boom)
 
     await gift_pack_jobs.scan_expired_gift_packs()
@@ -103,7 +103,6 @@ async def test_scan_reports_unlimited_quantity_wording(orm, monkeypatch):
     async def _notify(text, **kwargs):
         messages.append(text)
 
-    monkeypatch.setattr(gift_pack_jobs, "db", orm)
     monkeypatch.setattr(gift_pack_jobs, "notify_admins_by_url", _notify)
 
     await gift_pack_jobs.scan_expired_gift_packs()

@@ -7,7 +7,6 @@ from html import escape
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.telegram import get_user_name_from_tg_id, notify_admins_by_url
-from app.databases import db
 from app.domains.gift_pack import rules
 
 
@@ -24,22 +23,32 @@ def _format_rewards(rewards: list[dict]) -> str:
 
 # 持有强引用，避免 fire-and-forget 的 task 被 GC 提前回收
 _pending_notifications: set = set()
+#: 主事件循环：定时任务在线程池里派发通知时用它提交协程。
+_main_loop: asyncio.AbstractEventLoop | None = None
 
 
 def _notify_detached(coro) -> None:
-    """在异常路径上发通知
+    """best-effort 派发通知，事件循环线程与线程池都能调用
 
     不能用 `BackgroundTasks`：它只在响应正常返回后才执行，抛 `HTTPException`
     时整条后台任务链会被跳过——而发放失败恰恰是最需要通知的场景。
     """
+    global _main_loop
     try:
-        task = asyncio.create_task(coro)
+        loop = asyncio.get_running_loop()
     except RuntimeError:
-        # 没有运行中的事件循环（同步上下文），退回同步执行
-        asyncio.run(coro)
+        loop = None
+    if loop is not None:
+        _main_loop = loop
+        task = loop.create_task(coro)
+        _pending_notifications.add(task)
+        task.add_done_callback(_pending_notifications.discard)
         return
-    _pending_notifications.add(task)
-    task.add_done_callback(_pending_notifications.discard)
+    if _main_loop is not None and _main_loop.is_running():
+        asyncio.run_coroutine_threadsafe(coro, _main_loop)
+        return
+    # 完全没有事件循环（脚本、测试）时同步执行
+    asyncio.run(coro)
 
 
 async def notify_gift_pack_created(pack: dict) -> None:
@@ -77,12 +86,13 @@ async def notify_gift_pack_sold_out(pack_id: int, title: str, total_quantity: in
         logger.error(f"发送礼包领完通知失败 (pack_id={pack_id}): {e}")
 
 
-async def notify_gift_pack_claim_failed(pack_id: int, tg_id: int, reason: str):
-    """奖励发放失败的异常通知"""
+async def notify_gift_pack_claim_failed(
+    pack_id: int, tg_id: int, reason: str, title: str | None = None
+):
+    """奖励发放失败的异常通知（礼包标题由 service 传入，这里不读数据）"""
     try:
         user_name = get_user_name_from_tg_id(tg_id) or str(tg_id)
-        pack = db.get_gift_pack_by_id(pack_id)
-        title = pack["title"] if pack else f"#{pack_id}"
+        title = title or f"#{pack_id}"
         text = (
             "⚠️ <b>礼包发放失败</b>\n\n"
             f"<b>礼包：</b>{title} (ID: {pack_id})\n"
@@ -96,7 +106,7 @@ async def notify_gift_pack_claim_failed(pack_id: int, tg_id: int, reason: str):
 
 
 async def notify_gift_pack_download_sync_failed(
-    pack_id: int, tg_id: int, failures: list[dict]
+    pack_id: int, tg_id: int, failures: list[dict], title: str | None = None
 ) -> None:
     """下载权限已在数据库解锁、但同步到媒体服务器失败——需人工处理
 
@@ -104,8 +114,7 @@ async def notify_gift_pack_download_sync_failed(
     """
     try:
         user_name = get_user_name_from_tg_id(tg_id) or str(tg_id)
-        pack = db.get_gift_pack_by_id(pack_id)
-        title = pack["title"] if pack else f"#{pack_id}"
+        title = title or f"#{pack_id}"
         details = "\n".join(
             f"　• {escape(str(f['service']).capitalize())}：{escape(str(f['error']))}"
             for f in failures
@@ -121,3 +130,81 @@ async def notify_gift_pack_download_sync_failed(
         await notify_admins_by_url(text, parse_mode="HTML")
     except Exception as e:
         logger.error(f"发送礼包下载权限同步失败通知失败 (pack_id={pack_id}): {e}")
+
+
+def format_expiry_summary(pack: dict, stats: dict) -> str:
+    """过期汇总文案（数据由 service 传入）"""
+    quantity = (
+        f"{stats['claimed_users']} / {pack['total_quantity']} 份"
+        if pack.get("total_quantity")
+        else f"{stats['claimed_users']} 人（不限量）"
+    )
+    totals = (
+        "\n".join(
+            f"　• {item['label']}：{item['total']}"
+            + (
+                f"（{item['grants']} 次发放，{item['skipped']} 次{item['skipped_label']}）"
+                if item.get("skipped") and item.get("skipped_label")
+                else ""
+            )
+            for item in stats["reward_totals"]
+        )
+        or "　• 无发放记录"
+    )
+    return (
+        "🎁 <b>礼包已结束 · 领取汇总</b>\n\n"
+        f"<b>标题：</b>{pack['title']}\n"
+        f"<b>结束时间：</b>{_format_time(pack['end_at'])}\n"
+        f"<b>领取情况：</b>{quantity}\n"
+        f"<b>被提醒人数：</b>{stats['prompted_users']}\n"
+        f"<b>奖励发放总量：</b>\n{totals}"
+    )
+
+
+def format_start_dm_text(candidate: dict) -> str:
+    """开始私信文案（候选人数据由 service 传入）"""
+    return (
+        "🎁 礼包已开始！\n\n"
+        f"礼包：{candidate['title']}\n"
+        f"奖励：{_format_rewards(candidate['rewards'])}\n"
+        f"领取条件：{candidate['requirements_summary'] or '无额外条件'}\n"
+        f"领取截止：{_format_time(candidate['end_at'])}（{settings.TZ}）\n\n"
+        "打开小程序的礼包中心领取。"
+    )
+
+
+def dispatch_gift_pack_created(pack: dict) -> None:
+    """创建通知：service 在提交后调用。"""
+    _notify_detached(notify_gift_pack_created(pack))
+
+
+def dispatch_gift_pack_sold_out(pack_id: int, title: str, total_quantity: int) -> None:
+    _notify_detached(notify_gift_pack_sold_out(pack_id, title, total_quantity))
+
+
+def dispatch_gift_pack_claim_failed(
+    pack_id: int, tg_id: int, reason: str, title: str | None = None
+) -> None:
+    _notify_detached(notify_gift_pack_claim_failed(pack_id, tg_id, reason, title))
+
+
+def dispatch_gift_pack_download_sync_failed(
+    pack_id: int, tg_id: int, failures: list[dict], title: str | None = None
+) -> None:
+    _notify_detached(
+        notify_gift_pack_download_sync_failed(pack_id, tg_id, failures, title)
+    )
+
+
+__all__ = [
+    "dispatch_gift_pack_claim_failed",
+    "dispatch_gift_pack_created",
+    "dispatch_gift_pack_download_sync_failed",
+    "dispatch_gift_pack_sold_out",
+    "format_expiry_summary",
+    "format_start_dm_text",
+    "notify_gift_pack_claim_failed",
+    "notify_gift_pack_created",
+    "notify_gift_pack_download_sync_failed",
+    "notify_gift_pack_sold_out",
+]

@@ -26,6 +26,7 @@ from starlette.requests import Request
 from app.core.db import get_session
 from app.core.kv import SystemConfig
 from app.core.schemas import TelegramUser
+from app.domains.gift_pack import notifications as gift_pack_notifications
 from app.domains.gift_pack import repository as gift_pack_repository
 from app.domains.gift_pack import router as gift_pack_router
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
@@ -230,7 +231,9 @@ async def _build_contract(orm, monkeypatch) -> dict[str, Any]:
 
     with monkeypatch.context() as patcher:
         patcher.setattr(
-            gift_pack_router, "_notify_detached", lambda coro: notified.append(coro)
+            gift_pack_notifications,
+            "_notify_detached",
+            lambda coro: notified.append(coro),
         )
         patcher.setattr(
             gift_pack_repository.GiftPackRepository, "claim_gift_pack", _boom

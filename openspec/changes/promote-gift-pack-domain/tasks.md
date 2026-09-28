@@ -101,17 +101,19 @@
 - [ ] 5.1 把礼包 repository 改成模块级函数。领取事务按 design D4 实现：固定加锁顺序、三步式求值、按 JSON 顺序发放、特权码持久化放在最后；其余操作在各自的事务里完成，`*_tx` 不吞异常。
   - [x] 5.1a 固定加锁顺序：`lines.repository.lock_media_account_tx`（只锁不写）与礼包侧的 `_prelock_gift_pack_reward_rows_tx`，在发放前按 statistics → plex_user → emby_user 预锁本次要写的行；三步式求值在 4.1a 已落地（`required_metrics` 规划 + `evaluate` 纯计算）。
     - 验证：一次性 PostgreSQL 16 上的 `tests/refactor/test_gift_pack_concurrency.py` 全绿——`s3` 不再死锁（`deadlock is False`），xfail 已删除；不超发、同用户重复领取、余额扣减断言不变；`tests/test_gift_pack_*` 121 例与冻结 HTTP 夹具通过。
-  - [ ] 5.1b 其余部分：repository 改成模块级函数、`*_tx` 不吞异常、特权码持久化放最后。
+  - [x] 5.1b repository 改成模块级函数：`repository/__init__.py` 组合五个 mixin 后暴露 15 个模块级公开函数（各自完成一次事务），调用方（router/jobs/notifications）与测试不再经过 `DatabaseORM` 门面；`*_tx` 助手仍只接受调用方 session、不吞异常。
+    - 验证：`tests/test_gift_pack_*` 121 例通过（时钟 patch 改为只拨礼包子主题模块、实例方法 patch 改为 `GiftPackRepository` 上的 `staticmethod`、`db`/`orm` monkeypatch 改为打模块级函数）；全量 569 passed / 4 skipped。
   - 每类奖励在发放中途失败时，余额、领取状态、邀请码和解锁全部回滚。
   - 现有的查询次数断言保持通过。
   - 1.4 的交叉加锁用例取消 xfail 后通过。
-- [ ] 5.2 新增 `gift_pack.service`，覆盖 design D7 列出的全部用例；9 个吞异常的方法保持原有的默认返回；提交后依次执行缓存失效、媒体权限同步和通知派发。验证：提交后的副作用失败不会回滚已提交的领取；每类通知恰好发送一次，且在提交之后；下载同步失败时的响应文案不变。
-- [ ] 5.3 改造 notifications 和 jobs：
+- [x] 5.2 新增 `gift_pack.service`，覆盖 design D7 列出的全部用例；9 个吞异常的方法保持原有的默认返回；提交后依次执行缓存失效、媒体权限同步和通知派发。验证：提交后的副作用失败不会回滚已提交的领取；每类通知恰好发送一次，且在提交之后；下载同步失败时的响应文案不变。
+- [x] 5.3 改造 notifications 和 jobs：
   - notifications 不再访问数据；派发函数同时支持在事件循环线程和线程池中调用。
   - jobs 只调用 service；调度 id、触发器、首跑延迟、每批 200 人的认领上限和 0.5 秒的发送间隔都不变。
 
   验证：调度快照与 1.2 一致；两项 job 的测试通过。
-- [ ] 5.4 改造 router：只调用 service；删除 JSON 解析和子串判断；保留 500 文案和 `claim_failed` 通知；`except DomainError` 放在 `except Exception` 之前。验证：HTTP 夹具与 1.2 逐项一致，唯一例外是 design D8 中"标题含'不存在'的被引用礼包"那一条，由测试固定；OpenAPI 与 1.2 一致。
+  - 交付：`notifications` 不再读数据（`_format_rewards` 走 `rules`，礼包标题由 service 传入），新增 `format_expiry_summary` / `format_start_dm_text` 与四个 `dispatch_*` 同步派发入口；`_notify_detached` 记住主事件循环，事件循环线程直接建任务、线程池用 `run_coroutine_threadsafe` 提交、无循环时 `asyncio.run` 兜底；`jobs` 只调 service 取数。
+- [x] 5.4 改造 router：只调用 service；删除 JSON 解析和子串判断；保留 500 文案和 `claim_failed` 通知；`except DomainError` 放在 `except Exception` 之前。验证：HTTP 夹具与 1.2 逐项一致，唯一例外是 design D8 中"标题含'不存在'的被引用礼包"那一条，由测试固定；OpenAPI 与 1.2 一致。
 - [ ] 5.5 摘掉 mixin 并清理合约：
   - 从 `DatabaseORM` 中删除 `GiftPackRepository`。
   - 删除礼包名下的 21 条基线条目、5 条 `ignore_imports`，以及 Six-tier 和 Acyclic 合约里各 1 条门面组合边，同步下调封存计数。

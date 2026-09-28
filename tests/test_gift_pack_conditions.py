@@ -23,7 +23,9 @@ from app.domains.blackjack.models import (
     BlackjackTournament,
     BlackjackTournamentEntry,
 )
+from app.domains.gift_pack import repository as gift_pack_repository
 from app.domains.gift_pack import rules
+from app.domains.gift_pack import service as gift_pack_service
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 from app.domains.gift_pack.schemas import GiftPackCreateRequest
 from app.domains.identity.models import EmbyUser, PlexUser
@@ -448,7 +450,11 @@ def test_condition_progress_and_any_of_group_report_all_children(orm, monkeypatc
         calls.append((tg_id, since, until, qualifiers))
         return 12
 
-    monkeypatch.setattr(orm, "_count_gift_pack_wheel_spins", count_wheels)
+    monkeypatch.setattr(
+        gift_pack_repository.GiftPackRepository,
+        "_count_gift_pack_wheel_spins",
+        staticmethod(count_wheels),
+    )
     context = {
         "credits": 20,
         "premium_services": [],
@@ -716,7 +722,11 @@ def test_metric_cache_is_shared_by_same_metric_window_and_qualifiers(orm, monkey
         calls.append((since, until, tuple(sorted(qualifiers.items()))))
         return 4
 
-    monkeypatch.setattr(orm, "_count_gift_pack_wheel_spins", count_wheels)
+    monkeypatch.setattr(
+        gift_pack_repository.GiftPackRepository,
+        "_count_gift_pack_wheel_spins",
+        staticmethod(count_wheels),
+    )
     first = {"type": "wheel_spins", "min": 4, "window": {"kind": "pack"}}
     second = {"type": "wheel_spins", "min": 5, "window": {"kind": "pack"}}
 
@@ -733,7 +743,11 @@ def test_pack_window_before_start_returns_zero_without_count_query(orm, monkeypa
     def should_not_query(*args, **kwargs):
         raise AssertionError("pack-window counter queried before pack start")
 
-    monkeypatch.setattr(orm, "_count_gift_pack_wheel_spins", should_not_query)
+    monkeypatch.setattr(
+        gift_pack_repository.GiftPackRepository,
+        "_count_gift_pack_wheel_spins",
+        staticmethod(should_not_query),
+    )
     items = [{"type": "wheel_spins", "min": 1, "window": {"kind": "pack"}}]
 
     # 窗口未开始：先不取数，求值时按 0 计
@@ -848,7 +862,7 @@ def test_claim_rejections_keep_their_messages(orm):
     add_user(orm, 2)
 
     def claim(pack_id: int, tg_id: int = 1):
-        return orm.claim_gift_pack(pack_id, tg_id)
+        return gift_pack_service.claim_gift_pack(pack_id, tg_id)
 
     disabled = _save_pack(_pack(start_at=now - 10, end_at=now + 3600, is_enabled=0))
     future = _save_pack(_pack(start_at=now + 3600, end_at=now + 7200))

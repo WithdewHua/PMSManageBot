@@ -2200,20 +2200,6 @@
     },
     {
       "kind": "facade_import",
-      "line": 8,
-      "path": "src/app/domains/gift_pack/jobs.py",
-      "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
-      "line": 10,
-      "path": "src/app/domains/gift_pack/notifications.py",
-      "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
       "line": 9,
       "path": "src/app/domains/gift_pack/repository/conditions.py",
       "symbol": "app.domains.blackjack",
@@ -2224,13 +2210,6 @@
       "line": 5,
       "path": "src/app/domains/gift_pack/repository/rewards.py",
       "symbol": "app.domains.blackjack",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
-      "line": 29,
-      "path": "src/app/domains/gift_pack/router.py",
-      "symbol": "app.databases",
       "target_role": "blackjack.service"
     },
     {
@@ -2494,5 +2473,5 @@
     }
   ],
   "schema_version": 1,
-  "total": 356
+  "total": 353
 }
