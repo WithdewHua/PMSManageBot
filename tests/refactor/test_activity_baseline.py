@@ -1,0 +1,72 @@
+"""Freeze the four activity domains' behavior surfaces.
+
+``promote-activity-domains`` promotes luckywheel / treasure / prediction /
+auction. This test pins the fixture that the promotion must not change: routes
+and OpenAPI paths, scheduler jobs, named task ids, owned tables, and the
+repository surface (class members plus module-level functions).
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from scripts.refactor.activity_snapshot import build_activity_snapshot
+
+FIXTURE = Path(__file__).parent / "fixtures/activity_surface.json"
+DOMAINS = ("luckywheel", "treasure", "prediction", "auction")
+
+
+def _fixture() -> dict:
+    return json.loads(FIXTURE.read_text(encoding="utf-8"))
+
+
+def _dump(value: dict) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2)
+
+
+def test_activity_surface_matches_frozen_fixture() -> None:
+    first = build_activity_snapshot()
+    second = build_activity_snapshot()
+    assert _dump(first) == _dump(second), "快照必须可重复生成"
+    assert first == _fixture()
+
+
+def test_activity_surface_covers_every_domain() -> None:
+    snapshot = _fixture()
+    assert set(snapshot["domains"]) == set(DOMAINS)
+    for domain in DOMAINS:
+        section = snapshot["domains"][domain]
+        assert section["routes"], domain
+        assert section["openapi_paths"], domain
+        assert section["repository_members"], domain
+        assert section["metadata_tables"], domain
+        assert section["references"], domain
+
+
+def test_named_tasks_are_frozen_until_the_auction_promotion() -> None:
+    snapshot = _fixture()
+    ids = [item["task_id"] for item in snapshot["named_tasks"]]
+    # 竞拍的具名任务由本变更新增（design D5），其余保持不变
+    assert ids == ["blackjack.hand_timeout", "treasure.open_next_issue"]
+    assert snapshot["legacy_task_refs"]
+
+
+def test_scheduler_jobs_stay_within_the_four_domains() -> None:
+    snapshot = _fixture()
+    jobs = {
+        domain: [job["kwargs"].get("id") for job in section["scheduler_jobs"]]
+        for domain, section in snapshot["domains"].items()
+    }
+    assert jobs["auction"] == ["finish_expired_auctions_fallback"]
+    assert jobs["prediction"] == ["check_prediction_markets_closing_soon_job"]
+    assert jobs["luckywheel"] == []
+    assert jobs["treasure"] == []
+
+
+@pytest.mark.parametrize("domain", DOMAINS)
+def test_repository_surface_is_populated(domain: str) -> None:
+    section = _fixture()["domains"][domain]
+    assert section["repository_members"] or section["repository_functions"]
