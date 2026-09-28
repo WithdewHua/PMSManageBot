@@ -412,7 +412,6 @@ ignore_imports = [
 
     "app.domains.reports.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
 
-    "app.domains.treasure.router -> app.databases.db", # promote-activity-domains (B2 inherited)
 
 
     "app.domains.vaultwarden.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
@@ -461,7 +460,6 @@ ignore_imports = [
     "app.domains.auction.router -> app.domains.auction.jobs", # promote-activity-domains (B2 inherited)
     "app.domains.blackjack.router.cash -> app.domains.blackjack.jobs.cash", # promote-blackjack-domain (B2 inherited)
     "app.domains.blackjack.router.tournament -> app.domains.blackjack.jobs.tournament", # promote-blackjack-domain (B2 inherited)
-    "app.domains.treasure.router -> app.domains.treasure.jobs", # promote-activity-domains (B2 inherited)
     "app.domains.auction.notifications -> app.databases.db", # promote-activity-domains (B2 inherited)
     "app.domains.lines.router -> app.domains.lines.jobs", # B3 mechanical relocation; audit in 5.6
 ]
@@ -570,7 +568,6 @@ ignore_imports = [
     "app.domains.reports.router -> app.core.db", # promote-remaining-domains (B2 inherited)
     "app.domains.reports.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
     "app.domains.reports.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
-    "app.domains.treasure.router -> app.databases.db", # promote-activity-domains (B2 inherited)
     "app.domains.vaultwarden.router -> app.core.db", # promote-remaining-domains (B2 inherited)
     "app.domains.vaultwarden.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
     "app.domains.crypto_donation.router -> app.domains.crypto_donation.models", # promote-remaining-domains (B2 inherited)
@@ -583,7 +580,6 @@ ignore_imports = [
     "app.domains.vaultwarden.router -> app.domains.vaultwarden.models", # promote-remaining-domains (B2 inherited)
     "app.domains.auction.jobs -> app.databases.db", # promote-activity-domains (B2 inherited)
     "app.domains.auction.notifications -> app.databases.db", # promote-activity-domains (B2 inherited)
-    "app.domains.treasure.jobs -> app.databases.db", # promote-activity-domains (B2 inherited)
     "app.domains.accounts.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.credits.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.custom_lines.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6

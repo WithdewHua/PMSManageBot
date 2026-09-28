@@ -72,7 +72,12 @@
 
 ## 5. treasure 与 auction
 
-- [ ] 5.1 提升 treasure：service 负责编排参与、创建和取消；repository 的 `join_tx`；提交后发送通知并安排自动开期；在源头抛出类型化异常（按现状映射被遮蔽的分支）；建档改用 `ensure_statistics_tx`。验证：1.3 中夺宝的测试通过；错误映射与夹具一致；开奖结果与算法快照一致。
+- [x] 5.1 提升 treasure：service 负责编排参与、创建和取消；repository 的 `join_tx`；提交后发送通知并安排自动开期；在源头抛出类型化异常（按现状映射被遮蔽的分支）；建档改用 `ensure_statistics_tx`。验证：1.3 中夺宝的测试通过；错误映射与夹具一致；开奖结果与算法快照一致。
+  - `treasure.service` 负责参与、创建、取消及提交后通知/自动开期调度；路由只处理认证、参数转换和 HTTP 异常映射。
+  - 新增 caller-owned `join_treasure_issue_tx`、`create_treasure_issue_tx`、`cancel_treasure_issue_tx`；返奖和退款缺少统计行时统一调用 `identity_repository.ensure_statistics_tx`，积分写入使用 `credits_repository`。
+  - 新增 `TreasureError` 类型化异常，并保留 `user stats not found` 被遮蔽为 404“期数不存在”的历史映射；保留开奖查询未 flush 的已冻结行为与算法快照。
+  - `treasure.open_next_issue` 的调度封装位于 service，jobs 仅承载持久化 callable；通知和调度均在事务提交后执行。
+  - 更新 rejection/activity/blackjack fixtures、architecture baseline；`tests/refactor`、treasure 回归、architecture 和 `lint-imports` 已通过。
 - [ ] 5.2 提升 auction：repository 和 service；竞拍结束改为内存 jobstore 中的具名任务 `auction.finish`；通知文案移入 notifications，所需数据由 service 传入；删除操作显式指定 jobstore。验证：1.3 中竞拍的测试通过；调度快照中只有 design D5 允许的那一项差异；重启后恢复的任务与原来一致。
 
 ## 6. 基线清理与集成验证

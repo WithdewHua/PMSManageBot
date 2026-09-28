@@ -15,10 +15,11 @@ from starlette.requests import Request
 
 from app.core.db import get_session
 from app.core.schemas import TelegramUser
-from app.databases import db
 from app.domains.identity.models import Statistics
 from app.domains.treasure import jobs as treasure_jobs
+from app.domains.treasure import repository as treasure_repository
 from app.domains.treasure import router as tr
+from app.domains.treasure import service as treasure_service
 from app.domains.treasure.models import TreasureIssue, TreasureParticipation
 from app.domains.treasure.schemas import TreasureCreateIssueRequest, TreasureJoinRequest
 from app.integrations import eth_rpc
@@ -106,29 +107,24 @@ def treasure_env(monkeypatch):
 
     monkeypatch.setattr(eth_rpc, "latest_block_hash_int", _noop)
     monkeypatch.setattr(
-        tr,
+        treasure_service.treasure_notifications,
         "notify_treasure_not_full_after_join",
         lambda **kwargs: calls["progress"].append(kwargs) or _noop(),
     )
     monkeypatch.setattr(
-        tr,
+        treasure_service.treasure_notifications,
         "notify_treasure_settled",
         lambda **kwargs: calls["settled"].append(kwargs) or _noop(),
     )
     monkeypatch.setattr(
-        tr,
+        treasure_service.treasure_notifications,
         "notify_treasure_issue_created",
         lambda **kwargs: calls["created"].append(kwargs) or _noop(),
     )
     monkeypatch.setattr(
-        tr,
+        treasure_service,
         "schedule_auto_reopen_treasure_issue",
         lambda *, source_issue_id: calls["reopen"].append(int(source_issue_id)),
-    )
-    monkeypatch.setattr(
-        treasure_jobs,
-        "notify_treasure_issue_created",
-        lambda **kwargs: calls["created"].append(kwargs) or _noop(),
     )
     return calls
 
@@ -153,7 +149,7 @@ def _create_issue(**overrides) -> int:
         "start_number": 10_000_001,
     }
     payload.update(overrides)
-    return db.create_treasure_issue(**payload)
+    return treasure_repository.create_treasure_issue(**payload)
 
 
 # --------------------------------------------------------------------------- #
@@ -202,7 +198,7 @@ async def test_join_rejects_insufficient_credits_without_side_effects(
 async def test_join_rejections_report_issue_state(orm, treasure_env) -> None:
     active = _create_issue()
     closed = _create_issue(prize_credits=15, total_credits_required=20)
-    db.cancel_treasure_issue(issue_id=closed)
+    treasure_repository.cancel_treasure_issue(issue_id=closed)
     add_user(orm, 1, credits=100.0)
 
     with pytest.raises(HTTPException) as missing:
@@ -278,7 +274,7 @@ def test_settlement_winner_number_derives_from_created_at_and_b(
     add_user(orm, 1, credits=100.0)
     add_user(orm, 2, credits=100.0)
 
-    result = db.join_treasure_issue(
+    result = treasure_repository.join_treasure_issue(
         issue_id=issue_id, tg_id=2, external_random_b=0, timestamp_ms=2000
     )
 
@@ -300,7 +296,7 @@ def test_settlement_cannot_see_the_filling_participation(orm, treasure_env) -> N
     add_user(orm, 2, credits=100.0)
 
     with pytest.raises(NoResultFound):
-        db.join_treasure_issue(
+        treasure_repository.join_treasure_issue(
             issue_id=issue_id, tg_id=2, external_random_b=0, timestamp_ms=2000
         )
 
@@ -407,7 +403,9 @@ async def test_auto_reopen_job_clones_settled_issue(orm, treasure_env) -> None:
     issue_id = _seed_partially_filled_issue(committed_ms=1000)
     add_user(orm, 1, credits=100.0)
     add_user(orm, 2, credits=100.0)
-    db.join_treasure_issue(issue_id=issue_id, tg_id=2, external_random_b=0)
+    treasure_repository.join_treasure_issue(
+        issue_id=issue_id, tg_id=2, external_random_b=0
+    )
     assert _issue(issue_id)["status"] == 2
 
     await treasure_jobs._auto_create_next_treasure_issue_from(source_issue_id=issue_id)

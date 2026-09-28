@@ -2410,20 +2410,6 @@
     },
     {
       "kind": "facade_import",
-      "line": 5,
-      "path": "src/app/domains/treasure/jobs.py",
-      "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
-      "line": 12,
-      "path": "src/app/domains/treasure/router.py",
-      "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
       "line": 20,
       "path": "src/app/domains/vaultwarden/router.py",
       "symbol": "app.databases",
@@ -2466,5 +2452,5 @@
     }
   ],
   "schema_version": 1,
-  "total": 352
+  "total": 350
 }

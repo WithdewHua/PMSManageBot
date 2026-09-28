@@ -51,7 +51,9 @@ from app.domains.prediction.schemas import (
     PredictionSubmissionReviewRequest,
     PredictionSubmitRequest,
 )
+from app.domains.treasure import exceptions as treasure_exceptions
 from app.domains.treasure import router as tr
+from app.domains.treasure import service as treasure_service
 from app.domains.treasure.models import TreasureIssue, TreasureParticipation
 from app.domains.treasure.schemas import (
     TreasureCreateIssueRequest,
@@ -195,8 +197,9 @@ def _assign_row_id(mapper, connection, target) -> None:  # pragma: no cover - ho
         target.id = next_id()
 
 
-# SQLite 上 BIGINT 主键不自增，SystemConfig 由配置读写隐式创建
-event.listen(SystemConfig, "before_insert", _assign_row_id)
+# SQLite 上 BIGINT 主键不自增，测试进程内插入的行在 flush 前补 id
+for _model in (SystemConfig, TreasureIssue, TreasureParticipation):
+    event.listen(_model, "before_insert", _assign_row_id)
 
 
 def _insert(model: Any, row_id: int, **kwargs: Any) -> int:
@@ -726,11 +729,18 @@ async def _build_treasure(cases: dict[str, Any]) -> None:
         ("400_quantity_too_large", "quantity too large"),
         ("400_english_fallback", "invalid number range"),
     ):
-        with _patched(DatabaseORM, "join_treasure_issue", _raise(ValueError(message))):
+        error_factory = {
+            "quantity must be > 0": treasure_exceptions.quantity_invalid,
+            "quantity too large": treasure_exceptions.quantity_too_large,
+            "invalid number range": treasure_exceptions.invalid_number_range,
+        }[message]
+        with _patched(treasure_service, "join_treasure_issue", _raise(error_factory())):
             await _capture(
                 cases, f"{d}.join_issue.{branch}", join(TREASURE_ACTIVE, _USER1)
             )
-    with _patched(DatabaseORM, "join_treasure_issue", _raise(RuntimeError("boom"))):
+    with _patched(
+        treasure_service, "join_treasure_issue", _raise(RuntimeError("boom"))
+    ):
         await _capture(
             cases, f"{d}.join_issue.500_unexpected", join(TREASURE_ACTIVE, _USER1)
         )
@@ -762,9 +772,9 @@ async def _build_treasure(cases: dict[str, Any]) -> None:
             tr.create_issue(request=_request(), data=data, current_user=_ADMIN),
         )
     with _patched(
-        DatabaseORM,
+        treasure_service,
         "create_treasure_issue",
-        _raise(ValueError("start_number must be > 0")),
+        _raise(treasure_exceptions.start_number_invalid()),
     ):
         await _capture(
             cases,
@@ -773,7 +783,9 @@ async def _build_treasure(cases: dict[str, Any]) -> None:
                 request=_request(), data=_CREATE_ISSUE_OK, current_user=_ADMIN
             ),
         )
-    with _patched(DatabaseORM, "create_treasure_issue", _raise(RuntimeError("boom"))):
+    with _patched(
+        treasure_service, "create_treasure_issue", _raise(RuntimeError("boom"))
+    ):
         await _capture(
             cases,
             f"{d}.create_issue.500_unexpected",
@@ -795,7 +807,9 @@ async def _build_treasure(cases: dict[str, Any]) -> None:
             request=_request(), issue_id=TREASURE_CLOSED, current_user=_ADMIN
         ),
     )
-    with _patched(DatabaseORM, "cancel_treasure_issue", _raise(RuntimeError("boom"))):
+    with _patched(
+        treasure_service, "cancel_treasure_issue", _raise(RuntimeError("boom"))
+    ):
         await _capture(
             cases,
             f"{d}.cancel_issue.500_unexpected",
@@ -805,13 +819,17 @@ async def _build_treasure(cases: dict[str, Any]) -> None:
         )
 
     # 只读接口的兜底 500
-    with _patched(DatabaseORM, "get_user_treasure_stats", _raise(RuntimeError("boom"))):
+    with _patched(
+        treasure_service, "get_user_treasure_stats", _raise(RuntimeError("boom"))
+    ):
         await _capture(
             cases,
             f"{d}.get_user_treasure_stats.500_unexpected",
             tr.get_user_treasure_stats(request=_request(), current_user=_USER1),
         )
-    with _patched(DatabaseORM, "list_treasure_issues", _raise(RuntimeError("boom"))):
+    with _patched(
+        treasure_service, "list_treasure_issues", _raise(RuntimeError("boom"))
+    ):
         await _capture(
             cases,
             f"{d}.list_issues.500_unexpected",
@@ -823,7 +841,9 @@ async def _build_treasure(cases: dict[str, Any]) -> None:
         tr.get_issue_detail(request=_request(), issue_id=MISSING, current_user=_USER1),
     )
     with _patched(
-        DatabaseORM, "list_treasure_participations", _raise(RuntimeError("boom"))
+        treasure_service,
+        "list_treasure_participations",
+        _raise(RuntimeError("boom")),
     ):
         await _capture(
             cases,
@@ -1376,10 +1396,24 @@ def _install_noops(monkeypatch) -> None:
     monkeypatch.setattr(luckywheel_notifications, "send_message_by_url", _async_none)
 
     monkeypatch.setattr(eth_rpc, "latest_block_hash_int", _async_none)
-    monkeypatch.setattr(tr, "notify_treasure_issue_created", _async_none)
-    monkeypatch.setattr(tr, "notify_treasure_not_full_after_join", _async_none)
-    monkeypatch.setattr(tr, "notify_treasure_settled", _async_none)
-    monkeypatch.setattr(tr, "schedule_auto_reopen_treasure_issue", lambda **kw: None)
+    monkeypatch.setattr(
+        treasure_service.treasure_notifications,
+        "notify_treasure_issue_created",
+        _async_none,
+    )
+    monkeypatch.setattr(
+        treasure_service.treasure_notifications,
+        "notify_treasure_not_full_after_join",
+        _async_none,
+    )
+    monkeypatch.setattr(
+        treasure_service.treasure_notifications,
+        "notify_treasure_settled",
+        _async_none,
+    )
+    monkeypatch.setattr(
+        treasure_service, "schedule_auto_reopen_treasure_issue", lambda **kw: None
+    )
 
     for name in (
         "notify_prediction_bet_placed",

@@ -6473,6 +6473,22 @@
           },
           {
             "kind": "from",
+            "module": "app.domains.treasure.exceptions",
+            "module_target": "app.core.errors",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.core.errors.DomainError"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.jobs",
+            "module_target": "datetime",
+            "resolved": true,
+            "scope": "module",
+            "target": "datetime.datetime"
+          },
+          {
+            "kind": "from",
             "module": "app.domains.treasure.jobs",
             "module_target": "app.core.config",
             "resolved": true,
@@ -6490,50 +6506,18 @@
           {
             "kind": "from",
             "module": "app.domains.treasure.jobs",
-            "module_target": "app.databases",
+            "module_target": "app.domains.treasure",
             "resolved": true,
             "scope": "module",
-            "target": "app.databases.db"
+            "target": "app.domains.treasure.service"
           },
           {
             "kind": "from",
             "module": "app.domains.treasure.jobs",
-            "module_target": "app.domains.treasure.notifications",
+            "module_target": "app.domains.treasure.service",
             "resolved": true,
             "scope": "module",
-            "target": "app.domains.treasure.notifications.notify_treasure_issue_created"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.jobs",
-            "module_target": "datetime",
-            "resolved": true,
-            "scope": "function",
-            "target": "datetime.datetime"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.jobs",
-            "module_target": "datetime",
-            "resolved": true,
-            "scope": "function",
-            "target": "datetime.datetime"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.jobs",
-            "module_target": "datetime",
-            "resolved": true,
-            "scope": "function",
-            "target": "datetime.timedelta"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.jobs",
-            "module_target": "app.core.scheduler",
-            "resolved": true,
-            "scope": "function",
-            "target": "app.core.scheduler.schedule_task"
+            "target": "app.domains.treasure.service.schedule_auto_reopen_treasure_issue"
           },
           {
             "kind": "from",
@@ -6784,14 +6768,6 @@
           {
             "kind": "from",
             "module": "app.domains.treasure.repository",
-            "module_target": "app.domains.credits",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.credits.service"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.repository",
             "module_target": "app.domains.credits.types",
             "resolved": true,
             "scope": "module",
@@ -6800,10 +6776,26 @@
           {
             "kind": "from",
             "module": "app.domains.treasure.repository",
+            "module_target": "app.domains.identity",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.identity.repository"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.repository",
             "module_target": "app.domains.identity.models",
             "resolved": true,
             "scope": "module",
             "target": "app.domains.identity.models.Statistics"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.repository",
+            "module_target": "app.domains.treasure",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.treasure.exceptions"
           },
           {
             "kind": "from",
@@ -6822,19 +6814,19 @@
             "target": "app.domains.treasure.models.TreasureParticipation"
           },
           {
+            "kind": "import",
+            "module": "app.domains.treasure.repository",
+            "resolved": true,
+            "scope": "function",
+            "target": "random"
+          },
+          {
             "kind": "from",
             "module": "app.domains.treasure.repository",
             "module_target": "app.core.telegram",
             "resolved": true,
             "scope": "function",
             "target": "app.core.telegram.get_user_name_from_tg_id"
-          },
-          {
-            "kind": "import",
-            "module": "app.domains.treasure.repository",
-            "resolved": true,
-            "scope": "function",
-            "target": "random"
           },
           {
             "kind": "from",
@@ -6879,14 +6871,6 @@
           {
             "kind": "from",
             "module": "app.domains.treasure.router",
-            "module_target": "fastapi",
-            "resolved": true,
-            "scope": "module",
-            "target": "fastapi.status"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.router",
             "module_target": "app.core.auth",
             "resolved": true,
             "scope": "module",
@@ -6911,26 +6895,10 @@
           {
             "kind": "from",
             "module": "app.domains.treasure.router",
-            "module_target": "app.core.config",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.config.settings"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.router",
             "module_target": "app.core.log",
             "resolved": true,
             "scope": "module",
             "target": "app.core.log.uvicorn_logger"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.router",
-            "module_target": "app.core.number",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.number.normalize_external_random_b"
           },
           {
             "kind": "from",
@@ -6943,14 +6911,6 @@
           {
             "kind": "from",
             "module": "app.domains.treasure.router",
-            "module_target": "app.databases",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.databases.db"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.router",
             "module_target": "app.domains.badge_awards.jobs",
             "resolved": true,
             "scope": "module",
@@ -6959,34 +6919,18 @@
           {
             "kind": "from",
             "module": "app.domains.treasure.router",
-            "module_target": "app.domains.treasure.jobs",
+            "module_target": "app.domains.treasure",
             "resolved": true,
             "scope": "module",
-            "target": "app.domains.treasure.jobs.schedule_auto_reopen_treasure_issue"
+            "target": "app.domains.treasure.exceptions"
           },
           {
             "kind": "from",
             "module": "app.domains.treasure.router",
-            "module_target": "app.domains.treasure.notifications",
+            "module_target": "app.domains.treasure",
             "resolved": true,
             "scope": "module",
-            "target": "app.domains.treasure.notifications.notify_treasure_issue_created"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.router",
-            "module_target": "app.domains.treasure.notifications",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.treasure.notifications.notify_treasure_not_full_after_join"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.router",
-            "module_target": "app.domains.treasure.notifications",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.domains.treasure.notifications.notify_treasure_settled"
+            "target": "app.domains.treasure.service"
           },
           {
             "kind": "from",
@@ -7054,51 +6998,6 @@
           },
           {
             "kind": "from",
-            "module": "app.domains.treasure.router",
-            "module_target": "app.integrations",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.integrations.eth_rpc"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.router",
-            "module_target": "datetime",
-            "resolved": true,
-            "scope": "function",
-            "target": "datetime.datetime"
-          },
-          {
-            "kind": "import",
-            "module": "app.domains.treasure.router",
-            "resolved": true,
-            "scope": "function",
-            "target": "hashlib"
-          },
-          {
-            "kind": "import",
-            "module": "app.domains.treasure.router",
-            "resolved": true,
-            "scope": "function",
-            "target": "hmac"
-          },
-          {
-            "kind": "import",
-            "module": "app.domains.treasure.router",
-            "resolved": true,
-            "scope": "function",
-            "target": "time"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.router",
-            "module_target": "app.core.config",
-            "resolved": true,
-            "scope": "function",
-            "target": "app.core.config.settings"
-          },
-          {
-            "kind": "from",
             "module": "app.domains.treasure.schemas",
             "module_target": "datetime",
             "resolved": true,
@@ -7123,6 +7022,115 @@
           },
           {
             "kind": "from",
+            "module": "app.domains.treasure.service",
+            "module_target": "__future__",
+            "resolved": true,
+            "scope": "module",
+            "target": "__future__.annotations"
+          },
+          {
+            "kind": "import",
+            "module": "app.domains.treasure.service",
+            "resolved": true,
+            "scope": "module",
+            "target": "hashlib"
+          },
+          {
+            "kind": "import",
+            "module": "app.domains.treasure.service",
+            "resolved": true,
+            "scope": "module",
+            "target": "hmac"
+          },
+          {
+            "kind": "import",
+            "module": "app.domains.treasure.service",
+            "resolved": true,
+            "scope": "module",
+            "target": "time"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.service",
+            "module_target": "datetime",
+            "resolved": true,
+            "scope": "module",
+            "target": "datetime.datetime"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.service",
+            "module_target": "datetime",
+            "resolved": true,
+            "scope": "module",
+            "target": "datetime.timedelta"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.service",
+            "module_target": "app.core.config",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.core.config.settings"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.service",
+            "module_target": "app.core.log",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.core.log.uvicorn_logger"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.service",
+            "module_target": "app.core.number",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.core.number.normalize_external_random_b"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.service",
+            "module_target": "app.domains.treasure",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.treasure.exceptions"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.service",
+            "module_target": "app.domains.treasure",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.treasure.notifications"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.service",
+            "module_target": "app.domains.treasure",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.treasure.repository"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.service",
+            "module_target": "app.integrations",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.integrations.eth_rpc"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.service",
+            "module_target": "app.core.scheduler",
+            "resolved": true,
+            "scope": "function",
+            "target": "app.core.scheduler.schedule_task"
+          },
+          {
+            "kind": "from",
             "module": "app.model_registry",
             "module_target": "app.domains.treasure",
             "resolved": true,
@@ -7141,7 +7149,17 @@
         "strings": []
       },
       "repository_functions": [
-        "count_participated_issues_tx"
+        "cancel_treasure_issue",
+        "cancel_treasure_issue_tx",
+        "count_participated_issues_tx",
+        "create_treasure_issue",
+        "create_treasure_issue_tx",
+        "get_treasure_issue_by_id",
+        "get_user_treasure_stats",
+        "join_treasure_issue",
+        "join_treasure_issue_tx",
+        "list_treasure_issues",
+        "list_treasure_participations"
       ],
       "repository_members": [
         "cancel_treasure_issue",

@@ -2516,36 +2516,6 @@
       "b3_source_id": "app.modules.custom_line:_get_line_monthly_traffic"
     },
     {
-      "key": "call|src/app/domains/treasure/repository.py|295|imported|credits|register_cache_invalidation",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/treasure/repository.py",
-      "line": 295,
-      "kind": "call",
-      "source_domain": "treasure",
-      "target_domain": "credits",
-      "target": "register_cache_invalidation"
-    },
-    {
-      "key": "call|src/app/domains/treasure/repository.py|414|imported|credits|register_cache_invalidation",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/treasure/repository.py",
-      "line": 414,
-      "kind": "call",
-      "source_domain": "treasure",
-      "target_domain": "credits",
-      "target": "register_cache_invalidation"
-    },
-    {
-      "key": "call|src/app/domains/treasure/repository.py|534|imported|credits|register_cache_invalidation",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/treasure/repository.py",
-      "line": 534,
-      "kind": "call",
-      "source_domain": "treasure",
-      "target_domain": "credits",
-      "target": "register_cache_invalidation"
-    },
-    {
       "key": "call|src/app/domains/vaultwarden/router.py|130|facade|identity|get_stats_by_tg_id",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/vaultwarden/router.py",
@@ -4177,21 +4147,10 @@
       "b3_source_id": "app.modules.custom_line:_get_line_monthly_traffic"
     },
     {
-      "key": "import|src/app/domains/treasure/repository.py|10|app.domains.credits.service|service",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/treasure/repository.py",
-      "line": 10,
-      "kind": "import",
-      "source_domain": "treasure",
-      "target_domain": "credits",
-      "target_module": "app.domains.credits.service",
-      "symbol": "service"
-    },
-    {
-      "key": "import|src/app/domains/treasure/router.py|13|app.domains.badge_awards.jobs|check_and_award_game_king_badge",
+      "key": "import|src/app/domains/treasure/router.py|10|app.domains.badge_awards.jobs|check_and_award_game_king_badge",
       "owner": "promote-activity-domains",
       "path": "src/app/domains/treasure/router.py",
-      "line": 13,
+      "line": 10,
       "kind": "import",
       "source_domain": "treasure",
       "target_domain": "badge_awards",
@@ -4277,11 +4236,11 @@
     "SQLAlchemy direct use scope": 16,
     "Database engine import scope": 18,
     "Domain model import scope": 19,
-    "Six-tier domain dependencies": 55,
+    "Six-tier domain dependencies": 54,
     "Acyclic domain siblings": 17,
-    "Domain internal layering": 6,
+    "Domain internal layering": 5,
     "Domain types are pure value modules": 0,
     "Domain rules are pure value computations": 0,
-    "Domain entry points do not touch data layer": 68
+    "Domain entry points do not touch data layer": 66
   }
 }
