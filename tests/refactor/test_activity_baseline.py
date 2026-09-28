@@ -9,6 +9,7 @@ repository surface (class members plus module-level functions).
 from __future__ import annotations
 
 import json
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -16,7 +17,22 @@ import pytest
 from scripts.refactor.activity_snapshot import build_activity_snapshot
 
 FIXTURE = Path(__file__).parent / "fixtures/activity_surface.json"
+MAPPING = Path(__file__).parents[2] / "scripts/refactor/mapping.toml"
 DOMAINS = ("luckywheel", "treasure", "prediction", "auction")
+
+#: 四个 mixin 的成员在提升后允许落到哪些模块。repository 不再拆分时
+#: planned_target 与 target 相同；prediction 按子主题拆分；纯计算进 rules。
+ALLOWED_DESTINATIONS = {
+    "app.domains.luckywheel.repository",
+    "app.domains.luckywheel.config",
+    "app.domains.treasure.repository",
+    "app.domains.auction.repository",
+    "app.domains.prediction.repository.markets",
+    "app.domains.prediction.repository.bets",
+    "app.domains.prediction.repository.settlement",
+    "app.domains.prediction.repository.analytics",
+    "app.domains.prediction.rules",
+}
 
 
 def _fixture() -> dict:
@@ -70,3 +86,23 @@ def test_scheduler_jobs_stay_within_the_four_domains() -> None:
 def test_repository_surface_is_populated(domain: str) -> None:
     section = _fixture()["domains"][domain]
     assert section["repository_members"] or section["repository_functions"]
+
+
+def test_every_repository_member_has_a_reviewed_destination() -> None:
+    """每个 mixin 成员都要在 mapping.toml 里写明目标位置。"""
+    snapshot = _fixture()
+    mapping = tomllib.loads(MAPPING.read_text(encoding="utf-8"))
+    planned = {
+        item["id"].split("DatabaseORM.", 1)[1]: item["planned_target"]
+        for item in mapping["items"]
+        if item["id"].startswith("app.databases.db:DatabaseORM.")
+        and "planned_target" in item
+    }
+
+    members = {
+        name
+        for domain in DOMAINS
+        for name in snapshot["domains"][domain]["repository_members"]
+    }
+    assert sorted(name for name in members if name not in planned) == []
+    assert {planned[name] for name in members} <= ALLOWED_DESTINATIONS
