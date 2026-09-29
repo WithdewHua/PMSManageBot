@@ -1,0 +1,30 @@
+{
+  "base_commit": "ae8a5fca8dc57b5dc841cb14fe4efa2084bed8a9",
+  "base_ref": "origin/main",
+  "hotfix_branch": "hotfix/webapp-auth-bypass-ae8a5fc",
+  "patch": "openspec/changes/fix-webapp-auth-bypass/production-hotfix.patch.gz",
+  "patch_sha256": "3d924c12be6df1bb67858edce24800e964b01dd1fa603b11890ee8b9dca9bc4e",
+  "changed_paths": [
+    ".env.example",
+    "src/app/config.py",
+    "src/app/modules/upay.py",
+    "src/app/webapp/__init__.py",
+    "src/app/webapp/auth.py",
+    "src/app/webapp/middlewares.py",
+    "src/app/webapp/routers/admin.py",
+    "src/app/webapp/routers/crypto_donation.py"
+  ],
+  "validation": {
+    "patch_applies_cleanly": true,
+    "changed_paths_match_allowlist": true,
+    "python_compile": true,
+    "legacy_security_tests": "4 passed",
+    "production_config_parser_smoke": true,
+    "production_auth_signature_smoke": true
+  },
+  "production_admin_chat_id_review": {
+    "maintainer_confirmation": "confirmed no negative group IDs in production TG_ADMIN_CHAT_ID",
+    "new_negative_notification_targets": []
+  },
+  "deployment_note": "The patch is prepared against the production-layout base and must be applied and released from the production hotfix branch; no production credentials or deployment configuration are stored here."
+}

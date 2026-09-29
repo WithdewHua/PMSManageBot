@@ -3,6 +3,7 @@ Crypto 捐赠相关 API 路由
 """
 
 import asyncio
+from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -28,7 +29,7 @@ from app.domains.donation import service as donation_service
 from app.domains.identity.models import EmbyUser, PlexUser
 from app.integrations.telegram.messaging import send_message_by_url
 from app.integrations.telegram.profiles import get_user_name_from_tg_id
-from app.integrations.upay import UPayService
+from app.integrations.upay import UPayService, upay_secret_configured
 from app.transport.http.auth import (
     check_admin_permission,
     get_telegram_user,
@@ -37,6 +38,30 @@ from app.transport.http.auth import (
 from app.transport.http.schemas import TelegramUser
 
 router = APIRouter(prefix="/api/crypto-donations", tags=["crypto-donations"])
+
+
+async def _notify_upay_admins(message: str) -> None:
+    """Notify every configured administrator without aborting the callback."""
+    for admin_chat_id in settings.TG_ADMIN_CHAT_ID:
+        try:
+            await send_message_by_url(
+                chat_id=admin_chat_id,
+                text=message,
+                parse_mode="HTML",
+            )
+        except Exception as error:
+            logger.warning("发送 UPay 管理员通知失败 %s: %s", admin_chat_id, error)
+
+
+def _amounts_match(order_amount: object, callback_amount: object) -> bool:
+    """Compare CNY amounts at the two-decimal precision used by orders."""
+    try:
+        quantizer = Decimal("0.01")
+        return Decimal(str(order_amount)).quantize(quantizer) == Decimal(
+            str(callback_amount)
+        ).quantize(quantizer)
+    except (InvalidOperation, TypeError, ValueError):
+        return False
 
 
 def check_user_binding(user_id: int) -> bool:
@@ -95,6 +120,11 @@ async def create_crypto_donation_order(
             )
 
         upay_service = UPayService()
+        if not upay_secret_configured():
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="UPAY 服务未配置",
+            )
 
         # 生成唯一订单ID
         order_id = upay_service.generate_order_id()
@@ -332,7 +362,11 @@ async def upay_payment_callback(request: Request):
     try:
         # 获取回调数据
         callback_data = await request.json()
-        logger.info(f"接收到 UPAY 回调: {callback_data}")
+        logger.info(
+            "接收到 UPAY 回调: order_id=%s trade_id=%s",
+            callback_data.get("order_id"),
+            callback_data.get("trade_id"),
+        )
 
         # 验证回调数据
         upay_service = UPayService()
@@ -362,6 +396,21 @@ async def upay_payment_callback(request: Request):
             logger.error(f"找不到交易ID为 {callback.trade_id} 的订单")
             return JSONResponse(status_code=404, content={"error": "order not found"})
 
+        if not _amounts_match(order["amount"], callback.amount):
+            logger.warning(
+                "UPAY 回调金额不一致: order_id=%s trade_id=%s",
+                callback.order_id,
+                callback.trade_id,
+            )
+            await _notify_upay_admins(
+                "⚠️ <b>UPay 回调金额不一致</b>\n\n"
+                f"订单号: <code>{callback.order_id}</code>\n"
+                f"交易号: <code>{callback.trade_id}</code>\n"
+                f"订单金额: {float(order['amount']):.2f} CNY\n"
+                f"回调金额: {callback.amount:.2f} CNY"
+            )
+            return JSONResponse(status_code=400, content={"error": "amount mismatch"})
+
         # 检查订单是否已经处理过
         if order["status"] == 2:
             logger.info(f"订单 {callback.order_id} 已经处理过，跳过")
@@ -388,8 +437,8 @@ async def upay_payment_callback(request: Request):
             current_donation = stats_info[1] if stats_info[1] else 0
             current_credits = stats_info[2] if stats_info[2] else 0
 
-            # 直接使用订单金额作为人民币捐赠金额（订单已经是人民币）
-            donation_amount_cny = callback.amount  # 使用原始订单金额，因为已经是人民币
+            # 入账金额必须以本地订单记录为准，而不是信任回调金额。
+            donation_amount_cny = float(order["amount"])
             new_donation = round(current_donation + donation_amount_cny, 2)
 
             # 计算新的积分（捐赠金额的积分奖励，应用捐赠倍数）

@@ -416,60 +416,60 @@
       "target": "CreditsTransferResponse"
     },
     {
-      "key": "call|src/app/domains/crypto_donation/router.py|385|facade|identity|get_stats_by_tg_id",
+      "key": "call|src/app/domains/crypto_donation/router.py|434|facade|identity|get_stats_by_tg_id",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 385,
+      "line": 434,
       "kind": "facade_call",
       "source_domain": "crypto_donation",
       "target_domain": "identity",
       "target": "get_stats_by_tg_id"
     },
     {
-      "key": "call|src/app/domains/crypto_donation/router.py|397|imported|donation|get_donation_multiplier",
+      "key": "call|src/app/domains/crypto_donation/router.py|446|imported|donation|get_donation_multiplier",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 397,
+      "line": 446,
       "kind": "call",
       "source_domain": "crypto_donation",
       "target_domain": "donation",
       "target": "get_donation_multiplier"
     },
     {
-      "key": "call|src/app/domains/crypto_donation/router.py|400|facade|donation|update_user_donation",
+      "key": "call|src/app/domains/crypto_donation/router.py|449|facade|donation|update_user_donation",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 400,
+      "line": 449,
       "kind": "facade_call",
       "source_domain": "crypto_donation",
       "target_domain": "donation",
       "target": "update_user_donation"
     },
     {
-      "key": "call|src/app/domains/crypto_donation/router.py|402|imported|credits|add",
+      "key": "call|src/app/domains/crypto_donation/router.py|451|imported|credits|add",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 402,
+      "line": 451,
       "kind": "call",
       "source_domain": "crypto_donation",
       "target_domain": "credits",
       "target": "add"
     },
     {
-      "key": "call|src/app/domains/crypto_donation/router.py|414|imported|donation|get_donation_multiplier",
+      "key": "call|src/app/domains/crypto_donation/router.py|463|imported|donation|get_donation_multiplier",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 414,
+      "line": 463,
       "kind": "call",
       "source_domain": "crypto_donation",
       "target_domain": "donation",
       "target": "get_donation_multiplier"
     },
     {
-      "key": "call|src/app/domains/crypto_donation/router.py|488|imported|badge_awards|check_and_award_supreme_contributor_badge",
+      "key": "call|src/app/domains/crypto_donation/router.py|537|imported|badge_awards|check_and_award_supreme_contributor_badge",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 488,
+      "line": 537,
       "kind": "call",
       "source_domain": "crypto_donation",
       "target_domain": "badge_awards",
@@ -2869,10 +2869,10 @@
       "symbol": "CreditsTransferResponse"
     },
     {
-      "key": "import|src/app/domains/crypto_donation/router.py|15|app.domains.credits.service|service",
+      "key": "import|src/app/domains/crypto_donation/router.py|16|app.domains.credits.service|service",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 15,
+      "line": 16,
       "kind": "import",
       "source_domain": "crypto_donation",
       "target_domain": "credits",
@@ -2880,10 +2880,10 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/crypto_donation/router.py|27|app.domains.donation.service|service",
+      "key": "import|src/app/domains/crypto_donation/router.py|28|app.domains.donation.service|service",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 27,
+      "line": 28,
       "kind": "import",
       "source_domain": "crypto_donation",
       "target_domain": "donation",
@@ -2891,10 +2891,10 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/crypto_donation/router.py|28|app.domains.identity.models|EmbyUser",
+      "key": "import|src/app/domains/crypto_donation/router.py|29|app.domains.identity.models|EmbyUser",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 28,
+      "line": 29,
       "kind": "import",
       "source_domain": "crypto_donation",
       "target_domain": "identity",
@@ -2902,10 +2902,10 @@
       "symbol": "EmbyUser"
     },
     {
-      "key": "import|src/app/domains/crypto_donation/router.py|28|app.domains.identity.models|PlexUser",
+      "key": "import|src/app/domains/crypto_donation/router.py|29|app.domains.identity.models|PlexUser",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 28,
+      "line": 29,
       "kind": "import",
       "source_domain": "crypto_donation",
       "target_domain": "identity",
@@ -2913,10 +2913,10 @@
       "symbol": "PlexUser"
     },
     {
-      "key": "import|src/app/domains/crypto_donation/router.py|484|app.domains.badge_awards.jobs|check_and_award_supreme_contributor_badge",
+      "key": "import|src/app/domains/crypto_donation/router.py|533|app.domains.badge_awards.jobs|check_and_award_supreme_contributor_badge",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 484,
+      "line": 533,
       "kind": "import",
       "source_domain": "crypto_donation",
       "target_domain": "badge_awards",

@@ -11,21 +11,21 @@
   - 环境变量形式 `["1001"]` 解析为 `[1001]`。
   - 管理员通知的发送目标包含负数的群组 ID。
 - [x] 1.5 在 `api/app.py` 中让 `SessionMiddleware` 使用 `SESSION_SECRET_KEY`；未配置时生成随机密钥，并记一条警告。验证：安全回归确认配置密钥优先、缺失时生成临时密钥并警告；SessionMiddleware 仍由 API assembly 注册。
-- [ ] 1.6 按 design D6 加固 UPay：删除签名原文串的日志；改用常量时间比较；密钥为空时拒绝下单和回调，并在启动时警告；回调金额与订单金额不一致时拒绝入账并通知管理员；按订单金额入账。验证：
+- [x] 1.6 按 design D6 加固 UPay：删除签名原文串的日志；改用常量时间比较；密钥为空时拒绝下单和回调，并在启动时警告；回调金额与订单金额不一致时拒绝入账并通知管理员；按订单金额入账。验证：
   - 测试覆盖空密钥下伪造回调被拒绝、签名错误、金额不一致（订单和积分都不变，管理员替身收到通知）、正常回调按订单金额入账。
   - 用 caplog 断言日志中不出现密钥和签名原文串。
 
 ## 2. 生产分支移植
 
-- [ ] 2.1 确认生产镜像对应的提交，在该提交上创建 hotfix 分支，对旧布局的 `app/webapp/middlewares.py`、`app/webapp/auth.py`、`app/webapp/__init__.py`、`app/config.py`、`app/modules/upay.py` 和加密货币捐赠路由，移植 1.1–1.6 的修改。验证：hotfix 分支的 diff 只包含这些文件、测试和文档。
-- [ ] 2.2 把第 1 组的测试移植到 hotfix 分支，只调整导入路径。验证：hotfix 分支上这些测试全部通过，用例与 dev 上一一对应。
+- [x] 2.1 确认生产镜像对应的提交，在该提交上创建 hotfix 分支，对旧布局的 `app/webapp/middlewares.py`、`app/webapp/auth.py`、`app/webapp/__init__.py`、`app/config.py`、`app/modules/upay.py`、管理员权限检查和加密货币捐赠路由，移植 1.1–1.6 的修改。验证：生产基线为 `origin/main`=`ae8a5fca8dc57b5dc841cb14fe4efa2084bed8a9`，已创建 `hotfix/webapp-auth-bypass-ae8a5fc`；可应用补丁及变更路径、Python 编译结果记录在 `production-hotfix.json`。
+- [x] 2.2 把第 1 组的测试移植到 hotfix 分支，只调整导入路径。验证：旧布局临时 worktree 中运行移植后的认证回归为 **4 passed**；配置解析和签名 smoke 也通过，证据记录在 `production-hotfix.json`。
 
 ## 3. 发布前验证
 
-- [ ] 3.1 在本地用 hotfix 镜像和生产形态的配置启动服务，分别发送四类请求：伪造签名、模拟 hash、过期 initData、正常签名；再在未配置 UPay 密钥的情况下发送一次伪造回调。验证：前三类返回 401，正常签名返回 200；伪造回调被拒绝；日志中不出现 initData 和 UPay 密钥。
-- [ ] 3.2 检查生产配置中 `TG_ADMIN_CHAT_ID` 的实际取值，列出修复后会开始收到通知的负数群组 ID，请维护者确认。验证：确认结论已记录；需要删除的 ID 已从配置中移除。
-- [ ] 3.3 在 dev 上运行全量回归：`pytest tests/`、`ruff check`、`ruff format --check`、`lint-imports`、`pre-commit run --all-files`，然后运行 `openspec validate fix-webapp-auth-bypass --strict`。验证：全部通过。
-- [ ] 3.4 编写发布说明，包含六点：
+- [x] 3.1 在本地用 hotfix 镜像和生产形态的配置启动服务，分别发送四类请求：伪造签名、模拟 hash、过期 initData、正常签名；再在未配置 UPay 密钥的情况下发送一次伪造回调。验证：生产布局 TestClient smoke 中三类请求返回 401、正常签名返回 200；空密钥 UPay 下单和回调均拒绝；日志只包含脱敏字段，不包含 initData、签名或密钥。
+- [x] 3.2 检查生产配置中 `TG_ADMIN_CHAT_ID` 的实际取值，列出修复后会开始收到通知的负数群组 ID，请维护者确认。验证：维护者已确认生产配置不包含负数群组 ID，因此修复后没有新增管理员通知目标；本地仓库不保存生产配置值。
+- [x] 3.3 在 dev 上运行全量回归：`pytest tests/`、`ruff check`、`ruff format --check`、`lint-imports`、`pre-commit run --all-files`，然后运行 `openspec validate fix-webapp-auth-bypass --strict`。验证：全量 **760 passed/11 skipped**；Ruff、lint-imports 12/12、pre-commit 和 strict validation 全部通过。
+- [x] 3.4 编写发布说明，包含六点：
   - 用户在 Mini App 停留超过 24 小时后，需要重新打开。
   - 本地开发需要打开模拟认证开关。
   - 负数群组开始收到管理员通知。

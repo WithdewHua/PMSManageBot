@@ -2172,7 +2172,7 @@
     },
     {
       "kind": "facade_import",
-      "line": 14,
+      "line": 15,
       "path": "src/app/domains/crypto_donation/router.py",
       "symbol": "app.databases",
       "target_role": "blackjack.service"

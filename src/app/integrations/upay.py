@@ -3,6 +3,7 @@ UPAY 支付服务模块
 """
 
 import hashlib
+import hmac
 import uuid
 
 import httpx
@@ -11,12 +12,25 @@ from app.core.config import settings
 from app.core.log import logger
 
 
+def upay_secret_configured() -> bool:
+    """Return whether a non-empty UPay signing secret is configured."""
+    return bool(settings.UPAY_SECRET_KEY.strip())
+
+
+def warn_if_secret_missing() -> None:
+    """Warn once per application startup when UPay signing is disabled."""
+    if not upay_secret_configured():
+        logger.warning(
+            "UPAY_SECRET_KEY is not configured; crypto donations are disabled"
+        )
+
+
 class UPayService:
     """UPAY 支付服务"""
 
     def __init__(self):
         self.base_url = getattr(settings, "UPAY_BASE_URL", "http://localhost:8090")
-        self.secret_key = settings.UPAY_SECRET_KEY
+        self.secret_key = settings.UPAY_SECRET_KEY.strip()
         self.notify_url = (
             f"{settings.WEBAPP_URL.rstrip('/')}/api/crypto-donations/callback"
         )
@@ -51,12 +65,8 @@ class UPayService:
             # 拼接参数和密钥
             sign_string = "&".join(sorted_params) + self.secret_key
 
-            # MD5 加密
-            signature = hashlib.md5(sign_string.encode("utf-8")).hexdigest()
-            logger.info(f"签名字符串: {sign_string}")
-            logger.info(f"生成签名: {signature}")
-
-            return signature
+            # MD5 加密；签名原文和签名本身都不得进入日志。
+            return hashlib.md5(sign_string.encode("utf-8")).hexdigest()
         except Exception as e:
             logger.error(f"生成签名失败: {e}")
             return ""
@@ -64,7 +74,9 @@ class UPayService:
     def verify_callback_signature(self, data: dict) -> bool:
         """验证回调签名"""
         try:
-            received_signature = data.get("signature", "")
+            if not self.secret_key:
+                return False
+            received_signature = str(data.get("signature", ""))
             if not received_signature:
                 return False
 
@@ -91,10 +103,7 @@ class UPayService:
             # 生成预期签名
             expected_signature = self.generate_signature(params)
 
-            logger.info(f"接收到的签名: {received_signature}")
-            logger.info(f"预期签名: {expected_signature}")
-
-            return received_signature == expected_signature
+            return hmac.compare_digest(received_signature, expected_signature)
         except Exception as e:
             logger.error(f"验证回调签名失败: {e}")
             return False
@@ -107,6 +116,9 @@ class UPayService:
     ) -> dict | None:
         """创建 UPAY 订单"""
         try:
+            if not self.secret_key:
+                logger.error("UPAY_SECRET_KEY is not configured")
+                return None
             if not order_id:
                 order_id = self.generate_order_id()
 
@@ -123,7 +135,12 @@ class UPayService:
             signature = self.generate_signature(params)
             params["signature"] = signature
 
-            logger.info(f"创建 UPAY 订单请求参数: {params}")
+            logger.info(
+                "创建 UPAY 订单: order_id=%s type=%s amount=%.2f",
+                order_id,
+                crypto_type,
+                amount,
+            )
 
             # 发送请求
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -134,7 +151,11 @@ class UPayService:
                 )
 
                 response_data = response.json()
-                logger.info(f"UPAY 响应: {response_data}")
+                logger.info(
+                    "UPAY 响应: status_code=%s message=%s",
+                    response_data.get("status_code"),
+                    response_data.get("message"),
+                )
 
                 if response_data.get("status_code") == 200:
                     return response_data.get("data")
