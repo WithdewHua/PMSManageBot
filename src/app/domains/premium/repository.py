@@ -5,12 +5,14 @@ from sqlalchemy import func, select, update
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import EmbyUser, PlexUser
+from app.domains.premium.exceptions import PremiumAccountNotBound
 from app.domains.traffic import service as traffic_service
 from app.domains.traffic.models import LineTrafficStats
 
 
-class PremiumRepository:
+class _PremiumRepository:
     def get_plex_premium_quota_status(self, plex_id: int) -> dict:
         """获取 Plex 用户今日 Premium 免费额度状态"""
         try:
@@ -590,9 +592,7 @@ class PremiumRepository:
             .one_or_none()
         )
         if row is None:
-            raise NameError(
-                "请先绑定 Plex 账户" if service == "plex" else "请先绑定 Emby 账户"
-            )
+            raise PremiumAccountNotBound(service)
 
         current_expiry = row.premium_expiry_time
         if bool(row.is_premium) and not current_expiry:
@@ -679,11 +679,41 @@ def _expire_user_tx_impl(
 
 
 # 模块级入口：跨域调用方（如礼包）只使用这些函数，不触碰门面实例。
-_premium_repository = PremiumRepository()
+# Kept only as the temporary facade compatibility bridge until facade retirement.
+PremiumRepository = _PremiumRepository
+_premium_repository = _PremiumRepository()
+
+
+def get_plex_premium_quota_status(plex_id: int) -> dict:
+    return _premium_repository.get_plex_premium_quota_status(plex_id)
+
+
+def get_emby_premium_quota_status(emby_username: str) -> dict:
+    return _premium_repository.get_emby_premium_quota_status(emby_username)
 
 
 def get_expired_premium_users() -> list:
     return _premium_repository.get_expired_premium_users()
+
+
+def update_expired_premium_status() -> int:
+    return _premium_repository.update_expired_premium_status()
+
+
+def get_premium_users_expiring_soon(days: int = 3) -> list:
+    return _premium_repository.get_premium_users_expiring_soon(days)
+
+
+def get_premium_statistics() -> dict:
+    return _premium_repository.get_premium_statistics()
+
+
+def get_all_active_premium_users() -> list:
+    return _premium_repository.get_all_active_premium_users()
+
+
+def get_all_premium_traffic_debt_users() -> list:
+    return _premium_repository.get_all_premium_traffic_debt_users()
 
 
 def purchase_premium(*, tg_id: int, service: str, days: int, cost: float):
@@ -692,14 +722,14 @@ def purchase_premium(*, tg_id: int, service: str, days: int, cost: float):
     from app.domains.credits.types import CreditAccount
 
     with get_session() as session:
+        mutation = credits_repository.deduct_tx(
+            session, CreditAccount.tg(int(tg_id)), float(cost)
+        )
         expiry = _premium_repository.grant_premium_days_tx(
             session, int(tg_id), service, int(days)
         )
         if expiry is None:
             raise ValueError("您已是永久 Premium 会员，无需续费")
-        mutation = credits_repository.deduct_tx(
-            session, CreditAccount.tg(int(tg_id)), float(cost)
-        )
         return expiry, mutation
 
 
@@ -733,3 +763,32 @@ def _expire_user_tx(session, *, tg_id: int, service: str, now: datetime) -> dict
 
 def get_premium_sync_target(tg_id: int, service: str) -> str | None:
     return _premium_repository.get_premium_sync_target(tg_id, service)
+
+
+def update_traffic_debt_tx(
+    session,
+    account: CreditAccount,
+    *,
+    debt_bytes: int,
+    updated_date: str | None,
+) -> None:
+    """Update one account's Premium traffic debt in the caller's transaction."""
+    if account.kind == "plex":
+        model = PlexUser
+        key_column = PlexUser.plex_id
+        identifier = int(account.identifier)
+    elif account.kind == "emby":
+        model = EmbyUser
+        key_column = EmbyUser.emby_username
+        identifier = str(account.identifier)
+    else:
+        raise ValueError("Premium traffic debt requires a Plex or Emby account")
+
+    row = session.execute(
+        select(model).where(key_column == identifier).with_for_update()
+    ).scalar_one_or_none()
+    if row is None:
+        raise ValueError(f"Premium account not found: {account.label}")
+    row.premium_traffic_debt_bytes = int(debt_bytes)
+    row.premium_traffic_debt_updated_date = updated_date
+    session.flush()

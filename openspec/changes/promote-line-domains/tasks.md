@@ -32,15 +32,15 @@
 
 ## 4. premium 与 media_access
 
-- [ ] 4.1 提升 premium：repository 为模块级函数，并新增 `update_traffic_debt_tx`；删除 service 中的 SQL 和 B1 桥接；购买改为单事务（扣分和授予），提交后同步权限；三个任务由 service 编排；用对照测试证明两份"解绑会员线路"的实现等价后，统一改用 `lines.service.unbind_premium_line`；管理员路由中的目录接口改为调用 lines 的目录函数；用 `PremiumAccountNotBound` 替换 `NameError` 信号。验证：
+- [x] 4.1 提升 premium：repository 为模块级函数，并新增 `update_traffic_debt_tx`；删除 service 中的 SQL 和 B1 桥接；购买改为单事务（扣分和授予），提交后同步权限；三个任务由 service 编排；用对照测试证明两份"解绑会员线路"的实现等价后，统一改用 `lines.service.unbind_premium_line`；管理员路由中的目录接口改为调用 lines 的目录函数；用 `PremiumAccountNotBound` 替换 `NameError` 信号。验证：
   - 1.3 中 premium 的测试通过。
   - 购买时注入扣分失败，不会授予会员。
   - `premium` 中不再导入 `app.databases`，也没有 SQL。
-- [ ] 4.2 提升 media_access：NSFW 的解锁和锁定改为"事务、提交后同步、失败补偿"；下载解锁改为单事务，并检查影响行数；`caculate_credits_fund` 改为纯函数；经维护者确认后删除 `update_all_lib`。验证：
+- [x] 4.2 提升 media_access：NSFW 的解锁和锁定改为"事务、提交后同步、失败补偿"；下载解锁改为单事务，并检查影响行数；`caculate_credits_fund` 改为纯函数；经维护者确认后删除 `update_all_lib`。验证：
   - 1.3 中 media_access 的测试通过。
   - 媒体服务器失败时，积分和标志都恢复到操作之前。
   - 补偿也失败时，有 error 日志和管理员通知。
-- [ ] 4.3 把 watch_rewards 中写会员欠额的 6 处原生 SQL，改为调用 `premium.repository.update_traffic_debt_tx`（在 reward 变更之前先完成这个替换）；把 accounts 写 `all_lib` 的地方改为调用 media_access 的 `*_tx`。验证：观看结算和绑定的测试通过；`watch_rewards` 和 `accounts` 中不再有写会员列和 `all_lib` 列的 SQL。
+- [x] 4.3 把 watch_rewards 中写会员欠额的 6 处原生 SQL，改为调用 `premium.repository.update_traffic_debt_tx`（在 reward 变更之前先完成这个替换）；把 accounts 写 `all_lib` 的地方改为调用 media_access 的 `*_tx`。验证：观看结算和绑定的测试通过；`watch_rewards` 和 `accounts` 中不再有写会员列和 `all_lib` 列的 SQL。
 
 ## 5. 基线清理与集成验证
 

@@ -11,6 +11,7 @@ from app.domains.accounts.exceptions import AccountAlreadyBound
 from app.domains.credits import repository as credits_repository
 from app.domains.credits.types import CreditAccount
 from app.domains.identity import repository as identity_repository
+from app.domains.media_access import repository as media_access_repository
 
 
 def bind_plex_account(
@@ -60,8 +61,15 @@ def bind_plex_account(
                 plex_email=plex_email,
                 plex_username=plex_username,
                 credits=0,
-                all_lib=all_lib,
+                all_lib=0,
                 watched_time=watched_time,
+            )
+            media_access_repository.update_all_lib_flag_tx(
+                session,
+                all_lib=int(all_lib),
+                unlock_time=None,
+                plex_id=int(plex_id),
+                media_server="plex",
             )
         except IntegrityError as error:
             raise AccountAlreadyBound() from error

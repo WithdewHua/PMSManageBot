@@ -1,10 +1,13 @@
-from sqlalchemy import select
-from sqlalchemy import update as sql_update
-
 from app.core.db import get_session
-from app.domains.identity.models import PlexUser
+from app.core.log import logger
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
+from app.domains.identity import service as identity_service
+from app.domains.media_access import exceptions as media_access_exceptions
+from app.domains.media_access import notifications as media_access_notifications
 from app.domains.media_access import repository as media_access_repository
 from app.domains.media_access.config import MEDIA_ACCESS_CONFIG
+from app.domains.media_access.rules import caculate_credits_fund
 from app.integrations.plex import Plex
 
 
@@ -68,28 +71,115 @@ def apply_download_unlock_to_media(tg_id: int, service: str) -> None:
         raise ValueError(f"不支持的服务类型: {service}")
 
 
-def update_all_lib():
-    """更新用户资料库权限状态"""
-    _plex = Plex()
+async def perform_nsfw_operation(tg_id: int, service: str, operation: str) -> dict:
+    """Run one NSFW workflow and return its committed credit result."""
+    normalized = service.lower()
+    if normalized == "plex":
+        account = identity_service.find_plex_by_tg(int(tg_id))
+        unlocked = account and int(account.all_lib or 0) == 1
+        unlock_time = account.unlock_time if account else None
+    elif normalized == "emby":
+        account = identity_service.find_emby_by_tg(int(tg_id))
+        unlocked = account and int(account.emby_is_unlock or 0) == 1
+        unlock_time = account.emby_unlock_time if account else None
+    else:
+        raise ValueError(f"不支持的服务类型: {service}")
+    if account is None:
+        raise media_access_exceptions.MediaAccountNotBound(normalized)
+    if operation == "unlock":
+        if unlocked:
+            raise ValueError("您已拥有全部库权限")
+        return await unlock_nsfw(int(tg_id), normalized, get_unlock_credits())
+    if operation == "lock":
+        if not unlocked:
+            raise ValueError("您未解锁NSFW内容")
+        return await lock_nsfw(
+            int(tg_id), normalized, unlock_time, get_unlock_credits()
+        )
+    raise ValueError(f"不支持的操作类型: {operation}")
+
+
+async def unlock_nsfw(tg_id: int, service: str, cost: float) -> dict:
+    """Commit NSFW unlock, then synchronize the media server with compensation."""
+    with get_session() as session:
+        committed = media_access_repository.unlock_nsfw_tx(
+            session, int(tg_id), service, float(cost)
+        )
+
     try:
-        users = _plex.users_by_email
-        all_libs = _plex.get_libraries()
-        for email, user in users.items():
-            if not email:
-                continue
+        if service == "plex":
+            Plex().update_user_shared_libs(committed["target"], Plex().get_libraries())
+        elif service == "emby":
+            from app.integrations.emby import Emby
+
+            success, message = Emby().add_user_library(
+                user_id=committed["target"], library=get_nsfw_libs()
+            )
+            if not success:
+                raise RuntimeError(message)
+        else:
+            raise ValueError(f"不支持的服务类型: {service}")
+    except Exception as error:
+        logger.error("同步 %s NSFW 解锁失败: %s", service, error)
+        try:
             with get_session() as session:
-                stmt = select(PlexUser).where(PlexUser.plex_email == email)
-                _info = session.execute(stmt).fetchone()
-            if not _info:
-                continue
-            cur_libs = _plex.get_user_shared_libs_by_id(user[0])
-            all_lib_flag = 1 if not set(all_libs).difference(set(cur_libs)) else 0
-            with get_session() as session:
-                stmt = (
-                    sql_update(PlexUser)
-                    .where(PlexUser.plex_email == email)
-                    .values(all_lib=all_lib_flag)
+                media_access_repository.compensate_nsfw_unlock_tx(
+                    session, int(tg_id), service, float(cost)
                 )
-                session.execute(stmt)
-    except Exception as e:
-        print(e)
+        except Exception as compensation_error:
+            logger.error("NSFW 解锁补偿失败: %s", compensation_error)
+            await media_access_notifications.notify_nsfw_compensation_failed(
+                int(tg_id), service, "unlock", compensation_error
+            )
+        raise
+
+    return {
+        "credits": credits_service.read_optional(CreditAccount.tg(int(tg_id))) or 0.0,
+        "cost": float(cost),
+    }
+
+
+async def lock_nsfw(tg_id: int, service: str, unlock_time, unlock_credits: int) -> dict:
+    """Commit NSFW lock and refund, then synchronize with compensation."""
+    refund = caculate_credits_fund(unlock_time, unlock_credits)
+    with get_session() as session:
+        committed = media_access_repository.lock_nsfw_tx(
+            session, int(tg_id), service, float(refund)
+        )
+
+    try:
+        if service == "plex":
+            plex = Plex()
+            libraries = plex.get_libraries()
+            libraries = [
+                library for library in libraries if library not in get_nsfw_libs()
+            ]
+            plex.update_user_shared_libs(committed["target"], libraries)
+        elif service == "emby":
+            from app.integrations.emby import Emby
+
+            success, message = Emby().remove_user_library(
+                user_id=committed["target"], library=get_nsfw_libs()
+            )
+            if not success:
+                raise RuntimeError(message)
+        else:
+            raise ValueError(f"不支持的服务类型: {service}")
+    except Exception as error:
+        logger.error("同步 %s NSFW 锁定失败: %s", service, error)
+        try:
+            with get_session() as session:
+                media_access_repository.compensate_nsfw_lock_tx(
+                    session, int(tg_id), service, float(refund)
+                )
+        except Exception as compensation_error:
+            logger.error("NSFW 锁定补偿失败: %s", compensation_error)
+            await media_access_notifications.notify_nsfw_compensation_failed(
+                int(tg_id), service, "lock", compensation_error
+            )
+        raise
+
+    return {
+        "credits": credits_service.read_optional(CreditAccount.tg(int(tg_id))) or 0.0,
+        "refund": float(refund),
+    }

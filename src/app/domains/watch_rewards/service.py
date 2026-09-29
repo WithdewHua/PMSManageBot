@@ -3,7 +3,6 @@ import traceback
 from datetime import datetime, timedelta
 
 from sqlalchemy import select
-from sqlalchemy import update as sql_update
 
 from app.core import kv as core_kv
 from app.core.config import settings
@@ -16,6 +15,7 @@ from app.domains.credits.types import CreditAccount
 from app.domains.identity import repository as identity_repository
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 from app.domains.invitation import service as invitation_service
+from app.domains.premium import repository as premium_repository
 from app.domains.watch_rewards import repository as watch_rewards_repository
 from app.domains.watch_rewards.constants import (
     GHOST_SETTLEMENT_CONFIG_KEY,
@@ -676,17 +676,19 @@ def _commit_watch_settlement(
             )
             inviter_balance = inviter_mutation.after
 
-        session.execute(
-            sql_update(media_model)
-            .where(media_key == media_id)
-            .values(
-                {
-                    watched_column: watched_value,
-                    media_model.premium_traffic_debt_bytes: debt_bytes,
-                    media_model.premium_traffic_debt_updated_date: debt_updated_date,
-                }
-            )
+        setattr(media_row, watched_column.key, watched_value)
+        debt_account = (
+            CreditAccount.plex(int(media_id))
+            if service == "plex"
+            else CreditAccount.emby(str(media_id))
         )
+        premium_repository.update_traffic_debt_tx(
+            session,
+            debt_account,
+            debt_bytes=int(debt_bytes),
+            updated_date=debt_updated_date,
+        )
+        session.flush()
         watch_rewards_repository.mark_ghost_compensation_rows_tx(session, ghost_row_ids)
         return {
             "balance": balance_mutation.after,

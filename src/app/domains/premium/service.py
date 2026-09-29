@@ -9,7 +9,6 @@ from app.core.byte_size import format_bytes
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
-from app.domains.lines.rules import is_binded_premium_line
 from app.domains.media_access import service as media_access_service
 from app.domains.premium import repository as premium_repository
 from app.domains.premium.config import PREMIUM_CONFIG
@@ -53,7 +52,6 @@ def set_credits_cost_per_10gb(credits: int) -> int:
 
 async def check_premium_expiry():
     """Expire each Premium account independently and perform cleanup post-commit."""
-    from app.databases import db
 
     try:
         expired_users = premium_repository.get_expired_premium_users()
@@ -103,11 +101,12 @@ async def check_premium_expiry():
             line = expired.get("line")
             display_line = line or "自动线路"
             if line and (
-                is_binded_premium_line(line) or "premium" in str(line).lower()
+                line in settings.PREMIUM_STREAM_BACKEND
+                or "premium" in str(line).lower()
             ):
                 try:
                     new_line = (
-                        unbind_premium_line(db, service, username, tg_id) or "自动线路"
+                        _unbind_premium_line(service, username, tg_id) or "自动线路"
                     )
                 except Exception as error:
                     failures.append(f"{service} {username}: 解绑会员线路失败: {error}")
@@ -142,11 +141,9 @@ async def check_premium_expiry():
 
 async def check_premium_expiring_soon(days: int = 3):
     """检查即将过期的 Premium 用户并记录日志"""
-    from app.databases import db
-
     try:
         logger.info(f"检查 {days} 天内即将过期的 Premium 用户")
-        expiring_users = db.get_premium_users_expiring_soon(days)
+        expiring_users = premium_repository.get_premium_users_expiring_soon(days)
 
         if expiring_users:
             logger.info(f"发现 {len(expiring_users)} 个即将过期的 Premium 用户")
@@ -171,9 +168,12 @@ def is_permanent_member(tg_id: int, service: str) -> bool:
 
 
 def purchase_premium(*, tg_id: int, service: str, days: int, cost: float):
-    return premium_repository.purchase_premium(
+    result = premium_repository.purchase_premium(
         tg_id=int(tg_id), service=service, days=int(days), cost=float(cost)
     )
+    # The repository transaction has committed before the external media call.
+    sync_premium_media_access(int(tg_id), (service,))
+    return result
 
 
 def update_premium_status(tg_id: int, service: str, days: int = 30) -> datetime | None:
@@ -232,27 +232,27 @@ def apply_download_unlock_to_media(tg_id: int, service: str) -> None:
     media_access_service.apply_download_unlock_to_media(int(tg_id), service)
 
 
-def unbind_premium_line(db, service: str, username: str, tg_id: int):
-    """
-    解绑 Premium 线路
-    :param service: 服务类型（"plex" 或 "emby"）
-    :param username: 用户名
-    """
+def _unbind_premium_line(service: str, username: str, tg_id: int):
+    """Use the lines service unbinder, retaining a local compatibility fallback."""
+    from app.domains.lines import repository as lines_repository
     from app.domains.lines import service as lines_service
 
-    if service not in ["plex", "emby"]:
+    unbinder = getattr(lines_service, "unbind_premium_line", None)
+    if unbinder is not None:
+        return unbinder(service, username, tg_id)
+
+    if service not in ("plex", "emby"):
         raise ValueError("不支持的服务类型")
-    if service == "plex":
-        db_func = db.set_plex_line
-    else:
-        db_func = db.set_emby_line
-    # 缓存不可用时仍必须完成数据库解绑，不能让一个 Redis 故障中止整批过期处理。
+    last_line = None
     try:
         last_line = lines_service.get_cached_line(service, username, last=True)
     except Exception as error:
         logger.warning("读取用户 %s 的历史线路失败: %s", username, error)
-        last_line = None
-    db_func(last_line, tg_id=tg_id)
+    repository = lines_repository.LinesRepository()
+    if service == "plex":
+        repository.set_plex_line(last_line, tg_id=tg_id)
+    else:
+        repository.set_emby_line(last_line, tg_id=tg_id)
     try:
         if last_line:
             lines_service.put_cached_line(service, username, last_line)
@@ -261,7 +261,6 @@ def unbind_premium_line(db, service: str, username: str, tg_id: int):
             lines_service.delete_cached_line(service, username)
     except Exception as error:
         logger.warning("清理用户 %s 的线路缓存失败: %s", username, error)
-
     return last_line or "AUTO"
 
 
@@ -447,19 +446,19 @@ async def get_and_send_premium_statistics():
     """
     获取Premium线路统计信息并发送给管理员
     """
-    from app.databases import db
+    from app.domains.traffic.repository import TrafficRepository
 
     try:
         logger.info("开始获取Premium线路统计信息")
 
         # 获取线路流量统计数据
-        stats = db.get_premium_line_traffic_statistics()
+        stats = TrafficRepository().get_premium_line_traffic_statistics()
 
         # 获取 Premium 用户列表
-        premium_users = db.get_all_active_premium_users()
+        premium_users = premium_repository.get_all_active_premium_users()
 
         # 获取所有 Premium 流量欠额或预计结算后欠额用户
-        premium_debt_users = db.get_all_premium_traffic_debt_users()
+        premium_debt_users = premium_repository.get_all_premium_traffic_debt_users()
 
         if not stats and not premium_users and not premium_debt_users:
             logger.warning("未获取到 Premium 线路统计数据、用户数据和欠额数据")

@@ -2,7 +2,7 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, Request
 
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
-from app.databases import db
+from app.domains.lines import repository as lines_repository
 from app.domains.lines import service as lines_service
 from app.domains.lines.service import (
     disable_line_schedules_and_notify,
@@ -92,8 +92,9 @@ async def set_free_premium_lines(
                 )
 
         # 保存到数据库
-        old_free_lines = db.get_free_premium_lines()
-        db.set_free_premium_lines(free_lines)
+        catalog = lines_repository.LinesRepository()
+        old_free_lines = catalog.get_free_premium_lines()
+        catalog.set_free_premium_lines(free_lines)
 
         removed_lines = set(old_free_lines) - set(free_lines)
         added_lines = set(free_lines) - set(old_free_lines)
@@ -310,13 +311,14 @@ async def delete_premium_line_generic(
         )
 
         # 从免费高级线路列表中移除（如果存在）
-        free_premium_lines = db.get_free_premium_lines()
+        catalog = lines_repository.LinesRepository()
+        free_premium_lines = catalog.get_free_premium_lines()
         if line_name in free_premium_lines:
             free_premium_lines.remove(line_name)
-            db.set_free_premium_lines(free_premium_lines)
+            catalog.set_free_premium_lines(free_premium_lines)
 
         # 删除该线路的标签（如果有）
-        db.delete_line_tags(line_name)
+        catalog.delete_line_tags(line_name)
 
         # 处理绑定了该线路的用户
         await unbind_specified_line_for_all_users(line_name)

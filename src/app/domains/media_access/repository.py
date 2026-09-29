@@ -254,6 +254,163 @@ def unlock_download(*, tg_id: int, service: str, cost: float):
         return mutation
 
 
+def update_all_lib_flag_tx(
+    session,
+    *,
+    all_lib: int,
+    unlock_time: float | str | None,
+    plex_id: int | None = None,
+    emby_id: str | None = None,
+    tg_id: int | None = None,
+    media_server: str = "plex",
+) -> None:
+    """Persist NSFW access in the caller-owned transaction."""
+    normalized = media_server.lower()
+    if normalized == "plex":
+        column = PlexUser.plex_id if plex_id is not None else PlexUser.tg_id
+        identifier = plex_id if plex_id is not None else tg_id
+        if identifier is None:
+            raise ValueError("Plex account identifier is required")
+        result = session.execute(
+            update(PlexUser)
+            .where(column == identifier)
+            .values(all_lib=int(all_lib), unlock_time=unlock_time)
+        )
+    elif normalized == "emby":
+        column = EmbyUser.emby_id if emby_id is not None else EmbyUser.tg_id
+        identifier = emby_id if emby_id is not None else tg_id
+        if identifier is None:
+            raise ValueError("Emby account identifier is required")
+        result = session.execute(
+            update(EmbyUser)
+            .where(column == identifier)
+            .values(emby_is_unlock=int(all_lib), emby_unlock_time=unlock_time)
+        )
+    else:
+        raise ValueError(f"不支持的服务类型: {media_server}")
+    if result.rowcount != 1:
+        raise media_exceptions.MediaAccountNotBound(normalized)
+
+
+def unlock_nsfw_tx(
+    session, tg_id: int, service: str, cost: float, unlock_time: float | None = None
+) -> dict:
+    """Charge and mark NSFW access atomically."""
+    normalized = service.lower()
+    model = (
+        PlexUser if normalized == "plex" else EmbyUser if normalized == "emby" else None
+    )
+    if model is None:
+        raise ValueError(f"不支持的服务类型: {service}")
+    row = session.execute(
+        select(model).where(model.tg_id == int(tg_id)).with_for_update()
+    ).scalar_one_or_none()
+    if row is None:
+        raise media_exceptions.MediaAccountNotBound(normalized)
+    flag = row.all_lib if normalized == "plex" else row.emby_is_unlock
+    if int(flag or 0) == 1:
+        raise ValueError("您已拥有全部库权限")
+    mutation = credits_repository.deduct_tx(
+        session, CreditAccount.tg(int(tg_id)), float(cost)
+    )
+    timestamp = unlock_time if unlock_time is not None else time.time()
+    if normalized == "plex":
+        row.all_lib = 1
+        row.unlock_time = timestamp
+        target = row.plex_id
+    else:
+        row.emby_is_unlock = 1
+        row.emby_unlock_time = timestamp
+        target = row.emby_id
+    session.flush()
+    return {
+        "service": normalized,
+        "target": target,
+        "unlock_time": timestamp,
+        "mutation": mutation,
+        "refund": 0.0,
+    }
+
+
+def lock_nsfw_tx(
+    session,
+    tg_id: int,
+    service: str,
+    refund: float,
+) -> dict:
+    """Clear NSFW access and refund credits atomically."""
+    normalized = service.lower()
+    model = (
+        PlexUser if normalized == "plex" else EmbyUser if normalized == "emby" else None
+    )
+    if model is None:
+        raise ValueError(f"不支持的服务类型: {service}")
+    row = session.execute(
+        select(model).where(model.tg_id == int(tg_id)).with_for_update()
+    ).scalar_one_or_none()
+    if row is None:
+        raise media_exceptions.MediaAccountNotBound(normalized)
+    flag = row.all_lib if normalized == "plex" else row.emby_is_unlock
+    if int(flag or 0) == 0:
+        raise ValueError("您未解锁NSFW内容")
+    account = CreditAccount.tg(int(tg_id))
+    mutation = credits_repository.add_tx(session, account, float(refund))
+    if normalized == "plex":
+        target = row.plex_id
+        row.all_lib = 0
+        row.unlock_time = None
+    else:
+        target = row.emby_id
+        row.emby_is_unlock = 0
+        row.emby_unlock_time = None
+    session.flush()
+    return {
+        "service": normalized,
+        "target": target,
+        "mutation": mutation,
+        "refund": refund,
+    }
+
+
+def compensate_nsfw_unlock_tx(session, tg_id: int, service: str, cost: float) -> None:
+    """Undo an NSFW unlock after external media synchronization failed."""
+    normalized = service.lower()
+    model = PlexUser if normalized == "plex" else EmbyUser
+    row = session.execute(
+        select(model).where(model.tg_id == int(tg_id)).with_for_update()
+    ).scalar_one_or_none()
+    if row is None:
+        raise media_exceptions.MediaAccountNotBound(normalized)
+    if normalized == "plex":
+        row.all_lib = 0
+        row.unlock_time = None
+    else:
+        row.emby_is_unlock = 0
+        row.emby_unlock_time = None
+    credits_repository.add_tx(session, CreditAccount.tg(int(tg_id)), float(cost))
+    session.flush()
+
+
+def compensate_nsfw_lock_tx(session, tg_id: int, service: str, refund: float) -> None:
+    """Undo an NSFW lock after external media synchronization failed."""
+    normalized = service.lower()
+    model = PlexUser if normalized == "plex" else EmbyUser
+    row = session.execute(
+        select(model).where(model.tg_id == int(tg_id)).with_for_update()
+    ).scalar_one_or_none()
+    if row is None:
+        raise media_exceptions.MediaAccountNotBound(normalized)
+    if normalized == "plex":
+        row.all_lib = 1
+    else:
+        row.emby_is_unlock = 1
+    if refund:
+        credits_repository.deduct_tx(
+            session, CreditAccount.tg(int(tg_id)), float(refund)
+        )
+    session.flush()
+
+
 # 下载/同步解锁列属于 media_access（见 docs/architecture.md 宽表列归属）。
 _DOWNLOAD_UNLOCK_COLUMNS = {
     "plex": (PlexUser, "sync_unlocked", "sync_unlock_time"),
@@ -281,6 +438,11 @@ def unlock_download_tx(session, tg_id: int, service: str) -> dict:
         raise media_exceptions.MediaAccountNotBound(service)
     if int(getattr(user, flag_col) or 0) == 1:
         raise media_exceptions.DownloadAlreadyUnlocked()
-    setattr(user, flag_col, 1)
-    setattr(user, time_col, int(time.time()))
+    result = session.execute(
+        update(model)
+        .where(model.tg_id == int(tg_id), getattr(model, flag_col) == 0)
+        .values({flag_col: 1, time_col: int(time.time())})
+    )
+    if result.rowcount != 1:
+        raise media_exceptions.DownloadAlreadyUnlocked()
     return {"unlocked": True, "skipped": None, "service": service}

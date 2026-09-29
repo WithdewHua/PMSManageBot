@@ -6,12 +6,13 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Re
 from pydantic import BaseModel
 
 from app.core.log import uvicorn_logger as logger
-from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity import service as identity_service
 from app.domains.premium import notifications as premium_notifications
+from app.domains.premium import repository as premium_repository
 from app.domains.premium import service as premium_service
+from app.domains.traffic.repository import TrafficRepository
 from app.integrations.telegram.profiles import get_user_name_from_tg_id
 from app.transport.http.auth import get_telegram_user, require_telegram_auth
 from app.transport.http.schemas import BaseResponse, TelegramUser
@@ -128,10 +129,6 @@ async def unlock_premium(
             premium_notifications.notify_premium_unlocked,
             notification_text,
         )
-        background_tasks.add_task(
-            premium_service.sync_premium_media_access, int(tg_id), (service,)
-        )
-
         return PremiumUnlockResponse(
             success=True,
             message=f"成功解锁 {days} 天 Premium 会员",
@@ -154,7 +151,7 @@ async def get_premium_statistics(
 ):
     """获取Premium用户统计信息"""
     try:
-        stats = db.get_premium_statistics()
+        stats = premium_repository.get_premium_statistics()
         logger.info(f"用户 {get_user_name_from_tg_id(user.id)} 获取 Premium 统计信息")
         return PremiumStatisticsResponse(**stats)
 
@@ -173,7 +170,7 @@ async def get_premium_line_traffic_stats(
 ):
     """获取Premium线路流量统计信息"""
     try:
-        stats = db.get_premium_line_traffic_statistics()
+        stats = TrafficRepository().get_premium_line_traffic_statistics()
         logger.info(
             f"用户 {get_user_name_from_tg_id(user.id)} 获取 Premium 线路流量统计信息"
         )
