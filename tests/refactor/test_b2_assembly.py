@@ -65,13 +65,14 @@ def test_bot_handler_registration_surface_is_unchanged():
 
 
 def test_migrated_empty_pydantic_list_defaults_are_equivalent():
+    from app.domains.custom_lines import schemas as custom_line_schemas
     from app.domains.profile import schemas as current
 
-    for name, field in (
-        ("CustomLineListResponse", "lines"),
-        ("LineScheduleListResponse", "schedules"),
+    for module, name, field in (
+        (custom_line_schemas, "CustomLineListResponse", "lines"),
+        (current, "LineScheduleListResponse", "schedules"),
     ):
-        model = getattr(current, name)
+        model = getattr(module, name)
         response = model(success=True)
         assert getattr(response, field) == []
         assert model.model_json_schema()

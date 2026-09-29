@@ -18,7 +18,7 @@ from starlette.requests import Request
 from app.core.db import get_session
 from app.domains.custom_lines import router as cl_router
 from app.domains.custom_lines.models import CustomLine
-from app.domains.profile.schemas import (
+from app.domains.custom_lines.schemas import (
     CustomLineOnlineRequest,
     CustomLineRenewRequest,
     CustomLineSubmitRequest,
@@ -85,7 +85,9 @@ def capture_notifications(monkeypatch):
     async def _fake_send(*args, **kwargs):
         sent.append((args, kwargs))
 
-    monkeypatch.setattr(cl_router, "send_message_by_url", _fake_send)
+    monkeypatch.setattr(
+        "app.domains.custom_lines.service.send_message_by_url", _fake_send
+    )
     return sent
 
 
@@ -93,10 +95,10 @@ async def test_online_custom_line_succeeds(session_env, capture_notifications):
 
     # get_user_name_from_tg_id 在测试里会走网络；固定为替身
     capture_get_name = lambda tg_id: f"user{tg_id}"
-    import app.domains.custom_lines.router as router_module
+    import app.domains.custom_lines.service as service_module
 
-    orig = router_module.get_user_name_from_tg_id
-    router_module.get_user_name_from_tg_id = capture_get_name
+    orig = service_module.get_user_name_from_tg_id
+    service_module.get_user_name_from_tg_id = capture_get_name
     try:
         line_id = _seed_line("online.example.com", "offline")
 
@@ -108,7 +110,7 @@ async def test_online_custom_line_succeeds(session_env, capture_notifications):
             user=TelegramUserStub(1),
         )
     finally:
-        router_module.get_user_name_from_tg_id = orig
+        service_module.get_user_name_from_tg_id = orig
 
     assert response.success is True, response.message
     assert "失败" not in response.message
@@ -129,11 +131,49 @@ async def test_renew_custom_line_succeeds(session_env, capture_notifications):
     assert "续期成功" in response.message
 
 
-async def test_submit_custom_line_succeeds(session_env, capture_notifications):
-    import app.domains.custom_lines.router as router_module
+async def test_notification_failure_does_not_rollback_submission(
+    session_env, monkeypatch
+):
+    import app.domains.custom_lines.service as service_module
 
-    orig = router_module.get_user_name_from_tg_id
-    router_module.get_user_name_from_tg_id = lambda tg_id: f"user{tg_id}"
+    monkeypatch.setattr(
+        service_module, "get_user_name_from_tg_id", lambda tg_id: f"user{tg_id}"
+    )
+
+    async def fail_send(*args, **kwargs):
+        raise RuntimeError("telegram unavailable")
+
+    monkeypatch.setattr(service_module, "send_message_by_url", fail_send)
+    response = await cl_router.submit_custom_line.__wrapped__(
+        _request(),
+        BackgroundTasks(),
+        CustomLineSubmitRequest(
+            domain="committed.example.com",
+            network_info="info",
+            price_monthly=10.0,
+            traffic_type="one_way",
+            total_traffic=100,
+            valid_days=30,
+            is_permanent=False,
+        ),
+        user=TelegramUserStub(1),
+    )
+
+    assert response.success is True
+    with get_session() as session:
+        assert (
+            session.execute(
+                select(CustomLine).where(CustomLine.domain == "committed.example.com")
+            ).scalar_one_or_none()
+            is not None
+        )
+
+
+async def test_submit_custom_line_succeeds(session_env, capture_notifications):
+    import app.domains.custom_lines.service as service_module
+
+    orig = service_module.get_user_name_from_tg_id
+    service_module.get_user_name_from_tg_id = lambda tg_id: f"user{tg_id}"
     try:
         response = await cl_router.submit_custom_line.__wrapped__(
             _request(),
@@ -150,7 +190,7 @@ async def test_submit_custom_line_succeeds(session_env, capture_notifications):
             user=TelegramUserStub(1),
         )
     finally:
-        router_module.get_user_name_from_tg_id = orig
+        service_module.get_user_name_from_tg_id = orig
 
     assert response.success is True, response.message
     with get_session() as session:

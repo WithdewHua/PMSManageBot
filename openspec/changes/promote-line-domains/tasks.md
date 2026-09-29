@@ -24,7 +24,7 @@
 
 ## 3. custom_lines
 
-- [ ] 3.1 为 custom_lines 新建完整的 repository，把路由、管理员路由、任务和 service 中的 SQL 全部移入；每次状态变更在一个事务里完成，解绑和通知在提交后执行；三个定时任务不再在打开的 session 里 await 网络；结算公式移入 rules，积分改用 `add_tx`；模型从 `profile/schemas.py` 搬回。验证：
+- [x] 3.1 为 custom_lines 新建完整的 repository，把路由、管理员路由、任务和 service 中的 SQL 全部移入；每次状态变更在一个事务里完成，解绑和通知在提交后执行；三个定时任务不再在打开的 session 里 await 网络；结算公式移入 rules，积分改用 `add_tx`；模型从 `profile/schemas.py` 搬回。验证：
   - 1.3 中 custom_lines 的测试通过。
   - 在 Telegram 发送时注入失败，已提交的状态不回滚。
   - 结算的积分和通知与夹具一致。
