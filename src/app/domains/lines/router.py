@@ -11,7 +11,7 @@ from app.domains.identity import service as identity_service
 from app.domains.lines import notifications as lines_notifications
 from app.domains.lines import repository as lines_repository
 from app.domains.lines import service as lines_service
-from app.domains.lines.cache import (
+from app.domains.lines.gateway_cache import (
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
     plex_last_user_defined_line_cache,
@@ -197,7 +197,7 @@ async def unbind_emby_line(
         if not success:
             logger.error(f"重置用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 线路失败")
             return BaseResponse(success=False, message="重置线路失败")
-        from app.domains.lines.cache import emby_user_defined_line_cache
+        from app.domains.lines.gateway_cache import emby_user_defined_line_cache
 
         # 删除 redis 缓存
         emby_user_defined_line_cache.delete(str(emby_username).lower())
@@ -711,7 +711,8 @@ async def check_line_schedule_unlock_status(
         raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
 
     try:
-        result = lines_repository.check_line_schedule_unlock(user.id, service)
+        result = lines_service.check_line_schedule_unlock(user.id, service)
+        result = lines_service.check_line_schedule_unlock(user.id, service)
         return {
             "success": True,
             "is_unlocked": result["is_unlocked"],
@@ -741,7 +742,7 @@ async def unlock_line_schedule(
 
     try:
         # 检查是否已经解锁
-        unlock_status = lines_repository.check_line_schedule_unlock(user.id, service)
+        unlock_status = lines_service.check_line_schedule_unlock(user.id, service)
         if unlock_status["is_unlocked"]:
             return LineScheduleUnlockResponse(
                 success=True,
@@ -807,7 +808,7 @@ async def get_line_schedules(
         raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
 
     try:
-        schedules = lines_repository.get_user_line_schedules(user.id, service)
+        schedules = lines_service.get_user_line_schedules(user.id, service)
         return LineScheduleListResponse(success=True, schedules=schedules)
     except Exception as e:
         logger.error(f"获取线路调度列表失败: {e}")
@@ -828,28 +829,25 @@ async def create_line_schedule(
 
     try:
         # 检查是否解锁
-        unlock_status = lines_repository.check_line_schedule_unlock(user.id, service)
+        unlock_status = lines_service.check_line_schedule_unlock(user.id, service)
         if not unlock_status["is_unlocked"]:
             return BaseResponse(success=False, message="请先解锁线路调度功能")
 
         # 获取用户信息并检查线路权限
-        if service == "emby":
-            user_info = db.get_emby_info_by_tg_id(user.id)
-            if not user_info:
-                return BaseResponse(success=False, message="您尚未绑定 Emby 账户")
-            is_premium = user_info[8] == 1
-        else:  # plex
-            user_info = db.get_plex_info_by_tg_id(user.id)
-            if not user_info:
-                return BaseResponse(success=False, message="您尚未绑定 Plex 账户")
-            is_premium = user_info[9] == 1
+        user_info = lines_service.get_line_schedule_account(user.id, service)
+        if not user_info:
+            account_name = "Emby" if service == "emby" else "Plex"
+            return BaseResponse(
+                success=False, message=f"您尚未绑定 {account_name} 账户"
+            )
+        is_premium = user_info["is_premium"]
 
         has_permission, error_msg = check_line_permission(is_premium, data.line)
         if not has_permission:
             return BaseResponse(success=False, message=f"{error_msg}，无法创建调度")
 
         # 创建调度
-        schedule_id = lines_repository.create_line_schedule(
+        schedule_id = lines_service.create_line_schedule(
             user.id,
             service,
             data.line,
@@ -882,7 +880,7 @@ async def update_line_schedule(
     """更新线路调度"""
     try:
         # 获取原有调度信息
-        schedules = lines_repository.get_user_line_schedules(user.id)
+        schedules = lines_service.get_user_line_schedules(user.id)
         schedule = next((s for s in schedules if s["id"] == schedule_id), None)
         if not schedule:
             return BaseResponse(success=False, message="调度不存在")
@@ -896,16 +894,13 @@ async def update_line_schedule(
             service = schedule["service"]
 
             # 获取用户信息并检查线路权限
-            if service == "emby":
-                user_info = db.get_emby_info_by_tg_id(user.id)
-                if not user_info:
-                    return BaseResponse(success=False, message="您尚未绑定 Emby 账户")
-                is_premium = user_info[8] == 1
-            else:  # plex
-                user_info = db.get_plex_info_by_tg_id(user.id)
-                if not user_info:
-                    return BaseResponse(success=False, message="您尚未绑定 Plex 账户")
-                is_premium = user_info[9] == 1
+            user_info = lines_service.get_line_schedule_account(user.id, service)
+            if not user_info:
+                account_name = "Emby" if service == "emby" else "Plex"
+                return BaseResponse(
+                    success=False, message=f"您尚未绑定 {account_name} 账户"
+                )
+            is_premium = user_info["is_premium"]
 
             has_permission, error_msg = check_line_permission(is_premium, data.line)
             if not has_permission:
@@ -923,7 +918,7 @@ async def update_line_schedule(
             update_kwargs["is_enabled"] = data.is_enabled
 
         # 执行更新
-        if lines_repository.update_line_schedule(schedule_id, user.id, **update_kwargs):
+        if lines_service.update_line_schedule(schedule_id, user.id, **update_kwargs):
             # 更新成功后立即执行一次调度检查
             asyncio.create_task(
                 auto_switch_user_lines(tg_id=user.id, service=schedule["service"])
@@ -946,7 +941,7 @@ async def delete_line_schedule(
 ):
     """删除线路调度"""
     try:
-        if lines_repository.delete_line_schedule(schedule_id, user.id):
+        if lines_service.delete_line_schedule(schedule_id, user.id):
             return BaseResponse(success=True, message="删除线路调度成功")
         else:
             return BaseResponse(success=False, message="删除线路调度失败或无权限")
@@ -970,17 +965,17 @@ async def get_line_schedule_status(
 
     try:
         # 检查是否解锁
-        unlock_status = lines_repository.check_line_schedule_unlock(user.id, service)
+        unlock_status = lines_service.check_line_schedule_unlock(user.id, service)
 
         # 获取当前生效的调度
         active_schedule = None
         if unlock_status["is_unlocked"]:
-            active_schedule = lines_repository.get_current_active_schedule(
+            active_schedule = lines_service.get_current_active_schedule(
                 user.id, service
             )
 
         # 检查是否有调度
-        schedules = lines_repository.get_user_line_schedules(user.id, service)
+        schedules = lines_service.get_user_line_schedules(user.id, service)
         has_schedules = len(schedules) > 0
 
         return LineScheduleStatusResponse(

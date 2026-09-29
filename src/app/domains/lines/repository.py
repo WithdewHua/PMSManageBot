@@ -1,7 +1,7 @@
 import time
 from datetime import datetime
 
-from sqlalchemy import select, update
+from sqlalchemy import func, or_, select, update
 
 from app.core import kv as core_kv
 from app.core.config import settings
@@ -228,93 +228,6 @@ def get_all_line_tags() -> dict:
     return result
 
 
-def check_line_schedule_unlock(tg_id: int, service: str) -> dict:
-    """
-    检查用户是否解锁了指定服务的线路调度功能
-
-    Args:
-        tg_id: 用户的 Telegram ID
-        service: 服务类型 (plex/emby)
-
-    Returns:
-        dict: {
-            'is_unlocked': bool,  # 是否已解锁（包括 premium 自动解锁）
-            'is_premium': bool,   # 是否为 premium 用户
-            'unlock_time': int,   # 解锁时间戳
-        }
-    """
-
-    try:
-        with get_session() as session:
-            is_premium = False
-            unlock_time = None
-
-            if service == "plex":
-                # 检查 Plex 用户状态
-                stmt = select(
-                    PlexUser.is_premium,
-                    PlexUser.premium_expiry_time,
-                    PlexUser.line_schedule_unlocked,
-                    PlexUser.line_schedule_unlock_time,
-                ).where(PlexUser.tg_id == tg_id)
-                result = session.execute(stmt).fetchone()
-
-                if result:
-                    # 检查 premium 状态
-                    if result[0] == 1:
-                        # premium_expiry_time 为空表示永久 premium
-                        if not result[1]:
-                            is_premium = True
-                        else:
-                            # 有过期时间，检查是否过期
-                            expiry = datetime.fromisoformat(result[1])
-                            if expiry > datetime.now(settings.TZ):
-                                is_premium = True
-
-                    # 检查解锁状态
-                    if result[2] == 1:
-                        unlock_time = result[3]
-
-            elif service == "emby":
-                # 检查 Emby 用户状态
-                stmt = select(
-                    EmbyUser.is_premium,
-                    EmbyUser.premium_expiry_time,
-                    EmbyUser.line_schedule_unlocked,
-                    EmbyUser.line_schedule_unlock_time,
-                ).where(EmbyUser.tg_id == tg_id)
-                result = session.execute(stmt).fetchone()
-
-                if result:
-                    # 检查 premium 状态
-                    if result[0] == 1:
-                        # premium_expiry_time 为空表示永久 premium
-                        if not result[1]:
-                            is_premium = True
-                        else:
-                            # 有过期时间，检查是否过期
-                            expiry = datetime.fromisoformat(result[1])
-                            if expiry > datetime.now(settings.TZ):
-                                is_premium = True
-
-                    # 检查解锁状态
-                    if result[2] == 1:
-                        unlock_time = result[3]
-
-            # Premium 用户或已解锁用户都算已解锁
-            is_unlocked = is_premium or (unlock_time is not None)
-
-            return {
-                "is_unlocked": is_unlocked,
-                "is_premium": is_premium,
-                "unlock_time": unlock_time,
-            }
-
-    except Exception as e:
-        logger.error(f"检查用户 {tg_id!s} 的 {service} 线路调度解锁状态失败: {e}")
-        return {"is_unlocked": False, "is_premium": False, "unlock_time": None}
-
-
 def unlock_line_schedule_with_credit(tg_id: int, service: str, cost: float) -> bool:
     """Unlock line scheduling and charge the account in one transaction."""
     with get_session() as session:
@@ -366,199 +279,6 @@ def unlock_line_schedule(tg_id: int, service: str) -> bool:
 
     except Exception as e:
         logger.error(f"解锁 {service} 线路调度功能失败: {e}")
-        return False
-
-
-def create_line_schedule(
-    tg_id: int,
-    service: str,
-    line: str,
-    days_of_week: list[int],
-    start_time: str,
-    end_time: str,
-    priority: int = 0,
-) -> int | None:
-    """
-    创建线路调度
-
-    Args:
-        tg_id: 用户的 Telegram ID
-        service: 服务类型 (plex/emby)
-        line: 线路名称
-        days_of_week: 星期几列表 [0-6]
-        start_time: 开始时间 HH:MM
-        end_time: 结束时间 HH:MM
-        priority: 优先级
-
-    Returns:
-        创建的调度 ID，失败返回 None
-    """
-
-    try:
-        with get_session() as session:
-            schedule = LineSchedule(
-                tg_id=tg_id,
-                service=service,
-                line=line,
-                days_of_week=",".join(map(str, sorted(days_of_week)))
-                if days_of_week
-                else "",
-                start_time=start_time,
-                end_time=end_time,
-                priority=priority,
-                is_enabled=1,
-                created_at=int(time.time()),
-                updated_at=int(time.time()),
-            )
-            session.add(schedule)
-            session.flush()  # 获取 schedule.id
-
-            logger.info(
-                f"用户 {tg_id!s} 创建 {service} 线路调度: {line} "
-                f"({days_of_week}, {start_time}-{end_time})"
-            )
-            return schedule.id
-
-    except Exception as e:
-        logger.error(f"创建线路调度失败: {e}")
-        return None
-
-
-def get_user_line_schedules(
-    tg_id: int,
-    service: str | None = None,
-    enabled_only: bool = False,
-) -> list[dict]:
-    """
-    获取用户的线路调度列表
-
-    Args:
-        tg_id: 用户的 Telegram ID
-        service: 服务类型，None 表示获取所有
-        enabled_only: 是否只获取启用的调度
-
-    Returns:
-        调度列表
-    """
-    try:
-        with get_session() as session:
-            stmt = select(LineSchedule).where(LineSchedule.tg_id == tg_id)
-
-            if service:
-                stmt = stmt.where(LineSchedule.service == service)
-
-            if enabled_only:
-                stmt = stmt.where(LineSchedule.is_enabled == 1)
-
-            stmt = stmt.order_by(LineSchedule.priority, LineSchedule.created_at)
-
-            schedules = session.execute(stmt).scalars().all()
-
-            return [
-                {
-                    "id": s.id,
-                    "service": s.service,
-                    "line": s.line,
-                    "days_of_week": [int(d) for d in s.days_of_week.split(",")]
-                    if s.days_of_week
-                    else [],
-                    "start_time": s.start_time,
-                    "end_time": s.end_time,
-                    "priority": s.priority,
-                    "is_enabled": s.is_enabled == 1,
-                    "created_at": s.created_at,
-                    "updated_at": s.updated_at,
-                }
-                for s in schedules
-            ]
-
-    except Exception as e:
-        logger.error(f"获取用户 {tg_id} 的线路调度列表失败: {e}")
-        return []
-
-
-def update_line_schedule(schedule_id: int, tg_id: int, **kwargs) -> bool:
-    """
-    更新线路调度
-
-    Args:
-        schedule_id: 调度 ID
-        tg_id: 用户的 Telegram ID (用于验证权限)
-        **kwargs: 要更新的字段
-
-    Returns:
-        是否成功
-    """
-
-    try:
-        with get_session() as session:
-            schedule = session.execute(
-                select(LineSchedule).where(
-                    LineSchedule.id == schedule_id, LineSchedule.tg_id == tg_id
-                )
-            ).scalar_one_or_none()
-
-            if not schedule:
-                logger.warning(f"线路调度 {schedule_id} 不存在或无权限")
-                return False
-
-            # 更新字段
-            if "line" in kwargs:
-                schedule.line = kwargs["line"]
-            if "days_of_week" in kwargs:
-                schedule.days_of_week = ",".join(
-                    map(str, sorted(kwargs["days_of_week"]))
-                )
-            if "start_time" in kwargs:
-                schedule.start_time = kwargs["start_time"]
-            if "end_time" in kwargs:
-                schedule.end_time = kwargs["end_time"]
-            if "priority" in kwargs:
-                schedule.priority = kwargs["priority"]
-            if "is_enabled" in kwargs:
-                schedule.is_enabled = 1 if kwargs["is_enabled"] else 0
-
-            schedule.updated_at = int(time.time())
-            logger.info(f"用户 {tg_id!s} 更新线路调度 {schedule_id}")
-            return True
-
-    except Exception as e:
-        logger.error(f"更新线路调度 {schedule_id} 失败: {e}")
-        return False
-
-
-def delete_line_schedule(schedule_id: int, tg_id: int) -> bool:
-    """
-    删除线路调度
-
-    Args:
-        schedule_id: 调度 ID
-        tg_id: 用户的 Telegram ID (用于验证权限)
-
-    Returns:
-        是否成功
-    """
-
-    try:
-        with get_session() as session:
-            # 先查询以获取调度信息
-            schedule = session.execute(
-                select(LineSchedule).where(
-                    LineSchedule.id == schedule_id, LineSchedule.tg_id == tg_id
-                )
-            ).scalar_one_or_none()
-
-            if not schedule:
-                logger.warning(f"线路调度 {schedule_id} 不存在或无权限")
-                return False
-
-            # 删除调度
-            session.delete(schedule)
-            logger.info(f"用户 {tg_id!s} 删除线路调度 {schedule_id}")
-            return True
-
-    except Exception as e:
-        logger.error(f"删除线路调度 {schedule_id} 失败: {e}")
         return False
 
 
@@ -632,59 +352,6 @@ def check_schedule_conflict(
     except Exception as e:
         logger.error(f"检查时间冲突失败: {e}")
         return True  # 出错时保守处理，返回冲突
-
-
-def get_current_active_schedule(tg_id: int, service: str) -> dict | None:
-    """
-    获取当前生效的线路调度
-
-    Args:
-        tg_id: 用户的 Telegram ID
-        service: 服务类型
-
-    Returns:
-        当前生效的调度，没有返回 None
-    """
-    try:
-        now = datetime.now(settings.TZ)
-        current_day = now.weekday()  # 0=Monday, 6=Sunday
-        current_time = now.strftime("%H:%M")
-
-        def time_to_minutes(t: str) -> int:
-            h, m = map(int, t.split(":"))
-            return h * 60 + m
-
-        current_minutes = time_to_minutes(current_time)
-
-        schedules = get_user_line_schedules(tg_id, service, enabled_only=True)
-
-        # 按优先级排序
-        schedules.sort(key=lambda x: x["priority"])
-
-        for schedule in schedules:
-            # 检查星期几
-            if current_day not in schedule["days_of_week"]:
-                continue
-
-            # 检查时间段
-            start_minutes = time_to_minutes(schedule["start_time"])
-            end_minutes = time_to_minutes(schedule["end_time"])
-
-            # 处理跨天情况
-            if end_minutes <= start_minutes:
-                # 跨天时间段
-                if current_minutes >= start_minutes or current_minutes < end_minutes:
-                    return schedule
-            else:
-                # 同一天时间段
-                if start_minutes <= current_minutes < end_minutes:
-                    return schedule
-
-        return None
-
-    except Exception as e:
-        logger.error(f"获取当前生效的调度失败: {e}")
-        return None
 
 
 def disable_schedules_by_line(
@@ -813,6 +480,380 @@ def get_users_with_line_schedule(line_name: str) -> list[dict]:
         return []
 
 
+# Schedule workflows below are module-level helpers. The legacy class above remains
+# available until the broader lines repository migration removes the facade.
+
+
+def _schedule_dict(schedule: LineSchedule) -> dict:
+    return {
+        "id": int(schedule.id),
+        "service": schedule.service,
+        "line": schedule.line,
+        "days_of_week": [int(day) for day in schedule.days_of_week.split(",")]
+        if schedule.days_of_week
+        else [],
+        "start_time": schedule.start_time,
+        "end_time": schedule.end_time,
+        "priority": int(schedule.priority),
+        "is_enabled": schedule.is_enabled == 1,
+        "created_at": int(schedule.created_at),
+        "updated_at": int(schedule.updated_at),
+    }
+
+
+def _schedule_model(service: str):
+    if service == "plex":
+        return PlexUser
+    if service == "emby":
+        return EmbyUser
+    raise ValueError(f"不支持的服务类型: {service}")
+
+
+def _line_schedule_account_tx(session, tg_id: int, service: str):
+    model = _schedule_model(service)
+    return session.execute(
+        select(model).where(model.tg_id == int(tg_id))
+    ).scalar_one_or_none()
+
+
+def get_line_schedule_account(tg_id: int, service: str) -> dict | None:
+    """Read the bound media account needed by schedule endpoints."""
+    with get_session() as session:
+        account = _line_schedule_account_tx(session, tg_id, service)
+        if account is None:
+            return None
+        username = getattr(account, f"{service}_username")
+        return {"is_premium": account.is_premium == 1, "username": username}
+
+
+def check_line_schedule_unlock(tg_id: int, service: str) -> dict:
+    """Return the legacy unlock response without exposing a session to callers."""
+    try:
+        with get_session() as session:
+            account = _line_schedule_account_tx(session, tg_id, service)
+            if account is None:
+                return {
+                    "is_unlocked": False,
+                    "is_premium": False,
+                    "unlock_time": None,
+                }
+
+            is_premium = account.is_premium == 1
+            if is_premium and account.premium_expiry_time:
+                is_premium = datetime.fromisoformat(
+                    account.premium_expiry_time
+                ) > datetime.now(settings.TZ)
+            unlock_time = (
+                account.line_schedule_unlock_time
+                if account.line_schedule_unlocked == 1
+                else None
+            )
+            return {
+                "is_unlocked": is_premium or unlock_time is not None,
+                "is_premium": is_premium,
+                "unlock_time": unlock_time,
+            }
+    except Exception as error:
+        logger.error(f"检查用户 {tg_id!s} 的 {service} 线路调度解锁状态失败: {error}")
+        return {"is_unlocked": False, "is_premium": False, "unlock_time": None}
+
+
+def get_user_line_schedules(
+    tg_id: int, service: str | None = None, enabled_only: bool = False
+) -> list[dict]:
+    """Read schedules and return the public response shape."""
+    try:
+        with get_session() as session:
+            statement = select(LineSchedule).where(LineSchedule.tg_id == int(tg_id))
+            if service is not None:
+                statement = statement.where(LineSchedule.service == service)
+            if enabled_only:
+                statement = statement.where(LineSchedule.is_enabled == 1)
+            schedules = session.execute(
+                statement.order_by(
+                    LineSchedule.priority,
+                    LineSchedule.created_at,
+                    LineSchedule.id,
+                )
+            ).scalars()
+            return [_schedule_dict(schedule) for schedule in schedules]
+    except Exception as error:
+        logger.error(f"获取用户 {tg_id} 的线路调度列表失败: {error}")
+        return []
+
+
+def list_line_cache_rows() -> tuple[list[tuple], list[tuple]]:
+    """Read gateway cache rows before the service writes Redis."""
+    with get_session() as session:
+        plex_users = session.execute(
+            select(PlexUser.plex_id, PlexUser.plex_username, PlexUser.plex_line)
+        ).all()
+        emby_users = session.execute(
+            select(EmbyUser.emby_username, EmbyUser.emby_line)
+        ).all()
+    return plex_users, emby_users
+
+
+def get_auto_switch_candidates(
+    tg_id: int | None = None, service: str | None = None
+) -> list[dict]:
+    """Read eligible users before opening per-user mutation transactions."""
+    if service not in (None, "plex", "emby"):
+        raise ValueError(f"不支持的服务类型: {service}")
+
+    with get_session() as session:
+        candidates: list[dict] = []
+        if service in (None, "plex"):
+            statement = (
+                select(PlexUser.tg_id, PlexUser.plex_line, PlexUser.plex_username)
+                .where(
+                    PlexUser.tg_id.is_not(None),
+                    or_(
+                        PlexUser.line_schedule_unlocked == 1,
+                        PlexUser.is_premium == 1,
+                    ),
+                )
+                .order_by(PlexUser.tg_id)
+            )
+            if tg_id is not None:
+                statement = statement.where(PlexUser.tg_id == int(tg_id))
+            candidates.extend(
+                {
+                    "tg_id": row.tg_id,
+                    "service": "plex",
+                    "line": row.plex_line,
+                    "username": row.plex_username,
+                }
+                for row in session.execute(statement)
+            )
+        if service in (None, "emby"):
+            statement = (
+                select(EmbyUser.tg_id, EmbyUser.emby_line, EmbyUser.emby_username)
+                .where(
+                    EmbyUser.tg_id.is_not(None),
+                    or_(
+                        EmbyUser.line_schedule_unlocked == 1,
+                        EmbyUser.is_premium == 1,
+                    ),
+                )
+                .order_by(EmbyUser.tg_id, EmbyUser.emby_username)
+            )
+            if tg_id is not None:
+                statement = statement.where(EmbyUser.tg_id == int(tg_id))
+            candidates.extend(
+                {
+                    "tg_id": row.tg_id,
+                    "service": "emby",
+                    "line": row.emby_line,
+                    "username": row.emby_username,
+                }
+                for row in session.execute(statement)
+            )
+        return candidates
+
+
+def get_current_active_schedule_tx(
+    session, tg_id: int, service: str, *, now: datetime | None = None
+) -> dict | None:
+    """Select one active schedule deterministically inside the caller transaction."""
+    current = now or datetime.now(settings.TZ)
+    current_day = current.weekday()
+    current_minutes = current.hour * 60 + current.minute
+    schedules = session.execute(
+        select(LineSchedule)
+        .where(
+            LineSchedule.tg_id == int(tg_id),
+            LineSchedule.service == service,
+            LineSchedule.is_enabled == 1,
+        )
+        .order_by(LineSchedule.priority, LineSchedule.created_at, LineSchedule.id)
+    ).scalars()
+
+    for schedule in schedules:
+        days = {int(day) for day in schedule.days_of_week.split(",") if day != ""}
+        start_hour, start_minute = map(int, schedule.start_time.split(":"))
+        end_hour, end_minute = map(int, schedule.end_time.split(":"))
+        start = start_hour * 60 + start_minute
+        end = end_hour * 60 + end_minute
+
+        if start == end:
+            active = current_day in days
+        elif end < start:
+            active = (current_day in days and current_minutes >= start) or (
+                (current_day - 1) % 7 in days and current_minutes < end
+            )
+        else:
+            active = current_day in days and start <= current_minutes < end
+
+        if active:
+            return _schedule_dict(schedule)
+    return None
+
+
+def apply_active_schedule_tx(session, tg_id: int, service: str) -> dict | None:
+    """Read and persist one user's active schedule in the caller transaction."""
+    model = _schedule_model(service)
+    account = session.execute(
+        select(model).where(model.tg_id == int(tg_id)).with_for_update()
+    ).scalar_one_or_none()
+    if account is None:
+        return None
+
+    schedule = get_current_active_schedule_tx(session, tg_id, service)
+    if schedule is None or schedule["line"] == "auto":
+        return None
+
+    line_attribute = f"{service}_line"
+    old_line = getattr(account, line_attribute)
+    if old_line == schedule["line"]:
+        return None
+    setattr(account, line_attribute, schedule["line"])
+    return {
+        "tg_id": int(tg_id),
+        "service": service,
+        "username": getattr(account, f"{service}_username"),
+        "old_line": old_line,
+        "line": schedule["line"],
+    }
+
+
+def apply_active_schedule(tg_id: int, service: str) -> dict | None:
+    """Read and persist one user's active schedule in one transaction.
+
+    A missing schedule and the literal ``auto`` are intentional no-ops. In
+    particular, neither case falls back to a previous line or writes a cache.
+    """
+    with get_session() as session:
+        return apply_active_schedule_tx(session, tg_id, service)
+
+
+def create_line_schedule_tx(
+    session,
+    tg_id: int,
+    service: str,
+    line: str,
+    days_of_week: list[int],
+    start_time: str,
+    end_time: str,
+    priority: int = 0,
+) -> int:
+    """Create a schedule in the caller-owned transaction."""
+    timestamp = int(time.time())
+    schedule_id = None
+    if session.bind is not None and session.bind.dialect.name == "sqlite":
+        schedule_id = session.execute(
+            select(func.coalesce(func.max(LineSchedule.id), 0) + 1)
+        ).scalar_one()
+
+    schedule = LineSchedule(
+        id=int(schedule_id) if schedule_id is not None else None,
+        tg_id=int(tg_id),
+        service=service,
+        line=line,
+        days_of_week=",".join(map(str, sorted(days_of_week))) if days_of_week else "",
+        start_time=start_time,
+        end_time=end_time,
+        priority=priority,
+        is_enabled=1,
+        created_at=timestamp,
+        updated_at=timestamp,
+    )
+    session.add(schedule)
+    session.flush()
+    return int(schedule.id)
+
+
+def create_line_schedule(
+    tg_id: int,
+    service: str,
+    line: str,
+    days_of_week: list[int],
+    start_time: str,
+    end_time: str,
+    priority: int = 0,
+) -> int | None:
+    try:
+        with get_session() as session:
+            return create_line_schedule_tx(
+                session,
+                tg_id,
+                service,
+                line,
+                days_of_week,
+                start_time,
+                end_time,
+                priority,
+            )
+    except Exception as error:
+        logger.error(f"创建线路调度失败: {error}")
+        return None
+
+
+def update_line_schedule_tx(session, schedule_id: int, tg_id: int, **kwargs) -> bool:
+    """Update a schedule row in place, preserving its ID."""
+    schedule = session.execute(
+        select(LineSchedule).where(
+            LineSchedule.id == int(schedule_id), LineSchedule.tg_id == int(tg_id)
+        )
+    ).scalar_one_or_none()
+    if schedule is None:
+        return False
+    if "line" in kwargs:
+        schedule.line = kwargs["line"]
+    if "days_of_week" in kwargs:
+        schedule.days_of_week = ",".join(map(str, sorted(kwargs["days_of_week"])))
+    if "start_time" in kwargs:
+        schedule.start_time = kwargs["start_time"]
+    if "end_time" in kwargs:
+        schedule.end_time = kwargs["end_time"]
+    if "priority" in kwargs:
+        schedule.priority = kwargs["priority"]
+    if "is_enabled" in kwargs:
+        schedule.is_enabled = 1 if kwargs["is_enabled"] else 0
+    schedule.updated_at = int(time.time())
+    return True
+
+
+def update_line_schedule(schedule_id: int, tg_id: int, **kwargs) -> bool:
+    try:
+        with get_session() as session:
+            return update_line_schedule_tx(session, schedule_id, tg_id, **kwargs)
+    except Exception as error:
+        logger.error(f"更新线路调度 {schedule_id} 失败: {error}")
+        return False
+
+
+def delete_line_schedule_tx(session, schedule_id: int, tg_id: int) -> bool:
+    """Delete a schedule row in the caller-owned transaction."""
+    schedule = session.execute(
+        select(LineSchedule).where(
+            LineSchedule.id == int(schedule_id), LineSchedule.tg_id == int(tg_id)
+        )
+    ).scalar_one_or_none()
+    if schedule is None:
+        return False
+    session.delete(schedule)
+    return True
+
+
+def delete_line_schedule(schedule_id: int, tg_id: int) -> bool:
+    try:
+        with get_session() as session:
+            return delete_line_schedule_tx(session, schedule_id, tg_id)
+    except Exception as error:
+        logger.error(f"删除线路调度 {schedule_id} 失败: {error}")
+        return False
+
+
+def get_current_active_schedule(tg_id: int, service: str) -> dict | None:
+    try:
+        with get_session() as session:
+            return get_current_active_schedule_tx(session, tg_id, service)
+    except Exception as error:
+        logger.error(f"获取当前生效的调度失败: {error}")
+        return None
+
+
 # 线路调度解锁列属于 lines（见 docs/architecture.md 宽表列归属），礼包只调这里。
 _LINE_SCHEDULE_UNLOCK_COLUMNS = {
     "plex": (PlexUser, "line_schedule_unlocked", "line_schedule_unlock_time"),
@@ -933,33 +974,6 @@ def unlock_line_schedule_with_credit_tx(
     credits_service.register_cache_invalidation(session, mutation)
 
 
-def create_line_schedule_tx(
-    session,
-    tg_id: int,
-    service: str,
-    line: str,
-    days_of_week: list[int],
-    start_time: str,
-    end_time: str,
-    priority: int = 0,
-) -> int:
-    schedule = LineSchedule(
-        tg_id=tg_id,
-        service=service,
-        line=line,
-        days_of_week=",".join(map(str, sorted(days_of_week))) if days_of_week else "",
-        start_time=start_time,
-        end_time=end_time,
-        priority=priority,
-        is_enabled=1,
-        created_at=int(time.time()),
-        updated_at=int(time.time()),
-    )
-    session.add(schedule)
-    session.flush()
-    return schedule.id
-
-
 def get_user_line_schedules_tx(
     session,
     tg_id: int,
@@ -995,42 +1009,6 @@ def get_user_line_schedules_tx(
     ]
 
 
-def update_line_schedule_tx(session, schedule_id: int, tg_id: int, **kwargs) -> bool:
-    schedule = session.execute(
-        select(LineSchedule).where(
-            LineSchedule.id == schedule_id, LineSchedule.tg_id == tg_id
-        )
-    ).scalar_one_or_none()
-    if not schedule:
-        return False
-    if "line" in kwargs:
-        schedule.line = kwargs["line"]
-    if "days_of_week" in kwargs:
-        schedule.days_of_week = ",".join(map(str, sorted(kwargs["days_of_week"])))
-    if "start_time" in kwargs:
-        schedule.start_time = kwargs["start_time"]
-    if "end_time" in kwargs:
-        schedule.end_time = kwargs["end_time"]
-    if "priority" in kwargs:
-        schedule.priority = kwargs["priority"]
-    if "is_enabled" in kwargs:
-        schedule.is_enabled = 1 if kwargs["is_enabled"] else 0
-    schedule.updated_at = int(time.time())
-    return True
-
-
-def delete_line_schedule_tx(session, schedule_id: int, tg_id: int) -> bool:
-    schedule = session.execute(
-        select(LineSchedule).where(
-            LineSchedule.id == schedule_id, LineSchedule.tg_id == tg_id
-        )
-    ).scalar_one_or_none()
-    if not schedule:
-        return False
-    session.delete(schedule)
-    return True
-
-
 def check_schedule_conflict_tx(
     session,
     tg_id: int,
@@ -1063,31 +1041,6 @@ def check_schedule_conflict_tx(
         if not (new_end <= schedule_start or new_start >= schedule_end):
             return True
     return False
-
-
-def get_current_active_schedule_tx(
-    session, tg_id: int, service: str, *, now: datetime | None = None
-) -> dict | None:
-    current = now or datetime.now(settings.TZ)
-    current_day = current.weekday()
-    current_minutes = current.hour * 60 + current.minute
-
-    def time_to_minutes(value: str) -> int:
-        hours, minutes = map(int, value.split(":"))
-        return hours * 60 + minutes
-
-    schedules = get_user_line_schedules_tx(session, tg_id, service, enabled_only=True)
-    for schedule in sorted(schedules, key=lambda item: item["priority"]):
-        if current_day not in schedule["days_of_week"]:
-            continue
-        start = time_to_minutes(schedule["start_time"])
-        end = time_to_minutes(schedule["end_time"])
-        if end <= start:
-            if current_minutes >= start or current_minutes < end:
-                return schedule
-        elif start <= current_minutes < end:
-            return schedule
-    return None
 
 
 def disable_schedules_by_line_tx(

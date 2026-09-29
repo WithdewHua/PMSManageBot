@@ -1,13 +1,13 @@
 from app.core.log import uvicorn_logger as logger
 from app.databases.db import DatabaseORM
 from app.domains.lines import repository as lines_repository
-from app.domains.lines.cache import (
+from app.domains.lines.config import LINES_CONFIG
+from app.domains.lines.gateway_cache import (
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
 )
-from app.domains.lines.config import LINES_CONFIG
 from app.domains.lines.rules import is_binded_premium_line
 from app.integrations.emby import Emby
 from app.integrations.telegram.messaging import send_message_by_url
@@ -415,7 +415,7 @@ async def _auth_bind_emby_line(
     line: str,
 ) -> tuple[bool, str]:
     """认证并绑定Emby线路的内部方法"""
-    from app.domains.lines.cache import (
+    from app.domains.lines.gateway_cache import (
         emby_last_user_defined_line_cache,
         emby_user_defined_line_cache,
     )
@@ -466,7 +466,7 @@ async def _auth_bind_plex_line(
     token: str | None = None,
 ) -> tuple[bool, str]:
     """认证并绑定Plex线路的内部方法"""
-    from app.domains.lines.cache import (
+    from app.domains.lines.gateway_cache import (
         plex_last_user_defined_line_cache,
         plex_user_defined_line_cache,
     )
@@ -511,3 +511,128 @@ async def _auth_bind_plex_line(
         f"用户 {get_user_name_from_tg_id(tg_id)} 为 {plex_username} 成功认证并绑定 Plex 线路 {line}"
     )
     return True, f"认证并绑定 Plex 线路 {line} 成功！"
+
+
+def write_user_line_cache() -> None:
+    """Refresh line-selection caches after the repository read has committed."""
+    try:
+        plex_users, emby_users = lines_repository.list_line_cache_rows()
+        for plex_id, username, line in plex_users:
+            if plex_id and username and line:
+                plex_user_defined_line_cache.put(str(username).lower(), line)
+        for username, line in emby_users:
+            if username and line:
+                emby_user_defined_line_cache.put(str(username).lower(), line)
+    except Exception as error:
+        logger.error(f"写入线路缓存时发生错误: {error}")
+
+
+async def auto_switch_user_lines(
+    tg_id: int | None = None, service: str | None = None
+) -> None:
+    """Apply active schedules, one committed transaction per eligible user."""
+    try:
+        normalized_service = service.lower() if service else None
+        if normalized_service not in (None, "plex", "emby"):
+            logger.error(f"不支持的服务类型: {service}")
+            return
+
+        switched_count = 0
+        # This candidate read completes before any per-user write begins.
+        candidates = lines_repository.get_auto_switch_candidates(
+            tg_id, normalized_service
+        )
+        for candidate in candidates:
+            result = lines_repository.apply_active_schedule(
+                candidate["tg_id"], candidate["service"]
+            )
+            if result is None:
+                continue
+
+            # apply_active_schedule has committed before any cache is touched.
+            username = result["username"]
+            if username:
+                cache_key = str(username).lower()
+                current_cache = (
+                    plex_user_defined_line_cache
+                    if result["service"] == "plex"
+                    else emby_user_defined_line_cache
+                )
+                previous_cache = (
+                    plex_last_user_defined_line_cache
+                    if result["service"] == "plex"
+                    else emby_last_user_defined_line_cache
+                )
+                previous = current_cache.get(cache_key)
+                if previous and not is_binded_premium_line(previous):
+                    previous_cache.put(cache_key, previous)
+                current_cache.put(cache_key, result["line"])
+
+            switched_count += 1
+            logger.info(
+                f"自动切换 {result['service'].capitalize()} 用户 {username} 的线路: "
+                f"{result['old_line'] or 'AUTO'} -> {result['line']}"
+            )
+
+        user_info = (
+            f"用户 {get_user_name_from_tg_id(tg_id)} (ID: {tg_id})"
+            if tg_id is not None
+            else "所有符合条件的用户"
+        )
+        service_info = (
+            f"{normalized_service.upper()} 服务"
+            if normalized_service
+            else "Plex 和 Emby 服务"
+        )
+        if switched_count:
+            logger.info(
+                f"自动切换线路任务完成 - "
+                f"处理范围: {user_info} | "
+                f"服务类型: {service_info} | "
+                f"成功切换: {switched_count} 条线路"
+            )
+        else:
+            logger.info("自动切换线路任务完成，没有需要切换的线路")
+    except Exception as error:
+        logger.error(f"自动切换用户线路失败: {error}")
+
+
+# Schedule entry points stay in the service layer; repository owns transaction boundaries.
+def check_line_schedule_unlock(tg_id: int, service: str) -> dict:
+    return lines_repository.check_line_schedule_unlock(tg_id, service)
+
+
+def get_line_schedule_account(tg_id: int, service: str) -> dict | None:
+    return lines_repository.get_line_schedule_account(tg_id, service)
+
+
+def get_user_line_schedules(
+    tg_id: int, service: str | None = None, enabled_only: bool = False
+) -> list[dict]:
+    return lines_repository.get_user_line_schedules(tg_id, service, enabled_only)
+
+
+def create_line_schedule(
+    tg_id: int,
+    service: str,
+    line: str,
+    days_of_week: list[int],
+    start_time: str,
+    end_time: str,
+    priority: int = 0,
+) -> int | None:
+    return lines_repository.create_line_schedule(
+        tg_id, service, line, days_of_week, start_time, end_time, priority
+    )
+
+
+def update_line_schedule(schedule_id: int, tg_id: int, **kwargs) -> bool:
+    return lines_repository.update_line_schedule(schedule_id, tg_id, **kwargs)
+
+
+def delete_line_schedule(schedule_id: int, tg_id: int) -> bool:
+    return lines_repository.delete_line_schedule(schedule_id, tg_id)
+
+
+def get_current_active_schedule(tg_id: int, service: str) -> dict | None:
+    return lines_repository.get_current_active_schedule(tg_id, service)
