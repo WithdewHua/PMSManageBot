@@ -31,8 +31,8 @@ class DonationRepository:
         amount: float,
         note: str | None = None,
         is_donation_registration: bool = False,
-    ) -> bool:
-        """创建捐赠登记记录"""
+    ) -> int | None:
+        """Create a donation registration and return its committed row id."""
         try:
             with get_session() as session:
                 created_at = datetime.now(settings.TZ).isoformat()
@@ -54,7 +54,8 @@ class DonationRepository:
                     is_donation_registration=int(is_donation_registration),
                 )
                 session.add(donation)
-                return True
+                session.flush()
+                return int(donation.id)
         except Exception as e:
             logger.error(f"创建捐赠登记失败: {e}")
             return False

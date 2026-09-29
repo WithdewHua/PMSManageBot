@@ -59,7 +59,7 @@ def test_plex_binding_rolls_back_if_credit_transfer_fails(
     def fail_add(*_args, **_kwargs):
         raise RuntimeError("credit transfer failed")
 
-    monkeypatch.setattr(credits_repository, "add_tx", fail_add)
+    monkeypatch.setattr(credits_repository, "move_tx", fail_add)
     with pytest.raises(RuntimeError, match="credit transfer failed"):
         accounts_repository.bind_plex_account(
             tg_id=101,

@@ -80,15 +80,13 @@
 
 四个路由都没有 API 级测试；除 21 点相关的免费次数用例外，业务流程基本没有覆盖。
 
-**已知缺陷（不在本变更修复）**
+**已由 `fix-live-defects` 修复，以下行为由本变更冻结**
 
-- 竞拍无人出价时，结束流程会调用 `send_message_by_url(None)` 并报错。
-- `finish_expired_auctions` 的 `group_by` 在 PostgreSQL 上报错。
-- 结束竞拍不检查 `is_active`，也不加锁。
-- 启动恢复只处理前 50 条。
-- 夺宝自动开期不防重复，也没有启动补救。
-
-这些由缺陷修复变更 `fix-live-defects` 处理。
+- 竞拍无人出价时安全完成流拍并发送流拍通知，不调用空的接收人。
+- `finish_expired_auctions` 的聚合查询兼容 PostgreSQL。
+- 结束竞拍按 `is_active` 条件加锁并保证单次结算。
+- 启动恢复处理全部未结束的活动竞拍，不再限制前 50 条。
+- 夺宝自动开期幂等，并在启动和补救扫描中恢复遗漏期数。
 
 ## Goals / Non-Goals
 
@@ -103,7 +101,7 @@
 **Non-Goals：**
 
 - 不移动勋章触发调用；只随行号变化重写基线键。
-- 不修复 Context 中列出的已知缺陷。已知缺陷的现状由测试固定；如果缺陷修复变更先完成，就固定修复后的行为。
+- 不再重复修复 Context 中列出的缺陷；它们已由 `fix-live-defects` 修复，本变更只冻结修复后的行为。
 - 不改奖池、派奖、赔率和开奖算法，也不改通知文案和接收人。
 - 不迁移转盘和夺宝的排行，由 `promote-remaining-domains` 处理。
 
@@ -115,7 +113,7 @@
 - **状态码和文案在抛出处确定**：同一种拒绝在不同接口中的状态码或文案不同时，由 service 在抛出点决定，例如夺宝"not active"在参与和取消两个接口中的文案不同。
 - **被遮蔽的分支**：按现状的实际结果映射。例如夺宝参与时缺少统计行，映射为 404"期数不存在"。
 - **英文原文兜底**：用 `detail` 保留原来的英文文本。
-- **router 的写法**：每个 `except Exception` 之前加上 `except DomainError: raise`，由全局处理器输出原来的响应；原来把 400 吞成 500 的地方保持 500，由测试固定。
+- **router 的写法**：每个 `except Exception` 之前加上 `except DomainError: raise`，由全局处理器输出原来的响应；原来把 400 吞成 500 的接口已由 `fix-live-defects` 恢复原状态码和文案，本变更冻结修复后的映射。
 - **冻结映射**：实施前，为每个接口的每个拒绝分支生成请求和响应的夹具。实施后逐项比对。
 
 ### D2 转盘：单事务抽奖与账本唯一入口
@@ -179,7 +177,7 @@
   - 在 `schedule.py` 的 `TASKS` 中注册 `auction.finish`，指向 `auction.jobs.finish_single_auction`，参数为 `auction_id`。这发生在 API 线程启动之前。
   - 3 个调度点改由 service 调用 `schedule_task("auction.finish", run_date=end_time, job_id=f"finish_auction_{id}", kwargs={"auction_id": id}, misfire_grace_time=60, jobstore="default", replace_existing=True)`。其中 `misfire_grace_time=60` 与现在继承的默认值相同。
   - 3 个删除点都显式指定内存 jobstore。
-- **启动恢复**：`restore_auction_schedules` 仍在 ON_STARTUP 中执行，条数上限和过滤条件不变。
+- **启动恢复**：`restore_auction_schedules` 仍在 ON_STARTUP 中执行，恢复全部未结束的活动竞拍，过滤条件保持不变。
 - **通知**：文案移入 `notifications.py`，所需数据由 service 传入，通知模块不再查库；仍然发到频道。
 - **调度快照**：比对结果中只允许这一项差异：竞拍任务的函数由原函数引用变为 `run_task`，参数改为具名任务名加 kwargs。
 

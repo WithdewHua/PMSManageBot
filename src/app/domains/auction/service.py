@@ -166,7 +166,7 @@ async def notify_bid_placed(
 
 
 def restore_auction_schedules() -> None:
-    """Restore at most the first 50 active auctions after process startup."""
+    """Restore every active auction after process startup."""
     try:
         active_auctions = auction_repository.get_active_auctions()
         current_time = int(time.time())
@@ -187,27 +187,22 @@ def restore_auction_schedules() -> None:
 
 
 async def finish_expired_auctions() -> list[dict]:
-    finished = auction_repository.finish_expired_auctions()
-    for auction in finished:
-        await auction_notifications.send_auction_finished_notifications(
-            title=str(auction.get("title")),
-            winner_id=auction.get("winner_id"),
-            final_price=auction.get("final_price"),
-            credits_reduced=bool(auction.get("credits_reduced", False)),
-            notify_winner=True,
-            notify_channel=False,
-        )
+    finished: list[dict] = []
+    for auction_id in auction_repository.get_expired_auction_ids():
+        try:
+            result = await finish_auction(
+                auction_id=auction_id, remove_task=False, notify_winner=True
+            )
+            if result[0] and isinstance(result[1], dict):
+                finished.append(result[1])
+        except Exception:
+            logger.exception("结束过期竞拍 %s 失败", auction_id)
     return finished
 
 
 async def finish_auction(
     *, auction_id: int, remove_task: bool = True, notify_winner: bool = True
 ) -> tuple[bool, dict | str | None]:
-    auction = auction_repository.get_auction_by_id(int(auction_id))
-    if not auction:
-        raise auction_exceptions.not_found()
-    if not auction["is_active"]:
-        raise auction_exceptions.ended()
     if remove_task:
         try:
             remove_finish_auction(auction_id=int(auction_id))
@@ -215,23 +210,22 @@ async def finish_auction(
             logger.warning(f"移除竞拍 {auction_id} 定时任务失败: {error}")
     success, winner = auction_repository.finish_auction_by_id(int(auction_id))
     if not success:
+        if str(winner) == "竞拍已结束":
+            raise auction_exceptions.ended()
+        if "不存在" in str(winner):
+            raise auction_exceptions.not_found()
         raise auction_exceptions.finish_failed()
-    if isinstance(winner, dict):
+    try:
         await auction_notifications.send_auction_finished_notifications(
-            title=str(auction.get("title")),
+            title=str(winner.get("title")),
             winner_id=winner.get("winner_id"),
             final_price=winner.get("final_price"),
             credits_reduced=bool(winner.get("credits_reduced", False)),
             notify_winner=notify_winner,
         )
-    else:
-        await auction_notifications.send_auction_finished_notifications(
-            title=str(auction.get("title")),
-            winner_id=None,
-            final_price=None,
-            notify_winner=True,
-        )
-    return bool(success), winner
+    except Exception:
+        logger.exception("竞拍 %s 结束通知失败", auction_id)
+    return True, winner
 
 
 async def finish_single_auction_job(*, auction_id: int) -> None:

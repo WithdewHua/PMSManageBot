@@ -5,6 +5,7 @@ from sqlalchemy import delete, func, select, update
 
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.auction import exceptions as auction_exceptions
 from app.domains.auction.models import AuctionBids, Auctions
 from app.domains.credits import repository as credits_repository
 from app.domains.credits.types import CreditAccount
@@ -68,7 +69,7 @@ class AuctionRepository:
             logger.error(f"Error getting auction by id: {e}")
             return None
 
-    def get_active_auctions(self, limit: int = 50) -> list[dict]:
+    def get_active_auctions(self, limit: int | None = None) -> list[dict]:
         """获取活跃竞拍列表"""
         try:
             with get_session() as session:
@@ -77,8 +78,9 @@ class AuctionRepository:
                     select(Auctions)
                     .where(Auctions.is_active == 1, Auctions.end_time > current_time)
                     .order_by(Auctions.created_at.desc())
-                    .limit(limit)
                 )
+                if limit is not None:
+                    stmt = stmt.limit(limit)
                 results = session.execute(stmt).scalars().all()
 
                 auctions = []
@@ -106,41 +108,32 @@ class AuctionRepository:
             return []
 
     def place_bid(self, auction_id: int, bidder_id: int, bid_amount: float) -> bool:
-        """出价"""
+        """Place a bid while locking the auction row first."""
         try:
             with get_session() as session:
                 bid_time = int(time.time())
-
-                # 检查竞拍是否存在且活跃
                 auction = session.execute(
-                    select(Auctions).where(Auctions.id == auction_id)
+                    select(Auctions)
+                    .where(Auctions.id == int(auction_id))
+                    .with_for_update()
                 ).scalar_one_or_none()
-
                 if not auction or not auction.is_active or auction.end_time <= bid_time:
                     return False
-
-                # 检查出价是否高于当前价格
                 if bid_amount <= auction.current_price:
                     return False
-
-                # 插入出价记录
-                bid = AuctionBids(
-                    auction_id=auction_id,
-                    bidder_id=bidder_id,
-                    bid_amount=bid_amount,
-                    bid_time=bid_time,
+                session.add(
+                    AuctionBids(
+                        auction_id=int(auction_id),
+                        bidder_id=int(bidder_id),
+                        bid_amount=float(bid_amount),
+                        bid_time=bid_time,
+                    )
                 )
-                session.add(bid)
-
-                # 更新竞拍当前价格和出价次数
-                session.execute(
-                    update(Auctions)
-                    .where(Auctions.id == auction_id)
-                    .values(current_price=bid_amount, bid_count=Auctions.bid_count + 1)
-                )
+                auction.current_price = float(bid_amount)
+                auction.bid_count = int(auction.bid_count or 0) + 1
                 return True
-        except Exception as e:
-            logger.error(f"Error placing bid: {e}")
+        except Exception as error:
+            logger.error(f"Error placing bid: {error}")
             return False
 
     def get_auction_bids(self, auction_id: int, limit: int = 50) -> list[dict]:
@@ -448,63 +441,19 @@ class AuctionRepository:
             return False
 
     def finish_auction_by_id(self, auction_id: int) -> tuple:
-        """手动结束指定竞拍活动"""
+        """Finish an auction once, under the auction-row lock."""
         try:
             with get_session() as session:
-                # 获取竞拍信息
-                auction = session.execute(
-                    select(Auctions).where(Auctions.id == auction_id)
-                ).scalar_one_or_none()
-
-                if not auction:
-                    return False, f"竞拍 id {auction_id} 不存在"
-
-                # 获取最高出价
-                highest_bid_stmt = (
-                    select(AuctionBids.bidder_id, AuctionBids.bid_amount)
-                    .where(AuctionBids.auction_id == auction_id)
-                    .order_by(AuctionBids.bid_amount.desc())
-                    .limit(1)
-                )
-                highest_bid = session.execute(highest_bid_stmt).fetchone()
-
-                winner_id = None
-                final_price = auction.starting_price
-                credits_reduced = False
-
-                if highest_bid:
-                    winner_id = highest_bid[0]
-                    final_price = highest_bid[1]
-
-                    # 扣除获胜者的积分
-                    try:
-                        credits_repository.deduct_tx(
-                            session, CreditAccount.tg(int(winner_id)), final_price
-                        )
-                        credits_reduced = True
-                    except ValueError:
-                        logger.warning(
-                            f"Winner {winner_id} has insufficient credits for auction {auction_id} (price: {final_price})"
-                        )
-
-                # 更新竞拍状态
-                session.execute(
-                    update(Auctions)
-                    .where(Auctions.id == auction_id)
-                    .values(is_active=0, winner_id=winner_id, current_price=final_price)
-                )
-                return True, {
-                    "id": auction_id,
-                    "title": auction.title,
-                    "winner_id": winner_id,
-                    "final_price": final_price,
-                    "credits_reduced": credits_reduced,
-                }
-
-        except Exception as e:
-            logger.error(f"Error finishing auction {auction_id}: {e}")
+                result = finish_auction_tx(session, int(auction_id))
+                if result is None:
+                    return False, "竞拍已结束"
+                return True, result
+        except auction_exceptions.AuctionError as error:
+            return False, str(error)
+        except Exception as error:
+            logger.error(f"Error finishing auction {auction_id}: {error}")
             logger.error(traceback.format_exc())
-            return False, str(e)
+            return False, str(error)
 
     def get_user_auction_history(self, user_id: int, limit: int = 20) -> list[dict]:
         """获取用户参与的竞拍历史"""
@@ -639,6 +588,91 @@ def count_participated_auctions_tx(session, tg_id: int, since: int, until: int) 
 _repository = AuctionRepository()
 
 
+def finish_auction_tx(session, auction_id: int) -> dict | None:
+    """Finish one auction under the auction-row lock.
+
+    ``None`` means another worker already finished it.  The caller owns the
+    transaction and therefore controls when post-commit notifications run.
+    """
+    auction = session.execute(
+        select(Auctions).where(Auctions.id == int(auction_id)).with_for_update()
+    ).scalar_one_or_none()
+    if auction is None:
+        raise auction_exceptions.not_found()
+    if not auction.is_active:
+        return None
+    highest_bid = session.execute(
+        select(AuctionBids)
+        .where(AuctionBids.auction_id == int(auction_id))
+        .order_by(
+            AuctionBids.bid_amount.desc(),
+            AuctionBids.bid_time.asc(),
+            AuctionBids.id.asc(),
+        )
+        .limit(1)
+    ).scalar_one_or_none()
+    winner_id = int(highest_bid.bidder_id) if highest_bid is not None else None
+    final_price = float(
+        highest_bid.bid_amount if highest_bid is not None else auction.starting_price
+    )
+    credits_reduced = False
+    if winner_id is not None:
+        try:
+            credits_repository.deduct_tx(
+                session, CreditAccount.tg(winner_id), final_price
+            )
+            credits_reduced = True
+        except ValueError:
+            logger.warning(
+                "Winner %s has insufficient credits for auction %s (price: %s)",
+                winner_id,
+                auction_id,
+                final_price,
+            )
+    session.execute(
+        update(Auctions)
+        .where(Auctions.id == int(auction_id), Auctions.is_active == 1)
+        .values(is_active=0, winner_id=winner_id, current_price=final_price)
+    )
+    return {
+        "id": int(auction_id),
+        "title": auction.title or f"竞拍活动 #{auction_id}",
+        "winner_id": winner_id,
+        "final_price": final_price,
+        "credits_reduced": credits_reduced,
+    }
+
+
+def finish_auction(auction_id: int) -> dict | None:
+    with get_session() as session:
+        return finish_auction_tx(session, int(auction_id))
+
+
+def get_expired_auction_ids(*, now: int | None = None) -> list[int]:
+    current_time = int(time.time()) if now is None else int(now)
+    with get_session() as session:
+        return [
+            int(auction_id)
+            for (auction_id,) in session.execute(
+                select(Auctions.id)
+                .where(Auctions.is_active == 1, Auctions.end_time <= current_time)
+                .order_by(Auctions.id.asc())
+            ).all()
+        ]
+
+
+def get_active_auction_ids() -> list[int]:
+    with get_session() as session:
+        return [
+            int(auction_id)
+            for (auction_id,) in session.execute(
+                select(Auctions.id).where(Auctions.is_active == 1)
+            )
+            .scalars()
+            .all()
+        ]
+
+
 def create_auction(
     *,
     title: str,
@@ -656,8 +690,10 @@ def get_auction_by_id(auction_id: int) -> dict | None:
     return _repository.get_auction_by_id(int(auction_id))
 
 
-def get_active_auctions(*, limit: int = 50) -> list[dict]:
-    return _repository.get_active_auctions(limit=int(limit))
+def get_active_auctions(*, limit: int | None = None) -> list[dict]:
+    return _repository.get_active_auctions(
+        limit=int(limit) if limit is not None else None
+    )
 
 
 def place_bid(*, auction_id: int, bidder_id: int, bid_amount: float) -> bool:
@@ -725,8 +761,11 @@ __all__ = [
     "count_participated_auctions_tx",
     "create_auction",
     "delete_auction",
+    "finish_auction",
     "finish_auction_by_id",
+    "finish_auction_tx",
     "finish_expired_auctions",
+    "get_active_auction_ids",
     "get_active_auctions",
     "get_all_auctions",
     "get_auction_bids",
@@ -734,6 +773,7 @@ __all__ = [
     "get_auction_participants",
     "get_auction_stats",
     "get_detailed_auction_stats",
+    "get_expired_auction_ids",
     "get_user_auction_history",
     "get_user_highest_bid",
     "place_bid",

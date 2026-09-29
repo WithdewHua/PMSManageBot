@@ -207,6 +207,48 @@ def schedule_auto_reopen_treasure_issue(*, source_issue_id: int) -> None:
     )
 
 
+async def open_next_issue(*, source_issue_id: int) -> int | None:
+    issue = treasure_repository.get_treasure_issue_by_id(int(source_issue_id))
+    if issue is None:
+        return None
+    previous_reopen_id = issue.get("auto_reopen_issue_id")
+    next_issue_id = treasure_repository.open_next_issue(
+        source_issue_id=int(source_issue_id)
+    )
+    if next_issue_id is None:
+        return None
+    if previous_reopen_id is None:
+        try:
+            next_issue = treasure_repository.get_treasure_issue_by_id(next_issue_id)
+            if next_issue:
+                await treasure_notifications.notify_treasure_issue_created(
+                    issue_id=next_issue_id,
+                    title=str(next_issue.get("title")),
+                    total_shares=int(next_issue.get("total_shares") or 0),
+                    credits_per_share=int(next_issue.get("credits_per_share") or 0),
+                    prize_credits=int(next_issue.get("prize_credits") or 0),
+                )
+        except Exception as error:
+            logger.warning(f"Treasure reopen notify failed: {error}")
+    return next_issue_id
+
+
+async def reopen_overdue_issues() -> int:
+    reopened = 0
+    for source_issue_id in treasure_repository.list_overdue_reopen_issue_ids(
+        now=int(time.time())
+    ):
+        try:
+            result = await open_next_issue(source_issue_id=source_issue_id)
+            if result is not None:
+                reopened += 1
+        except Exception as error:
+            logger.error(
+                f"Treasure overdue reopen failed (source={source_issue_id}): {error}"
+            )
+    return reopened
+
+
 def cancel_treasure_issue(*, issue_id: int) -> dict:
     return treasure_repository.cancel_treasure_issue(issue_id=int(issue_id))
 
@@ -219,5 +261,7 @@ __all__ = [
     "join_treasure_issue",
     "list_treasure_issues",
     "list_treasure_participations",
+    "open_next_issue",
+    "reopen_overdue_issues",
     "schedule_auto_reopen_treasure_issue",
 ]

@@ -42,7 +42,7 @@ async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
     if add_credits:
         try:
-            credits_service.add(
+            mutation = credits_service.add(
                 CreditAccount.tg(int(tg_id)),
                 donation * donation_service.get_donation_multiplier(),
             )
@@ -54,7 +54,7 @@ async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         # 通知该用户
         await send_message(
             chat_id=tg_id,
-            text=f"通知：感谢您的捐赠，已为您增加积分 {donation * 2}",
+            text=f"通知：感谢您的捐赠，已为您增加积分 {mutation.delta}",
             context=context,
         )
 

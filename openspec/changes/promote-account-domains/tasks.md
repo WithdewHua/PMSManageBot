@@ -6,12 +6,12 @@
 - [ ] 1.2 补齐绑定测试：Plex 和 Emby 的路由预检、新建账号行、合并未绑定积分、邮箱无权限、账号已被其他 TG 绑定、观看时长查询失败、Emby 回滚。外部接口用替身。验证：新测试在当前代码上全部通过。
 - [ ] 1.3 补齐邀请测试：
   - 凭码注册：Plex 全流程；Emby 的绑定、不绑定、绑定失败三种分支。
-  - 邀请码：路由、bot、管理员三处生成，以及 `points-info` 返回 500 的现状。
-  - 兑换积分，包括"UPDATE 不检查 `is_used`"的现状。
+  - 邀请码：路由、bot、管理员三处生成，以及 `points-info` 修复后的状态码和文案。
+  - 兑换积分，包括 `UPDATE` 对 `is_used` 的修复后约束。
   - `register-status`。
 
-  验证：新测试在当前代码上全部通过，已知问题的现状由测试明确断言。
-- [ ] 1.4 补齐同步测试：`update_plex_info` 的改名、按邮箱回填 plex_id、回填 invitation、改流量用户名，以及缺少本地行时中止的现状；`update_users_last_viewed`、`refresh_emby_user_info`、`/create_overseerr`。验证：新测试在当前代码上全部通过。
+  验证：新测试在当前代码上全部通过，缺陷修复后的行为由测试明确断言。
+- [ ] 1.4 补齐同步测试：`update_plex_info` 的改名、按邮箱回填 plex_id、回填 invitation、改流量用户名，以及缺少本地行时隔离当前用户、继续同步的修复后行为；`update_users_last_viewed`、`refresh_emby_user_info`、`/create_overseerr`。验证：新测试在当前代码上全部通过。
 
 ## 2. identity 的类型化 API 与兼容层
 

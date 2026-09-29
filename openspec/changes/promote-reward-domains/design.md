@@ -51,8 +51,8 @@
 
 - `update_credits` 是一个 async 任务，依次同步调用 `clean_tautulli_ghost_sessions`、`update_plex_credits` 和 `update_emby_credits`，然后发送通知。
 - 结算按用户分事务提交，每个事务里调用 `credits.apply_tx`，用原生 SQL 写会员欠额列，并在需要时直接构造 `Statistics`。
-- 邀请人奖励在循环结束后另开事务发放。结算中途失败时，已处理的用户已经提交，邀请奖励和补偿标记则会被跳过。
-- 邀请人通知里的总积分多算了一次奖励：这是 `83b0fa4` 引入的显示问题，由缺陷修复变更 `fix-live-defects` 处理。
+- 邀请人奖励在循环结束后另开事务发放。结算中途失败导致的部分提交、补偿标记遗漏和通知显示问题已由 `fix-live-defects` 修复；后续提升冻结修复后的单用户事务结果。
+- 邀请人通知里的总积分多算一次奖励的问题已由 `fix-live-defects` 修复，后续提升冻结库内余额与通知余额一致的行为。
 
 **基线**：`owner=promote-reward-domains` 的条目 56 条（badge_awards 16、badges 10、watch_rewards 30）；指向 badge_awards 的另有 9 条，不在本变更名下。另有 3 条标给本变更的忽略项，以及 4 条标为 B3 的 watch_rewards.service 忽略项。
 
@@ -74,7 +74,7 @@
 
 - 不改勋章条件、门槛、加成和积分公式。
 - 不改变单用户与批量两种模式在准确率舍入上的口径差异，由测试把现状固定下来。
-- 不修复已知的显示问题和"结算中途失败后的部分提交"：两者由 `fix-live-defects` 的 D2 修复（结算记录、单用户事务、失败隔离）。该变更计划先于本变更实施，本变更的 `settle_user_tx` 要保留它引入的结算记录、邀请人奖励和补偿标记，冻结修复后的行为。
+- 显示问题和"结算中途失败后的部分提交"已由 `fix-live-defects` 的 D2 修复；本变更的 `settle_user_tx` 必须保留结算记录、邀请人奖励和补偿标记，冻结修复后的行为。
 - 不改冠军勋章的续期语义，也不为它补发通知。
 
 ## Decisions

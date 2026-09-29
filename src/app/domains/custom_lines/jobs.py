@@ -9,6 +9,7 @@ from sqlalchemy import and_, select
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.custom_lines import rules as custom_line_rules
 from app.domains.custom_lines.models import CustomLine
 from app.domains.custom_lines.repository import (
     _get_expired_lines,
@@ -91,8 +92,10 @@ async def check_custom_line_traffic():
         logger.info("开始检查自定义线路流量使用情况")
 
         with get_session() as session:
-            current_time = int(datetime.now(tz=UTC).timestamp())
-            current_month = datetime.now(tz=UTC).astimezone().strftime("%Y-%m")
+            current_time = int(datetime.now(tz=settings.TZ).timestamp())
+            current_month = custom_line_rules.month_key(
+                datetime.now(settings.TZ), settings.TZ
+            )
 
             # 获取所有已批准的自定义线路
             stmt = select(CustomLine).where(
@@ -115,13 +118,19 @@ async def check_custom_line_traffic():
             for line in lines:
                 # 获取当月流量使用情况（包含所有用户，不排除线路所有者）
                 # 从原始流量表实时读取当月流量
-                monthly_traffic_gb = await _get_line_monthly_traffic(
-                    session,
-                    line.domain,
-                    current_month,
-                    owner_tg_id=None,
-                    from_raw_table=True,
-                )
+                try:
+                    monthly_traffic_gb = await _get_line_monthly_traffic(
+                        session,
+                        line.domain,
+                        current_month,
+                        owner_tg_id=None,
+                        from_raw_table=True,
+                    )
+                except Exception:
+                    logger.exception(
+                        "检查线路 %s 流量失败，继续处理下一条", line.domain
+                    )
+                    continue
 
                 # 计算实际流量（根据流量类型）
                 actual_traffic = monthly_traffic_gb

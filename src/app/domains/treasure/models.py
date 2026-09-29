@@ -52,6 +52,8 @@ class TreasureIssue(Base):
     winner_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     winner_tg_id: Mapped[int | None] = mapped_column(BIGINT, nullable=True, index=True)
     settled_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)  # 秒时间戳
+    auto_reopen_due_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    auto_reopen_issue_id: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
 
     created_by: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(
@@ -75,6 +77,11 @@ class TreasureIssue(Base):
             name="ck_treasure_issue_credits_per_share_gt_0",
         ),
         CheckConstraint("total_shares > 0", name="ck_treasure_issue_total_shares_gt_0"),
+        Index(
+            "ix_treasure_issue_reopen_due",
+            "auto_reopen_due_at",
+            "auto_reopen_issue_id",
+        ),
     )
 
 

@@ -29,6 +29,7 @@ from app.transport.http.auth import (
     require_telegram_auth,
 )
 from app.transport.http.schemas import TelegramUser
+from app.transport.telegram.admin import notify_admins_by_url
 
 router = APIRouter(prefix="/api/donations", tags=["donations"])
 
@@ -42,6 +43,7 @@ async def create_donation_registration(
     user: TelegramUser = Depends(get_telegram_user),
 ):
     """创建捐赠自助登记"""
+    registration = None
     try:
         user_id = user.id
         if not user_id:
@@ -51,42 +53,34 @@ async def create_donation_registration(
         # 创建后台任务以刷新用户信息
         background_tasks.add_task(refresh_tg_user_profile, tg_id=user_id)
 
-        # 创建捐赠登记记录
-        success = db.create_donation_registration(
+        registration_id = donation_service.create_donation_registration(
             user_id=user_id,
             payment_method=registration_data.payment_method.value,
             amount=registration_data.amount,
             note=registration_data.note,
             is_donation_registration=registration_data.is_donation_registration,
         )
-
-        if not success:
+        if registration_id is None:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="创建捐赠登记失败",
             )
-
-        # 获取刚创建的记录
-        registrations = donation_service.get_donation_registrations_by_user(
-            user_id, limit=1
+        registration = donation_service.get_donation_registration_by_id(
+            int(registration_id)
         )
-        if not registrations:
+        if registration is None:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="获取创建的登记记录失败",
             )
 
-        registration = registrations[0]
-
         # 发送管理员通知
         registration_type = (
             "捐赠开号" if registration_data.is_donation_registration else "普通捐赠"
         )
-        for admin in settings.TG_ADMIN_CHAT_ID:
-            await send_message_by_url(
-                chat_id=admin,
-                text=f"用户 {get_user_name_from_tg_id(user_id)} 提交了{registration_type}登记: {registration_data.payment_method.value} {registration_data.amount}元",
-            )
+        await notify_admins_by_url(
+            f"用户 {get_user_name_from_tg_id(user_id)} 提交了{registration_type}登记: {registration_data.payment_method.value} {registration_data.amount}元"
+        )
 
         logger.info(
             f"用户 {get_user_name_from_tg_id(user_id)} 提交了{'捐赠开号' if registration_data.is_donation_registration else '普通捐赠'}登记: {registration_data.payment_method.value} {registration_data.amount}元"
@@ -104,7 +98,6 @@ async def create_donation_registration(
         raise
     except Exception as e:
         logger.error(f"创建捐赠登记失败: {e}")
-        db.delete_donation_registration(registration_id=registration.get("id"))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="创建捐赠登记失败，请联系管理员",

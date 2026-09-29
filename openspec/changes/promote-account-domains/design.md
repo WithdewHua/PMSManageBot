@@ -28,7 +28,7 @@
   - 删除 token 缓存。
   - 刷新头像。
   - 启动守护线程，延时删除按邮箱命名的调度任务。
-- 这个任务整体包在 `except: print(e)` 里。如果某个 Plex 用户在库里没有对应行，就会抛 TypeError，整次任务中止。
+- 该任务已由 `fix-live-defects` 改为逐用户隔离；库里没有对应行时跳过当前用户，后续用户仍继续同步。
 
 **invitation**（1,050 行）
 
@@ -37,7 +37,7 @@
 - `add_redeem_code` 被 luckywheel、donation 和 invitation 的管理员接口调用，异常一律吞掉。
 - 兑换积分时，"标记已用"的 UPDATE 不检查 `is_used`，并且总是返回成功。
 - 凭码注册 Plex 的流程：
-  1. 检查注册开关、Plex 人数上限（`db.get_plex_users_num() == 100`，属于 reports）、邀请码。
+  1. 检查注册开关、Plex 人数上限（达到容量即拒绝，属于 reports）、邀请码。
   2. 发出 Plex 邀请。
   3. 在数据库里标记已用。
   4. 选择绑定 TG 时建一行 plex_id 为空的账号，并注册 `update_plex_info_for_{email}` 内存任务：每分钟运行一次，1 小时后结束。
@@ -80,12 +80,12 @@
 **Non-Goals：**
 
 - 不迁移本批以外领域对 identity 或 invitation 的入口层调用。路由、bot、jobs 调用其他领域本来就是违规，由各领域自己的提升变更改为经过本领域 service。
-- 不修复以下已知问题，只用测试把现状固定下来，由缺陷修复变更 `fix-live-defects` 处理（`fix-live-defects` 计划先于本变更实施；实施时它已完成的项，冻结修复后的行为）：
-  - `update_plex_info` 在缺少本地行时整体中止。
-  - 不绑定 TG 的凭码注册永远不会回填 plex_id。
-  - Plex 人数上限用 `==` 判断。
-  - `points-info` 等接口把 404 吞成 500。
-  - 凭码注册先调外部接口、后标记邀请码。邀请码"只能兑换一次"的语义由 `move-privileged-codes-to-database` 的 `invitation-codes` 规格统一定义。
+- 不重复修复已由 `fix-live-defects` 完成的缺陷；本变更冻结以下修复后的行为：
+  - `update_plex_info` 遇到缺少本地行时只隔离该用户，继续同步其他用户。
+  - Plex 人数上限按容量边界判断，特权码也不能绕过容量限制。
+  - `points-info`、`generate` 和 `register-status` 保留各自原始的 200/400/404 契约，不再把 404 吞成 500。
+  - 凭码注册的外部调用与邀请码状态更新仍按既有顺序执行；邀请码"只能兑换一次"的语义由 `move-privileged-codes-to-database` 的 `invitation-codes` 规格统一定义。
+  - 未绑定 TG 的 Plex 注册分支仍由本变更的 D5 继续完成，其他同步行为冻结在修复后的结果。
 - 不新增媒体账号解绑功能。
 - 不改 Emby 注册在响应和私信中返回明文密码的现有行为。
 
@@ -122,7 +122,7 @@
   - 流量用户名改为调用 `traffic.service.rename_user(...)`，这是本变更新增的 traffic service，内部调用 traffic repository 的模块级函数。
   - 删除 token 缓存和刷新头像，都放到提交后执行。
   - 删除延时移除调度任务的守护线程，这件事改由 D4 的具名任务自己完成。
-  - `except: print` 改为记录日志；中止的行为保持不变，见 Non-Goals。
+  - `except: print` 改为记录日志；缺少本地行时只隔离当前用户，冻结 `fix-live-defects` 的修复行为。
 - **注册开关**：`/set_register` 调用 accounts.service，读写的领域配置由 `unify-business-configuration` 提供。
 
 ### D3 invitation：生成、兑换与凭码注册进入 service
@@ -139,7 +139,7 @@
 
   删除原来"失败后再扣回"的补偿逻辑。
 - **凭码注册**：`invitation.service.register_plex(...)` 和 `register_emby(...)` 按现有顺序编排：预检 → 外部调用 → 标记 → 建号或绑定 → 通知管理员 → 处理特权码。
-  - Plex 人数上限改用 `identity.service.count_bound_plex_users()`，判断方式仍是 `== 100`。
+  - Plex 人数上限改用 `identity.service.count_bound_plex_users()`，并冻结 `fix-live-defects` 的达到容量即拒绝行为。
   - Emby 的建号信息刷新改为调用 `accounts.service`（同层依赖，方向与现在相同）。
 - **错误契约**：定义 `InvitationError(DomainError, ValueError)` 及其子类。对于 200 契约的接口，router 捕获这些类型化异常，构造原来的响应模型（`success=false` 加原文案）；500 路径保持原来的文案。全部删除字符串匹配。
 

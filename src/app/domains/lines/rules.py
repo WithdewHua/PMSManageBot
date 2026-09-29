@@ -34,18 +34,8 @@ def normalize_line_domain(line_domain: str) -> str:
     return netloc
 
 
-def is_binded_premium_line(line: str) -> bool:
-    """检查绑定线路是否为高级线路
-
-    通用函数，适用于 Plex 和 Emby
-
-    Args:
-        line: 线路名称
-
-    Returns:
-        bool: 是否为高级线路
-    """
-    for premium_line in settings.PREMIUM_STREAM_BACKEND:
-        if premium_line in line:
-            return True
-    return False
+def is_binded_premium_line(line: str | None) -> bool:
+    """Return whether a bound line belongs to the premium catalog."""
+    if not line:
+        return False
+    return any(premium_line in line for premium_line in settings.PREMIUM_STREAM_BACKEND)

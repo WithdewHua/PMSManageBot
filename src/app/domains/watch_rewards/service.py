@@ -1,3 +1,4 @@
+import time
 import traceback
 from datetime import datetime, timedelta
 
@@ -9,9 +10,12 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
 from app.databases.db import db
-from app.domains.credits import service as credits_service
+from app.domains.credits import repository as credits_repository
+from app.domains.credits.exceptions import CreditAccountNotFound
 from app.domains.credits.types import CreditAccount
+from app.domains.identity import repository as identity_repository
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
+from app.domains.watch_rewards import repository as watch_rewards_repository
 from app.domains.watch_rewards.constants import (
     GHOST_SETTLEMENT_CONFIG_KEY,
     GHOST_SETTLEMENT_CONFIG_TYPE,
@@ -207,52 +211,30 @@ from app.domains.traffic import service as traffic_service
 
 
 def update_plex_credits():
-    """更新积分及观看时长"""
+    """Settle Plex watch rewards once per user and configured local date."""
     logger.info("开始更新 Plex 用户积分及观看时长")
-    notification_tasks = []
-    deduction_records = []
-    premium_config = premium_service.get_premium_config()
-    traffic_config = traffic_service.get_traffic_config()
-    ghost_compensation: dict = {}
-    # 邀请人奖励累积字典: {inviter_tg_id: {"total_bonus": float, "details": [{"username": str, "base_credits": float, "bonus": float}]}}
-    inviter_rewards: dict = {}
+    notification_tasks: list[tuple[int, str]] = []
+    deduction_records: list[dict] = []
+    inviter_rewards: dict[int, dict] = {}
+    failures: list[str] = []
     try:
-        # 先更新用户信息
+        premium_config = premium_service.get_premium_config()
+        traffic_config = traffic_service.get_traffic_config()
         update_plex_info(plex_name=True, plex_id=False, plex_avatar=False)
-
-        # 获取一天内的观看时长
         duration = get_user_total_duration(
             Tautulli().get_home_stats(
                 1, "duration", len(Plex().users_by_id), "top_users"
             )
         )
-        # 加回被清理掉的幽灵会话时长：这些记录已从 Tautulli 删除，
-        # get_home_stats 不再包含它们，只能从留档表按真实播放进度补回，
-        # 否则用户这部分观看时长就白丢了
-        ghost_compensation = db.get_pending_ghost_compensation()
-        for ghost_user_id, ghost_hours in ghost_compensation.items():
-            # duration 的 key 直接来自 Tautulli，为 int 型 user_id
-            key = (
-                int(ghost_user_id)
-                if str(ghost_user_id).lstrip("-").isdigit()
-                else ghost_user_id
-            )
-            duration[key] = duration.get(key, 0) + ghost_hours
-            logger.info(
-                f"用户 {ghost_user_id} 补回幽灵会话观看时长 {round(ghost_hours, 2)} 小时"
-            )
-        # update credits and watched_time
+        ghost_rows = watch_rewards_repository.get_pending_ghost_compensation_rows()
+        for ghost_user_id, info in ghost_rows.items():
+            key = int(ghost_user_id) if str(ghost_user_id).isdigit() else ghost_user_id
+            duration[key] = duration.get(key, 0) + info["hours"]
+
         with get_session() as session:
-            stmt = select(PlexUser.plex_id).where(PlexUser.plex_id.isnot(None))
-            plex_ids = session.execute(stmt).scalars().all()
-
-        for plex_id in plex_ids:
-            play_duration = round(min(float(duration.get(plex_id, 0)), 24), 2)
-            # 最大记 8h
-            credits_inc = min(play_duration, 8)
-
-            with get_session() as session:
-                stmt = select(
+            users = session.execute(
+                select(
+                    PlexUser.plex_id,
                     PlexUser.credits,
                     PlexUser.watched_time,
                     PlexUser.tg_id,
@@ -261,44 +243,44 @@ def update_plex_credits():
                     PlexUser.premium_status_updated_at,
                     PlexUser.premium_traffic_debt_bytes,
                     PlexUser.premium_traffic_debt_updated_date,
-                ).where(PlexUser.plex_id == plex_id)
-                res = session.execute(stmt).fetchone()
-            if not res:
-                continue
-            watched_time_init = res[1]
-            tg_id = res[2]
-            plex_username = res[3]
-            is_premium = res[4]
-            premium_status_updated_at = res[5]
-            debt_bytes = int(res[6] or 0)
-            debt_updated_date = res[7]
-            settlement_date = datetime.now(settings.TZ) - timedelta(days=1)
-            is_premium_for_settlement = _resolve_premium_status_for_settlement(
-                current_is_premium=bool(is_premium),
-                premium_status_updated_at=premium_status_updated_at,
+                ).where(PlexUser.plex_id.isnot(None))
+            ).all()
+    except Exception as error:
+        logger.exception("准备 Plex 观看积分结算失败")
+        return [
+            (chat_id, f"更新 Plex 用户积分及观看时长失败: {error}")
+            for chat_id in settings.TG_ADMIN_CHAT_ID
+        ], deduction_records
+
+    settlement_date = datetime.now(settings.TZ) - timedelta(days=1)
+    settlement_key = settlement_date.strftime("%Y-%m-%d")
+    for row in users:
+        plex_id, _old_credits, watched_time, tg_id, username = row[:5]
+        try:
+            play_duration = round(min(float(duration.get(plex_id, 0)), 24), 2)
+            base_credits = min(play_duration, 8)
+            debt_bytes = int(row[7] or 0)
+            debt_updated_date = row[8]
+            is_premium = _resolve_premium_status_for_settlement(
+                current_is_premium=bool(row[5]),
+                premium_status_updated_at=row[6],
                 settlement_date=settlement_date,
-                user_traffic_limit=traffic_config.user_traffic_limit,
-                premium_user_traffic_limit=traffic_config.premium_user_traffic_limit,
-                credits_cost_per_10gb=premium_config.credits_cost_per_10gb,
             )
-            # 获取用户昨日的 premium 流量使用情况（用于流量费用计算）
             traffic_usage_premium = db.get_user_daily_traffic(
                 user_id=str(plex_id),
                 service="plex",
                 date=settlement_date,
                 premium_only=True,
             )
-            # 获取用户昨日的总流量（用于流量惩罚计算）
             traffic_usage_total = db.get_user_daily_traffic(
                 user_id=str(plex_id),
                 service="plex",
                 date=settlement_date,
                 premium_only=False,
             )
-
-            premium_traffic_result = _settle_premium_traffic_usage(
+            premium_result = _settle_premium_traffic_usage(
                 traffic_usage_premium=traffic_usage_premium,
-                is_premium=is_premium_for_settlement,
+                is_premium=is_premium,
                 debt_bytes=debt_bytes,
                 debt_updated_date=debt_updated_date,
                 settlement_date=settlement_date,
@@ -306,348 +288,167 @@ def update_plex_credits():
                 premium_user_traffic_limit=traffic_config.premium_user_traffic_limit,
                 credits_cost_per_10gb=premium_config.credits_cost_per_10gb,
             )
-            traffic_usage_exceed = premium_traffic_result["exceed_bytes"]
-            traffic_cost_credits = premium_traffic_result["traffic_cost_credits"]
-            if traffic_cost_credits > 0:
-                deduction_records.append(
-                    {
-                        "service": "Plex",
-                        "username": plex_username,
-                        "tg_id": tg_id,
-                        "deducted_credits": traffic_cost_credits,
-                        "chargeable_bytes": premium_traffic_result["chargeable_bytes"],
-                    }
-                )
-
+            traffic_cost = float(premium_result["traffic_cost_credits"])
+            ghost_info = ghost_rows.get(str(plex_id), {"hours": 0.0, "row_ids": []})
             if (
                 play_duration == 0
                 and traffic_usage_total == 0
-                and premium_traffic_result["debt_before_today"] == 0
-                and premium_traffic_result["next_debt_bytes"] == 0
+                and premium_result["debt_before_today"] == 0
+                and premium_result["next_debt_bytes"] == 0
+                and traffic_cost == 0
+                and not ghost_info["row_ids"]
+                and not debt_bytes
+                and not debt_updated_date
             ):
-                if debt_bytes > 0 or debt_updated_date:
-                    with get_session() as session:
-                        stmt = (
-                            sql_update(PlexUser)
-                            .where(PlexUser.plex_id == plex_id)
-                            .values(
-                                premium_traffic_debt_bytes=premium_traffic_result[
-                                    "next_debt_bytes"
-                                ],
-                                premium_traffic_debt_updated_date=premium_traffic_result[
-                                    "next_debt_updated_date"
-                                ],
-                            )
-                        )
-                        session.execute(stmt)
                 continue
 
-            # 计算超长观看惩罚 (TimePenalty)
-            time_penalty = 0
-            if play_duration > 8 * 1.2:
-                time_penalty = (play_duration - 8 * 1.2) * 0.5
-
-            # 计算超额流量惩罚 (DataPenalty)
-            data_penalty = 0
-            data_ratio = 0
-            expected_data = play_duration * 10 * 1024 * 1024 * 1024  # 10 GB/小时
-            if traffic_usage_total > 0 and expected_data > 0:
-                data_ratio = float(traffic_usage_total) / float(expected_data)
-                if data_ratio > 1.2:
-                    data_penalty = float(credits_inc) * (data_ratio - 1.2) * 0.5
-
-            # 应用惩罚到基础积分
-            final_daily_score = max(
-                0, min(credits_inc - time_penalty - data_penalty, 8)
+            daily_award, time_penalty, data_penalty = _watch_daily_award(
+                base_credits, play_duration, traffic_usage_total
             )
-            # 保存原始 credits_inc 用于显示
-            original_credits_inc = credits_inc
-            credits_inc = final_daily_score
-            # 计算勋章加成
-            badge_bonus = 0
-            badge_bonus_details = []
+            badge_bonus = 0.0
             if tg_id:
-                active_badges = db.get_user_active_badges_with_bonus(tg_id)
-                for badge_info in active_badges:
-                    bonus_percentage = float(badge_info["bonus_percentage"])
-                    bonus_credits = float(credits_inc) * bonus_percentage
-                    badge_bonus += bonus_credits
-                    badge_bonus_details.append(
-                        {
-                            "name": badge_info["badge"]["name"],
-                            "percentage": bonus_percentage * 100,
-                            "credits": round(bonus_credits, 2),
-                        }
-                    )
-
-            if not tg_id:
-                watched_time = watched_time_init + play_duration
-                with get_session() as session:
-                    mutation = credits_service.apply_tx(
-                        session,
-                        CreditAccount.plex(int(plex_id)),
-                        credits_inc - traffic_cost_credits,
-                    )
-                    if mutation is not None:
-                        credits_service.register_cache_invalidation(session, mutation)
-                        credits = mutation.after
-                    else:
-                        credits = float(res[0])
-                    stmt = (
-                        sql_update(PlexUser)
-                        .where(PlexUser.plex_id == plex_id)
-                        .values(
-                            watched_time=watched_time,
-                            premium_traffic_debt_bytes=premium_traffic_result[
-                                "next_debt_bytes"
-                            ],
-                            premium_traffic_debt_updated_date=premium_traffic_result[
-                                "next_debt_updated_date"
-                            ],
-                        )
-                    )
-                    session.execute(stmt)
-            else:
-                # 加上勋章加成并在同一事务中更新 Telegram 账户积分和观看记录
-                credits = 0.0
-                watched_time = watched_time_init + play_duration
-                with get_session() as session:
-                    mutation = credits_service.apply_tx(
-                        session,
-                        CreditAccount.tg(int(tg_id)),
-                        credits_inc + badge_bonus - traffic_cost_credits,
-                    )
-                    if mutation is not None:
-                        credits_service.register_cache_invalidation(session, mutation)
-                        credits = mutation.after
-                    stmt1 = (
-                        sql_update(PlexUser)
-                        .where(PlexUser.plex_id == plex_id)
-                        .values(
-                            watched_time=watched_time,
-                            premium_traffic_debt_bytes=premium_traffic_result[
-                                "next_debt_bytes"
-                            ],
-                            premium_traffic_debt_updated_date=premium_traffic_result[
-                                "next_debt_updated_date"
-                            ],
-                        )
-                    )
-                    session.execute(stmt1)
-
-            # 邀请人奖励：被邀请人基础积分的 10%，与被邀请人是否绑定 tg 无关
-            # 累积到字典，循环结束后统一发通知
+                for badge in db.get_user_active_badges_with_bonus(tg_id):
+                    badge_bonus += daily_award * float(badge["bonus_percentage"])
             inviter_tg_id = db.get_inviter_tg_id_by_plex_id(plex_id)
-            inviter_bonus = 0.0
-            # 排除邀请人是自己的情况
-            if inviter_tg_id and inviter_tg_id != tg_id and credits_inc > 0:
-                inviter_bonus = round(credits_inc * 0.1, 2)
-                if inviter_tg_id not in inviter_rewards:
-                    inviter_rewards[inviter_tg_id] = {"total_bonus": 0.0, "details": []}
-                inviter_rewards[inviter_tg_id]["total_bonus"] = round(
-                    inviter_rewards[inviter_tg_id]["total_bonus"] + inviter_bonus, 2
-                )
-                inviter_rewards[inviter_tg_id]["details"].append(
+            inviter_bonus = (
+                round(daily_award * 0.1, 2)
+                if inviter_tg_id and inviter_tg_id != tg_id and daily_award > 0
+                else 0.0
+            )
+            account = (
+                CreditAccount.tg(int(tg_id))
+                if tg_id
+                else CreditAccount.plex(int(plex_id))
+            )
+            result = _commit_watch_settlement(
+                service="plex",
+                account_key=str(plex_id),
+                settlement_date=settlement_key,
+                account=account,
+                tg_id=int(tg_id) if tg_id else None,
+                inviter_tg_id=int(inviter_tg_id)
+                if inviter_tg_id and inviter_bonus > 0
+                else None,
+                inviter_bonus=inviter_bonus,
+                credits_delta=round(daily_award + badge_bonus, 2),
+                premium_charge=traffic_cost,
+                media_model=PlexUser,
+                media_key=PlexUser.plex_id,
+                media_id=int(plex_id),
+                watched_column=PlexUser.watched_time,
+                watched_value=float(watched_time or 0) + play_duration,
+                debt_bytes=premium_result["next_debt_bytes"],
+                debt_updated_date=premium_result["next_debt_updated_date"],
+                ghost_row_ids=ghost_info["row_ids"],
+            )
+            if result is None:
+                continue
+            if traffic_cost > 0:
+                deduction_records.append(
                     {
-                        "username": plex_username,
-                        "base_credits": round(credits_inc, 2),
+                        "service": "Plex",
+                        "username": username,
+                        "tg_id": tg_id,
+                        "deducted_credits": traffic_cost,
+                        "chargeable_bytes": premium_result["chargeable_bytes"],
+                    }
+                )
+            if result["inviter_tg_id"] and inviter_bonus > 0:
+                reward = inviter_rewards.setdefault(
+                    result["inviter_tg_id"],
+                    {"total_bonus": 0.0, "details": [], "balance": 0.0},
+                )
+                reward["total_bonus"] = round(reward["total_bonus"] + inviter_bonus, 2)
+                reward["details"].append(
+                    {
+                        "username": username,
+                        "base_credits": round(daily_award, 2),
                         "bonus": inviter_bonus,
                     }
                 )
-                logger.info(
-                    f"累积邀请人 {inviter_tg_id} 的奖励积分: +{inviter_bonus} (来自用户 {plex_username} ({plex_id}))"
-                )
-
+                reward["balance"] = result["inviter_balance"]
             if tg_id and play_duration > 0:
-                # 构建勋章加成信息 - 只显示总加成积分
-                badge_bonus_text = ""
-                if badge_bonus > 0:
-                    badge_bonus_text = f"\n勋章加成积分: +{round(badge_bonus, 2)}"
-
-                # 构建惩罚信息 - 只显示总惩罚分数
-                total_penalty = time_penalty + data_penalty
-                penalty_text = ""
-                if total_penalty > 0:
-                    penalty_text = f"\n观看消耗积分: -{round(total_penalty, 2)}"
-
-                # 构建邀请人奖励信息
-                inviter_bonus_text = ""
-                if inviter_bonus > 0:
-                    inviter_bonus_text = (
-                        f"\n邀请人额外奖励: +{inviter_bonus} (已发放给邀请人)"
-                    )
-
-                # 需要发送通知
                 notification_tasks.append(
                     (
-                        tg_id,
-                        f"""
-Plex 观看积分更新通知
-====================
-
-新增观看时长: {round(play_duration, 2)} 小时
-基础观看积分: {round(original_credits_inc, 2)}{penalty_text}{badge_bonus_text}{inviter_bonus_text}
-Premium 流量使用情况: {round(traffic_usage_premium / (1024 * 1024 * 1024), 2)} GB
-Premium 当日可用免费额度: {round(premium_traffic_result["effective_limit"] / (1024 * 1024 * 1024), 2)} GB
-Premium 当日前待偿还额度: {round(premium_traffic_result["debt_before_today"] / (1024 * 1024 * 1024), 2)} GB
-Premium 自动偿还额度: {round(premium_traffic_result["recovered_before_today"] / (1024 * 1024 * 1024), 2)} GB
-Premium 当日超额流量: {max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
-Premium 结转待偿还额度: {round(premium_traffic_result["next_debt_bytes"] / (1024 * 1024 * 1024), 2)} GB
-Premium 实际扣费流量: {round(premium_traffic_result["chargeable_bytes"] / (1024 * 1024 * 1024), 2)} GB
-Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
-
-积分变化: {round(credits_inc + badge_bonus - traffic_cost_credits, 2):+.2f}
-
---------------------
-
-当前总积分: {round(credits, 2)}
-当前总观看时长: {round(watched_time, 2)} 小时
-
-====================""",
+                        int(tg_id),
+                        f"Plex 观看积分更新通知\n====================\n\n新增观看时长: {play_duration:.2f} 小时\n基础观看积分: {base_credits:.2f}\n观看惩罚: -{time_penalty + data_penalty:.2f}\nPremium 流量消耗积分: {traffic_cost:.2f}\n积分变化: {daily_award + badge_bonus - traffic_cost:+.2f}\n\n当前总积分: {result['balance']:.2f}\n当前总观看时长: {float(watched_time or 0) + play_duration:.2f} 小时\n====================",
                     )
                 )
+        except Exception as error:
+            logger.exception("结算 Plex 用户 %s 失败", plex_id)
+            failures.append(f"Plex {username} ({plex_id}): {error}")
 
-            logger.info(
-                f"更新 Plex 用户 {plex_username} ({plex_id}) 的积分和观看时长: "
-                f"新增观看时长 {round(play_duration, 2)} 小时，新增观看积分 {round(credits_inc, 2)} (原始: {round(original_credits_inc, 2)}, 时长惩罚: {round(time_penalty, 2)}, 流量惩罚: {round(data_penalty, 2)}), 流量消耗积分 {round(traffic_cost_credits, 2)}"
-            )
-
-        # 循环结束后，统一更新邀请人积分并发送汇总通知
-        for inviter_tg_id, reward_info in inviter_rewards.items():
-            total_bonus = reward_info["total_bonus"]
-            details = reward_info["details"]
-            inviter_credits_now = credits_service.read_optional(
-                CreditAccount.tg(int(inviter_tg_id))
-            )
-            if inviter_credits_now is None:
-                logger.warning(
-                    f"邀请人 {inviter_tg_id} 在 statistics 表中无记录，跳过奖励"
-                )
-                continue
-            inviter_mutation = credits_service.add(
-                CreditAccount.tg(int(inviter_tg_id)), total_bonus
-            )
-            inviter_credits_now = inviter_mutation.after
-            logger.info(
-                f"邀请人 {inviter_tg_id} 共获得 Plex 邀请奖励积分: +{total_bonus}"
-            )
-            # 构建明细行
-            detail_lines = "\n".join(
-                f"  · {d['username']}: 基础积分 {d['base_credits']} → 奖励 +{d['bonus']}"
-                for d in details
-            )
-            stat_date = (datetime.now(settings.TZ) - timedelta(days=1)).strftime(
-                "%Y-%m-%d"
-            )
-            notification_tasks.append(
-                (
-                    inviter_tg_id,
-                    f"""
-Plex 邀请奖励通知
-====================
-
-{stat_date} 共 {len(details)} 位被邀请用户有新增观看记录:
-{detail_lines}
-
-本次邀请奖励积分: +{total_bonus}
-
---------------------
-
-当前总积分: {round(inviter_credits_now + total_bonus, 2)}
-
-====================""",
-                )
-            )
-
-    except Exception as e:
-        logger.error(f"更新 Plex 用户积分及观看时长失败: {e}")
-        for chat_id in settings.TG_ADMIN_CHAT_ID:
-            notification_tasks.append(
-                (
-                    chat_id,
-                    f"更新 Plex 用户积分及观看时长失败: {e}",
-                )
-            )
-        return notification_tasks, deduction_records
-    else:
-        # 补偿时长已确实写入积分与观看时长，此时才允许标记结算，
-        # 中途失败则保持未结算状态，留到下一轮补上
-        if ghost_compensation:
-            db.mark_ghost_compensation_settled()
-            logger.info(f"已结算 {len(ghost_compensation)} 个用户的幽灵会话补偿时长")
-        # 推进结算水位线：本次处理的是前一天的数据。之后再检出该日期及更早的
-        # 幽灵会话时，清理任务据此判定为「已结算」，只删除不补偿。
-        _set_settled_through_date(
-            (datetime.now(settings.TZ) - timedelta(days=1)).strftime("%Y-%m-%d")
-        )
-        logger.info("Plex 用户积分及观看时长更新完成")
-        return notification_tasks, deduction_records
+    _append_inviter_notifications(
+        notification_tasks, inviter_rewards, "Plex", settlement_key
+    )
+    _append_settlement_failures(notification_tasks, failures, "Plex")
+    _set_settled_through_date(settlement_key)
+    logger.info("Plex 用户积分及观看时长更新完成")
+    return notification_tasks, deduction_records
 
 
 def update_emby_credits():
-    """更新 emby 积分及观看时长"""
+    """Settle Emby watch rewards once per user and configured local date."""
     logger.info("开始更新 Emby 用户积分及观看时长")
-    premium_config = premium_service.get_premium_config()
-    traffic_config = traffic_service.get_traffic_config()
-    # 获取所有用户的观看时长
-    emby = Emby()
-    notification_tasks = []
-    deduction_records = []
-    # 邀请人奖励累积字典: {inviter_tg_id: {"total_bonus": float, "details": [{"username": str, "base_credits": float, "bonus": float}]}}
-    inviter_rewards: dict = {}
+    notification_tasks: list[tuple[int, str]] = []
+    deduction_records: list[dict] = []
+    inviter_rewards: dict[int, dict] = {}
+    failures: list[str] = []
     try:
-        duration = emby.get_user_total_play_time()
-        # 获取数据库中的观看时长信息
+        premium_config = premium_service.get_premium_config()
+        traffic_config = traffic_service.get_traffic_config()
+        duration = Emby().get_user_total_play_time()
         with get_session() as session:
-            stmt = select(
-                EmbyUser.emby_id,
-                EmbyUser.tg_id,
-                EmbyUser.emby_watched_time,
-                EmbyUser.emby_credits,
-                EmbyUser.emby_username,
-                EmbyUser.is_premium,
-                EmbyUser.premium_status_updated_at,
-                EmbyUser.premium_traffic_debt_bytes,
-                EmbyUser.premium_traffic_debt_updated_date,
-            )
-            users = session.execute(stmt).fetchall()
-        for user in users:
-            playduration = round(float(duration.get(user[0], 0)) / 3600, 2)
-            # 最大记 8
-            daily_play_duration = playduration - user[2]
-            credits_inc = min(daily_play_duration, 8)
-            next_watched_time = max(playduration, user[2])
-            emby_username, is_premium = user[4], user[5]
-            premium_status_updated_at = user[6]
-            debt_bytes = int(user[7] or 0)
-            debt_updated_date = user[8]
-            settlement_date = datetime.now(settings.TZ) - timedelta(days=1)
-            is_premium_for_settlement = _resolve_premium_status_for_settlement(
-                current_is_premium=bool(is_premium),
-                premium_status_updated_at=premium_status_updated_at,
+            users = session.execute(
+                select(
+                    EmbyUser.emby_id,
+                    EmbyUser.tg_id,
+                    EmbyUser.emby_watched_time,
+                    EmbyUser.emby_credits,
+                    EmbyUser.emby_username,
+                    EmbyUser.is_premium,
+                    EmbyUser.premium_status_updated_at,
+                    EmbyUser.premium_traffic_debt_bytes,
+                    EmbyUser.premium_traffic_debt_updated_date,
+                )
+            ).all()
+    except Exception as error:
+        logger.exception("准备 Emby 观看积分结算失败")
+        return [
+            (chat_id, f"更新 Emby 用户积分及观看时长失败: {error}")
+            for chat_id in settings.TG_ADMIN_CHAT_ID
+        ], deduction_records
+
+    settlement_date = datetime.now(settings.TZ) - timedelta(days=1)
+    settlement_key = settlement_date.strftime("%Y-%m-%d")
+    for row in users:
+        emby_id, tg_id, watched_time, _old_credits, username = row[:5]
+        try:
+            play_duration = round(float(duration.get(emby_id, 0)) / 3600, 2)
+            daily_duration = play_duration - float(watched_time or 0)
+            base_credits = min(daily_duration, 8)
+            debt_bytes = int(row[7] or 0)
+            debt_updated_date = row[8]
+            is_premium = _resolve_premium_status_for_settlement(
+                current_is_premium=bool(row[5]),
+                premium_status_updated_at=row[6],
                 settlement_date=settlement_date,
-                user_traffic_limit=traffic_config.user_traffic_limit,
-                premium_user_traffic_limit=traffic_config.premium_user_traffic_limit,
-                credits_cost_per_10gb=premium_config.credits_cost_per_10gb,
             )
-            # 获取用户昨日的 premium 流量使用情况（用于流量费用计算）
             traffic_usage_premium = db.get_user_daily_traffic(
-                username=emby_username,
+                username=username,
                 service="emby",
                 date=settlement_date,
                 premium_only=True,
             )
-            # 获取用户昨日的总流量（用于流量惩罚计算）
             traffic_usage_total = db.get_user_daily_traffic(
-                username=emby_username,
+                username=username,
                 service="emby",
                 date=settlement_date,
                 premium_only=False,
             )
-
-            premium_traffic_result = _settle_premium_traffic_usage(
+            premium_result = _settle_premium_traffic_usage(
                 traffic_usage_premium=traffic_usage_premium,
-                is_premium=is_premium_for_settlement,
+                is_premium=is_premium,
                 debt_bytes=debt_bytes,
                 debt_updated_date=debt_updated_date,
                 settlement_date=settlement_date,
@@ -655,292 +456,275 @@ def update_emby_credits():
                 premium_user_traffic_limit=traffic_config.premium_user_traffic_limit,
                 credits_cost_per_10gb=premium_config.credits_cost_per_10gb,
             )
-            traffic_usage_exceed = premium_traffic_result["exceed_bytes"]
-            traffic_cost_credits = premium_traffic_result["traffic_cost_credits"]
-            if traffic_cost_credits > 0:
+            traffic_cost = float(premium_result["traffic_cost_credits"])
+            if (
+                daily_duration <= 0
+                and traffic_usage_total == 0
+                and premium_result["debt_before_today"] == 0
+                and premium_result["next_debt_bytes"] == 0
+                and traffic_cost == 0
+                and not debt_bytes
+                and not debt_updated_date
+            ):
+                continue
+
+            daily_award, time_penalty, data_penalty = _watch_daily_award(
+                base_credits, daily_duration, traffic_usage_total
+            )
+            badge_bonus = 0.0
+            if tg_id:
+                for badge in db.get_user_active_badges_with_bonus(tg_id):
+                    badge_bonus += daily_award * float(badge["bonus_percentage"])
+            inviter_tg_id = db.get_inviter_tg_id_by_emby_id(emby_id)
+            inviter_bonus = (
+                round(daily_award * 0.1, 2)
+                if inviter_tg_id and inviter_tg_id != tg_id and daily_award > 0
+                else 0.0
+            )
+            account = (
+                CreditAccount.tg(int(tg_id))
+                if tg_id
+                else CreditAccount.emby(str(emby_id))
+            )
+            result = _commit_watch_settlement(
+                service="emby",
+                account_key=str(emby_id),
+                settlement_date=settlement_key,
+                account=account,
+                tg_id=int(tg_id) if tg_id else None,
+                inviter_tg_id=int(inviter_tg_id)
+                if inviter_tg_id and inviter_bonus > 0
+                else None,
+                inviter_bonus=inviter_bonus,
+                credits_delta=round(daily_award + badge_bonus, 2),
+                premium_charge=traffic_cost,
+                media_model=EmbyUser,
+                media_key=EmbyUser.emby_id,
+                media_id=str(emby_id),
+                watched_column=EmbyUser.emby_watched_time,
+                watched_value=max(play_duration, float(watched_time or 0)),
+                debt_bytes=premium_result["next_debt_bytes"],
+                debt_updated_date=premium_result["next_debt_updated_date"],
+                ghost_row_ids=[],
+                transfer_unbound_balance=bool(tg_id),
+            )
+            if result is None:
+                continue
+            if traffic_cost > 0:
                 deduction_records.append(
                     {
                         "service": "Emby",
-                        "username": emby_username,
-                        "tg_id": user[1],
-                        "deducted_credits": traffic_cost_credits,
-                        "chargeable_bytes": premium_traffic_result["chargeable_bytes"],
+                        "username": username,
+                        "tg_id": tg_id,
+                        "deducted_credits": traffic_cost,
+                        "chargeable_bytes": premium_result["chargeable_bytes"],
                     }
                 )
-
-            if (
-                daily_play_duration <= 0
-                and traffic_usage_total == 0
-                and premium_traffic_result["debt_before_today"] == 0
-                and premium_traffic_result["next_debt_bytes"] == 0
-            ):
-                if debt_bytes > 0 or debt_updated_date:
-                    with get_session() as session:
-                        stmt = (
-                            sql_update(EmbyUser)
-                            .where(EmbyUser.emby_id == user[0])
-                            .values(
-                                premium_traffic_debt_bytes=premium_traffic_result[
-                                    "next_debt_bytes"
-                                ],
-                                premium_traffic_debt_updated_date=premium_traffic_result[
-                                    "next_debt_updated_date"
-                                ],
-                            )
-                        )
-                        session.execute(stmt)
-                continue
-
-            # 计算超长观看惩罚 (TimePenalty)
-            time_penalty = 0
-            if daily_play_duration > 8 * 1.2:
-                time_penalty = (daily_play_duration - 8 * 1.2) * 0.5
-
-            # 计算超额流量惩罚 (DataPenalty) - 使用非premium流量
-            data_penalty = 0
-            data_ratio = 0
-            expected_data = daily_play_duration * 10 * 1024 * 1024 * 1024  # 10 GB/小时
-            if traffic_usage_total > 0 and expected_data > 0:
-                data_ratio = float(traffic_usage_total) / float(expected_data)
-                if data_ratio > 1.2:
-                    data_penalty = float(credits_inc) * (data_ratio - 1.2) * 0.5
-
-            # 应用惩罚到基础积分
-            final_daily_score = max(
-                0, min(credits_inc - time_penalty - data_penalty, 8)
-            )
-            # 保存原始 credits_inc 用于显示
-            original_credits_inc = credits_inc
-            credits_inc = final_daily_score
-
-            # 计算勋章加成
-            badge_bonus = 0
-            badge_bonus_details = []
-            if user[1]:
-                active_badges = db.get_user_active_badges_with_bonus(user[1])
-                for badge_info in active_badges:
-                    bonus_percentage = float(badge_info["bonus_percentage"])
-                    bonus_credits = float(credits_inc) * bonus_percentage
-                    badge_bonus += bonus_credits
-                    badge_bonus_details.append(
-                        {
-                            "name": badge_info["badge"]["name"],
-                            "percentage": bonus_percentage * 100,
-                            "credits": round(bonus_credits, 2),
-                        }
-                    )
-
-            if not user[1]:
-                with get_session() as session:
-                    mutation = credits_service.apply_tx(
-                        session,
-                        CreditAccount.emby(str(user[0])),
-                        credits_inc - traffic_cost_credits,
-                    )
-                    if mutation is not None:
-                        credits_service.register_cache_invalidation(session, mutation)
-                        _credits = mutation.after
-                    else:
-                        _credits = float(user[3])
-                    stmt = (
-                        sql_update(EmbyUser)
-                        .where(EmbyUser.emby_id == user[0])
-                        .values(
-                            emby_watched_time=next_watched_time,
-                            premium_traffic_debt_bytes=premium_traffic_result[
-                                "next_debt_bytes"
-                            ],
-                            premium_traffic_debt_updated_date=premium_traffic_result[
-                                "next_debt_updated_date"
-                            ],
-                        )
-                    )
-                    session.execute(stmt)
-            else:
-                with get_session() as session:
-                    stats_info = session.execute(
-                        select(Statistics).where(Statistics.tg_id == int(user[1]))
-                    ).scalar_one_or_none()
-                    if stats_info:
-                        mutation = credits_service.apply_tx(
-                            session,
-                            CreditAccount.tg(int(user[1])),
-                            credits_inc + badge_bonus - traffic_cost_credits,
-                        )
-                    else:
-                        # 将未绑定 Emby 余额转入新建的 Telegram 账户
-                        total_delta = (
-                            user[3] + credits_inc + badge_bonus - traffic_cost_credits
-                        )
-                        if user[3] > 0:
-                            credits_service.apply_tx(
-                                session,
-                                CreditAccount.emby(str(user[0])),
-                                -float(user[3]),
-                            )
-                        session.add(
-                            Statistics(tg_id=int(user[1]), donation=0, credits=0)
-                        )
-                        session.flush()
-                        mutation = credits_service.apply_tx(
-                            session,
-                            CreditAccount.tg(int(user[1])),
-                            total_delta,
-                        )
-                    if mutation is not None:
-                        credits_service.register_cache_invalidation(session, mutation)
-                        _credits = mutation.after
-                    else:
-                        _credits = 0.0
-                    stmt = (
-                        sql_update(EmbyUser)
-                        .where(EmbyUser.emby_id == user[0])
-                        .values(
-                            emby_watched_time=next_watched_time,
-                            premium_traffic_debt_bytes=premium_traffic_result[
-                                "next_debt_bytes"
-                            ],
-                            premium_traffic_debt_updated_date=premium_traffic_result[
-                                "next_debt_updated_date"
-                            ],
-                        )
-                    )
-                    session.execute(stmt)
-
-            # 邀请人奖励：被邀请人基础积分的 10%，与被邀请人是否绑定 tg 无关
-            # 累积到字典，循环结束后统一发通知
-            inviter_tg_id = db.get_inviter_tg_id_by_emby_id(user[0])
-            inviter_bonus = 0.0
-            # 排除邀请人是自己的情况
-            if inviter_tg_id and inviter_tg_id != user[1] and credits_inc > 0:
-                inviter_bonus = round(credits_inc * 0.1, 2)
-                if inviter_tg_id not in inviter_rewards:
-                    inviter_rewards[inviter_tg_id] = {"total_bonus": 0.0, "details": []}
-                inviter_rewards[inviter_tg_id]["total_bonus"] = round(
-                    inviter_rewards[inviter_tg_id]["total_bonus"] + inviter_bonus, 2
+            if result["inviter_tg_id"] and inviter_bonus > 0:
+                reward = inviter_rewards.setdefault(
+                    result["inviter_tg_id"],
+                    {"total_bonus": 0.0, "details": [], "balance": 0.0},
                 )
-                inviter_rewards[inviter_tg_id]["details"].append(
+                reward["total_bonus"] = round(reward["total_bonus"] + inviter_bonus, 2)
+                reward["details"].append(
                     {
-                        "username": emby_username,
-                        "base_credits": round(credits_inc, 2),
+                        "username": username,
+                        "base_credits": round(daily_award, 2),
                         "bonus": inviter_bonus,
                     }
                 )
-                logger.info(
-                    f"累积邀请人 {inviter_tg_id} 的奖励积分: +{inviter_bonus} (来自用户 {emby_username} ({user[0]}))"
-                )
-
-            if user[1] and (playduration - user[2]) > 0:
-                # 构建勋章加成信息 - 只显示总加成积分
-                badge_bonus_text = ""
-                if badge_bonus > 0:
-                    badge_bonus_text = f"\n勋章加成积分: +{round(badge_bonus, 2)}"
-
-                # 构建惩罚信息 - 只显示总惩罚分数
-                total_penalty = time_penalty + data_penalty
-                penalty_text = ""
-                if total_penalty > 0:
-                    penalty_text = f"\n观看消耗积分: -{round(total_penalty, 2)}"
-
-                # 构建邀请人奖励信息
-                inviter_bonus_text = ""
-                if inviter_bonus > 0:
-                    inviter_bonus_text = (
-                        f"\n邀请人额外奖励: +{inviter_bonus} (已发放给邀请人)"
-                    )
-
-                # 需要发送消息通知
+                reward["balance"] = result["inviter_balance"]
+            if tg_id and daily_duration > 0:
                 notification_tasks.append(
                     (
-                        user[1],
-                        f"""
-Emby 观看积分更新通知
-====================
-
-新增观看时长: {round(playduration - user[2], 2)} 小时
-基础观看积分: {round(original_credits_inc, 2)}{penalty_text}{badge_bonus_text}{inviter_bonus_text}
-Premium 流量使用情况: {round(traffic_usage_premium / (1024 * 1024 * 1024), 2)} GB
-Premium 当日可用免费额度: {round(premium_traffic_result["effective_limit"] / (1024 * 1024 * 1024), 2)} GB
-Premium 当日前待偿还额度: {round(premium_traffic_result["debt_before_today"] / (1024 * 1024 * 1024), 2)} GB
-Premium 自动偿还额度: {round(premium_traffic_result["recovered_before_today"] / (1024 * 1024 * 1024), 2)} GB
-Premium 当日超额流量: {max(round(traffic_usage_exceed / (1024 * 1024 * 1024), 2), 0)} GB
-Premium 结转待偿还额度: {round(premium_traffic_result["next_debt_bytes"] / (1024 * 1024 * 1024), 2)} GB
-Premium 实际扣费流量: {round(premium_traffic_result["chargeable_bytes"] / (1024 * 1024 * 1024), 2)} GB
-Premium 流量消耗积分: {round(traffic_cost_credits, 2)}
-
-积分变化: {round(credits_inc + badge_bonus - traffic_cost_credits, 2):+.2f}
-
---------------------
-
-当前总积分: {round(_credits, 2)}
-当前总观看时长: {round(playduration, 2)} 小时
-
-====================""",
+                        int(tg_id),
+                        f"Emby 观看积分更新通知\n====================\n\n新增观看时长: {daily_duration:.2f} 小时\n基础观看积分: {base_credits:.2f}\n观看惩罚: -{time_penalty + data_penalty:.2f}\nPremium 流量消耗积分: {traffic_cost:.2f}\n积分变化: {daily_award + badge_bonus - traffic_cost:+.2f}\n\n当前总积分: {result['balance']:.2f}\n当前总观看时长: {max(play_duration, float(watched_time or 0)):.2f} 小时\n====================",
                     )
                 )
+        except Exception as error:
+            logger.exception("结算 Emby 用户 %s 失败", emby_id)
+            failures.append(f"Emby {username} ({emby_id}): {error}")
 
-            logger.info(
-                f"更新 Emby 用户 {emby_username} ({user[0]}) 的积分和观看时长: "
-                f"新增观看时长 {round(playduration - user[2], 2)} 小时，新增观看积分 {round(credits_inc, 2)} (原始: {round(original_credits_inc, 2)}, 时长惩罚: {round(time_penalty, 2)}, 流量惩罚: {round(data_penalty, 2)}), 流量消耗积分 {round(traffic_cost_credits, 2)}"
-            )
+    _append_inviter_notifications(
+        notification_tasks, inviter_rewards, "Emby", settlement_key
+    )
+    _append_settlement_failures(notification_tasks, failures, "Emby")
+    logger.info("Emby 用户积分及观看时长更新完成")
+    return notification_tasks, deduction_records
 
-        # 循环结束后，统一更新邀请人积分并发送汇总通知
-        for inviter_tg_id, reward_info in inviter_rewards.items():
-            total_bonus = reward_info["total_bonus"]
-            details = reward_info["details"]
-            inviter_credits_now = credits_service.read_optional(
-                CreditAccount.tg(int(inviter_tg_id))
+
+def _watch_daily_award(
+    base_credits: float, play_duration: float, traffic_usage_total: float
+) -> tuple[float, float, float]:
+    """Calculate the legacy daily watch reward and its two penalties."""
+    time_penalty = (play_duration - 8 * 1.2) * 0.5 if play_duration > 8 * 1.2 else 0.0
+    expected_data = play_duration * 10 * 1024**3
+    data_penalty = 0.0
+    if traffic_usage_total > 0 and expected_data > 0:
+        ratio = float(traffic_usage_total) / float(expected_data)
+        if ratio > 1.2:
+            data_penalty = float(base_credits) * (ratio - 1.2) * 0.5
+    award = max(0.0, min(float(base_credits) - time_penalty - data_penalty, 8.0))
+    return award, time_penalty, data_penalty
+
+
+def _commit_watch_settlement(
+    *,
+    service: str,
+    account_key: str,
+    settlement_date: str,
+    account: CreditAccount,
+    tg_id: int | None,
+    inviter_tg_id: int | None,
+    inviter_bonus: float,
+    credits_delta: float,
+    premium_charge: float,
+    media_model,
+    media_key,
+    media_id: int | str,
+    watched_column,
+    watched_value: float,
+    debt_bytes: int,
+    debt_updated_date,
+    ghost_row_ids: list[int],
+    transfer_unbound_balance: bool = False,
+) -> dict | None:
+    """Commit ledger, user rewards, inviter reward and compensation atomically.
+
+    Returns ``None`` when another run already settled this account/date.
+    """
+    with get_session() as session:
+        media_row = session.execute(
+            select(media_model).where(media_key == media_id).with_for_update()
+        ).scalar_one_or_none()
+        if media_row is None:
+            raise RuntimeError(f"{service} account {account_key} disappeared")
+
+        user_stats_exists = False
+        if tg_id is not None:
+            user_stats_exists = (
+                session.execute(
+                    select(Statistics.tg_id).where(Statistics.tg_id == int(tg_id))
+                ).scalar_one_or_none()
+                is not None
             )
-            if inviter_credits_now is None:
-                logger.warning(
-                    f"邀请人 {inviter_tg_id} 在 statistics 表中无记录，跳过奖励"
+            if not user_stats_exists and not transfer_unbound_balance:
+                raise CreditAccountNotFound(CreditAccount.tg(int(tg_id)).label)
+
+        effective_inviter = inviter_tg_id if inviter_bonus > 0 else None
+        inviter_exists = False
+        if effective_inviter is not None:
+            inviter_exists = (
+                session.execute(
+                    select(Statistics.tg_id).where(
+                        Statistics.tg_id == int(effective_inviter)
+                    )
+                ).scalar_one_or_none()
+                is not None
+            )
+            if not inviter_exists:
+                effective_inviter = None
+                inviter_bonus = 0.0
+
+        # Lock every existing Statistics row in ascending tg_id order.
+        stats_ids = sorted(
+            {int(value) for value in (tg_id, effective_inviter) if value is not None}
+        )
+        for stats_id in stats_ids:
+            session.execute(
+                select(Statistics.tg_id)
+                .where(Statistics.tg_id == stats_id)
+                .with_for_update()
+            ).scalar_one()
+
+        inserted = watch_rewards_repository.insert_watch_reward_settlement_tx(
+            session,
+            service=service,
+            account_key=str(account_key),
+            settlement_date=settlement_date,
+            tg_id=tg_id,
+            credits_delta=credits_delta,
+            premium_charge=premium_charge,
+            inviter_tg_id=effective_inviter,
+            inviter_bonus=inviter_bonus,
+            created_at=int(time.time()),
+        )
+        if not inserted:
+            return None
+
+        if tg_id is not None and not user_stats_exists:
+            identity_repository.ensure_statistics_tx(session, int(tg_id))
+            if transfer_unbound_balance:
+                credits_repository.move_tx(
+                    session,
+                    CreditAccount.emby(str(account_key)),
+                    CreditAccount.tg(int(tg_id)),
                 )
-                continue
-            inviter_mutation = credits_service.add(
-                CreditAccount.tg(int(inviter_tg_id)), total_bonus
+
+        # Keep earned rewards and premium traffic charges separate: only this
+        # explicit traffic operation is allowed to take a balance below zero.
+        credits_repository.add_tx(session, account, credits_delta)
+        balance_mutation = credits_repository.charge_premium_traffic_tx(
+            session, account, premium_charge
+        )
+
+        inviter_balance = None
+        if effective_inviter is not None and inviter_bonus > 0:
+            inviter_mutation = credits_repository.add_tx(
+                session, CreditAccount.tg(int(effective_inviter)), inviter_bonus
             )
-            inviter_credits_now = inviter_mutation.after
-            logger.info(
-                f"邀请人 {inviter_tg_id} 共获得 Emby 邀请奖励积分: +{total_bonus}"
+            inviter_balance = inviter_mutation.after
+
+        session.execute(
+            sql_update(media_model)
+            .where(media_key == media_id)
+            .values(
+                {
+                    watched_column: watched_value,
+                    media_model.premium_traffic_debt_bytes: debt_bytes,
+                    media_model.premium_traffic_debt_updated_date: debt_updated_date,
+                }
             )
-            # 构建明细行
-            detail_lines = "\n".join(
-                f"  · {d['username']}: 基础积分 {d['base_credits']} → 奖励 +{d['bonus']}"
-                for d in details
-            )
-            stat_date = (datetime.now(settings.TZ) - timedelta(days=1)).strftime(
-                "%Y-%m-%d"
-            )
-            notification_tasks.append(
+        )
+        watch_rewards_repository.mark_ghost_compensation_rows_tx(session, ghost_row_ids)
+        return {
+            "balance": balance_mutation.after,
+            "inviter_tg_id": effective_inviter,
+            "inviter_balance": inviter_balance,
+        }
+
+
+def _append_inviter_notifications(
+    notifications: list[tuple[int, str]],
+    rewards: dict[int, dict],
+    service: str,
+    settlement_date: str,
+) -> None:
+    for inviter_tg_id, reward in rewards.items():
+        detail_lines = "\n".join(
+            f"  · {item['username']}: 基础积分 {item['base_credits']} → 奖励 +{item['bonus']}"
+            for item in reward["details"]
+        )
+        notifications.append(
+            (
+                inviter_tg_id,
                 (
-                    inviter_tg_id,
-                    f"""
-Emby 邀请奖励通知
-====================
-
-{stat_date} 共 {len(details)} 位被邀请用户有新增观看记录:
-{detail_lines}
-
-本次邀请奖励积分: +{total_bonus}
-
---------------------
-
-当前总积分: {round(inviter_credits_now + total_bonus, 2)}
-
-====================""",
-                )
+                    f"{service} 邀请奖励通知\n====================\n\n"
+                    f"{settlement_date} 共 {len(reward['details'])} 位被邀请用户有新增观看记录:\n"
+                    f"{detail_lines}\n\n本次邀请奖励积分: +{reward['total_bonus']}\n\n"
+                    f"--------------------\n\n当前总积分: {float(reward['balance']):.2f}\n\n===================="
+                ),
             )
+        )
 
-    except Exception as e:
-        logger.error(f"更新 Emby 用户积分及观看时长失败: {e}")
-        for chat_id in settings.TG_ADMIN_CHAT_ID:
-            notification_tasks.append(
-                (
-                    chat_id,
-                    f"更新 Emby 用户积分及观看时长失败: {e}",
-                )
-            )
-        return notification_tasks, deduction_records
-    else:
-        logger.info("Emby 用户积分及观看时长更新完成")
-        return notification_tasks, deduction_records
+
+def _append_settlement_failures(
+    notifications: list[tuple[int, str]], failures: list[str], service: str
+) -> None:
+    if not failures:
+        return
+    text = (
+        f"{service} 观看结算部分用户失败（这些用户未提交，可在下次重试）:\n"
+        + "\n".join(f"- {failure}" for failure in failures)
+    )
+    notifications.extend((chat_id, text) for chat_id in settings.TG_ADMIN_CHAT_ID)

@@ -508,7 +508,7 @@ export default {
           this.errorMessage = result.message || '解锁失败'
         }
       } catch (error) {
-        this.errorMessage = error.response?.data?.message || '解锁失败，请稍后再试'
+        this.errorMessage = error.response?.data?.detail || error.response?.data?.message || '解锁失败，请稍后再试'
         console.error('Premium解锁失败:', error)
       } finally {
         this.processing = false

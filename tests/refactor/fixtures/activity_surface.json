@@ -1034,6 +1034,14 @@
           {
             "kind": "from",
             "module": "app.domains.auction.repository",
+            "module_target": "app.domains.auction",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.auction.exceptions"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.repository",
             "module_target": "app.domains.auction.models",
             "resolved": true,
             "scope": "module",
@@ -1437,8 +1445,11 @@
         "count_participated_auctions_tx",
         "create_auction",
         "delete_auction",
+        "finish_auction",
         "finish_auction_by_id",
+        "finish_auction_tx",
         "finish_expired_auctions",
+        "get_active_auction_ids",
         "get_active_auctions",
         "get_all_auctions",
         "get_auction_bids",
@@ -1446,6 +1457,7 @@
         "get_auction_participants",
         "get_auction_stats",
         "get_detailed_auction_stats",
+        "get_expired_auction_ids",
         "get_user_auction_history",
         "get_user_highest_bid",
         "place_bid",
@@ -1606,10 +1618,9 @@
           "executor": "async",
           "func": "app.domains.auction.jobs:finish_expired_auctions_job",
           "kwargs": {
-            "hour": 2,
             "id": "finish_expired_auctions_fallback",
             "max_instances": 1,
-            "minute": 0,
+            "minute": "*/10",
             "replace_existing": true,
             "trigger": "cron"
           }
@@ -5761,6 +5772,22 @@
             {
               "autoincrement": "auto",
               "default": null,
+              "name": "auto_reopen_due_at",
+              "nullable": true,
+              "primary_key": false,
+              "type": "BIGINT"
+            },
+            {
+              "autoincrement": "auto",
+              "default": null,
+              "name": "auto_reopen_issue_id",
+              "nullable": true,
+              "primary_key": false,
+              "type": "BIGINT"
+            },
+            {
+              "autoincrement": "auto",
+              "default": null,
               "name": "created_by",
               "nullable": true,
               "primary_key": false,
@@ -5818,6 +5845,18 @@
                 "treasure_issue.created_at"
               ],
               "name": "ix_treasure_issue_created_at",
+              "unique": false
+            },
+            {
+              "columns": [
+                "auto_reopen_due_at",
+                "auto_reopen_issue_id"
+              ],
+              "expressions": [
+                "treasure_issue.auto_reopen_due_at",
+                "treasure_issue.auto_reopen_issue_id"
+              ],
+              "name": "ix_treasure_issue_reopen_due",
               "unique": false
             },
             {
@@ -6580,6 +6619,14 @@
           {
             "kind": "from",
             "module": "app.domains.treasure.repository",
+            "module_target": "datetime",
+            "resolved": true,
+            "scope": "module",
+            "target": "datetime.datetime"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.repository",
             "module_target": "sqlalchemy",
             "resolved": true,
             "scope": "module",
@@ -6616,6 +6663,14 @@
             "resolved": true,
             "scope": "module",
             "target": "sqlalchemy.select"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.repository",
+            "module_target": "app.core.config",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.core.config.settings"
           },
           {
             "kind": "from",
@@ -7040,6 +7095,14 @@
           {
             "kind": "from",
             "module": "app.schedule",
+            "module_target": "app.domains.treasure.service",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.treasure.service.reopen_overdue_issues"
+          },
+          {
+            "kind": "from",
+            "module": "app.schedule",
             "module_target": "app.domains.treasure.jobs",
             "resolved": true,
             "scope": "function",
@@ -7058,8 +7121,11 @@
         "get_user_treasure_stats",
         "join_treasure_issue",
         "join_treasure_issue_tx",
+        "list_overdue_reopen_issue_ids",
         "list_treasure_issues",
-        "list_treasure_participations"
+        "list_treasure_participations",
+        "open_next_issue",
+        "open_next_issue_tx"
       ],
       "repository_members": [
         "cancel_treasure_issue",
@@ -7152,7 +7218,23 @@
           "response_model": "dict"
         }
       ],
-      "scheduler_jobs": []
+      "scheduler_jobs": [
+        {
+          "args": [],
+          "executor": "async",
+          "func": "app.domains.treasure.service:reopen_overdue_issues",
+          "kwargs": {
+            "id": "treasure_reopen_overdue",
+            "max_instances": 1,
+            "minutes": 10,
+            "next_run_time": {
+              "relative_seconds": 60
+            },
+            "replace_existing": true,
+            "trigger": "interval"
+          }
+        }
+      ]
     }
   },
   "legacy_task_refs": [
@@ -7171,6 +7253,10 @@
     {
       "mapped": true,
       "task_id": "treasure.open_next_issue"
+    },
+    {
+      "mapped": true,
+      "task_id": "treasure.reopen_overdue"
     }
   ],
   "schema": 1

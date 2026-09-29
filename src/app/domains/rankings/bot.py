@@ -13,65 +13,76 @@ from app.integrations.telegram.profiles import get_user_name_from_tg_id
 # 积分榜
 async def credits_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
-    res = db.get_credits_rank()
-    rank = [
-        f"{i}. {get_user_name_from_tg_id(info[0])}: {info[1]:.2f}"
-        for i, info in enumerate(res, 1)
-        if i <= 30
-    ]
-
-    body_text = """
+    try:
+        res = db.get_credits_rank()
+        rank = [
+            f"{i}. {get_user_name_from_tg_id(info[0])}: {info[1]:.2f}"
+            for i, info in enumerate(res, 1)
+            if i <= 30
+        ]
+        body_text = """
 <strong>积分榜</strong>
 ==================
 {}
 ==================
 
 ⚠️只统计 TG 绑定用户
-    """.format("\n".join(rank))
-    logger.info(body_text)
-    await send_message(
-        chat_id=chat_id, text=body_text, parse_mode="HTML", context=context
-    )
+        """.format("\n".join(rank))
+        logger.info(body_text)
+        await send_message(
+            chat_id=chat_id, text=body_text, parse_mode="HTML", context=context
+        )
+    except Exception:
+        logger.exception("获取积分榜失败")
+        await send_message(
+            chat_id=chat_id, text="获取失败，请稍后再试", context=context
+        )
 
 
 # 捐赠榜
 async def donation_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
-    res = db.get_donation_rank()
-    rank = [
-        f"{i}. {get_user_name_from_tg_id(info[0])}: {info[1]:.2f}"
-        for i, info in enumerate(res, 1)
-        if info[1] > 0
-    ]
-
-    body_text = """
+    try:
+        res = db.get_donation_rank()
+        rank = [
+            f"{i}. {get_user_name_from_tg_id(info[0])}: {info[1]:.2f}"
+            for i, info in enumerate(res, 1)
+            if info[1] > 0
+        ]
+        body_text = """
 <strong>捐赠榜</strong>
 ==================
 {}
 ==================
 
 衷心感谢各位的支持!
-    """.format("\n".join(rank))
-    logger.debug(body_text)
-    await send_message(
-        chat_id=chat_id, text=body_text, parse_mode="HTML", context=context
-    )
+        """.format("\n".join(rank))
+        logger.debug(body_text)
+        await send_message(
+            chat_id=chat_id, text=body_text, parse_mode="HTML", context=context
+        )
+    except Exception:
+        logger.exception("获取捐赠榜失败")
+        await send_message(
+            chat_id=chat_id, text="获取失败，请稍后再试", context=context
+        )
 
 
 # 观看时长榜
 async def watched_time_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
-    res = db.get_plex_watched_time_rank()
-    rank = [
-        f"{i}. {info[2]}: {info[3]:.2f}" for i, info in enumerate(res, 1) if i <= 15
-    ]
-    emby_res = db.get_emby_watched_time_rank()
-    emby_rank = [
-        f"{i}. {info[1]}: {info[2]:.2f}"
-        for i, info in enumerate(emby_res, 1)
-        if i <= 15
-    ]
-    body_text = """
+    try:
+        res = db.get_plex_watched_time_rank()
+        rank = [
+            f"{i}. {info[2]}: {info[3]:.2f}" for i, info in enumerate(res, 1) if i <= 15
+        ]
+        emby_res = db.get_emby_watched_time_rank()
+        emby_rank = [
+            f"{i}. {info[1]}: {info[2]:.2f}"
+            for i, info in enumerate(emby_res, 1)
+            if i <= 15
+        ]
+        body_text = """
 <strong>观看时长榜 (Hour)</strong>
 ==================
 
@@ -80,10 +91,15 @@ async def watched_time_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 ------ Emby ------
 {}
-    """.format("\n".join(rank), "\n".join(emby_rank))
-    await send_message(
-        chat_id=chat_id, text=body_text, parse_mode="HTML", context=context
-    )
+        """.format("\n".join(rank), "\n".join(emby_rank))
+        await send_message(
+            chat_id=chat_id, text=body_text, parse_mode="HTML", context=context
+        )
+    except Exception:
+        logger.exception("获取观看时长榜失败")
+        await send_message(
+            chat_id=chat_id, text="获取失败，请稍后再试", context=context
+        )
 
 
 # 设备榜

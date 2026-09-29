@@ -1,10 +1,12 @@
 import time
 
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from app.core.db import get_session
 from app.core.log import logger
-from app.domains.watch_rewards.models import GhostSessionLog
+from app.domains.watch_rewards.models import GhostSessionLog, WatchRewardSettlement
 
 
 class WatchRewardsRepository:
@@ -97,49 +99,81 @@ class WatchRewardsRepository:
             return False
 
     def get_pending_ghost_compensation(self) -> dict[str, float]:
-        """取出尚未计入结算的补偿时长，返回 {plex_user_id: 小时数}
+        """Return pending compensation hours keyed by Plex account ID."""
+        return {
+            user_id: value["hours"]
+            for user_id, value in get_pending_ghost_compensation_rows().items()
+        }
 
-        只统计已确认从 Tautulli 删除的记录——没删掉的记录仍会出现在
-        get_home_stats 的聚合里，再补偿一次就重复了。
-        """
-        try:
-            with get_session() as session:
-                stmt = (
-                    select(
-                        GhostSessionLog.user_id,
-                        func.sum(GhostSessionLog.compensated_seconds),
-                    )
-                    .where(
-                        GhostSessionLog.compensated == 0,
-                        GhostSessionLog.deleted == 1,
-                    )
-                    .group_by(GhostSessionLog.user_id)
-                )
-                return {
-                    str(user_id): float(total or 0) / 3600
-                    for user_id, total in session.execute(stmt).all()
-                }
-        except Exception as e:
-            logger.error(f"获取待补偿的幽灵会话时长失败: {e}")
-            return {}
 
-    def mark_ghost_compensation_settled(self) -> bool:
-        """把当前待补偿的记录标记为已计入结算
+def get_pending_ghost_compensation_rows() -> dict[str, dict]:
+    """Return pending hours and exact source row IDs grouped by Plex user."""
+    with get_session() as session:
+        stmt = select(
+            GhostSessionLog.user_id,
+            GhostSessionLog.row_id,
+            GhostSessionLog.compensated_seconds,
+        ).where(
+            GhostSessionLog.compensated == 0,
+            GhostSessionLog.deleted == 1,
+        )
+        grouped: dict[str, dict] = {}
+        for user_id, row_id, seconds in session.execute(stmt).all():
+            entry = grouped.setdefault(str(user_id), {"hours": 0.0, "row_ids": []})
+            entry["hours"] += float(seconds or 0) / 3600
+            entry["row_ids"].append(int(row_id))
+        return grouped
 
-        与 get_pending_ghost_compensation 配对使用，确保每条记录只补偿一次。
-        """
-        try:
-            with get_session() as session:
-                stmt = (
-                    update(GhostSessionLog)
-                    .where(
-                        GhostSessionLog.compensated == 0,
-                        GhostSessionLog.deleted == 1,
-                    )
-                    .values(compensated=1)
-                )
-                session.execute(stmt)
-                return True
-        except Exception as e:
-            logger.error(f"标记幽灵会话补偿已结算失败: {e}")
-            return False
+
+def insert_watch_reward_settlement_tx(
+    session: Session,
+    *,
+    service: str,
+    account_key: str,
+    settlement_date: str,
+    tg_id: int | None,
+    credits_delta: float,
+    premium_charge: float,
+    inviter_tg_id: int | None,
+    inviter_bonus: float,
+    created_at: int,
+) -> bool:
+    """Reserve a daily settlement key inside the caller-owned transaction."""
+    values = {
+        "service": service,
+        "account_key": str(account_key),
+        "settlement_date": settlement_date,
+        "tg_id": tg_id,
+        "credits_delta": credits_delta,
+        "premium_charge": premium_charge,
+        "inviter_tg_id": inviter_tg_id,
+        "inviter_bonus": inviter_bonus,
+        "created_at": created_at,
+    }
+    try:
+        with session.begin_nested():
+            if session.bind.dialect.name == "sqlite":
+                current = session.execute(
+                    select(func.max(WatchRewardSettlement.id))
+                ).scalar_one()
+                values["id"] = int(current or 0) + 1
+            session.add(WatchRewardSettlement(**values))
+            session.flush()
+        return True
+    except IntegrityError:
+        return False
+
+
+def mark_ghost_compensation_rows_tx(session: Session, row_ids: list[int]) -> None:
+    """Mark only this user's snapshotted ghost rows inside their settlement."""
+    if not row_ids:
+        return
+    session.execute(
+        update(GhostSessionLog)
+        .where(
+            GhostSessionLog.row_id.in_(row_ids),
+            GhostSessionLog.compensated == 0,
+            GhostSessionLog.deleted == 1,
+        )
+        .values(compensated=1)
+    )

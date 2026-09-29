@@ -7,6 +7,7 @@ from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity import service as identity_service
+from app.domains.media_access import exceptions as media_exceptions
 from app.domains.media_access import notifications as media_access_notifications
 from app.domains.media_access import service as media_access_service
 from app.domains.media_access.rules import caculate_credits_fund
@@ -58,6 +59,8 @@ async def get_nsfw_info(
                 unlock_time, media_access_service.get_unlock_credits()
             )
             return {"refund": credits_fund}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"获取 NSFW 信息时发生错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取NSFW信息失败")
@@ -327,78 +330,57 @@ async def unlock_download_permission(
     background_tasks: BackgroundTasks,
     user: TelegramUser = Depends(get_telegram_user),
 ):
-    """解锁下载权限"""
+    """Unlock download permission atomically with the credit deduction."""
     if service not in ["plex", "emby"]:
         raise HTTPException(status_code=400, detail="服务类型必须是 'plex' 或 'emby'")
 
-    tg_id = user.id
-
+    tg_id = int(user.id)
     try:
-        # 检查是否已解锁
         unlock_status = db.check_download_unlock(tg_id, service)
         if unlock_status["is_unlocked"]:
             if unlock_status["is_premium"]:
                 return BaseResponse(
                     success=False, message="Premium 用户已自动拥有下载权限，无需解锁"
                 )
-            else:
-                return BaseResponse(
-                    success=False, message="下载权限已解锁，无需重复解锁"
-                )
+            return BaseResponse(success=False, message="下载权限已解锁，无需重复解锁")
 
-        # 扣除积分
-        success, msg, remaining_credits = db.deduct_credits_for_download_unlock(tg_id)
-        if not success:
-            return BaseResponse(success=False, message=msg)
-
-        # 更新数据库解锁状态
-        if not db.set_download_unlocked(tg_id, service):
-            logger.error(f"用户 {tg_id} 下载权限数据库更新失败")
-            return BaseResponse(success=False, message="解锁失败，请联系管理员")
-
-        # 应用到媒体服务器
-        try:
-            if service == "plex":
-                plex_info = db.get_plex_info_by_tg_id(tg_id)
-                if plex_info and plex_info[3]:  # plex_email
-                    plex = Plex()
-                    plex.update_sync_for_user(plex_info[3], allow_sync=True)
-            elif service == "emby":
-                emby_info = db.get_emby_info_by_tg_id(tg_id)
-                if emby_info and emby_info[1]:  # emby_id
-                    emby = Emby()
-                    emby.update_download_permission_for_user(
-                        emby_info[1], allow_download=True
-                    )
-        except Exception as e:
-            logger.warning(f"应用下载权限到媒体服务器失败: {e}，但数据库已更新")
-
-        logger.info(
-            f"用户 {get_user_name_from_tg_id(tg_id)} 解锁 {service} 下载权限，"
-            f"消耗 {media_access_service.get_download_unlock_credits()} 积分"
+        mutation = media_access_service.unlock_download(
+            tg_id,
+            service,
+            media_access_service.get_download_unlock_credits(),
         )
+        remaining_credits = mutation.after
 
-        # 发送管理员通知
+        background_tasks.add_task(
+            media_access_service.apply_download_unlock_to_media,
+            tg_id,
+            service,
+        )
         service_name, service_emoji = identity_service.get_service_label(service)
         user_name = get_user_name_from_tg_id(tg_id)
-
         admin_notification = f"""📥 下载权限解锁通知
 
 👤 用户: {user_name}（TG ID: {tg_id}）
 {service_emoji} 服务: {service_name}
 💎 花费: {media_access_service.get_download_unlock_credits()} 积分
 💰 剩余: {remaining_credits:.2f} 积分"""
-
         background_tasks.add_task(
             media_access_notifications.notify_download_unlocked,
             admin_notification,
         )
-
         return BaseResponse(
             success=True,
-            message=f"解锁成功！消耗 {media_access_service.get_download_unlock_credits()} 积分，剩余 {remaining_credits:.2f} 积分",
+            message=(
+                f"解锁成功！消耗 {media_access_service.get_download_unlock_credits()} 积分，"
+                f"剩余 {remaining_credits:.2f} 积分"
+            ),
         )
-
-    except Exception as e:
-        logger.error(f"解锁下载权限失败: {e}")
-        return BaseResponse(success=False, message=f"解锁失败: {e!s}，请联系管理员")
+    except media_exceptions.MediaAccountNotBound:
+        return BaseResponse(success=False, message="请先绑定 Plex/Emby 账户")
+    except media_exceptions.DownloadAlreadyUnlocked as error:
+        return BaseResponse(success=False, message=str(error))
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("解锁下载权限失败")
+        return BaseResponse(success=False, message="解锁失败，请联系管理员")

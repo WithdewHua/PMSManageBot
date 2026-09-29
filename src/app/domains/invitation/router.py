@@ -58,48 +58,36 @@ router = APIRouter(
 async def get_invite_points_info(
     request: Request, telegram_user: TelegramUser = Depends(get_telegram_user)
 ):
-    """
-    获取用户当前积分和生成邀请码所需的积分信息
-    """
+    """Return the invitation-credit contract for bound and unbound users."""
     try:
         user_id = telegram_user.id
-
-        # 获取用户统计信息
         stats_info = db.get_stats_by_tg_id(user_id)
-
-        # 如果用户不存在
+        required_points = invitation_service.get_invitation_credits()
         if not stats_info:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="用户未绑定 Plex/Emby 账户",
+            return InvitePointsResponse(
+                required_points=required_points,
+                current_points=0,
+                can_generate=False,
+                error_message="用户未绑定 Plex/Emby 账户",
             )
 
-        # 获取用户当前积分
         user_credits = stats_info[2]
-
-        # 获取邀请码所需积分
-        required_points = invitation_service.get_invitation_credits()
-
-        # 判断用户是否有足够的积分
         can_generate = user_credits >= required_points
-        error_message = None
-
-        if not can_generate:
-            error_message = "积分不足，无法生成邀请码"
-
+        error_message = None if can_generate else "积分不足，无法生成邀请码"
         return InvitePointsResponse(
             required_points=required_points,
             current_points=user_credits,
             can_generate=can_generate,
             error_message=error_message,
         )
-
-    except Exception as e:
-        logger.error(f"获取邀请码积分信息失败: {e!s}")
+    except HTTPException:
+        raise
+    except Exception as error:
+        logger.error(f"获取邀请码积分信息失败: {error!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取邀请码积分信息失败",
-        )
+        ) from error
 
 
 @router.post("/generate", response_model=GenerateInviteCodeResponse)
@@ -108,65 +96,48 @@ async def generate_invite_code(
     request: Request,
     telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
-    """
-    生成新的邀请码，消耗用户积分
-    """
+    """Generate an invitation code for a bound user with sufficient credits."""
     try:
         user_id = telegram_user.id
-
-        # 获取用户统计信息
         stats_info = db.get_stats_by_tg_id(user_id)
-
-        # 如果用户不存在
         if not stats_info:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="用户未绑定 Plex/Emby 账户",
+            return GenerateInviteCodeResponse(
+                success=False,
+                message="用户未绑定 Plex/Emby 账户",
             )
 
-        # 获取用户当前积分
         user_credits = stats_info[2]
-
-        # 获取邀请码所需积分
         required_points = invitation_service.get_invitation_credits()
-
-        # 检查剩余积分
         if user_credits < required_points:
             return GenerateInviteCodeResponse(
                 success=False,
                 message=f"积分不足，您当前积分 {user_credits}，需要 {required_points} 积分才能生成邀请码",
             )
 
-        # 生成邀请码
         invite_code = uuid3(NAMESPACE_URL, str(user_id + time())).hex
-
-        # 先添加邀请码
-        res = db.add_invitation_code(code=invite_code, owner=user_id)
-        if not res:
+        if not db.add_invitation_code(code=invite_code, owner=user_id):
             return GenerateInviteCodeResponse(
                 success=False, message="生成邀请码失败，请稍后再试"
             )
-
-        # 然后更新积分
         try:
             credits_service.deduct(CreditAccount.tg(int(user_id)), required_points)
         except Exception:
             return GenerateInviteCodeResponse(
                 success=False, message="更新积分失败，请稍后再试"
             )
-
         return GenerateInviteCodeResponse(
             success=True,
             message=f"邀请码生成成功！已消耗 {required_points} 积分",
             code=invite_code,
         )
-
-    except Exception as e:
-        logger.error(f"生成邀请码失败: {e!s}")
+    except HTTPException:
+        raise
+    except Exception as error:
+        logger.error(f"生成邀请码失败: {error!s}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="生成邀请码失败，请稍后再试",
-        )
+        ) from error
 
 
 @router.get("/register-status")
@@ -213,7 +184,7 @@ async def redeem_plex_code(
             return RedeemResponse(success=False, message="请输入有效的邮箱地址")
 
         # 检查 plex 人数是否已满
-        if int(db.get_plex_users_num()) == 100:
+        if int(db.get_plex_users_num()) >= 100:
             return RedeemResponse(success=False, message="Plex 用户数已达上限")
 
         # 检查邀请码是否存在且未被使用

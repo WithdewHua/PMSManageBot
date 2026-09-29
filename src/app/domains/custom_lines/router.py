@@ -134,7 +134,7 @@ async def submit_custom_line(
 """
 
             # 异步发送通知
-            for admin_id in settings.TG_ADMIN_IDS:
+            for admin_id in settings.TG_ADMIN_CHAT_ID:
                 background_tasks.add_task(
                     send_message_by_url,
                     chat_id=admin_id,
@@ -148,7 +148,7 @@ async def submit_custom_line(
 
     except Exception as e:
         logger.error(f"提交自定义线路失败: {e}")
-        return BaseResponse(success=False, message=f"提交失败: {e!s}")
+        return BaseResponse(success=False, message="提交失败，请稍后再试")
 
 
 @router.get("/custom-lines/my-lines")
@@ -685,15 +685,13 @@ async def online_custom_line(
 
             from datetime import datetime
 
-            from app.core.config import config
-
             expire_info = (
                 "长期可用"
                 if line.is_permanent
                 else (
-                    datetime.fromtimestamp(
-                        line.expires_at, tz=config.settings.TZ
-                    ).strftime("%Y-%m-%d %H:%M:%S")
+                    datetime.fromtimestamp(line.expires_at, tz=settings.TZ).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
                     if line.expires_at
                     else "未设置"
                 )
@@ -730,7 +728,7 @@ async def online_custom_line(
 
     except Exception as e:
         logger.error(f"上线自定义线路失败: {e}")
-        return BaseResponse(success=False, message=f"上线失败: {e!s}")
+        return BaseResponse(success=False, message="上线失败，请稍后再试")
 
 
 @router.post("/custom-lines/{line_id}/renew")
@@ -794,17 +792,15 @@ async def renew_custom_line(
 
             from datetime import datetime
 
-            from app.core.config import config
-
             old_expires_str = (
-                datetime.fromtimestamp(old_expires_at, tz=config.settings.TZ).strftime(
+                datetime.fromtimestamp(old_expires_at, tz=settings.TZ).strftime(
                     "%Y-%m-%d %H:%M:%S"
                 )
                 if old_expires_at
                 else "未设置"
             )
             new_expires_str = datetime.fromtimestamp(
-                new_expires_at, tz=config.settings.TZ
+                new_expires_at, tz=settings.TZ
             ).strftime("%Y-%m-%d %H:%M:%S")
 
             return BaseResponse(
@@ -816,4 +812,4 @@ async def renew_custom_line(
 
     except Exception as e:
         logger.error(f"续期自定义线路失败: {e}")
-        return BaseResponse(success=False, message=f"续期失败: {e!s}")
+        return BaseResponse(success=False, message="续期失败，请稍后再试")

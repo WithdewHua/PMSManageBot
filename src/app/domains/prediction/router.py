@@ -176,6 +176,8 @@ async def create_market(
         )
 
         return {"success": True, "market_id": int(market_id)}
+    except HTTPException:
+        raise
     except PredictionError as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -210,6 +212,8 @@ async def submit_market(
         )
 
         return {"success": True, "submission_id": int(submission_id)}
+    except HTTPException:
+        raise
     except PredictionError as e:
         raise HTTPException(
             status_code=e.status_code,

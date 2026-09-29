@@ -19,7 +19,8 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             context=context,
         )
         return
-    _credits, _donation = _stats_info[2], _stats_info[1]
+    _credits = float(_stats_info[2]) if _stats_info else 0.0
+    _donation = _stats_info[1] if _stats_info else 0
     _codes = "" if not _codes else "\n".join(_codes)
     body_text = f"""
 {"=" * 44}

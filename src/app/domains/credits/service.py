@@ -48,6 +48,13 @@ def deduct(account: CreditAccount, amount: float) -> CreditMutation:
     return repository.deduct(account, amount)
 
 
+def charge_premium_traffic_tx(
+    session, account: CreditAccount, amount: float
+) -> CreditMutation:
+    """Charge premium traffic inside a caller-owned transaction; overdraft is allowed."""
+    return repository.charge_premium_traffic_tx(session, account, amount)
+
+
 def read_optional(account: CreditAccount) -> float | None:
     """Read a balance, returning None when the account row does not exist."""
     try:
@@ -94,6 +101,7 @@ def register_cache_invalidation(
 __all__ = [
     "add",
     "apply_tx",
+    "charge_premium_traffic_tx",
     "collect_cache_keys",
     "deduct",
     "invalidate_cache_keys",

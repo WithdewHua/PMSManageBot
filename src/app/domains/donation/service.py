@@ -29,6 +29,22 @@ def _enrich_registration(registration: dict | None) -> dict | None:
     return result
 
 
+def create_donation_registration(
+    user_id: int,
+    payment_method: str,
+    amount: float,
+    note: str | None = None,
+    is_donation_registration: bool = False,
+) -> int | None:
+    return donation_repository.DonationRepository().create_donation_registration(
+        int(user_id),
+        payment_method,
+        float(amount),
+        note,
+        bool(is_donation_registration),
+    )
+
+
 def get_donation_registration_by_id(registration_id: int) -> dict | None:
     return _enrich_registration(
         donation_repository.DonationRepository().get_donation_registration_by_id(

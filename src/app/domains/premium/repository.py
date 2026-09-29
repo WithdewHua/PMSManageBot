@@ -641,14 +641,94 @@ class PremiumRepository:
             return None
 
 
+def _expire_user_tx_impl(
+    session, *, tg_id: int, service: str, now: datetime
+) -> dict | None:
+    """Atomically claim one expired Premium account for post-commit cleanup."""
+    model = PlexUser if service == "plex" else EmbyUser
+    if service not in ("plex", "emby"):
+        raise ValueError("不支持的服务类型")
+    row = session.execute(
+        select(model).where(model.tg_id == int(tg_id)).with_for_update()
+    ).scalar_one_or_none()
+    if row is None or not row.is_premium or not row.premium_expiry_time:
+        return None
+    raw_expiry = str(row.premium_expiry_time)
+    try:
+        expiry = datetime.fromisoformat(raw_expiry).astimezone(settings.TZ)
+    except ValueError:
+        expiry = datetime.fromtimestamp(float(raw_expiry), tz=settings.TZ)
+    if expiry >= now:
+        return None
+    old_expiry = row.premium_expiry_time
+    username = row.plex_username if service == "plex" else row.emby_username
+    target = row.plex_email if service == "plex" else row.emby_id
+    line = row.plex_line if service == "plex" else row.emby_line
+    row.is_premium = 0
+    row.premium_expiry_time = None
+    row.premium_status_updated_at = int(now.timestamp())
+    session.flush()
+    return {
+        "tg_id": int(tg_id),
+        "service": service,
+        "username": username,
+        "target": target,
+        "line": line,
+        "expiry_time": old_expiry,
+    }
+
+
 # 模块级入口：跨域调用方（如礼包）只使用这些函数，不触碰门面实例。
 _premium_repository = PremiumRepository()
+
+
+def get_expired_premium_users() -> list:
+    return _premium_repository.get_expired_premium_users()
+
+
+def purchase_premium(*, tg_id: int, service: str, days: int, cost: float):
+    """Grant Premium and charge credits atomically in one caller-independent transaction."""
+    from app.domains.credits import repository as credits_repository
+    from app.domains.credits.types import CreditAccount
+
+    with get_session() as session:
+        expiry = _premium_repository.grant_premium_days_tx(
+            session, int(tg_id), service, int(days)
+        )
+        if expiry is None:
+            raise ValueError("您已是永久 Premium 会员，无需续费")
+        mutation = credits_repository.deduct_tx(
+            session, CreditAccount.tg(int(tg_id)), float(cost)
+        )
+        return expiry, mutation
+
+
+def is_permanent_member(tg_id: int, service: str) -> bool:
+    """Return whether the bound media account is already permanently premium."""
+    model = PlexUser if service == "plex" else EmbyUser
+    if service not in ("plex", "emby"):
+        raise ValueError("不支持的服务类型")
+    with get_session() as session:
+        row = session.execute(
+            select(model.is_premium, model.premium_expiry_time).where(
+                model.tg_id == int(tg_id)
+            )
+        ).one_or_none()
+        return bool(row and row[0] and not row[1])
 
 
 def grant_premium_days_tx(
     session, tg_id: int, service: str, days: int = 30
 ) -> datetime | None:
     return _premium_repository.grant_premium_days_tx(session, tg_id, service, days)
+
+
+def expire_user_tx(session, *, tg_id: int, service: str, now: datetime) -> dict | None:
+    return _expire_user_tx(session, tg_id=tg_id, service=service, now=now)
+
+
+def _expire_user_tx(session, *, tg_id: int, service: str, now: datetime) -> dict | None:
+    return _expire_user_tx_impl(session, tg_id=tg_id, service=service, now=now)
 
 
 def get_premium_sync_target(tg_id: int, service: str) -> str | None:

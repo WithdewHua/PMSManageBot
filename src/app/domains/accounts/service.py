@@ -31,131 +31,116 @@ def is_registration_enabled(server: str) -> bool:
 def update_plex_info(
     plex_name=True, plex_id=True, plex_avatar=True, target_email: str | None = None
 ):
-    """更新 plex 用户信息"""
+    """Synchronize Plex names, ids, invitation records and avatars independently."""
     _plex = Plex()
     try:
         if plex_name:
-            users = _plex.users_by_id
-            cache_clear_users = []
-            for uid, user in users.items():
-                email = user[1].email
-                username = user[0]
-                with get_session() as session:
-                    existing_user = session.execute(
-                        select(PlexUser).where(PlexUser.plex_id == uid)
-                    ).fetchone()
-                    if (
-                        existing_user
-                        and existing_user[0].plex_username == username
-                        and existing_user[0].plex_email == email
-                    ):
-                        logger.info(
-                            f"Plex 用户 {username}({uid}) 的用户名和邮箱未发生变化，跳过更新"
+            cache_clear_users: list[str] = []
+            for uid, user in _plex.users_by_id.items():
+                try:
+                    email = user[1].email
+                    username = user[0]
+                    with get_session() as session:
+                        existing_user = session.execute(
+                            select(PlexUser).where(PlexUser.plex_id == uid)
+                        ).scalar_one_or_none()
+                        if existing_user is None:
+                            logger.info(
+                                "Plex 用户 %s(%s) 未在本地注册，跳过同步",
+                                username,
+                                uid,
+                            )
+                            continue
+                        if (
+                            existing_user.plex_username == username
+                            and existing_user.plex_email == email
+                        ):
+                            continue
+                        plex_username = existing_user.plex_username
+                        cache_clear_users.append(plex_username)
+                        session.execute(
+                            sql_update(PlexUser)
+                            .where(PlexUser.plex_id == uid)
+                            .values(plex_username=username, plex_email=email)
                         )
-                        continue
-                    plex_username = existing_user[0].plex_username
-                    cache_clear_users.append(plex_username)
-                    stmt = (
-                        sql_update(PlexUser)
-                        .where(PlexUser.plex_id == uid)
-                        .values(plex_username=username, plex_email=email)
-                    )
-                    session.execute(stmt)
-                logger.info(
-                    f"成功更新 Plex 用户 {uid} 的用户名: {username}, 邮箱: {email}"
-                )
-                # 更新流量表中的用户名
-                if not db.update_traffic_username(
-                    old_username=plex_username,
-                    new_username=username,
-                ):
-                    logger.error(
-                        f"更新流量表中的用户名失败: {plex_username} -> {username}"
-                    )
-            # 清除缓存中的用户信息
+                    if not db.update_traffic_username(
+                        old_username=plex_username,
+                        new_username=username,
+                    ):
+                        logger.error(
+                            "更新流量表中的用户名失败: %s -> %s",
+                            plex_username,
+                            username,
+                        )
+                except Exception:
+                    logger.exception("同步 Plex 用户 %s 的名称失败", uid)
             if cache_clear_users:
-                deleted_tokens = media_tokens.clear_plex_tokens_for_usernames(
-                    cache_clear_users
-                )
-                for _plex_username in deleted_tokens:
-                    logger.info(f"已清除 Plex 用户 {_plex_username} 的 Token 缓存")
+                try:
+                    deleted_tokens = media_tokens.clear_plex_tokens_for_usernames(
+                        cache_clear_users
+                    )
+                    for username in deleted_tokens:
+                        logger.info("已清除 Plex 用户 %s 的 Token 缓存", username)
+                except Exception:
+                    logger.exception("清理 Plex 用户 Token 缓存失败")
 
         if plex_id:
-            # 检查是否存在 plex_id 为空的用户
             with get_session() as session:
                 if target_email:
-                    # 如果指定了目标邮箱,只处理该邮箱
                     stmt = select(PlexUser.plex_email).where(
                         PlexUser.plex_id.is_(None), PlexUser.plex_email == target_email
                     )
                 else:
-                    # 处理所有 plex_id 为空的用户
                     stmt = select(PlexUser.plex_email).where(PlexUser.plex_id.is_(None))
-                empty_plex_users = session.execute(stmt).fetchall()
+                empty_plex_users = session.execute(stmt).scalars().all()
 
-            for user in empty_plex_users:
-                email = user[0]
-                # 处理 plex_id 为空的用户
-                plex_id = _plex.get_user_id_by_email(email)
-                plex_username = (
-                    _plex.get_username_by_user_id(plex_id) if plex_id else None
-                )
-                if plex_id and plex_username:
+            for email in empty_plex_users:
+                try:
+                    plex_id = _plex.get_user_id_by_email(email)
+                    plex_username = (
+                        _plex.get_username_by_user_id(plex_id) if plex_id else None
+                    )
+                    if not plex_id or not plex_username:
+                        logger.warning(
+                            "无法找到 Plex 用户 %s 的 ID 或用户名，跳过更新。", email
+                        )
+                        continue
                     with get_session() as session:
-                        stmt = (
+                        session.execute(
                             sql_update(PlexUser)
                             .where(PlexUser.plex_email == email)
                             .values(plex_id=plex_id, plex_username=plex_username)
                         )
-                        session.execute(stmt)
-                    logger.info(f"成功更新 Plex 用户 {email} 的 plex_id: {plex_id}")
-
-                    # 同步更新 invitation 表中对应邀请码的 plex_id
-                    if db.update_invitation_plex_id(plex_email=email, plex_id=plex_id):
-                        logger.info(
-                            f"成功更新邀请码记录中 Plex 用户 {email} 的 plex_id: {plex_id}"
-                        )
-                    else:
-                        logger.warning(
-                            f"更新邀请码记录中 Plex 用户 {email} 的 plex_id 失败或无需更新"
-                        )
-
-                    # 如果是针对特定邮箱的调度任务，且成功获取到 plex_id，则标记任务待删除
+                    db.update_invitation_plex_id(plex_email=email, plex_id=plex_id)
                     if target_email and email.lower() == target_email.lower():
-                        # 使用延迟删除，避免在任务执行过程中删除自己
                         import threading
 
                         def delayed_job_removal():
                             try:
                                 import time
 
-                                # 等待当前任务执行完成
-                                time.sleep(2)
                                 from app.core.scheduler import Scheduler
 
-                                scheduler = Scheduler()
-                                job_id = f"update_plex_info_for_{target_email}"
-                                scheduler.remove_job(job_id)
-                                logger.info(f"成功删除调度任务: {job_id}")
-                            except Exception as e:
-                                logger.warning(f"延迟删除调度任务失败: {e}")
+                                time.sleep(2)
+                                Scheduler().remove_job(
+                                    f"update_plex_info_for_{target_email}"
+                                )
+                            except Exception:
+                                logger.exception("延迟删除 Plex 回填任务失败")
 
-                        # 在新线程中执行删除操作
                         threading.Thread(
                             target=delayed_job_removal, daemon=True
                         ).start()
-                        logger.info(
-                            f"已标记删除调度任务: update_plex_info_for_{target_email}"
-                        )
-                else:
-                    logger.warning(
-                        f"无法找到 Plex 用户 {email} 的 ID 或用户名，跳过更新。"
-                    )
-        # 更新所有用户的头像
+                except Exception:
+                    logger.exception("回填 Plex 用户 %s 的 ID 失败", email)
+
         if plex_avatar:
-            _plex.update_all_user_avatars()
-    except Exception as e:
-        print(e)
+            try:
+                _plex.update_all_user_avatars()
+            except Exception:
+                logger.exception("刷新 Plex 用户头像失败")
+    except Exception:
+        logger.exception("更新 Plex 用户信息失败")
 
 
 def add_all_plex_user():

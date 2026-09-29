@@ -37,13 +37,35 @@ def set_nsfw_libs(libs: list[str]) -> list[str]:
 
 
 def is_download_unlocked(tg_id: int, service: str) -> bool:
-    """该用户在指定服务上是否已经拥有下载/同步权限（含 Premium 自动解锁）。
-
-    跨域调用方（premium 的权限同步、礼包解锁）用它判断“是否还需要推送到媒体
-    服务器”，避免直接读 media_access 的列。
-    """
+    """Return whether persisted or Premium-derived access is available."""
     status = media_access_repository.check_download_unlock(int(tg_id), service)
-    return bool(status.get("unlock_time"))
+    return bool(status.get("is_unlocked"))
+
+
+def unlock_download(tg_id: int, service: str, cost: float):
+    return media_access_repository.unlock_download(
+        tg_id=int(tg_id), service=service, cost=float(cost)
+    )
+
+
+def apply_download_unlock_to_media(tg_id: int, service: str) -> None:
+    """Apply a committed permanent download unlock to the media server."""
+    target = media_access_repository.get_download_sync_target(int(tg_id), service)
+    if not target:
+        raise RuntimeError(f"未找到绑定的 {service} 账号")
+    if service == "plex":
+        if not Plex().update_sync_for_user(target, allow_sync=True):
+            raise RuntimeError("Plex 同步权限更新失败")
+    elif service == "emby":
+        from app.integrations.emby import Emby
+
+        result = Emby().update_download_permission_for_user(target, allow_download=True)
+        if isinstance(result, tuple) and not result[0]:
+            raise RuntimeError(f"Emby 下载权限更新失败: {result[1]}")
+        if result is False:
+            raise RuntimeError("Emby 下载权限更新失败")
+    else:
+        raise ValueError(f"不支持的服务类型: {service}")
 
 
 def update_all_lib():

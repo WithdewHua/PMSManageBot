@@ -72,7 +72,8 @@ class Plex:
     def users_by_email(self):
         users_by_email = {}
         for user in self.get_users():
-            users_by_email[user.email] = (user.id, user)
+            if user.email:
+                users_by_email[user.email.lower()] = (user.id, user)
         return users_by_email
 
     @property
@@ -91,7 +92,7 @@ class Plex:
 
     def get_user_id_by_email(self, email: str) -> int:
         """get user's id by email"""
-        _user = self.users_by_email.get(email, None)
+        _user = self.users_by_email.get(email.lower(), None)
         if not _user:
             return 0
         return _user[0]

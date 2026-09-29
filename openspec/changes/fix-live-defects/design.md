@@ -308,7 +308,7 @@
 
 ## Migration Plan
 
-1. 三个迁移（观看结算记录、自建线路结算记录、夺宝两列）依次接在当时的 alembic head 之后；在一次性 PostgreSQL 上执行 upgrade → downgrade → upgrade，并做元数据比对。
+1. 三个迁移（观看结算记录、自建线路结算记录、夺宝两列）依次接在当时的 alembic head `c0d1e2f3a4b5` 之后；已在一次性 PostgreSQL 上执行 upgrade → downgrade → upgrade，并在最终 head 上完成元数据比对（无差异）。
 2. 按 tasks 的分组逐组实施，每组全量回归。
 3. 在生产形态副本上彩排：
    - 观看结算：连续运行两次，第二次无变化；注入一个失败用户，其余用户照常结算。

@@ -7,12 +7,41 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
+
+
+class CustomLineSettlement(Base):
+    """Idempotency ledger for monthly or delete-triggered settlement."""
+
+    __tablename__ = "custom_line_settlement"
+
+    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    line_id: Mapped[int] = mapped_column(BIGINT, nullable=False)
+    tg_id: Mapped[int] = mapped_column(BIGINT, nullable=False)
+    domain: Mapped[str] = mapped_column(Text, nullable=False)
+    year_month: Mapped[str] = mapped_column(Text, nullable=False)
+    trigger: Mapped[str] = mapped_column(String, nullable=False)
+    traffic_bytes: Mapped[int] = mapped_column(BIGINT, nullable=False, default=0)
+    credits: Mapped[float] = mapped_column(Numeric, nullable=False, default=0)
+    created_at: Mapped[int] = mapped_column(BIGINT, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(
+            "trigger IN ('monthly', 'delete')",
+            name="ck_custom_line_settlement_trigger",
+        ),
+        UniqueConstraint(
+            "line_id", "year_month", name="uq_custom_line_settlement_line_month"
+        ),
+        Index("ix_custom_line_settlement_domain_month", "domain", "year_month"),
+    )
 
 
 class CustomLine(Base):

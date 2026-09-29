@@ -70,6 +70,7 @@ def test_named_tasks_are_frozen_until_the_auction_promotion() -> None:
         "auction.finish",
         "blackjack.hand_timeout",
         "treasure.open_next_issue",
+        "treasure.reopen_overdue",
     ]
     assert snapshot["legacy_task_refs"]
 
@@ -83,7 +84,7 @@ def test_scheduler_jobs_stay_within_the_four_domains() -> None:
     assert jobs["auction"] == ["finish_expired_auctions_fallback"]
     assert jobs["prediction"] == ["check_prediction_markets_closing_soon_job"]
     assert jobs["luckywheel"] == []
-    assert jobs["treasure"] == []
+    assert jobs["treasure"] == ["treasure_reopen_overdue"]
 
 
 @pytest.mark.parametrize("domain", DOMAINS)

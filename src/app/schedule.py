@@ -62,6 +62,7 @@ from app.domains.traffic.jobs import (
     monthly_traffic_data_migration,
     update_line_traffic_stats,
 )
+from app.domains.treasure.service import reopen_overdue_issues
 from app.domains.watch_rewards.jobs import clean_ghost_sessions_job, update_credits
 
 
@@ -90,7 +91,11 @@ LEGACY_TASK_REFS = {
     "app.webapp.routers.activities.blackjack:_settle_blackjack_hand_on_timeout": "blackjack.hand_timeout",
     "app.webapp.routers.activities.treasure:_auto_create_next_treasure_issue_from": "treasure.open_next_issue",
 }
-ON_STARTUP = [restore_auction_schedules, restore_blackjack_timeouts]
+ON_STARTUP = [
+    restore_auction_schedules,
+    restore_blackjack_timeouts,
+    reopen_overdue_issues,
+]
 
 
 def _jobs(now: datetime) -> list[RecurringJob]:
@@ -140,8 +145,16 @@ def _jobs(now: datetime) -> list[RecurringJob]:
             finish_expired_auctions_job,
             "async",
             "cron",
-            {"hour": 2, "minute": 0},
-            "添加定时任务：每天凌晨 2 点检查过期竞拍活动（兜底机制）",
+            {"minute": "*/10"},
+            "添加定时任务：每 10 分钟检查过期竞拍活动（兜底机制）",
+        ),
+        RecurringJob(
+            "treasure_reopen_overdue",
+            reopen_overdue_issues,
+            "async",
+            "interval",
+            {"minutes": 10, "next_run_time": now + timedelta(minutes=1)},
+            "添加定时任务：每 10 分钟补开遗漏的夺宝期数",
         ),
         RecurringJob(
             "sweep_expired_blackjack_hands_fallback",
@@ -375,6 +388,8 @@ def register_tasks() -> None:
     treasure_task = _load_treasure_task()
     TASKS["treasure.open_next_issue"] = treasure_task
     register_task("treasure.open_next_issue", treasure_task)
+    TASKS["treasure.reopen_overdue"] = reopen_overdue_issues
+    register_task("treasure.reopen_overdue", reopen_overdue_issues)
 
 
 def register_all(scheduler: Scheduler | None = None) -> None:

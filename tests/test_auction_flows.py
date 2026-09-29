@@ -1,13 +1,7 @@
 """竞拍现行行为：出价、创建、修改、删除、手动结束与过期兜底。
 
-提升之前固定当前实现（`promote-activity-domains` 任务 1.3），并把 design
-「已知缺陷」的现状写成断言：
-- 无人出价时结束流程会对 `send_message_by_url(None)` 发起调用；
-- 结束竞拍不检查 `is_active`，重复结束会再次扣分；
-- `finish_expired_auctions` 的 `group_by` 选了未聚合的 `bidder_id`（SQLite
-  容忍并返回最大值所在行，PostgreSQL 直接报错）；
-- 启动恢复只处理前 50 条。
-"""
+覆盖 `fix-live-defects` 修复后的流拍通知、单次结束、PostgreSQL 兼容聚合
+和启动恢复行为。"""
 
 from __future__ import annotations
 
@@ -327,10 +321,10 @@ async def test_finish_auction_admin_deducts_winner(orm, auction_env) -> None:
     assert len(background_tasks.tasks) == 0
 
 
-async def test_finish_auction_without_bids_calls_send_message_with_none(
+async def test_finish_auction_without_bids_sends_only_forfeit_notification(
     orm, auction_env
 ) -> None:
-    """已知缺陷：流拍时也调用 `send_message_by_url(None, …)`。"""
+    """流拍不向空的赢家接收人发送消息，只发送流拍通知。"""
     auction_id = _create_auction()
 
     result = await auc.finish_auction_admin(
@@ -342,14 +336,12 @@ async def test_finish_auction_without_bids_calls_send_message_with_none(
 
     assert result["success"] is True
     assert result["finished_auctions"][0]["winner_id"] is None
-    assert auction_env["sent"][0] is None
+    assert auction_env["sent"] == []
+    assert "无人出价" in auction_env["channel"][0]
 
 
-def test_finish_auction_by_id_twice_deducts_winner_again(orm, auction_env) -> None:
-    """已知缺陷：仓储的 `finish_auction_by_id` 不检查 `is_active`，重复结束会再次
-    扣分。路由与自动结束任务各自在外层拦了 `is_active`，所以只有直接调用仓储
-    才能看到这一现状。
-    """
+def test_finish_auction_by_id_is_idempotent(orm, auction_env) -> None:
+    """仓储按活动行加锁，重复结束不再扣分。"""
     auction_id = _create_auction()
     add_user(orm, 1, credits=1000.0)
     auction_repository.place_bid(auction_id=auction_id, bidder_id=1, bid_amount=150.0)
@@ -360,9 +352,9 @@ def test_finish_auction_by_id_twice_deducts_winner_again(orm, auction_env) -> No
 
     second, winner = auction_repository.finish_auction_by_id(auction_id)
 
-    assert second is True
-    assert winner["winner_id"] == 1
-    assert _credits(1) == 700.0  # 第二次结束又扣了一次
+    assert second is False
+    assert winner == "竞拍已结束"
+    assert _credits(1) == 850.0
 
 
 async def test_finish_auction_admin_rejects_inactive_auction(orm, auction_env) -> None:
@@ -385,16 +377,15 @@ async def test_finish_auction_admin_rejects_inactive_auction(orm, auction_env) -
 # --------------------------------------------------------------------------- #
 
 
-async def test_finish_expired_auctions_job_notifies_none_winner(
-    orm, auction_env
-) -> None:
-    """已知缺陷：兜底任务对无人出价的竞拍也发 `send_message_by_url(None, …)`。"""
+async def test_finish_expired_auctions_job_notifies_forfeit(orm, auction_env) -> None:
+    """兜底任务安全处理流拍并发送流拍通知。"""
     _create_auction(end_time=PAST)
 
     finished = await auction_jobs.finish_expired_auctions_job()
 
     assert [item["winner_id"] for item in finished] == [None]
-    assert auction_env["sent"][0] is None
+    assert auction_env["sent"] == []
+    assert "无人出价" in auction_env["channel"][0]
 
 
 def test_finish_expired_auctions_group_by_returns_max_bidder_on_sqlite(
@@ -424,8 +415,8 @@ def test_finish_expired_auctions_group_by_returns_max_bidder_on_sqlite(
     assert _auction(auction_id)["is_active"] == 0
 
 
-def test_restore_auction_schedules_limits_to_fifty(orm, auction_env) -> None:
-    """已知缺陷：启动恢复只处理 `get_active_auctions()` 的前 50 条。"""
+def test_restore_auction_schedules_all_active_auctions(orm, auction_env) -> None:
+    """启动恢复处理全部未结束的活动竞拍。"""
     with get_session() as session:
         for index in range(51):
             session.add(
@@ -447,4 +438,4 @@ def test_restore_auction_schedules_limits_to_fifty(orm, auction_env) -> None:
     auction_jobs.restore_auction_schedules()
 
     added = [job for job in auction_env["jobs"] if job["op"] == "add"]
-    assert len(added) == 50
+    assert len(added) == 51

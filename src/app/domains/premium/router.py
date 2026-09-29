@@ -12,7 +12,6 @@ from app.domains.credits.types import CreditAccount
 from app.domains.identity import service as identity_service
 from app.domains.premium import notifications as premium_notifications
 from app.domains.premium import service as premium_service
-from app.domains.premium.service import update_premium_status
 from app.integrations.telegram.profiles import get_user_name_from_tg_id
 from app.transport.http.auth import get_telegram_user, require_telegram_auth
 from app.transport.http.schemas import BaseResponse, TelegramUser
@@ -74,6 +73,9 @@ async def unlock_premium(
     if days <= 0 or days > 365:
         raise HTTPException(status_code=400, detail="解锁天数必须在 1-365 天之间")
 
+    if premium_service.is_permanent_member(int(tg_id), service):
+        raise HTTPException(status_code=400, detail="您已是永久 Premium 会员，无需续费")
+
     # 验证费用计算（含折扣）
     daily_price = premium_service.get_premium_daily_credits()
     base_cost = days * daily_price
@@ -88,27 +90,18 @@ async def unlock_premium(
         discount = 0.8
 
     expected_cost = int(base_cost * discount)
-    if total_cost != expected_cost:
-        raise HTTPException(status_code=400, detail="费用计算错误")
 
     try:
-        # 检查用户积分
-        stats_info = db.get_stats_by_tg_id(tg_id)
-        if not stats_info:
+        current_credits = credits_service.read_optional(CreditAccount.tg(int(tg_id)))
+        if current_credits is None:
             raise HTTPException(status_code=400, detail="用户不存在")
-
-        current_credits = stats_info[2]
         if current_credits < total_cost:
             raise HTTPException(status_code=400, detail="积分不足")
-
-        try:
-            new_expiry = update_premium_status(tg_id, service, days)
-        except Exception as e:
-            logger.error(f"更新 Premium 状态失败: {e!s}")
-            raise HTTPException(status_code=500, detail=f"更新 Premium 状态失败: {e!s}")
-
-        # 扣除积分
-        mutation = credits_service.deduct(CreditAccount.tg(int(tg_id)), total_cost)
+        if total_cost != expected_cost:
+            raise HTTPException(status_code=400, detail="费用计算错误")
+        new_expiry, mutation = premium_service.purchase_premium(
+            tg_id=int(tg_id), service=service, days=int(days), cost=total_cost
+        )
         new_credits = mutation.after
 
         logger.info(
@@ -134,6 +127,9 @@ async def unlock_premium(
         background_tasks.add_task(
             premium_notifications.notify_premium_unlocked,
             notification_text,
+        )
+        background_tasks.add_task(
+            premium_service.sync_premium_media_access, int(tg_id), (service,)
         )
 
         return PremiumUnlockResponse(

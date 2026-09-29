@@ -1,4 +1,4 @@
-"""The declarative schedule preserves the legacy 32-job surface and order."""
+"""The declarative schedule preserves the reviewed job surface and order."""
 
 import ast
 from datetime import UTC, datetime
@@ -31,10 +31,10 @@ def isolated_registry(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(schedule, "ON_STARTUP", [lambda: None, lambda: None])
 
 
-def test_register_all_has_32_jobs_and_two_startup_hooks(isolated_registry) -> None:
+def test_register_all_has_33_jobs_and_two_startup_hooks(isolated_registry) -> None:
     recorder = RecordingScheduler()
     schedule.register_all(recorder)  # type: ignore[arg-type]
-    assert len(recorder.jobs) == 32
+    assert len(recorder.jobs) == 33
     assert [job[2] for job in recorder.jobs] == [
         job.id for job in schedule._jobs(datetime.now(UTC))
     ]
@@ -45,9 +45,11 @@ def test_register_all_has_32_jobs_and_two_startup_hooks(isolated_registry) -> No
         "auction.finish",
         "blackjack.hand_timeout",
         "treasure.open_next_issue",
+        "treasure.reopen_overdue",
     }
     assert schedule.TASKS["auction.finish"] is not None
     assert schedule.TASKS["treasure.open_next_issue"] is not None
+    assert schedule.TASKS["treasure.reopen_overdue"] is not None
 
 
 def test_named_tasks_register_before_api_thread_is_started(isolated_registry) -> None:
@@ -78,6 +80,7 @@ def test_named_tasks_register_before_api_thread_is_started(isolated_registry) ->
         "auction.finish",
         "blackjack.hand_timeout",
         "treasure.open_next_issue",
+        "treasure.reopen_overdue",
     }
 
 

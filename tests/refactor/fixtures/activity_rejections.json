@@ -373,8 +373,8 @@
     "status": 400
   },
   "prediction.create_market.500_deadline_swallowed": {
-    "detail": "创建预测题目失败",
-    "status": 500
+    "detail": "截止时间必须晚于当前时间",
+    "status": 400
   },
   "prediction.create_market.500_unexpected": {
     "detail": "创建预测题目失败",
@@ -521,8 +521,8 @@
     "status": 400
   },
   "prediction.submit_market.500_deadline_swallowed": {
-    "detail": "提交预测题目失败",
-    "status": 500
+    "detail": "截止时间必须晚于当前时间",
+    "status": 400
   },
   "prediction.submit_market.500_unexpected": {
     "detail": "提交预测题目失败",

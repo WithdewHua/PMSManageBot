@@ -1,16 +1,12 @@
 """夺宝现行行为：参与、满员开奖、创建、取消退款与自动开期调度。
 
-提升之前用这些用例固定当前实现的结果（`promote-activity-domains` 任务
-1.3）。外部副作用（群通知、调度提交）用替身记录，ETH 取块哈希用替身，
-使开奖随机数可复现。
-"""
+覆盖 `fix-live-defects` 修复后的 flush、幂等开期和补救调度行为。"""
 
 from __future__ import annotations
 
 import pytest
 from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy import event, select
-from sqlalchemy.exc import NoResultFound
 from starlette.requests import Request
 
 from app.core.db import get_session
@@ -251,16 +247,17 @@ async def test_full_issue_settlement_pays_winner_and_schedules_reopen(
         return 0
 
     monkeypatch.setattr(eth_rpc, "latest_block_hash_int", _block_hash)
+    monkeypatch.setattr(treasure_service.time, "time", lambda: 2.0)
 
     result = await _join(issue_id, 2)
 
-    # A = 1000（已落库行），B = 0 → 中奖号 = 起始号，由已落库的 user 1 持有
+    # A = 1000（已落库行），B = 0 → 中奖号为起始号，由 user 1 持有。
     assert result.settled is True
     assert result.winner_tg_id == 1
     assert result.winner_number == 10_000_001
     issue = _issue(issue_id)
     assert issue["status"] == 2
-    assert _credits(1) == 115.0  # 预置的 10 分未从余额扣；开奖 +15
+    assert _credits(1) == 115.0
     assert _credits(2) == 90.0
     assert len(treasure_env["settled"]) == 1
     assert treasure_env["settled"][0]["winner_tg_id"] == 1
@@ -285,27 +282,26 @@ def test_settlement_winner_number_derives_from_created_at_and_b(
     assert _credits(1) == 115.0
 
 
-def test_settlement_cannot_see_the_filling_participation(orm, treasure_env) -> None:
-    """已知缺陷：开奖查询发生在同一事务 flush 之前。
-
-    把中奖号推到填满的那次参与上（A = 1001，B = 0 → 偏移 1），中奖行尚未
-    flush，查询取不到 → 抛 NoResultFound，整次参与失败、全部回滚。
-    """
+def test_settlement_sees_the_filling_participation_after_flush(
+    orm, treasure_env
+) -> None:
+    """满员开奖前 flush 新参与行，填满的参与可以成为得主。"""
     issue_id = _seed_partially_filled_issue(committed_ms=1001)
     add_user(orm, 1, credits=100.0)
     add_user(orm, 2, credits=100.0)
 
-    with pytest.raises(NoResultFound):
-        treasure_repository.join_treasure_issue(
-            issue_id=issue_id, tg_id=2, external_random_b=0, timestamp_ms=2000
-        )
+    result = treasure_repository.join_treasure_issue(
+        issue_id=issue_id, tg_id=2, external_random_b=0, timestamp_ms=2000
+    )
 
-    assert _participations(issue_id) == [
-        {"tg_id": 1, "lucky_number": 10_000_001, "cost_credits": 10}
-    ]
+    assert result["settled"] is True
+    assert result["winner_tg_id"] == 2
+    assert _credits(2) == 105.0
+    assert _issue(issue_id)["status"] == 2
+    assert len(_participations(issue_id)) == 2
 
 
-async def test_settlement_defect_surfaces_as_500_and_rolls_back(
+async def test_settlement_filling_participation_succeeds(
     orm, treasure_env, monkeypatch
 ) -> None:
     issue_id = _seed_partially_filled_issue(committed_ms=1001)
@@ -316,14 +312,15 @@ async def test_settlement_defect_surfaces_as_500_and_rolls_back(
         return 0
 
     monkeypatch.setattr(eth_rpc, "latest_block_hash_int", _block_hash)
+    monkeypatch.setattr(treasure_service.time, "time", lambda: 2.0)
 
-    with pytest.raises(HTTPException) as excinfo:
-        await _join(issue_id, 2)
+    result = await _join(issue_id, 2)
 
-    assert (excinfo.value.status_code, excinfo.value.detail) == (500, "参与失败")
-    assert _credits(2) == 100.0  # 扣费已回滚
-    assert _issue(issue_id)["shares_sold"] == 1
-    assert treasure_env["settled"] == []
+    assert result.settled is True
+    assert result.winner_tg_id == 2
+    assert _credits(2) == 105.0
+    assert _issue(issue_id)["shares_sold"] == 2
+    assert treasure_env["settled"][0]["winner_tg_id"] == 2
 
 
 # --------------------------------------------------------------------------- #

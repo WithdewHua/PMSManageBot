@@ -75,8 +75,23 @@ def get_tx(
     return float(getattr(row, credit_column.key)), _cache_keys(session, account, row)
 
 
+def _zero_mutation(
+    session, account: CreditAccount, *, for_update: bool = False
+) -> CreditMutation:
+    before, cache_keys = get_tx(session, account, for_update=for_update)
+    return CreditMutation(
+        account=account,
+        before=before,
+        after=before,
+        delta=0.0,
+        cache_keys=cache_keys,
+    )
+
+
 def add_tx(session, account: CreditAccount, amount: float) -> CreditMutation:
     """Atomically add a positive delta using a caller-owned transaction."""
+    if not isinstance(amount, bool) and amount == 0:
+        return _zero_mutation(session, account)
     delta = validate_amount(amount)
     model, key_column, credit_column = _account_model(account)
     statement = select(model).where(key_column == account.identifier).with_for_update()
@@ -103,6 +118,8 @@ def add_tx(session, account: CreditAccount, amount: float) -> CreditMutation:
 
 def deduct_tx(session, account: CreditAccount, amount: float) -> CreditMutation:
     """Atomically deduct a positive delta, rejecting insufficient funds."""
+    if not isinstance(amount, bool) and amount == 0:
+        return _zero_mutation(session, account)
     delta = validate_amount(amount)
     model, key_column, credit_column = _account_model(account)
     statement = select(model).where(key_column == account.identifier).with_for_update()
@@ -112,6 +129,36 @@ def deduct_tx(session, account: CreditAccount, amount: float) -> CreditMutation:
     before = float(getattr(row, credit_column.key))
     if before < delta:
         raise InsufficientCredits(account.label, delta, before)
+    after = round(before - delta, 2)
+    session.execute(
+        update(model)
+        .where(key_column == account.identifier)
+        .values({credit_column: credit_column + (after - before)})
+    )
+    cache_keys = _cache_keys(session, account, row)
+    queue_cache_invalidation(session, cache_keys)
+    return CreditMutation(
+        account=account,
+        before=before,
+        after=after,
+        delta=-delta,
+        cache_keys=cache_keys,
+    )
+
+
+def charge_premium_traffic_tx(
+    session, account: CreditAccount, amount: float
+) -> CreditMutation:
+    """Charge premium traffic; the only credit debit allowed to overdraw."""
+    if not isinstance(amount, bool) and amount == 0:
+        return _zero_mutation(session, account)
+    delta = validate_amount(amount)
+    model, key_column, credit_column = _account_model(account)
+    statement = select(model).where(key_column == account.identifier).with_for_update()
+    row = session.execute(statement).scalar_one_or_none()
+    if row is None:
+        raise CreditAccountNotFound(account.label)
+    before = float(getattr(row, credit_column.key))
     after = round(before - delta, 2)
     session.execute(
         update(model)
@@ -140,9 +187,20 @@ def move_tx(session, source: CreditAccount, target: CreditAccount) -> CreditTran
     amount = locked[source.label][0]
     source_keys = locked[source.label][1]
     target_keys = locked[target.label][1]
-    if amount > 0:
-        deduct_tx(session, source, amount)
-        add_tx(session, target, amount)
+    if amount != 0:
+        source_model, source_key, source_credit = _account_model(source)
+        target_model, target_key, target_credit = _account_model(target)
+        session.execute(
+            update(source_model)
+            .where(source_key == source.identifier)
+            .values({source_credit: source_credit - amount})
+        )
+        session.execute(
+            update(target_model)
+            .where(target_key == target.identifier)
+            .values({target_credit: target_credit + amount})
+        )
+        queue_cache_invalidation(session, (*source_keys, *target_keys))
     return CreditTransfer(
         sender=source,
         recipient=target,

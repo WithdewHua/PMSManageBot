@@ -1,13 +1,14 @@
 from datetime import datetime, timedelta
 
-from sqlalchemy import and_, select
+from sqlalchemy import and_, func, select
 
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
-from app.domains.custom_lines.models import CustomLine
+from app.domains.custom_lines import rules as custom_line_rules
+from app.domains.custom_lines.models import CustomLine, CustomLineSettlement
 from app.domains.donation import service as donation_service
 from app.integrations.telegram.messaging import send_message_by_url
 
@@ -114,172 +115,202 @@ from app.domains.traffic.repository import _get_line_monthly_traffic
 async def settle_custom_line_traffic(
     line_domain: str | None = None, force_current_month: bool = False
 ):
-    """
-    结算自定义线路流量积分
-
-    Args:
-        line_domain: 指定线路域名，None 表示结算所有线路
-        force_current_month: 是否强制结算当月（删除线路时使用）
-
-    功能：
-    1. 每月1号凌晨2:00自动结算上个月的流量，按照流量单价赠送积分（在流量聚合任务1:00之后执行）
-    2. 删除线路时立即结算当月流量
-    """
-
-    try:
-        logger.info(
-            f"开始结算自定义线路流量积分 (线路: {line_domain or '全部'}, 强制当月: {force_current_month})"
+    """Settle custom-line traffic once per line and calendar month."""
+    logger.info(
+        "开始结算自定义线路流量积分 (线路: %s, 强制当月: %s)",
+        line_domain or "全部",
+        force_current_month,
+    )
+    now = datetime.now(tz=settings.TZ)
+    current_month = custom_line_rules.month_key(now, settings.TZ)
+    if force_current_month:
+        previous_month = custom_line_rules.month_key(
+            datetime(now.year, now.month, 1, tzinfo=settings.TZ) - timedelta(days=1),
+            settings.TZ,
         )
+        month_sources = [(current_month, True), (previous_month, False)]
+    else:
+        previous_month = custom_line_rules.month_key(
+            datetime(now.year, now.month, 1, tzinfo=settings.TZ) - timedelta(days=1),
+            settings.TZ,
+        )
+        month_sources = [(previous_month, False)]
 
+    settlement_details: list[dict] = []
+    failures: list[str] = []
+    for settle_month, from_raw_table in month_sources:
         with get_session() as session:
-            now = datetime.now(tz=settings.TZ)
-
-            # 确定要结算的月份
-            if force_current_month:
-                # 删除线路时，结算当月
-                settle_month = now.strftime("%Y-%m")
-            else:
-                # 每月1号结算上个月（在凌晨1:00流量聚合完成后）
-                last_month = datetime(
-                    now.year, now.month, 1, tzinfo=settings.TZ
-                ) - timedelta(days=1)
-                settle_month = last_month.strftime("%Y-%m")
-
-            logger.info(f"结算月份: {settle_month}")
-
-            # 构建查询条件
-            conditions = []
-            conditions.append(CustomLine.total_traffic.isnot(None))
-            conditions.append(CustomLine.total_traffic > 0)
-            # 至少有一个价格字段
-            conditions.append(
-                (CustomLine.price_monthly.isnot(None))
-                | (CustomLine.price_yearly.isnot(None))
-            )
-
+            conditions = [
+                CustomLine.total_traffic.isnot(None),
+                CustomLine.total_traffic > 0,
+                (
+                    CustomLine.price_monthly.isnot(None)
+                    | CustomLine.price_yearly.isnot(None)
+                ),
+            ]
             if line_domain:
                 conditions.append(CustomLine.domain == line_domain)
-
-            stmt = select(CustomLine).where(and_(*conditions))
-            result = session.execute(stmt)
-            lines = result.scalars().all()
-
-            if not lines:
-                logger.info("没有需要结算的自定义线路")
-                return
-
-            settled_count = 0
-            total_credits = 0
-            # 用于管理员汇总通知的结算详情列表
-            settlement_details = []
-
-            for line in lines:
-                # 获取该月流量（排除线路所有者）
-                # 如果是强制当月结算（删除线路），从原始流量表实时聚合
-                # 否则从月度聚合表查询
-                monthly_traffic_gb = await _get_line_monthly_traffic(
-                    session,
-                    line.domain,
-                    settle_month,
-                    line.tg_id,
-                    from_raw_table=force_current_month,
-                )
-
-                if monthly_traffic_gb <= 0:
-                    logger.info(
-                        f"线路 {line.domain} 在 {settle_month} 无流量，跳过结算"
-                    )
-                    continue
-
-                # 计算月付价格：优先使用 price_monthly，否则用 price_yearly / 12
-                if line.price_monthly is not None:
-                    monthly_price = line.price_monthly
-                elif line.price_yearly is not None:
-                    monthly_price = line.price_yearly / 12
-                else:
-                    logger.warning(f"线路 {line.domain} 没有配置价格，跳过结算")
-                    continue
-
-                # 计算流量单价（考虑流量类型）
-                # total_traffic 是总流量包，需要根据流量类型折算
-                if line.traffic_type == "two_way":
-                    # 双向流量：总流量包需要除以2折算为单向
-                    effective_traffic = line.total_traffic / 2
-                else:
-                    # 单向流量：直接使用
-                    effective_traffic = line.total_traffic
-
-                price_per_gb = float(monthly_price) / float(effective_traffic)
-
-                # 计算应赠送的积分（使用单向流量，计算对应的价格，通过人民币和积分的倍率计算积分），按照 8 折奖励
-                credits_to_reward = (
-                    float(monthly_traffic_gb)
-                    * price_per_gb
-                    * donation_service.get_donation_multiplier()
-                    * 0.8
-                )
-
-                # 赠送积分给线路所有者
-                try:
-                    credits_service.add(
-                        CreditAccount.tg(int(line.tg_id)), credits_to_reward
-                    )
-                    settled_count += 1
-                    total_credits += credits_to_reward
-
-                    # 记录结算详情用于管理员汇总
-                    settlement_details.append(
-                        {
-                            "domain": line.domain,
-                            "tg_id": line.tg_id,
-                            "traffic_gb": monthly_traffic_gb,
-                            "price_per_gb": price_per_gb,
-                            "credits": credits_to_reward,
-                        }
-                    )
-
-                    logger.info(
-                        f"线路 {line.domain} 结算完成: "
-                        f"月份={settle_month}, "
-                        f"流量={monthly_traffic_gb:.2f}GB, "
-                        f"单价={price_per_gb:.4f}元/GB, "
-                        f"赠送积分={credits_to_reward:.2f}"
-                    )
-
-                    # 发送结算通知
-                    try:
-                        message = (
-                            f"💰 自定义线路流量结算通知\n\n"
-                            f"线路域名：{line.domain}\n"
-                            f"结算月份：{settle_month}\n"
-                            f"消耗流量：{monthly_traffic_gb:.2f}GB (单向)\n"
-                            f"获得积分：{credits_to_reward:.2f}\n\n"
-                            f"感谢您的分享，积分已自动发放到您的账户 🎉"
-                        )
-
-                        await send_message_by_url(
-                            chat_id=line.tg_id, text=message, disable_notification=False
-                        )
-                    except Exception as e:
-                        logger.error(
-                            f"发送结算通知失败 (用户 {line.tg_id}，线路 {line.domain}): {e}"
-                        )
-
-                except Exception as e:
-                    logger.error(f"为线路 {line.domain} 赠送积分失败: {e}")
-
-            logger.info(
-                f"流量结算完成: 结算 {settled_count} 条线路, 总计赠送 {total_credits:.2f} 积分"
+            lines = (
+                session.execute(select(CustomLine).where(and_(*conditions)))
+                .scalars()
+                .all()
             )
+            for line in lines:
+                try:
+                    with session.begin_nested():
+                        monthly_traffic_gb = await _get_line_monthly_traffic(
+                            session,
+                            line.domain,
+                            settle_month,
+                            line.tg_id,
+                            from_raw_table=from_raw_table,
+                        )
+                        settled_bytes = int(
+                            session.execute(
+                                select(
+                                    func.coalesce(
+                                        func.sum(CustomLineSettlement.traffic_bytes), 0
+                                    )
+                                ).where(
+                                    CustomLineSettlement.domain == line.domain,
+                                    CustomLineSettlement.year_month == settle_month,
+                                )
+                            ).scalar_one()
+                            or 0
+                        )
+                        traffic_bytes = max(
+                            0, int(float(monthly_traffic_gb) * 1024**3) - settled_bytes
+                        )
+                        if traffic_bytes <= 0:
+                            continue
+                        monthly_price = (
+                            line.price_monthly
+                            if line.price_monthly is not None
+                            else float(line.price_yearly) / 12
+                        )
+                        effective_traffic = (
+                            float(line.total_traffic) / 2
+                            if line.traffic_type == "two_way"
+                            else float(line.total_traffic)
+                        )
+                        price_per_gb = float(monthly_price) / effective_traffic
+                        traffic_gb = traffic_bytes / 1024**3
+                        credits_to_reward = (
+                            traffic_gb
+                            * price_per_gb
+                            * donation_service.get_donation_multiplier()
+                            * 0.8
+                        )
+                        settlement_id = _insert_custom_line_settlement_tx(
+                            session,
+                            line_id=int(line.id),
+                            tg_id=int(line.tg_id),
+                            domain=line.domain,
+                            year_month=settle_month,
+                            trigger="delete" if force_current_month else "monthly",
+                            traffic_bytes=traffic_bytes,
+                            credits=credits_to_reward,
+                        )
+                        if settlement_id is None:
+                            continue
+                        mutation = credits_service.apply_tx(
+                            session,
+                            CreditAccount.tg(int(line.tg_id)),
+                            credits_to_reward,
+                        )
+                        if mutation is not None:
+                            credits_service.register_cache_invalidation(
+                                session, mutation
+                            )
+                        settlement_details.append(
+                            {
+                                "domain": line.domain,
+                                "tg_id": int(line.tg_id),
+                                "traffic_gb": traffic_gb,
+                                "price_per_gb": price_per_gb,
+                                "credits": credits_to_reward,
+                                "month": settle_month,
+                            }
+                        )
+                except Exception as error:
+                    logger.exception(
+                        "线路 %s (%s) %s 结算失败", line.domain, line.id, settle_month
+                    )
+                    failures.append(f"{line.domain} ({settle_month}): {error}")
 
-            # 发送管理员汇总通知（仅在有成功结算且非单条线路结算时发送）
-            if settlement_details and not line_domain and settings.TG_ADMIN_CHAT_ID:
-                await _send_admin_settlement_summary(
-                    settle_month, settlement_details, settled_count, total_credits
-                )
+    for detail in settlement_details:
+        try:
+            await send_message_by_url(
+                chat_id=detail["tg_id"],
+                text=(
+                    "💰 自定义线路流量结算通知\n\n"
+                    f"线路域名：{detail['domain']}\n"
+                    f"结算月份：{detail['month']}\n"
+                    f"消耗流量：{detail['traffic_gb']:.2f}GB (单向)\n"
+                    f"获得积分：{detail['credits']:.2f}\n\n"
+                    "感谢您的分享，积分已自动发放到您的账户 🎉"
+                ),
+                disable_notification=False,
+            )
+        except Exception:
+            logger.exception("发送线路 %s 结算通知失败", detail["domain"])
 
-    except Exception as e:
-        logger.error(f"结算自定义线路流量失败: {e}", exc_info=True)
+    if settlement_details and not line_domain and settings.TG_ADMIN_CHAT_ID:
+        try:
+            await _send_admin_settlement_summary(
+                current_month,
+                settlement_details,
+                len(settlement_details),
+                sum(item["credits"] for item in settlement_details),
+            )
+        except Exception:
+            logger.exception("发送自建线路管理员结算汇总失败")
+    if failures:
+        logger.error("自建线路结算失败列表: %s", failures)
+
+
+def _insert_custom_line_settlement_tx(
+    session,
+    *,
+    line_id: int,
+    tg_id: int,
+    domain: str,
+    year_month: str,
+    trigger: str,
+    traffic_bytes: int,
+    credits: float,
+) -> int | None:
+    """Insert the monthly ledger row, returning None for an idempotent replay."""
+    existing = session.execute(
+        select(CustomLineSettlement.id).where(
+            CustomLineSettlement.line_id == int(line_id),
+            CustomLineSettlement.year_month == year_month,
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        return None
+    row = CustomLineSettlement(
+        line_id=int(line_id),
+        tg_id=int(tg_id),
+        domain=domain,
+        year_month=year_month,
+        trigger=trigger,
+        traffic_bytes=int(traffic_bytes),
+        credits=credits,
+        created_at=int(datetime.now(tz=settings.TZ).timestamp()),
+    )
+    if session.bind.dialect.name == "sqlite":
+        row.id = (
+            int(
+                session.execute(
+                    select(func.coalesce(func.max(CustomLineSettlement.id), 0))
+                ).scalar_one()
+            )
+            + 1
+        )
+    session.add(row)
+    session.flush()
+    return int(row.id)
 
 
 def _is_line_valid(line: CustomLine, current_time: int) -> bool:

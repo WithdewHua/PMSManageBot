@@ -23,20 +23,23 @@ from app.integrations.emby import Emby
 
 
 def refresh_emby_user_info(emby_username: str | None = None):
-    """刷新 emby user info"""
+    """Refresh Emby user information without aborting the remaining users."""
     emby = Emby()
-    # 获取所有的 emby 用户名
     try:
-        if not emby_username:
+        if emby_username:
+            emby_users = [emby_username]
+        else:
             with get_db_session() as session:
                 stmt = select(EmbyUser.emby_username)
                 emby_users = [
                     username for username in session.execute(stmt).scalars().all()
                 ]
-        else:
-            emby_users = [emby_username]
+    except Exception:
+        logger.exception("获取待刷新的 Emby 用户失败")
+        return
 
-        for user in emby_users:
-            emby.get_user_info_from_username(user)
-    except Exception as e:
-        logger.error(f"Refresh emby user info failed: {e}")
+    for username in emby_users:
+        try:
+            emby.get_user_info_from_username(username)
+        except Exception:
+            logger.exception("刷新 Emby 用户 %s 信息失败", username)

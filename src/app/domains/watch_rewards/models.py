@@ -4,12 +4,41 @@ from sqlalchemy import (
     CheckConstraint,
     Index,
     Integer,
+    Numeric,
     Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
+
+
+class WatchRewardSettlement(Base):
+    """Idempotency and audit ledger for one daily watch settlement."""
+
+    __tablename__ = "watch_reward_settlement"
+
+    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    service: Mapped[str] = mapped_column(Text, nullable=False)
+    account_key: Mapped[str] = mapped_column(Text, nullable=False)
+    settlement_date: Mapped[str] = mapped_column(Text, nullable=False)
+    tg_id: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    credits_delta: Mapped[float] = mapped_column(Numeric, nullable=False)
+    premium_charge: Mapped[float] = mapped_column(Numeric, nullable=False)
+    inviter_tg_id: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    inviter_bonus: Mapped[float] = mapped_column(Numeric, nullable=False)
+    created_at: Mapped[int] = mapped_column(BIGINT, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "service",
+            "account_key",
+            "settlement_date",
+            name="uq_watch_reward_settlement_account_date",
+        ),
+        Index("ix_watch_reward_settlement_date", "settlement_date"),
+        Index("ix_watch_reward_settlement_tg_id", "tg_id"),
+    )
 
 
 class GhostSessionLog(Base):

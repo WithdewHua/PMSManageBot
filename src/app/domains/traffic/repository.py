@@ -757,29 +757,27 @@ async def _get_line_monthly_traffic(
         总流量（GB）
     """
     try:
-        # 规范化 line_domain，去除协议前缀和路径后缀，与数据库中存储的纯主机名格式对齐
         normalized_domain = normalize_line_domain(line_domain)
         if normalized_domain != line_domain:
             logger.debug(f"线路域名规范化: {line_domain!r} -> {normalized_domain!r}")
-        # 获取线路所有者的用户名（Plex 和 Emby）
         owner_usernames = set()
 
         if owner_tg_id is not None:
-            # Preserve B2's two independent identity lookup sessions. The
-            # aggregation query below still uses the caller's session.
-            plex_user = identity_service.get_plex_info_by_tg_id(owner_tg_id)
-            if plex_user and plex_user[4]:  # plex_username (索引4)
-                owner_usernames.add(plex_user[4].lower())
+            try:
+                plex_user = identity_service.get_plex_info_by_tg_id(owner_tg_id)
+                if plex_user and plex_user[4]:
+                    owner_usernames.add(plex_user[4].lower())
 
-            emby_user = identity_service.get_emby_info_by_tg_id(owner_tg_id)
-            if emby_user and emby_user[0]:  # emby_username
-                owner_usernames.add(emby_user[0].lower())
+                emby_user = identity_service.get_emby_info_by_tg_id(owner_tg_id)
+                if emby_user and emby_user[0]:
+                    owner_usernames.add(emby_user[0].lower())
+            except Exception:
+                logger.exception("读取线路所有者信息失败，按旧行为返回 0 流量")
+                return 0.0
 
         if from_raw_table:
-            # 从原始流量表实时聚合（用于删除线路时获取当月流量）
             from app.domains.traffic.models import LineTrafficStats
 
-            # 计算目标月份的开始和结束时间
             month_start = datetime.strptime(f"{year_month}-01", "%Y-%m-%d").replace(
                 tzinfo=settings.TZ
             )
@@ -792,50 +790,41 @@ async def _get_line_monthly_traffic(
 
             month_start_str = month_start.isoformat()
             next_month_start_str = next_month_start.isoformat()
-
-            # 从原始流量表实时聚合
             stmt = select(func.sum(LineTrafficStats.send_bytes)).where(
                 and_(
                     LineTrafficStats.line == normalized_domain,
                     LineTrafficStats.timestamp >= month_start_str,
                     LineTrafficStats.timestamp < next_month_start_str,
-                    ~LineTrafficStats.username.in_([u.lower() for u in owner_usernames])
-                    if owner_usernames
-                    else True,
-                )
-            )
-
-            result = session.execute(stmt)
-            total_bytes = result.scalar() or 0
-
-            logger.info(
-                f"从原始流量表聚合线路 {normalized_domain} {year_month} 流量: {total_bytes} bytes"
-            )
-        else:
-            # 从月度流量统计表查询（用于正常月初结算）
-            stmt = select(func.sum(LineTrafficMonthlyStats.total_bytes)).where(
-                and_(
-                    LineTrafficMonthlyStats.line == normalized_domain,
-                    LineTrafficMonthlyStats.year_month == year_month,
-                    ~LineTrafficMonthlyStats.username.in_(
+                    func.lower(LineTrafficStats.username).not_in(
                         [u.lower() for u in owner_usernames]
                     )
                     if owner_usernames
                     else True,
                 )
             )
-
+            result = session.execute(stmt)
+            total_bytes = result.scalar() or 0
+            logger.info(
+                f"从原始流量表聚合线路 {normalized_domain} {year_month} 流量: {total_bytes} bytes"
+            )
+        else:
+            stmt = select(func.sum(LineTrafficMonthlyStats.total_bytes)).where(
+                and_(
+                    LineTrafficMonthlyStats.line == normalized_domain,
+                    LineTrafficMonthlyStats.year_month == year_month,
+                    func.lower(LineTrafficMonthlyStats.username).not_in(
+                        [u.lower() for u in owner_usernames]
+                    )
+                    if owner_usernames
+                    else True,
+                )
+            )
             result = session.execute(stmt)
             total_bytes = result.scalar() or 0
 
-        # 转换为 GB
-        total_gb = total_bytes / (1024**3)
-
-        return total_gb
-
-    except Exception as e:
-        logger.error(
-            f"获取线路 {line_domain} 月流量失败 (月份: {year_month}, 原始表: {from_raw_table}): {e}",
-            exc_info=True,
+        return total_bytes / (1024**3)
+    except Exception:
+        logger.exception(
+            f"获取线路 {line_domain} 月流量失败 (月份: {year_month}, 原始表: {from_raw_table})"
         )
-        return 0.0
+        raise

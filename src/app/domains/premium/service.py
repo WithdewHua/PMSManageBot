@@ -16,6 +16,8 @@ from app.domains.premium.config import PREMIUM_CONFIG
 from app.integrations.telegram.messaging import send_message_by_url
 from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
+is_download_unlocked = media_access_service.is_download_unlocked
+
 
 def get_premium_config():
     return PREMIUM_CONFIG.get()
@@ -50,83 +52,92 @@ def set_credits_cost_per_10gb(credits: int) -> int:
 
 
 async def check_premium_expiry():
-    """检查并更新 Premium 会员过期状态"""
+    """Expire each Premium account independently and perform cleanup post-commit."""
     from app.databases import db
 
     try:
-        logger.info("开始检查 Premium 会员过期状态")
+        expired_users = premium_repository.get_expired_premium_users()
+    except Exception:
+        logger.exception("读取 Premium 过期用户失败")
+        return
 
-        # 获取过期用户列表
-        expired_users = db.get_expired_premium_users()
-
-        if expired_users:
-            logger.info(f"发现 {len(expired_users)} 个过期的 Premium 用户")
-
-            # 批量更新过期状态
-            updated_count = db.update_expired_premium_status()
-
-            # 记录过期用户信息
-            for user in expired_users:
-                user_name = get_user_name_from_tg_id(user["tg_id"])
-                logger.info(
-                    f"用户 {user_name} ({user['username']}) 的 {user['service']} Premium 已过期 (原到期时间: {user['expiry_time']})"
+    failures: list[str] = []
+    query_failures: list[str] = []
+    for candidate in expired_users:
+        tg_id = int(candidate["tg_id"])
+        service = str(candidate["service"])
+        try:
+            now = datetime.now(settings.TZ)
+            with get_session() as session:
+                expired = premium_repository.expire_user_tx(
+                    session, tg_id=tg_id, service=service, now=now
                 )
+            if expired is None:
+                continue
 
-                # 检查用户是否单独解锁了下载权限，如果没有则撤销
-                download_status = db.check_download_unlock(
-                    user["tg_id"], user["service"]
-                )
-                if not download_status.get("unlock_time"):
-                    # 用户没有单独解锁下载权限，撤销媒体服务器的下载权限
-                    try:
-                        if user["service"] == "plex":
-                            from app.integrations.plex import Plex
+            username = expired.get("username") or tg_id
+            target = expired.get("target")
+            try:
+                already_unlocked = is_download_unlocked(tg_id, service)
+            except Exception as error:
+                failure = f"{service} {username}: 查询下载权限失败: {error}"
+                failures.append(failure)
+                query_failures.append(failure)
+                continue
 
-                            plex = Plex()
-                            plex_email = user.get("email")
-                            if plex_email:
-                                plex.update_sync_for_user(plex_email, allow_sync=False)
-                                logger.info(f"已撤销用户 {user_name} 的 Plex 同步权限")
-                        elif user["service"] == "emby":
-                            from app.integrations.emby import Emby
+            if not already_unlocked and target:
+                try:
+                    if service == "plex":
+                        from app.integrations.plex import Plex
 
-                            emby = Emby()
-                            emby_id = user.get("emby_id")
-                            if emby_id:
-                                emby.update_download_permission_for_user(
-                                    emby_id, allow_download=False
-                                )
-                                logger.info(f"已撤销用户 {user_name} 的 Emby 下载权限")
-                    except Exception as e:
-                        logger.warning(f"撤销用户 {user_name} 的下载权限失败: {e}")
+                        Plex().update_sync_for_user(target, allow_sync=False)
+                    else:
+                        from app.integrations.emby import Emby
 
-                # 更新线路绑定
-                line = user.get("line", "")
-                # 绑定的非 Premium 线路不需要更新
-                if not is_binded_premium_line(line):
-                    logger.info(
-                        f"用户 {user_name} ({user['username']}) 的 {user['service']} Premium 线路未绑定，跳过解绑"
+                        Emby().update_download_permission_for_user(
+                            target, allow_download=False
+                        )
+                except Exception as error:
+                    failures.append(f"{service} {username}: 撤销下载权限失败: {error}")
+
+            line = expired.get("line")
+            display_line = line or "自动线路"
+            if line and (
+                is_binded_premium_line(line) or "premium" in str(line).lower()
+            ):
+                try:
+                    new_line = (
+                        unbind_premium_line(db, service, username, tg_id) or "自动线路"
                     )
-                    await send_message_by_url(
-                        user["tg_id"],
-                        f"您的 {user['service']} Premium 已过期，到期时间为 {user['expiry_time']}。当前线路绑定线路为: {line}。请重新解锁 Premium 以继续使用高级功能。",
-                    )
-                    continue
-                # 解绑 Premium 线路
-                new_line = unbind_premium_line(
-                    db, user["service"], user["username"], user["tg_id"]
+                except Exception as error:
+                    failures.append(f"{service} {username}: 解绑会员线路失败: {error}")
+                    new_line = display_line
+            else:
+                new_line = display_line
+
+            try:
+                await send_message_by_url(
+                    tg_id,
+                    f"您的 {service} Premium 已过期，到期时间为 {expired['expiry_time']}。"
+                    f"当前线路为: {new_line}。请重新解锁 Premium 以继续使用高级功能。",
                 )
+            except Exception as error:
+                failures.append(f"{service} {username}: 发送通知失败: {error}")
+        except Exception as error:
+            logger.exception("处理 Premium 过期用户 %s/%s 失败", service, tg_id)
+            failures.append(f"{service} {tg_id}: {error}")
 
-                # 发送通知消息
-                message = f"您的 {user['service']} Premium 已过期，到期时间为 {user['expiry_time']}。已自动解绑 Premium 线路，当前线路为: {new_line}。请重新解锁 Premium 以继续使用高级功能。"
-                await send_message_by_url(user["tg_id"], message)
-
-            logger.info(f"已更新 {updated_count} 个用户的 Premium 状态")
-        else:
-            logger.debug("未发现过期的 Premium 用户")
-
-    except Exception as e:
-        logger.error(f"检查 Premium 过期状态时出错: {e!s}")
+    for failure in failures:
+        logger.warning("Premium 过期处理未完成: %s", failure)
+    if query_failures:
+        summary = "Premium 过期权限查询失败:\n" + "\n".join(
+            f"- {failure}" for failure in query_failures
+        )
+        for chat_id in settings.TG_ADMIN_CHAT_ID:
+            try:
+                await send_message_by_url(chat_id, summary)
+            except Exception:
+                logger.exception("发送 Premium 过期查询失败汇总失败")
 
 
 async def check_premium_expiring_soon(days: int = 3):
@@ -153,6 +164,16 @@ async def check_premium_expiring_soon(days: int = 3):
 
     except Exception as e:
         logger.error(f"检查即将过期的 Premium 用户时出错: {e!s}")
+
+
+def is_permanent_member(tg_id: int, service: str) -> bool:
+    return premium_repository.is_permanent_member(int(tg_id), service)
+
+
+def purchase_premium(*, tg_id: int, service: str, days: int, cost: float):
+    return premium_repository.purchase_premium(
+        tg_id=int(tg_id), service=service, days=int(days), cost=float(cost)
+    )
 
 
 def update_premium_status(tg_id: int, service: str, days: int = 30) -> datetime | None:
@@ -207,35 +228,8 @@ def sync_premium_media_access(
 
 
 def apply_download_unlock_to_media(tg_id: int, service: str) -> None:
-    """把已写入数据库的永久下载权限解锁同步到媒体服务器
-
-    与 `sync_media_permission` 不同：后者对已有 unlock_time 的用户直接返回，
-    而这里恰恰是刚解锁完、需要推送到媒体服务器的场景。
-
-    调用方须在数据库事务提交之后调用。失败时抛出 RuntimeError，由调用方
-    决定如何处置（礼包领取：不回滚，说明并通知管理员人工处理）。
-    """
-    target = premium_repository.get_premium_sync_target(tg_id, service)
-    if service == "plex":
-        if not target:
-            raise RuntimeError("未找到绑定的 Plex 账号邮箱")
-        from app.integrations.plex import Plex
-
-        if not Plex().update_sync_for_user(target, allow_sync=True):
-            raise RuntimeError("Plex 同步权限更新失败")
-    elif service == "emby":
-        if not target:
-            raise RuntimeError("未找到绑定的 Emby 账号 ID")
-        from app.integrations.emby import Emby
-
-        ok, msg = Emby().update_download_permission_for_user(
-            target, allow_download=True
-        )
-        if not ok:
-            raise RuntimeError(f"Emby 下载权限更新失败: {msg}")
-    else:
-        raise RuntimeError(f"未知的服务类型: {service}")
-    logger.info(f"已为用户 {tg_id} 同步 {service} 下载权限到媒体服务器")
+    """Delegate the post-commit media permission sync to media_access."""
+    media_access_service.apply_download_unlock_to_media(int(tg_id), service)
 
 
 def unbind_premium_line(db, service: str, username: str, tg_id: int):
@@ -252,16 +246,21 @@ def unbind_premium_line(db, service: str, username: str, tg_id: int):
         db_func = db.set_plex_line
     else:
         db_func = db.set_emby_line
-    # 获取上一次绑定的非 premium 线路
-    last_line = lines_service.get_cached_line(service, username, last=True)
-    # 更新用户的 Emby 线路，last_line 为空则自动选择
+    # 缓存不可用时仍必须完成数据库解绑，不能让一个 Redis 故障中止整批过期处理。
+    try:
+        last_line = lines_service.get_cached_line(service, username, last=True)
+    except Exception as error:
+        logger.warning("读取用户 %s 的历史线路失败: %s", username, error)
+        last_line = None
     db_func(last_line, tg_id=tg_id)
-    # 更新缓存
-    if last_line:
-        lines_service.put_cached_line(service, username, last_line)
-        lines_service.delete_cached_line(service, username, last=True)
-    else:
-        lines_service.delete_cached_line(service, username)
+    try:
+        if last_line:
+            lines_service.put_cached_line(service, username, last_line)
+            lines_service.delete_cached_line(service, username, last=True)
+        else:
+            lines_service.delete_cached_line(service, username)
+    except Exception as error:
+        logger.warning("清理用户 %s 的线路缓存失败: %s", username, error)
 
     return last_line or "AUTO"
 

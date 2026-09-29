@@ -475,6 +475,7 @@ async def auth_bind_line(
 async def get_emby_lines_by_user(
     request: Request,
     data: dict = Body(...),
+    telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
     """基于用户名获取可用的Emby线路列表（无需认证，仅查询数据库中的用户信息）"""
     username = data.get("username")
@@ -485,13 +486,10 @@ async def get_emby_lines_by_user(
     try:
         # 直接从数据库查询用户信息，无需进行Emby服务器认证
         emby_info = db.get_emby_info_by_emby_username(username)
-        if not emby_info:
-            logger.warning(f"Emby用户 {username} 未在数据库中找到记录")
-            return EmbyLinesResponse(
-                success=False, message="该用户未在系统中注册", lines=[]
-            )
-
-        is_premium = emby_info[8] == 1
+        is_self = bool(emby_info and emby_info[2] == telegram_user.id)
+        is_premium = bool(emby_info and is_self and emby_info[8] == 1)
+        if not is_self:
+            is_premium = True
 
         # 基础线路
         available_lines = settings.STREAM_BACKEND.copy()
@@ -532,7 +530,7 @@ async def get_emby_lines_by_user(
     except Exception as e:
         logger.error(f"获取 Emby 用户 {username} 的线路列表时发生错误: {e!s}")
         return EmbyLinesResponse(
-            success=False, message=f"获取线路列表失败: {e!s}", lines=[]
+            success=False, message="获取线路列表失败，请稍后再试", lines=[]
         )
 
 
@@ -541,6 +539,7 @@ async def get_emby_lines_by_user(
 async def get_plex_lines_by_user(
     request: Request,
     data: dict = Body(...),
+    telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
     """基于邮箱获取可用的Plex线路列表（无需认证，仅查询数据库中的用户信息）"""
     email = data.get("email")
@@ -551,14 +550,11 @@ async def get_plex_lines_by_user(
     try:
         # 直接从数据库查询用户信息，无需进行Plex服务器认证
         plex_info = db.get_plex_info_by_plex_email(email)
-        if not plex_info:
-            logger.warning(f"Plex 用户 {email} 未在数据库中找到记录")
-            return PlexLinesResponse(
-                success=False, message="该用户未在系统中注册", lines=[]
-            )
-
-        # 检查用户是否为高级用户
-        is_premium_user = plex_info[9] == 1
+        is_self = bool(plex_info and plex_info[1] == telegram_user.id)
+        # 预览他人账号时返回完整目录；查询自己时保留会员过滤。
+        is_premium_user = bool(plex_info and is_self and plex_info[9] == 1)
+        if not is_self:
+            is_premium_user = True
 
         # 获取基础线路和高级线路
         available_lines = settings.STREAM_BACKEND.copy()
@@ -600,7 +596,7 @@ async def get_plex_lines_by_user(
     except Exception as e:
         logger.error(f"获取 Plex 用户 {email} 的线路列表时发生错误: {e!s}")
         return PlexLinesResponse(
-            success=False, message=f"获取线路列表失败: {e!s}", lines=[]
+            success=False, message="获取线路列表失败，请稍后再试", lines=[]
         )
 
 
@@ -610,6 +606,7 @@ async def get_current_bound_line(
     service: str,
     request: Request,
     data: dict = Body(...),
+    telegram_user: TelegramUser = Depends(get_telegram_user),
 ):
     """获取用户当前绑定的线路信息（基于用户名/邮箱）"""
     if service not in ["emby", "plex"]:
@@ -623,9 +620,9 @@ async def get_current_bound_line(
 
             # 查询Emby用户信息
             emby_info = db.get_emby_info_by_emby_username(username)
-            if not emby_info:
+            if not emby_info or emby_info[2] != telegram_user.id:
                 return CurrentLineResponse(
-                    success=False, message="该用户未在系统中注册"
+                    success=True, line=None, message=f"用户 {username} 未绑定任何线路"
                 )
 
             current_line = emby_info[7]  # emby_line字段是第8列(索引7)
@@ -647,9 +644,9 @@ async def get_current_bound_line(
 
             # 查询Plex用户信息
             plex_info = db.get_plex_info_by_plex_email(email)
-            if not plex_info:
+            if not plex_info or plex_info[1] != telegram_user.id:
                 return CurrentLineResponse(
-                    success=False, message="该用户未在系统中注册"
+                    success=True, line=None, message=f"用户 {email} 未绑定任何线路"
                 )
 
             current_line = plex_info[8]  # plex_line字段是第9列(索引8)
@@ -667,7 +664,7 @@ async def get_current_bound_line(
     except Exception as e:
         logger.error(f"获取用户当前绑定线路时发生错误: {e!s}")
         return CurrentLineResponse(
-            success=False, message=f"获取当前绑定线路失败: {e!s}"
+            success=False, message="获取当前绑定线路失败，请稍后再试"
         )
 
 

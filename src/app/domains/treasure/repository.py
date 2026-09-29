@@ -1,8 +1,10 @@
 import secrets
 import time
+from datetime import datetime
 
 from sqlalchemy import case, delete, distinct, func, select
 
+from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
 from app.domains.credits import repository as credits_repository
@@ -64,6 +66,12 @@ class TreasureRepository:
                 "settled_at": int(issue.settled_at)
                 if issue.settled_at is not None
                 else None,
+                "auto_reopen_due_at": int(issue.auto_reopen_due_at)
+                if issue.auto_reopen_due_at is not None
+                else None,
+                "auto_reopen_issue_id": int(issue.auto_reopen_issue_id)
+                if issue.auto_reopen_issue_id is not None
+                else None,
                 "created_by": int(issue.created_by)
                 if issue.created_by is not None
                 else None,
@@ -105,6 +113,12 @@ class TreasureRepository:
                     else None,
                     "winner_tg_id": int(i.winner_tg_id)
                     if i.winner_tg_id is not None
+                    else None,
+                    "auto_reopen_due_at": int(i.auto_reopen_due_at)
+                    if i.auto_reopen_due_at is not None
+                    else None,
+                    "auto_reopen_issue_id": int(i.auto_reopen_issue_id)
+                    if i.auto_reopen_issue_id is not None
                     else None,
                     "created_at": i.created_at,
                 }
@@ -364,6 +378,77 @@ def create_treasure_issue_tx(
     return int(issue.id)
 
 
+def open_next_issue_tx(
+    session,
+    *,
+    source_issue_id: int,
+    title: str | None = None,
+    created_by: int | None = None,
+) -> int | None:
+    """Create one successor while holding the settled source row lock."""
+    source = session.execute(
+        select(TreasureIssue)
+        .where(TreasureIssue.id == int(source_issue_id))
+        .with_for_update()
+    ).scalar_one_or_none()
+    if source is None:
+        raise treasure_exceptions.issue_not_found()
+    if int(source.status) != 2:
+        return None
+    if source.auto_reopen_issue_id is not None:
+        return int(source.auto_reopen_issue_id)
+
+    next_issue_id = create_treasure_issue_tx(
+        session,
+        title=title
+        or f"夺宝奇兵 {datetime.now(settings.TZ).strftime('%Y-%m-%d-%H:%M:%S')}",
+        description=source.description,
+        prize_credits=int(source.prize_credits),
+        total_credits_required=int(source.total_credits_required),
+        credits_per_share=int(source.credits_per_share),
+        start_number=None,
+        created_by=(
+            int(created_by)
+            if created_by is not None
+            else int(source.created_by)
+            if source.created_by is not None
+            else None
+        ),
+    )
+    source.auto_reopen_issue_id = int(next_issue_id)
+    session.flush()
+    return int(next_issue_id)
+
+
+def open_next_issue(
+    *, source_issue_id: int, title: str | None = None, created_by: int | None = None
+) -> int | None:
+    with get_session() as session:
+        return open_next_issue_tx(
+            session,
+            source_issue_id=int(source_issue_id),
+            title=title,
+            created_by=created_by,
+        )
+
+
+def list_overdue_reopen_issue_ids(*, now: int) -> list[int]:
+    with get_session() as session:
+        return [
+            int(issue_id)
+            for (issue_id,) in session.execute(
+                select(TreasureIssue.id)
+                .where(
+                    TreasureIssue.status == 2,
+                    TreasureIssue.auto_reopen_due_at.is_not(None),
+                    TreasureIssue.auto_reopen_due_at <= int(now),
+                    TreasureIssue.auto_reopen_issue_id.is_(None),
+                )
+                .order_by(TreasureIssue.id.asc())
+            ).all()
+        ]
+
+
 def create_treasure_issue(
     *,
     title: str,
@@ -511,6 +596,9 @@ def join_treasure_issue_tx(
     winner_tg_id = None
     if int(issue.shares_sold) >= int(issue.total_shares) and int(issue.status) == 1:
         settled = True
+        # SessionLocal disables autoflush; the filling participation must be
+        # visible to the winner query before sampling and settlement.
+        session.flush()
         total = int(issue.total_shares)
         sample_size = int(
             max(
@@ -559,6 +647,8 @@ def join_treasure_issue_tx(
         issue.winner_number = int(winner_number)
         issue.winner_tg_id = int(winner_tg_id)
         issue.settled_at = int(time.time())
+        issue.auto_reopen_due_at = int(issue.settled_at) + 600
+        issue.auto_reopen_issue_id = None
 
     session.flush()
     return {
@@ -705,6 +795,9 @@ __all__ = [
     "get_user_treasure_stats",
     "join_treasure_issue",
     "join_treasure_issue_tx",
+    "list_overdue_reopen_issue_ids",
     "list_treasure_issues",
     "list_treasure_participations",
+    "open_next_issue",
+    "open_next_issue_tx",
 ]

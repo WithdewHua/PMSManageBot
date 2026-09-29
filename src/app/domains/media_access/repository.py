@@ -10,6 +10,7 @@ from app.domains.credits import repository as credits_repository
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
+from app.domains.media_access import exceptions as media_exceptions
 from app.domains.media_access.config import MEDIA_ACCESS_CONFIG
 
 
@@ -65,90 +66,46 @@ class MediaAccessRepository:
             return False
 
     def check_download_unlock(self, tg_id: int, service: str) -> dict:
-        """
-        检查用户是否解锁了指定服务的下载/同步功能
+        """Return persisted and Premium-derived download permission status."""
+        with get_session() as session:
+            is_premium = False
+            unlock_time = None
 
-        Args:
-            tg_id: 用户的 Telegram ID
-            service: 服务类型 (plex/emby)
+            if service == "plex":
+                stmt = select(
+                    PlexUser.is_premium,
+                    PlexUser.premium_expiry_time,
+                    PlexUser.sync_unlocked,
+                    PlexUser.sync_unlock_time,
+                ).where(PlexUser.tg_id == tg_id)
+                result = session.execute(stmt).fetchone()
+            elif service == "emby":
+                stmt = select(
+                    EmbyUser.is_premium,
+                    EmbyUser.premium_expiry_time,
+                    EmbyUser.download_unlocked,
+                    EmbyUser.download_unlock_time,
+                ).where(EmbyUser.tg_id == tg_id)
+                result = session.execute(stmt).fetchone()
+            else:
+                raise ValueError(f"不支持的服务类型: {service}")
 
-        Returns:
-            dict: {
-                'is_unlocked': bool,  # 是否已解锁（包括 premium 自动解锁）
-                'is_premium': bool,   # 是否为 premium 用户
-                'unlock_time': int,   # 解锁时间戳
+            if result:
+                if result[0] == 1:
+                    if not result[1]:
+                        is_premium = True
+                    else:
+                        expiry = datetime.fromisoformat(str(result[1]))
+                        if expiry > datetime.now(settings.TZ):
+                            is_premium = True
+                if result[2] == 1:
+                    unlock_time = result[3]
+
+            return {
+                "is_unlocked": is_premium or unlock_time is not None,
+                "is_premium": is_premium,
+                "unlock_time": unlock_time,
             }
-        """
-
-        try:
-            with get_session() as session:
-                is_premium = False
-                unlock_time = None
-
-                if service == "plex":
-                    # 检查 Plex 用户状态
-                    stmt = select(
-                        PlexUser.is_premium,
-                        PlexUser.premium_expiry_time,
-                        PlexUser.sync_unlocked,
-                        PlexUser.sync_unlock_time,
-                    ).where(PlexUser.tg_id == tg_id)
-                    result = session.execute(stmt).fetchone()
-
-                    if result:
-                        # 检查 premium 状态
-                        if result[0] == 1:
-                            # premium_expiry_time 为空表示永久 premium
-                            if not result[1]:
-                                is_premium = True
-                            else:
-                                # 有过期时间，检查是否过期
-                                expiry = datetime.fromisoformat(result[1])
-                                if expiry > datetime.now(settings.TZ):
-                                    is_premium = True
-
-                        # 检查解锁状态
-                        if result[2] == 1:
-                            unlock_time = result[3]
-
-                elif service == "emby":
-                    # 检查 Emby 用户状态
-                    stmt = select(
-                        EmbyUser.is_premium,
-                        EmbyUser.premium_expiry_time,
-                        EmbyUser.download_unlocked,
-                        EmbyUser.download_unlock_time,
-                    ).where(EmbyUser.tg_id == tg_id)
-                    result = session.execute(stmt).fetchone()
-
-                    if result:
-                        # 检查 premium 状态
-                        if result[0] == 1:
-                            # premium_expiry_time 为空表示永久 premium
-                            if not result[1]:
-                                is_premium = True
-                            else:
-                                # 有过期时间，检查是否过期
-                                expiry = datetime.fromisoformat(result[1])
-                                if expiry > datetime.now(settings.TZ):
-                                    is_premium = True
-
-                        # 检查解锁状态
-                        if result[2] == 1:
-                            unlock_time = result[3]
-
-                # Premium 用户或已解锁用户都算已解锁
-                is_unlocked = is_premium or (unlock_time is not None)
-
-                return {
-                    "is_unlocked": is_unlocked,
-                    "is_premium": is_premium,
-                    "unlock_time": unlock_time,
-                }
-
-        except Exception as e:
-            logger.error(f"检查用户 {tg_id!s} 的 {service} 下载权限解锁状态失败: {e}")
-            return {"is_unlocked": False, "is_premium": False, "unlock_time": None}
 
     def set_download_unlocked(self, tg_id: int, service: str) -> bool:
         """
@@ -271,6 +228,32 @@ def check_download_unlock(tg_id: int, service: str) -> dict:
     return _media_access_repository.check_download_unlock(tg_id, service)
 
 
+def get_download_sync_target(tg_id: int, service: str) -> str | None:
+    if service == "plex":
+        model, column = PlexUser, PlexUser.plex_email
+    elif service == "emby":
+        model, column = EmbyUser, EmbyUser.emby_id
+    else:
+        raise ValueError(f"不支持的服务类型: {service}")
+    with get_session() as session:
+        target = session.execute(
+            select(column).where(model.tg_id == int(tg_id))
+        ).scalar_one_or_none()
+        return str(target) if target else None
+
+
+def unlock_download(*, tg_id: int, service: str, cost: float):
+    """Deduct credits and persist the permanent unlock atomically."""
+    with get_session() as session:
+        mutation = credits_repository.deduct_tx(
+            session,
+            CreditAccount.tg(int(tg_id)),
+            float(cost),
+        )
+        unlock_download_tx(session, int(tg_id), service)
+        return mutation
+
+
 # 下载/同步解锁列属于 media_access（见 docs/architecture.md 宽表列归属）。
 _DOWNLOAD_UNLOCK_COLUMNS = {
     "plex": (PlexUser, "sync_unlocked", "sync_unlock_time"),
@@ -295,9 +278,9 @@ def unlock_download_tx(session, tg_id: int, service: str) -> dict:
         .one_or_none()
     )
     if user is None:
-        raise ValueError(f"未找到绑定的 {service.capitalize()} 账号")
+        raise media_exceptions.MediaAccountNotBound(service)
     if int(getattr(user, flag_col) or 0) == 1:
-        return {"unlocked": False, "skipped": "already_unlocked", "service": service}
+        raise media_exceptions.DownloadAlreadyUnlocked()
     setattr(user, flag_col, 1)
     setattr(user, time_col, int(time.time()))
     return {"unlocked": True, "skipped": None, "service": service}

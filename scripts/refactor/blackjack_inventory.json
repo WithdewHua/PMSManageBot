@@ -2298,21 +2298,21 @@
     },
     {
       "kind": "facade_import",
-      "line": 54,
+      "line": 56,
       "path": "src/app/domains/premium/service.py",
       "symbol": "app.databases",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 134,
+      "line": 145,
       "path": "src/app/domains/premium/service.py",
       "symbol": "app.databases",
       "target_role": "blackjack.service"
     },
     {
       "kind": "facade_import",
-      "line": 451,
+      "line": 450,
       "path": "src/app/domains/premium/service.py",
       "symbol": "app.databases",
       "target_role": "blackjack.service"
@@ -2417,7 +2417,7 @@
     },
     {
       "kind": "facade_import",
-      "line": 11,
+      "line": 12,
       "path": "src/app/domains/watch_rewards/service.py",
       "symbol": "app.databases.db",
       "target_role": "blackjack.service"

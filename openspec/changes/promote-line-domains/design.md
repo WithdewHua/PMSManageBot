@@ -34,7 +34,7 @@
 - 状态机包括：申请、审批、驳回、用户和管理员下线、上线、续期、删除。
 - 三个定时任务（到期检查、流量检查、月度结算）和删除、下线，都在打开的 session 里依次 await 解绑、禁用调度和发送 Telegram，最后才提交。
 - 结算按线路逐条调用 `credits_service.add`，没有结算记录。
-- 上线和续期接口在提交之后执行 `from app.core.config import config`，这会抛出 ImportError。这是 B1 引入的回归，由缺陷修复变更 `fix-live-defects` 处理。
+- 上线、续期和提交申请的 ImportError 回归及异常原文泄露已由 `fix-live-defects` 修复，后续提升冻结修复后的成功和失败响应。
 
 **traffic**
 
@@ -44,8 +44,8 @@
 
 **premium**
 
-- 购买顺序：`update_premium_status`（自开事务并同步权限）→ `credits_service.deduct` → 发通知。
-- 到期任务：先批量把会员标志置 0 并提交，再逐个用户撤销下载权限并解绑会员线路。撤销下载权限实际是死代码。线路为 NULL 时整批中断。这两个问题由缺陷修复变更 `fix-live-defects` 处理。
+- 购买顺序：由 `fix-live-defects` 冻结为扣分与会员授予同一事务；扣分失败时会员不变，永久会员返回固定拒绝。
+- 到期任务：逐用户隔离处理，逐个用户撤销下载权限并解绑会员线路；线路为 NULL 时不会中断整批。这些行为已由 `fix-live-defects` 修复。
 - 会员线路的解绑逻辑与 lines 的 `unbind_*_premium_free` 重复。
 - rules 直接读 settings。
 - 会员流量欠额列由 watch_rewards 用原生 SQL 写了 6 处。
@@ -79,14 +79,12 @@
 
 **Non-Goals：**
 
-- 不修复以下已知缺陷，只用测试把现状固定下来，由缺陷修复变更 `fix-live-defects` 处理（`fix-live-defects` 计划先于本变更实施；实施时它已完成的项，冻结修复后的行为）：
-  - 自建线路上线和续期的 ImportError。
-  - 月度结算不幂等。
-  - 月份判断的时区不一致。
-  - 排除线路所有者时区分大小写。
-  - 会员到期中撤销下载权限是死代码、NULL 线路会中断整批。
-  - 永久会员购买时抛错。
-  - 零额退款时报错（`make-credit-changes-atomic` 的回归）。
+- 不重复修复已由 `fix-live-defects` 完成的缺陷；本变更冻结以下修复后的行为：
+  - 自建线路上线、续期和提交申请成功路径可正常导入并返回成功，失败响应不暴露异常原文。
+  - 月度结算幂等，按配置时区计算月份，并按不区分大小写的所有者规则排除流量。
+  - 会员到期任务逐用户隔离，能撤销应撤销的下载权限，NULL 线路不会中断整批。
+  - 永久会员购买返回固定业务拒绝；零额退款是无操作。
+  - 线路预览对他人账号返回完整目录，当前线路返回 `null`；自己的账号继续使用个性化权限结果。
 - 不统一"会员是否有效"的口径，只命名和去重。
 - 不迁移线路目录的存储；不改线路名的子串匹配和精确匹配。
 - 不改 Emby 与 Plex 线路列表之间现有的差异，包括 Emby 免费项追加的 "PREMIUM" 标签。
@@ -133,7 +131,7 @@ def set_free_premium_lines(names: list[str]) -> None: ...
 - **repository**：改为模块级函数，并删除 service 中的 SQL 和 4 处延迟导入门面。新增 `update_traffic_debt_tx(session, account, *, debt_bytes, updated_date)`，供观看结算使用。
 - **购买**：`premium.service.purchase(tg_id, service, days)` 在一个事务里依次执行：锁统计行 → `deduct_tx`（金额与原来一致，包括浮点截断）→ `grant_premium_days_tx`。提交后同步媒体权限并发送通知。
   - 扣分失败时，会员不会被授予。
-  - 永久会员的现有行为（抛错）由缺陷修复变更 `fix-live-defects` 处理，这里用测试固定下来。
+  - 永久会员购买的固定业务拒绝已由 `fix-live-defects` 处理，这里冻结修复后的行为。
 - **到期、临期、统计三个任务**：查询移进 repository，编排放在 service。执行顺序（先批量降级并提交，再逐个处理）保持不变。
 - **会员线路的解绑**：统一调用 `lines.service.unbind_premium_line(account)`，删除 premium 中的重复实现。两份实现在各种输入下的数据库写入和 Redis 写入完全相同，先用对照测试证明这一点，再删除重复。
 - **管理员路由**：premium 管理员路由中管理线路目录的 8 个接口，路径和函数名都不变，内部改为调用 `lines.service` 的目录函数。
@@ -149,7 +147,7 @@ def set_free_premium_lines(names: list[str]) -> None: ...
   1. 事务 A：清除标志，并按 `caculate_credits_fund` 退分；退分为 0 时跳过积分调用。
   2. 提交后，调用媒体服务器移除媒体库。
   3. 失败时执行补偿：恢复标志并扣回退款。
-- **下载解锁**：在一个事务里完成扣分和设置标志，设置标志时检查影响行数；未绑定时抛出类型化异常，整体回滚。提交后同步媒体服务器，失败时与现在一样只记 warning。未绑定时不扣分、返回"请先绑定 Plex/Emby 账户"，这一修复由 `fix-live-defects` 的 D11 完成（复用 `unlock_download_tx`），本变更保持修复后的行为。
+- **下载解锁**：在一个事务里完成扣分和设置标志，设置标志时检查影响行数；未绑定时抛出类型化异常，整体回滚。提交后同步媒体服务器，失败时与现在一样只记 warning。未绑定时不扣分、返回"请先绑定 Plex/Emby 账户"，这一修复已由 `fix-live-defects` 的 D11 完成（复用 `unlock_download_tx`），本变更保持修复后的行为。
 - **补偿失败**：记录 error 并通知管理员。
 - **`caculate_credits_fund`**：改为纯函数，接收 `now` 和当前价格作为参数；仍按当前价格计算退款，与现状一致。
 - **`update_all_lib`**：没有调用方。先查手动运维清单，并经维护者确认后删除。

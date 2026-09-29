@@ -86,7 +86,7 @@ async def send_auction_finished_notifications(
     notify_channel: bool = True,
 ) -> None:
     """Send winner/admin/channel messages after an auction has settled."""
-    if notify_winner:
+    if notify_winner and winner_id is not None:
         try:
             await send_message_by_url(
                 winner_id,
