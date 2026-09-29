@@ -1214,45 +1214,34 @@
       "target": "get_traffic_config"
     },
     {
-      "key": "call|src/app/domains/premium/router.py|176|facade|traffic|get_premium_line_traffic_statistics",
+      "key": "call|src/app/domains/premium/router.py|177|imported|traffic|premium_line_statistics",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/router.py",
-      "line": 176,
-      "kind": "facade_call",
+      "line": 177,
+      "kind": "call",
       "source_domain": "premium",
       "target_domain": "traffic",
-      "target": "get_premium_line_traffic_statistics"
+      "target": "premium_line_statistics"
     },
     {
-      "key": "call|src/app/domains/premium/router.py|95|imported|credits|read_optional",
+      "key": "call|src/app/domains/premium/router.py|96|imported|credits|read_optional",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/router.py",
-      "line": 95,
+      "line": 96,
       "kind": "call",
       "source_domain": "premium",
       "target_domain": "credits",
       "target": "read_optional"
     },
     {
-      "key": "call|src/app/domains/premium/service.py|106|imported|lines|is_binded_premium_line",
+      "key": "call|src/app/domains/premium/service.py|107|imported|lines|is_binded_premium_line",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/service.py",
-      "line": 106,
+      "line": 107,
       "kind": "call",
       "source_domain": "premium",
       "target_domain": "lines",
-      "target": "is_binded_premium_line",
-      "b3_source_id": "app.utils.utils:is_binded_premium_line"
-    },
-    {
-      "key": "call|src/app/domains/premium/service.py|456|facade|traffic|get_premium_line_traffic_statistics",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/premium/service.py",
-      "line": 456,
-      "kind": "facade_call",
-      "source_domain": "premium",
-      "target_domain": "traffic",
-      "target": "get_premium_line_traffic_statistics"
+      "target": "is_binded_premium_line"
     },
     {
       "key": "call|src/app/domains/profile/bot.py|14|facade|invitation|get_invitation_code_by_owner",
@@ -1265,100 +1254,100 @@
       "target": "get_invitation_code_by_owner"
     },
     {
-      "key": "call|src/app/domains/profile/router.py|110|facade|traffic|get_user_daily_traffic",
+      "key": "call|src/app/domains/profile/router.py|111|imported|traffic|daily_usage",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/profile/router.py",
-      "line": 110,
-      "kind": "facade_call",
+      "line": 111,
+      "kind": "call",
       "source_domain": "profile",
       "target_domain": "traffic",
-      "target": "get_user_daily_traffic"
+      "target": "daily_usage"
     },
     {
-      "key": "call|src/app/domains/profile/router.py|114|facade|traffic|get_user_daily_traffic",
+      "key": "call|src/app/domains/profile/router.py|115|imported|traffic|daily_usage",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/profile/router.py",
-      "line": 114,
-      "kind": "facade_call",
+      "line": 115,
+      "kind": "call",
       "source_domain": "profile",
       "target_domain": "traffic",
-      "target": "get_user_daily_traffic"
+      "target": "daily_usage"
     },
     {
-      "key": "call|src/app/domains/profile/router.py|118|facade|media_access|check_download_unlock",
+      "key": "call|src/app/domains/profile/router.py|119|facade|media_access|check_download_unlock",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/profile/router.py",
-      "line": 118,
+      "line": 119,
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "media_access",
       "target": "check_download_unlock"
     },
     {
-      "key": "call|src/app/domains/profile/router.py|119|facade|premium|get_emby_premium_quota_status",
+      "key": "call|src/app/domains/profile/router.py|120|facade|premium|get_emby_premium_quota_status",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/profile/router.py",
-      "line": 119,
+      "line": 120,
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "premium",
       "target": "get_emby_premium_quota_status"
     },
     {
-      "key": "call|src/app/domains/profile/router.py|188|facade|invitation|get_invitee_count_by_owner",
+      "key": "call|src/app/domains/profile/router.py|189|facade|invitation|get_invitee_count_by_owner",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/profile/router.py",
-      "line": 188,
+      "line": 189,
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "invitation",
       "target": "get_invitee_count_by_owner"
     },
     {
-      "key": "call|src/app/domains/profile/router.py|224|facade|invitation|get_invitation_code_by_owner",
+      "key": "call|src/app/domains/profile/router.py|225|facade|invitation|get_invitation_code_by_owner",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/profile/router.py",
-      "line": 224,
+      "line": 225,
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "invitation",
       "target": "get_invitation_code_by_owner"
     },
     {
-      "key": "call|src/app/domains/profile/router.py|51|facade|traffic|get_user_daily_traffic",
+      "key": "call|src/app/domains/profile/router.py|52|imported|traffic|daily_usage",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/profile/router.py",
-      "line": 51,
-      "kind": "facade_call",
+      "line": 52,
+      "kind": "call",
       "source_domain": "profile",
       "target_domain": "traffic",
-      "target": "get_user_daily_traffic"
+      "target": "daily_usage"
     },
     {
-      "key": "call|src/app/domains/profile/router.py|55|facade|traffic|get_user_daily_traffic",
+      "key": "call|src/app/domains/profile/router.py|56|imported|traffic|daily_usage",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/profile/router.py",
-      "line": 55,
-      "kind": "facade_call",
+      "line": 56,
+      "kind": "call",
       "source_domain": "profile",
       "target_domain": "traffic",
-      "target": "get_user_daily_traffic"
+      "target": "daily_usage"
     },
     {
-      "key": "call|src/app/domains/profile/router.py|59|facade|media_access|check_download_unlock",
+      "key": "call|src/app/domains/profile/router.py|60|facade|media_access|check_download_unlock",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/profile/router.py",
-      "line": 59,
+      "line": 60,
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "media_access",
       "target": "check_download_unlock"
     },
     {
-      "key": "call|src/app/domains/profile/router.py|60|facade|premium|get_plex_premium_quota_status",
+      "key": "call|src/app/domains/profile/router.py|61|facade|premium|get_plex_premium_quota_status",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/profile/router.py",
-      "line": 60,
+      "line": 61,
       "kind": "facade_call",
       "source_domain": "profile",
       "target_domain": "premium",
@@ -1406,24 +1395,24 @@
       "target": "get_blackjack_max_win_rank"
     },
     {
-      "key": "call|src/app/domains/rankings/router.py|579|facade|traffic|get_plex_traffic_rank",
+      "key": "call|src/app/domains/rankings/router.py|580|imported|traffic|traffic_rank",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/rankings/router.py",
-      "line": 579,
-      "kind": "facade_call",
+      "line": 580,
+      "kind": "call",
       "source_domain": "rankings",
       "target_domain": "traffic",
-      "target": "get_plex_traffic_rank"
+      "target": "traffic_rank"
     },
     {
-      "key": "call|src/app/domains/rankings/router.py|655|facade|traffic|get_emby_traffic_rank",
+      "key": "call|src/app/domains/rankings/router.py|658|imported|traffic|traffic_rank",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/rankings/router.py",
-      "line": 655,
-      "kind": "facade_call",
+      "line": 658,
+      "kind": "call",
       "source_domain": "rankings",
       "target_domain": "traffic",
-      "target": "get_emby_traffic_rank"
+      "target": "traffic_rank"
     },
     {
       "key": "call|src/app/domains/reports/admin_router.py|27|facade|lines|get_free_premium_lines",
@@ -1506,59 +1495,64 @@
       "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/traffic/jobs.py|264|imported|identity|isnot",
+      "key": "call|src/app/domains/traffic/jobs.py|163|imported|identity|isnot",
       "owner": "promote-line-domains",
       "path": "src/app/domains/traffic/jobs.py",
-      "line": 264,
+      "line": 163,
       "kind": "call",
       "source_domain": "traffic",
       "target_domain": "identity",
-      "target": "isnot",
-      "b3_source_id": "app.databases.db_func:update_line_traffic_stats"
+      "target": "isnot"
     },
     {
-      "key": "call|src/app/domains/traffic/jobs.py|275|imported|identity|isnot",
+      "key": "call|src/app/domains/traffic/jobs.py|174|imported|identity|isnot",
       "owner": "promote-line-domains",
       "path": "src/app/domains/traffic/jobs.py",
-      "line": 275,
+      "line": 174,
       "kind": "call",
       "source_domain": "traffic",
       "target_domain": "identity",
-      "target": "isnot",
-      "b3_source_id": "app.databases.db_func:update_line_traffic_stats"
+      "target": "isnot"
     },
     {
-      "key": "call|src/app/domains/traffic/repository.py|760|imported|lines|normalize_line_domain",
+      "key": "call|src/app/domains/traffic/repository.py|727|imported|identity|get_plex_info_by_tg_id",
       "owner": "promote-line-domains",
       "path": "src/app/domains/traffic/repository.py",
-      "line": 760,
-      "kind": "call",
-      "source_domain": "traffic",
-      "target_domain": "lines",
-      "target": "normalize_line_domain",
-      "b3_source_id": "app.modules.custom_line:_get_line_monthly_traffic"
-    },
-    {
-      "key": "call|src/app/domains/traffic/repository.py|767|imported|identity|get_plex_info_by_tg_id",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/traffic/repository.py",
-      "line": 767,
+      "line": 727,
       "kind": "call",
       "source_domain": "traffic",
       "target_domain": "identity",
-      "target": "get_plex_info_by_tg_id",
-      "b3_source_id": "app.modules.custom_line:_get_line_monthly_traffic"
+      "target": "get_plex_info_by_tg_id"
     },
     {
-      "key": "call|src/app/domains/traffic/repository.py|771|imported|identity|get_emby_info_by_tg_id",
+      "key": "call|src/app/domains/traffic/repository.py|730|imported|identity|get_emby_info_by_tg_id",
       "owner": "promote-line-domains",
       "path": "src/app/domains/traffic/repository.py",
-      "line": 771,
+      "line": 730,
       "kind": "call",
       "source_domain": "traffic",
       "target_domain": "identity",
-      "target": "get_emby_info_by_tg_id",
-      "b3_source_id": "app.modules.custom_line:_get_line_monthly_traffic"
+      "target": "get_emby_info_by_tg_id"
+    },
+    {
+      "key": "call|src/app/domains/traffic/repository_tx.py|430|imported|identity|get_plex_info_by_tg_id",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/traffic/repository_tx.py",
+      "line": 430,
+      "kind": "call",
+      "source_domain": "traffic",
+      "target_domain": "identity",
+      "target": "get_plex_info_by_tg_id"
+    },
+    {
+      "key": "call|src/app/domains/traffic/repository_tx.py|433|imported|identity|get_emby_info_by_tg_id",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/traffic/repository_tx.py",
+      "line": 433,
+      "kind": "call",
+      "source_domain": "traffic",
+      "target_domain": "identity",
+      "target": "get_emby_info_by_tg_id"
     },
     {
       "key": "call|src/app/domains/vaultwarden/router.py|165|imported|credits|deduct",
@@ -1591,26 +1585,6 @@
       "target": "_resolve_premium_status_for_settlement"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|270|facade|traffic|get_user_daily_traffic",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 270,
-      "kind": "facade_call",
-      "source_domain": "watch_rewards",
-      "target_domain": "traffic",
-      "target": "get_user_daily_traffic"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|276|facade|traffic|get_user_daily_traffic",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 276,
-      "kind": "facade_call",
-      "source_domain": "watch_rewards",
-      "target_domain": "traffic",
-      "target": "get_user_daily_traffic"
-    },
-    {
       "key": "call|src/app/domains/watch_rewards/service.py|282|imported|premium|_settle_premium_traffic_usage",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
@@ -1639,26 +1613,6 @@
       "source_domain": "watch_rewards",
       "target_domain": "premium",
       "target": "_resolve_premium_status_for_settlement"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|438|facade|traffic|get_user_daily_traffic",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 438,
-      "kind": "facade_call",
-      "source_domain": "watch_rewards",
-      "target_domain": "traffic",
-      "target": "get_user_daily_traffic"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|444|facade|traffic|get_user_daily_traffic",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 444,
-      "kind": "facade_call",
-      "source_domain": "watch_rewards",
-      "target_domain": "traffic",
-      "target": "get_user_daily_traffic"
     },
     {
       "key": "call|src/app/domains/watch_rewards/service.py|450|imported|premium|_settle_premium_traffic_usage",
@@ -2673,6 +2627,17 @@
       "symbol": "service"
     },
     {
+      "key": "import|src/app/domains/premium/router.py|15|app.domains.traffic.service|service",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/router.py",
+      "line": 15,
+      "kind": "import",
+      "source_domain": "premium",
+      "target_domain": "traffic",
+      "target_module": "app.domains.traffic.service",
+      "symbol": "service"
+    },
+    {
       "key": "import|src/app/domains/premium/service.py|12|app.domains.lines.rules|is_binded_premium_line",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/service.py",
@@ -2683,6 +2648,17 @@
       "target_module": "app.domains.lines.rules",
       "symbol": "is_binded_premium_line",
       "b3_source_id": "app.utils.utils:is_binded_premium_line"
+    },
+    {
+      "key": "import|src/app/domains/profile/router.py|11|app.domains.traffic.service|service",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/profile/router.py",
+      "line": 11,
+      "kind": "import",
+      "source_domain": "profile",
+      "target_domain": "traffic",
+      "target_module": "app.domains.traffic.service",
+      "symbol": "service"
     },
     {
       "key": "import|src/app/domains/profile/router.py|8|app.domains.identity.models|Statistics",
@@ -2716,6 +2692,17 @@
       "source_domain": "rankings",
       "target_domain": "blackjack",
       "target_module": "app.domains.blackjack.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/rankings/router.py|9|app.domains.traffic.service|service",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/rankings/router.py",
+      "line": 9,
+      "kind": "import",
+      "source_domain": "rankings",
+      "target_domain": "traffic",
+      "target_module": "app.domains.traffic.service",
       "symbol": "service"
     },
     {
@@ -2917,40 +2904,26 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/traffic/jobs.py|14|app.domains.identity.models|EmbyUser",
+      "key": "import|src/app/domains/traffic/jobs.py|10|app.domains.identity.models|EmbyUser",
       "owner": "promote-line-domains",
       "path": "src/app/domains/traffic/jobs.py",
-      "line": 14,
+      "line": 10,
       "kind": "import",
       "source_domain": "traffic",
       "target_domain": "identity",
       "target_module": "app.domains.identity.models",
-      "symbol": "EmbyUser",
-      "b3_source_id": "app.databases.db_func:@import:20"
+      "symbol": "EmbyUser"
     },
     {
-      "key": "import|src/app/domains/traffic/jobs.py|14|app.domains.identity.models|PlexUser",
+      "key": "import|src/app/domains/traffic/jobs.py|10|app.domains.identity.models|PlexUser",
       "owner": "promote-line-domains",
       "path": "src/app/domains/traffic/jobs.py",
-      "line": 14,
+      "line": 10,
       "kind": "import",
       "source_domain": "traffic",
       "target_domain": "identity",
       "target_module": "app.domains.identity.models",
-      "symbol": "PlexUser",
-      "b3_source_id": "app.databases.db_func:@import:20"
-    },
-    {
-      "key": "import|src/app/domains/traffic/repository.py|735|app.domains.lines.rules|normalize_line_domain",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/traffic/repository.py",
-      "line": 735,
-      "kind": "import",
-      "source_domain": "traffic",
-      "target_domain": "lines",
-      "target_module": "app.domains.lines.rules",
-      "symbol": "normalize_line_domain",
-      "b3_source_id": "app.utils.utils:normalize_line_domain"
+      "symbol": "PlexUser"
     },
     {
       "key": "import|src/app/domains/traffic/repository.py|8|app.domains.identity.service|service",
@@ -2963,6 +2936,39 @@
       "target_module": "app.domains.identity.service",
       "symbol": "service",
       "b3_source_id": "app.modules.custom_line:_get_line_monthly_traffic"
+    },
+    {
+      "key": "import|src/app/domains/traffic/repository_tx.py|16|app.domains.identity.service|service",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/traffic/repository_tx.py",
+      "line": 16,
+      "kind": "import",
+      "source_domain": "traffic",
+      "target_domain": "identity",
+      "target_module": "app.domains.identity.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/traffic/repository_tx.py|17|app.domains.identity.models|EmbyUser",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/traffic/repository_tx.py",
+      "line": 17,
+      "kind": "import",
+      "source_domain": "traffic",
+      "target_domain": "identity",
+      "target_module": "app.domains.identity.models",
+      "symbol": "EmbyUser"
+    },
+    {
+      "key": "import|src/app/domains/traffic/repository_tx.py|17|app.domains.identity.models|PlexUser",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/traffic/repository_tx.py",
+      "line": 17,
+      "kind": "import",
+      "source_domain": "traffic",
+      "target_domain": "identity",
+      "target_module": "app.domains.identity.models",
+      "symbol": "PlexUser"
     },
     {
       "key": "import|src/app/domains/treasure/router.py|4|app.domains.badge_awards.jobs|check_and_award_game_king_badge",
@@ -3074,14 +3080,14 @@
     "Top-level architecture": 0,
     "External integration isolation": 0,
     "Legacy database facade freeze": 0,
-    "SQLAlchemy direct use scope": 13,
+    "SQLAlchemy direct use scope": 14,
     "Database engine import scope": 15,
-    "Domain model import scope": 16,
-    "Six-tier domain dependencies": 43,
-    "Acyclic domain siblings": 12,
+    "Domain model import scope": 18,
+    "Six-tier domain dependencies": 42,
+    "Acyclic domain siblings": 11,
     "Domain internal layering": 3,
     "Domain types are pure value modules": 0,
     "Domain rules are pure value computations": 0,
-    "Domain entry points do not touch data layer": 55
+    "Domain entry points do not touch data layer": 54
   }
 }

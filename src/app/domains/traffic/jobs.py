@@ -1,17 +1,15 @@
-import hashlib
 import json
-import re
 import traceback
 from datetime import datetime, timedelta
-from urllib.parse import parse_qs, unquote, urlparse
 
 from sqlalchemy import select
 
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
-from app.databases.db import db
 from app.domains.identity.models import EmbyUser, PlexUser
+from app.domains.traffic import rules as traffic_rules
+from app.domains.traffic import service as traffic_service
 from app.domains.traffic.cache import stream_traffic_cache
 from app.integrations import media_tokens
 from app.integrations.emby import Emby
@@ -36,14 +34,14 @@ async def monthly_traffic_data_migration():
         logger.info(f"开始执行月度流量数据迁移任务，目标月份: {target_month}")
 
         # 第一步：聚合上个月的数据
-        success, message = db.aggregate_monthly_traffic_data(target_month)
+        success, message = traffic_service.aggregate_monthly_traffic_data(target_month)
 
         if success:
             logger.info(f"数据聚合成功: {message}")
 
             # 第二步：清理原始数据
-            cleanup_success, cleanup_message = db.cleanup_monthly_traffic_data(
-                target_month
+            cleanup_success, cleanup_message = (
+                traffic_service.cleanup_monthly_traffic_data(target_month)
             )
 
             if cleanup_success:
@@ -109,114 +107,15 @@ async def update_line_traffic_stats(
     更新线路的流量数据
     """
 
-    source_queue = "filebeat_nginx_stream_logs"
-    processing_queue = "filebeat_nginx_stream_logs_processing"
-
-    def _build_line_traffic_event_hash(
-        backend: str,
-        service: str,
-        username: str,
-        user_id: str | None,
-        formatted_timestamp: str,
-        decoded_uri: str,
-        bytes_sent: int,
-        upstream: str | None,
-        upstream_response_time: str | None,
-    ) -> str:
-        raw = json.dumps(
-            {
-                "line": backend,
-                "service": service,
-                "username": username,
-                "user_id": user_id or "",
-                "timestamp": formatted_timestamp,
-                "request_uri": decoded_uri,
-                "send_bytes": int(bytes_sent),
-                "upstream": upstream or "",
-                "upstream_response_time": upstream_response_time or "",
-            },
-            ensure_ascii=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    processing_queue = traffic_service.PROCESSING_QUEUE
 
     def _move_source_logs_to_processing_queue(fetch_count: int) -> list[str]:
-        if fetch_count <= 0:
-            return []
-
-        move_script = """
-local source_queue = KEYS[1]
-local processing_queue = KEYS[2]
-local fetch_count = tonumber(ARGV[1]) or 0
-local moved = {}
-
-if fetch_count <= 0 then
-    return moved
-end
-
-for i = 1, fetch_count do
-    local value = redis.call('LPOP', source_queue)
-    if not value then
-        break
-    end
-    moved[#moved + 1] = value
-    redis.call('RPUSH', processing_queue, value)
-end
-
-return moved
-"""
-
-        result = stream_traffic_cache.redis_client.eval(
-            move_script,
-            2,
-            source_queue,
-            processing_queue,
-            fetch_count,
-        )
-        return result or []
+        return traffic_service.move_source_logs_to_processing_queue(fetch_count)
 
     def _finalize_processing_logs(
         processed_log_count: int, failed_positions: list[int]
     ) -> None:
-        if processed_log_count <= 0:
-            return
-
-        finalize_script = """
-local processing_queue = KEYS[1]
-local processed_log_count = tonumber(ARGV[1]) or 0
-local failed_positions = {}
-local failed_values = {}
-
-for i = 2, #ARGV do
-    failed_positions[tonumber(ARGV[i])] = true
-end
-
-for i = 1, processed_log_count do
-    local value = redis.call('LPOP', processing_queue)
-    if not value then
-        break
-    end
-
-    if failed_positions[i] then
-        failed_values[#failed_values + 1] = value
-    end
-end
-
-for i = 1, #failed_values do
-    redis.call('RPUSH', processing_queue, failed_values[i])
-end
-
-return #failed_values
-"""
-
-        args = [processed_log_count, *failed_positions]
-        stream_traffic_cache.redis_client.eval(
-            finalize_script,
-            1,
-            processing_queue,
-            *args,
-        )
+        traffic_service.finalize_processing_logs(processed_log_count, failed_positions)
 
     values = []
     transferred_count = 0
@@ -309,44 +208,18 @@ return #failed_values
             # 解析 message 字段中的 nginx 访问日志
             message = log_data.get("message", "")
 
-            # 使用正则表达式解析 nginx 访问日志格式
-            # 旧格式：'$remote_addr - $remote_user [$time_local] "$request" ' '$status $body_bytes_sent "$http_referer" ' '"$http_user_agent" "$http_x_forwarded_for"'
-            # 新格式：'$remote_addr - $remote_user [$time_local] "$request" ' '$status $body_bytes_sent "$http_referer" ' '"$http_user_agent" "$http_x_forwarded_for" ' '"upstream: $upstream_addr" ' '"ups_resp_time: $upstream_response_time"'
-            log_pattern = r'(\S+) - \S+? \[([^\]]+)\] "(\S+) ([^"]+) ([^"]+)" (\d+) (\d+) "([^"]*)"(?: "[^"]*" "[^"]*" "upstream: ([^"]*)" "ups_resp_time: ([^"]*)")?'
-            match = re.match(log_pattern, message)
-
-            if match:
-                # 提取需要的字段
-                access_time = match.group(2)
-                url = match.group(4)
-                status_code = int(match.group(6))
-                bytes_sent = int(match.group(7))
-                # 新格式的可选字段（旧格式时为 None）
-                upstream = match.group(9)
-                upstream_response_time = match.group(10)
-            else:
-                # stream 格式：'$remote_addr [$time_local] "$request" $status $body_bytes_sent '
-                # 'rt=$request_time uct=$upstream_connect_time uht=$upstream_header_time urt=$upstream_response_time '
-                # 'ua="$upstream_addr" us="$upstream_status" ...'
-                stream_log_pattern = (
-                    r'(\S+) \[([^\]]+)\] "(\S+) ([^"]+) ([^"]+)" (\d+) (\d+) '
-                    r"rt=(\S+) uct=(\S+) uht=(\S+) urt=(\S+) "
-                    r'ua="([^"]*)" us="([^"]*)"'
-                )
-                stream_match = re.match(stream_log_pattern, message)
-
-                if not stream_match:
-                    logger.warning(f"无法解析日志格式: {message}")
-                    acknowledged_count += 1
-                    skipped_count += 1
-                    continue
-
-                access_time = stream_match.group(2)
-                url = stream_match.group(4)
-                status_code = int(stream_match.group(6))
-                bytes_sent = int(stream_match.group(7))
-                upstream = stream_match.group(12)
-                upstream_response_time = stream_match.group(11)
+            parsed_log = traffic_rules.parse_access_log(message)
+            if not parsed_log:
+                logger.warning(f"无法解析日志格式: {message}")
+                acknowledged_count += 1
+                skipped_count += 1
+                continue
+            access_time = parsed_log["access_time"]
+            url = parsed_log["url"]
+            status_code = parsed_log["status_code"]
+            bytes_sent = parsed_log["bytes_sent"]
+            upstream = parsed_log["upstream"]
+            upstream_response_time = parsed_log["upstream_response_time"]
 
             # 只处理成功的请求 (2xx 状态码)
             if status_code < 200 or status_code >= 300:
@@ -354,9 +227,7 @@ return #failed_values
                 skipped_count += 1
                 continue
 
-            if not url.startswith("/stream") and not re.search(
-                r"[Oo]riginal\.|[Ss]tream\.?", url
-            ):
+            if not traffic_rules.is_stream_request(url):
                 # 只处理 /stream 路径的请求
                 # 或者包含 "Original." 的请求（兼容下 emby 反代）
                 logger.info(f"跳过非流媒体请求: {url}")
@@ -364,59 +235,28 @@ return #failed_values
                 skipped_count += 1
                 continue
 
-            # 解析 URL 获取服务信息
-            parsed_url = urlparse(url)
-            query_params = parse_qs(parsed_url.query)
-            # URL 解码请求 URI（只保留路径部分，不包含查询参数）
-            decoded_uri = unquote(parsed_url.path)
-
-            # 检查服务和 token
-            service_list = query_params.get("service")
-            token_list = query_params.get("token")
-            line_list = query_params.get("line")
-            if not service_list or not token_list:
-                if query_params.get("api_key"):
-                    # 兼容 emby 反代
-                    logger.warning(
-                        f"缺少必要的参数 service 或 token，但发现 api_key: {url}"
-                    )
-                    service_list = ["emby"]
-                    token_list = query_params.get("api_key")
-                else:
-                    # 如果没有 service 或 token，跳过此条记录
-                    logger.warning(f"缺少必要的参数 service 或 token: {url}")
-                    acknowledged_count += 1
-                    skipped_count += 1
-                    continue
-
-            service = service_list[0]
-            token = token_list[0]
-            # 优先使用 line 参数，如果没有则使用 backend
-            # line 可能是自定义线路，仍会统计到，只是在线路流量统计中不会显示
-            backend = line_list[0] if line_list else backend
+            # Parse service/token/line with the pure rules module.
+            request_identity = traffic_rules.select_request_identity(url, backend)
+            if request_identity is None:
+                logger.warning(
+                    f"缺少必要的参数 service 或 token，或缺少 backend: {url}"
+                )
+                acknowledged_count += 1
+                skipped_count += 1
+                continue
+            service = request_identity["service"]
+            token = request_identity["token"]
+            backend = request_identity["line"]
+            decoded_uri = request_identity["request_uri"]
             if not backend:
                 logger.warning(f"缺少 backend 信息: {url}")
                 acknowledged_count += 1
                 skipped_count += 1
                 continue
 
-            # 转换时间格式为 ISO 格式
-            try:
-                # 将 nginx 时间格式转换为 datetime 对象
-                # 格式: 23/Jun/2025:15:43:03 +0000
-                dt = datetime.strptime(access_time, "%d/%b/%Y:%H:%M:%S %z").astimezone(
-                    settings.TZ
-                )
-                formatted_timestamp = dt.isoformat()
-            except ValueError:
-                # 如果解析失败，使用原始的 @timestamp
-                formatted_timestamp = (
-                    datetime.fromisoformat(timestamp)
-                    .astimezone(settings.TZ)
-                    .isoformat()
-                    if timestamp
-                    else ""
-                )
+            formatted_timestamp = traffic_rules.format_access_timestamp(
+                access_time, timestamp, timezone=settings.TZ
+            )
 
             parsed_records.append(
                 {
@@ -481,14 +321,14 @@ return #failed_values
             else:
                 user_id = emby_username_to_id.get(username.lower())
 
-            event_hash = _build_line_traffic_event_hash(
-                backend=r["line"],
+            event_hash = traffic_rules.build_event_hash(
+                line=r["line"],
                 service=service,
                 username=username,
                 user_id=user_id,
-                formatted_timestamp=r["formatted_timestamp"],
-                decoded_uri=r["decoded_uri"],
-                bytes_sent=r["bytes_sent"],
+                timestamp=r["formatted_timestamp"],
+                request_uri=r["decoded_uri"],
+                send_bytes=r["bytes_sent"],
                 upstream=r["upstream"],
                 upstream_response_time=r["upstream_response_time"],
             )
@@ -508,7 +348,7 @@ return #failed_values
 
         # 阶段3：批量写库并回填每条结果
         if to_insert:
-            hash_status = db.bulk_create_line_traffic_entries(
+            hash_status = traffic_service.store_traffic_batch(
                 [row for _, row, _ in to_insert]
             )
             # 批内同一 event_hash 多条：首条按状态计数，其余计为重复，

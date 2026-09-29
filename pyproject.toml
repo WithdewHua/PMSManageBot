@@ -189,6 +189,7 @@ ignore_imports = [
     "app.domains.credits.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.custom_lines.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.traffic.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
+    "app.domains.traffic.repository_tx -> sqlalchemy", # promote-line-domains: caller-owned traffic SQL
     "app.domains.custom_lines.service -> sqlalchemy", # B3 mechanical relocation; audit in 5.6
     "app.domains.media_access.service -> sqlalchemy", # B3 mechanical relocation; audit in 5.6
     "app.domains.watch_rewards.service -> sqlalchemy", # B3 mechanical relocation; audit in 5.6
@@ -279,6 +280,8 @@ ignore_imports = [
     "app.domains.lines.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.media_access.service -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.traffic.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
+    "app.domains.traffic.repository_tx -> app.domains.identity.models", # promote-line-domains: caller-owned queries
+    "app.domains.traffic.repository_tx -> app.domains.traffic.models", # promote-line-domains: caller-owned queries
     "app.domains.watch_rewards.service -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
 ]
 unmatched_ignore_imports_alerting = "error"
@@ -309,7 +312,6 @@ ignore_imports = [
     "app.databases.db -> app.domains.rankings.repository",
     "app.databases.db -> app.domains.reports.repository",
     "app.databases.db -> app.domains.tg_rebind.repository",
-    "app.databases.db -> app.domains.traffic.repository",
     "app.databases.db -> app.domains.watch_rewards.repository",
 
 
@@ -414,7 +416,6 @@ ignore_imports = [
     "app.databases.db -> app.domains.rankings.repository",
     "app.databases.db -> app.domains.reports.repository",
     "app.databases.db -> app.domains.tg_rebind.repository",
-    "app.databases.db -> app.domains.traffic.repository",
     "app.databases.db -> app.domains.watch_rewards.repository",
 ]
 unmatched_ignore_imports_alerting = "error"
@@ -548,7 +549,6 @@ ignore_imports = [
     "app.domains.traffic.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.crypto_donation.jobs -> app.databases.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.lines.jobs -> app.databases.db", # B3 mechanical relocation; audit in 5.6
-    "app.domains.traffic.jobs -> app.databases.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.custom_lines.jobs -> app.domains.custom_lines.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.custom_lines.jobs -> app.domains.custom_lines.repository", # B3 mechanical relocation; audit in 5.6
     "app.domains.credits.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6

@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.databases import db
 from app.domains.rankings import service as rankings_service
+from app.domains.traffic import service as traffic_service
 from app.integrations.emby import Emby
 from app.integrations.plex import Plex
 from app.integrations.telegram.profiles import (
@@ -576,7 +577,9 @@ async def get_plex_traffic_rankings(
         logger.debug(
             f"正在查询 Plex 流量排行 (日期范围: {parsed_start_date} - {parsed_end_date})"
         )
-        plex_traffic_data = db.get_plex_traffic_rank(parsed_start_date, parsed_end_date)
+        plex_traffic_data = traffic_service.traffic_rank(
+            "plex", parsed_start_date, parsed_end_date
+        )
         if plex_traffic_data:
             traffic_rank_plex = [
                 {
@@ -652,7 +655,9 @@ async def get_emby_traffic_rankings(
         logger.debug(
             f"正在查询 Emby 流量排行 (日期范围: {parsed_start_date} - {parsed_end_date})"
         )
-        emby_traffic_data = db.get_emby_traffic_rank(parsed_start_date, parsed_end_date)
+        emby_traffic_data = traffic_service.traffic_rank(
+            "emby", parsed_start_date, parsed_end_date
+        )
         if emby_traffic_data:
             traffic_rank_emby = [
                 {

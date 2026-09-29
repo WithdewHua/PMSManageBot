@@ -12,7 +12,7 @@ from app.domains.identity import service as identity_service
 from app.domains.premium import notifications as premium_notifications
 from app.domains.premium import repository as premium_repository
 from app.domains.premium import service as premium_service
-from app.domains.traffic.repository import TrafficRepository
+from app.domains.traffic import service as traffic_service
 from app.integrations.telegram.profiles import get_user_name_from_tg_id
 from app.transport.http.auth import get_telegram_user, require_telegram_auth
 from app.transport.http.schemas import BaseResponse, TelegramUser
@@ -170,7 +170,7 @@ async def get_premium_line_traffic_stats(
 ):
     """获取Premium线路流量统计信息"""
     try:
-        stats = TrafficRepository().get_premium_line_traffic_statistics()
+        stats = traffic_service.premium_line_statistics()
         logger.info(
             f"用户 {get_user_name_from_tg_id(user.id)} 获取 Premium 线路流量统计信息"
         )

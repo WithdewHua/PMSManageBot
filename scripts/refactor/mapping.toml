@@ -2235,8 +2235,8 @@ reason = "db.py section: Wheel Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.aggregate_monthly_traffic_data"
-target = "app.domains.traffic.repository"
-class = "TrafficRepository"
+target = "app.domains.traffic.compat"
+class = "TrafficCompat"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
@@ -2306,8 +2306,8 @@ reason = "db.py section: 赛内手牌：结算适配层与动作"
 planned_target = "app.domains.blackjack.repository.tournament_play"
 [[items]]
 id = "app.databases.db:DatabaseORM.bulk_create_line_traffic_entries"
-target = "app.domains.traffic.repository"
-class = "TrafficRepository"
+target = "app.domains.traffic.compat"
+class = "TrafficCompat"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
@@ -2426,8 +2426,8 @@ reason = "db.py section: Blackjack (21 点) Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.cleanup_monthly_traffic_data"
-target = "app.domains.traffic.repository"
-class = "TrafficRepository"
+target = "app.domains.traffic.compat"
+class = "TrafficCompat"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
@@ -2550,8 +2550,8 @@ reason = "db.py section: 线路调度功能相关方法"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.create_line_traffic_entry"
-target = "app.domains.traffic.repository"
-class = "TrafficRepository"
+target = "app.domains.traffic.compat"
+class = "TrafficCompat"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
@@ -3025,8 +3025,8 @@ reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_emby_traffic_rank"
-target = "app.domains.traffic.repository"
-class = "TrafficRepository"
+target = "app.domains.traffic.compat"
+class = "TrafficCompat"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
@@ -3275,8 +3275,8 @@ reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_plex_traffic_rank"
-target = "app.domains.traffic.repository"
-class = "TrafficRepository"
+target = "app.domains.traffic.compat"
+class = "TrafficCompat"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
@@ -3335,8 +3335,8 @@ reason = "db.py section: Prediction Market (预测游戏) Operations"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_premium_line_traffic_statistics"
-target = "app.domains.traffic.repository"
-class = "TrafficRepository"
+target = "app.domains.traffic.compat"
+class = "TrafficCompat"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
@@ -3453,8 +3453,8 @@ reason = "transitional facade assembly"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.get_user_daily_traffic"
-target = "app.domains.traffic.repository"
-class = "TrafficRepository"
+target = "app.domains.traffic.compat"
+class = "TrafficCompat"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
@@ -3955,8 +3955,8 @@ reason = "db.py section: 线路调度功能相关方法"
 
 [[items]]
 id = "app.databases.db:DatabaseORM.update_traffic_username"
-target = "app.domains.traffic.repository"
-class = "TrafficRepository"
+target = "app.domains.traffic.compat"
+class = "TrafficCompat"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 

@@ -13,7 +13,7 @@ from app.domains.premium.repository import PremiumRepository
 from app.domains.rankings.repository import RankingsRepository
 from app.domains.reports.repository import ReportsRepository
 from app.domains.tg_rebind.repository import TgRebindRepository
-from app.domains.traffic.repository import TrafficRepository
+from app.domains.traffic.compat import TrafficCompat
 from app.domains.watch_rewards.repository import WatchRewardsRepository
 
 
@@ -27,7 +27,7 @@ class DatabaseORM(
     MediaAccessRepository,
     RankingsRepository,
     LinesRepository,
-    TrafficRepository,
+    TrafficCompat,
     CryptoDonationRepository,
     BadgesRepository,
     WatchRewardsRepository,

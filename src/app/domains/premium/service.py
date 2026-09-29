@@ -12,6 +12,7 @@ from app.core.log import logger
 from app.domains.media_access import service as media_access_service
 from app.domains.premium import repository as premium_repository
 from app.domains.premium.config import PREMIUM_CONFIG
+from app.domains.traffic import service as traffic_service
 from app.integrations.telegram.messaging import send_message_by_url
 from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
@@ -446,13 +447,11 @@ async def get_and_send_premium_statistics():
     """
     获取Premium线路统计信息并发送给管理员
     """
-    from app.domains.traffic.repository import TrafficRepository
-
     try:
         logger.info("开始获取Premium线路统计信息")
 
         # 获取线路流量统计数据
-        stats = TrafficRepository().get_premium_line_traffic_statistics()
+        stats = traffic_service.premium_line_statistics()
 
         # 获取 Premium 用户列表
         premium_users = premium_repository.get_all_active_premium_users()
