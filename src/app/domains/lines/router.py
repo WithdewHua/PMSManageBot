@@ -9,6 +9,7 @@ from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity import service as identity_service
 from app.domains.lines import notifications as lines_notifications
+from app.domains.lines import repository as lines_repository
 from app.domains.lines import service as lines_service
 from app.domains.lines.cache import (
     emby_last_user_defined_line_cache,
@@ -73,25 +74,31 @@ async def get_emby_lines(
     # 添加基础线路信息
     for line in available_lines:
         line_infos.append(
-            EmbyLineInfo(name=line, tags=db.get_line_tags(line), is_premium=False)
+            EmbyLineInfo(
+                name=line, tags=lines_repository.get_line_tags(line), is_premium=False
+            )
         )
 
     # 如果是premium用户，直接添加所有高级线路
     if is_premium:
         for line in settings.PREMIUM_STREAM_BACKEND:
             line_infos.append(
-                EmbyLineInfo(name=line, tags=db.get_line_tags(line), is_premium=True)
+                EmbyLineInfo(
+                    name=line,
+                    tags=lines_repository.get_line_tags(line),
+                    is_premium=True,
+                )
             )
     # 如果不是premium用户，检查免费高级线路
     elif lines_service.is_premium_free_enabled():
         # 从数据库获取免费高级线路列表
-        free_premium_lines = db.get_free_premium_lines()
+        free_premium_lines = lines_repository.get_free_premium_lines()
 
         for line in free_premium_lines:
             line_infos.append(
                 EmbyLineInfo(
                     name=line,
-                    tags=db.get_line_tags(line) + ["PREMIUM"],
+                    tags=lines_repository.get_line_tags(line) + ["PREMIUM"],
                     is_premium=True,
                 )
             )
@@ -132,7 +139,7 @@ async def bind_emby_line(
         if not has_permission:
             return BaseResponse(success=False, message=error_msg)
 
-        success = db.set_emby_line(line, tg_id=tg_id)
+        success = lines_repository.set_emby_line(line, tg_id=tg_id)
 
         if not success:
             logger.error(f"设置用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 线路失败")
@@ -186,7 +193,7 @@ async def unbind_emby_line(
             )
             return BaseResponse(success=False, message="您未绑定线路，无需解绑")
 
-        success = db.set_emby_line(None, tg_id=tg_id)
+        success = lines_repository.set_emby_line(None, tg_id=tg_id)
         if not success:
             logger.error(f"重置用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 线路失败")
             return BaseResponse(success=False, message="重置线路失败")
@@ -233,7 +240,11 @@ async def get_plex_lines(
         # 添加基础线路信息
         for line in available_lines:
             line_infos.append(
-                PlexLineInfo(name=line, tags=db.get_line_tags(line), is_premium=False)
+                PlexLineInfo(
+                    name=line,
+                    tags=lines_repository.get_line_tags(line),
+                    is_premium=False,
+                )
             )
 
         # 根据用户权限添加高级线路信息
@@ -242,18 +253,22 @@ async def get_plex_lines(
             for line in premium_lines:
                 line_infos.append(
                     PlexLineInfo(
-                        name=line, tags=db.get_line_tags(line), is_premium=True
+                        name=line,
+                        tags=lines_repository.get_line_tags(line),
+                        is_premium=True,
                     )
                 )
         elif lines_service.is_premium_free_enabled():
             # 普通用户在免费开放期间可以看到免费的高级线路
-            free_premium_lines = db.get_free_premium_lines()
+            free_premium_lines = lines_repository.get_free_premium_lines()
 
             for line in free_premium_lines:
                 if line in premium_lines:
                     line_infos.append(
                         PlexLineInfo(
-                            name=line, tags=db.get_line_tags(line), is_premium=True
+                            name=line,
+                            tags=lines_repository.get_line_tags(line),
+                            is_premium=True,
                         )
                     )
 
@@ -305,7 +320,7 @@ async def bind_plex_line(
         if not has_permission:
             return BaseResponse(success=False, message=error_msg)
 
-        success = db.set_plex_line(line, tg_id=tg_id)
+        success = lines_repository.set_plex_line(line, tg_id=tg_id)
         if not success:
             logger.error(f"设置用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 线路失败")
             return BaseResponse(success=False, message="设置线路失败")
@@ -359,7 +374,7 @@ async def unbind_plex_line(
             )
             return BaseResponse(success=False, message="您未绑定线路，无需解绑")
 
-        success = db.set_plex_line(None, tg_id=tg_id)
+        success = lines_repository.set_plex_line(None, tg_id=tg_id)
         if not success:
             logger.error(f"重置用户 {tg_id} 的 Plex 线路失败")
             return BaseResponse(success=False, message="重置线路失败")
@@ -498,7 +513,11 @@ async def get_emby_lines_by_user(
         # 添加基础线路信息
         for line in available_lines:
             line_infos.append(
-                EmbyLineInfo(name=line, tags=db.get_line_tags(line), is_premium=False)
+                EmbyLineInfo(
+                    name=line,
+                    tags=lines_repository.get_line_tags(line),
+                    is_premium=False,
+                )
             )
 
         # 如果是premium用户,直接添加所有高级线路
@@ -506,19 +525,23 @@ async def get_emby_lines_by_user(
             for line in settings.PREMIUM_STREAM_BACKEND:
                 line_infos.append(
                     EmbyLineInfo(
-                        name=line, tags=db.get_line_tags(line), is_premium=True
+                        name=line,
+                        tags=lines_repository.get_line_tags(line),
+                        is_premium=True,
                     )
                 )
         # 如果不是premium用户,检查免费高级线路
         elif lines_service.is_premium_free_enabled():
             # 从数据库获取免费高级线路列表
-            free_premium_lines = db.get_free_premium_lines()
+            free_premium_lines = lines_repository.get_free_premium_lines()
 
             for line in free_premium_lines:
                 if line in settings.PREMIUM_STREAM_BACKEND:
                     line_infos.append(
                         EmbyLineInfo(
-                            name=line, tags=db.get_line_tags(line), is_premium=True
+                            name=line,
+                            tags=lines_repository.get_line_tags(line),
+                            is_premium=True,
                         )
                     )
 
@@ -564,7 +587,11 @@ async def get_plex_lines_by_user(
         # 添加基础线路信息
         for line in available_lines:
             line_infos.append(
-                PlexLineInfo(name=line, tags=db.get_line_tags(line), is_premium=False)
+                PlexLineInfo(
+                    name=line,
+                    tags=lines_repository.get_line_tags(line),
+                    is_premium=False,
+                )
             )
 
         # 根据用户权限添加高级线路信息
@@ -573,18 +600,22 @@ async def get_plex_lines_by_user(
             for line in premium_lines:
                 line_infos.append(
                     PlexLineInfo(
-                        name=line, tags=db.get_line_tags(line), is_premium=True
+                        name=line,
+                        tags=lines_repository.get_line_tags(line),
+                        is_premium=True,
                     )
                 )
         elif lines_service.is_premium_free_enabled():
             # 普通用户在免费开放期间可以看到免费的高级线路
-            free_premium_lines = db.get_free_premium_lines()
+            free_premium_lines = lines_repository.get_free_premium_lines()
 
             for line in free_premium_lines:
                 if line in premium_lines:
                     line_infos.append(
                         PlexLineInfo(
-                            name=line, tags=db.get_line_tags(line), is_premium=True
+                            name=line,
+                            tags=lines_repository.get_line_tags(line),
+                            is_premium=True,
                         )
                     )
 
@@ -680,7 +711,7 @@ async def check_line_schedule_unlock_status(
         raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
 
     try:
-        result = db.check_line_schedule_unlock(user.id, service)
+        result = lines_repository.check_line_schedule_unlock(user.id, service)
         return {
             "success": True,
             "is_unlocked": result["is_unlocked"],
@@ -710,7 +741,7 @@ async def unlock_line_schedule(
 
     try:
         # 检查是否已经解锁
-        unlock_status = db.check_line_schedule_unlock(user.id, service)
+        unlock_status = lines_repository.check_line_schedule_unlock(user.id, service)
         if unlock_status["is_unlocked"]:
             return LineScheduleUnlockResponse(
                 success=True,
@@ -776,7 +807,7 @@ async def get_line_schedules(
         raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
 
     try:
-        schedules = db.get_user_line_schedules(user.id, service)
+        schedules = lines_repository.get_user_line_schedules(user.id, service)
         return LineScheduleListResponse(success=True, schedules=schedules)
     except Exception as e:
         logger.error(f"获取线路调度列表失败: {e}")
@@ -797,7 +828,7 @@ async def create_line_schedule(
 
     try:
         # 检查是否解锁
-        unlock_status = db.check_line_schedule_unlock(user.id, service)
+        unlock_status = lines_repository.check_line_schedule_unlock(user.id, service)
         if not unlock_status["is_unlocked"]:
             return BaseResponse(success=False, message="请先解锁线路调度功能")
 
@@ -818,7 +849,7 @@ async def create_line_schedule(
             return BaseResponse(success=False, message=f"{error_msg}，无法创建调度")
 
         # 创建调度
-        schedule_id = db.create_line_schedule(
+        schedule_id = lines_repository.create_line_schedule(
             user.id,
             service,
             data.line,
@@ -851,7 +882,7 @@ async def update_line_schedule(
     """更新线路调度"""
     try:
         # 获取原有调度信息
-        schedules = db.get_user_line_schedules(user.id)
+        schedules = lines_repository.get_user_line_schedules(user.id)
         schedule = next((s for s in schedules if s["id"] == schedule_id), None)
         if not schedule:
             return BaseResponse(success=False, message="调度不存在")
@@ -892,7 +923,7 @@ async def update_line_schedule(
             update_kwargs["is_enabled"] = data.is_enabled
 
         # 执行更新
-        if db.update_line_schedule(schedule_id, user.id, **update_kwargs):
+        if lines_repository.update_line_schedule(schedule_id, user.id, **update_kwargs):
             # 更新成功后立即执行一次调度检查
             asyncio.create_task(
                 auto_switch_user_lines(tg_id=user.id, service=schedule["service"])
@@ -915,7 +946,7 @@ async def delete_line_schedule(
 ):
     """删除线路调度"""
     try:
-        if db.delete_line_schedule(schedule_id, user.id):
+        if lines_repository.delete_line_schedule(schedule_id, user.id):
             return BaseResponse(success=True, message="删除线路调度成功")
         else:
             return BaseResponse(success=False, message="删除线路调度失败或无权限")
@@ -939,15 +970,17 @@ async def get_line_schedule_status(
 
     try:
         # 检查是否解锁
-        unlock_status = db.check_line_schedule_unlock(user.id, service)
+        unlock_status = lines_repository.check_line_schedule_unlock(user.id, service)
 
         # 获取当前生效的调度
         active_schedule = None
         if unlock_status["is_unlocked"]:
-            active_schedule = db.get_current_active_schedule(user.id, service)
+            active_schedule = lines_repository.get_current_active_schedule(
+                user.id, service
+            )
 
         # 检查是否有调度
-        schedules = db.get_user_line_schedules(user.id, service)
+        schedules = lines_repository.get_user_line_schedules(user.id, service)
         has_schedules = len(schedules) > 0
 
         return LineScheduleStatusResponse(

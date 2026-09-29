@@ -2,8 +2,8 @@ from sqlalchemy import or_, select
 
 from app.core.db import get_session
 from app.core.log import logger
-from app.databases.db import db
 from app.domains.identity.models import EmbyUser, PlexUser
+from app.domains.lines import repository as lines_repository
 from app.domains.lines.cache import (
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
@@ -77,7 +77,9 @@ async def auto_switch_user_lines(tg_id: int | None = None, service: str | None =
             for user_tg_id, current_line, plex_username in plex_users:
                 logger.debug(f"开始处理 Plex 用户 {plex_username} 的线路调度任务")
                 # 获取当前生效的调度
-                active_schedule = db.get_current_active_schedule(user_tg_id, "plex")
+                active_schedule = lines_repository.get_current_active_schedule(
+                    user_tg_id, "plex"
+                )
 
                 if active_schedule:
                     # 有生效的调度，使用调度指定的线路
@@ -88,7 +90,7 @@ async def auto_switch_user_lines(tg_id: int | None = None, service: str | None =
                     continue
 
                 # 检查是否需要切换
-                if current_line != target_line and db.set_plex_line(
+                if current_line != target_line and lines_repository.set_plex_line(
                     line=target_line, tg_id=user_tg_id
                 ):
                     # 更新 Redis 缓存
@@ -142,7 +144,9 @@ async def auto_switch_user_lines(tg_id: int | None = None, service: str | None =
             for user_tg_id, current_line, emby_username in emby_users:
                 logger.debug(f"开始处理 Emby 用户 {emby_username} 的线路调度任务")
                 # 获取当前生效的调度
-                active_schedule = db.get_current_active_schedule(user_tg_id, "emby")
+                active_schedule = lines_repository.get_current_active_schedule(
+                    user_tg_id, "emby"
+                )
 
                 if active_schedule:
                     # 有生效的调度，使用调度指定的线路
@@ -153,7 +157,7 @@ async def auto_switch_user_lines(tg_id: int | None = None, service: str | None =
                     continue
 
                 # 检查是否需要切换
-                if current_line != target_line and db.set_emby_line(
+                if current_line != target_line and lines_repository.set_emby_line(
                     line=target_line, tg_id=user_tg_id
                 ):
                     # 更新 Redis 缓存

@@ -1,5 +1,4 @@
 from app.core.log import uvicorn_logger as logger
-from app.databases import db
 from app.databases.db import DatabaseORM
 from app.domains.lines import repository as lines_repository
 from app.domains.lines.cache import (
@@ -64,9 +63,7 @@ from app.integrations.plex import Plex
 
 def unlock_line_schedule_with_credit(tg_id: int, service: str, cost: float) -> bool:
     """Charge credits and unlock line scheduling atomically."""
-    return lines_repository.LinesRepository().unlock_line_schedule_with_credit(
-        tg_id, service, cost
-    )
+    return lines_repository.unlock_line_schedule_with_credit(tg_id, service, cost)
 
 
 async def unbind_emby_premium_free():
@@ -78,7 +75,7 @@ async def unbind_emby_premium_free():
 
     try:
         # 获取所有绑定了 Emby 线路的用户
-        users = db.get_emby_user_with_binded_line()
+        users = lines_repository.get_emby_user_with_binded_line()
         for user in users:
             emby_username, tg_id, emby_id, emby_line, is_premium = user
             if is_premium:
@@ -93,7 +90,7 @@ async def unbind_emby_premium_free():
                 str(emby_username).lower()
             )
             # 更新用户的 Emby 线路，last_line 为空则自动选择
-            db.set_emby_line(last_line, tg_id=tg_id, emby_id=emby_id)
+            lines_repository.set_emby_line(last_line, tg_id=tg_id, emby_id=emby_id)
             # 更新缓存
             if last_line:
                 emby_user_defined_line_cache.put(str(emby_username).lower(), last_line)
@@ -123,7 +120,7 @@ async def unbind_plex_premium_free():
 
     try:
         # 获取所有绑定了 Plex 线路的用户
-        users = db.get_plex_user_with_binded_line()
+        users = lines_repository.get_plex_user_with_binded_line()
         for user in users:
             plex_username, tg_id, plex_id, plex_line, is_premium = user
             if is_premium:
@@ -138,7 +135,7 @@ async def unbind_plex_premium_free():
                 str(plex_username).lower()
             )
             # 更新用户的 Plex 线路，last_line 为空则自动选择
-            db.set_plex_line(last_line, tg_id=tg_id, plex_id=plex_id)
+            lines_repository.set_plex_line(last_line, tg_id=tg_id, plex_id=plex_id)
             # 更新缓存
             if last_line:
                 plex_user_defined_line_cache.put(str(plex_username).lower(), last_line)
@@ -167,7 +164,7 @@ async def handle_free_premium_lines_change(removed_lines: list | set):
             return True, None
 
         # 获取所有绑定了被移除线路的普通用户
-        users = db.get_emby_user_with_binded_line()
+        users = lines_repository.get_emby_user_with_binded_line()
         for user in users:
             emby_username, tg_id, emby_id, emby_line, is_premium = user
             if is_premium:
@@ -188,7 +185,7 @@ async def handle_free_premium_lines_change(removed_lines: list | set):
                 str(emby_username).lower()
             )
             # 更新用户的 Emby 线路，last_line 为空则自动选择
-            db.set_emby_line(last_line, tg_id=tg_id, emby_id=emby_id)
+            lines_repository.set_emby_line(last_line, tg_id=tg_id, emby_id=emby_id)
             # 更新缓存
             if last_line:
                 emby_user_defined_line_cache.put(str(emby_username).lower(), last_line)
@@ -204,7 +201,7 @@ async def handle_free_premium_lines_change(removed_lines: list | set):
                 )
 
         # 获取所有绑定了被移除线路的 Plex 用户
-        users = db.get_plex_user_with_binded_line()
+        users = lines_repository.get_plex_user_with_binded_line()
         for user in users:
             plex_username, tg_id, plex_id, plex_line, is_premium = user
             if is_premium:
@@ -222,7 +219,7 @@ async def handle_free_premium_lines_change(removed_lines: list | set):
                 str(plex_username).lower()
             )
             # 更新用户的 Plex 线路，last_line 为空则自动选择
-            db.set_plex_line(last_line, tg_id=tg_id, plex_id=plex_id)
+            lines_repository.set_plex_line(last_line, tg_id=tg_id, plex_id=plex_id)
             # 更新缓存
             if last_line:
                 plex_user_defined_line_cache.put(str(plex_username).lower(), last_line)
@@ -266,12 +263,12 @@ async def unbind_specified_line_for_all_users(
         unbind_count = 0
 
         # 获取所有绑定了 Emby 线路的用户
-        emby_users = db.get_emby_user_with_binded_line()
+        emby_users = lines_repository.get_emby_user_with_binded_line()
         for user in emby_users:
             emby_username, tg_id, emby_id, user_emby_line, _ = user
             if line in user_emby_line:
                 # 如果用户绑定的线路是指定的线路，解绑
-                db.set_emby_line(line=None, tg_id=tg_id, emby_id=emby_id)
+                lines_repository.set_emby_line(line=None, tg_id=tg_id, emby_id=emby_id)
                 emby_user_defined_line_cache.delete(str(emby_username).lower())
                 emby_last_user_defined_line_cache.delete(str(emby_username).lower())
                 unbind_count += 1
@@ -284,12 +281,12 @@ async def unbind_specified_line_for_all_users(
                     )
 
         # 处理Plex用户解绑逻辑
-        plex_users = db.get_plex_user_with_binded_line()
+        plex_users = lines_repository.get_plex_user_with_binded_line()
         for user in plex_users:
             plex_username, tg_id, plex_id, user_plex_line, _ = user
             if line in user_plex_line:
                 # 如果用户绑定的线路是指定的线路，解绑
-                db.set_plex_line(line=None, tg_id=tg_id, plex_id=plex_id)
+                lines_repository.set_plex_line(line=None, tg_id=tg_id, plex_id=plex_id)
                 plex_user_defined_line_cache.delete(str(plex_username).lower())
                 plex_last_user_defined_line_cache.delete(str(plex_username).lower())
                 unbind_count += 1
@@ -322,8 +319,10 @@ async def disable_line_schedules_and_notify(
     """
     try:
         # 禁用调度并获取受影响的用户
-        success, disabled_count, affected_users = db.disable_schedules_by_line(
-            line_name, only_non_premium=only_non_premium
+        success, disabled_count, affected_users = (
+            lines_repository.disable_schedules_by_line(
+                line_name, only_non_premium=only_non_premium
+            )
         )
 
         if not success:
@@ -399,7 +398,7 @@ def check_line_permission(is_premium: bool, line: str) -> tuple[bool, str]:
     # 高级线路需要进一步检查
     if is_premium_free_enabled():
         # 检查该高级线路是否在免费列表中
-        free_premium_lines = db.get_free_premium_lines()
+        free_premium_lines = lines_repository.get_free_premium_lines()
         if line in free_premium_lines:
             return True, ""
         else:
@@ -440,7 +439,7 @@ async def _auth_bind_emby_line(
 
     # 设置线路到数据库（如果用户存在于数据库中）
     if existing_emby_info:
-        success = db.set_emby_line(line, emby_id=emby_id)
+        success = lines_repository.set_emby_line(line, emby_id=emby_id)
         if not success:
             logger.error(f"设置 Emby 用户 {username} 的线路失败")
             return False, "设置线路失败"
@@ -493,7 +492,7 @@ async def _auth_bind_plex_line(
 
     # 如果用户已存在，更新数据库中的线路设置
     if existing_plex_info:
-        success = db.set_plex_line(line, plex_id=plex_id)
+        success = lines_repository.set_plex_line(line, plex_id=plex_id)
         if not success:
             logger.error(
                 f"{get_user_name_from_tg_id(tg_id)} 为 {username} 设置 Plex 线路失败"

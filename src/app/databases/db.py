@@ -7,7 +7,7 @@ from app.domains.crypto_donation.repository import CryptoDonationRepository
 from app.domains.donation.repository import DonationRepository
 from app.domains.identity.compat import IdentityRepository
 from app.domains.invitation.repository import InvitationRepository
-from app.domains.lines.repository import LinesRepository
+from app.domains.lines.compat import LinesCompat
 from app.domains.media_access.repository import MediaAccessRepository
 from app.domains.premium.repository import PremiumRepository
 from app.domains.rankings.repository import RankingsRepository
@@ -26,7 +26,7 @@ class DatabaseORM(
     TgRebindRepository,
     MediaAccessRepository,
     RankingsRepository,
-    LinesRepository,
+    LinesCompat,
     TrafficCompat,
     CryptoDonationRepository,
     BadgesRepository,

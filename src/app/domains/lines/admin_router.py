@@ -2,7 +2,7 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Re
 
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
-from app.databases import db
+from app.domains.lines import repository as lines_repository
 from app.domains.lines import service as lines_service
 from app.domains.lines.service import (
     disable_line_schedules_and_notify,
@@ -36,7 +36,7 @@ async def set_line_tags(
 
     try:
         # 使用数据库函数设置标签
-        success = db.set_line_tags(data.line_name, data.tags)
+        success = lines_repository.set_line_tags(data.line_name, data.tags)
 
         if success:
             logger.info(
@@ -63,7 +63,7 @@ async def get_line_tags_admin(
     check_admin_permission(user)
 
     try:
-        tags = db.get_line_tags(line_name)
+        tags = lines_repository.get_line_tags(line_name)
         return LineTagResponse(line_name=line_name, tags=tags)
     except Exception as e:
         logger.error(f"获取线路标签失败: {e!s}")
@@ -88,7 +88,7 @@ async def get_all_line_tags(
         # 获取每个线路的标签
         lines_tags = {}
         for line in all_lines:
-            tags = db.get_line_tags(line)
+            tags = lines_repository.get_line_tags(line)
             lines_tags[line] = tags
 
         return AllLineTagsResponse(lines=lines_tags)
@@ -109,9 +109,9 @@ async def delete_line_tags(
 
     try:
         # 检查标签是否存在
-        existing_tags = db.get_line_tags(line_name)
+        existing_tags = lines_repository.get_line_tags(line_name)
         if existing_tags:
-            success = db.delete_line_tags(line_name)
+            success = lines_repository.delete_line_tags(line_name)
             if success:
                 logger.info(
                     f"管理员 {user.username or user.id} 删除线路 {line_name} 的所有标签"
@@ -251,7 +251,7 @@ async def delete_normal_line_generic(
         settings.save_config_to_env_file({"STREAM_BACKEND": ",".join(new_lines)})
 
         # 删除该线路的标签（如果有）
-        db.delete_line_tags(line_name)
+        lines_repository.delete_line_tags(line_name)
         # 解绑所有绑定了该线路的用户
         await unbind_specified_line_for_all_users(line_name)
         # 禁用该线路的所有调度并通知用户
