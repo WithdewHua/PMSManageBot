@@ -2,13 +2,63 @@ import json
 
 from sqlalchemy import delete, func, select, update
 
-from app.core.cache import user_info_cache
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.identity.cache import user_info_cache
 from app.domains.identity.models import EmbyUser, Overseerr, PlexUser, Statistics
 
 
 class IdentityRepository:
+    def write_user_info_cache(self) -> None:
+        """Refresh Redis snapshots used by line and identity lookups."""
+        with get_session() as session:
+            plex_users = session.execute(
+                select(
+                    PlexUser.plex_id,
+                    PlexUser.tg_id,
+                    PlexUser.plex_username,
+                    PlexUser.plex_email,
+                    PlexUser.is_premium,
+                )
+            ).fetchall()
+        for plex_id, tg_id, plex_username, plex_email, is_premium in plex_users:
+            if plex_id and plex_username:
+                user_info_cache.put(
+                    f"plex:{plex_username.lower()}",
+                    json.dumps(
+                        {
+                            "plex_id": plex_id,
+                            "tg_id": tg_id,
+                            "plex_username": plex_username,
+                            "plex_email": plex_email,
+                            "is_premium": is_premium,
+                        }
+                    ),
+                )
+
+        with get_session() as session:
+            emby_users = session.execute(
+                select(
+                    EmbyUser.emby_id,
+                    EmbyUser.tg_id,
+                    EmbyUser.emby_username,
+                    EmbyUser.is_premium,
+                )
+            ).fetchall()
+        for emby_id, tg_id, emby_username, is_premium in emby_users:
+            if emby_username:
+                user_info_cache.put(
+                    f"emby:{emby_username.lower()}",
+                    json.dumps(
+                        {
+                            "emby_id": emby_id,
+                            "tg_id": tg_id,
+                            "emby_username": emby_username,
+                            "is_premium": is_premium,
+                        }
+                    ),
+                )
+
     def add_plex_user(
         self,
         plex_id: int | None = None,

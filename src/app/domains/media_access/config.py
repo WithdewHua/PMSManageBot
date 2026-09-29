@@ -3,7 +3,6 @@
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from app.core.domain_config import DomainConfig, FieldRows, LegacySource
-from app.core.legacy_env import LEGACY_ENV
 
 
 class MediaAccessConfigModel(BaseModel):
@@ -21,11 +20,11 @@ MEDIA_ACCESS_CONFIG = DomainConfig(
     MediaAccessConfigModel,
     FieldRows("config.media_access"),
     legacy={
-        "unlock_credits": LegacySource("UNLOCK_CREDITS", LEGACY_ENV.read),
-        "download_unlock_credits": LegacySource(
-            "DOWNLOAD_UNLOCK_CREDITS", LEGACY_ENV.read
+        "unlock_credits": LegacySource("UNLOCK_CREDITS", default=100),
+        "download_unlock_credits": LegacySource("DOWNLOAD_UNLOCK_CREDITS", default=368),
+        "nsfw_libs": LegacySource(
+            "NSFW_LIBS", default=["NSFW", "NC17 Movies", "Hentai"]
         ),
-        "nsfw_libs": LegacySource("NSFW_LIBS", LEGACY_ENV.read),
     },
 )
 

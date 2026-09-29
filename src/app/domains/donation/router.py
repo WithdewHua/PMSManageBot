@@ -1,20 +1,9 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy import update as sql_update
 
-from app.core.auth import (
-    check_admin_permission,
-    get_telegram_user,
-    require_telegram_auth,
-)
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
-from app.core.schemas import TelegramUser
-from app.core.telegram import (
-    get_user_name_from_tg_id,
-    refresh_tg_user_profile,
-    send_message_by_url,
-)
 from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
@@ -29,6 +18,17 @@ from app.domains.donation.schemas import (
     DonationRegistrationUpdate,
 )
 from app.domains.identity.models import Statistics
+from app.integrations.telegram.messaging import send_message_by_url
+from app.integrations.telegram.profiles import (
+    get_user_name_from_tg_id,
+    refresh_tg_user_profile,
+)
+from app.transport.http.auth import (
+    check_admin_permission,
+    get_telegram_user,
+    require_telegram_auth,
+)
+from app.transport.http.schemas import TelegramUser
 
 router = APIRouter(prefix="/api/donations", tags=["donations"])
 
@@ -67,7 +67,9 @@ async def create_donation_registration(
             )
 
         # 获取刚创建的记录
-        registrations = db.get_donation_registrations_by_user(user_id, limit=1)
+        registrations = donation_service.get_donation_registrations_by_user(
+            user_id, limit=1
+        )
         if not registrations:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -128,7 +130,9 @@ async def get_user_donation_registrations(
         # 限制分页参数
         per_page = min(per_page, 100)
 
-        registrations = db.get_donation_registrations_by_user(user_id, limit=per_page)
+        registrations = donation_service.get_donation_registrations_by_user(
+            user_id, limit=per_page
+        )
 
         registration_responses = [
             DonationRegistrationResponse(**reg) for reg in registrations
@@ -163,7 +167,7 @@ async def get_pending_donation_registrations(
         # 限制查询数量
         limit = min(limit, 200)
 
-        registrations = db.get_pending_donation_registrations(limit=limit)
+        registrations = donation_service.get_pending_donation_registrations(limit=limit)
 
         registration_responses = [
             DonationRegistrationResponse(**reg) for reg in registrations
@@ -201,7 +205,7 @@ async def get_donation_registration_detail(
         user_id = user.id
         is_admin = user.id in settings.TG_ADMIN_CHAT_ID
 
-        registration = db.get_donation_registration_by_id(registration_id)
+        registration = donation_service.get_donation_registration_by_id(registration_id)
 
         if not registration:
             raise HTTPException(
@@ -246,7 +250,7 @@ async def confirm_donation_registration(
         admin_id = user.id
 
         # 检查登记记录是否存在
-        registration = db.get_donation_registration_by_id(registration_id)
+        registration = donation_service.get_donation_registration_by_id(registration_id)
         if not registration:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="捐赠登记记录不存在"
@@ -342,7 +346,9 @@ async def confirm_donation_registration(
             )
 
         # 获取更新后的记录
-        updated_registration = db.get_donation_registration_by_id(registration_id)
+        updated_registration = donation_service.get_donation_registration_by_id(
+            registration_id
+        )
 
         action = "批准" if confirm_data.approved else "拒绝"
         message = f"捐赠登记已{action}"

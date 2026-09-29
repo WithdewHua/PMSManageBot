@@ -100,7 +100,7 @@ BLACKJACK_SERVICE_REBINDINGS = {
     "call|src/app/domains/badge_awards/jobs.py|331|imported|blackjack|get_game_king_eligible_tg_ids_tx": "app.databases.db_func:check_and_award_game_king_badge",
     "call|src/app/domains/badge_awards/jobs.py|38|imported|badges|get_badge_by_type": "app.databases.db_func:check_and_award_supreme_contributor_badge",
     "call|src/app/domains/badge_awards/jobs.py|41|imported|badges|create_badge": "app.databases.db_func:check_and_award_supreme_contributor_badge",
-    "import|src/app/domains/badge_awards/jobs.py|11|app.domains.blackjack.service|service": "app.databases.db_func:@import:19",
+    "import|src/app/domains/badge_awards/jobs.py|10|app.domains.blackjack.service|service": "app.databases.db_func:@import:19",
 }
 
 # Cross-domain edges whose legacy spelling was replaced by the reviewed blackjack
@@ -112,7 +112,7 @@ REVIEWED_BOUNDARY_REPLACEMENTS = {
     "call|src/app/domains/rankings/repository.py|189|imported|blackjack|get_blackjack_skill_ranks": "promote-remaining-domains",
     "call|src/app/domains/rankings/repository.py|193|imported|blackjack|get_blackjack_max_win_rank": "promote-remaining-domains",
     "import|src/app/domains/rankings/repository.py|7|app.domains.blackjack.service|service": "promote-remaining-domains",
-    "import|src/app/domains/badge_awards/jobs.py|9|app.domains.badges.service|service": "promote-reward-domains",
+    "import|src/app/domains/badge_awards/jobs.py|8|app.domains.badges.service|service": "promote-reward-domains",
 }
 
 

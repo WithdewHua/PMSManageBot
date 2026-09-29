@@ -5,16 +5,17 @@ Premium 会员相关路由
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from app.core.auth import get_telegram_user, require_telegram_auth
-from app.core.formatting import get_service_label
 from app.core.log import uvicorn_logger as logger
-from app.core.schemas import BaseResponse, TelegramUser
-from app.core.telegram import get_user_name_from_tg_id, notify_admins_by_url
 from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.domains.identity import service as identity_service
+from app.domains.premium import notifications as premium_notifications
 from app.domains.premium import service as premium_service
 from app.domains.premium.service import update_premium_status
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
+from app.transport.http.auth import get_telegram_user, require_telegram_auth
+from app.transport.http.schemas import BaseResponse, TelegramUser
 
 
 class PremiumStatisticsResponse(BaseModel):
@@ -115,7 +116,7 @@ async def unlock_premium(
         )
 
         # 发送通知消息
-        service_name, service_emoji = get_service_label(service)
+        service_name, service_emoji = identity_service.get_service_label(service)
 
         notification_text = f"""✨ Premium 解锁成功
 
@@ -131,7 +132,7 @@ async def unlock_premium(
             notification_text += f"\n🎉 享受了 {discount_percent}折 优惠！"
 
         background_tasks.add_task(
-            notify_admins_by_url,
+            premium_notifications.notify_premium_unlocked,
             notification_text,
         )
 

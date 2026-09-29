@@ -11,6 +11,8 @@ api/ · bot/ · schedule.py · model_registry.py（组装）
   ↓
 domains/（业务领域；过渡期经 databases/db.py 门面）
   ↓
+transport/（HTTP、Telegram 管理员投递等边界适配器）
+  ↓
 integrations/（外部 API 客户端）
   ↓
 core/（公共设施）
@@ -27,11 +29,11 @@ core/（公共设施）
 | `router.py` / `admin_router.py` | 用户 / 管理员 HTTP 入口，依赖本领域 service、schemas、exceptions 与 core；来自旧 admin 路由的入口放在 admin_router |
 | `bot.py` / `jobs.py` | Bot 命令 / 定时任务入口，依赖本领域 service（jobs 也可依赖 notifications）和 core |
 | `service.py` | 用例编排，依赖本领域 repository、rules、notifications，其他领域的 service 和 integrations；外部副作用在事务提交后执行 |
-| `notifications.py` | 消息格式化与发送，依赖 rules、constants、core.telegram |
+| `notifications.py` | 消息格式化与发送，依赖 rules、constants、integrations.telegram 或 transport.telegram.admin |
 | `repository.py` | 唯一的业务 SQLAlchemy 查询和事务位置；对外提供完整事务操作，跨域同事务调用目标领域的 `*_tx(session, …)` |
 | `models.py` | 本领域的 ORM 表，依赖 core.db；所有模型经 model_registry 注册 |
 | `rules.py` | 不做 I/O 的纯逻辑，依赖 constants、exceptions、本领域 models（仅作类型注解）；由「Domain rules are pure value computations」合约禁止直接导入 `app.core.db`、`sqlalchemy`、repository/service/router/jobs/notifications，需要取数时由 repository 依据 `required_metrics(...)` 预取 |
-| `schemas.py` | Pydantic 请求和响应模型，依赖 constants 和 core.schemas |
+| `schemas.py` | 领域 Pydantic 请求和响应模型；HTTP 认证用户与通用响应模型属于 `transport.http.schemas` |
 | `exceptions.py` / `constants.py` / `config.py` | 领域异常 / 常量 / 类型化业务配置 |
 
 单个角色文件超过 1,000 行时改成同名包，按子主题分文件，包的公开接口保持不变。过渡期 repository 是组合到 `app.databases.db.DatabaseORM` 的 mixin，已有 `db.xxx()` 调用保持不变；新数据库操作进入所属领域的 repository，而不是添加到门面。
@@ -71,8 +73,10 @@ core/（公共设施）
 ## 跨域导入规则
 
 - 跨域调用只允许目标领域的 `service` 或 `*_tx` repository helper；不得导入外域的 models、routers、jobs、notifications。
+- HTTP 入口通过 `transport.http.auth` 与 `transport.http.schemas` 使用认证/传输模型；领域的 service、repository、rules、types 不得反向依赖 transport。
 - 共享词汇例外：`<domain>/types.py` 是纯值类型模块（`credits/types.py` 的 `CreditAccount`、`CreditMutation`、`CreditTransfer`），任何领域的任何角色都可以导入它。纯性由 import-linter 合约“Domain types are pure value modules”强制：types 不得导入本领域的 service/repository/models/config/exceptions，也不得导入 `app.core.db` 或 SQLAlchemy。
 - AST 检查（`tests/architecture/checks.py`）把 `types` 与 `service`、`exceptions`、`constants` 并列视为可跨域导入的角色，其余角色仍然登记为基线债务。
+- `types.py` 必须无 I/O、无 settings、无领域依赖；例如 `identity.types.get_service_label` 只承载媒体服务显示值。
 - 积分写入的自登记：`credits.repository.add_tx` / `deduct_tx` / `move_tx` 在调用方 session 上按 cache key 登记提交后的缓存失效（`app.core.db.register_post_commit`，同一 key 幂等），所以调用方不需要记得失效缓存；显式的 `credits_service.register_cache_invalidation` 只为非由 mutation 推导的 key 保留，重复登记无副作用。
 
 ## 宽表列归属
@@ -108,6 +112,14 @@ core/（公共设施）
 | 操作 | 入口及调用方式 | 保留理由 / 后续责任 |
 |---|---|---|
 | TG 用户换绑 | `db.rebind_user_tg_id(...)`，由管理员在运维 Python 环境手动调用；搬迁后仍由 `from app.databases import db` 获取门面 | 虽无代码调用方，但属于人工操作入口；现有漏迁问题由 `promote-tg-rebind-domain` 修复，删除前须与维护者确认 |
+
+## Core 与 transport 边界
+
+- `core/` 只保留公共机制：配置、数据库会话、缓存机制、HTTP session、日志、调度器、KV 与纯字节格式化；不放 HTTP 认证、Telegram 客户端、通用 API schemas 或业务缓存实例。
+- `transport/http/` 负责 HTTP middleware、DomainError adapter、认证依赖和通用 `TelegramUser`/`BaseResponse`；认证纯校验位于 `integrations.telegram.init_data`，接收显式 token、有效期和当前时间，不读取 settings。
+- `integrations/telegram/` 按 profile cache、profile client、messaging 拆分；`transport/telegram/admin.py` 只负责按部署管理员列表顺序投递，不包含业务条件。
+- 各领域的 Redis 实例和失效函数由领域 `cache.py` 拥有，`core.cache` 仅提供 Redis/Lua 通用机制。
+- `core.system`、`core.singleton`、`core.formatting`、`core.number`、`core.auth`、`core.schemas`、`core.telegram` 已删除，不保留转发 shim。
 
 ## 配置分类
 

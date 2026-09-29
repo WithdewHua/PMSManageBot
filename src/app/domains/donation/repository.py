@@ -62,8 +62,6 @@ class DonationRepository:
     def get_donation_registration_by_id(self, registration_id: int) -> dict | None:
         """根据ID获取捐赠登记信息"""
         try:
-            from app.core.telegram import get_user_name_from_tg_id
-
             with get_session() as session:
                 stmt = select(DonationRegistrations).where(
                     DonationRegistrations.id == registration_id
@@ -88,8 +86,8 @@ class DonationRepository:
                         "is_donation_registration": bool(
                             result.is_donation_registration
                         ),
-                        "username": get_user_name_from_tg_id(user_id),
-                        "processed_by_username": get_user_name_from_tg_id(processed_by)
+                        "username": str(user_id),
+                        "processed_by_username": str(processed_by)
                         if processed_by
                         else None,
                     }
@@ -103,8 +101,6 @@ class DonationRepository:
     ) -> list[dict]:
         """获取用户的捐赠登记历史"""
         try:
-            from app.core.telegram import get_user_name_from_tg_id
-
             with get_session() as session:
                 stmt = (
                     select(DonationRegistrations)
@@ -134,10 +130,8 @@ class DonationRepository:
                             "is_donation_registration": bool(
                                 result.is_donation_registration
                             ),
-                            "username": get_user_name_from_tg_id(user_id_result),
-                            "processed_by_username": get_user_name_from_tg_id(
-                                processed_by
-                            )
+                            "username": str(user_id_result),
+                            "processed_by_username": str(processed_by)
                             if processed_by
                             else None,
                         }
@@ -150,8 +144,6 @@ class DonationRepository:
     def get_pending_donation_registrations(self, limit: int = 50) -> list[dict]:
         """获取待处理的捐赠登记列表"""
         try:
-            from app.core.telegram import get_user_name_from_tg_id
-
             with get_session() as session:
                 stmt = (
                     select(DonationRegistrations)
@@ -181,10 +173,8 @@ class DonationRepository:
                             "is_donation_registration": bool(
                                 result.is_donation_registration
                             ),
-                            "username": get_user_name_from_tg_id(user_id),
-                            "processed_by_username": get_user_name_from_tg_id(
-                                processed_by
-                            )
+                            "username": str(user_id),
+                            "processed_by_username": str(processed_by)
                             if processed_by
                             else None,
                         }

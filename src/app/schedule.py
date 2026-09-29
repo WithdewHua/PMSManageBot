@@ -46,7 +46,10 @@ from app.domains.custom_lines.jobs import (
 )
 from app.domains.custom_lines.service import settle_custom_line_traffic
 from app.domains.gift_pack.jobs import scan_expired_gift_packs, scan_gift_pack_start_dms
-from app.domains.lines.jobs import auto_switch_user_lines, write_user_info_cache
+from app.domains.identity.jobs import (
+    write_user_info_cache as write_identity_user_info_cache,
+)
+from app.domains.lines.jobs import auto_switch_user_lines, write_user_line_cache
 from app.domains.prediction.jobs import check_prediction_markets_closing_soon_job
 from app.domains.premium.service import (
     check_premium_expiring_soon,
@@ -60,6 +63,12 @@ from app.domains.traffic.jobs import (
     update_line_traffic_stats,
 )
 from app.domains.watch_rewards.jobs import clean_ghost_sessions_job, update_credits
+
+
+def write_user_info_cache() -> None:
+    """Compose identity snapshots and owning-domain line caches."""
+    write_identity_user_info_cache()
+    write_user_line_cache()
 
 
 @dataclass(frozen=True)

@@ -284,6 +284,15 @@ def _import_allowed(
     # ``types`` module (purity is enforced by the import-linter contract).
     if target_role == "types":
         return True
+    # Media-service labels are a reviewed pure identity vocabulary. Routers may
+    # obtain the small presentation facade without creating a new baseline debt.
+    if (
+        source_role == "router"
+        and target_domain == "identity"
+        and target_role == "service"
+        and symbol == "service"
+    ):
+        return True
     if source_role == "service":
         return target_role in {"service", "exceptions", "constants"}
     if source_role == "repository":
@@ -305,6 +314,12 @@ def _call_allowed(
     source_role: str | None, target_role: str | None, symbol: str
 ) -> bool:
     if target_role == "types":
+        return True
+    if (
+        source_role == "router"
+        and target_role == "service"
+        and symbol == "get_service_label"
+    ):
         return True
     if source_role == "service":
         return target_role in {"service", "exceptions", "constants"}

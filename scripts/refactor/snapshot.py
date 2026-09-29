@@ -256,7 +256,7 @@ async def _commands() -> list[dict[str, str]]:
             self.bot = Bot()
 
     application = Application()
-    from app.core.legacy_env import LEGACY_ENV
+    from app.business_config import LEGACY_ENV
     from app.domains.invitation import service as invitation_service
 
     original_get_invitation_credits = invitation_service.get_invitation_credits

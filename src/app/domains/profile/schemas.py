@@ -2,7 +2,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from app.core.schemas import BaseResponse
+from app.transport.http.schemas import BaseResponse
 
 
 class UserInfo(BaseModel):

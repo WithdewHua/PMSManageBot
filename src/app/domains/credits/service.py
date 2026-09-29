@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from app.core.cache import invalidate_user_credits
 from app.domains.credits import repository
+from app.domains.credits.cache import invalidate_user_credits
 from app.domains.credits.config import CREDITS_CONFIG
 from app.domains.credits.exceptions import CreditAccountNotFound
 from app.domains.credits.types import (

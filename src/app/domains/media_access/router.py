@@ -2,18 +2,19 @@ from time import time
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
 
-from app.core.auth import get_telegram_user, require_telegram_auth
-from app.core.formatting import get_service_label
 from app.core.log import uvicorn_logger as logger
-from app.core.schemas import BaseResponse, TelegramUser
-from app.core.telegram import get_user_name_from_tg_id, notify_admins_by_url
 from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.domains.identity import service as identity_service
+from app.domains.media_access import notifications as media_access_notifications
 from app.domains.media_access import service as media_access_service
 from app.domains.media_access.rules import caculate_credits_fund
 from app.integrations.emby import Emby
 from app.integrations.plex import Plex
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
+from app.transport.http.auth import get_telegram_user, require_telegram_auth
+from app.transport.http.schemas import BaseResponse, TelegramUser
 
 router = APIRouter(prefix="/api/user", tags=["user"])
 
@@ -267,10 +268,10 @@ async def nsfw_operation(
                     raise HTTPException(status_code=500, detail="更新权限状态失败")
 
         if operation == "unlock":
-            service_name, service_emoji = get_service_label(service)
+            service_name, service_emoji = identity_service.get_service_label(service)
             user_name = get_user_name_from_tg_id(tg_id)
             background_tasks.add_task(
-                notify_admins_by_url,
+                media_access_notifications.notify_nsfw_unlocked,
                 f"""🔞 NSFW 权限解锁通知
 
 👤 用户: {user_name}（TG ID: {tg_id}）
@@ -378,7 +379,7 @@ async def unlock_download_permission(
         )
 
         # 发送管理员通知
-        service_name, service_emoji = get_service_label(service)
+        service_name, service_emoji = identity_service.get_service_label(service)
         user_name = get_user_name_from_tg_id(tg_id)
 
         admin_notification = f"""📥 下载权限解锁通知
@@ -389,7 +390,7 @@ async def unlock_download_permission(
 💰 剩余: {remaining_credits:.2f} 积分"""
 
         background_tasks.add_task(
-            notify_admins_by_url,
+            media_access_notifications.notify_download_unlocked,
             admin_notification,
         )
 

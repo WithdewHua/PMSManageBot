@@ -63,7 +63,11 @@ async def test_scan_sends_summary_once_and_marks_expiry(orm, monkeypatch):
     async def _notify(text, **kwargs):
         messages.append((text, kwargs))
 
-    monkeypatch.setattr(gift_pack_jobs, "notify_admins_by_url", _notify)
+    monkeypatch.setattr(
+        gift_pack_jobs.notifications,
+        "notify_gift_pack_expiry_summary",
+        _notify,
+    )
 
     await gift_pack_jobs.scan_expired_gift_packs()
 
@@ -87,7 +91,11 @@ async def test_scan_leaves_pack_unnotified_when_sending_fails(orm, monkeypatch):
     async def _boom(*args, **kwargs):
         raise RuntimeError("telegram down")
 
-    monkeypatch.setattr(gift_pack_jobs, "notify_admins_by_url", _boom)
+    monkeypatch.setattr(
+        gift_pack_jobs.notifications,
+        "notify_gift_pack_expiry_summary",
+        _boom,
+    )
 
     await gift_pack_jobs.scan_expired_gift_packs()
 
@@ -103,7 +111,11 @@ async def test_scan_reports_unlimited_quantity_wording(orm, monkeypatch):
     async def _notify(text, **kwargs):
         messages.append(text)
 
-    monkeypatch.setattr(gift_pack_jobs, "notify_admins_by_url", _notify)
+    monkeypatch.setattr(
+        gift_pack_jobs.notifications,
+        "notify_gift_pack_expiry_summary",
+        _notify,
+    )
 
     await gift_pack_jobs.scan_expired_gift_packs()
 

@@ -1,6 +1,25 @@
-"""Identity read operations used across domain boundaries during B3 relocation."""
+"""Identity read operations and identity-owned cache APIs."""
+
+import json
+from typing import Any
 
 from app.domains.identity import repository as identity_repository
+from app.domains.identity import rules as identity_rules
+from app.domains.identity.cache import user_info_cache
+
+
+def publish_user_info_snapshot(cache_key: str, snapshot: dict[str, Any]) -> None:
+    """Publish a serialized identity snapshot without exposing the cache instance."""
+    user_info_cache.put(cache_key, json.dumps(snapshot))
+
+
+def get_service_label(service: str) -> tuple[str, str]:
+    """Expose pure identity-owned media display labels to other domains."""
+    return identity_rules.get_service_label(service)
+
+
+def write_user_info_cache() -> None:
+    identity_repository.IdentityRepository().write_user_info_cache()
 
 
 def get_plex_info_by_tg_id(tg_id: int) -> tuple | None:

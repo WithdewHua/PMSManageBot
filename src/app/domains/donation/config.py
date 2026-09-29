@@ -3,7 +3,6 @@
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from app.core.domain_config import DomainConfig, FieldRows, LegacySource
-from app.core.legacy_env import LEGACY_ENV
 
 
 class DonationConfigModel(BaseModel):
@@ -16,9 +15,7 @@ DONATION_CONFIG = DomainConfig(
     "donation",
     DonationConfigModel,
     FieldRows("config.donation"),
-    legacy={
-        "donation_multiplier": LegacySource("DONATION_MULTIPLIER", LEGACY_ENV.read)
-    },
+    legacy={"donation_multiplier": LegacySource("DONATION_MULTIPLIER", default=5)},
 )
 
 __all__ = ["DONATION_CONFIG", "DonationConfigModel"]

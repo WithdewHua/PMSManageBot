@@ -2,11 +2,12 @@ from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
 from app.core.config import settings
-from app.core.telegram import get_user_name_from_tg_id, send_message
 from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.donation import service as donation_service
+from app.integrations.telegram.messaging import send_message
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
 
 # 管理员命令: 设置捐赠信息

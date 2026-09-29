@@ -6,12 +6,11 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.api.errors import domain_error_handler
 from app.api.lifespan import lifespan
-from app.api.middlewares import TelegramAuthMiddleware
 from app.api.static import setup_static_files
 from app.core.config import settings
 from app.core.errors import DomainError
+from app.core.log import logger
 from app.domains.accounts.admin_router import router as accounts_admin
 from app.domains.accounts.router import router as accounts
 from app.domains.auction.router import router as auction_router
@@ -53,8 +52,22 @@ from app.domains.treasure.router import router as treasure_router
 from app.domains.vaultwarden.admin_router import router as vaultwarden_admin
 from app.domains.vaultwarden.router import router as vaultwarden_router
 from app.subscriptions import register_subscriptions
+from app.transport.http.errors import domain_error_handler
+from app.transport.http.middleware import TelegramAuthMiddleware
 
 register_subscriptions()
+
+
+def _resolve_session_secret_key() -> str:
+    if settings.SESSION_SECRET_KEY:
+        return settings.SESSION_SECRET_KEY
+    logger.warning(
+        "SESSION_SECRET_KEY is not configured; generated an ephemeral session key"
+    )
+    return secrets.token_urlsafe(32)
+
+
+_session_secret_key = _resolve_session_secret_key()
 
 app = FastAPI(
     title="PMSManageBot API",
@@ -65,11 +78,7 @@ app.add_exception_handler(DomainError, domain_error_handler)
 
 app.add_middleware(
     SessionMiddleware,
-    secret_key=(
-        settings.WEBAPP_SESSION_SECRET_KEY
-        if hasattr(settings, "WEBAPP_SESSION_SECRET_KEY")
-        else secrets.token_urlsafe(32)
-    ),
+    secret_key=_session_secret_key,
     session_cookie="pmsmanagebot_session",
     max_age=86400,
 )

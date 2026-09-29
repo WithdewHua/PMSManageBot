@@ -18,14 +18,7 @@ from fastapi import (
     status,
 )
 
-from app.core.auth import (
-    check_admin_permission,
-    get_telegram_user,
-    require_telegram_auth,
-)
 from app.core.log import uvicorn_logger as logger
-from app.core.schemas import TelegramUser
-from app.core.telegram import get_user_name_from_tg_id
 from app.domains.gift_pack import service as gift_pack_service
 from app.domains.gift_pack.exceptions import GiftPackError
 from app.domains.gift_pack.schemas import (
@@ -45,6 +38,13 @@ from app.domains.gift_pack.schemas import (
     GiftPackTaskPromptItem,
     GiftPackUpdateRequest,
 )
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
+from app.transport.http.auth import (
+    check_admin_permission,
+    get_telegram_user,
+    require_telegram_auth,
+)
+from app.transport.http.schemas import TelegramUser
 
 router = APIRouter(
     prefix="/api/gift-packs",

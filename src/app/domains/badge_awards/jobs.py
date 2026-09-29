@@ -5,7 +5,6 @@ from sqlalchemy import distinct, func, select, union
 
 from app.core.db import get_session
 from app.core.log import logger
-from app.core.telegram import send_message_by_url
 from app.domains.badges import service as badges_service
 from app.domains.badges.models import UserBadge
 from app.domains.blackjack import service as blackjack_service
@@ -13,6 +12,7 @@ from app.domains.identity.models import Statistics
 from app.domains.luckywheel.models import WheelStats
 from app.domains.prediction.models import PredictionBet
 from app.domains.treasure.models import TreasureParticipation
+from app.integrations.telegram.messaging import send_message_by_url
 
 
 async def check_and_award_supreme_contributor_badge(user_id: int | None = None):

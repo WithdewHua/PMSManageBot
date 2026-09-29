@@ -79,7 +79,6 @@ class MediaAccessRepository:
                 'unlock_time': int,   # 解锁时间戳
             }
         """
-        from app.core.telegram import get_user_name_from_tg_id
 
         try:
             with get_session() as session:
@@ -148,9 +147,7 @@ class MediaAccessRepository:
                 }
 
         except Exception as e:
-            logger.error(
-                f"检查用户 {get_user_name_from_tg_id(tg_id)} 的 {service} 下载权限解锁状态失败: {e}"
-            )
+            logger.error(f"检查用户 {tg_id!s} 的 {service} 下载权限解锁状态失败: {e}")
             return {"is_unlocked": False, "is_premium": False, "unlock_time": None}
 
     def set_download_unlocked(self, tg_id: int, service: str) -> bool:

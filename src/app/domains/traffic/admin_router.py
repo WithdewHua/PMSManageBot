@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Body, Depends, Request
 
-from app.core.auth import (
+from app.core.log import uvicorn_logger as logger
+from app.domains.traffic import service as traffic_service
+from app.transport.http.auth import (
     check_admin_permission,
     get_telegram_user,
     require_telegram_auth,
 )
-from app.core.log import uvicorn_logger as logger
-from app.core.schemas import BaseResponse, TelegramUser
-from app.domains.traffic import service as traffic_service
+from app.transport.http.schemas import BaseResponse, TelegramUser
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 

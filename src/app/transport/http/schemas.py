@@ -1,10 +1,10 @@
-"""Shared API schemas used by authentication and domain routers."""
+"""HTTP transport request and response models shared by domain routers."""
 
 from pydantic import BaseModel
 
 
 class TelegramUser(BaseModel):
-    """Telegram 用户信息模型"""
+    """Telegram 用户信息模型。"""
 
     id: int
     first_name: str
@@ -16,7 +16,7 @@ class TelegramUser(BaseModel):
 
 
 class BaseResponse(BaseModel):
-    """通用响应模型"""
+    """通用响应模型。"""
 
     success: bool
     message: str = ""

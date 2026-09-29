@@ -3,10 +3,11 @@ from telegram.ext import CommandHandler, ContextTypes
 
 from app.core.config import settings
 from app.core.log import logger
-from app.core.telegram import get_user_name_from_tg_id, send_message
 from app.databases import db
 from app.domains.reports.service import stats_report
 from app.integrations.emby import Emby
+from app.integrations.telegram.messaging import send_message
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
 
 # 积分榜

@@ -12,6 +12,7 @@ import time
 from app.core.log import logger
 from app.domains.prediction import notifications as prediction_notifications
 from app.domains.prediction import repository as prediction_repository
+from app.integrations.telegram import profiles as telegram_profiles
 
 
 def list_prediction_markets(
@@ -29,7 +30,13 @@ def get_prediction_market_by_id(
 
 
 def list_prediction_bets(market_id: int, *, limit: int = 100) -> list[dict]:
-    return prediction_repository.list_prediction_bets(market_id, limit)
+    rows = prediction_repository.list_prediction_bets(market_id, limit)
+    for row in rows:
+        tg_id = int(row["tg_id"])
+        row["tg_username"] = str(
+            telegram_profiles.get_user_name_from_tg_id(tg_id) or tg_id
+        )
+    return rows
 
 
 def list_prediction_submissions(

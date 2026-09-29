@@ -47,8 +47,7 @@ def main() -> int:
     from sqlalchemy.orm import sessionmaker
 
     import app.core.db as db_module
-    from app.business_config import seed_all
-    from app.core.legacy_env import LEGACY_ENV
+    from app.business_config import LEGACY_ENV, seed_all
     from app.domains.donation import service as donation_service
     from app.domains.donation.config import DONATION_CONFIG
     from app.domains.invitation import service as invitation_service

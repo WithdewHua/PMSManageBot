@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.core import cache as cache_module
 from app.core.db import get_session
+from app.domains.credits import cache as cache_module
 from app.domains.credits import repository, service
 from app.domains.credits.exceptions import CreditAccountNotFound, InsufficientCredits
 from app.domains.credits.types import CreditAccount

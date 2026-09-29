@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 
+from app.core.byte_size import format_bytes
 from app.core.config import settings
-from app.core.formatting import format_traffic_size
-from app.core.telegram import get_user_name_from_tg_id
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
 
 def _format_premium_traffic_deduction_summary(deduction_records: list[dict]) -> str:
@@ -35,7 +35,7 @@ def _format_premium_traffic_deduction_summary(deduction_records: list[dict]) -> 
             message_parts.append(
                 f"  • {record['username']} | TG: {get_user_name_from_tg_id(tg_id) if tg_id else '未绑定 TG'} | "
                 f"扣除积分: {record['deducted_credits']:.2f} | "
-                f"扣费流量: {format_traffic_size(record['chargeable_bytes'])}"
+                f"扣费流量: {format_bytes(record['chargeable_bytes'])}"
             )
 
     message_parts.extend(
@@ -44,7 +44,7 @@ def _format_premium_traffic_deduction_summary(deduction_records: list[dict]) -> 
             "📋 总计:",
             f"扣分用户: {len(deduction_records)} 人",
             f"扣除积分: {total_credits:.2f}",
-            f"扣费流量: {format_traffic_size(total_chargeable_bytes)}",
+            f"扣费流量: {format_bytes(total_chargeable_bytes)}",
         ]
     )
     return "\n".join(message_parts)

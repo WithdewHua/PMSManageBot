@@ -3,12 +3,12 @@ from __future__ import annotations
 import pytest
 from starlette.requests import Request
 
-from app.core.schemas import TelegramUser
 from app.domains.crypto_donation import admin_router as crypto_admin
 from app.domains.donation import admin_router as donation_admin
 from app.domains.media_access import admin_router as media_admin
 from app.domains.premium import admin_router as premium_admin
 from app.domains.vaultwarden import admin_router as vault_admin
+from app.transport.http.schemas import TelegramUser
 
 
 def _request() -> Request:

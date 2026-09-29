@@ -1,7 +1,7 @@
 from app.core.config import settings
-from app.core.telegram import send_message_by_url
 from app.domains.reports.constants import BODY_TEXT, EMBY_BODY_TEXT
 from app.domains.reports.service import stats_report
+from app.integrations.telegram.messaging import send_message_by_url
 
 
 async def send_weekly_report(channel_id: str = settings.TG_CHANNEL_ID):

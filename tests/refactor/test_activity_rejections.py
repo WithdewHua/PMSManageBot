@@ -31,7 +31,6 @@ from starlette.responses import Response
 
 from app.core.db import get_session
 from app.core.kv import SystemConfig
-from app.core.schemas import TelegramUser
 from app.databases.db import DatabaseORM
 from app.domains.auction import router as auc
 from app.domains.auction import service as auction_service
@@ -61,6 +60,7 @@ from app.domains.treasure.schemas import (
     TreasureJoinRequest,
 )
 from app.integrations import eth_rpc
+from app.transport.http.schemas import TelegramUser
 from tests.conftest import add_user, next_id
 
 FIXTURE = Path(__file__).parent / "fixtures/activity_rejections.json"

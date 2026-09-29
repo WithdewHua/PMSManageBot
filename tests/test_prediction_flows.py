@@ -15,7 +15,6 @@ from starlette.requests import Request
 
 from app.core.db import get_session
 from app.core.kv import SystemConfig
-from app.core.schemas import TelegramUser
 from app.domains.identity.models import Statistics
 from app.domains.prediction import repository as prediction_repository
 from app.domains.prediction import router as pred
@@ -30,6 +29,7 @@ from app.domains.prediction.schemas import (
     PredictionResolveRequest,
     PredictionSubmissionReviewRequest,
 )
+from app.transport.http.schemas import TelegramUser
 from tests.conftest import add_user, next_id
 
 ADMIN = TelegramUser(id=123456789, first_name="admin", username="admin")

@@ -3,12 +3,9 @@ from time import time
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from sqlalchemy import select
 
-from app.core.auth import get_telegram_user, require_telegram_auth
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import uvicorn_logger as logger
-from app.core.schemas import BaseResponse, TelegramUser
-from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.domains.custom_lines.models import CustomLine
 from app.domains.profile.schemas import (
     CustomLineDetailResponse,
@@ -19,6 +16,10 @@ from app.domains.profile.schemas import (
     CustomLineSubmitRequest,
     CustomLineUpdateRequest,
 )
+from app.integrations.telegram.messaging import send_message_by_url
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
+from app.transport.http.auth import get_telegram_user, require_telegram_auth
+from app.transport.http.schemas import BaseResponse, TelegramUser
 
 router = APIRouter(prefix="/api/user", tags=["user"])
 

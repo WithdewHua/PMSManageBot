@@ -14,6 +14,7 @@ from app.core.log import logger
 from app.domains.gift_pack import notifications
 from app.domains.gift_pack import repository as gift_pack_repository
 from app.domains.gift_pack.exceptions import GiftPackError
+from app.integrations.telegram import profiles as telegram_profiles
 
 #: 领了但同步失败的下载解锁：读取快照条目并补一句面向用户的说明。
 _DOWNLOAD_SYNC_MESSAGE = (
@@ -144,7 +145,8 @@ def admin_claim_records(
 
 
 def admin_resolve_users(text: str) -> dict:
-    return gift_pack_repository.resolve_gift_pack_users(text)
+    tg_cache = telegram_profiles.load_tg_user_info_cache()
+    return gift_pack_repository.resolve_gift_pack_users(text, tg_cache=tg_cache)
 
 
 def scan_expired_packs(limit: int | None = None) -> list[dict]:

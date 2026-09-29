@@ -3,14 +3,7 @@ import time
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
-from app.core.auth import (
-    check_admin_permission,
-    get_telegram_user,
-    require_telegram_auth,
-)
 from app.core.log import logger
-from app.core.schemas import TelegramUser
-from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.domains.badge_awards.jobs import check_and_award_game_king_badge
 from app.domains.luckywheel import constants as luckywheel_constants
 from app.domains.luckywheel import exceptions as luckywheel_exceptions
@@ -24,6 +17,14 @@ from app.domains.luckywheel.schemas import (
     LuckyWheelSpinResult,
     LuckyWheelTenSpinResult,
 )
+from app.integrations.telegram.messaging import send_message_by_url
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
+from app.transport.http.auth import (
+    check_admin_permission,
+    get_telegram_user,
+    require_telegram_auth,
+)
+from app.transport.http.schemas import TelegramUser
 
 DEFAULT_WHEEL_CONFIG = luckywheel_service.DEFAULT_WHEEL_CONFIG
 FREE_SPIN_SOURCE_TO_WHEEL_SOURCE = luckywheel_constants.FREE_SPIN_SOURCE_TO_WHEEL_SOURCE

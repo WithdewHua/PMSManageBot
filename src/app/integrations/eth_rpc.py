@@ -6,13 +6,13 @@ without embedding a network client in a domain module.
 """
 
 from app.core.config import settings
-from app.core.number import normalize_external_random_b
 
 
 async def latest_block_hash_int() -> int:
-    """获取以太坊最新区块哈希并转为整数 B。
+    """Return the raw integer value of the latest Ethereum block hash.
 
-    说明：这里用最轻量的 JSON-RPC 调用，不引入额外依赖；RPC URL 从环境读取。
+    Treasure owns any signed-BIGINT mapping needed for settlement; this client
+    only owns the JSON-RPC transport and returns the provider value unchanged.
     """
     import aiohttp
 
@@ -39,8 +39,7 @@ async def latest_block_hash_int() -> int:
         if not block_hash or not isinstance(block_hash, str):
             raise RuntimeError("failed to get latest block hash")
 
-        # hash like '0xabc...'; normalize to signed BIGINT-safe non-negative range.
-        return normalize_external_random_b(int(block_hash, 16), default=0) or 0
+        return int(block_hash, 16)
 
 
 __all__ = ["latest_block_hash_int"]

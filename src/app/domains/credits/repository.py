@@ -5,8 +5,8 @@ from math import isfinite
 
 from sqlalchemy import select, update
 
-from app.core.cache import invalidate_user_credits
 from app.core.db import get_session, register_post_commit
+from app.domains.credits.cache import invalidate_user_credits
 from app.domains.credits.exceptions import CreditAccountNotFound, InsufficientCredits
 from app.domains.credits.types import (
     CreditAccount,

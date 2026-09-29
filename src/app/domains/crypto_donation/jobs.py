@@ -2,8 +2,9 @@ import asyncio
 
 from app.core.config import settings
 from app.core.log import logger
-from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases.db import db
+from app.integrations.telegram.messaging import send_message_by_url
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
 
 async def check_expired_crypto_donation_orders():

@@ -8,7 +8,7 @@
 """
 
 from app.core.config import settings
-from app.core.telegram import get_user_name_from_tg_id
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
 # router declaration belongs to the HTTP assembly(prefix="/blackjack", tags=["21点"])
 

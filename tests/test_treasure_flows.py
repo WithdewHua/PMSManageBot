@@ -14,7 +14,6 @@ from sqlalchemy.exc import NoResultFound
 from starlette.requests import Request
 
 from app.core.db import get_session
-from app.core.schemas import TelegramUser
 from app.domains.identity.models import Statistics
 from app.domains.treasure import jobs as treasure_jobs
 from app.domains.treasure import repository as treasure_repository
@@ -23,6 +22,7 @@ from app.domains.treasure import service as treasure_service
 from app.domains.treasure.models import TreasureIssue, TreasureParticipation
 from app.domains.treasure.schemas import TreasureCreateIssueRequest, TreasureJoinRequest
 from app.integrations import eth_rpc
+from app.transport.http.schemas import TelegramUser
 from tests.conftest import add_user, next_id
 
 ADMIN = TelegramUser(id=123456789, first_name="admin", username="admin")

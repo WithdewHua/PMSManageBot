@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import time
 from datetime import datetime, timedelta
 
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
-from app.core.number import normalize_external_random_b
 from app.domains.treasure import exceptions as treasure_exceptions
 from app.domains.treasure import notifications as treasure_notifications
 from app.domains.treasure import repository as treasure_repository
+from app.domains.treasure import rules as treasure_rules
 from app.integrations import eth_rpc
+from app.integrations.telegram import profiles as telegram_profiles
 
 
 def get_user_treasure_stats(tg_id: int) -> dict:
@@ -49,9 +48,15 @@ def list_treasure_participations(
     issue_id: int, *, limit: int = 100, offset: int = 0
 ) -> list[dict]:
     try:
-        return treasure_repository.list_treasure_participations(
+        participations = treasure_repository.list_treasure_participations(
             int(issue_id), limit=int(limit), offset=int(offset)
         )
+        for participation in participations:
+            tg_id = int(participation["tg_id"])
+            participation["tg_username"] = str(
+                telegram_profiles.get_user_name_from_tg_id(tg_id) or tg_id
+            )
+        return participations
     except treasure_exceptions.TreasureError:
         raise
     except Exception as error:
@@ -66,24 +71,14 @@ def _fallback_external_random_b(
     tg_id: int,
     timestamp_ms: int,
 ) -> int | None:
-    if not issue:
-        return None
-    total_shares = int(issue.get("total_shares", 0))
-    shares_sold = int(issue.get("shares_sold", 0))
-    remaining = total_shares - shares_sold
-    if remaining <= 0 or int(quantity) < remaining:
-        return None
-
-    secret = getattr(settings, "TG_API_TOKEN", "")
-    if not secret:
-        raise RuntimeError("TG_API_TOKEN not configured")
-    message = (
-        f"treasure|fallback_b|issue_id={int(issue_id)}|"
-        f"total={total_shares}|sold={shares_sold}|qty={int(quantity)}|"
-        f"tg_id={int(tg_id)}|ts_ms={int(timestamp_ms)}"
-    ).encode()
-    digest = hmac.new(secret.encode("utf-8"), message, hashlib.sha256).digest()
-    return normalize_external_random_b(int.from_bytes(digest[:8], "big", signed=False))
+    return treasure_rules.fallback_external_random_b(
+        issue_id=issue_id,
+        issue=issue,
+        quantity=quantity,
+        tg_id=tg_id,
+        timestamp_ms=timestamp_ms,
+        secret=getattr(settings, "TG_API_TOKEN", ""),
+    )
 
 
 async def join_treasure_issue(*, issue_id: int, tg_id: int, quantity: int = 1) -> dict:
@@ -112,7 +107,7 @@ async def join_treasure_issue(*, issue_id: int, tg_id: int, quantity: int = 1) -
         except Exception as error:
             logger.warning(f"生成随机兜底B失败，将继续使用默认B=0: {error}")
 
-    safe_external_b = normalize_external_random_b(
+    safe_external_b = treasure_rules.normalize_external_random_b(
         external_random_b if external_random_b is not None else fallback_b
     )
     result = treasure_repository.join_treasure_issue(

@@ -1,7 +1,6 @@
 import random
 import time
 import traceback
-from collections.abc import Iterable
 
 from app.core.log import logger
 from app.core.redis import Redis
@@ -437,69 +436,3 @@ class RedisCache:
 
         # stats 失败不要影响主流程
         return self._call_with_retry(_op, op="get_stats", swallow=True, default={})
-
-
-# Emby Line Cache
-emby_user_defined_line_cache = RedisCache(
-    db=2,
-    cache_key_prefix="emby_user_defined_line:",
-)
-
-emby_last_user_defined_line_cache = RedisCache(
-    db=2, cache_key_prefix="emby_last_user_defined_line:"
-)
-
-# Plex line cache
-plex_user_defined_line_cache = RedisCache(
-    db=2,
-    cache_key_prefix="plex_user_defined_line:",
-)
-
-plex_last_user_defined_line_cache = RedisCache(
-    db=2, cache_key_prefix="plex_last_user_defined_line:"
-)
-
-# nginx stream url-based traffic
-stream_traffic_cache = RedisCache(
-    db=15,
-    cache_key_prefix="",
-)
-
-### API/Token ###
-# Emby API Key cache
-emby_api_key_cache = RedisCache(
-    db=3,
-    cache_key_prefix="emby_api_key:",
-)
-
-# Plex token cache
-plex_token_cache = RedisCache(
-    db=3,
-    cache_key_prefix="plex_token_cache:",
-)
-
-### User Info ###
-# 存储用户积分信息
-user_credits_cache = RedisCache(
-    db=0,
-    cache_key_prefix="user_credits:",
-)
-
-# 存储用户信息
-user_info_cache = RedisCache(
-    db=2,
-    cache_key_prefix="user_info:",
-)
-
-
-def invalidate_user_credits(keys: Iterable[str]) -> None:
-    """Best-effort deletion of cached credit balances.
-
-    Called after the authoritative transaction commits: a cache that cannot be
-    reached is logged and ignored, because the database is the source of truth.
-    """
-    for key in dict.fromkeys(keys):
-        try:
-            user_credits_cache.delete(key)
-        except Exception as error:  # pragma: no cover - depends on Redis availability
-            logger.warning(f"Failed to invalidate credit cache {key}: {error}")

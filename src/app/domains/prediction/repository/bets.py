@@ -137,7 +137,6 @@ class _PredictionRepositoryBets:
             }
 
     def list_prediction_bets(self, market_id: int, limit: int = 100) -> list[dict]:
-        from app.core.telegram import get_user_name_from_tg_id
 
         with get_session() as session:
             rows = (
@@ -155,9 +154,6 @@ class _PredictionRepositoryBets:
                     "id": int(r.id),
                     "market_id": int(r.market_id),
                     "tg_id": int(r.tg_id),
-                    "tg_username": str(
-                        get_user_name_from_tg_id(int(r.tg_id)) or r.tg_id
-                    ),
                     "option": int(r.option),
                     "amount": int(r.amount),
                     "created_at": r.created_at,

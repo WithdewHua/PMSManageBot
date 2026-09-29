@@ -9336,13 +9336,13 @@ reason = "design D9 module / model rule"
 
 [[items]]
 id = "app.utils.number:SIGNED_BIGINT_MAX"
-target = "app.core.number"
+target = "app.domains.treasure.rules"
 kind = "assignment"
 reason = "design D9 module / model rule"
 
 [[items]]
 id = "app.utils.number:normalize_external_random_b"
-target = "app.core.number"
+target = "app.domains.treasure.rules"
 kind = "function"
 reason = "design D9 module / model rule"
 
@@ -9550,25 +9550,25 @@ reason = "B3 D2/D9 reviewed domain role; preserve source body and legacy transac
 
 [[items]]
 id = "app.utils.system:@import:1"
-target = "app.core.system"
+target = "app.core.config"
 kind = "import"
 reason = "design D9 module / model rule"
 
 [[items]]
 id = "app.utils.system:@import:2"
-target = "app.core.system"
+target = "app.core.config"
 kind = "import"
 reason = "design D9 module / model rule"
 
 [[items]]
 id = "app.utils.system:SystemUtils"
-target = "app.core.system"
+target = "app.core.config"
 kind = "class"
 reason = "design D9 module / model rule"
 
 [[items]]
 id = "app.utils.system:SystemUtils.is_container"
-target = "app.core.system"
+target = "app.core.config"
 kind = "method"
 reason = "design D9 module / model rule"
 
@@ -9805,11 +9805,11 @@ id = "app.utils.utils:@import:1"
 target = "app.core.http"
 kind = "import"
 reason = "design D2/D3 model ownership review"
-b1_target = "app.core.telegram"
+b1_target = "app.integrations.telegram + app.transport.telegram.admin"
 
 [[items]]
 id = "app.utils.utils:@import:10"
-target = "app.core.telegram"
+target = "app.integrations.telegram + app.transport.telegram.admin"
 kind = "import"
 reason = "design D2/D3 model ownership review"
 
@@ -9821,7 +9821,7 @@ reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:@import:12"
-target = "app.core.telegram"
+target = "app.integrations.telegram + app.transport.telegram.admin"
 kind = "import"
 reason = "design D2/D3 model ownership review"
 
@@ -9835,7 +9835,7 @@ source_state = "frozen"
 
 [[items]]
 id = "app.utils.utils:@import:2"
-target = "app.core.telegram"
+target = "app.integrations.telegram + app.transport.telegram.admin"
 kind = "import"
 reason = "design D2/D3 model ownership review"
 
@@ -9854,7 +9854,7 @@ b1_target = "app.domains.media_access.rules"
 
 [[items]]
 id = "app.utils.utils:@import:5"
-target = "app.core.singleton"
+target = "app.core.scheduler"
 kind = "import"
 reason = "design D2/D3 model ownership review"
 
@@ -9866,7 +9866,7 @@ reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:@import:7"
-target = "app.core.telegram"
+target = "app.integrations.telegram + app.transport.telegram.admin"
 kind = "import"
 reason = "design D2/D3 model ownership review"
 
@@ -9878,7 +9878,7 @@ reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:@import:9"
-target = "app.core.telegram"
+target = "app.integrations.telegram + app.transport.telegram.admin"
 kind = "import"
 reason = "design D2/D3 model ownership review"
 
@@ -9924,7 +9924,7 @@ reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:_save_tg_user_info_cache"
-target = "app.core.telegram"
+target = "app.integrations.telegram + app.transport.telegram.admin"
 kind = "function"
 reason = "design D2/D3 model ownership review"
 
@@ -9948,19 +9948,19 @@ reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:format_traffic_size"
-target = "app.core.formatting"
+target = "app.core.byte_size + app.domains.identity.types"
 kind = "function"
 reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:get_service_label"
-target = "app.core.formatting"
+target = "app.core.byte_size + app.domains.identity.types"
 kind = "function"
 reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:get_tg_user_photo_url"
-target = "app.core.telegram"
+target = "app.integrations.telegram + app.transport.telegram.admin"
 kind = "function"
 reason = "design D2/D3 model ownership review"
 
@@ -9972,25 +9972,25 @@ reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:get_user_avatar_from_tg_id"
-target = "app.core.telegram"
+target = "app.integrations.telegram + app.transport.telegram.admin"
 kind = "function"
 reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:get_user_info_from_tg_id"
-target = "app.core.telegram"
+target = "app.integrations.telegram + app.transport.telegram.admin"
 kind = "function"
 reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:get_user_name_from_tg_id"
-target = "app.core.telegram"
+target = "app.integrations.telegram + app.transport.telegram.admin"
 kind = "function"
 reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:get_user_names_from_tg_ids"
-target = "app.core.telegram"
+target = "app.integrations.telegram + app.transport.telegram.admin"
 kind = "function"
 reason = "design D2/D3 model ownership review"
 
@@ -10008,7 +10008,7 @@ reason = "B3 targeted de-cycle: line classification is owned by lines.rules"
 
 [[items]]
 id = "app.utils.utils:load_tg_user_info_cache"
-target = "app.core.telegram"
+target = "app.integrations.telegram + app.transport.telegram.admin"
 kind = "function"
 reason = "design D2/D3 model ownership review"
 
@@ -10020,7 +10020,7 @@ reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:notify_admins_by_url"
-target = "app.core.telegram"
+target = "app.integrations.telegram + app.transport.telegram.admin"
 kind = "function"
 reason = "design D2/D3 model ownership review"
 
@@ -10040,140 +10040,140 @@ b3_behavior_test = "tests/refactor/test_b3_mapping.py::test_b3_utility_owners_fo
 
 [[items]]
 id = "app.utils.utils:send_message"
-target = "app.core.telegram"
+target = "app.integrations.telegram + app.transport.telegram.admin"
 kind = "function"
 reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.utils.utils:send_message_by_url"
-target = "app.core.telegram"
+target = "app.integrations.telegram + app.transport.telegram.admin"
 kind = "function"
 reason = "design D2/D3 model ownership review"
 
 [[items]]
 id = "app.webapp.auth:@import:1"
-target = "app.core.auth"
+target = "app.transport.http.auth"
 kind = "import"
 reason = "design D9 module / model rule"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.auth:@import:2"
-target = "app.core.auth"
+target = "app.transport.http.auth"
 kind = "import"
 reason = "design D9 module / model rule"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.auth:@import:3"
-target = "app.core.auth"
+target = "app.transport.http.auth"
 kind = "import"
 reason = "design D9 module / model rule"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.auth:@import:4"
-target = "app.core.auth"
+target = "app.transport.http.auth"
 kind = "import"
 reason = "design D9 module / model rule"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.auth:@import:5"
-target = "app.core.auth"
+target = "app.transport.http.auth"
 kind = "import"
 reason = "design D9 module / model rule"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.auth:@import:6"
-target = "app.core.auth"
+target = "app.transport.http.auth"
 kind = "import"
 reason = "design D9 module / model rule"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.auth:get_telegram_user"
-target = "app.core.auth"
+target = "app.transport.http.auth"
 kind = "function"
 reason = "design D9 module / model rule"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.auth:verify_telegram_data"
-target = "app.core.auth"
+target = "app.transport.http.auth"
 kind = "function"
 reason = "design D9 module / model rule"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.middlewares:@import:1"
-target = "app.api.middlewares"
+target = "app.transport.http.middleware"
 kind = "import"
 reason = "B2 reviewed import redistribution: wraps"
 
-redistributed_to = ["app.core.auth"]
+redistributed_to = ["app.transport.http.auth"]
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.middlewares:@import:2"
-target = "app.api.middlewares"
+target = "app.transport.http.middleware"
 kind = "import"
 reason = "design D9 module / model rule"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.middlewares:@import:3"
-target = "app.api.middlewares"
+target = "app.transport.http.middleware"
 kind = "import"
 reason = "design D9 module / model rule"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.middlewares:@import:4"
-target = "app.api.middlewares"
+target = "app.transport.http.middleware"
 kind = "import"
 reason = "design D9 module / model rule"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.middlewares:@import:5"
-target = "app.api.middlewares"
+target = "app.transport.http.middleware"
 kind = "import"
 reason = "design D9 module / model rule"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.middlewares:@import:6"
-target = "app.api.middlewares"
+target = "app.transport.http.middleware"
 kind = "import"
 reason = "design D9 module / model rule"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.middlewares:TelegramAuthMiddleware"
-target = "app.api.middlewares"
+target = "app.transport.http.middleware"
 kind = "class"
 reason = "design D9 module / model rule"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.middlewares:TelegramAuthMiddleware.@statement:1"
-target = "app.api.middlewares"
+target = "app.transport.http.middleware"
 kind = "statement"
 reason = "design D9 module / model rule"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.middlewares:TelegramAuthMiddleware.dispatch"
-target = "app.api.middlewares"
+target = "app.transport.http.middleware"
 kind = "method"
 reason = "design D9 module / model rule"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.middlewares:require_telegram_auth"
-target = "app.core.auth"
+target = "app.transport.http.auth"
 kind = "function"
 reason = "B2 reviewed move destination for app.webapp.middlewares:require_telegram_auth"
 
@@ -10182,7 +10182,7 @@ source_state = "frozen"
 
 [[items]]
 id = "app.webapp.middlewares:security"
-target = "app.api.middlewares"
+target = "app.transport.http.middleware"
 kind = "assignment"
 reason = "design D9 module / model rule"
 source_state = "frozen"
@@ -12007,7 +12007,7 @@ source_state = "frozen"
 
 [[items]]
 id = "app.webapp.routers.admin:check_admin_permission"
-target = "app.core.auth"
+target = "app.transport.http.auth"
 kind = "function"
 reason = "B2 route ownership review"
 source_state = "frozen"
@@ -21790,28 +21790,28 @@ source_state = "frozen"
 
 [[items]]
 id = "app.webapp.schemas.user:BaseResponse"
-target = "app.core.schemas"
+target = "app.transport.http.schemas"
 kind = "class"
 reason = "D6 shared auth/response schema"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.schemas.user:BaseResponse.@statement:1"
-target = "app.core.schemas"
+target = "app.transport.http.schemas"
 kind = "statement"
 reason = "D6 shared auth/response schema"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.schemas.user:BaseResponse.message"
-target = "app.core.schemas"
+target = "app.transport.http.schemas"
 kind = "attribute"
 reason = "D6 shared auth/response schema"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.schemas.user:BaseResponse.success"
-target = "app.core.schemas"
+target = "app.transport.http.schemas"
 kind = "attribute"
 reason = "D6 shared auth/response schema"
 source_state = "frozen"
@@ -22994,63 +22994,63 @@ source_state = "frozen"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser"
-target = "app.core.schemas"
+target = "app.transport.http.schemas"
 kind = "class"
 reason = "D6 shared auth/response schema"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser.@statement:1"
-target = "app.core.schemas"
+target = "app.transport.http.schemas"
 kind = "statement"
 reason = "D6 shared auth/response schema"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser.first_name"
-target = "app.core.schemas"
+target = "app.transport.http.schemas"
 kind = "attribute"
 reason = "D6 shared auth/response schema"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser.id"
-target = "app.core.schemas"
+target = "app.transport.http.schemas"
 kind = "attribute"
 reason = "D6 shared auth/response schema"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser.is_bot"
-target = "app.core.schemas"
+target = "app.transport.http.schemas"
 kind = "attribute"
 reason = "D6 shared auth/response schema"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser.is_premium"
-target = "app.core.schemas"
+target = "app.transport.http.schemas"
 kind = "attribute"
 reason = "D6 shared auth/response schema"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser.last_name"
-target = "app.core.schemas"
+target = "app.transport.http.schemas"
 kind = "attribute"
 reason = "D6 shared auth/response schema"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser.photo_url"
-target = "app.core.schemas"
+target = "app.transport.http.schemas"
 kind = "attribute"
 reason = "D6 shared auth/response schema"
 source_state = "frozen"
 
 [[items]]
 id = "app.webapp.schemas.user:TelegramUser.username"
-target = "app.core.schemas"
+target = "app.transport.http.schemas"
 kind = "attribute"
 reason = "D6 shared auth/response schema"
 source_state = "frozen"
@@ -24015,7 +24015,7 @@ source_state = "frozen"
 
 [[items]]
 id = "app.utils.utils:@import:14"
-target = "app.core.singleton"
+target = "app.core.scheduler"
 kind = "import"
 reason = "B1 SingletonMeta relocation; legacy utility module deleted"
 action = "delete"
@@ -24023,7 +24023,7 @@ source_state = "frozen"
 
 [[items]]
 id = "app.utils.utils:SingletonMeta"
-target = "app.core.singleton"
+target = "app.core.scheduler"
 kind = "class"
 reason = "B1 SingletonMeta relocation; legacy utility module deleted"
 action = "delete"
@@ -24031,7 +24031,7 @@ source_state = "frozen"
 
 [[items]]
 id = "app.utils.utils:SingletonMeta.@statement:1"
-target = "app.core.singleton"
+target = "app.core.scheduler"
 kind = "statement"
 reason = "B1 SingletonMeta relocation; legacy utility module deleted"
 action = "delete"
@@ -24039,7 +24039,7 @@ source_state = "frozen"
 
 [[items]]
 id = "app.utils.utils:SingletonMeta.__call__"
-target = "app.core.singleton"
+target = "app.core.scheduler"
 kind = "method"
 reason = "B1 SingletonMeta relocation; legacy utility module deleted"
 action = "delete"
@@ -24047,7 +24047,7 @@ source_state = "frozen"
 
 [[items]]
 id = "app.utils.utils:SingletonMeta._instances"
-target = "app.core.singleton"
+target = "app.core.scheduler"
 kind = "assignment"
 reason = "B1 SingletonMeta relocation; legacy utility module deleted"
 action = "delete"

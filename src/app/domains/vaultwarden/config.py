@@ -3,7 +3,6 @@
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from app.core.domain_config import DomainConfig, FieldRows, LegacySource
-from app.core.legacy_env import LEGACY_ENV
 
 
 class VaultwardenConfigModel(BaseModel):
@@ -18,8 +17,8 @@ VAULTWARDEN_CONFIG = DomainConfig(
     VaultwardenConfigModel,
     FieldRows("config.vaultwarden"),
     legacy={
-        "enabled": LegacySource("VAULTWARDEN_ENABLED", LEGACY_ENV.read),
-        "redeem_credits": LegacySource("VAULTWARDEN_REDEEM_CREDITS", LEGACY_ENV.read),
+        "enabled": LegacySource("VAULTWARDEN_ENABLED", default=False),
+        "redeem_credits": LegacySource("VAULTWARDEN_REDEEM_CREDITS", default=500),
     },
 )
 

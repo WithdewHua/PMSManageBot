@@ -562,7 +562,7 @@ def main() -> int:
 
     # 所有会加载 settings / 数据库 singleton 的 import 都必须在环境变量设置后执行。
     import app.core.db as db_module
-    import app.core.telegram as telegram_module
+    import app.integrations.telegram.messaging as telegram_module
     from app.core.scheduler import TASK_REGISTRY, Scheduler
     from app.domains.auction import notifications as auction_notifications
     from app.domains.auction import repository as auction_repository

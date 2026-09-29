@@ -85,8 +85,10 @@ def get_gift_pack_stats(pack_id: int) -> dict | None:
     return _repository.get_gift_pack_stats(pack_id)
 
 
-def resolve_gift_pack_users(text: str) -> dict:
-    return _repository.resolve_gift_pack_users(text)
+def resolve_gift_pack_users(
+    text: str, *, tg_cache: dict[int, dict] | None = None
+) -> dict:
+    return _repository.resolve_gift_pack_users(text, tg_cache=tg_cache)
 
 
 def get_gift_pack_claim_records(

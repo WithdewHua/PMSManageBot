@@ -4,11 +4,11 @@ from uuid import NAMESPACE_URL, uuid3
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
-from app.core.telegram import send_message
 from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.invitation import service as invitation_service
+from app.integrations.telegram.messaging import send_message
 
 
 # 生成邀请码

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from app.business_config import CONFIGS, seed_all
+from app.business_config import CONFIGS, LEGACY_ENV, seed_all
 from app.core import kv
 from app.core.db import get_session
-from app.core.legacy_env import LEGACY_ENV
 from app.domains.accounts.config import ACCOUNTS_CONFIG
 from app.domains.donation import service as donation_service
 from app.domains.invitation.config import INVITATION_CONFIG

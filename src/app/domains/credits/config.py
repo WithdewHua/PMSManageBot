@@ -3,7 +3,6 @@
 from pydantic import BaseModel, ConfigDict
 
 from app.core.domain_config import DomainConfig, FieldRows, LegacySource
-from app.core.legacy_env import LEGACY_ENV
 
 
 class CreditsConfigModel(BaseModel):
@@ -16,9 +15,7 @@ CREDITS_CONFIG = DomainConfig(
     "credits",
     CreditsConfigModel,
     FieldRows("config.credits"),
-    legacy={
-        "transfer_enabled": LegacySource("CREDITS_TRANSFER_ENABLED", LEGACY_ENV.read)
-    },
+    legacy={"transfer_enabled": LegacySource("CREDITS_TRANSFER_ENABLED", default=True)},
 )
 
 __all__ = ["CREDITS_CONFIG", "CreditsConfigModel"]

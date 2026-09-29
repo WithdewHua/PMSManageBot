@@ -7,14 +7,15 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from sqlalchemy import select
 
-from app.core.cache import emby_api_key_cache, plex_token_cache, stream_traffic_cache
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
-from app.core.telegram import send_message_by_url
 from app.databases.db import db
 from app.domains.identity.models import EmbyUser, PlexUser
+from app.domains.traffic.cache import stream_traffic_cache
+from app.integrations import media_tokens
 from app.integrations.emby import Emby
+from app.integrations.telegram.messaging import send_message_by_url
 
 
 async def monthly_traffic_data_migration():
@@ -438,8 +439,8 @@ return #failed_values
         # 逐个查询去重后的 token：真正的优化是去重（同一 token 不再每条日志重复查），
         # 而非合并成一次 mget。逐条小请求对高延迟/抖动的远程 Redis 更稳健——
         # 单次卡顿只影响一个 token 并可重试，不会像一次大 mget 那样拖垮整批。
-        plex_token_to_name = {t: plex_token_cache.get(t) for t in plex_tokens}
-        emby_token_to_name = {t: emby_api_key_cache.get(t) for t in emby_tokens}
+        plex_token_to_name = {t: media_tokens.get_plex_username(t) for t in plex_tokens}
+        emby_token_to_name = {t: media_tokens.get_emby_username(t) for t in emby_tokens}
 
         emby_timeout_tokens = set()
         emby_miss_tokens = [t for t in emby_tokens if not emby_token_to_name.get(t)]

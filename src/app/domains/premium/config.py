@@ -3,7 +3,6 @@
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from app.core.domain_config import DomainConfig, FieldRows, LegacySource
-from app.core.legacy_env import LEGACY_ENV
 
 
 class PremiumConfigModel(BaseModel):
@@ -19,11 +18,9 @@ PREMIUM_CONFIG = DomainConfig(
     PremiumConfigModel,
     FieldRows("config.premium"),
     legacy={
-        "premium_unlock_enabled": LegacySource(
-            "PREMIUM_UNLOCK_ENABLED", LEGACY_ENV.read
-        ),
-        "premium_daily_credits": LegacySource("PREMIUM_DAILY_CREDITS", LEGACY_ENV.read),
-        "credits_cost_per_10gb": LegacySource("CREDITS_COST_PER_10GB", LEGACY_ENV.read),
+        "premium_unlock_enabled": LegacySource("PREMIUM_UNLOCK_ENABLED", default=False),
+        "premium_daily_credits": LegacySource("PREMIUM_DAILY_CREDITS", default=15),
+        "credits_cost_per_10gb": LegacySource("CREDITS_COST_PER_10GB", default=5),
     },
 )
 

@@ -3,7 +3,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.domain_config import DomainConfig, FieldRows, LegacySource
-from app.core.legacy_env import LEGACY_ENV
 
 _DEFAULT_CRYPTO_TYPES = [
     "USDC-Polygon",
@@ -29,7 +28,11 @@ CRYPTO_DONATION_CONFIG = DomainConfig(
     "crypto_donation",
     CryptoDonationConfigModel,
     FieldRows("config.crypto_donation"),
-    legacy={"upay_crypto_types": LegacySource("UPAY_CRYPTO_TYPES", LEGACY_ENV.read)},
+    legacy={
+        "upay_crypto_types": LegacySource(
+            "UPAY_CRYPTO_TYPES", default=_DEFAULT_CRYPTO_TYPES
+        )
+    },
 )
 
 __all__ = ["CRYPTO_DONATION_CONFIG", "CryptoDonationConfigModel"]

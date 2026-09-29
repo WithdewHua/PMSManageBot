@@ -3,9 +3,9 @@
 import asyncio
 
 from app.core.log import uvicorn_logger as logger
-from app.core.telegram import notify_admins_by_url, send_message_by_url
 from app.domains.gift_pack import notifications
 from app.domains.gift_pack import service as gift_pack_service
+from app.integrations.telegram.messaging import send_message_by_url
 
 
 async def scan_expired_gift_packs() -> None:
@@ -25,7 +25,9 @@ async def scan_expired_gift_packs() -> None:
                 if not stats:
                     continue
                 text = notifications.format_expiry_summary(pack, stats)
-                await notify_admins_by_url(text, parse_mode="HTML")
+                await notifications.notify_gift_pack_expiry_summary(
+                    text, parse_mode="HTML"
+                )
                 gift_pack_service.mark_expiry_notified(pack["id"])
             except Exception as e:
                 logger.error(f"发送礼包过期汇总失败 (pack_id={pack['id']}): {e}")

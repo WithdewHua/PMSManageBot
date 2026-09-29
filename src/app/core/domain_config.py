@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from threading import RLock
 from typing import Any, Generic, Protocol, TypeVar
 
@@ -37,17 +37,19 @@ class SeedReport:
 
 @dataclass(frozen=True)
 class LegacySource:
-    """Describe one legacy value used while seeding a configuration.
-
-    ``reader`` is intentionally small: task 3 supplies the environment source
-    and keeps its parsing rules outside this core module.
-    """
+    """Describe a domain-owned legacy key before assembly binds its reader."""
 
     key: str
-    reader: Callable[[str], Any]
+    reader: Callable[[str], Any] | None = None
+    default: Any = _MISSING
 
     def read(self) -> Any:
+        if self.reader is None:
+            return _MISSING
         return self.reader(self.key)
+
+    def bind(self, reader: Callable[[str], Any]) -> LegacySource:
+        return replace(self, reader=reader)
 
 
 @dataclass(frozen=True)
@@ -269,6 +271,25 @@ class DomainConfig(Generic[M]):
         self._cache: tuple[float, M] | None = None
         self._cache_lock = RLock()
 
+    def legacy_defaults(self) -> dict[str, Any]:
+        return {
+            source.key: source.default
+            for source in self.legacy.values()
+            if isinstance(source, LegacySource) and source.default is not _MISSING
+        }
+
+    def bind_legacy_reader(self, reader: Callable[[str], Any]) -> None:
+        self.legacy = {
+            field: source.bind(reader) if isinstance(source, LegacySource) else source
+            for field, source in self.legacy.items()
+        }
+
+    def _legacy_bound(self) -> bool:
+        return all(
+            not isinstance(source, LegacySource) or source.reader is not None
+            for source in self.legacy.values()
+        )
+
     def _legacy_value(self, field: str) -> Any:
         source = self.legacy.get(field)
         if source is None:
@@ -358,6 +379,10 @@ class DomainConfig(Generic[M]):
         return value.model_copy(deep=True)
 
     def seed(self) -> SeedReport:
+        if not self._legacy_bound():
+            raise RuntimeError(
+                f"legacy reader is not bound for configuration: {self.name}"
+            )
         default = self._default()
         with get_session() as session:
             inserted = self.storage.seed_tx(session, self.model, default)

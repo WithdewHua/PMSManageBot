@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Body, Depends, Request
 
-from app.core.auth import get_telegram_user, require_telegram_auth
 from app.core.log import uvicorn_logger as logger
-from app.core.schemas import TelegramUser
-from app.core.telegram import send_message_by_url
 from app.domains.credits import exceptions as credits_exceptions
 from app.domains.credits import service as credits_service
 from app.domains.profile.schemas import CreditsTransferRequest, CreditsTransferResponse
+from app.integrations.telegram.messaging import send_message_by_url
+from app.transport.http.auth import get_telegram_user, require_telegram_auth
+from app.transport.http.schemas import TelegramUser
 
 router = APIRouter(prefix="/api/user", tags=["user"])
 
@@ -69,7 +69,7 @@ async def transfer_credits(
         fee_amount = transfer.fee
 
         # 记录转移日志
-        from app.core.telegram import get_user_name_from_tg_id
+        from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
         sender_name = get_user_name_from_tg_id(sender_id)
         target_name = get_user_name_from_tg_id(target_tg_id)

@@ -1,11 +1,53 @@
+import json
+import logging
 import os
 from datetime import timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic_settings import BaseSettings
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, NoDecode
 
-from app.core.system import SystemUtils
+logger = logging.getLogger(__name__)
+
+
+def parse_admin_chat_ids(value: object) -> list[int]:
+    """Parse admin user/group IDs consistently across environment sources."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return []
+        if raw.startswith("["):
+            try:
+                value = json.loads(raw)
+            except json.JSONDecodeError:
+                value = raw.split(",")
+        else:
+            value = raw.split(",")
+    if isinstance(value, (list, tuple, set)):
+        items = value
+    else:
+        items = [value]
+
+    parsed: list[int] = []
+    for item in items:
+        if isinstance(item, bool):
+            logger.warning("Ignoring invalid TG_ADMIN_CHAT_ID item: %r", item)
+            continue
+        try:
+            parsed.append(int(str(item).strip()))
+        except (TypeError, ValueError):
+            logger.warning("Ignoring invalid TG_ADMIN_CHAT_ID item: %r", item)
+    return parsed
+
+
+def _is_container() -> bool:
+    """Return whether the process is running inside Docker or Podman."""
+    if Path("/.dockerenv").exists():
+        return True
+    return os.getenv("container") == "podman"
 
 
 class Settings(BaseSettings):
@@ -30,7 +72,7 @@ class Settings(BaseSettings):
 
     # TG
     TG_API_TOKEN: str = ""
-    TG_ADMIN_CHAT_ID: list[str] = []
+    TG_ADMIN_CHAT_ID: Annotated[list[int], NoDecode] = []
     TG_GROUP: str = ""
     TG_CHANNEL: str = ""  # 可选的通知频道链接，如果不设置将使用群组链接
     TG_GROUP_ID: str = ""  # Telegram 群组 ID，用于发送通知等消息
@@ -46,10 +88,12 @@ class Settings(BaseSettings):
     WEBAPP_HOST: str = "127.0.0.1"  # WebApp 服务器监听地址
     WEBAPP_STATIC_DIR: str = (
         "../webapp-frontend/dist"
-        if not SystemUtils.is_container()
+        if not _is_container()
         else "/app/webapp-frontend/dist"
     )  # WebApp 前端静态文件目录
     SESSION_SECRET_KEY: str = ""  # 用于会话加密的密钥
+    WEBAPP_DEV_MOCK_AUTH: bool = False
+    WEBAPP_INIT_DATA_MAX_AGE: int = 86400
 
     # tautulli
     TAUTULLI_URL: str = ""
@@ -109,6 +153,11 @@ class Settings(BaseSettings):
         # 启动时尝试从配置文件加载设置
         self.load_config_from_file()
 
+    @field_validator("TG_ADMIN_CHAT_ID", mode="before")
+    @classmethod
+    def _parse_admin_chat_ids(cls, value: object) -> list[int]:
+        return parse_admin_chat_ids(value)
+
     # 设置北京时间
     @property
     def TZ(self):
@@ -119,7 +168,7 @@ class Settings(BaseSettings):
         if not self.DATA_DIR:
             return (
                 Path(__file__).parents[3] / "data"
-                if not SystemUtils.is_container()
+                if not _is_container()
                 else Path("/app/data")
             )
         return Path(self.DATA_DIR)
@@ -239,22 +288,15 @@ class Settings(BaseSettings):
                             elif isinstance(current_value, int):
                                 setattr(self, key, int(value))
                             elif isinstance(current_value, list):
-                                # 列表用逗号分隔
-                                value = [
-                                    item.strip()
-                                    for item in value.split(",")
-                                    if item.strip()
-                                ]
                                 if key == "TG_ADMIN_CHAT_ID":
-                                    # 确保 TG_ADMIN_CHAT_ID 中的元素是 int 类型
+                                    value = parse_admin_chat_ids(value)
+                                else:
                                     value = [
-                                        int(item) for item in value if item.isdigit()
+                                        item.strip()
+                                        for item in value.split(",")
+                                        if item.strip()
                                     ]
-                                setattr(
-                                    self,
-                                    key,
-                                    value,
-                                )
+                                setattr(self, key, value)
                             else:
                                 setattr(self, key, value)
         except Exception as e:

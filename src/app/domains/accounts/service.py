@@ -1,12 +1,12 @@
 from sqlalchemy import select
 from sqlalchemy import update as sql_update
 
-from app.core.cache import plex_token_cache
 from app.core.db import get_session
 from app.core.log import logger
 from app.databases.db import db
 from app.domains.accounts.config import ACCOUNTS_CONFIG
 from app.domains.identity.models import EmbyUser, PlexUser
+from app.integrations import media_tokens
 from app.integrations.emby import Emby
 from app.integrations.plex import Plex
 from app.integrations.tautulli import Tautulli, get_user_total_duration
@@ -74,11 +74,11 @@ def update_plex_info(
                     )
             # 清除缓存中的用户信息
             if cache_clear_users:
-                plex_token_dict = plex_token_cache.get_all_key_values()
-                for token, _plex_username in plex_token_dict.items():
-                    if _plex_username in cache_clear_users:
-                        plex_token_cache.delete(token)
-                        logger.info(f"已清除 Plex 用户 {_plex_username} 的 Token 缓存")
+                deleted_tokens = media_tokens.clear_plex_tokens_for_usernames(
+                    cache_clear_users
+                )
+                for _plex_username in deleted_tokens:
+                    logger.info(f"已清除 Plex 用户 {_plex_username} 的 Token 缓存")
 
         if plex_id:
             # 检查是否存在 plex_id 为空的用户

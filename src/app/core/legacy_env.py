@@ -9,36 +9,6 @@ from typing import Any
 
 from app.core.log import logger
 
-MIGRATED_ENV_DEFAULTS: dict[str, Any] = {
-    "PLEX_REGISTER": False,
-    "EMBY_REGISTER": True,
-    "INVITATION_CREDITS": 288,
-    "PREMIUM_UNLOCK_ENABLED": False,
-    "PREMIUM_DAILY_CREDITS": 15,
-    "CREDITS_COST_PER_10GB": 5,
-    "DONATION_MULTIPLIER": 5,
-    "UPAY_CRYPTO_TYPES": [
-        "USDC-Polygon",
-        "USDC-ArbitrumOne",
-        "USDC-BSC",
-        "USDC-ERC20",
-        "USDT-Polygon",
-        "USDT-ArbitrumOne",
-        "USDT-BSC",
-        "USDT-ERC20",
-    ],
-    "PREMIUM_FREE": False,
-    "LINE_SCHEDULE_UNLOCK_CREDITS": 264,
-    "USER_TRAFFIC_LIMIT": 12 * 1024 * 1024 * 1024,
-    "PREMIUM_USER_TRAFFIC_LIMIT": 24 * 1024 * 1024 * 1024,
-    "UNLOCK_CREDITS": 100,
-    "DOWNLOAD_UNLOCK_CREDITS": 368,
-    "NSFW_LIBS": ["NSFW", "NC17 Movies", "Hentai"],
-    "VAULTWARDEN_ENABLED": False,
-    "VAULTWARDEN_REDEEM_CREDITS": 500,
-    "CREDITS_TRANSFER_ENABLED": True,
-}
-
 
 class LegacyEnvSource:
     """Read migrated keys with the pre-migration precedence and codecs.
@@ -56,7 +26,7 @@ class LegacyEnvSource:
         working_path: str | Path | None = None,
         environ: Mapping[str, str] | None = None,
     ) -> None:
-        self.defaults = dict(defaults or MIGRATED_ENV_DEFAULTS)
+        self.defaults = dict(defaults or {})
         if data_path is None:
             data_root = os.environ.get("DATA_DIR") or str(
                 Path(__file__).parents[3] / "data"
@@ -141,6 +111,4 @@ class LegacyEnvSource:
             logger.warning("业务配置键 %s 已迁出 .env，将以数据库配置为准", key)
 
 
-LEGACY_ENV = LegacyEnvSource()
-
-__all__ = ["LEGACY_ENV", "MIGRATED_ENV_DEFAULTS", "LegacyEnvSource"]
+__all__ = ["LegacyEnvSource"]

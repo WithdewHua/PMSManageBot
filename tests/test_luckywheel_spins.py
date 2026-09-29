@@ -17,7 +17,6 @@ from starlette.requests import Request
 
 from app.core import kv
 from app.core.db import get_session
-from app.core.schemas import TelegramUser
 from app.domains.blackjack import repository as blackjack_repository
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 from app.domains.invitation import repository as invitation_repository
@@ -33,6 +32,7 @@ from app.domains.luckywheel.schemas import (
     LuckyWheelItem,
 )
 from app.domains.premium import service as premium_service
+from app.transport.http.schemas import TelegramUser
 from tests.conftest import add_user, next_id
 
 

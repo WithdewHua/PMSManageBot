@@ -25,7 +25,6 @@ from starlette.requests import Request
 
 from app.core.db import get_session
 from app.core.kv import SystemConfig
-from app.core.schemas import TelegramUser
 from app.domains.gift_pack import notifications as gift_pack_notifications
 from app.domains.gift_pack import repository as gift_pack_repository
 from app.domains.gift_pack import router as gift_pack_router
@@ -37,6 +36,7 @@ from app.domains.gift_pack.schemas import (
 )
 from app.domains.identity.models import PlexUser
 from app.domains.luckywheel.models import WheelStats
+from app.transport.http.schemas import TelegramUser
 from tests import conftest
 from tests.conftest import add_user, next_id
 

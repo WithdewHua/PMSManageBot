@@ -6,8 +6,9 @@ from html import escape
 
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
-from app.core.telegram import get_user_name_from_tg_id, notify_admins_by_url
 from app.domains.gift_pack import rules
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
+from app.transport.telegram.admin import notify_admins_by_url
 
 
 def _format_time(timestamp: int) -> str:
@@ -49,6 +50,10 @@ def _notify_detached(coro) -> None:
         return
     # 完全没有事件循环（脚本、测试）时同步执行
     asyncio.run(coro)
+
+
+async def notify_gift_pack_expiry_summary(text: str, **kwargs) -> None:
+    await notify_admins_by_url(text, **kwargs)
 
 
 async def notify_gift_pack_created(pack: dict) -> None:

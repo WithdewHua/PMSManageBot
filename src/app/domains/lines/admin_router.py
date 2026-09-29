@@ -1,14 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
 
-from app.core.auth import (
-    check_admin_permission,
-    get_telegram_user,
-    require_telegram_auth,
-)
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
-from app.core.schemas import BaseResponse, TelegramUser
-from app.core.telegram import send_message_by_url
 from app.databases import db
 from app.domains.lines import service as lines_service
 from app.domains.lines.service import (
@@ -20,6 +13,13 @@ from app.domains.profile.schemas import (
     LineTagRequest,
     LineTagResponse,
 )
+from app.integrations.telegram.messaging import send_message_by_url
+from app.transport.http.auth import (
+    check_admin_permission,
+    get_telegram_user,
+    require_telegram_auth,
+)
+from app.transport.http.schemas import BaseResponse, TelegramUser
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 

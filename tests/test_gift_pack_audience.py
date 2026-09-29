@@ -823,10 +823,10 @@ def test_admin_resolves_mixed_identifiers_and_rejects_ambiguous_match(orm, monke
             ]
         )
     monkeypatch.setattr(
-        "app.core.telegram.load_tg_user_info_cache",
+        "app.integrations.telegram.profiles.load_tg_user_info_cache",
         lambda: {2: {"username": "cached", "first_name": "Cached"}},
     )
-    result = gift_pack_repository.resolve_gift_pack_users(
+    result = gift_pack_service.admin_resolve_users(
         "1, alice ALICE@example.com，shared\n@cached unknown 1"
     )
     by_token = {item["token"]: item for item in result["resolved"]}
@@ -872,8 +872,8 @@ async def test_admin_resolve_users_endpoint_requires_admin_and_returns_matches(
     from fastapi import HTTPException
     from starlette.requests import Request
 
-    from app.core.schemas import TelegramUser
     from app.domains.gift_pack import router
+    from app.transport.http.schemas import TelegramUser
 
     add_user(orm, 1)
 
@@ -911,9 +911,9 @@ async def test_admin_create_accepts_all_seven_rewards_with_new_conditions(
     from fastapi import BackgroundTasks
     from starlette.requests import Request
 
-    from app.core.schemas import TelegramUser
     from app.domains.gift_pack import router
     from app.domains.gift_pack.schemas import GiftPackCreateRequest
+    from app.transport.http.schemas import TelegramUser
 
     monkeypatch.setattr(router, "check_admin_permission", lambda user: None)
     now = int(time.time())
@@ -962,9 +962,9 @@ async def test_admin_update_returns_post_start_violation_message(orm, monkeypatc
     from fastapi import HTTPException
     from starlette.requests import Request
 
-    from app.core.schemas import TelegramUser
     from app.domains.gift_pack import router
     from app.domains.gift_pack.schemas import GiftPackUpdateRequest
+    from app.transport.http.schemas import TelegramUser
 
     now = int(time.time())
     pack_id = _add_pack(_pack(start_at=now - 10, end_at=now + 3600))
@@ -994,12 +994,12 @@ async def test_admin_update_returns_post_start_violation_message(orm, monkeypatc
 async def test_admin_update_and_enabled_return_current_pack(orm, monkeypatch):
     from starlette.requests import Request
 
-    from app.core.schemas import TelegramUser
     from app.domains.gift_pack import router
     from app.domains.gift_pack.schemas import (
         GiftPackSetEnabledRequest,
         GiftPackUpdateRequest,
     )
+    from app.transport.http.schemas import TelegramUser
 
     now = int(time.time())
     pack_id = _add_pack(_pack(start_at=now + 60, end_at=now + 3600))
@@ -1039,8 +1039,8 @@ async def test_claim_route_returns_structured_current_progress_on_recheck_failur
     from fastapi import BackgroundTasks, HTTPException
     from starlette.requests import Request
 
-    from app.core.schemas import TelegramUser
     from app.domains.gift_pack import router
+    from app.transport.http.schemas import TelegramUser
 
     add_user(orm, 1)
     now = int(time.time())
@@ -1107,8 +1107,8 @@ def test_prestart_reward_edit_can_explicitly_remove_auto_binding(orm):
 async def test_prompt_endpoint_returns_task_packs_for_popup(orm, monkeypatch):
     from starlette.requests import Request
 
-    from app.core.schemas import TelegramUser
     from app.domains.gift_pack import router
+    from app.transport.http.schemas import TelegramUser
 
     add_user(orm, 1)
     now = int(time.time())
@@ -1219,8 +1219,8 @@ async def test_admin_list_and_records_endpoints_report_rows_and_totals(
 ):
     from starlette.requests import Request
 
-    from app.core.schemas import TelegramUser
     from app.domains.gift_pack import router
+    from app.transport.http.schemas import TelegramUser
 
     now = int(time.time())
     add_user(orm, 1)
@@ -1267,8 +1267,8 @@ async def test_admin_list_and_records_endpoints_report_rows_and_totals(
 async def test_delete_route_splits_404_and_400_despite_title_quirk(orm, monkeypatch):
     from starlette.requests import Request
 
-    from app.core.schemas import TelegramUser
     from app.domains.gift_pack import router
+    from app.transport.http.schemas import TelegramUser
 
     now = int(time.time())
     add_user(orm, 1)
@@ -1330,12 +1330,12 @@ async def test_admin_error_branches_return_fixed_details(orm, monkeypatch):
     from fastapi import BackgroundTasks
     from starlette.requests import Request
 
-    from app.core.schemas import TelegramUser
     from app.domains.gift_pack import router
     from app.domains.gift_pack.schemas import (
         GiftPackCreateRequest,
         GiftPackUpdateRequest,
     )
+    from app.transport.http.schemas import TelegramUser
 
     now = int(time.time())
     add_user(orm, 1)

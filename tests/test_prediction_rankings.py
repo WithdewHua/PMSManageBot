@@ -5,10 +5,10 @@ from __future__ import annotations
 import pytest
 from starlette.requests import Request
 
-from app.core.schemas import TelegramUser
 from app.domains.prediction import service as prediction_service
 from app.domains.rankings import router as rankings_router
 from app.domains.rankings import service as rankings_service
+from app.transport.http.schemas import TelegramUser
 
 
 def _request() -> Request:

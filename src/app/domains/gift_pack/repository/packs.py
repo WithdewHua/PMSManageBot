@@ -398,16 +398,16 @@ class _GiftPackRepositoryPacks:
             logger.error(f"获取礼包统计失败 (pack_id={pack_id}): {e}")
             return None
 
-    def resolve_gift_pack_users(self, text: str) -> dict:
+    def resolve_gift_pack_users(
+        self, text: str, *, tg_cache: dict[int, dict] | None = None
+    ) -> dict:
         """Resolve mixed Telegram IDs and media usernames; never guess ambiguity."""
         import re
 
-        from app.core.telegram import load_tg_user_info_cache
-
+        tg_cache = tg_cache or {}
         tokens = list(dict.fromkeys(t for t in re.split("[\\s,，]+", text) if t))
         resolved, unresolved = ([], [])
         with get_session() as session:
-            tg_cache = load_tg_user_info_cache()
             for token in tokens:
                 matches: dict[int, tuple[str, str]] = {}
                 if token.isdecimal():

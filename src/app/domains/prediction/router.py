@@ -2,14 +2,8 @@ import time
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
-from app.core.auth import (
-    check_admin_permission,
-    get_telegram_user,
-    require_telegram_auth,
-)
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
-from app.core.schemas import TelegramUser
 from app.domains.badge_awards.jobs import check_and_award_game_king_badge
 from app.domains.prediction import service as prediction_service
 from app.domains.prediction.exceptions import PredictionError
@@ -27,6 +21,12 @@ from app.domains.prediction.schemas import (
     PredictionSubmissionReviewRequest,
     PredictionSubmitRequest,
 )
+from app.transport.http.auth import (
+    check_admin_permission,
+    get_telegram_user,
+    require_telegram_auth,
+)
+from app.transport.http.schemas import TelegramUser
 
 router = APIRouter(prefix="/prediction", tags=["大预言家"])
 

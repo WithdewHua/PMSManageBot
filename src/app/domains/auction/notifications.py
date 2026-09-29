@@ -2,7 +2,8 @@
 
 from app.core.config import settings
 from app.core.log import logger
-from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
+from app.integrations.telegram.messaging import send_message_by_url
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
 
 async def send_channel_auction_notification(text: str) -> None:

@@ -1,8 +1,8 @@
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
-from app.core.telegram import send_message
 from app.databases import db
+from app.integrations.telegram.messaging import send_message
 
 
 # 查看个人信息

@@ -3,7 +3,6 @@
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from app.core.domain_config import DomainConfig, FieldRows, LegacySource
-from app.core.legacy_env import LEGACY_ENV
 
 
 class InvitationConfigModel(BaseModel):
@@ -16,7 +15,7 @@ INVITATION_CONFIG = DomainConfig(
     "invitation",
     InvitationConfigModel,
     FieldRows("config.invitation"),
-    legacy={"invitation_credits": LegacySource("INVITATION_CREDITS", LEGACY_ENV.read)},
+    legacy={"invitation_credits": LegacySource("INVITATION_CREDITS", default=288)},
 )
 
 __all__ = ["INVITATION_CONFIG", "InvitationConfigModel"]

@@ -2,13 +2,7 @@
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
-from app.core.auth import (
-    check_admin_permission,
-    get_telegram_user,
-    require_telegram_auth,
-)
 from app.core.log import uvicorn_logger as logger
-from app.core.schemas import TelegramUser
 from app.domains.blackjack import service as blackjack_service
 from app.domains.blackjack.notifications.tournament import (
     _broadcast_group,
@@ -24,6 +18,12 @@ from app.domains.blackjack.schemas import (
     TournamentResponse,
     TournamentUpdateRequest,
 )
+from app.transport.http.auth import (
+    check_admin_permission,
+    get_telegram_user,
+    require_telegram_auth,
+)
+from app.transport.http.schemas import TelegramUser
 
 router = APIRouter(prefix="/blackjack/tournament", tags=["21点锦标赛"])
 

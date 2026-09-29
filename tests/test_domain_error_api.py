@@ -3,8 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 
-from app.api.errors import domain_error_content, domain_error_handler
 from app.core.errors import DomainError
+from app.transport.http.errors import domain_error_content, domain_error_handler
 
 
 def test_domain_error_api_adapter_preserves_fastapi_detail_shape() -> None:

@@ -1,18 +1,42 @@
-from app.core.cache import (
+from app.core.log import uvicorn_logger as logger
+from app.databases import db
+from app.databases.db import DatabaseORM
+from app.domains.lines import repository as lines_repository
+from app.domains.lines.cache import (
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
 )
-from app.core.log import uvicorn_logger as logger
-from app.core.schemas import BaseResponse, TelegramUser
-from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
-from app.databases import db
-from app.databases.db import DatabaseORM
-from app.domains.lines import repository as lines_repository
 from app.domains.lines.config import LINES_CONFIG
 from app.domains.lines.rules import is_binded_premium_line
 from app.integrations.emby import Emby
+from app.integrations.telegram.messaging import send_message_by_url
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
+
+
+def _line_cache_pair(service: str):
+    normalized = service.lower()
+    if normalized == "plex":
+        return plex_user_defined_line_cache, plex_last_user_defined_line_cache
+    if normalized == "emby":
+        return emby_user_defined_line_cache, emby_last_user_defined_line_cache
+    raise ValueError("不支持的服务类型")
+
+
+def get_cached_line(service: str, username: str, *, last: bool = False):
+    current_cache, last_cache = _line_cache_pair(service)
+    return (last_cache if last else current_cache).get(str(username).lower())
+
+
+def put_cached_line(service: str, username: str, value: str) -> None:
+    current_cache, _ = _line_cache_pair(service)
+    current_cache.put(str(username).lower(), value)
+
+
+def delete_cached_line(service: str, username: str, *, last: bool = False) -> None:
+    current_cache, last_cache = _line_cache_pair(service)
+    (last_cache if last else current_cache).delete(str(username).lower())
 
 
 def is_premium_free_enabled() -> bool:
@@ -387,13 +411,12 @@ def check_line_permission(is_premium: bool, line: str) -> tuple[bool, str]:
 async def _auth_bind_emby_line(
     db: DatabaseORM,
     tg_id: int,
-    telegram_user: TelegramUser,
     username: str,
     password: str,
     line: str,
-) -> BaseResponse:
+) -> tuple[bool, str]:
     """认证并绑定Emby线路的内部方法"""
-    from app.core.cache import (
+    from app.domains.lines.cache import (
         emby_last_user_defined_line_cache,
         emby_user_defined_line_cache,
     )
@@ -403,7 +426,7 @@ async def _auth_bind_emby_line(
     auth_success, emby_id = emby.authenticate_user(username, password)
     if not auth_success:
         logger.warning(f"Emby用户 {username} 认证失败")
-        return BaseResponse(success=False, message="用户名或密码错误")
+        return False, "用户名或密码错误"
 
     # 获取用户信息以检查线路权限
     existing_emby_info = db.get_emby_info_by_emby_username(username)
@@ -413,14 +436,14 @@ async def _auth_bind_emby_line(
     is_premium = existing_emby_info[8] == 1 if existing_emby_info else False
     has_permission, error_msg = check_line_permission(is_premium, line)
     if not has_permission:
-        return BaseResponse(success=False, message=error_msg)
+        return False, error_msg
 
     # 设置线路到数据库（如果用户存在于数据库中）
     if existing_emby_info:
         success = db.set_emby_line(line, emby_id=emby_id)
         if not success:
             logger.error(f"设置 Emby 用户 {username} 的线路失败")
-            return BaseResponse(success=False, message="设置线路失败")
+            return False, "设置线路失败"
 
     # 更新 redis 缓存 - 记录线路绑定
     binded_line = emby_user_defined_line_cache.get(str(username).lower())
@@ -432,20 +455,19 @@ async def _auth_bind_emby_line(
     logger.info(
         f"用户 {get_user_name_from_tg_id(tg_id)} 为 {username} 成功认证并绑定Emby线路 {line}"
     )
-    return BaseResponse(success=True, message=f"认证并绑定 Emby 线路 {line} 成功！")
+    return True, f"认证并绑定 Emby 线路 {line} 成功！"
 
 
 async def _auth_bind_plex_line(
     db: DatabaseORM,
     tg_id: int,
-    telegram_user: TelegramUser,
     username: str,
     line: str,
     password: str | None = None,
     token: str | None = None,
-) -> BaseResponse:
+) -> tuple[bool, str]:
     """认证并绑定Plex线路的内部方法"""
-    from app.core.cache import (
+    from app.domains.lines.cache import (
         plex_last_user_defined_line_cache,
         plex_user_defined_line_cache,
     )
@@ -457,7 +479,7 @@ async def _auth_bind_plex_line(
     )
     if not auth_success:
         logger.warning(f"Plex 用户 {username} 认证失败")
-        return BaseResponse(success=False, message="用户名或密码错误")
+        return False, "用户名或密码错误"
 
     # 获取 Plex 用户信息
     existing_plex_info = db.get_plex_info_by_plex_id(plex_id)
@@ -467,7 +489,7 @@ async def _auth_bind_plex_line(
     is_premium = existing_plex_info[9] == 1 if existing_plex_info else False
     has_permission, error_msg = check_line_permission(is_premium, line)
     if not has_permission:
-        return BaseResponse(success=False, message=error_msg)
+        return False, error_msg
 
     # 如果用户已存在，更新数据库中的线路设置
     if existing_plex_info:
@@ -476,7 +498,7 @@ async def _auth_bind_plex_line(
             logger.error(
                 f"{get_user_name_from_tg_id(tg_id)} 为 {username} 设置 Plex 线路失败"
             )
-            return BaseResponse(success=False, message="设置线路失败")
+            return False, "设置线路失败"
 
     # 更新 redis 缓存 - 记录线路绑定
     plex_username = plex.get_username_by_user_id(plex_id)
@@ -489,4 +511,4 @@ async def _auth_bind_plex_line(
     logger.info(
         f"用户 {get_user_name_from_tg_id(tg_id)} 为 {plex_username} 成功认证并绑定 Plex 线路 {line}"
     )
-    return BaseResponse(success=True, message=f"认证并绑定 Plex 线路 {line} 成功！")
+    return True, f"认证并绑定 Plex 线路 {line} 成功！"

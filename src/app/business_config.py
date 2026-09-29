@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from app.core.domain_config import DomainConfig, SeedReport
-from app.core.legacy_env import LEGACY_ENV
+from app.core.domain_config import DomainConfig, LegacySource, SeedReport
+from app.core.legacy_env import LegacyEnvSource
 from app.domains.accounts.config import ACCOUNTS_CONFIG
 from app.domains.badges.config import BADGE_CENTER_CONFIG
 from app.domains.blackjack.config import BLACKJACK_CONFIG
@@ -36,6 +36,27 @@ CONFIGS: tuple[DomainConfig, ...] = (
 )
 
 
+def _bind_legacy_sources(
+    configs: tuple[DomainConfig, ...] = CONFIGS,
+) -> LegacyEnvSource:
+    defaults = {}
+    for config in configs:
+        for source in config.legacy.values():
+            if not isinstance(source, LegacySource):
+                continue
+            previous = defaults.get(source.key, source.default)
+            if source.key in defaults and previous != source.default:
+                raise ValueError(f"conflicting legacy default: {source.key}")
+            defaults[source.key] = source.default
+    source = LegacyEnvSource(defaults)
+    for config in configs:
+        config.bind_legacy_reader(source.read)
+    return source
+
+
+LEGACY_ENV = _bind_legacy_sources()
+
+
 def seed_all() -> list[SeedReport]:
     """Seed missing configuration rows without overwriting existing values."""
     LEGACY_ENV.warn_migrated_keys()
@@ -53,4 +74,4 @@ def seed_all() -> list[SeedReport]:
     return reports
 
 
-__all__ = ["CONFIGS", "seed_all"]
+__all__ = ["CONFIGS", "LEGACY_ENV", "seed_all"]

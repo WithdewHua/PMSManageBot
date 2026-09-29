@@ -1,7 +1,6 @@
 import asyncio
 
 from app.core.config import settings
-from app.core.telegram import send_message_by_url
 from app.domains.watch_rewards.notifications import (
     _format_ghost_session_summary,
     _format_premium_traffic_deduction_summary,
@@ -11,6 +10,7 @@ from app.domains.watch_rewards.service import (
     update_emby_credits,
     update_plex_credits,
 )
+from app.integrations.telegram.messaging import send_message_by_url
 
 
 async def update_credits():

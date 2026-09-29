@@ -9,7 +9,6 @@ from sqlalchemy import and_, select
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
-from app.core.telegram import send_message_by_url
 from app.domains.custom_lines.models import CustomLine
 from app.domains.custom_lines.repository import (
     _get_expired_lines,
@@ -20,6 +19,7 @@ from app.domains.custom_lines.service import (
     _send_expiring_soon_notifications,
 )
 from app.domains.lines.service import unbind_specified_line_for_all_users
+from app.integrations.telegram.messaging import send_message_by_url
 
 
 async def check_expired_custom_lines():

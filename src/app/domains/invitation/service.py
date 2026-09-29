@@ -5,10 +5,10 @@ from sqlalchemy import select
 
 from app.core.db import get_session
 from app.core.log import logger
-from app.core.telegram import get_user_name_from_tg_id
 from app.databases.db import db
 from app.domains.identity.models import Statistics
 from app.domains.invitation.config import INVITATION_CONFIG
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
 
 def get_invitation_credits() -> int:

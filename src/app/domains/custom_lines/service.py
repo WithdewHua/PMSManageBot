@@ -5,11 +5,11 @@ from sqlalchemy import and_, select
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
-from app.core.telegram import send_message_by_url
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.custom_lines.models import CustomLine
 from app.domains.donation import service as donation_service
+from app.integrations.telegram.messaging import send_message_by_url
 
 
 async def _send_expiring_soon_notifications(lines: list[CustomLine], current_time: int):

@@ -5,21 +5,16 @@ Premium 会员相关功能,包括检查过期状态和即将过期的用户。
 from collections.abc import Sequence
 from datetime import datetime
 
-from app.core.cache import (
-    emby_last_user_defined_line_cache,
-    emby_user_defined_line_cache,
-    plex_last_user_defined_line_cache,
-    plex_user_defined_line_cache,
-)
+from app.core.byte_size import format_bytes
 from app.core.config import settings
 from app.core.db import get_session
-from app.core.formatting import format_traffic_size
 from app.core.log import logger
-from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.domains.lines.rules import is_binded_premium_line
 from app.domains.media_access import service as media_access_service
 from app.domains.premium import repository as premium_repository
 from app.domains.premium.config import PREMIUM_CONFIG
+from app.integrations.telegram.messaging import send_message_by_url
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
 
 def get_premium_config():
@@ -249,26 +244,24 @@ def unbind_premium_line(db, service: str, username: str, tg_id: int):
     :param service: 服务类型（"plex" 或 "emby"）
     :param username: 用户名
     """
+    from app.domains.lines import service as lines_service
+
     if service not in ["plex", "emby"]:
         raise ValueError("不支持的服务类型")
     if service == "plex":
-        cache = plex_user_defined_line_cache
-        last_cache = plex_last_user_defined_line_cache
         db_func = db.set_plex_line
-    elif service == "emby":
-        cache = emby_user_defined_line_cache
-        last_cache = emby_last_user_defined_line_cache
+    else:
         db_func = db.set_emby_line
     # 获取上一次绑定的非 premium 线路
-    last_line = last_cache.get(str(username).lower())
+    last_line = lines_service.get_cached_line(service, username, last=True)
     # 更新用户的 Emby 线路，last_line 为空则自动选择
     db_func(last_line, tg_id=tg_id)
     # 更新缓存
     if last_line:
-        cache.put(str(username).lower(), last_line)
-        last_cache.delete(str(username).lower())
+        lines_service.put_cached_line(service, username, last_line)
+        lines_service.delete_cached_line(service, username, last=True)
     else:
-        cache.delete(str(username).lower())
+        lines_service.delete_cached_line(service, username)
 
     return last_line or "AUTO"
 
@@ -313,15 +306,15 @@ def format_premium_statistics_message(
             # 清理线路名称中的多余字符
             clean_line = line.strip("[]'\"")
             message_parts.append(f"🔗 线路: {clean_line}")
-            message_parts.append(f"📈 今日流量: {format_traffic_size(today_traffic)}")
-            message_parts.append(f"📊 本周流量: {format_traffic_size(week_traffic)}")
-            message_parts.append(f"📉 本月流量: {format_traffic_size(month_traffic)}")
+            message_parts.append(f"📈 今日流量: {format_bytes(today_traffic)}")
+            message_parts.append(f"📊 本周流量: {format_bytes(week_traffic)}")
+            message_parts.append(f"📉 本月流量: {format_bytes(month_traffic)}")
 
             if top_users:
                 message_parts.append("👥 今日TOP用户:")
                 for i, user in enumerate(top_users, 1):
                     username = user["username"]
-                    traffic = format_traffic_size(user["traffic"])
+                    traffic = format_bytes(user["traffic"])
                     message_parts.append(f"  {i}. {username}: {traffic}")
             else:
                 message_parts.append("👥 今日暂无用户使用")
@@ -332,9 +325,9 @@ def format_premium_statistics_message(
         message_parts.extend(
             [
                 "📋 流量总计:",
-                f"📈 今日总流量: {format_traffic_size(total_today)}",
-                f"📊 本周总流量: {format_traffic_size(total_week)}",
-                f"📉 本月总流量: {format_traffic_size(total_month)}",
+                f"📈 今日总流量: {format_bytes(total_today)}",
+                f"📊 本周总流量: {format_bytes(total_week)}",
+                f"📉 本月总流量: {format_bytes(total_month)}",
             ]
         )
 
@@ -430,9 +423,9 @@ def format_premium_statistics_message(
                 premium_status = "Premium" if user["is_premium"] else "非 Premium"
                 message_parts.append(
                     f"  • {user['username']} | {premium_status} | "
-                    f"累计欠额: {format_traffic_size(user['current_debt'])} | "
-                    f"今日超出流量: {format_traffic_size(user['today_exceed_traffic'])} | "
-                    f"预计结算后欠额: {format_traffic_size(user['projected_debt'])}"
+                    f"累计欠额: {format_bytes(user['current_debt'])} | "
+                    f"今日超出流量: {format_bytes(user['today_exceed_traffic'])} | "
+                    f"预计结算后欠额: {format_bytes(user['projected_debt'])}"
                 )
 
         if emby_debt_users:
@@ -441,9 +434,9 @@ def format_premium_statistics_message(
                 premium_status = "Premium" if user["is_premium"] else "非 Premium"
                 message_parts.append(
                     f"  • {user['username']} | {premium_status} | "
-                    f"累计欠额: {format_traffic_size(user['current_debt'])} | "
-                    f"今日超出流量: {format_traffic_size(user['today_exceed_traffic'])} | "
-                    f"预计结算后欠额: {format_traffic_size(user['projected_debt'])}"
+                    f"累计欠额: {format_bytes(user['current_debt'])} | "
+                    f"今日超出流量: {format_bytes(user['today_exceed_traffic'])} | "
+                    f"预计结算后欠额: {format_bytes(user['projected_debt'])}"
                 )
 
     message_parts.extend(["", "─" * 40])

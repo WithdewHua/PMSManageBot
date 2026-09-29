@@ -12,16 +12,9 @@ from fastapi import (
     status,
 )
 
-from app.core.auth import get_telegram_user, require_telegram_auth
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.core.scheduler import Scheduler
-from app.core.schemas import TelegramUser
-from app.core.telegram import (
-    get_user_name_from_tg_id,
-    refresh_tg_user_profile,
-    send_message_by_url,
-)
 from app.databases import db
 from app.domains.accounts import service as accounts_service
 from app.domains.accounts.jobs import refresh_emby_user_info
@@ -44,6 +37,13 @@ from app.domains.invitation.schemas import (
 from app.domains.media_access import service as media_access_service
 from app.integrations.emby import Emby
 from app.integrations.plex import Plex
+from app.integrations.telegram.messaging import send_message_by_url
+from app.integrations.telegram.profiles import (
+    get_user_name_from_tg_id,
+    refresh_tg_user_profile,
+)
+from app.transport.http.auth import get_telegram_user, require_telegram_auth
+from app.transport.http.schemas import TelegramUser
 
 # 创建路由器
 router = APIRouter(

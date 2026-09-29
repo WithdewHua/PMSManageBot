@@ -2,7 +2,7 @@ from datetime import datetime
 
 from app.core.config import settings
 from app.core.log import logger
-from app.core.telegram import send_message_by_url
+from app.integrations.telegram.messaging import send_message_by_url
 
 
 async def _send_admin_settlement_summary(

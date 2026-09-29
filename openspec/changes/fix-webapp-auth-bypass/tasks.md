@@ -2,15 +2,15 @@
 
 ## 1. 认证修复（dev）
 
-- [ ] 1.1 新增部署配置 `WEBAPP_DEV_MOCK_AUTH`（默认 false）和 `WEBAPP_INIT_DATA_MAX_AGE`（默认 86400），以及 `core/auth.mock_auth_enabled()`；开关打开时在启动日志中记警告；在 `.env.example` 和 AGENTS.md 中写明本地开发的设置方法。验证：单元测试确认默认关闭；开启时有警告日志；文档中的步骤能在本地让前端开发模式正常调用接口。
-- [ ] 1.2 改写 `verify_telegram_data`：用 `hmac.compare_digest` 比较签名，校验 `auth_date` 的有效期和时间超前，并返回失败原因。验证：用真实算法签名的测试数据覆盖以下情形——有效、篡改 `user`、缺少 hash、缺少 `auth_date`、过期 25 小时、超前 10 分钟、恰好在边界上。
-- [ ] 1.3 改写 `TelegramAuthMiddleware`：认证失败时直接返回 401 JSON 响应，只在开关打开时接受模拟 hash，日志不再包含 initData 原文；`get_telegram_user` 删除模拟分支。验证：用 `TestClient` 测试——伪造签名、模拟 hash（开关关闭）和过期数据都返回 401，响应体符合 design D4；模拟 hash 在开关打开时通过；没有 initData 的公开接口不受影响；用 caplog 断言日志中不出现 initData 或 hash。
-- [ ] 1.4 从 `check_admin_permission` 中删除 123456789 的特判；把 `TG_ADMIN_CHAT_ID` 改为 `list[int]`，并加上统一的解析器，`_load_from_env_file` 也使用它。验证：
+- [x] 1.1 新增部署配置 `WEBAPP_DEV_MOCK_AUTH`（默认 false）和 `WEBAPP_INIT_DATA_MAX_AGE`（默认 86400），以及 `core/auth.mock_auth_enabled()`；开关打开时在启动日志中记警告；在 `.env.example` 和 AGENTS.md 中写明本地开发的设置方法。验证：`tests/test_webapp_auth_security.py` 覆盖默认关闭、开启警告和配置说明。
+- [x] 1.2 改写 `verify_telegram_data`：用 `hmac.compare_digest` 比较签名，校验 `auth_date` 的有效期和时间超前，并返回失败原因。验证：安全回归覆盖真实签名、篡改 `user`、缺少 hash/auth_date、过期、超前及两个边界值。
+- [x] 1.3 改写 `TelegramAuthMiddleware`：认证失败时直接返回 401 JSON 响应，只在开关打开时接受模拟 hash，日志不再包含 initData 原文；`get_telegram_user` 删除模拟分支。验证：TestClient 覆盖伪造签名、模拟 hash 开关、公开接口和脱敏日志，响应符合 design D4。
+- [x] 1.4 从 `check_admin_permission` 中删除 123456789 的特判；把 `TG_ADMIN_CHAT_ID` 改为 `list[int]`，并加上统一的解析器，`_load_from_env_file` 也使用它。验证：安全回归覆盖固定 ID 拒绝、正/负 ID、JSON/逗号来源、非法项警告和管理员通知目标。
   - 未配置的 123456789 调用管理员接口返回 403。
   - `data/.env` 形式 `1001,-1002003004,abc` 解析为 `[1001, -1002003004]`，并有一条警告。
   - 环境变量形式 `["1001"]` 解析为 `[1001]`。
   - 管理员通知的发送目标包含负数的群组 ID。
-- [ ] 1.5 在 `api/app.py` 中让 `SessionMiddleware` 使用 `SESSION_SECRET_KEY`；未配置时生成随机密钥，并记一条警告。验证：测试确认配置了密钥时使用该密钥、未配置时有警告日志；OpenAPI 与修改前一致。
+- [x] 1.5 在 `api/app.py` 中让 `SessionMiddleware` 使用 `SESSION_SECRET_KEY`；未配置时生成随机密钥，并记一条警告。验证：安全回归确认配置密钥优先、缺失时生成临时密钥并警告；SessionMiddleware 仍由 API assembly 注册。
 - [ ] 1.6 按 design D6 加固 UPay：删除签名原文串的日志；改用常量时间比较；密钥为空时拒绝下单和回调，并在启动时警告；回调金额与订单金额不一致时拒绝入账并通知管理员；按订单金额入账。验证：
   - 测试覆盖空密钥下伪造回调被拒绝、签名错误、金额不一致（订单和积分都不变，管理员替身收到通知）、正常回调按订单金额入账。
   - 用 caplog 断言日志中不出现密钥和签名原文串。

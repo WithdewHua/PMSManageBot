@@ -11,13 +11,13 @@ from datetime import datetime
 
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
-from app.core.telegram import send_message_by_url
 from app.domains.blackjack import service as blackjack_service
 from app.domains.blackjack.notifications.cash import (
     _fmt_credits,
     _format_jackpot_win,
     _get_group_chat_id,
 )
+from app.integrations.telegram.messaging import send_message_by_url
 
 # router declaration belongs to the HTTP assembly(prefix="/blackjack", tags=["21点"])
 
@@ -158,7 +158,7 @@ async def notify_blackjack_jackpot_wins_job() -> None:
         if not wins:
             return
 
-        from app.core.telegram import send_message_by_url
+        from app.integrations.telegram.messaging import send_message_by_url
 
         # 余额对本批所有消息都一样，查一次即可，不要每条消息各开一次会话
         jackpot_balance = blackjack_service.get_blackjack_jackpot()

@@ -1,99 +1,37 @@
-import json
-
 from sqlalchemy import or_, select
 
-from app.core.cache import (
+from app.core.db import get_session
+from app.core.log import logger
+from app.databases.db import db
+from app.domains.identity.models import EmbyUser, PlexUser
+from app.domains.lines.cache import (
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
-    user_info_cache,
 )
-from app.core.db import get_session
-from app.core.log import logger
-from app.core.telegram import get_user_name_from_tg_id
-from app.databases.db import db
-from app.domains.identity.models import EmbyUser, PlexUser
 from app.domains.lines.rules import is_binded_premium_line
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
 
-def write_user_info_cache():
-    """
-    将 user info 写入 redis 缓存
-    """
+def write_user_line_cache() -> None:
+    """Refresh line-selection caches without touching Telegram profile data."""
     try:
-        # 获取 Plex 用户信息
         with get_session() as session:
-            stmt = select(
-                PlexUser.plex_id,
-                PlexUser.tg_id,
-                PlexUser.plex_username,
-                PlexUser.plex_email,
-                PlexUser.is_premium,
-                PlexUser.plex_line,
-            )
-            plex_users = session.execute(stmt).fetchall()
-        for user in plex_users:
-            plex_id = user[0]
-            # 未接受邀请，此时数据库中的 plex_id 为空
-            if not plex_id:
-                continue
-            tg_id = user[1]
-            plex_username = user[2]
-            plex_email = user[3]
-            is_premium = user[4]
-            plex_line = user[5]
-            if plex_username:
-                user_info_cache.put(
-                    f"plex:{plex_username.lower()}",
-                    json.dumps(
-                        {
-                            "plex_id": plex_id,
-                            "tg_id": tg_id,
-                            "plex_username": plex_username,
-                            "plex_email": plex_email,
-                            "is_premium": is_premium,
-                        }
-                    ),
-                )
-                if plex_line:
-                    plex_user_defined_line_cache.put(
-                        str(plex_username).lower(), plex_line
-                    )
-        # 获取 Emby 用户信息
-        with get_session() as session:
-            stmt = select(
-                EmbyUser.emby_id,
-                EmbyUser.tg_id,
-                EmbyUser.emby_username,
-                EmbyUser.is_premium,
-                EmbyUser.emby_line,
-            )
-            emby_users = session.execute(stmt).fetchall()
-        for user in emby_users:
-            emby_id = user[0]
-            tg_id = user[1]
-            emby_username = user[2]
-            is_premium = user[3]
-            emby_line = user[4]
-            if emby_username:
-                user_info_cache.put(
-                    f"emby:{emby_username.lower()}",
-                    json.dumps(
-                        {
-                            "emby_id": emby_id,
-                            "tg_id": tg_id,
-                            "emby_username": emby_username,
-                            "is_premium": is_premium,
-                        }
-                    ),
-                )
-                if emby_line:
-                    emby_user_defined_line_cache.put(
-                        str(emby_username).lower(), emby_line
-                    )
-    except Exception as e:
-        logger.error(f"写入用户信息缓存时发生错误: {e}")
+            plex_users = session.execute(
+                select(PlexUser.plex_id, PlexUser.plex_username, PlexUser.plex_line)
+            ).fetchall()
+            emby_users = session.execute(
+                select(EmbyUser.emby_username, EmbyUser.emby_line)
+            ).fetchall()
+        for plex_id, username, line in plex_users:
+            if plex_id and username and line:
+                plex_user_defined_line_cache.put(str(username).lower(), line)
+        for username, line in emby_users:
+            if username and line:
+                emby_user_defined_line_cache.put(str(username).lower(), line)
+    except Exception as error:
+        logger.error(f"写入线路缓存时发生错误: {error}")
 
 
 async def auto_switch_user_lines(tg_id: int | None = None, service: str | None = None):

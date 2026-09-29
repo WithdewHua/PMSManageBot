@@ -1,12 +1,6 @@
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 
-from app.core.auth import (
-    check_admin_permission,
-    get_telegram_user,
-    require_telegram_auth,
-)
 from app.core.log import uvicorn_logger as logger
-from app.core.schemas import TelegramUser
 from app.databases import db
 from app.domains.badges.schemas import (
     BadgeCenterConfigResponse,
@@ -21,6 +15,12 @@ from app.domains.badges.schemas import (
 )
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.transport.http.auth import (
+    check_admin_permission,
+    get_telegram_user,
+    require_telegram_auth,
+)
+from app.transport.http.schemas import TelegramUser
 
 # 创建路由器
 router = APIRouter(

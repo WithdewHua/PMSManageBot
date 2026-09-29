@@ -209,7 +209,6 @@ class LinesRepository:
                 'unlock_time': int,   # 解锁时间戳
             }
         """
-        from app.core.telegram import get_user_name_from_tg_id
 
         try:
             with get_session() as session:
@@ -278,9 +277,7 @@ class LinesRepository:
                 }
 
         except Exception as e:
-            logger.error(
-                f"检查用户 {get_user_name_from_tg_id(tg_id)} 的 {service} 线路调度解锁状态失败: {e}"
-            )
+            logger.error(f"检查用户 {tg_id!s} 的 {service} 线路调度解锁状态失败: {e}")
             return {"is_unlocked": False, "is_premium": False, "unlock_time": None}
 
     def unlock_line_schedule_with_credit(
@@ -328,7 +325,6 @@ class LinesRepository:
         Returns:
             是否成功
         """
-        from app.core.telegram import get_user_name_from_tg_id
 
         try:
             with get_session() as session:
@@ -357,9 +353,7 @@ class LinesRepository:
                     return False
 
                 session.execute(stmt)
-                logger.info(
-                    f"用户 {get_user_name_from_tg_id(tg_id)} 解锁 {service} 线路调度功能"
-                )
+                logger.info(f"用户 {tg_id!s} 解锁 {service} 线路调度功能")
                 return True
 
         except Exception as e:
@@ -391,7 +385,6 @@ class LinesRepository:
         Returns:
             创建的调度 ID，失败返回 None
         """
-        from app.core.telegram import get_user_name_from_tg_id
 
         try:
             with get_session() as session:
@@ -413,7 +406,7 @@ class LinesRepository:
                 session.flush()  # 获取 schedule.id
 
                 logger.info(
-                    f"用户 {get_user_name_from_tg_id(tg_id)} 创建 {service} 线路调度: {line} "
+                    f"用户 {tg_id!s} 创建 {service} 线路调度: {line} "
                     f"({days_of_week}, {start_time}-{end_time})"
                 )
                 return schedule.id
@@ -487,7 +480,6 @@ class LinesRepository:
         Returns:
             是否成功
         """
-        from app.core.telegram import get_user_name_from_tg_id
 
         try:
             with get_session() as session:
@@ -518,9 +510,7 @@ class LinesRepository:
                     schedule.is_enabled = 1 if kwargs["is_enabled"] else 0
 
                 schedule.updated_at = int(time.time())
-                logger.info(
-                    f"用户 {get_user_name_from_tg_id(tg_id)} 更新线路调度 {schedule_id}"
-                )
+                logger.info(f"用户 {tg_id!s} 更新线路调度 {schedule_id}")
                 return True
 
         except Exception as e:
@@ -538,7 +528,6 @@ class LinesRepository:
         Returns:
             是否成功
         """
-        from app.core.telegram import get_user_name_from_tg_id
 
         try:
             with get_session() as session:
@@ -555,9 +544,7 @@ class LinesRepository:
 
                 # 删除调度
                 session.delete(schedule)
-                logger.info(
-                    f"用户 {get_user_name_from_tg_id(tg_id)} 删除线路调度 {schedule_id}"
-                )
+                logger.info(f"用户 {tg_id!s} 删除线路调度 {schedule_id}")
                 return True
 
         except Exception as e:

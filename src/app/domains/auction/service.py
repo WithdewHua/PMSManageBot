@@ -8,12 +8,12 @@ from datetime import datetime, timedelta
 from app.core.config import settings
 from app.core.log import logger
 from app.core.scheduler import Scheduler, schedule_task
-from app.core.telegram import get_user_name_from_tg_id
 from app.domains.auction import exceptions as auction_exceptions
 from app.domains.auction import notifications as auction_notifications
 from app.domains.auction import repository as auction_repository
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
 
 def _job_id(auction_id: int) -> str:

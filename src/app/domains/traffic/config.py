@@ -3,7 +3,6 @@
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from app.core.domain_config import DomainConfig, FieldRows, LegacySource
-from app.core.legacy_env import LEGACY_ENV
 
 
 class TrafficConfigModel(BaseModel):
@@ -18,9 +17,11 @@ TRAFFIC_CONFIG = DomainConfig(
     TrafficConfigModel,
     FieldRows("config.traffic"),
     legacy={
-        "user_traffic_limit": LegacySource("USER_TRAFFIC_LIMIT", LEGACY_ENV.read),
+        "user_traffic_limit": LegacySource(
+            "USER_TRAFFIC_LIMIT", default=12 * 1024 * 1024 * 1024
+        ),
         "premium_user_traffic_limit": LegacySource(
-            "PREMIUM_USER_TRAFFIC_LIMIT", LEGACY_ENV.read
+            "PREMIUM_USER_TRAFFIC_LIMIT", default=24 * 1024 * 1024 * 1024
         ),
     },
 )

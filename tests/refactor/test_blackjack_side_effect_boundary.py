@@ -26,7 +26,7 @@ INTERFACE_AND_SERVICE_MODULES = sorted(
 # repository 内不得出现的副作用来源（勋章查询/授予经由 service 或 _tx helper，
 # 领域模型导入属于跨域基线债务，不在此断言范围）
 FORBIDDEN_SIDE_EFFECT_MODULES = (
-    "app.core.telegram",
+    "app.integrations.telegram.messaging",
     "app.core.scheduler",
     "app.domains.blackjack.notifications",
     "app.domains.badge_awards",
@@ -110,7 +110,7 @@ def test_notifications_are_not_imported_by_service_transactions_owner() -> None:
     """service 只依赖 notifications 模块；repository 不依赖任何通知模块。"""
 
     assert not any(
-        "app.core.telegram" in _imported_modules(_tree(path))
+        "app.integrations.telegram.messaging" in _imported_modules(_tree(path))
         for path in REPOSITORY_MODULES
     )
     service_imports = _imported_modules(_tree(BLACKJACK / "service.py"))

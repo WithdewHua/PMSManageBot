@@ -12,6 +12,12 @@ from app.core.log import logger
 async def lifespan(app: FastAPI):
     try:
         logger.info("Application startup")
+        from app.transport.http.auth import mock_auth_enabled
+
+        if mock_auth_enabled():
+            logger.warning(
+                "WEBAPP_DEV_MOCK_AUTH is enabled; Telegram authentication is being bypassed for local development"
+            )
         yield
     finally:
         await cleanup_http_resources()

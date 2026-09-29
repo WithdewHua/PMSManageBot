@@ -1,12 +1,6 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
-from app.core.auth import (
-    check_admin_permission,
-    get_telegram_user,
-    require_telegram_auth,
-)
 from app.core.log import uvicorn_logger as logger
-from app.core.schemas import TelegramUser
 from app.domains.badge_awards.jobs import check_and_award_game_king_badge
 from app.domains.treasure import exceptions as treasure_exceptions
 from app.domains.treasure import service as treasure_service
@@ -20,6 +14,12 @@ from app.domains.treasure.schemas import (
     TreasureParticipationItem,
     TreasureParticipationListResponse,
 )
+from app.transport.http.auth import (
+    check_admin_permission,
+    get_telegram_user,
+    require_telegram_auth,
+)
+from app.transport.http.schemas import TelegramUser
 
 router = APIRouter(prefix="/treasure", tags=["夺宝奇兵"])
 

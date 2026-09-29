@@ -178,14 +178,6 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.jobs.cash",
-        "module_target": "app.core.telegram",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.telegram.send_message_by_url"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.jobs.cash",
         "module_target": "app.domains.blackjack",
         "resolved": true,
         "scope": "module",
@@ -214,6 +206,14 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.blackjack.notifications.cash._get_group_chat_id"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.jobs.cash",
+        "module_target": "app.integrations.telegram.messaging",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.integrations.telegram.messaging.send_message_by_url"
       },
       {
         "kind": "from",
@@ -249,10 +249,10 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.jobs.cash",
-        "module_target": "app.core.telegram",
+        "module_target": "app.integrations.telegram.messaging",
         "resolved": true,
         "scope": "function",
-        "target": "app.core.telegram.send_message_by_url"
+        "target": "app.integrations.telegram.messaging.send_message_by_url"
       },
       {
         "kind": "from",
@@ -409,10 +409,10 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.notifications.cash",
-        "module_target": "app.core.telegram",
+        "module_target": "app.integrations.telegram.profiles",
         "resolved": true,
         "scope": "module",
-        "target": "app.core.telegram.get_user_name_from_tg_id"
+        "target": "app.integrations.telegram.profiles.get_user_name_from_tg_id"
       },
       {
         "kind": "from",
@@ -433,18 +433,18 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.notifications.tournament",
-        "module_target": "app.core.telegram",
+        "module_target": "app.integrations.telegram.messaging",
         "resolved": true,
         "scope": "module",
-        "target": "app.core.telegram.get_user_names_from_tg_ids"
+        "target": "app.integrations.telegram.messaging.send_message_by_url"
       },
       {
         "kind": "from",
         "module": "app.domains.blackjack.notifications.tournament",
-        "module_target": "app.core.telegram",
+        "module_target": "app.integrations.telegram.profiles",
         "resolved": true,
         "scope": "module",
-        "target": "app.core.telegram.send_message_by_url"
+        "target": "app.integrations.telegram.profiles.get_user_names_from_tg_ids"
       },
       {
         "kind": "import",
@@ -2065,42 +2065,10 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.router.cash",
-        "module_target": "app.core.auth",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.auth.check_admin_permission"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.router.cash",
-        "module_target": "app.core.auth",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.auth.get_telegram_user"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.router.cash",
-        "module_target": "app.core.auth",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.auth.require_telegram_auth"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.router.cash",
         "module_target": "app.core.log",
         "resolved": true,
         "scope": "module",
         "target": "app.core.log.uvicorn_logger"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.router.cash",
-        "module_target": "app.core.schemas",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.schemas.TelegramUser"
       },
       {
         "kind": "from",
@@ -2233,6 +2201,38 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.router.cash",
+        "module_target": "app.transport.http.auth",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.transport.http.auth.check_admin_permission"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.router.cash",
+        "module_target": "app.transport.http.auth",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.transport.http.auth.get_telegram_user"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.router.cash",
+        "module_target": "app.transport.http.auth",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.transport.http.auth.require_telegram_auth"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.router.cash",
+        "module_target": "app.transport.http.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.transport.http.schemas.TelegramUser"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.router.cash",
         "module_target": "app.domains.blackjack.jobs.cash",
         "resolved": true,
         "scope": "module",
@@ -2281,42 +2281,10 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.router.tournament",
-        "module_target": "app.core.auth",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.auth.get_telegram_user"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.router.tournament",
-        "module_target": "app.core.auth",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.auth.require_telegram_auth"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.router.tournament",
         "module_target": "app.core.log",
         "resolved": true,
         "scope": "module",
         "target": "app.core.log.uvicorn_logger"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.router.tournament",
-        "module_target": "app.core.schemas",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.schemas.TelegramUser"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.router.tournament",
-        "module_target": "app.core.telegram",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.telegram.get_user_names_from_tg_ids"
       },
       {
         "kind": "from",
@@ -2465,6 +2433,38 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.router.tournament",
+        "module_target": "app.integrations.telegram.profiles",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.integrations.telegram.profiles.get_user_names_from_tg_ids"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.router.tournament",
+        "module_target": "app.transport.http.auth",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.transport.http.auth.get_telegram_user"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.router.tournament",
+        "module_target": "app.transport.http.auth",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.transport.http.auth.require_telegram_auth"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.router.tournament",
+        "module_target": "app.transport.http.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.transport.http.schemas.TelegramUser"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.router.tournament",
         "module_target": "app.domains.blackjack.jobs.tournament",
         "resolved": true,
         "scope": "module",
@@ -2521,42 +2521,10 @@
       {
         "kind": "from",
         "module": "app.domains.blackjack.router.tournament_admin",
-        "module_target": "app.core.auth",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.auth.check_admin_permission"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.router.tournament_admin",
-        "module_target": "app.core.auth",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.auth.get_telegram_user"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.router.tournament_admin",
-        "module_target": "app.core.auth",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.auth.require_telegram_auth"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.router.tournament_admin",
         "module_target": "app.core.log",
         "resolved": true,
         "scope": "module",
         "target": "app.core.log.uvicorn_logger"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.router.tournament_admin",
-        "module_target": "app.core.schemas",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.core.schemas.TelegramUser"
       },
       {
         "kind": "from",
@@ -2645,6 +2613,38 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.blackjack.schemas.TournamentUpdateRequest"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.router.tournament_admin",
+        "module_target": "app.transport.http.auth",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.transport.http.auth.check_admin_permission"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.router.tournament_admin",
+        "module_target": "app.transport.http.auth",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.transport.http.auth.get_telegram_user"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.router.tournament_admin",
+        "module_target": "app.transport.http.auth",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.transport.http.auth.require_telegram_auth"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.router.tournament_admin",
+        "module_target": "app.transport.http.schemas",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.transport.http.schemas.TelegramUser"
       },
       {
         "kind": "import",

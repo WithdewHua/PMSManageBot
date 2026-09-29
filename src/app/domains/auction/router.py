@@ -2,14 +2,8 @@ from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
-from app.core.auth import (
-    check_admin_permission,
-    get_telegram_user,
-    require_telegram_auth,
-)
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
-from app.core.schemas import TelegramUser
 from app.domains.auction import exceptions as auction_exceptions
 from app.domains.auction import service as auction_service
 from app.domains.auction.schemas import (
@@ -22,6 +16,12 @@ from app.domains.auction.schemas import (
     PlaceBidRequest,
     PlaceBidResponse,
 )
+from app.transport.http.auth import (
+    check_admin_permission,
+    get_telegram_user,
+    require_telegram_auth,
+)
+from app.transport.http.schemas import TelegramUser
 
 router = APIRouter(prefix="/auction", tags=["auction"])
 

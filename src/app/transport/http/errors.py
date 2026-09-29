@@ -1,4 +1,4 @@
-"""Transport adapters for structured domain errors."""
+"""HTTP adapter for structured domain errors."""
 
 from __future__ import annotations
 

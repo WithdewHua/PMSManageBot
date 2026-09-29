@@ -43,6 +43,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.core.config import settings
 from app.databases.db import DatabaseORM
 from app.domains.blackjack import repository as blackjack_repository
 from app.domains.blackjack.config import ENTRY_PLAYING, TOURNAMENT_RUNNING
@@ -52,6 +53,12 @@ from app.model_registry import metadata
 from app.subscriptions import register_subscriptions
 
 register_subscriptions()
+
+
+@pytest.fixture(autouse=True)
+def configured_test_admin(monkeypatch):
+    """Replace the removed development admin backdoor with explicit test config."""
+    monkeypatch.setattr(settings, "TG_ADMIN_CHAT_ID", [123456789])
 
 
 @pytest.fixture

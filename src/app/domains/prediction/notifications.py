@@ -22,7 +22,7 @@ async def notify_prediction_market_created(
     from datetime import datetime
 
     from app.core.config import settings
-    from app.core.telegram import send_message_by_url
+    from app.integrations.telegram.messaging import send_message_by_url
 
     chat_id = _get_group_chat_id()
     if not chat_id:
@@ -57,7 +57,7 @@ async def notify_prediction_markets_closing_soon(
     from datetime import datetime
 
     from app.core.config import settings
-    from app.core.telegram import send_message_by_url
+    from app.integrations.telegram.messaging import send_message_by_url
 
     chat_id = _get_group_chat_id()
     if not chat_id:
@@ -118,7 +118,7 @@ async def notify_prediction_market_resolved(
     resolution_note: str | None,
 ) -> None:
     """题目结算后的群组通知。"""
-    from app.core.telegram import send_message_by_url
+    from app.integrations.telegram.messaging import send_message_by_url
 
     chat_id = _get_group_chat_id()
     if not chat_id:
@@ -151,7 +151,7 @@ async def notify_prediction_user_settlement(
     payout_amount: float,
 ) -> None:
     """题目结算后的个人通知（无论命中与否都发送）。"""
-    from app.core.telegram import send_message_by_url
+    from app.integrations.telegram.messaging import send_message_by_url
 
     result_text = "YES" if int(result_option) == 1 else "NO"
     win_amount = int(yes_amount) if int(result_option) == 1 else int(no_amount)
@@ -183,7 +183,8 @@ async def notify_prediction_bet_placed(
     real_no_pool: int,
 ) -> None:
     """用户押注后的群组通知。"""
-    from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
+    from app.integrations.telegram.messaging import send_message_by_url
+    from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
     chat_id = _get_group_chat_id()
     if not chat_id:
@@ -214,7 +215,8 @@ async def notify_prediction_submission_created(
     from datetime import datetime
 
     from app.core.config import settings
-    from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
+    from app.integrations.telegram.messaging import send_message_by_url
+    from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
     submitter_name = get_user_name_from_tg_id(int(submitter_tg_id)) or int(
         submitter_tg_id
@@ -260,7 +262,7 @@ async def notify_prediction_submission_reviewed(
     market_id: int | None = None,
 ) -> None:
     """投稿审核完成后，通知提交用户审核结果。"""
-    from app.core.telegram import send_message_by_url
+    from app.integrations.telegram.messaging import send_message_by_url
 
     status_text = "✅ 通过" if bool(approved) else "❌ 未通过"
     note_text = (review_note or "").strip() or "无"

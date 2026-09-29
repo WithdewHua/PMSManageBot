@@ -956,18 +956,18 @@
           {
             "kind": "from",
             "module": "app.domains.auction.notifications",
-            "module_target": "app.core.telegram",
+            "module_target": "app.integrations.telegram.messaging",
             "resolved": true,
             "scope": "module",
-            "target": "app.core.telegram.get_user_name_from_tg_id"
+            "target": "app.integrations.telegram.messaging.send_message_by_url"
           },
           {
             "kind": "from",
             "module": "app.domains.auction.notifications",
-            "module_target": "app.core.telegram",
+            "module_target": "app.integrations.telegram.profiles",
             "resolved": true,
             "scope": "module",
-            "target": "app.core.telegram.send_message_by_url"
+            "target": "app.integrations.telegram.profiles.get_user_name_from_tg_id"
           },
           {
             "kind": "import",
@@ -1114,30 +1114,6 @@
           {
             "kind": "from",
             "module": "app.domains.auction.router",
-            "module_target": "app.core.auth",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.auth.check_admin_permission"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.router",
-            "module_target": "app.core.auth",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.auth.get_telegram_user"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.router",
-            "module_target": "app.core.auth",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.auth.require_telegram_auth"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.router",
             "module_target": "app.core.config",
             "resolved": true,
             "scope": "module",
@@ -1150,14 +1126,6 @@
             "resolved": true,
             "scope": "module",
             "target": "app.core.log.uvicorn_logger"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.router",
-            "module_target": "app.core.schemas",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.schemas.TelegramUser"
           },
           {
             "kind": "from",
@@ -1238,6 +1206,38 @@
             "resolved": true,
             "scope": "module",
             "target": "app.domains.auction.schemas.PlaceBidResponse"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.router",
+            "module_target": "app.transport.http.auth",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.transport.http.auth.check_admin_permission"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.router",
+            "module_target": "app.transport.http.auth",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.transport.http.auth.get_telegram_user"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.router",
+            "module_target": "app.transport.http.auth",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.transport.http.auth.require_telegram_auth"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.router",
+            "module_target": "app.transport.http.schemas",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.transport.http.schemas.TelegramUser"
           },
           {
             "kind": "from",
@@ -1329,14 +1329,6 @@
           {
             "kind": "from",
             "module": "app.domains.auction.service",
-            "module_target": "app.core.telegram",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.telegram.get_user_name_from_tg_id"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.auction.service",
             "module_target": "app.domains.auction",
             "resolved": true,
             "scope": "module",
@@ -1373,6 +1365,14 @@
             "resolved": true,
             "scope": "module",
             "target": "app.domains.credits.types.CreditAccount"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.auction.service",
+            "module_target": "app.integrations.telegram.profiles",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.integrations.telegram.profiles.get_user_name_from_tg_id"
           },
           {
             "kind": "from",
@@ -2493,18 +2493,18 @@
           {
             "kind": "from",
             "module": "app.domains.luckywheel.notifications",
-            "module_target": "app.core.telegram",
+            "module_target": "app.integrations.telegram.messaging",
             "resolved": true,
             "scope": "module",
-            "target": "app.core.telegram.get_user_name_from_tg_id"
+            "target": "app.integrations.telegram.messaging.send_message_by_url"
           },
           {
             "kind": "from",
             "module": "app.domains.luckywheel.notifications",
-            "module_target": "app.core.telegram",
+            "module_target": "app.integrations.telegram.profiles",
             "resolved": true,
             "scope": "module",
-            "target": "app.core.telegram.send_message_by_url"
+            "target": "app.integrations.telegram.profiles.get_user_name_from_tg_id"
           },
           {
             "kind": "import",
@@ -2771,58 +2771,10 @@
           {
             "kind": "from",
             "module": "app.domains.luckywheel.router",
-            "module_target": "app.core.auth",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.auth.check_admin_permission"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.luckywheel.router",
-            "module_target": "app.core.auth",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.auth.get_telegram_user"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.luckywheel.router",
-            "module_target": "app.core.auth",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.auth.require_telegram_auth"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.luckywheel.router",
             "module_target": "app.core.log",
             "resolved": true,
             "scope": "module",
             "target": "app.core.log.logger"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.luckywheel.router",
-            "module_target": "app.core.schemas",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.schemas.TelegramUser"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.luckywheel.router",
-            "module_target": "app.core.telegram",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.telegram.get_user_name_from_tg_id"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.luckywheel.router",
-            "module_target": "app.core.telegram",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.telegram.send_message_by_url"
           },
           {
             "kind": "from",
@@ -2911,6 +2863,54 @@
             "resolved": true,
             "scope": "module",
             "target": "app.domains.luckywheel.schemas.LuckyWheelTenSpinResult"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.router",
+            "module_target": "app.integrations.telegram.messaging",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.integrations.telegram.messaging.send_message_by_url"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.router",
+            "module_target": "app.integrations.telegram.profiles",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.integrations.telegram.profiles.get_user_name_from_tg_id"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.router",
+            "module_target": "app.transport.http.auth",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.transport.http.auth.check_admin_permission"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.router",
+            "module_target": "app.transport.http.auth",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.transport.http.auth.get_telegram_user"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.router",
+            "module_target": "app.transport.http.auth",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.transport.http.auth.require_telegram_auth"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.luckywheel.router",
+            "module_target": "app.transport.http.schemas",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.transport.http.schemas.TelegramUser"
           },
           {
             "kind": "from",
@@ -4576,10 +4576,10 @@
           {
             "kind": "from",
             "module": "app.domains.prediction.notifications",
-            "module_target": "app.core.telegram",
+            "module_target": "app.integrations.telegram.messaging",
             "resolved": true,
             "scope": "function",
-            "target": "app.core.telegram.send_message_by_url"
+            "target": "app.integrations.telegram.messaging.send_message_by_url"
           },
           {
             "kind": "from",
@@ -4600,42 +4600,42 @@
           {
             "kind": "from",
             "module": "app.domains.prediction.notifications",
-            "module_target": "app.core.telegram",
+            "module_target": "app.integrations.telegram.messaging",
             "resolved": true,
             "scope": "function",
-            "target": "app.core.telegram.send_message_by_url"
+            "target": "app.integrations.telegram.messaging.send_message_by_url"
           },
           {
             "kind": "from",
             "module": "app.domains.prediction.notifications",
-            "module_target": "app.core.telegram",
+            "module_target": "app.integrations.telegram.messaging",
             "resolved": true,
             "scope": "function",
-            "target": "app.core.telegram.send_message_by_url"
+            "target": "app.integrations.telegram.messaging.send_message_by_url"
           },
           {
             "kind": "from",
             "module": "app.domains.prediction.notifications",
-            "module_target": "app.core.telegram",
+            "module_target": "app.integrations.telegram.messaging",
             "resolved": true,
             "scope": "function",
-            "target": "app.core.telegram.send_message_by_url"
+            "target": "app.integrations.telegram.messaging.send_message_by_url"
           },
           {
             "kind": "from",
             "module": "app.domains.prediction.notifications",
-            "module_target": "app.core.telegram",
+            "module_target": "app.integrations.telegram.messaging",
             "resolved": true,
             "scope": "function",
-            "target": "app.core.telegram.get_user_name_from_tg_id"
+            "target": "app.integrations.telegram.messaging.send_message_by_url"
           },
           {
             "kind": "from",
             "module": "app.domains.prediction.notifications",
-            "module_target": "app.core.telegram",
+            "module_target": "app.integrations.telegram.profiles",
             "resolved": true,
             "scope": "function",
-            "target": "app.core.telegram.send_message_by_url"
+            "target": "app.integrations.telegram.profiles.get_user_name_from_tg_id"
           },
           {
             "kind": "from",
@@ -4656,26 +4656,26 @@
           {
             "kind": "from",
             "module": "app.domains.prediction.notifications",
-            "module_target": "app.core.telegram",
+            "module_target": "app.integrations.telegram.messaging",
             "resolved": true,
             "scope": "function",
-            "target": "app.core.telegram.get_user_name_from_tg_id"
+            "target": "app.integrations.telegram.messaging.send_message_by_url"
           },
           {
             "kind": "from",
             "module": "app.domains.prediction.notifications",
-            "module_target": "app.core.telegram",
+            "module_target": "app.integrations.telegram.profiles",
             "resolved": true,
             "scope": "function",
-            "target": "app.core.telegram.send_message_by_url"
+            "target": "app.integrations.telegram.profiles.get_user_name_from_tg_id"
           },
           {
             "kind": "from",
             "module": "app.domains.prediction.notifications",
-            "module_target": "app.core.telegram",
+            "module_target": "app.integrations.telegram.messaging",
             "resolved": true,
             "scope": "function",
-            "target": "app.core.telegram.send_message_by_url"
+            "target": "app.integrations.telegram.messaging.send_message_by_url"
           },
           {
             "kind": "from",
@@ -4883,14 +4883,6 @@
             "resolved": true,
             "scope": "module",
             "target": "app.domains.prediction.models.PredictionMarket"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.repository.bets",
-            "module_target": "app.core.telegram",
-            "resolved": true,
-            "scope": "function",
-            "target": "app.core.telegram.get_user_name_from_tg_id"
           },
           {
             "kind": "import",
@@ -5108,30 +5100,6 @@
           {
             "kind": "from",
             "module": "app.domains.prediction.router",
-            "module_target": "app.core.auth",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.auth.check_admin_permission"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.router",
-            "module_target": "app.core.auth",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.auth.get_telegram_user"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.router",
-            "module_target": "app.core.auth",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.auth.require_telegram_auth"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.router",
             "module_target": "app.core.config",
             "resolved": true,
             "scope": "module",
@@ -5144,14 +5112,6 @@
             "resolved": true,
             "scope": "module",
             "target": "app.core.log.uvicorn_logger"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.prediction.router",
-            "module_target": "app.core.schemas",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.schemas.TelegramUser"
           },
           {
             "kind": "from",
@@ -5275,6 +5235,38 @@
           },
           {
             "kind": "from",
+            "module": "app.domains.prediction.router",
+            "module_target": "app.transport.http.auth",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.transport.http.auth.check_admin_permission"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.router",
+            "module_target": "app.transport.http.auth",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.transport.http.auth.get_telegram_user"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.router",
+            "module_target": "app.transport.http.auth",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.transport.http.auth.require_telegram_auth"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.router",
+            "module_target": "app.transport.http.schemas",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.transport.http.schemas.TelegramUser"
+          },
+          {
+            "kind": "from",
             "module": "app.domains.prediction.rules",
             "module_target": "__future__",
             "resolved": true,
@@ -5343,6 +5335,14 @@
             "resolved": true,
             "scope": "module",
             "target": "app.domains.prediction.repository"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.prediction.service",
+            "module_target": "app.integrations.telegram",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.integrations.telegram.profiles"
           },
           {
             "kind": "from",
@@ -6526,10 +6526,10 @@
           {
             "kind": "from",
             "module": "app.domains.treasure.notifications",
-            "module_target": "app.core.telegram",
+            "module_target": "app.integrations.telegram.profiles",
             "resolved": true,
             "scope": "module",
-            "target": "app.core.telegram.get_user_name_from_tg_id"
+            "target": "app.integrations.telegram.profiles.get_user_name_from_tg_id"
           },
           {
             "kind": "from",
@@ -6542,26 +6542,26 @@
           {
             "kind": "from",
             "module": "app.domains.treasure.notifications",
-            "module_target": "app.core.telegram",
+            "module_target": "app.integrations.telegram.messaging",
             "resolved": true,
             "scope": "function",
-            "target": "app.core.telegram.send_message_by_url"
+            "target": "app.integrations.telegram.messaging.send_message_by_url"
           },
           {
             "kind": "from",
             "module": "app.domains.treasure.notifications",
-            "module_target": "app.core.telegram",
+            "module_target": "app.integrations.telegram.messaging",
             "resolved": true,
             "scope": "function",
-            "target": "app.core.telegram.send_message_by_url"
+            "target": "app.integrations.telegram.messaging.send_message_by_url"
           },
           {
             "kind": "from",
             "module": "app.domains.treasure.notifications",
-            "module_target": "app.core.telegram",
+            "module_target": "app.integrations.telegram.messaging",
             "resolved": true,
             "scope": "function",
-            "target": "app.core.telegram.send_message_by_url"
+            "target": "app.integrations.telegram.messaging.send_message_by_url"
           },
           {
             "kind": "import",
@@ -6636,14 +6636,6 @@
           {
             "kind": "from",
             "module": "app.domains.treasure.repository",
-            "module_target": "app.core.number",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.number.normalize_external_random_b"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.repository",
             "module_target": "app.domains.credits",
             "resolved": true,
             "scope": "module",
@@ -6684,6 +6676,14 @@
           {
             "kind": "from",
             "module": "app.domains.treasure.repository",
+            "module_target": "app.domains.treasure",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.treasure.rules"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.repository",
             "module_target": "app.domains.treasure.models",
             "resolved": true,
             "scope": "module",
@@ -6703,14 +6703,6 @@
             "resolved": true,
             "scope": "function",
             "target": "random"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.repository",
-            "module_target": "app.core.telegram",
-            "resolved": true,
-            "scope": "function",
-            "target": "app.core.telegram.get_user_name_from_tg_id"
           },
           {
             "kind": "from",
@@ -6755,42 +6747,10 @@
           {
             "kind": "from",
             "module": "app.domains.treasure.router",
-            "module_target": "app.core.auth",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.auth.check_admin_permission"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.router",
-            "module_target": "app.core.auth",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.auth.get_telegram_user"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.router",
-            "module_target": "app.core.auth",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.auth.require_telegram_auth"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.router",
             "module_target": "app.core.log",
             "resolved": true,
             "scope": "module",
             "target": "app.core.log.uvicorn_logger"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.router",
-            "module_target": "app.core.schemas",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.schemas.TelegramUser"
           },
           {
             "kind": "from",
@@ -6882,6 +6842,68 @@
           },
           {
             "kind": "from",
+            "module": "app.domains.treasure.router",
+            "module_target": "app.transport.http.auth",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.transport.http.auth.check_admin_permission"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.router",
+            "module_target": "app.transport.http.auth",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.transport.http.auth.get_telegram_user"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.router",
+            "module_target": "app.transport.http.auth",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.transport.http.auth.require_telegram_auth"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.router",
+            "module_target": "app.transport.http.schemas",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.transport.http.schemas.TelegramUser"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.rules",
+            "module_target": "__future__",
+            "resolved": true,
+            "scope": "module",
+            "target": "__future__.annotations"
+          },
+          {
+            "kind": "import",
+            "module": "app.domains.treasure.rules",
+            "resolved": true,
+            "scope": "module",
+            "target": "hashlib"
+          },
+          {
+            "kind": "import",
+            "module": "app.domains.treasure.rules",
+            "resolved": true,
+            "scope": "module",
+            "target": "hmac"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.rules",
+            "module_target": "typing",
+            "resolved": true,
+            "scope": "module",
+            "target": "typing.Any"
+          },
+          {
+            "kind": "from",
             "module": "app.domains.treasure.schemas",
             "module_target": "datetime",
             "resolved": true,
@@ -6911,20 +6933,6 @@
             "resolved": true,
             "scope": "module",
             "target": "__future__.annotations"
-          },
-          {
-            "kind": "import",
-            "module": "app.domains.treasure.service",
-            "resolved": true,
-            "scope": "module",
-            "target": "hashlib"
-          },
-          {
-            "kind": "import",
-            "module": "app.domains.treasure.service",
-            "resolved": true,
-            "scope": "module",
-            "target": "hmac"
           },
           {
             "kind": "import",
@@ -6968,14 +6976,6 @@
           {
             "kind": "from",
             "module": "app.domains.treasure.service",
-            "module_target": "app.core.number",
-            "resolved": true,
-            "scope": "module",
-            "target": "app.core.number.normalize_external_random_b"
-          },
-          {
-            "kind": "from",
-            "module": "app.domains.treasure.service",
             "module_target": "app.domains.treasure",
             "resolved": true,
             "scope": "module",
@@ -7000,10 +7000,26 @@
           {
             "kind": "from",
             "module": "app.domains.treasure.service",
+            "module_target": "app.domains.treasure",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.treasure.rules"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.service",
             "module_target": "app.integrations",
             "resolved": true,
             "scope": "module",
             "target": "app.integrations.eth_rpc"
+          },
+          {
+            "kind": "from",
+            "module": "app.domains.treasure.service",
+            "module_target": "app.integrations.telegram",
+            "resolved": true,
+            "scope": "module",
+            "target": "app.integrations.telegram.profiles"
           },
           {
             "kind": "from",

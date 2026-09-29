@@ -29,15 +29,17 @@ def test_b2_router_and_schema_units_have_reviewed_destinations() -> None:
     assert result["missing"] == []
     assert result["todo"] == []
     assert result["invalid"] == []
-    assert records["app.webapp.auth:get_telegram_user"]["target"] == "app.core.auth"
+    assert records["app.webapp.auth:get_telegram_user"]["target"] == (
+        "app.transport.http.auth"
+    )
     assert records["app.webapp.middlewares:require_telegram_auth"]["target"] == (
-        "app.core.auth"
+        "app.transport.http.auth"
     )
     assert records["app.webapp.schemas.user:TelegramUser"]["target"] == (
-        "app.core.schemas"
+        "app.transport.http.schemas"
     )
     assert records["app.webapp.schemas.user:BaseResponse"]["target"] == (
-        "app.core.schemas"
+        "app.transport.http.schemas"
     )
     assert records["app.handlers.user:exchange"]["target"] == (
         "app.domains.invitation.bot"

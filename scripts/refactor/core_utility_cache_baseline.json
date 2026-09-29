@@ -1,0 +1,11 @@
+{
+  "emby_api_key_cache": {"db": 3, "cache_key_prefix": "emby_api_key:"},
+  "emby_last_user_defined_line_cache": {"db": 2, "cache_key_prefix": "emby_last_user_defined_line:"},
+  "emby_user_defined_line_cache": {"db": 2, "cache_key_prefix": "emby_user_defined_line:"},
+  "plex_last_user_defined_line_cache": {"db": 2, "cache_key_prefix": "plex_last_user_defined_line:"},
+  "plex_token_cache": {"db": 3, "cache_key_prefix": "plex_token_cache:"},
+  "plex_user_defined_line_cache": {"db": 2, "cache_key_prefix": "plex_user_defined_line:"},
+  "stream_traffic_cache": {"db": 15, "cache_key_prefix": ""},
+  "user_credits_cache": {"db": 0, "cache_key_prefix": "user_credits:"},
+  "user_info_cache": {"db": 2, "cache_key_prefix": "user_info:"}
+}

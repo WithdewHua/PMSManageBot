@@ -1,15 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from app.core.auth import (
+from app.core.config import settings
+from app.core.log import uvicorn_logger as logger
+from app.databases import db
+from app.domains.reports import service as reports_service
+from app.transport.http.auth import (
     check_admin_permission,
     get_telegram_user,
     require_telegram_auth,
 )
-from app.core.config import settings
-from app.core.log import uvicorn_logger as logger
-from app.core.schemas import TelegramUser
-from app.databases import db
-from app.domains.reports import service as reports_service
+from app.transport.http.schemas import TelegramUser
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 

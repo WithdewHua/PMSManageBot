@@ -70,6 +70,7 @@ layers = [
     "(app.main)",
     "(app.api) | (app.bot) | (app.schedule) | (app.model_registry)",
     "(app.domains) : (app.databases)",
+    "(app.transport)",
     "(app.integrations)",
     "(app.core)",
 ]
@@ -78,7 +79,14 @@ layers = [
 name = "External integration isolation"
 type = "forbidden"
 source_modules = ["app.integrations"]
-forbidden_modules = ["app.domains", "app.databases", "app.api", "app.bot", "sqlalchemy"]
+forbidden_modules = [
+    "app.domains",
+    "app.databases",
+    "app.api",
+    "app.bot",
+    "app.transport",
+    "sqlalchemy",
+]
 allow_indirect_imports = true
 unmatched_ignore_imports_alerting = "error"
 

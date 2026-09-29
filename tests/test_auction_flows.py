@@ -19,7 +19,6 @@ from sqlalchemy import event
 from starlette.requests import Request
 
 from app.core.db import get_session
-from app.core.schemas import TelegramUser
 from app.domains.auction import jobs as auction_jobs
 from app.domains.auction import repository as auction_repository
 from app.domains.auction import router as auc
@@ -27,6 +26,7 @@ from app.domains.auction import service as auction_service
 from app.domains.auction.models import AuctionBids, Auctions
 from app.domains.auction.schemas import CreateAuctionRequest, PlaceBidRequest
 from app.domains.identity.models import Statistics
+from app.transport.http.schemas import TelegramUser
 from tests.conftest import add_user, next_id
 
 ADMIN = TelegramUser(id=123456789, first_name="admin", username="admin")

@@ -1,15 +1,16 @@
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, Request
 
-from app.core.auth import (
+from app.core.config import settings
+from app.core.log import uvicorn_logger as logger
+from app.domains.lines.service import unbind_specified_line_for_all_users
+from app.integrations.telegram.messaging import send_message_by_url
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
+from app.transport.http.auth import (
     check_admin_permission,
     get_telegram_user,
     require_telegram_auth,
 )
-from app.core.config import settings
-from app.core.log import uvicorn_logger as logger
-from app.core.schemas import TelegramUser
-from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
-from app.domains.lines.service import unbind_specified_line_for_all_users
+from app.transport.http.schemas import TelegramUser
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -112,9 +113,9 @@ async def approve_custom_line(
         from sqlalchemy import select
 
         from app.core.db import get_session
-        from app.core.schemas import BaseResponse
         from app.domains.custom_lines.models import CustomLine
         from app.domains.profile.schemas import CustomLineApproveRequest
+        from app.transport.http.schemas import BaseResponse
 
         # 解析请求数据
         approve_req = CustomLineApproveRequest(**data)
@@ -241,7 +242,7 @@ async def approve_custom_line(
 
     except Exception as e:
         logger.error(f"审批自定义线路失败: {e}")
-        from app.core.schemas import BaseResponse
+        from app.transport.http.schemas import BaseResponse
 
         return BaseResponse(success=False, message=f"审批失败: {e!s}")
 
@@ -263,9 +264,9 @@ async def admin_update_custom_line(
         from sqlalchemy import select
 
         from app.core.db import get_session
-        from app.core.schemas import BaseResponse
         from app.domains.custom_lines.models import CustomLine
         from app.domains.profile.schemas import AdminCustomLineUpdateRequest
+        from app.transport.http.schemas import BaseResponse
 
         # 解析请求数据
         update_req = AdminCustomLineUpdateRequest(**data)
@@ -345,7 +346,7 @@ async def admin_update_custom_line(
 
     except Exception as e:
         logger.error(f"管理员更新自定义线路失败: {e}")
-        from app.core.schemas import BaseResponse
+        from app.transport.http.schemas import BaseResponse
 
         return BaseResponse(success=False, message=f"更新失败: {e!s}")
 
@@ -367,8 +368,8 @@ async def admin_offline_custom_line(
         from sqlalchemy import select
 
         from app.core.db import get_session
-        from app.core.schemas import BaseResponse
         from app.domains.custom_lines.models import CustomLine
+        from app.transport.http.schemas import BaseResponse
 
         current_time = int(time())
 
@@ -430,7 +431,7 @@ async def admin_offline_custom_line(
 
     except Exception as e:
         logger.error(f"管理员下线自定义线路失败: {e}")
-        from app.core.schemas import BaseResponse
+        from app.transport.http.schemas import BaseResponse
 
         return BaseResponse(success=False, message=f"下线失败: {e!s}")
 
@@ -450,9 +451,9 @@ async def admin_delete_custom_line(
         from sqlalchemy import select
 
         from app.core.db import get_session
-        from app.core.schemas import BaseResponse
         from app.domains.custom_lines.models import CustomLine
         from app.domains.custom_lines.service import settle_custom_line_traffic
+        from app.transport.http.schemas import BaseResponse
 
         with get_session() as session:
             stmt = select(CustomLine).where(CustomLine.id == line_id)
@@ -513,7 +514,7 @@ async def admin_delete_custom_line(
 
     except Exception as e:
         logger.error(f"管理员删除自定义线路失败: {e}")
-        from app.core.schemas import BaseResponse
+        from app.transport.http.schemas import BaseResponse
 
         return BaseResponse(success=False, message=f"删除失败: {e!s}")
 
@@ -535,8 +536,8 @@ async def admin_set_custom_line_tags(
         from sqlalchemy import select
 
         from app.core.db import get_session
-        from app.core.schemas import BaseResponse
         from app.domains.custom_lines.models import CustomLine
+        from app.transport.http.schemas import BaseResponse
 
         with get_session() as session:
             stmt = select(CustomLine).where(CustomLine.id == line_id)
@@ -562,6 +563,6 @@ async def admin_set_custom_line_tags(
 
     except Exception as e:
         logger.error(f"管理员设置自定义线路标签失败: {e}")
-        from app.core.schemas import BaseResponse
+        from app.transport.http.schemas import BaseResponse
 
         return BaseResponse(success=False, message=f"设置标签失败: {e!s}")

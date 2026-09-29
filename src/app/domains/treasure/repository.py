@@ -5,12 +5,12 @@ from sqlalchemy import case, delete, distinct, func, select
 
 from app.core.db import get_session
 from app.core.log import logger
-from app.core.number import normalize_external_random_b
 from app.domains.credits import repository as credits_repository
 from app.domains.credits.types import CreditAccount
 from app.domains.identity import repository as identity_repository
 from app.domains.identity.models import Statistics
 from app.domains.treasure import exceptions as treasure_exceptions
+from app.domains.treasure import rules as treasure_rules
 from app.domains.treasure.models import TreasureIssue, TreasureParticipation
 
 
@@ -114,7 +114,6 @@ class TreasureRepository:
     def list_treasure_participations(
         self, issue_id: int, limit: int = 200
     ) -> list[dict]:
-        from app.core.telegram import get_user_name_from_tg_id
 
         with get_session() as session:
             issue_seq = (
@@ -147,9 +146,6 @@ class TreasureRepository:
                     "issue_id": int(p.issue_id),
                     "issue_seq": int(p.issue_seq),
                     "tg_id": int(p.tg_id),
-                    "tg_username": str(
-                        get_user_name_from_tg_id(int(p.tg_id)) or p.tg_id
-                    ),
                     "lucky_number": int(p.lucky_number),
                     "cost_credits": int(p.cost_credits),
                     "created_at_ms": int(p.created_at_ms),
@@ -533,7 +529,7 @@ def join_treasure_issue_tx(
             .limit(sample_size)
         ).all()
         a = sum(int(row[0]) for row in last_rows)
-        b = normalize_external_random_b(
+        b = treasure_rules.normalize_external_random_b(
             int(external_random_b)
             if external_random_b is not None
             else int(issue.external_random_b or 0),

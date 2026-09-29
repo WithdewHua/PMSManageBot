@@ -20,10 +20,7 @@ tick 任务 / 任务重试），靠「记得只发一次」是不可能正确的
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
-from app.core.auth import get_telegram_user, require_telegram_auth
 from app.core.log import uvicorn_logger as logger
-from app.core.schemas import TelegramUser
-from app.core.telegram import get_user_names_from_tg_ids
 from app.domains.blackjack import service as blackjack_service
 from app.domains.blackjack.config import (
     TOURNAMENT_CANCELLED,
@@ -46,6 +43,9 @@ from app.domains.blackjack.schemas import (
     TournamentStandingsResponse,
     TournamentWalletResponse,
 )
+from app.integrations.telegram.profiles import get_user_names_from_tg_ids
+from app.transport.http.auth import get_telegram_user, require_telegram_auth
+from app.transport.http.schemas import TelegramUser
 
 router = APIRouter(prefix="/blackjack/tournament", tags=["21点锦标赛"])
 

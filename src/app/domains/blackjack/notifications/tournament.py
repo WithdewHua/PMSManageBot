@@ -20,7 +20,8 @@ tick 任务 / 任务重试），靠「记得只发一次」是不可能正确的
 
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
-from app.core.telegram import get_user_names_from_tg_ids, send_message_by_url
+from app.integrations.telegram.messaging import send_message_by_url
+from app.integrations.telegram.profiles import get_user_names_from_tg_ids
 
 # router declaration belongs to the HTTP assembly(prefix="/blackjack/tournament", tags=["21点锦标赛"])
 

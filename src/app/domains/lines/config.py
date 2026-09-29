@@ -3,7 +3,6 @@
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from app.core.domain_config import DomainConfig, FieldRows, LegacySource
-from app.core.legacy_env import LEGACY_ENV
 
 
 class LinesConfigModel(BaseModel):
@@ -18,9 +17,9 @@ LINES_CONFIG = DomainConfig(
     LinesConfigModel,
     FieldRows("config.lines"),
     legacy={
-        "premium_free": LegacySource("PREMIUM_FREE", LEGACY_ENV.read),
+        "premium_free": LegacySource("PREMIUM_FREE", default=False),
         "line_schedule_unlock_credits": LegacySource(
-            "LINE_SCHEDULE_UNLOCK_CREDITS", LEGACY_ENV.read
+            "LINE_SCHEDULE_UNLOCK_CREDITS", default=264
         ),
     },
 )

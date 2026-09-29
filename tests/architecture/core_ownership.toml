@@ -1,0 +1,78 @@
+# Reviewed ownership manifest for refine-core-utility-boundaries.
+# This is test input, not a runtime registry.
+
+[policy]
+core_may_import_prefixes = ["app.core."]
+core_must_not_import_prefixes = [
+  "app.domains.",
+  "app.transport.",
+  "app.integrations.",
+  "app.api.",
+  "app.bot.",
+]
+transport_must_not_import_prefixes = ["app.domains.", "app.api.", "app.bot."]
+integration_must_not_import_prefixes = ["app.domains.", "app.transport.", "app.api.", "app.bot."]
+
+[modules."app.core.cache"]
+decision = "retain-and-purify"
+target = "app.core.cache"
+public_symbols = ["GET_ALL_KEY_VALUES_SCRIPT", "GET_STATS_SCRIPT", "RedisCache"]
+forbidden_symbols = ["emby_user_defined_line_cache", "emby_last_user_defined_line_cache", "plex_user_defined_line_cache", "plex_last_user_defined_line_cache", "stream_traffic_cache", "emby_api_key_cache", "plex_token_cache", "user_credits_cache", "user_info_cache", "invalidate_user_credits"]
+
+[modules."app.core.config"]
+decision = "retain"
+target = "app.core.config"
+public_symbols = ["Settings", "settings"]
+
+[modules."app.core.db"]
+decision = "retain"
+target = "app.core.db"
+public_symbols = ["engine", "Base", "SessionLocal", "init_db", "get_session", "register_post_commit", "run_post_commit_callbacks", "get_db_session", "rewrite_scheduler_rows"]
+
+[modules."app.core.domain_config"]
+decision = "retain"
+target = "app.core.domain_config"
+public_symbols = ["SeedReport", "LegacySource", "FieldSpec", "ConfigStorage", "JsonDocument", "FieldRows", "DomainConfig"]
+
+[modules."app.core.errors"]
+decision = "retain"
+target = "app.core.errors"
+public_symbols = ["DomainError"]
+
+[modules."app.core.byte_size"]
+decision = "retain"
+target = "app.core.byte_size"
+public_symbols = ["format_bytes"]
+
+[modules."app.core.http"]
+decision = "retain"
+target = "app.core.http"
+public_symbols = ["HTTPSessionManager", "get_thread_safe_session", "cleanup_http_resources"]
+
+[modules."app.core.kv"]
+decision = "retain"
+target = "app.core.kv"
+public_symbols = ["SystemConfig", "SystemConfigRepository", "get", "upsert", "delete", "get_all", "get_tx", "upsert_tx", "insert_if_absent_tx", "delete_tx", "compare_and_update_tx"]
+
+[modules."app.core.legacy_env"]
+decision = "purify"
+target = "app.core.legacy_env"
+public_symbols = ["LegacyEnvSource"]
+forbidden_symbols = ["MIGRATED_ENV_DEFAULTS", "LEGACY_ENV"]
+
+[modules."app.core.log"]
+decision = "retain"
+target = "app.core.log"
+public_symbols = ["TimezoneFormatter", "logger", "uvicorn_logger"]
+
+[modules."app.core.redis"]
+decision = "retain"
+target = "app.core.redis"
+public_symbols = ["Redis"]
+
+[modules."app.core.scheduler"]
+decision = "retain-and-privatize"
+target = "app.core.scheduler"
+public_symbols = ["TASK_REGISTRY", "register_task", "run_task", "Scheduler", "schedule_task", "RUN_TASK_REF", "rewrite_job_references"]
+forbidden_symbols = ["SingletonMeta"]
+

@@ -244,6 +244,8 @@ The domain inventory, ownership of wide-table columns, existing exceptions and m
 - **Side effects:** network API calls, notifications and background scheduling happen in services after commit, not inside repository transactions. Lower tiers notify higher tiers with post-commit domain events, never direct upward imports. The privileged-code `.env` write lives in the owning `invitation` domain (`invitation.repository.persist_privileged_codes_tx`) and remains a documented pre-commit exception until its database migration.
 - **Credits:** change user balances only through locked delta increment/decrement operations in the credits domain, not by writing absolute balances. Do not add user state columns to `Statistics`, `PlexUser` or `EmbyUser`; put new per-user state in the owning domain's table keyed by `tg_id`.
 - **Imports:** across domains and architectural layers import modules rather than individual functions. Cross-domain calls use only the target `service` or `*_tx` repository helper; do not import foreign models, routers, jobs or notifications. The one shared vocabulary is pure value types: a `<domain>/types.py` module may be imported by any layer of any domain, and it must stay dependency-free (no domain models, services, repositories, `app.core.db` or SQLAlchemy) — enforced by the “Domain types are pure value modules” import-linter contract. T5 read-model repositories alone may read other domains' tables for aggregation and must never write them.
+- **Core/transport boundaries:** `core/` contains reusable mechanisms only (settings, DB sessions, caches, HTTP clients, logging, scheduling, KV, and pure byte formatting). Inbound HTTP middleware, authentication dependencies, `TelegramUser`/`BaseResponse`, and domain-error response adapters belong under `transport/http/`; Telegram admin fan-out belongs under `transport/telegram/`. Domain service/repository/rules/types code must not import transport, and transport must not import domains or application assembly. Telegram HMAC verification is pure in `integrations.telegram.init_data` and receives token, age, and clock explicitly.
+- **Cache ownership:** concrete business Redis instances belong to their owning domain or integration adapter (`lines.cache`, `traffic.cache`, `credits.cache`, `identity.cache`, `integrations.media_tokens`). `core.cache` exposes only `RedisCache` and Lua/mechanism helpers; do not add business cache instances there.
 - **Singletons:** keep existing Scheduler and settings instances; do not re-instantiate them. Telegram auth continues to validate HMAC `initData`, and guarded routes use `require_telegram_auth`.
 
 ### Where new code goes
@@ -255,6 +257,7 @@ The domain inventory, ownership of wide-table columns, existing exceptions and m
 | SQLAlchemy query, write or transactional helper | Owning domain's `repository.py` / `repository/`; model in `models.py` |
 | Pure calculations / validation / error types | `rules.py` / `exceptions.py` in that domain |
 | External API client / common infrastructure | `integrations/` / `core/` respectively |
+| HTTP transport adapter / Telegram admin delivery | `transport/http/` / `transport/telegram/` |
 | Runtime business setting / infrastructure secret | Business settings use domain `config.py` backed by `SystemConfig`; infrastructure secrets and deployment settings remain read-only in `data/.env` via `core.config` |
 
 **Transition (B-stage mechanical move):** Existing `db.xxx()` calls remain intact. The `app.databases.db` singleton temporarily composes domain repository mixins; the facade file itself gets no new methods. A new database operation goes in its owning domain's repository mixin and may be called as `db.xxx()` from that same domain, but do not add new cross-domain `db.xxx()` calls. Move old code without altering behavior or broadly replacing existing calls; later `promote-*` changes introduce services and remove the facade. Do not add compatibility import modules for moved code. Modules exceeding 1,000 lines become same-named packages split by subtopic.
@@ -264,6 +267,9 @@ A function with no codebase callers is **not necessarily dead**. Before removing
 ---
 
 ## Environment & Configuration
+
+- WebApp 本地前端开发如果不连接真实 Telegram，需要在 `data/.env` 中显式设置 `WEBAPP_DEV_MOCK_AUTH=true`；该开关默认关闭，生产环境不得开启。
+- `WEBAPP_INIT_DATA_MAX_AGE` 默认为 `86400` 秒；Mini App 打开超过有效期后需重新打开以获得新的 initData。
 
 - Copy `.env.example` to `data/.env` and fill in values before running locally.
 - `Settings` (`pydantic-settings` `BaseSettings`; currently `app/core/config.py`) loads infrastructure settings from system env → `data/.env` → defaults. Runtime business settings are typed `DomainConfig` declarations persisted in `SystemConfig`; legacy business keys in `.env` are read only for first-run seeding.

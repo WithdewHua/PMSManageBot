@@ -8,16 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy import delete, select
 
-from app.core.auth import (
-    check_admin_permission,
-    get_telegram_user,
-    require_telegram_auth,
-)
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
-from app.core.schemas import TelegramUser
-from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
 from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
@@ -33,7 +26,15 @@ from app.domains.crypto_donation.schemas import (
 )
 from app.domains.donation import service as donation_service
 from app.domains.identity.models import EmbyUser, PlexUser
+from app.integrations.telegram.messaging import send_message_by_url
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
 from app.integrations.upay import UPayService
+from app.transport.http.auth import (
+    check_admin_permission,
+    get_telegram_user,
+    require_telegram_auth,
+)
+from app.transport.http.schemas import TelegramUser
 
 router = APIRouter(prefix="/api/crypto-donations", tags=["crypto-donations"])
 

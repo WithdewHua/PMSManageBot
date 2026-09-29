@@ -9,9 +9,9 @@ import aiohttp
 import filelock
 import requests
 
-from app.core.cache import emby_api_key_cache
 from app.core.config import settings
 from app.core.log import logger
+from app.integrations import media_tokens
 
 
 class Emby:
@@ -518,7 +518,7 @@ class Emby:
                         # 只有一个用户名才认为是有效的
                         username = str(usernames.pop()).lower()
                         logger.info(f"Got username from api_key: {username}")
-                        emby_api_key_cache.put(api_key, username)
+                        media_tokens.put_emby_username(api_key, username)
                         return username
                     else:
                         logger.info("Multi usernames found, maybe admin, skip")

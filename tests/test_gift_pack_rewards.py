@@ -16,7 +16,6 @@ from starlette.requests import Request
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.kv import SystemConfig
-from app.core.schemas import TelegramUser
 from app.domains.accounts import service as accounts_service
 from app.domains.gift_pack import repository as gift_pack_repository
 from app.domains.gift_pack import service as gift_pack_service
@@ -26,6 +25,7 @@ from app.domains.invitation.models import Invitation
 from app.domains.invitation.schemas import RedeemInviteCodeRequest
 from app.domains.luckywheel import repository as luckywheel_repository
 from app.domains.luckywheel.models import LuckywheelFreeSpin, WheelStats
+from app.transport.http.schemas import TelegramUser
 from tests.conftest import add_user, get_stats, next_id
 
 
@@ -567,8 +567,8 @@ async def test_claim_response_reports_lifetime_skip_in_message(orm, monkeypatch)
     from fastapi import BackgroundTasks
     from starlette.requests import Request
 
-    from app.core.schemas import TelegramUser
     from app.domains.gift_pack import router
+    from app.transport.http.schemas import TelegramUser
 
     add_user(orm, 1)
     _bind_plex(1, is_premium=1)
@@ -633,9 +633,9 @@ async def test_created_and_sold_out_notifications_are_queued_once(orm, monkeypat
     from fastapi import BackgroundTasks
     from starlette.requests import Request
 
-    from app.core.schemas import TelegramUser
     from app.domains.gift_pack import notifications, router
     from app.domains.gift_pack.schemas import GiftPackCreateRequest
+    from app.transport.http.schemas import TelegramUser
 
     now = int(time.time())
     add_user(orm, 1)

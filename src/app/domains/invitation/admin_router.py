@@ -1,15 +1,16 @@
 from fastapi import APIRouter, Body, Depends, Request
 
-from app.core.auth import (
+from app.core.log import uvicorn_logger as logger
+from app.databases import db
+from app.domains.invitation import service as invitation_service
+from app.integrations.telegram.messaging import send_message_by_url
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
+from app.transport.http.auth import (
     check_admin_permission,
     get_telegram_user,
     require_telegram_auth,
 )
-from app.core.log import uvicorn_logger as logger
-from app.core.schemas import BaseResponse, TelegramUser
-from app.core.telegram import get_user_name_from_tg_id, send_message_by_url
-from app.databases import db
-from app.domains.invitation import service as invitation_service
+from app.transport.http.schemas import BaseResponse, TelegramUser
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 

@@ -82,8 +82,8 @@ async def test_custom_line_approval_reaches_validation_after_schema_move():
     from fastapi import BackgroundTasks
     from starlette.requests import Request
 
-    from app.core.schemas import TelegramUser
     from app.domains.custom_lines.admin_router import approve_custom_line
+    from app.transport.http.schemas import TelegramUser
 
     request = Request({"type": "http", "headers": []})
     request.state.telegram_data = {"hash": "mock_hash_for_development"}

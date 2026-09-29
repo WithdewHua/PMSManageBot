@@ -2,22 +2,20 @@ import asyncio
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
 
-from app.core.auth import get_telegram_user, require_telegram_auth
-from app.core.cache import (
+from app.core.config import settings
+from app.core.log import uvicorn_logger as logger
+from app.databases import db
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
+from app.domains.identity import service as identity_service
+from app.domains.lines import notifications as lines_notifications
+from app.domains.lines import service as lines_service
+from app.domains.lines.cache import (
     emby_last_user_defined_line_cache,
     emby_user_defined_line_cache,
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
 )
-from app.core.config import settings
-from app.core.formatting import get_service_label
-from app.core.log import uvicorn_logger as logger
-from app.core.schemas import BaseResponse, TelegramUser
-from app.core.telegram import get_user_name_from_tg_id, notify_admins_by_url
-from app.databases import db
-from app.domains.credits import service as credits_service
-from app.domains.credits.types import CreditAccount
-from app.domains.lines import service as lines_service
 from app.domains.lines.jobs import auto_switch_user_lines
 from app.domains.lines.rules import is_binded_premium_line
 from app.domains.lines.service import (
@@ -42,6 +40,9 @@ from app.domains.profile.schemas import (
     PlexLineRequest,
     PlexLinesResponse,
 )
+from app.integrations.telegram.profiles import get_user_name_from_tg_id
+from app.transport.http.auth import get_telegram_user, require_telegram_auth
+from app.transport.http.schemas import BaseResponse, TelegramUser
 
 router = APIRouter(prefix="/api/user", tags=["user"])
 
@@ -189,7 +190,7 @@ async def unbind_emby_line(
         if not success:
             logger.error(f"重置用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 线路失败")
             return BaseResponse(success=False, message="重置线路失败")
-        from app.core.cache import emby_user_defined_line_cache
+        from app.domains.lines.cache import emby_user_defined_line_cache
 
         # 删除 redis 缓存
         emby_user_defined_line_cache.delete(str(emby_username).lower())
@@ -456,13 +457,14 @@ async def auth_bind_line(
 
     try:
         if service == "emby":
-            return await _auth_bind_emby_line(
-                db, tg_id, telegram_user, username, password, line
+            success, message = await _auth_bind_emby_line(
+                db, tg_id, username, password, line
             )
         else:
-            return await _auth_bind_plex_line(
-                db, tg_id, telegram_user, username, line, token=token, password=password
+            success, message = await _auth_bind_plex_line(
+                db, tg_id, username, line, token=token, password=password
             )
+        return BaseResponse(success=success, message=message)
     except Exception as e:
         logger.error(f"认证绑定{service}线路时发生错误: {e!s}")
         return BaseResponse(success=False, message=f"认证绑定失败: {e!s}")
@@ -744,10 +746,10 @@ async def unlock_line_schedule(
             f"用户 {get_user_name_from_tg_id(user.id)} 消耗 {credits_needed} 积分解锁 {service} 线路调度功能"
         )
 
-        service_name, service_emoji = get_service_label(service)
+        service_name, service_emoji = identity_service.get_service_label(service)
         user_name = get_user_name_from_tg_id(user.id)
         background_tasks.add_task(
-            notify_admins_by_url,
+            lines_notifications.notify_schedule_unlocked,
             f"""🗓️ 线路调度解锁通知
 
 👤 用户: {user_name}（TG ID: {user.id}）

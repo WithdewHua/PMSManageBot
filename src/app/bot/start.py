@@ -3,8 +3,8 @@ import textwrap
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
-from app.core.telegram import send_message
 from app.domains.invitation import service as invitation_service
+from app.integrations.telegram.messaging import send_message
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

@@ -4,7 +4,7 @@ import pickletools
 from collections.abc import Callable, Mapping
 from datetime import datetime
 from inspect import isawaitable, iscoroutinefunction
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 from apscheduler.executors.asyncio import AsyncIOExecutor
 from apscheduler.executors.pool import ThreadPoolExecutor
@@ -14,7 +14,18 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.core.config import settings
 from app.core.log import logger
-from app.core.singleton import SingletonMeta
+
+
+class _SchedulerSingletonMeta(type):
+    """Private singleton metaclass used only by Scheduler."""
+
+    _instances: ClassVar[dict[type, object]] = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super().__call__(*args, **kwargs)
+        return cls._instances[cls]
+
 
 TASK_REGISTRY: dict[str, Callable[..., Any]] = {}
 
@@ -42,7 +53,7 @@ async def run_task(name: str, /, **kwargs: Any) -> Any:
     return await result if isawaitable(result) else result
 
 
-class Scheduler(metaclass=SingletonMeta):
+class Scheduler(metaclass=_SchedulerSingletonMeta):
     def __init__(self) -> None:
         self.jobstores = {
             "default": MemoryJobStore(),

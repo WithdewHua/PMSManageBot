@@ -3,7 +3,6 @@
 from pydantic import BaseModel, ConfigDict
 
 from app.core.domain_config import DomainConfig, FieldRows, LegacySource
-from app.core.legacy_env import LEGACY_ENV
 
 
 class AccountsConfigModel(BaseModel):
@@ -18,8 +17,8 @@ ACCOUNTS_CONFIG = DomainConfig(
     AccountsConfigModel,
     FieldRows("config.accounts"),
     legacy={
-        "plex_register": LegacySource("PLEX_REGISTER", LEGACY_ENV.read),
-        "emby_register": LegacySource("EMBY_REGISTER", LEGACY_ENV.read),
+        "plex_register": LegacySource("PLEX_REGISTER", default=False),
+        "emby_register": LegacySource("EMBY_REGISTER", default=True),
     },
 )
 

@@ -1,8 +1,8 @@
 from sqlalchemy import select
 
-from app.core.cache import user_credits_cache
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.credits.cache import user_credits_cache
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 
 
