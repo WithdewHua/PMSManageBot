@@ -4,6 +4,7 @@ import pytest
 
 from app.core.db import get_session
 from app.domains.accounts import repository as accounts_repository
+from app.domains.accounts.exceptions import AccountAlreadyBound
 from app.domains.credits import repository as credits_repository
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 
@@ -40,6 +41,45 @@ def test_plex_binding_moves_balance_atomically(session_env) -> None:
         assert plex.tg_id == 101
         assert plex.credits == 0
         assert stats.credits == 9
+
+
+def test_stale_concurrent_plex_binding_is_rejected_after_first_commit(
+    session_env,
+) -> None:
+    with get_session() as session:
+        session.add(
+            PlexUser(
+                id=1,
+                plex_id=501,
+                tg_id=None,
+                credits=0,
+                plex_email="plex@example.com",
+            )
+        )
+
+    accounts_repository.bind_plex_account(
+        tg_id=101,
+        plex_id=501,
+        plex_email="plex@example.com",
+        plex_username="plex-user",
+        all_lib=1,
+        watched_time=0,
+        existing_unbound=True,
+    )
+    with pytest.raises(AccountAlreadyBound):
+        accounts_repository.bind_plex_account(
+            tg_id=102,
+            plex_id=501,
+            plex_email="plex@example.com",
+            plex_username="plex-user",
+            all_lib=1,
+            watched_time=0,
+            existing_unbound=True,
+        )
+
+    with get_session() as session:
+        row = session.get(PlexUser, 1)
+        assert row.tg_id == 101
 
 
 def test_plex_binding_rolls_back_if_credit_transfer_fails(

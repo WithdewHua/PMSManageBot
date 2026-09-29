@@ -51,11 +51,9 @@ from app.domains.traffic.admin_router import router as traffic_admin
 from app.domains.treasure.router import router as treasure_router
 from app.domains.vaultwarden.admin_router import router as vaultwarden_admin
 from app.domains.vaultwarden.router import router as vaultwarden_router
-from app.subscriptions import register_subscriptions
+from app.subscriptions import register_all as register_subscriptions
 from app.transport.http.errors import domain_error_handler
 from app.transport.http.middleware import TelegramAuthMiddleware
-
-register_subscriptions()
 
 
 def _resolve_session_secret_key() -> str:
@@ -68,6 +66,7 @@ def _resolve_session_secret_key() -> str:
 
 
 _session_secret_key = _resolve_session_secret_key()
+register_subscriptions()
 
 app = FastAPI(
     title="PMSManageBot API",

@@ -386,6 +386,10 @@ def register_tasks() -> None:
     register_task("auction.finish", finish_single_auction)
     register_task("blackjack.hand_timeout", _settle_blackjack_hand_on_timeout)
     treasure_task = _load_treasure_task()
+    from app.domains.invitation import service as invitation_service
+
+    TASKS["invitation.resolve_plex_id"] = invitation_service.resolve_plex_id_job
+    register_task("invitation.resolve_plex_id", invitation_service.resolve_plex_id_job)
     TASKS["treasure.open_next_issue"] = treasure_task
     register_task("treasure.open_next_issue", treasure_task)
     TASKS["treasure.reopen_overdue"] = reopen_overdue_issues

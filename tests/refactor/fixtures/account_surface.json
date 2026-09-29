@@ -1,0 +1,402 @@
+{
+  "bot_handlers": [
+    {
+      "callback": "set_register",
+      "commands": [
+        "set_register"
+      ],
+      "name": "set_register_handler",
+      "type": "CommandHandler"
+    },
+    {
+      "callback": "exchange",
+      "commands": [
+        "exchange"
+      ],
+      "name": "exchange_handler",
+      "type": "CommandHandler"
+    },
+    {
+      "callback": "create_overseerr",
+      "commands": [
+        "create_overseerr"
+      ],
+      "name": "create_overseerr_handler",
+      "type": "CommandHandler"
+    }
+  ],
+  "facade_methods": [
+    "add_emby_user",
+    "add_invitation_code",
+    "add_overseerr_user",
+    "add_plex_user",
+    "add_user_data",
+    "delete_plex_user",
+    "get_emby_info_by_emby_username",
+    "get_emby_info_by_tg_id",
+    "get_emby_line",
+    "get_emby_premium_quota_status",
+    "get_emby_traffic_rank",
+    "get_emby_user_with_binded_line",
+    "get_emby_users_num",
+    "get_emby_watched_time_rank",
+    "get_overseerr_info_by_email",
+    "get_overseerr_info_by_tg_id",
+    "get_plex_info_by_plex_email",
+    "get_plex_info_by_plex_id",
+    "get_plex_info_by_tg_id",
+    "get_plex_line",
+    "get_plex_premium_quota_status",
+    "get_plex_traffic_rank",
+    "get_plex_user_with_binded_line",
+    "get_plex_users_num",
+    "get_plex_watched_time_rank",
+    "get_stats_by_tg_id",
+    "update_invitation_plex_id",
+    "update_invitation_status",
+    "verify_invitation_code_is_used"
+  ],
+  "named_tasks": [
+    {
+      "registered": true,
+      "task_id": "invitation.resolve_plex_id"
+    }
+  ],
+  "repository_functions": {
+    "identity": [
+      "add_emby_user",
+      "add_emby_user_tx",
+      "add_overseerr_user",
+      "add_overseerr_user_tx",
+      "add_plex_user",
+      "add_plex_user_tx",
+      "add_user_data",
+      "add_user_data_tx",
+      "bind_emby_user_tx",
+      "bind_plex_user_tx",
+      "count_bound_plex_users",
+      "count_bound_plex_users_tx",
+      "create_emby_user_tx",
+      "create_plex_user_tx",
+      "delete_plex_user",
+      "ensure_statistics_tx",
+      "find_emby_by_tg",
+      "find_emby_by_tg_tx",
+      "find_emby_by_username",
+      "find_emby_by_username_tx",
+      "find_overseerr_by_email",
+      "find_overseerr_by_email_tx",
+      "find_overseerr_by_tg",
+      "find_overseerr_by_tg_tx",
+      "find_plex_by_email",
+      "find_plex_by_email_tx",
+      "find_plex_by_id",
+      "find_plex_by_id_tx",
+      "find_plex_by_tg",
+      "find_plex_by_tg_tx",
+      "find_unresolved_plex_by_email",
+      "find_unresolved_plex_by_email_tx",
+      "get_statistics",
+      "get_statistics_tx",
+      "list_emby_usernames",
+      "list_emby_usernames_tx",
+      "list_plex_ids",
+      "list_plex_ids_tx",
+      "list_statistics_tg_ids",
+      "list_statistics_tg_ids_tx",
+      "list_unresolved_plex_emails",
+      "list_unresolved_plex_emails_tx",
+      "resolve_plex_user_by_email_tx",
+      "update_emby_last_viewed",
+      "update_emby_last_viewed_tx",
+      "update_plex_identity",
+      "update_plex_identity_tx",
+      "update_plex_last_viewed",
+      "update_plex_last_viewed_tx",
+      "write_user_info_cache"
+    ],
+    "invitation": [
+      "add_invitation_code",
+      "count_invitees_tx",
+      "create_invitation_codes",
+      "get_invitation_code_by_owner",
+      "get_invitee_count_by_owner",
+      "get_inviter_tg_id_by_emby_id",
+      "get_inviter_tg_id_by_emby_id_tx",
+      "get_inviter_tg_id_by_plex_id",
+      "get_inviter_tg_id_by_plex_id_tx",
+      "insert_invitation_codes_tx",
+      "issue_codes_tx",
+      "list_used_invitation_records",
+      "persist_privileged_codes_tx",
+      "redeem_for_credits",
+      "redeem_invitation_code_tx",
+      "update_invitation_emby_id",
+      "update_invitation_id_for_code",
+      "update_invitation_plex_id",
+      "update_invitation_plex_id_tx",
+      "update_invitation_service",
+      "update_invitation_status",
+      "update_invitation_status_tx",
+      "verify_invitation_code",
+      "verify_invitation_code_is_used",
+      "verify_invitation_code_tx"
+    ]
+  },
+  "routes": [
+    {
+      "endpoint": "bind_plex_account",
+      "methods": [
+        "POST"
+      ],
+      "name": "bind_plex_account",
+      "order": 6,
+      "path": "/api/user/bind/plex",
+      "response_model": "BaseResponse"
+    },
+    {
+      "endpoint": "bind_emby_account",
+      "methods": [
+        "POST"
+      ],
+      "name": "bind_emby_account",
+      "order": 7,
+      "path": "/api/user/bind/emby",
+      "response_model": "BaseResponse"
+    },
+    {
+      "endpoint": "bind_emby_line",
+      "methods": [
+        "POST"
+      ],
+      "name": "bind_emby_line",
+      "order": 9,
+      "path": "/api/user/bind/emby_line",
+      "response_model": "BaseResponse"
+    },
+    {
+      "endpoint": "bind_plex_line",
+      "methods": [
+        "POST"
+      ],
+      "name": "bind_plex_line",
+      "order": 14,
+      "path": "/api/user/bind/plex_line",
+      "response_model": "BaseResponse"
+    },
+    {
+      "endpoint": "get_invite_points_info",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_invite_points_info",
+      "order": 58,
+      "path": "/api/invite/points-info",
+      "response_model": "InvitePointsResponse"
+    },
+    {
+      "endpoint": "generate_invite_code",
+      "methods": [
+        "POST"
+      ],
+      "name": "generate_invite_code",
+      "order": 59,
+      "path": "/api/invite/generate",
+      "response_model": "GenerateInviteCodeResponse"
+    },
+    {
+      "endpoint": "get_register_status",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_register_status",
+      "order": 60,
+      "path": "/api/invite/register-status",
+      "response_model": null
+    },
+    {
+      "endpoint": "redeem_plex_code",
+      "methods": [
+        "POST"
+      ],
+      "name": "redeem_plex_code",
+      "order": 61,
+      "path": "/api/invite/redeem/plex",
+      "response_model": "RedeemResponse"
+    },
+    {
+      "endpoint": "redeem_emby_code",
+      "methods": [
+        "POST"
+      ],
+      "name": "redeem_emby_code",
+      "order": 62,
+      "path": "/api/invite/redeem/emby",
+      "response_model": "RedeemResponse"
+    },
+    {
+      "endpoint": "check_privileged_invite_code",
+      "methods": [
+        "POST"
+      ],
+      "name": "check_privileged_invite_code",
+      "order": 63,
+      "path": "/api/invite/check-privileged",
+      "response_model": "CheckPrivilegedCodeResponse"
+    },
+    {
+      "endpoint": "batch_check_privileged_invite_codes",
+      "methods": [
+        "POST"
+      ],
+      "name": "batch_check_privileged_invite_codes",
+      "order": 64,
+      "path": "/api/invite/batch-check-privileged",
+      "response_model": "BatchCheckPrivilegedCodesResponse"
+    },
+    {
+      "endpoint": "redeem_invite_code_for_credits",
+      "methods": [
+        "POST"
+      ],
+      "name": "redeem_invite_code_for_credits",
+      "order": 65,
+      "path": "/api/invite/redeem-for-credits",
+      "response_model": "RedeemForCreditsResponse"
+    },
+    {
+      "endpoint": "set_plex_register",
+      "methods": [
+        "POST"
+      ],
+      "name": "set_plex_register",
+      "order": 70,
+      "path": "/api/admin/settings/plex-register",
+      "response_model": null
+    },
+    {
+      "endpoint": "set_emby_register",
+      "methods": [
+        "POST"
+      ],
+      "name": "set_emby_register",
+      "order": 71,
+      "path": "/api/admin/settings/emby-register",
+      "response_model": null
+    },
+    {
+      "endpoint": "generate_admin_invite_codes",
+      "methods": [
+        "POST"
+      ],
+      "name": "generate_admin_invite_codes",
+      "order": 106,
+      "path": "/api/admin/invite-codes/generate",
+      "response_model": null
+    }
+  ],
+  "scheduler_jobs": [
+    {
+      "args": [],
+      "executor": "sync",
+      "func": "app.domains.accounts.service:update_plex_info",
+      "kwargs": {
+        "day_of_week": "*",
+        "hour": 12,
+        "id": "update_plex_info",
+        "max_instances": 1,
+        "minute": 0,
+        "replace_existing": true,
+        "trigger": "cron"
+      }
+    },
+    {
+      "args": [],
+      "executor": "sync",
+      "func": "app.domains.accounts.jobs:refresh_emby_user_info",
+      "kwargs": {
+        "day_of_week": "*",
+        "hour": 7,
+        "id": "refresh_emby_user_info",
+        "max_instances": 1,
+        "minute": 0,
+        "replace_existing": true,
+        "trigger": "cron"
+      }
+    }
+  ],
+  "schema": 1,
+  "service_functions": {
+    "accounts": [
+      "bind_emby",
+      "bind_emby_account",
+      "bind_plex",
+      "bind_plex_account",
+      "create_invited_emby_user",
+      "create_invited_plex_user",
+      "create_overseerr",
+      "get_registration_config",
+      "is_registration_enabled",
+      "refresh_emby_user_info",
+      "set_registration_enabled",
+      "sync_plex_user_by_email",
+      "update_emby_users_last_viewed_at",
+      "update_plex_info",
+      "update_plex_users_last_viewed_at"
+    ],
+    "identity": [
+      "add_emby_user",
+      "add_overseerr_user",
+      "add_plex_user",
+      "add_user_data",
+      "count_bound_plex_users",
+      "delete_plex_user",
+      "find_emby_by_tg",
+      "find_emby_by_username",
+      "find_overseerr_by_email",
+      "find_overseerr_by_tg",
+      "find_plex_by_email",
+      "find_plex_by_id",
+      "find_plex_by_tg",
+      "find_unresolved_plex_by_email",
+      "get_emby_info_by_emby_username",
+      "get_emby_info_by_tg_id",
+      "get_overseerr_info_by_email",
+      "get_overseerr_info_by_tg_id",
+      "get_plex_info_by_plex_email",
+      "get_plex_info_by_plex_id",
+      "get_plex_info_by_tg_id",
+      "get_service_label",
+      "get_statistics",
+      "get_stats_by_tg_id",
+      "list_emby_usernames",
+      "list_plex_ids",
+      "list_statistics_tg_ids",
+      "list_unresolved_plex_emails",
+      "publish_user_info_snapshot",
+      "update_emby_last_viewed",
+      "update_plex_identity",
+      "update_plex_last_viewed",
+      "write_user_info_cache"
+    ],
+    "invitation": [
+      "add_redeem_code",
+      "generate_codes",
+      "generate_codes_and_notify",
+      "generate_one_code",
+      "get_invitation_credits",
+      "get_inviter_tg_id_by_emby_id",
+      "get_inviter_tg_id_by_plex_id",
+      "get_points_info",
+      "get_register_status",
+      "redeem_for_credits",
+      "refresh_emby_user_info",
+      "register_emby",
+      "register_plex",
+      "register_plex_id_resolution_task",
+      "resolve_plex_id_job",
+      "set_invitation_credits",
+      "update_invitation_plex_id"
+    ]
+  }
+}

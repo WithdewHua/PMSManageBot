@@ -74,9 +74,9 @@ if __name__ == "__main__":
 
     seed_all()
 
-    from app.subscriptions import register_subscriptions
+    from app.subscriptions import register_all
 
-    register_subscriptions()
+    register_all()
 
     # 初始化 Telegram Bot 应用
     application = ApplicationBuilder().token(settings.TG_API_TOKEN).build()

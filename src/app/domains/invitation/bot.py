@@ -1,55 +1,40 @@
-from time import time
-from uuid import NAMESPACE_URL, uuid3
-
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
-from app.databases import db
-from app.domains.credits import service as credits_service
-from app.domains.credits.types import CreditAccount
 from app.domains.invitation import service as invitation_service
+from app.domains.invitation.exceptions import (
+    InvitationAccountNotFound,
+    InvitationError,
+)
 from app.integrations.telegram.messaging import send_message
 
 
-# 生成邀请码
 async def exchange(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
-    _info = db.get_stats_by_tg_id(chat_id)
-    if not _info:
+    try:
+        code = invitation_service.generate_one_code(chat_id)
+    except InvitationAccountNotFound:
         await send_message(
-            chat_id=chat_id, text="错误：未绑定 Plex/Emby，请先绑定", context=context
+            chat_id=chat_id,
+            text="错误：未绑定 Plex/Emby，请先绑定",
+            context=context,
         )
         return
-    _credits = _info[2]
-    # 检查剩余积分
-    if _credits < invitation_service.get_invitation_credits():
+    except InvitationError:
         await send_message(
-            chat_id=chat_id, text="错误：您的积分不足，无法兑换邀请码", context=context
+            chat_id=chat_id,
+            text="错误：您的积分不足，无法兑换邀请码",
+            context=context,
         )
         return
-    # 生成邀请码
-    _code = uuid3(NAMESPACE_URL, str(chat_id + time())).hex
-    # 更新数据库
-    # > 先更新邀请码
-    res = db.add_invitation_code(code=_code, owner=chat_id)
-    if not res:
+    except Exception:
         await send_message(
             chat_id=chat_id, text="错误: 更新邀请码失败, 请联系管理员", context=context
         )
         return
-    # > 再更新积分情况
-    try:
-        credits_service.deduct(
-            CreditAccount.tg(int(chat_id)), invitation_service.get_invitation_credits()
-        )
-    except Exception:
-        await send_message(
-            chat_id=chat_id, text="错误: 更新积分失败, 请联系管理员", context=context
-        )
-        return
     await send_message(
         chat_id=chat_id,
-        text=f"""信息: 生成邀请码成功，邀请码为 `{_code}`""",
+        text=f"信息: 生成邀请码成功，邀请码为 `{code}`",
         parse_mode="markdown",
         context=context,
     )

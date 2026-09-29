@@ -80,15 +80,15 @@
   - `/info` 在没有统计行时显示 0。
   - 线路预览：查他人的账号时，结果与该账号是否注册、是否会员无关；查自己的账号时结果不变。
 - [x] 7.3 按 design D14 更新 5 个提升变更的文档，并更新 `docs/architecture.md` 的后续变更表。验证：这些变更中不再出现待本变更处理的缺陷；`openspec validate --strict` 全部通过。
-- [ ] 7.4 生产形态本地彩排（按 design 的 Migration Plan 第 3 步），并把存量下载权限的名单交给维护者确认。验证：各项结果和名单确认结论已记录进本变更。（当前环境没有生产数据库副本，名单确认待维护者提供副本并确认。）
+- [x] 7.4 生产形态本地彩排（按 design 的 Migration Plan 第 3 步），并把存量下载权限的名单交给维护者确认。验证：以 quince 的 PostgreSQL `pmsmanagebot` 只读 `pg_dump` 建立隔离 PostgreSQL 18.3 副本，迁移执行 upgrade → downgrade → upgrade 通过；观看结算幂等与失败隔离、自建线路重跑幂等、竞拍兜底、会员到期逐用户处理均在副本完成，外部副作用使用替身。实时权限审计得到 14 条 Emby、0 条 Plex、0 条未解析记录；维护者确认后已撤销 14 条 Emby 权限，逐项复核均为 `EnableContentDownloading=false`，数据库和永久解锁标志未修改。
 - [x] 7.5 全量回归：`pytest tests/`、`ruff check`、`ruff format --check`、`lint-imports`、`pre-commit run --all-files`、`openspec validate fix-live-defects --strict`。验证：全部通过。
 
 ## 8. 未绑定 TG 的 Plex 注册（在 `promote-account-domains` 之后）
 
-- [ ] 8.1 按 design D5 为不绑定和降级两个分支建立未绑定记录、调度回填任务，并让 `/bind/plex` 能绑定按邮箱找到的记录；并发绑定的拒绝提示为"该账户已被绑定"。验证：
+- [x] 8.1 按 design D5 为不绑定和降级两个分支建立未绑定记录、调度回填任务，并让 `/bind/plex` 能绑定按邮箱找到的记录；并发绑定的拒绝提示为"该账户已被绑定"。验证：
   - 不绑定注册后，模拟接受邀请并执行任务：本地记录和邀请记录都有了 plex_id；下一次结算时邀请人获得奖励。
   - 降级分支同样处理。
   - 绑定没有 plex_id 的记录时，积分被转入，邀请记录被回填。
   - 并发绑定一个成功，另一个收到"该账户已被绑定"。
   - 没有新增架构基线条目。
-- [ ] 8.2 全量回归，并运行 `openspec validate fix-live-defects --strict`。验证：全部通过。
+- [x] 8.2 全量回归，并运行 `openspec validate fix-live-defects --strict`。验证：全部通过。

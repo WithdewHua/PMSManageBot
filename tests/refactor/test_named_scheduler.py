@@ -185,6 +185,44 @@ def test_schedule_task_persists_name_as_first_arg(
         )
 
 
+def test_schedule_task_supports_memory_interval_with_end_date(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    instance, add_job = _isolated_scheduler()
+    monkeypatch.setattr(named, "Scheduler", lambda: instance)
+    named.register_task("invitation.resolve_plex_id", lambda *, email: None)
+    start = datetime(2026, 9, 27, tzinfo=UTC)
+    end = datetime(2026, 9, 27, 1, tzinfo=UTC)
+
+    assert (
+        named.schedule_task(
+            "invitation.resolve_plex_id",
+            run_date=start,
+            job_id="resolve_invite@example.com",
+            kwargs={"email": "invite@example.com"},
+            misfire_grace_time=60,
+            jobstore="default",
+            trigger="interval",
+            minutes=1,
+            end_date=end,
+        )
+        == "created"
+    )
+    add_job.assert_called_once_with(
+        named.run_task,
+        trigger="interval",
+        jobstore="default",
+        executor="default",
+        start_date=start,
+        minutes=1,
+        end_date=end,
+        id="resolve_invite@example.com",
+        args=("invitation.resolve_plex_id",),
+        kwargs={"email": "invite@example.com"},
+        misfire_grace_time=60,
+    )
+
+
 @pytest.mark.asyncio
 async def test_memory_jobstore_named_task_lifecycle(
     monkeypatch: pytest.MonkeyPatch,

@@ -44,6 +44,7 @@ def test_register_all_has_33_jobs_and_two_startup_hooks(isolated_registry) -> No
     assert set(scheduler_module.TASK_REGISTRY) == {
         "auction.finish",
         "blackjack.hand_timeout",
+        "invitation.resolve_plex_id",
         "treasure.open_next_issue",
         "treasure.reopen_overdue",
     }
@@ -79,6 +80,7 @@ def test_named_tasks_register_before_api_thread_is_started(isolated_registry) ->
     assert set(scheduler_module.TASK_REGISTRY) == {
         "auction.finish",
         "blackjack.hand_timeout",
+        "invitation.resolve_plex_id",
         "treasure.open_next_issue",
         "treasure.reopen_overdue",
     }

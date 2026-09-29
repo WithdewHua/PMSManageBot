@@ -21,11 +21,8 @@ import sys
 # 将 src 目录加入 Python 路径，以便直接运行脚本
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from sqlalchemy import select, update
-
-from app.core.db import get_session
-from app.databases.db import db
-from app.domains.invitation.models import Invitation
+from app.domains.identity import service as identity_service
+from app.domains.invitation import repository as invitation_repository
 
 
 def backfill_invitation_ids():
@@ -38,19 +35,7 @@ def backfill_invitation_ids():
     not_found_emby = []  # 在 emby_user 表中找不到对应用户
     no_service = []  # service 为 NULL 且非积分兑换
 
-    # 获取所有已使用的邀请码，在 session 关闭前提取所需字段
-    with get_session() as session:
-        stmt = select(Invitation).where(Invitation.is_used == 1)
-        invitations = [
-            {
-                "code": inv.code,
-                "used_by": inv.used_by,
-                "service": inv.service,
-                "plex_id": inv.plex_id,
-                "emby_id": inv.emby_id,
-            }
-            for inv in session.execute(stmt).scalars().all()
-        ]
+    invitations = invitation_repository.list_used_invitation_records()
 
     print(f"共找到 {len(invitations)} 条已使用的邀请码，开始处理...\n")
 
@@ -76,25 +61,20 @@ def backfill_invitation_ids():
                 continue
 
             # 通过 plex_email 查找 plex_id
-            plex_info = db.get_plex_info_by_plex_email(used_by)
+            plex_info = identity_service.find_plex_by_email(used_by)
             if not plex_info:
                 not_found_plex.append((code, used_by))
                 continue
 
-            # plex_info 为 tuple：(plex_id, tg_id, credits, plex_email, plex_username, ...)
-            # plex_id 在索引 0
-            plex_id = plex_info[0] if plex_info else None
+            plex_id = plex_info.plex_id if plex_info else None
             if not plex_id:
                 not_found_plex.append((code, used_by))
                 print(f"  [警告] Plex 用户 {used_by} 存在但 plex_id 为空，code={code}")
                 continue
 
-            with get_session() as session:
-                session.execute(
-                    update(Invitation)
-                    .where(Invitation.code == code)
-                    .values(plex_id=plex_id)
-                )
+            invitation_repository.update_invitation_id_for_code(
+                code=code, service="plex", account_id=int(plex_id)
+            )
             updated_plex += 1
             print(
                 f"  [已更新 plex_id] code={code}  plex_email={used_by}  plex_id={plex_id}"
@@ -107,25 +87,20 @@ def backfill_invitation_ids():
                 continue
 
             # 通过 emby_username 查找 emby_id
-            emby_info = db.get_emby_info_by_emby_username(used_by)
+            emby_info = identity_service.find_emby_by_username(used_by)
             if not emby_info:
                 not_found_emby.append((code, used_by))
                 continue
 
-            # emby_info 为 tuple：(emby_username, emby_id, tg_id, ...)
-            # emby_id 在索引 1
-            emby_id = emby_info[1] if emby_info else None
+            emby_id = emby_info.emby_id if emby_info else None
             if not emby_id:
                 not_found_emby.append((code, used_by))
                 print(f"  [警告] Emby 用户 {used_by} 存在但 emby_id 为空，code={code}")
                 continue
 
-            with get_session() as session:
-                session.execute(
-                    update(Invitation)
-                    .where(Invitation.code == code)
-                    .values(emby_id=emby_id)
-                )
+            invitation_repository.update_invitation_id_for_code(
+                code=code, service="emby", account_id=str(emby_id)
+            )
             updated_emby += 1
             print(
                 f"  [已更新 emby_id] code={code}  emby_username={used_by}  emby_id={emby_id}"

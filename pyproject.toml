@@ -69,6 +69,7 @@ type = "layers"
 layers = [
     "(app.main)",
     "(app.api) | (app.bot) | (app.schedule) | (app.model_registry)",
+    "(app.subscriptions)",
     "(app.domains) : (app.databases)",
     "(app.transport)",
     "(app.integrations)",
@@ -98,9 +99,7 @@ allowed_importers = [
     "app.domains.premium.service", # B1 delayed import; remove in promote-line-domains
     "app.main", # B1 assembly and B3 scheduler migration
 
-    "app.domains.accounts.bot", # promote-account-domains (B2 inherited)
 
-    "app.domains.accounts.router", # promote-account-domains (B2 inherited)
 
 
     "app.domains.badges.router", # promote-reward-domains (B2 inherited)
@@ -116,11 +115,8 @@ allowed_importers = [
     "app.domains.donation.router", # promote-remaining-domains (B2 inherited)
 
 
-    "app.domains.invitation.admin_router", # promote-account-domains (B2 inherited)
 
-    "app.domains.invitation.bot", # promote-account-domains (B2 inherited)
 
-    "app.domains.invitation.router", # promote-account-domains (B2 inherited)
 
     "app.domains.lines.admin_router", # promote-line-domains (B2 inherited)
 
@@ -190,13 +186,10 @@ ignore_imports = [
 
     "app.domains.reports.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
     "app.domains.lines.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
-    "app.domains.accounts.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.credits.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.custom_lines.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.traffic.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
-    "app.domains.accounts.service -> sqlalchemy", # B3 mechanical relocation; audit in 5.6
     "app.domains.custom_lines.service -> sqlalchemy", # B3 mechanical relocation; audit in 5.6
-    "app.domains.invitation.service -> sqlalchemy", # B3 mechanical relocation; audit in 5.6
     "app.domains.media_access.service -> sqlalchemy", # B3 mechanical relocation; audit in 5.6
     "app.domains.watch_rewards.service -> sqlalchemy", # B3 mechanical relocation; audit in 5.6
 ]
@@ -208,6 +201,7 @@ protected_modules = ["app.core.db"]
 allowed_importers = [
     "app.core.kv",
     "app.core.domain_config",
+    "app.core.events",
     "app.core.scheduler", # B3 jobstore migration delegates atomic SQL to core.db only
     "app.domains.*.models",
     "app.domains.*.repository",
@@ -235,12 +229,9 @@ ignore_imports = [
     "app.domains.reports.router -> app.core.db", # promote-remaining-domains (B2 inherited)
 
     "app.domains.vaultwarden.router -> app.core.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.accounts.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
-    "app.domains.accounts.service -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.credits.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.custom_lines.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.custom_lines.service -> app.core.db", # B3 mechanical relocation; audit in 5.6
-    "app.domains.invitation.service -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.lines.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.media_access.service -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.traffic.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
@@ -284,10 +275,7 @@ ignore_imports = [
     "app.domains.vaultwarden.router -> app.domains.vaultwarden.models", # promote-remaining-domains (B2 inherited)
     "app.domains.custom_lines.jobs -> app.domains.custom_lines.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.custom_lines.service -> app.domains.custom_lines.models", # B3 mechanical relocation; audit in 5.6
-    "app.domains.accounts.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
-    "app.domains.accounts.service -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.credits.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
-    "app.domains.invitation.service -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.lines.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.media_access.service -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.traffic.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
@@ -314,7 +302,6 @@ ignore_imports = [
     "app.databases.db -> app.domains.badges.repository",
     "app.databases.db -> app.domains.crypto_donation.repository",
     "app.databases.db -> app.domains.donation.repository",
-    "app.databases.db -> app.domains.identity.repository",
     "app.databases.db -> app.domains.invitation.repository",
     "app.databases.db -> app.domains.lines.repository",
     "app.databases.db -> app.domains.media_access.repository",
@@ -325,9 +312,7 @@ ignore_imports = [
     "app.databases.db -> app.domains.traffic.repository",
     "app.databases.db -> app.domains.watch_rewards.repository",
 
-    "app.domains.accounts.bot -> app.databases.db", # promote-account-domains (B2 inherited)
 
-    "app.domains.accounts.router -> app.databases.db", # promote-account-domains (B2 inherited)
 
 
     "app.domains.badges.router -> app.databases.db", # promote-reward-domains (B2 inherited)
@@ -364,12 +349,9 @@ ignore_imports = [
     "app.domains.donation.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
 
 
-    "app.domains.invitation.admin_router -> app.databases.db", # promote-account-domains (B2 inherited)
 
 
-    "app.domains.invitation.bot -> app.databases.db", # promote-account-domains (B2 inherited)
 
-    "app.domains.invitation.router -> app.databases.db", # promote-account-domains (B2 inherited)
 
 
     "app.domains.lines.admin_router -> app.databases.db", # promote-line-domains (B2 inherited)
@@ -425,7 +407,6 @@ ignore_imports = [
     "app.databases.db -> app.domains.badges.repository",
     "app.databases.db -> app.domains.crypto_donation.repository",
     "app.databases.db -> app.domains.donation.repository",
-    "app.databases.db -> app.domains.identity.repository",
     "app.databases.db -> app.domains.invitation.repository",
     "app.databases.db -> app.domains.lines.repository",
     "app.databases.db -> app.domains.media_access.repository",
@@ -519,8 +500,6 @@ forbidden_modules = [
 allow_indirect_imports = true
 ignore_imports = [
     # B2 mechanical relocation retains direct legacy data access.
-    "app.domains.accounts.bot -> app.databases.db", # promote-account-domains (B2 inherited)
-    "app.domains.accounts.router -> app.databases.db", # promote-account-domains (B2 inherited)
     "app.domains.badges.router -> app.databases.db", # promote-reward-domains (B2 inherited)
     "app.domains.crypto_donation.router -> app.core.db", # promote-remaining-domains (B2 inherited)
     "app.domains.crypto_donation.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
@@ -534,13 +513,9 @@ ignore_imports = [
     "app.domains.donation.router -> app.core.db", # promote-remaining-domains (B2 inherited)
     "app.domains.donation.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
     "app.domains.donation.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
-    "app.domains.invitation.admin_router -> app.databases.db", # promote-account-domains (B2 inherited)
-    "app.domains.invitation.bot -> app.databases.db", # promote-account-domains (B2 inherited)
-    "app.domains.invitation.router -> app.databases.db", # promote-account-domains (B2 inherited)
     "app.domains.lines.admin_router -> app.databases.db", # promote-line-domains (B2 inherited)
     "app.domains.lines.router -> app.databases.db", # promote-line-domains (B2 inherited)
     "app.domains.lines.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
-    "app.domains.accounts.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.credits.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.custom_lines.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.traffic.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
@@ -567,7 +542,6 @@ ignore_imports = [
     "app.domains.profile.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
     "app.domains.reports.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
     "app.domains.vaultwarden.router -> app.domains.vaultwarden.models", # promote-remaining-domains (B2 inherited)
-    "app.domains.accounts.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.credits.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.custom_lines.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.lines.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
@@ -577,7 +551,6 @@ ignore_imports = [
     "app.domains.traffic.jobs -> app.databases.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.custom_lines.jobs -> app.domains.custom_lines.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.custom_lines.jobs -> app.domains.custom_lines.repository", # B3 mechanical relocation; audit in 5.6
-    "app.domains.accounts.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.credits.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.lines.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.traffic.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6

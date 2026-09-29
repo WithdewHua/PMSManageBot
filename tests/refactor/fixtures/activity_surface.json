@@ -7252,6 +7252,10 @@
     },
     {
       "mapped": true,
+      "task_id": "invitation.resolve_plex_id"
+    },
+    {
+      "mapped": true,
       "task_id": "treasure.open_next_issue"
     },
     {

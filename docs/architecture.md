@@ -102,7 +102,9 @@ core/（公共设施）
 - **读模型直读跨域表**：T5 的 rankings、reports、profile repository 可以跨表只读聚合，不可写入其他领域的数据。后续 `promote-remaining-domains` 核对查询。
 - **过渡门面**：`app.databases.db` 暂时组合 repository mixin，以保持旧调用面；门面文件本身不新增方法，新方法写入所属领域的 repository mixin，只允许本领域经 `db.xxx()` 调用，不新增跨域调用。`retire-legacy-db-facade` 删除它。旧的跨域 `db.xxx()` / `self.xxx()` 依赖登记在架构测试基线，按所属领域的提升变更清理。
 - **特权邀请码 `.env` 写入**：唯一的提交前外部副作用例外，落在拥有该资源的 `invitation` 领域（`invitation.repository.persist_privileged_codes_tx`）：礼包在最后一次数据库 flush 之后、事务提交之前调用，写失败会恢复内存配置并回滚数据库领取；媒体权限同步仍在提交后进行。`move-privileged-codes-to-database` 将特权码移出 `.env`。
-- **入口层现存环**：活动领域触发自动勋章、badge_awards 反读活动数据（`promote-reward-domains`：提交后领域事件）；accounts 同步回填 invitation 邀请记录、invitation 兑换反调同步（`promote-account-domains`：回填归 invitation）；luckywheel 消耗 blackjack 来源免费次数时反读 blackjack 配置（`promote-blackjack-domain`：发放时保存参数）。搬迁阶段仅登记，不改变行为。
+- **入口层现存环**：活动领域触发自动勋章、badge_awards 反读活动数据（`promote-reward-domains`：提交后领域事件）；luckywheel 消耗 blackjack 来源免费次数时反读 blackjack 配置（`promote-blackjack-domain`：发放时保存参数）。accounts 的 Plex 邮箱回填通过提交后 `PlexUserIdResolved` 事件通知 invitation，不再建立 sibling 直接调用。搬迁阶段仅登记，不改变行为。
+- **identity 兼容层**：`app.domains.identity.compat.IdentityRepository` 只允许转发到 `identity.service` 并恢复旧元组形状；不得导入 SQLAlchemy、模型或 `app.core.db`。尚未提升的旧调用方继续通过 `app.databases.db` 使用它，分别由对应领域提案负责迁移。
+- **identity 建档规则**：新建或补齐用户统计记录一律在调用方事务中使用 `identity.repository.ensure_statistics_tx(session, tg_id)`；不得直接实例化 `Statistics` 或用兼容层绕过事务边界。
 - **TG 换绑跨域写入和漏迁**：当前实现原样搬迁，`promote-tg-rebind-domain` 会用各领域的 `reassign_tg_id_tx` 修复覆盖范围与写入边界。
 
 需要下层通知上层时使用提交后的领域事件，不从下层直接导入上层；具体事件形式由首次需要它的后续变更确定。
@@ -146,13 +148,11 @@ core/（公共设施）
 
 ## 基线计数
 
-B2 过渡基线以 `scripts/refactor/B2_BASE` 中的 B1 提交为来源。B3 机械搬迁以 `scripts/refactor/B3_BASE`（B2 提交 `1b49ea8273253ee7b1b35e13056ca047f9ce45bc`）为冻结来源。`tests/architecture/baseline.json` 当前封存 544 条跨域调用／导入，其中 56 条 B3 条目记录 `b3_source_id`；`scripts/refactor/audit_b3_baseline.py` 只接受冻结源码中的实际来源单元及逐项 `b3_key`，并拒绝仅凭目标领域候选、同名导入换目标或新增领域环封存。B3 为调度器去环及 CLI 组装登记的 AST 差异分别记录 `b3_ast_exception` 和实际存在的行为测试。
+B2 过渡基线以 `scripts/refactor/B2_BASE` 中的 B1 提交为来源。B3 机械搬迁以 `scripts/refactor/B3_BASE`（B2 提交 `1b49ea8273253ee7b1b35e13056ca047f9ce45bc`）为冻结来源。当前 `tests/architecture/baseline.json` 封存 290 条跨域调用／导入；`scripts/refactor/audit_b3_baseline.py` 严格扫描冻结源码来源单元，当前结果为 `total=290, b3=44, new=0`。它拒绝仅凭目标领域候选、同名导入换目标或新增领域环封存。
 
-按清理责任分组的 B3 封存计数由 `audit_b3_baseline.py` 输出；当前 B3 provenance 封存 56 条，架构基线共 544 条，其中后续 credits 迁移条目由 `make-credit-changes-atomic` 负责，不冒充 B3 遗留债务。B3 条目只允许来源于 `db_func.py`、`premium.py`、`modules/custom_line.py`、`utils/report.py` 和 `utils/utils.py` 的冻结单元。
+`promote-account-domains`、`promote-blackjack-domain` 等提升变更只删除已迁移入口的旧基线，不得用新增 ignore 掩盖新的反向依赖。每次基线变化都必须同时通过 `tests/architecture/test_architecture.py`、`audit_b3_baseline.py` 和 import-linter。
 
-`promote-blackjack-domain` 摘除门面后基线严格下降（547 → 544 条，其中 B3 provenance 58 → 56 条），未新增任何条目；`import-linter` 只删除豁免（六层领域依赖 65 → 59、无环兄弟领域 19 → 18、领域内分层 8 → 7、入口不碰数据层 82 → 76，SQLAlchemy 范围 18、数据库引擎范围 19、模型范围 20 不变）。
-
-当前 import-linter ignore 数：SQLAlchemy 范围 18、数据库引擎范围 19、模型范围 20、六层领域依赖 59、无环兄弟领域 18、领域内分层 7、入口不碰数据层 76；其余合约 0。B3 去环与 blackjack 提升都没有新增 `Acyclic domain siblings` 豁免；任何新增豁免必须有冻结来源单元和行为测试证明。
+当前 import-linter ignore 数以 `.pre-commit-config.yaml` 实际运行结果和 `tests/architecture/baseline.json` 的 `contract_ignore_counts` 为准；任何新增 `Acyclic domain siblings` 豁免必须有冻结来源单元和行为测试证明。
 
 ## 积分账本写入规则
 
@@ -191,6 +191,14 @@ B3 起，部署回退必须在维护窗口执行：停止所有 B3 调度器 →
 - 任务观察：临时手牌超时结算从进行中状态转为终态并记录 `outcome=win`；已结算夺宝期 59 自动创建第 63 期，奖项规格保持一致；Telegram 通知在隔离环境中被抑制。
 
 这份证据只证明本地完整生产副本上的部署链路和任务行为；生产维护窗口中的实际部署、真实通知和真实开奖观察仍须由运维人员按回退步骤执行。
+
+## accounts / identity / invitation 提升证据
+
+`promote-account-domains` 已将 `identity` 的 SQL 查询和事务写入收拢到模块级 `repository`，由 `identity.service` 暴露类型化数据类；`DatabaseORM` 中的 `IdentityRepository` 仅保留给尚未提升领域使用的元组兼容转发，不导入 SQLAlchemy。Plex、Emby、Statistics 和 Overseerr 的建档统一经过 `identity.repository.ensure_statistics_tx`（需要 Telegram 统计行时），缓存写入登记在事务提交后的 callback 中。
+
+本次已核对并删除四个无调用方入口：`IdentityRepository.get_plex_info_by_plex_username`、`IdentityRepository.get_emby_info_by_emby_id`、`IdentityRepository.update_user_tg_id` 和 `accounts.service.add_all_plex_user`；它们不在手动运维清单中。兼容层剩余调用方由 `scripts/refactor/mapping.toml` 登记：线路、媒体权限、用户资料、排行、捐赠、crypto donation、vaultwarden 等后续领域继续使用旧元组查询，分别由 `promote-line-domains`、`promote-remaining-domains` 及后续 facade retirement 负责迁移。
+
+账号绑定和凭码注册由 `accounts.service` / `invitation.service` 编排，写入由各自 repository 在调用方事务中完成。`PlexUserIdResolved` 通过 `app.core.events` 在提交后分发，由 `app.subscriptions` 注册 invitation handler；具名任务 `invitation.resolve_plex_id` 在内存 jobstore 使用 interval + `end_date`，任务成功后自行删除。
 
 ## 领域提升模板
 

@@ -39,6 +39,11 @@ decision = "retain"
 target = "app.core.errors"
 public_symbols = ["DomainError"]
 
+[modules."app.core.events"]
+decision = "new-core-mechanism"
+target = "app.core.events"
+public_symbols = ["DomainEvent", "publish", "subscribe", "clear_subscriptions"]
+
 [modules."app.core.byte_size"]
 decision = "retain"
 target = "app.core.byte_size"

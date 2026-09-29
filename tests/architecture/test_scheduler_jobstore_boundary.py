@@ -29,6 +29,7 @@ def test_scheduler_is_the_only_new_database_engine_importer() -> None:
     assert _allowed_importers(current) - _allowed_importers(original) == {
         "app.core.scheduler",
         "app.core.domain_config",
+        "app.core.events",
     }
     assert not _allowed_importers(original) - _allowed_importers(current)
     assert "app.core.*" not in _allowed_importers(current)

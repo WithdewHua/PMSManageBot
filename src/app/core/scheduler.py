@@ -157,7 +157,7 @@ class Scheduler(metaclass=_SchedulerSingletonMeta):
 def schedule_task(
     name: str,
     *,
-    run_date: datetime,
+    run_date: datetime | None = None,
     job_id: str,
     kwargs: dict[str, Any] | None = None,
     misfire_grace_time: int | None,
@@ -181,19 +181,41 @@ def schedule_task(
         raise ValueError(f"unknown jobstore: {jobstore}")
     if job_options.get("executor", "default") != "default":
         raise ValueError("named one-shot tasks require the asyncio executor")
-    reserved = {"func", "trigger", "id", "args", "kwargs", "run_date"}
+    trigger = job_options.pop("trigger", "date")
+    if trigger not in {"date", "interval"}:
+        raise ValueError(f"unsupported named task trigger: {trigger}")
+    reserved = {"func", "id", "args", "kwargs", "run_date", "start_date"}
     if reserved.intersection(job_options):
         raise ValueError("named task arguments cannot override scheduler internals")
+    trigger_options: dict[str, Any]
+    if trigger == "date":
+        if run_date is None:
+            raise ValueError("date named tasks require run_date")
+        trigger_options = {
+            "run_date": run_date,
+            **{
+                key: value
+                for key, value in job_options.items()
+                if key not in {"jobstore", "executor"}
+            },
+        }
+    else:
+        if run_date is not None and "start_date" not in job_options:
+            job_options["start_date"] = run_date
+        trigger_options = {
+            key: value
+            for key, value in job_options.items()
+            if key not in {"jobstore", "executor"}
+        }
     return scheduler.add_async_job(
         func=run_task,
-        trigger="date",
+        trigger=trigger,
         id=job_id,
-        run_date=run_date,
         args=(name,),
         kwargs=dict(kwargs or {}),
         jobstore=jobstore,
         misfire_grace_time=misfire_grace_time,
-        **{key: value for key, value in job_options.items() if key != "jobstore"},
+        **trigger_options,
     )
 
 

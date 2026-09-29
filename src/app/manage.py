@@ -14,6 +14,7 @@ from app.domains.accounts.service import update_plex_info
 from app.domains.reports import constants as report_constants
 from app.domains.reports import service as report_service
 from app.domains.watch_rewards.service import update_emby_credits, update_plex_credits
+from app.subscriptions import register_all
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -93,6 +94,7 @@ def _run_report(options: argparse.Namespace) -> None:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    register_all()
     options = _parser().parse_args(argv)
     if options.command == "legacy-credit-sync":
         _run_legacy_credit_sync()

@@ -65,10 +65,11 @@ def test_activity_surface_covers_every_domain() -> None:
 def test_named_tasks_are_frozen_until_the_auction_promotion() -> None:
     snapshot = _fixture()
     ids = [item["task_id"] for item in snapshot["named_tasks"]]
-    # 竞拍的具名任务由本变更新增（design D5），其余保持不变
+    # 竞拍任务与账号回填任务均已注册；活动领域的四个任务保持原顺序。
     assert ids == [
         "auction.finish",
         "blackjack.hand_timeout",
+        "invitation.resolve_plex_id",
         "treasure.open_next_issue",
         "treasure.reopen_overdue",
     ]

@@ -15,6 +15,7 @@ from app.domains.credits.exceptions import CreditAccountNotFound
 from app.domains.credits.types import CreditAccount
 from app.domains.identity import repository as identity_repository
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
+from app.domains.invitation import service as invitation_service
 from app.domains.watch_rewards import repository as watch_rewards_repository
 from app.domains.watch_rewards.constants import (
     GHOST_SETTLEMENT_CONFIG_KEY,
@@ -309,7 +310,7 @@ def update_plex_credits():
             if tg_id:
                 for badge in db.get_user_active_badges_with_bonus(tg_id):
                     badge_bonus += daily_award * float(badge["bonus_percentage"])
-            inviter_tg_id = db.get_inviter_tg_id_by_plex_id(plex_id)
+            inviter_tg_id = invitation_service.get_inviter_tg_id_by_plex_id(plex_id)
             inviter_bonus = (
                 round(daily_award * 0.1, 2)
                 if inviter_tg_id and inviter_tg_id != tg_id and daily_award > 0
@@ -475,7 +476,7 @@ def update_emby_credits():
             if tg_id:
                 for badge in db.get_user_active_badges_with_bonus(tg_id):
                     badge_bonus += daily_award * float(badge["bonus_percentage"])
-            inviter_tg_id = db.get_inviter_tg_id_by_emby_id(emby_id)
+            inviter_tg_id = invitation_service.get_inviter_tg_id_by_emby_id(emby_id)
             inviter_bonus = (
                 round(daily_award * 0.1, 2)
                 if inviter_tg_id and inviter_tg_id != tg_id and daily_award > 0

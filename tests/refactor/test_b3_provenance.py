@@ -71,8 +71,7 @@ def test_b3_provenance_rejects_same_domain_wrong_source() -> None:
         item
         for item in baseline["cross_domain_calls"]
         if item.get("b3_source_id")
-        and item["key"].startswith("call|src/app/domains/accounts/service.py|")
-        and item.get("target") == "update_traffic_username"
+        and item["key"].startswith("call|src/app/domains/badge_awards/jobs.py|")
     )
     invalid = {**entry, "b3_source_id": "app.databases.db_func:add_all_plex_user"}
     errors = _validate_entry(invalid, mappings=_mapping_items(), frozen=_frozen_items())
