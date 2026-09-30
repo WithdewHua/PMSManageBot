@@ -1,402 +1,77 @@
+"""Badge storage and caller-owned atomic redemption operations."""
+
 import time
-import traceback
 from collections.abc import Iterable
 
-from sqlalchemy import delete, select
-from sqlalchemy.orm import joinedload
+from sqlalchemy import delete, func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.badges import exceptions
 from app.domains.badges.config import BADGE_CENTER_CONFIG
 from app.domains.badges.models import Badge, UserBadge
 from app.domains.credits import repository as credits_repository
-from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
-from app.domains.identity.models import Statistics
+from app.domains.identity import repository as identity_repository
 
 
-class BadgesRepository:
-    @staticmethod
-    def _badge_to_dict(badge: Badge) -> dict:
-        """将 Badge ORM 对象转换为字典"""
-        return {
-            "id": badge.id,
-            "badge_type": badge.badge_type,
-            "name": badge.name,
-            "description": badge.description,
-            "icon_url": badge.icon_url,
-            "credits_cost": badge.credits_cost,
-            "bonus_percentage": badge.bonus_percentage,
-            "valid_days": badge.valid_days,
-            "is_enabled": badge.is_enabled,
-            "created_at": badge.created_at,
-            "updated_at": badge.updated_at,
-        }
-
-    @staticmethod
-    def _user_badge_to_dict(user_badge: UserBadge, include_badge: bool = True) -> dict:
-        """将 UserBadge ORM 对象转换为字典"""
-        current_time = int(time.time())
-        bonus_active = user_badge.expires_at > current_time
-
-        result = {
-            "id": user_badge.id,
-            "tg_id": user_badge.tg_id,
-            "badge_id": user_badge.badge_id,
-            "credits_cost": user_badge.credits_cost,
-            "redeemed_at": user_badge.redeemed_at,
-            "expires_at": user_badge.expires_at,
-            "is_active": user_badge.is_active,
-            "bonus_active": bonus_active,  # 积分加成是否有效
-            "badge": None,
-        }
-
-        if include_badge and user_badge.badge:
-            result["badge"] = BadgesRepository._badge_to_dict(user_badge.badge)
-
-        return result
-
-    def get_badge_center_config(self) -> tuple[bool, str | None]:
-        """
-        获取勋章中心配置
-
-        Returns:
-            (是否启用, 提示信息)
-        """
-        config = BADGE_CENTER_CONFIG.get()
-        return config.enabled, config.message
-
-    def set_badge_center_config(
-        self, enabled: bool, message: str | None = None
-    ) -> bool:
-        """
-        设置勋章中心配置
-
-        Args:
-            enabled: 是否启用
-            message: 提示信息
-
-        Returns:
-            是否成功
-        """
-        try:
-            changes = {"enabled": bool(enabled)}
-            if message is not None:
-                changes["message"] = message
-            BADGE_CENTER_CONFIG.update(**changes)
-            return True
-        except Exception as e:
-            logger.error(f"设置勋章中心配置失败: {e}")
-            return False
-
-    def create_badge(
-        self,
-        badge_type: str,
-        name: str,
-        description: str,
-        icon_url: str,
-        credits_cost: float,
-        bonus_percentage: float,
-        valid_days: int = 365,
-        is_enabled: int = 1,
-    ) -> dict | None:
-        """
-        创建勋章
-
-        Returns:
-            Badge字典或None
-        """
-        try:
-            with get_session() as session:
-                current_time = int(time.time())
-                badge = Badge(
-                    badge_type=badge_type,
-                    name=name,
-                    description=description,
-                    icon_url=icon_url,
-                    credits_cost=credits_cost,
-                    bonus_percentage=bonus_percentage,
-                    valid_days=valid_days,
-                    is_enabled=is_enabled,
-                    created_at=current_time,
-                    updated_at=current_time,
-                )
-                session.add(badge)
-                session.flush()  # 刷新以获取 badge 的 ID
-                logger.info(f"创建勋章成功: {badge_type}")
-
-                # 转换为字典返回
-                return self._badge_to_dict(badge)
-        except Exception as e:
-            logger.error(f"创建勋章失败: {e}")
-            return None
-
-    def get_badge_by_id(self, badge_id: int) -> dict | None:
-        """根据ID获取勋章"""
-        try:
-            with get_session() as session:
-                stmt = select(Badge).where(Badge.id == badge_id)
-                badge = session.execute(stmt).scalar_one_or_none()
-
-                if not badge:
-                    return None
-
-                return self._badge_to_dict(badge)
-        except Exception as e:
-            logger.error(f"获取勋章失败: {e}")
-            return None
-
-    def get_badge_by_type(self, badge_type: str) -> dict | None:
-        """根据类型获取勋章"""
-        try:
-            with get_session() as session:
-                stmt = select(Badge).where(Badge.badge_type == badge_type)
-                badge = session.execute(stmt).scalar_one_or_none()
-
-                if not badge:
-                    return None
-
-                return self._badge_to_dict(badge)
-        except Exception as e:
-            logger.error(f"获取勋章失败: {e}")
-            return None
-
-    def get_all_badges(self, only_enabled: bool = False) -> list[dict]:
-        """
-        获取所有勋章
-
-        Args:
-            only_enabled: 是否只获取启用的勋章
-
-        Returns:
-            勋章字典列表
-        """
-        try:
-            with get_session() as session:
-                stmt = select(Badge)
-                if only_enabled:
-                    stmt = stmt.where(Badge.is_enabled == 1)
-                stmt = stmt.order_by(Badge.created_at.desc())
-                badges = session.execute(stmt).scalars().all()
-
-                return [self._badge_to_dict(badge) for badge in badges]
-        except Exception as e:
-            logger.error(f"获取勋章列表失败: {e}")
-            return []
-
-    def update_badge(
-        self,
-        badge_id: int,
-        **kwargs,
-    ) -> bool:
-        """
-        更新勋章信息
-
-        Args:
-            badge_id: 勋章ID
-            **kwargs: 要更新的字段
-
-        Returns:
-            是否成功
-        """
-        try:
-            with get_session() as session:
-                stmt = select(Badge).where(Badge.id == badge_id)
-                badge = session.execute(stmt).scalar_one_or_none()
-                if not badge:
-                    logger.error(f"勋章不存在: {badge_id}")
-                    return False
-
-                for key, value in kwargs.items():
-                    if hasattr(badge, key) and value is not None:
-                        setattr(badge, key, value)
-
-                badge.updated_at = int(time.time())
-                logger.info(f"更新勋章成功: {badge_id}")
-                return True
-        except Exception as e:
-            logger.error(f"更新勋章失败: {e}")
-            return False
-
-    def delete_badge(self, badge_id: int) -> bool:
-        """
-        删除勋章
-
-        Args:
-            badge_id: 勋章ID
-
-        Returns:
-            是否成功
-        """
-        try:
-            with get_session() as session:
-                stmt = delete(Badge).where(Badge.id == badge_id)
-                result = session.execute(stmt)
-                row_count = result.rowcount
-                logger.info(f"删除勋章成功: {badge_id}, 影响行数: {row_count}")
-
-            return row_count > 0
-        except Exception as e:
-            logger.error(f"删除勋章失败: {e}")
-            return False
-
-    def redeem_badge(self, tg_id: int, badge_id: int) -> tuple[bool, str, dict | None]:
-        """
-        兑换勋章
-
-        Args:
-            tg_id: 用户TG ID
-            badge_id: 勋章ID
-
-        Returns:
-            (是否成功, 消息, UserBadge字典或None)
-        """
-        try:
-            with get_session() as session:
-                # 1. 检查勋章是否存在且已启用
-                badge = session.execute(
-                    select(Badge).where(Badge.id == badge_id)
-                ).scalar_one_or_none()
-                if not badge:
-                    return False, "勋章不存在", None
-                if badge.is_enabled != 1:
-                    return False, "该勋章暂不可兑换", None
-
-                # 2. 检查用户是否已经拥有该勋章
-                existing = session.execute(
-                    select(UserBadge).where(
-                        UserBadge.tg_id == tg_id, UserBadge.badge_id == badge_id
-                    )
-                ).scalar_one_or_none()
-                if existing:
-                    return False, "您已经拥有该勋章", None
-
-                # 3. 检查用户积分是否足够
-                stats = session.execute(
-                    select(Statistics).where(Statistics.tg_id == tg_id)
-                ).scalar_one_or_none()
-
-                if not stats:
-                    return False, "用户不存在", None
-
-                if stats.credits < badge.credits_cost:
-                    return False, f"积分不足，需要 {badge.credits_cost} 积分", None
-
-                # 4. 扣除积分（在同一个事务中）
-                mutation = credits_repository.deduct_tx(
-                    session, CreditAccount.tg(int(tg_id)), float(badge.credits_cost)
-                )
-                credits_service.register_cache_invalidation(session, mutation)
-
-                # 5. 创建用户勋章记录
-                current_time = int(time.time())
-                expires_at = current_time + (badge.valid_days * 24 * 3600)
-                user_badge = UserBadge(
-                    tg_id=tg_id,
-                    badge_id=badge_id,
-                    credits_cost=badge.credits_cost,
-                    redeemed_at=current_time,
-                    expires_at=expires_at,
-                    is_active=1,
-                )
-                session.add(user_badge)
-                session.flush()  # 刷新以获取 user_badge 的 ID，但不提交
-
-                # 手动设置 badge 关联以便转换
-                user_badge.badge = badge
-
-                # 转换为字典返回
-                badge_info = self._user_badge_to_dict(user_badge, include_badge=True)
-
-                logger.info(
-                    f"用户 {tg_id} 兑换勋章 {badge.name} 成功，"
-                    f"消耗积分 {badge.credits_cost}"
-                )
-
-            return True, "兑换成功", badge_info
-
-        except Exception as e:
-            logger.error(f"兑换勋章失败: {e}")
-            logger.error(traceback.format_exc())
-            return False, "兑换失败，请稍后重试", None
-
-    def get_user_badges(self, tg_id: int, only_active: bool = True) -> list[dict]:
-        """
-        获取用户拥有的勋章
-
-        Args:
-            tg_id: 用户TG ID
-            only_active: 是否只获取有效的勋章
-
-        Returns:
-            用户勋章字典列表
-        """
-        try:
-            with get_session() as session:
-                stmt = (
-                    select(UserBadge)
-                    .options(joinedload(UserBadge.badge))  # 急加载关联的勋章数据
-                    .where(UserBadge.tg_id == tg_id)
-                    .order_by(UserBadge.redeemed_at.desc())
-                )
-                if only_active:
-                    stmt = stmt.where(UserBadge.is_active == 1)
-
-                user_badges = session.execute(stmt).scalars().unique().all()
-
-                return [self._user_badge_to_dict(ub) for ub in user_badges]
-        except Exception as e:
-            logger.error(f"获取用户勋章失败: {e}")
-            return []
-
-    def get_user_active_badges_with_bonus(self, tg_id: int) -> list[dict]:
-        """
-        获取用户当前有效的勋章及其加成信息
-
-        Args:
-            tg_id: 用户TG ID
-
-        Returns:
-            勋章信息列表 [{"badge": dict, "bonus_percentage": float, "expires_at": int}, ...]
-        """
-        try:
-            current_time = int(time.time())
-            with get_session() as session:
-                stmt = (
-                    select(UserBadge)
-                    .where(
-                        UserBadge.tg_id == tg_id,
-                        UserBadge.is_active == 1,
-                        UserBadge.expires_at > current_time,
-                    )
-                    .order_by(UserBadge.redeemed_at.desc())
-                )
-                user_badges = session.execute(stmt).scalars().all()
-
-                result = []
-                for ub in user_badges:
-                    badge = session.execute(
-                        select(Badge).where(Badge.id == ub.badge_id)
-                    ).scalar_one_or_none()
-                    if badge:
-                        result.append(
-                            {
-                                "badge": self._badge_to_dict(badge),
-                                "bonus_percentage": badge.bonus_percentage,
-                                "expires_at": ub.expires_at,
-                            }
-                        )
-                return result
-        except Exception as e:
-            logger.error(f"获取用户有效勋章失败: {e}")
-            return []
+def _badge_to_dict(badge: Badge) -> dict:
+    return {
+        key: getattr(badge, key)
+        for key in (
+            "id",
+            "badge_type",
+            "name",
+            "description",
+            "icon_url",
+            "credits_cost",
+            "bonus_percentage",
+            "valid_days",
+            "is_enabled",
+            "created_at",
+            "updated_at",
+        )
+    }
 
 
-_repository = BadgesRepository()
+def _user_badge_to_dict(user_badge: UserBadge, include_badge: bool = True) -> dict:
+    result = {
+        key: getattr(user_badge, key)
+        for key in (
+            "id",
+            "tg_id",
+            "badge_id",
+            "credits_cost",
+            "redeemed_at",
+            "expires_at",
+            "is_active",
+        )
+    }
+    result["bonus_active"] = user_badge.expires_at > int(time.time())
+    result["badge"] = (
+        _badge_to_dict(user_badge.badge) if include_badge and user_badge.badge else None
+    )
+    return result
 
 
-def get_badge_by_type(badge_type: str) -> dict | None:
-    return _repository.get_badge_by_type(badge_type)
+def get_badge_center_config() -> tuple[bool, str | None]:
+    config = BADGE_CENTER_CONFIG.get()
+    return config.enabled, config.message
+
+
+def set_badge_center_config(enabled: bool, message: str | None = None) -> bool:
+    try:
+        changes: dict[str, bool | str] = {"enabled": bool(enabled)}
+        if message is not None:
+            changes["message"] = message
+        BADGE_CENTER_CONFIG.update(**changes)
+        return True
+    except Exception as exc:
+        logger.error(f"设置勋章中心配置失败: {exc}")
+        return False
 
 
 def create_badge(
@@ -406,72 +81,310 @@ def create_badge(
     icon_url: str,
     credits_cost: float,
     bonus_percentage: float,
-    valid_days: int,
-    is_enabled: int,
+    valid_days: int = 365,
+    is_enabled: int = 1,
 ) -> dict | None:
-    return _repository.create_badge(
-        badge_type=badge_type,
-        name=name,
-        description=description,
-        icon_url=icon_url,
-        credits_cost=credits_cost,
-        bonus_percentage=bonus_percentage,
-        valid_days=valid_days,
-        is_enabled=is_enabled,
+    try:
+        with get_session() as session:
+            now = int(time.time())
+            badge = Badge(
+                badge_type=badge_type,
+                name=name,
+                description=description,
+                icon_url=icon_url,
+                credits_cost=credits_cost,
+                bonus_percentage=bonus_percentage,
+                valid_days=valid_days,
+                is_enabled=is_enabled,
+                created_at=now,
+                updated_at=now,
+            )
+            session.add(badge)
+            session.flush()
+            return _badge_to_dict(badge)
+    except Exception as exc:
+        logger.error(f"创建勋章失败: {exc}")
+        return None
+
+
+def get_badge_by_id(badge_id: int) -> dict | None:
+    try:
+        with get_session() as session:
+            row = session.get(Badge, badge_id)
+            return _badge_to_dict(row) if row else None
+    except Exception as exc:
+        logger.error(f"获取勋章失败: {exc}")
+        return None
+
+
+def get_badge_by_type(badge_type: str) -> dict | None:
+    try:
+        with get_session() as session:
+            row = session.execute(
+                select(Badge).where(Badge.badge_type == badge_type)
+            ).scalar_one_or_none()
+            return _badge_to_dict(row) if row else None
+    except Exception as exc:
+        logger.error(f"获取勋章失败: {exc}")
+        return None
+
+
+def get_all_badges(only_enabled: bool = False) -> list[dict]:
+    try:
+        with get_session() as session:
+            statement = select(Badge).order_by(Badge.created_at.desc())
+            if only_enabled:
+                statement = statement.where(Badge.is_enabled == 1)
+            return [_badge_to_dict(row) for row in session.execute(statement).scalars()]
+    except Exception as exc:
+        logger.error(f"获取勋章列表失败: {exc}")
+        return []
+
+
+def update_badge(badge_id: int, **kwargs) -> bool:
+    try:
+        with get_session() as session:
+            badge = session.get(Badge, badge_id)
+            if badge is None:
+                return False
+            for key, value in kwargs.items():
+                if hasattr(badge, key) and value is not None:
+                    setattr(badge, key, value)
+            badge.updated_at = int(time.time())
+            return True
+    except Exception as exc:
+        logger.error(f"更新勋章失败: {exc}")
+        return False
+
+
+def delete_badge(badge_id: int) -> bool:
+    try:
+        with get_session() as session:
+            result = session.execute(
+                delete(Badge).where(Badge.id == badge_id).returning(Badge.id)
+            )
+            return result.scalar_one_or_none() is not None
+    except Exception as exc:
+        logger.error(f"删除勋章失败: {exc}")
+        return False
+
+
+def _serialize_sqlite_write(session: Session) -> None:
+    """SQLite has no FOR UPDATE. Acquire its writer lock before any reads.
+
+    An explicit outer transaction also prevents sqlite3's legacy savepoint mode
+    from committing an insertion before the enclosing credit debit commits.
+    """
+    if session.get_bind().dialect.name == "sqlite":
+        session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+
+
+def _ownership(session: Session, tg_id: int, badge_id: int) -> UserBadge | None:
+    return session.execute(
+        select(UserBadge)
+        .where(UserBadge.tg_id == tg_id, UserBadge.badge_id == badge_id)
+        .with_for_update()
+    ).scalar_one_or_none()
+
+
+def _new_ownership(
+    session: Session, tg_id: int, badge: Badge, cost: float, valid_days: int
+) -> UserBadge:
+    now = int(time.time())
+    row = UserBadge(
+        tg_id=tg_id,
+        badge_id=badge.id,
+        credits_cost=cost,
+        redeemed_at=now,
+        expires_at=now + valid_days * 86400,
+        is_active=1,
+    )
+    # Existing BIGINT schema is not an SQLite rowid. The outer writer lock
+    # serializes allocation; PostgreSQL continues to use its sequence.
+    if session.get_bind().dialect.name == "sqlite":
+        row.id = int(session.scalar(select(func.max(UserBadge.id))) or 0) + 1
+    row.badge = badge
+    session.add(row)
+    session.flush()
+    return row
+
+
+def redeem_badge_tx(session: Session, tg_id: int, badge_id: int) -> dict:
+    """Debit and ownership insertion share the caller's transaction; no catches."""
+    badge = session.get(Badge, badge_id)
+    if badge is None:
+        raise exceptions.BadgeNotFound()
+    if badge.is_enabled != 1:
+        raise exceptions.BadgeUnavailable()
+    # The user's stable foundation row serializes awards and purchases even
+    # when there is no ownership row yet. Do not import a foreign ORM model.
+    stats = identity_repository.get_statistics_tx(session, tg_id, for_update=True)
+    if _ownership(session, tg_id, badge_id) is not None:
+        raise exceptions.BadgeAlreadyOwned()
+    if stats is None:
+        raise exceptions.BadgeUserNotFound()
+    # The identity row is already locked above; eligibility cannot race with
+    # another debit. Zero-price badges must remain redeemable even with debt.
+    if badge.credits_cost > 0 and stats.credits < badge.credits_cost:
+        raise exceptions.BadgeInsufficientCredits(badge.credits_cost)
+    credits_repository.deduct_tx(
+        session, CreditAccount.tg(tg_id), float(badge.credits_cost)
+    )
+    row = _new_ownership(session, tg_id, badge, badge.credits_cost, badge.valid_days)
+    return _user_badge_to_dict(row)
+
+
+def redeem_badge_or_raise(tg_id: int, badge_id: int) -> dict:
+    with get_session() as session:
+        _serialize_sqlite_write(session)
+        return redeem_badge_tx(session, int(tg_id), int(badge_id))
+
+
+def redeem_badge(tg_id: int, badge_id: int) -> tuple[bool, str, dict | None]:
+    """Retain the legacy manual tuple API; services use the typed variant."""
+    try:
+        return True, "兑换成功", redeem_badge_or_raise(tg_id, badge_id)
+    except exceptions.BadgeError as exc:
+        return False, str(exc), None
+    except Exception as exc:
+        logger.error(f"兑换勋章失败: {exc}")
+        return False, "兑换失败，请稍后重试", None
+
+
+def get_user_badges(tg_id: int, only_active: bool = True) -> list[dict]:
+    try:
+        with get_session() as session:
+            statement = (
+                select(UserBadge)
+                .options(joinedload(UserBadge.badge))
+                .where(UserBadge.tg_id == tg_id)
+                .order_by(UserBadge.redeemed_at.desc())
+            )
+            if only_active:
+                statement = statement.where(UserBadge.is_active == 1)
+            return [
+                _user_badge_to_dict(row)
+                for row in session.execute(statement).scalars().unique()
+            ]
+    except Exception as exc:
+        logger.error(f"获取用户勋章失败: {exc}")
+        return []
+
+
+def get_user_active_badges_with_bonus(tg_id: int) -> list[dict]:
+    try:
+        with get_session() as session:
+            statement = (
+                select(UserBadge)
+                .options(joinedload(UserBadge.badge))
+                .where(
+                    UserBadge.tg_id == tg_id,
+                    UserBadge.is_active == 1,
+                    UserBadge.expires_at > int(time.time()),
+                )
+                .order_by(UserBadge.redeemed_at.desc())
+            )
+            return [
+                {
+                    "badge": _badge_to_dict(row.badge),
+                    "bonus_percentage": row.badge.bonus_percentage,
+                    "expires_at": row.expires_at,
+                }
+                for row in session.execute(statement).scalars().unique()
+                if row.badge
+            ]
+    except Exception as exc:
+        logger.error(f"获取用户有效勋章失败: {exc}")
+        return []
+
+
+def active_bonus_percentage(tg_id: int) -> float:
+    return sum(
+        (
+            float(row["bonus_percentage"])
+            for row in get_user_active_badges_with_bonus(tg_id)
+        ),
+        0.0,
     )
 
 
+def award_badge(tg_id: int, badge_type: str) -> bool:
+    """Exactly one winner per (user, badge), returning only after commit.
+
+    Only ownership conflicts are ignored. Other database failures propagate so
+    callers cannot misinterpret an outage as an already-owned badge.
+    """
+    with get_session() as session:
+        _serialize_sqlite_write(session)
+        if (
+            identity_repository.get_statistics_tx(session, tg_id, for_update=True)
+            is None
+        ):
+            raise exceptions.BadgeUserNotFound()
+        badge = session.execute(
+            select(Badge).where(Badge.badge_type == badge_type)
+        ).scalar_one_or_none()
+        if badge is None:
+            raise exceptions.BadgeNotFound()
+        now = int(time.time())
+        values = {
+            "tg_id": int(tg_id),
+            "badge_id": badge.id,
+            "credits_cost": 0,
+            "redeemed_at": now,
+            "expires_at": now + badge.valid_days * 86400,
+            "is_active": 1,
+        }
+        dialect = session.get_bind().dialect.name
+        if dialect == "sqlite":
+            values["id"] = int(session.scalar(select(func.max(UserBadge.id))) or 0) + 1
+            insert = sqlite_insert(UserBadge)
+        elif dialect == "postgresql":
+            insert = pg_insert(UserBadge)
+        else:
+            raise RuntimeError(f"Unsupported badge storage dialect: {dialect}")
+        with session.begin_nested():
+            result = session.execute(
+                insert.values(**values)
+                .on_conflict_do_nothing(index_elements=["tg_id", "badge_id"])
+                .returning(UserBadge.id)
+            )
+            awarded = result.scalar_one_or_none() is not None
+    return awarded
+
+
 def award_or_renew_badge(
-    tg_id: int,
-    badge_id: int,
-    valid_days: int,
-    cap_days: int | None = None,
+    tg_id: int, badge_id: int, valid_days: int, cap_days: int | None = None
 ) -> dict:
-    """Award or renew a system badge through the badges domain repository."""
-    now_ts = int(time.time())
-    span = int(valid_days) * 24 * 3600
+    """Preserve the champion badge's renewal and failure-result contract."""
+    now = int(time.time())
+    span = int(valid_days) * 86400
     try:
         with get_session() as session:
-            existing = (
-                session.execute(
-                    select(UserBadge)
-                    .where(
-                        UserBadge.tg_id == int(tg_id),
-                        UserBadge.badge_id == int(badge_id),
-                    )
-                    .with_for_update()
-                )
-                .scalars()
-                .one_or_none()
-            )
+            _serialize_sqlite_write(session)
+            identity_repository.get_statistics_tx(session, tg_id, for_update=True)
+            existing = _ownership(session, int(tg_id), int(badge_id))
             if existing is None:
-                session.add(
-                    UserBadge(
-                        tg_id=int(tg_id),
-                        badge_id=int(badge_id),
-                        credits_cost=0,
-                        redeemed_at=now_ts,
-                        expires_at=now_ts + span,
-                        is_active=1,
-                    )
-                )
+                badge = session.get(Badge, badge_id)
+                if badge is None:
+                    raise exceptions.BadgeNotFound()
+                _new_ownership(session, tg_id, badge, 0, valid_days)
                 return {
                     "awarded": True,
                     "renewed": False,
-                    "expires_at": now_ts + span,
+                    "expires_at": now + span,
                     "previous_expires_at": None,
                 }
-
             previous = int(existing.expires_at)
-            new_expires = max(previous, now_ts) + span
+            expires = max(previous, now) + span
             if cap_days:
-                new_expires = min(new_expires, now_ts + int(cap_days) * 24 * 3600)
-            existing.expires_at = new_expires
+                expires = min(expires, now + int(cap_days) * 86400)
+            existing.expires_at = expires
             existing.is_active = 1
             return {
                 "awarded": False,
                 "renewed": True,
-                "expires_at": new_expires,
+                "expires_at": expires,
                 "previous_expires_at": previous,
             }
     except Exception as exc:
@@ -484,18 +397,7 @@ def award_or_renew_badge(
         }
 
 
-__all__ = [
-    "BadgesRepository",
-    "active_badge_ids_tx",
-    "award_or_renew_badge",
-    "badges_exist_tx",
-    "create_badge",
-    "get_badge_by_type",
-]
-
-
-def active_badge_ids_tx(session, tg_id: int) -> set[int]:
-    """用户当前生效的勋章 ID 集合（礼包条件取数）。"""
+def active_badge_ids_tx(session: Session, tg_id: int) -> set[int]:
     return {
         int(badge_id)
         for badge_id in session.execute(
@@ -506,8 +408,7 @@ def active_badge_ids_tx(session, tg_id: int) -> set[int]:
     }
 
 
-def badges_exist_tx(session, badge_ids: Iterable[int]) -> set[int]:
-    """在这些 ID 里真实存在的勋章（礼包后台校验用）。"""
+def badges_exist_tx(session: Session, badge_ids: Iterable[int]) -> set[int]:
     wanted = {int(badge_id) for badge_id in badge_ids}
     if not wanted:
         return set()

@@ -251,24 +251,30 @@ def test_invite_codes_rolled_back_when_other_reward_fails(orm, monkeypatch):
 # ------------------------------------------------------ 特权邀请码与提交后副作用
 
 
-def test_privileged_invite_config_write_failure_rolls_back_claim(orm, monkeypatch):
+def test_privileged_invite_stored_in_database_and_rolls_back_on_failure(
+    orm, monkeypatch
+):
     add_user(orm, 1)
     pack = _pack(
         orm,
-        [{"type": "invite_codes", "count": 2, "privileged": True}],
+        [
+            {"type": "invite_codes", "count": 2, "privileged": True},
+            {"type": "invalid_type", "count": 1},
+        ],
     )
-    original_codes = ["pre-existing-code"]
-    monkeypatch.setattr(settings, "PRIVILEGED_CODES", original_codes.copy())
+    saves = []
 
-    def _fail_save(self, config_data, *, raise_on_error=False):
-        raise OSError("cannot persist privileged codes")
+    def _capture_save(self, config_data, *, raise_on_error=False):
+        saves.append(dict(config_data))
 
-    monkeypatch.setattr(type(settings), "save_config_to_env_file", _fail_save)
+    monkeypatch.setattr(
+        type(settings), "save_config_to_env_file", _capture_save, raising=False
+    )
 
-    with pytest.raises(OSError, match="cannot persist"):
+    with pytest.raises(ValueError, match="不支持的奖励类型"):
         gift_pack_service.claim_gift_pack(pack, 1)
 
-    assert settings.PRIVILEGED_CODES == original_codes
+    assert saves == []
     assert _invitations(1) == []
     with get_session() as session:
         persisted_pack = session.get(GiftPack, pack)
@@ -286,15 +292,22 @@ async def test_privileged_invite_allows_registration_without_writing_env(
         [{"type": "invite_codes", "count": 1, "privileged": True}],
     )
     saves = []
-    monkeypatch.setattr(settings, "PRIVILEGED_CODES", [])
     accounts_service.set_registration_enabled("emby", False)
     monkeypatch.setattr(settings, "TG_ADMIN_CHAT_ID", [])
 
     def _capture_save(self, config_data, *, raise_on_error=False):
         saves.append(dict(config_data))
 
-    monkeypatch.setattr(type(settings), "save_config_to_env_file", _capture_save)
+    monkeypatch.setattr(
+        type(settings), "save_config_to_env_file", _capture_save, raising=False
+    )
     code = gift_pack_service.claim_gift_pack(pack, 1)["results"][0]["codes"][0]
+
+    with get_session() as session:
+        inv = session.get(Invitation, code)
+        assert inv is not None
+        assert inv.is_privileged == 1
+        assert inv.is_used == 0
 
     from app.domains.invitation import router as invitation
 
@@ -333,9 +346,11 @@ async def test_privileged_invite_allows_registration_without_writing_env(
 
     assert response.success is True
     assert "new-emby-user" in response.message
-    assert code not in settings.PRIVILEGED_CODES
-    assert saves[0] == {"PRIVILEGED_CODES": code}
-    assert saves[-1] == {"PRIVILEGED_CODES": ""}
+    assert saves == []  # .env is never written
+    with get_session() as session:
+        inv = session.get(Invitation, code)
+        assert inv.is_used == 1
+        assert inv.is_privileged == 1  # 兑换后仍保留特权标记
 
 
 def test_all_seven_reward_types_are_aggregated_in_stats(orm, monkeypatch):
@@ -594,20 +609,20 @@ async def test_claim_response_reports_lifetime_skip_in_message(orm, monkeypatch)
     assert response.message == "领取成功；Plex 为永久会员，Premium 天数部分未生效"
 
 
-def test_privileged_code_written_to_env_stays_when_commit_fails(orm, monkeypatch):
-    """现状：`.env` 先写成功、随后提交失败时，内存中的特权码不会回退。"""
+def test_privileged_code_rolls_back_with_claim_when_commit_fails(orm, monkeypatch):
+    """当提交失败时，特权码与领取记录一起回滚，不写入 .env。"""
     from sqlalchemy.orm import Session
 
     add_user(orm, 1)
     pack = _pack(orm, [{"type": "invite_codes", "count": 1, "privileged": True}])
-    monkeypatch.setattr(settings, "PRIVILEGED_CODES", ["pre-existing-code"])
-
     saves: list[dict] = []
 
     def _capture_save(self, config_data, *, raise_on_error=False):
         saves.append(dict(config_data))
 
-    monkeypatch.setattr(type(settings), "save_config_to_env_file", _capture_save)
+    monkeypatch.setattr(
+        type(settings), "save_config_to_env_file", _capture_save, raising=False
+    )
 
     def _fail_commit(self):
         raise RuntimeError("commit failed")
@@ -617,12 +632,7 @@ def test_privileged_code_written_to_env_stays_when_commit_fails(orm, monkeypatch
         with pytest.raises(RuntimeError, match="commit failed"):
             gift_pack_service.claim_gift_pack(pack, 1)
 
-    assert len(saves) == 1
-    written = saves[0]["PRIVILEGED_CODES"].split(",")
-    assert len(written) == 2
-    assert "pre-existing-code" in written
-    # 数据库回滚了，但 `.env` 与内存里的特权码已经是写入后的状态
-    assert settings.PRIVILEGED_CODES == written
+    assert len(saves) == 0  # 没有写入 .env
     assert _invitations(1) == []
     with get_session() as session:
         assert session.get(GiftPack, pack).claimed_count == 0

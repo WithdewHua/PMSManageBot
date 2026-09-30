@@ -66,10 +66,15 @@ def test_b3_provenance_rejects_target_domain_fallback() -> None:
 
 
 def test_b3_provenance_rejects_same_domain_wrong_source() -> None:
-    baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
+    # Keep the negative proof even after reward promotion retires these edges.
+    retired = json.loads(
+        (
+            BASELINE.parent.parent / "refactor/fixtures/reward_retired_b3_entries.json"
+        ).read_text(encoding="utf-8")
+    )
     entry = next(
         item
-        for item in baseline["cross_domain_calls"]
+        for item in retired["entries"]
         if item.get("b3_source_id")
         and item["key"].startswith("call|src/app/domains/badge_awards/jobs.py|")
     )
@@ -122,17 +127,36 @@ def test_blackjack_service_rebindings_are_itemized_and_proven() -> None:
     with open("scripts/refactor/mapping.toml", "rb") as stream:
         mappings = tomllib.load(stream)["items"]
 
+    retired = json.loads(
+        (
+            BASELINE.parent.parent / "refactor/fixtures/reward_retired_b3_entries.json"
+        ).read_text(encoding="utf-8")
+    )
+    historical = {item["key"]: item for item in retired["entries"]}
+    assert not any(
+        item["path"].startswith("src/app/domains/badge_awards/")
+        for item in entries.values()
+    )
     for key, source_id in BLACKJACK_SERVICE_REBINDINGS.items():
         bindings = [
             item for item in mappings if item.get("b3_key") == _normalized_key(key)
         ]
         assert bindings, key
         assert all(item.get("b3_behavior_test") for item in bindings), key
-        assert entries[key]["b3_source_id"] == source_id
+        assert historical[key]["b3_source_id"] == source_id
+        assert not _validate_entry(
+            historical[key], mappings=_mapping_items(), frozen=_frozen_items()
+        )
 
+    normalized = {_normalized_key(key): entry for key, entry in entries.items()}
     for key, owner in REVIEWED_BOUNDARY_REPLACEMENTS.items():
-        assert entries[key]["owner"] == owner
-        assert "b3_source_id" not in entries[key]
+        if owner == "promote-reward-domains":
+            assert _normalized_key(key) not in normalized
+            assert historical[key]["owner"] == owner
+        else:
+            entry = normalized[_normalized_key(key)]
+            assert entry["owner"] == owner
+            assert "b3_source_id" not in entry
 
 
 def _normalized_key(key: str) -> str:

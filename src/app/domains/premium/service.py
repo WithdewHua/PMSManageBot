@@ -505,3 +505,41 @@ async def get_and_send_premium_statistics():
 
     except Exception as e:
         logger.error(f"获取并发送 Premium 统计信息时出错: {e!s}")
+
+
+def resolve_premium_status_for_settlement(
+    current_is_premium: bool,
+    premium_status_updated_at: int | None,
+    settlement_date: datetime,
+) -> bool:
+    """Expose historical Premium status calculation to settlement callers."""
+    from app.domains.premium import rules
+
+    return rules._resolve_premium_status_for_settlement(
+        current_is_premium, premium_status_updated_at, settlement_date
+    )
+
+
+def settle_premium_traffic_usage(
+    traffic_usage_premium: int,
+    is_premium: bool,
+    debt_bytes: int,
+    debt_updated_date: str | None,
+    settlement_date: datetime,
+    user_traffic_limit: int,
+    premium_user_traffic_limit: int,
+    credits_cost_per_10gb: int,
+) -> dict:
+    """Calculate debt and fees using the Premium domain's single rule source."""
+    from app.domains.premium import rules
+
+    return rules._settle_premium_traffic_usage(
+        traffic_usage_premium,
+        is_premium,
+        debt_bytes,
+        debt_updated_date,
+        settlement_date,
+        user_traffic_limit,
+        premium_user_traffic_limit,
+        credits_cost_per_10gb,
+    )

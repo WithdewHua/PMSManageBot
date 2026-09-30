@@ -801,3 +801,28 @@ __all__ = [
     "open_next_issue",
     "open_next_issue_tx",
 ]
+
+
+def count_badge_issues(tg_id: int) -> int:
+    with get_session() as session:
+        return int(
+            session.execute(
+                select(func.count(func.distinct(TreasureParticipation.issue_id))).where(
+                    TreasureParticipation.tg_id == tg_id
+                )
+            ).scalar_one()
+        )
+
+
+def list_badge_eligible_tg_ids(min_issues: int) -> list[int]:
+    with get_session() as session:
+        return list(
+            session.execute(
+                select(TreasureParticipation.tg_id)
+                .group_by(TreasureParticipation.tg_id)
+                .having(
+                    func.count(func.distinct(TreasureParticipation.issue_id))
+                    >= min_issues
+                )
+            ).scalars()
+        )

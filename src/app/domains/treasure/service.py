@@ -5,8 +5,10 @@ from __future__ import annotations
 import time
 from datetime import datetime, timedelta
 
+from app.core import events
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
+from app.domains.treasure import events as treasure_events
 from app.domains.treasure import exceptions as treasure_exceptions
 from app.domains.treasure import notifications as treasure_notifications
 from app.domains.treasure import repository as treasure_repository
@@ -118,6 +120,7 @@ async def join_treasure_issue(*, issue_id: int, tg_id: int, quantity: int = 1) -
         quantity=int(quantity),
     )
 
+    events.emit(treasure_events.TreasureJoined(int(tg_id)))
     issue = treasure_repository.get_treasure_issue_by_id(int(issue_id))
     if not result.get("settled"):
         try:
@@ -265,3 +268,11 @@ __all__ = [
     "reopen_overdue_issues",
     "schedule_auto_reopen_treasure_issue",
 ]
+
+
+def count_badge_issues(tg_id: int) -> int:
+    return treasure_repository.count_badge_issues(tg_id)
+
+
+def list_badge_eligible_tg_ids(min_issues: int) -> list[int]:
+    return treasure_repository.list_badge_eligible_tg_ids(min_issues)

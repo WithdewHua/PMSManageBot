@@ -42,7 +42,7 @@ public_symbols = ["DomainError"]
 [modules."app.core.events"]
 decision = "new-core-mechanism"
 target = "app.core.events"
-public_symbols = ["DomainEvent", "publish", "subscribe", "clear_subscriptions"]
+public_symbols = ["DomainEvent", "publish", "subscribe", "clear_subscriptions", "subscribe_async", "emit", "bind_main_loop", "drain"]
 
 [modules."app.core.byte_size"]
 decision = "retain"

@@ -2,7 +2,6 @@
 ORM-based database operations using SQLAlchemy
 """
 
-from app.domains.badges.repository import BadgesRepository
 from app.domains.crypto_donation.repository import CryptoDonationRepository
 from app.domains.donation.repository import DonationRepository
 from app.domains.identity.compat import IdentityRepository
@@ -29,7 +28,6 @@ class DatabaseORM(
     LinesCompat,
     TrafficCompat,
     CryptoDonationRepository,
-    BadgesRepository,
     WatchRewardsRepository,
 ):
     """

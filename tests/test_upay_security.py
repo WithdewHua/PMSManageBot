@@ -173,9 +173,10 @@ async def test_callback_credits_local_order_amount(monkeypatch):
     )
     monkeypatch.setattr(crypto_router, "get_user_name_from_tg_id", lambda _: "user")
     monkeypatch.setattr(crypto_router, "send_message_by_url", AsyncMock())
-    monkeypatch.setattr(
-        crypto_router.asyncio, "create_task", lambda coroutine: coroutine.close()
-    )
+    from app.core import events
+
+    emit = Mock()
+    monkeypatch.setattr(events, "emit", emit)
 
     response = await crypto_router.upay_payment_callback(JsonRequest(payload))
 
@@ -183,3 +184,5 @@ async def test_callback_credits_local_order_amount(monkeypatch):
     update_donation.assert_called_once_with(12.0, 7)
     add_credits.assert_called_once()
     assert add_credits.call_args.args[1] == 10.0
+    assert emit.call_count == 1
+    assert emit.call_args.args[0].tg_id == 7

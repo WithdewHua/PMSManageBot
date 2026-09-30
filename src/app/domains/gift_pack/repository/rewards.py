@@ -283,9 +283,4 @@ class _GiftPackRepositoryRewards:
 
     @staticmethod
     def _persist_privileged_invite_codes(codes: list[str]) -> None:
-        """把特权码写入配置（pre-commit 例外，最后交给 invitation 领域）
-
-        配置文件不是事务性的，所以只在一批奖励的数据库写入全部成功之后调用；
-        写失败会把异常抛出去，让整个领取事务回滚。
-        """
-        invitation_repository.persist_privileged_codes_tx(codes)
+        """特权码已迁入数据库，本方法保留为空操作以维持基线成员稳定性。"""

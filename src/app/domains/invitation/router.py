@@ -115,13 +115,11 @@ async def redeem_plex_code(
 ):
     try:
         background_tasks.add_task(refresh_tg_user_profile, tg_id=telegram_user.id)
-        privileged = data.code in settings.PRIVILEGED_CODES
         telegram_bound, _ = await invitation_service.register_plex(
             code=data.code,
             email=data.email,
             bind_to_telegram=bool(data.bind_to_telegram),
             telegram_user_id=telegram_user.id,
-            privileged=privileged,
             notify=send_message_by_url,
             plex_factory=Plex,
         )
@@ -147,14 +145,12 @@ async def redeem_emby_code(
 ):
     try:
         background_tasks.add_task(refresh_tg_user_profile, tg_id=telegram_user.id)
-        privileged = data.code in settings.PRIVILEGED_CODES
         telegram_bound, _, password = await invitation_service.register_emby(
             code=data.code,
             username=data.username or "",
             password=data.password,
             bind_to_telegram=bool(data.bind_to_telegram),
             telegram_user_id=telegram_user.id,
-            privileged=privileged,
             notify=send_message_by_url,
             emby_factory=Emby,
         )
@@ -189,9 +185,8 @@ async def check_privileged_invite_code(
     data: CheckPrivilegedCodeRequest = Body(...),
 ):
     try:
-        return CheckPrivilegedCodeResponse(
-            privileged=data.code in settings.PRIVILEGED_CODES
-        )
+        privileged = invitation_service.check_privileged_code(data.code)
+        return CheckPrivilegedCodeResponse(privileged=privileged)
     except Exception as error:
         logger.error("检查特权邀请码失败: %s", error)
         return CheckPrivilegedCodeResponse(privileged=False)
@@ -205,10 +200,8 @@ async def batch_check_privileged_invite_codes(
     data: BatchCheckPrivilegedCodesRequest = Body(...),
 ):
     try:
-        privileged = set(settings.PRIVILEGED_CODES)
-        return BatchCheckPrivilegedCodesResponse(
-            results={code: code in privileged for code in data.codes}
-        )
+        results = invitation_service.batch_check_privileged_codes(data.codes)
+        return BatchCheckPrivilegedCodesResponse(results=results)
     except Exception as error:
         logger.error("批量检查特权邀请码失败: %s", error)
         return BatchCheckPrivilegedCodesResponse(

@@ -215,9 +215,9 @@ async def test_expiry_handles_null_line_user(session_env, monkeypatch):
 
 
 def settings_premium_line() -> str:
-    from app.core.config import settings
+    from app.domains.lines import catalog
 
-    premium_lines = settings.PREMIUM_STREAM_BACKEND
+    premium_lines = catalog.premium_lines()
     return premium_lines[0] if premium_lines else "premium-line"
 
 

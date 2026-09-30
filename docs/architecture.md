@@ -38,6 +38,19 @@ core/（公共设施）
 
 单个角色文件超过 1,000 行时改成同名包，按子主题分文件，包的公开接口保持不变。过渡期 repository 是组合到 `app.databases.db.DatabaseORM` 的 mixin，已有 `db.xxx()` 调用保持不变；新数据库操作进入所属领域的 repository，而不是添加到门面。
 
+### Service 接口粒度：按业务用例组织，不复制外域 API
+
+依赖方向约束回答“谁可以调用谁”，不意味着每经过一层都必须增加一个转发方法。领域 service 是该领域的业务接口，不是所有外部能力的镜像门面。
+
+- **跨域协调留在本领域用例内**：入口调用所属领域的 service，由用例按需调用其他领域 service，组织业务校验、数据和结果。例如勋章页面使用 `badges.service.get_badge_center(tg_id)`，兑换使用 `redeem_from_center(tg_id, badge_id)`；不为页面零散取数新增 `badges.get_user_credits`、`badges.get_user_name` 等仅转发外域查询的公开 API。
+- **不复制能力归属**：通用余额、身份、会员等能力仍由 credits、identity、premium 提供。其他领域需要它们时，在自己的用例中直接依赖其公开 service；不得层层转发成 `A.service → B.service → C.service`，除非 B 确实承担自己的业务策略、契约转换或稳定的集成边界。
+- **允许本领域的简单委托**：`badges.service.get_badge_by_id → badges.repository.get_badge_by_id` 可以是薄方法，它公开的是本领域能力，并隐藏存储边界；不要求每个 service 方法都包含复杂逻辑。明确受控的过渡 compat 门面也可保持纯转发，但必须有清理责任。
+- **按用例聚合，不按页面堆成大方法**：只组合该用例需要且相互关联的数据与操作；不为了减少方法数把无关查询、写入或副作用绑定在一起。不为每个 endpoint 强制新建一个方法，已有语义匹配的领域接口应直接复用。只服务于一个用例的细节优先保留为局部逻辑；多个用例共享的内部步骤可提取私有函数。
+- **业务结果与 HTTP 表达分开**：service 返回领域值、明确的用例结果或抛出领域异常；router 负责认证、参数和响应转换、HTTP 状态码，不把业务编排留在 router，也不把 Request、HTTPException 或 transport schemas 下沉到 service。
+- **聚合不等于事务**：多个 service 查询依次执行，并不提供一致性快照；若用例要求一致读或原子写，应由所属 repository 明确持有事务，通过其他领域的 `*_tx(session, …)` 协作。网络、通知等副作用仍在提交后执行。
+
+评审新增公开 service 方法时，检查：它是否代表本领域能力或用例？是否只是把外域 API 改名再导出？调用方是否仍在拼装完整业务流程？是否存在无需保留的多层委托？不要仅凭函数行数、方法数量或“一行 return”做机械判定，也不要为消除转发而新增跨层导入豁免。
+
 ## 领域目录
 
 每个领域在下表恰好列出一次；上层可依赖下层，同层依赖不得成环。T4 协调多领域用例，不另设应用层目录。
@@ -101,13 +114,12 @@ core/（公共设施）
 
 - **读模型直读跨域表**：T5 的 rankings、reports、profile repository 可以跨表只读聚合，不可写入其他领域的数据。后续 `promote-remaining-domains` 核对查询。
 - **过渡门面**：`app.databases.db` 暂时组合 repository mixin，以保持旧调用面；门面文件本身不新增方法，新方法写入所属领域的 repository mixin，只允许本领域经 `db.xxx()` 调用，不新增跨域调用。`retire-legacy-db-facade` 删除它。旧的跨域 `db.xxx()` / `self.xxx()` 依赖登记在架构测试基线，按所属领域的提升变更清理。
-- **特权邀请码 `.env` 写入**：唯一的提交前外部副作用例外，落在拥有该资源的 `invitation` 领域（`invitation.repository.persist_privileged_codes_tx`）：礼包在最后一次数据库 flush 之后、事务提交之前调用，写失败会恢复内存配置并回滚数据库领取；媒体权限同步仍在提交后进行。`move-privileged-codes-to-database` 将特权码移出 `.env`。
-- **入口层现存环**：活动领域触发自动勋章、badge_awards 反读活动数据（`promote-reward-domains`：提交后领域事件）；luckywheel 消耗 blackjack 来源免费次数时反读 blackjack 配置（`promote-blackjack-domain`：发放时保存参数）。accounts 的 Plex 邮箱回填通过提交后 `PlexUserIdResolved` 事件通知 invitation，不再建立 sibling 直接调用。搬迁阶段仅登记，不改变行为。
+- **入口层领域环**：活动领域与 badge_awards 之间的反向依赖已由 `promote-reward-domains` 消除（D3 第 1 处环）：活动成功提交后发布事件，组装层订阅触发勋章检查，badge_awards 仅通过各领域 service 读取统计；luckywheel 消耗 blackjack 来源免费次数时反读 blackjack 配置（`promote-blackjack-domain`：发放时保存参数）。accounts 的 Plex 邮箱回填通过提交后 `PlexUserIdResolved` 事件通知 invitation，不再建立 sibling 直接调用。搬迁阶段仅登记，不改变行为。
 - **identity 兼容层**：`app.domains.identity.compat.IdentityRepository` 只允许转发到 `identity.service` 并恢复旧元组形状；不得导入 SQLAlchemy、模型或 `app.core.db`。尚未提升的旧调用方继续通过 `app.databases.db` 使用它，分别由对应领域提案负责迁移。
 - **identity 建档规则**：新建或补齐用户统计记录一律在调用方事务中使用 `identity.repository.ensure_statistics_tx(session, tg_id)`；不得直接实例化 `Statistics` 或用兼容层绕过事务边界。
 - **TG 换绑跨域写入和漏迁**：当前实现原样搬迁，`promote-tg-rebind-domain` 会用各领域的 `reassign_tg_id_tx` 修复覆盖范围与写入边界。
 
-需要下层通知上层时使用提交后的领域事件，不从下层直接导入上层；具体事件形式由首次需要它的后续变更确定。
+需要下层通知上层时使用提交后的领域事件，不从下层直接导入上层。`core.events.publish(session, event)` 在成功提交后分发，回滚不分发；已提交且不持有 session 的入口调用 `emit(event)`。组装层使用 `subscribe` 注册同步处理函数，使用 `subscribe_async` 注册异步处理函数。PTB 初始化时通过 `bind_main_loop` 绑定主事件循环：当前线程有循环时创建并保留任务，无循环时提交到绑定循环，CLI 无绑定循环时同步运行异步处理函数。处理失败只记录日志，不影响已提交事务；测试使用 `await events.drain()` 等待保留的任务。同步数据库操作由异步业务处理函数通过 `asyncio.to_thread` 调用，避免阻塞事件循环。
 
 ## 手动运维操作
 
@@ -127,7 +139,7 @@ core/（公共设施）
 ## 配置分类
 
 - **基础设施与密钥**：系统环境 / `data/.env`，由 core.config 只读加载（如 Telegram token、数据库 URL、外部服务地址）。不在业务事务内更新。
-- **运行时业务配置**：使用各领域带类型的 `DomainConfig`，持久化于 core.kv 的 `SystemConfig` 键值表；不向 `.env` 新增可变业务配置。现存业务配置由 `unify-business-configuration` 迁移。
+- **运行时业务配置与数据**：使用各领域带类型的 `DomainConfig`，持久化于 core.kv 的 `SystemConfig` 键值表；线路目录存放在 `line_catalog` 数据库表。运行时业务数据一律存在数据库，`.env` 只存放只读的部署配置。
 
 ### 业务配置归属（D1）
 
@@ -144,11 +156,11 @@ core/（公共设施）
 | `vaultwarden` | `enabled`、`redeem_credits` |
 | `credits` | `transfer_enabled` |
 | `luckywheel` / `blackjack` / `badges` | Existing domain-owned configuration documents and rows |
-- **遗留例外**：礼包特权码目前在 `.env`，见上文例外；线路目录迁移由 `move-line-catalog-to-database` 负责。
+- **已迁移的遗留配置**：特权邀请码存储于 `invitation.is_privileged`，线路目录存储于 `line_catalog`。升级启动仅一次读取旧配置导入数据库；导入完成后残留 `.env` 键不再控制业务。礼包不再有提交前写 `.env` 的例外。
 
 ## 基线计数
 
-B2 过渡基线以 `scripts/refactor/B2_BASE` 中的 B1 提交为来源。B3 机械搬迁以 `scripts/refactor/B3_BASE`（B2 提交 `1b49ea8273253ee7b1b35e13056ca047f9ce45bc`）为冻结来源。当前 `tests/architecture/baseline.json` 封存 290 条跨域调用／导入；`scripts/refactor/audit_b3_baseline.py` 严格扫描冻结源码来源单元，当前结果为 `total=290, b3=44, new=0`。它拒绝仅凭目标领域候选、同名导入换目标或新增领域环封存。
+B2 过渡基线以 `scripts/refactor/B2_BASE` 中的 B1 提交为来源。B3 机械搬迁以 `scripts/refactor/B3_BASE`（B2 提交 `1b49ea8273253ee7b1b35e13056ca047f9ce45bc`）为冻结来源。当前 `tests/architecture/baseline.json` 封存 163 条跨域调用／导入；`scripts/refactor/audit_b3_baseline.py` 严格扫描冻结源码来源单元，当前结果为 `total=163, b3=6, new=0`。它拒绝仅凭目标领域候选、同名导入换目标或新增领域环封存。
 
 `promote-account-domains`、`promote-blackjack-domain` 等提升变更只删除已迁移入口的旧基线，不得用新增 ignore 掩盖新的反向依赖。每次基线变化都必须同时通过 `tests/architecture/test_architecture.py`、`audit_b3_baseline.py` 和 import-linter。
 
@@ -270,3 +282,12 @@ B3 起，部署回退必须在维护窗口执行：停止所有 B3 调度器 →
 | `promote-remaining-domains` | donation、crypto_donation、vaultwarden、rankings、reports、profile |
 | `promote-tg-rebind-domain` | tg_rebind、跨域换绑与漏迁修复 |
 | `retire-legacy-db-facade` | 门面、遗留任务引用及剩余基线 |
+
+
+## 奖励领域提升与配置迁移验证
+
+- `promote-reward-domains`：在 quince 只读导出的完整 PostgreSQL 副本上，将两份本地数据库迁到同一 `f3a4b5c6d7e8` 基线。固定时间、Plex/Emby 返回及流量数据，记录通知；进程禁止连接测试 PostgreSQL 之外的网络地址。
+- 原始 `ca6ba12` 的 Plex 结果与新版一致；其 Emby 调用错误地以媒体 ID 构造按用户名定位的欠额账户，造成回滚。保留原始差异结果；仅修正该参数的旧版对照与新版的 33 张业务表运行前后数据、观看结算输出和通知逐项一致。不能将该结论表述成与未经修正的旧版完全等价。生产副本中已符合条件的勋章持有人均已持有勋章，本次批量检查两边均没有新增通知；新增颁发、冲突和门槛差异由专项测试覆盖。
+- 同一副本的独立数据库验证 `f3a4b5c6d7e8 → a4b5c6d7e8f9 → b5c6d7e8f9a0`，执行升级、降级回起点、再升级。业务 ORM 与 APScheduler 自有 metadata 联合比较无差异；未删除或忽略调度表。
+- 整合审查修复：Plex 邀请成功后的 ID 查询失败不释放已用邀请码；免费线路批量更新锁定候选行；目录缓存通过版本校验拒绝在失效后重新写入旧快照。均保留原有外部接口。
+- 全程不修改生产数据库、生产 `.env` 或媒体账户权限；测试数据与生产导出只保留在本机隔离目录，不加入 Git。

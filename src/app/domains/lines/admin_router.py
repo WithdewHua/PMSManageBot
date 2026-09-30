@@ -80,17 +80,7 @@ async def get_all_line_tags(
     check_admin_permission(user)
 
     try:
-        # 获取所有线路名称
-        all_lines = set()
-        all_lines.update(line_catalog.normal_lines())
-        all_lines.update(line_catalog.premium_lines())
-
-        # 获取每个线路的标签
-        lines_tags = {}
-        for line in all_lines:
-            tags = line_catalog.line_tags(line)
-            lines_tags[line] = tags
-
+        lines_tags = line_catalog.all_line_tags()
         return AllLineTagsResponse(lines=lines_tags)
     except Exception as e:
         logger.error(f"获取所有线路标签失败: {e!s}")

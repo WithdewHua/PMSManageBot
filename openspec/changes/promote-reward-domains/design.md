@@ -190,3 +190,12 @@ def bind_main_loop(
 ## Open Questions
 
 无。
+
+
+## 实施彩排发现的基线缺陷
+
+完整生产副本对比发现，`ca6ba12` 的观看结算在调用 `premium.repository.update_traffic_debt_tx` 时使用 `CreditAccount.emby(media_id)`，但该接口依照 credits 账户约定按 `emby_username` 定位。真实 Emby ID 与用户名不同，旧实现会因找不到账户而回滚该用户结算。提升后的 repository 使用 `media_row.emby_username`，保留正确的欠额接口契约，不复现该错误。
+
+验证必须区分原始旧版和修正对照版：保留原始运行的回滚差异；另外对旧版仅修正这一处参数，在同一初始副本上比较积分、欠额、邀请奖励及通知。不能把修正对照版的结果声称为原始旧版完全等价。
+
+另发现 sqlite3 legacy transaction control 下首次 SAVEPOINT 可能没有外层数据库事务，释放保存点会让结算记录提前提交。结算 ledger 的 helper 在 SQLite 未开始事务时显式 BEGIN，确保后续欠额或积分写入失败时 ledger 也回滚；PostgreSQL 事务路径不变。`test_settlement_failure_rolls_back_every_write` 覆盖该失败情形。

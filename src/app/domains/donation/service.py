@@ -83,3 +83,11 @@ def update_donation_credits(old_multiplier, new_multiplier):
         donation_repository.update_donation_credits(old_multiplier, new_multiplier)
     except Exception as e:
         logger.error(str(e))
+
+
+def list_badge_eligible_donors(
+    threshold: float, tg_id: int | None = None
+) -> list[tuple[int, float]]:
+    from app.domains.donation import repository
+
+    return repository.list_badge_eligible_donors(threshold, tg_id)

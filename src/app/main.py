@@ -1,8 +1,10 @@
+import asyncio
 import threading
 
 from telegram.ext import ApplicationBuilder
 
 from app.bot.app import register_handlers
+from app.core import events
 from app.core.config import settings
 from app.core.log import logger
 from app.core.scheduler import Scheduler
@@ -18,6 +20,7 @@ async def set_bot_commands(application):
 
 async def post_init_services(application):
     """在 Telegram 事件循环就绪后初始化服务"""
+    events.bind_main_loop(asyncio.get_running_loop())
     await set_bot_commands(application)
 
     try:
@@ -73,6 +76,12 @@ if __name__ == "__main__":
     from app.business_config import seed_all
 
     seed_all()
+
+    from app.domains.invitation import service as invitation_service
+    from app.domains.lines import catalog as line_catalog
+
+    invitation_service.import_legacy_privileged_codes()
+    line_catalog.import_legacy_line_catalog_if_needed()
 
     from app.subscriptions import register_all
 

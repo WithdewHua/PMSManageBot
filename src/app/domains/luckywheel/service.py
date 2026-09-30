@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.core import events
 from app.core.log import logger
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.luckywheel import config as wheel_config
+from app.domains.luckywheel import events as luckywheel_events
 from app.domains.luckywheel import exceptions as luckywheel_exceptions
 from app.domains.luckywheel import notifications as luckywheel_notifications
 from app.domains.luckywheel import repository
@@ -251,6 +253,7 @@ async def spin(
         use_free_spin=use_free_spin,
     )
     committed = _to_committed_spin(data)
+    events.emit(luckywheel_events.WheelSpun(int(tg_id)))
     await _post_commit([committed], int(tg_id))
     return committed.result
 
@@ -308,6 +311,7 @@ async def spin_ten_times(
         tg_id=int(tg_id), config=current_config, winners=winners
     )
     committed_spins = [_to_committed_spin(data) for data in data_rows]
+    events.emit(luckywheel_events.WheelSpun(int(tg_id)))
     if any(spin.privileged for spin in committed_spins):
         current_config.gen_privileged_code = False
 
@@ -373,3 +377,11 @@ __all__ = [
     "update_randomness_config",
     "update_wheel_config",
 ]
+
+
+def count_badge_spins(tg_id: int) -> int:
+    return repository.count_badge_spins(tg_id)
+
+
+def list_badge_eligible_tg_ids(min_spins: int) -> list[int]:
+    return repository.list_badge_eligible_tg_ids(min_spins)

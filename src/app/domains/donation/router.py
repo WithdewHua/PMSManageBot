@@ -329,13 +329,12 @@ async def confirm_donation_registration(
                 except Exception as e:
                     logger.error(f"为捐赠开号用户 {user_id} 生成邀请码失败: {e}")
 
-            # 检查并授予至尊贡献者勋章（异步后台任务）
-            from app.domains.badge_awards.jobs import (
-                check_and_award_supreme_contributor_badge,
-            )
+            # Existing transaction has committed; checks remain outside the response.
+            from app.core import events
+            from app.domains.donation import events as donation_events
 
             background_tasks.add_task(
-                check_and_award_supreme_contributor_badge, user_id
+                events.emit, donation_events.DonationApproved(int(user_id))
             )
 
         # 获取更新后的记录

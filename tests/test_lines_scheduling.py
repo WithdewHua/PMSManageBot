@@ -110,7 +110,7 @@ def test_auto_switch_reads_then_commits_and_auto_is_a_noop(session_env):
         assert user.plex_line == "old"
 
 
-def test_service_switch_writes_cache_only_after_commit(monkeypatch):
+def test_service_switch_writes_cache_only_after_commit(session_env, monkeypatch):
     events: list[str] = []
 
     class FakeCache:

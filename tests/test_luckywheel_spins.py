@@ -114,9 +114,6 @@ def wheel_env(orm, monkeypatch):
         return [f"test-code-{len(state['codes'])}"]
 
     monkeypatch.setattr(invitation_repository, "issue_codes_tx", _issue_codes)
-    monkeypatch.setattr(
-        invitation_repository, "persist_privileged_codes_tx", lambda codes: None
-    )
     return state
 
 

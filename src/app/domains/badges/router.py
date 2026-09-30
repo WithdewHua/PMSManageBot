@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 
 from app.core.log import uvicorn_logger as logger
-from app.databases import db
+from app.domains.badges import exceptions as badge_errors
+from app.domains.badges import service as badges_service
 from app.domains.badges.schemas import (
     BadgeCenterConfigResponse,
     BadgeCenterConfigUpdate,
@@ -13,8 +14,6 @@ from app.domains.badges.schemas import (
     BadgeUpdate,
     UserBadgeResponse,
 )
-from app.domains.credits import service as credits_service
-from app.domains.credits.types import CreditAccount
 from app.transport.http.auth import (
     check_admin_permission,
     get_telegram_user,
@@ -39,7 +38,7 @@ async def get_badge_center_config(
     获取勋章中心配置
     """
     try:
-        enabled, message = db.get_badge_center_config()
+        enabled, message = badges_service.get_badge_center_config()
         return BadgeCenterConfigResponse(enabled=enabled, message=message)
     except Exception as e:
         logger.error(f"获取勋章中心配置失败: {e!s}")
@@ -63,7 +62,7 @@ async def update_badge_center_config(
     check_admin_permission(telegram_user)
 
     try:
-        success = db.set_badge_center_config(
+        success = badges_service.set_badge_center_config(
             enabled=data.enabled,
             message=data.message,
         )
@@ -73,7 +72,7 @@ async def update_badge_center_config(
                 detail="更新勋章中心配置失败",
             )
 
-        enabled, message = db.get_badge_center_config()
+        enabled, message = badges_service.get_badge_center_config()
         return BadgeCenterConfigResponse(enabled=enabled, message=message)
     except HTTPException:
         raise
@@ -96,28 +95,15 @@ async def get_badges_list(
     try:
         user_id = telegram_user.id
 
-        # 检查功能是否启用
-        enabled, message = db.get_badge_center_config()
-        if not enabled:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=message or "勋章中心功能未启用",
-            )
-
-        # 获取所有勋章（包括未启用的）
-        badges = db.get_all_badges(only_enabled=False)
-
-        # 获取用户积分
-        stats_info = db.get_stats_by_tg_id(user_id)
-        if not stats_info:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="用户未绑定 Plex/Emby 账户",
-            )
-        user_credits = stats_info[2]
-
-        # 获取用户已拥有的勋章
-        user_badges = db.get_user_badges(user_id, only_active=True)
+        try:
+            center = badges_service.get_badge_center(user_id)
+        except badge_errors.BadgeCenterDisabled as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except badge_errors.BadgeAccountNotBound as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        badges = center["badges"]
+        user_credits = center["user_credits"]
+        user_badges = center["user_badges"]
 
         # 转换为响应模型
         badge_responses = [BadgeResponse.model_validate(b) for b in badges]
@@ -157,32 +143,16 @@ async def redeem_badge(
 
         logger.info(f"用户 {user_id} 尝试兑换勋章 {badge_id}")
 
-        # 检查功能是否启用
-        enabled, message = db.get_badge_center_config()
-        if not enabled:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=message or "勋章中心功能未启用",
-            )
-
-        # 检查用户是否已绑定账户
-        stats_info = db.get_stats_by_tg_id(user_id)
-        if not stats_info:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="用户未绑定 Plex/Emby 账户",
-            )
-
-        # 兑换勋章
-        success, msg, user_badge = db.redeem_badge(user_id, badge_id)
-
-        if not success:
-            return BadgeRedeemResponse(success=False, message=msg)
-
-        # 获取剩余积分
-        remaining_credits = credits_service.read_optional(
-            CreditAccount.tg(int(user_id))
-        )
+        try:
+            result = badges_service.redeem_from_center(user_id, badge_id)
+        except badge_errors.BadgeCenterDisabled as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except badge_errors.BadgeAccountNotBound as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except badge_errors.BadgeError as exc:
+            return BadgeRedeemResponse(success=False, message=str(exc))
+        user_badge = result["user_badge"]
+        remaining_credits = result["remaining_credits"]
 
         # 转换为响应模型
         user_badge_response = (
@@ -191,7 +161,7 @@ async def redeem_badge(
 
         return BadgeRedeemResponse(
             success=True,
-            message=msg,
+            message="兑换成功",
             user_badge=user_badge_response,
             credits_deducted=user_badge.get("credits_cost") if user_badge else None,
             remaining_credits=remaining_credits,
@@ -217,7 +187,7 @@ async def get_my_badges(
     """
     try:
         user_id = telegram_user.id
-        user_badges = db.get_user_badges(user_id, only_active=True)
+        user_badges = badges_service.get_user_badges(user_id, only_active=True)
         return [UserBadgeResponse.model_validate(ub) for ub in user_badges]
     except Exception as e:
         logger.error(f"获取用户勋章失败: {e!s}")
@@ -238,7 +208,7 @@ async def get_user_badges_by_id(
     获取指定用户的勋章（用于展示在排行榜等地方）
     """
     try:
-        user_badges = db.get_user_badges(tg_id, only_active=True)
+        user_badges = badges_service.get_user_badges(tg_id, only_active=True)
         return [UserBadgeResponse.model_validate(ub) for ub in user_badges]
     except Exception as e:
         logger.error(f"获取用户勋章失败: {e!s}")
@@ -265,7 +235,7 @@ async def admin_create_badge(
     check_admin_permission(telegram_user)
 
     try:
-        badge = db.create_badge(
+        badge = badges_service.create_badge(
             badge_type=data.badge_type,
             name=data.name,
             description=data.description,
@@ -307,13 +277,13 @@ async def admin_update_badge(
 
     try:
         update_data = data.model_dump(exclude_unset=True)
-        success = db.update_badge(badge_id, **update_data)
+        success = badges_service.update_badge(badge_id, **update_data)
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="勋章不存在或更新失败",
             )
-        badge = db.get_badge_by_id(badge_id)
+        badge = badges_service.get_badge_by_id(badge_id)
         if not badge:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -342,7 +312,7 @@ async def admin_get_all_badges(
     check_admin_permission(telegram_user)
 
     try:
-        badges = db.get_all_badges(only_enabled=False)
+        badges = badges_service.get_all_badges(only_enabled=False)
         return [BadgeResponse.model_validate(b) for b in badges]
     except Exception as e:
         logger.error(f"获取所有勋章失败: {e!s}")
@@ -366,7 +336,7 @@ async def admin_delete_badge(
     check_admin_permission(telegram_user)
 
     try:
-        success = db.delete_badge(badge_id)
+        success = badges_service.delete_badge(badge_id)
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

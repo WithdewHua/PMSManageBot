@@ -180,44 +180,59 @@ def _require_unused_code(code: str) -> int:
     return int(owner)
 
 
-def _check_registration(server: str, privileged: bool) -> None:
-    if not accounts_service.is_registration_enabled(server) and not privileged:
-        raise InvitationRejected(
-            f"{server}_registration_closed", f"{server.title()} 当前不接受新用户注册"
-        )
+def check_privileged_code(code: str) -> bool:
+    """检查单个邀请码是否为有效未使用的特权码。"""
+    return bool(invitation_repository.check_privileged_codes([code]))
 
 
-def _remove_privileged_code(code: str) -> None:
-    if code not in settings.PRIVILEGED_CODES:
-        return
-    settings.PRIVILEGED_CODES.remove(code)
-    settings.save_config_to_env_file(
-        {"PRIVILEGED_CODES": ",".join(settings.PRIVILEGED_CODES)},
-        raise_on_error=True,
+def batch_check_privileged_codes(codes: list[str]) -> dict[str, bool]:
+    """批量检查邀请码是否为有效未使用的特权码。"""
+    privileged_set = invitation_repository.check_privileged_codes(codes)
+    return {code: code in privileged_set for code in codes}
+
+
+def import_legacy_privileged_codes(
+    source: Any = None,
+) -> dict[str, Any]:
+    """升级后首次启动时从 .env 导入实际生效的特权码列表。"""
+    import json
+    import time
+
+    from app.core import kv as core_kv
+    from app.core.legacy_env import LegacyEnvSource
+
+    if source is None:
+        source = LegacyEnvSource({"PRIVILEGED_CODES": []})
+
+    if "PRIVILEGED_CODES" in source.present_keys():
+        logger.warning("业务配置键 PRIVILEGED_CODES 已迁出 .env，不再生效")
+
+    marker = core_kv.get("invitation", "privileged_codes_imported")
+    if marker is not None:
+        return {"already_imported": True}
+
+    raw_codes = source.read("PRIVILEGED_CODES")
+    codes: list[str] = []
+    seen: set[str] = set()
+    for code in raw_codes:
+        c = str(code).strip()
+        if c and c not in seen:
+            seen.add(c)
+            codes.append(c)
+
+    summary = invitation_repository.import_privileged_codes(codes)
+    marker_payload = json.dumps(
+        {
+            "imported_at": int(time.time()),
+            "total_codes": len(codes),
+            "marked": summary["marked"],
+            "used_skipped": summary["used_skipped"],
+            "not_found_skipped": summary["not_found_skipped"],
+        },
+        ensure_ascii=False,
     )
-
-
-def _mark_registration_used(
-    *,
-    code: str,
-    used_by: str,
-    service: str,
-    plex_id: int | None = None,
-    emby_id: str | None = None,
-) -> None:
-    updated = invitation_repository.update_invitation_status(
-        code=code,
-        used_by=used_by,
-        service=service,
-        plex_id=plex_id,
-        emby_id=emby_id,
-    )
-    if not updated:
-        # The invitation may have been redeemed concurrently after preflight.
-        _require_unused_code(code)
-        raise InvitationRejected(
-            "status_update_failed", "更新邀请码状态失败，请联系管理员"
-        )
+    core_kv.upsert("invitation", "privileged_codes_imported", marker_payload)
+    return summary
 
 
 async def register_plex(
@@ -226,29 +241,55 @@ async def register_plex(
     email: str | None,
     bind_to_telegram: bool,
     telegram_user_id: int,
-    privileged: bool,
+    privileged: bool | None = None,
     notify: Notifier = send_message_by_url,
     plex_factory: Callable[..., Plex] = Plex,
 ) -> tuple[bool, int]:
-    """Redeem a Plex invite in legacy side-effect order with typed rejections."""
-    _check_registration("plex", privileged)
+    """Redeem a Plex invite in preclaim -> external call -> confirm order."""
     if not email or "@" not in email:
         raise InvitationRejected("invalid_email", "请输入有效的邮箱地址")
     if identity_service.count_bound_plex_users() >= 100:
         raise InvitationRejected("plex_capacity", "Plex 用户数已达上限")
-    code_owner = _require_unused_code(code)
 
-    plex = plex_factory()
-    if email.lower() in plex.users_by_email:
-        raise InvitationRejected(
-            "already_invited", "该邮箱账户已被邀请，请使用其他邮箱"
-        )
-    if not plex.invite_friend(
-        email, excluded_libraries=media_access_service.get_nsfw_libs()
-    ):
-        raise InvitationRejected("invite_failed", "邀请失败，请稍后再试或联系管理员")
-    plex_id = plex.get_user_id_by_email(email) or None
-    _mark_registration_used(code=code, used_by=email, service="plex", plex_id=plex_id)
+    reg_enabled = accounts_service.is_registration_enabled("plex")
+    code_owner, is_privileged = invitation_repository.preclaim_invitation_code(
+        code=code,
+        used_by=email,
+        service="plex",
+        registration_enabled=reg_enabled,
+    )
+    logger.info(
+        "邀请码 %s 已由邮箱 %s 预占 (owner=%s, privileged=%s)",
+        code,
+        email,
+        code_owner,
+        is_privileged,
+    )
+
+    try:
+        plex = plex_factory()
+        if email.lower() in plex.users_by_email:
+            raise InvitationRejected(
+                "already_invited", "该邮箱账户已被邀请，请使用其他邮箱"
+            )
+        if not plex.invite_friend(
+            email, excluded_libraries=media_access_service.get_nsfw_libs()
+        ):
+            raise InvitationRejected(
+                "invite_failed", "邀请失败，请稍后再试或联系管理员"
+            )
+    except Exception:
+        invitation_repository.release_invitation_code(code=code, used_by=email)
+        raise
+
+    # The external invitation has succeeded. ID lookup is optional enrichment,
+    # not grounds to make the consumed code reusable; the resolver can retry it.
+    try:
+        plex_id = plex.get_user_id_by_email(email) or None
+    except Exception:
+        logger.exception("Plex 邀请成功后查询用户 ID 失败，等待后台回填: %s", email)
+        plex_id = None
+    invitation_repository.confirm_invitation_redemption(code=code, plex_id=plex_id)
 
     existing_telegram_account = (
         identity_service.find_plex_by_tg(telegram_user_id) if bind_to_telegram else None
@@ -278,8 +319,6 @@ async def register_plex(
         except Exception:
             logger.exception("发送 Plex 邀请管理员通知失败: %s", admin)
 
-    if privileged:
-        _remove_privileged_code(code)
     return telegram_bound, code_owner
 
 
@@ -290,30 +329,50 @@ async def register_emby(
     password: str | None,
     bind_to_telegram: bool,
     telegram_user_id: int,
-    privileged: bool,
+    privileged: bool | None = None,
     notify: Notifier = send_message_by_url,
     emby_factory: Callable[..., Emby] = Emby,
 ) -> tuple[bool, int, str]:
-    """Redeem an Emby invite in legacy side-effect order."""
-    _check_registration("emby", privileged)
+    """Redeem an Emby invite in preclaim -> external call -> confirm order."""
     password = str(password or "").strip()
     if not username or len(username) < 2:
         raise InvitationRejected("invalid_username", "请输入有效的用户名")
     if len(password) < 4:
         raise InvitationRejected("invalid_password", "请输入有效的密码")
-    code_owner = _require_unused_code(code)
 
-    emby = emby_factory()
-    if identity_service.find_emby_by_username(username) or emby.get_uid_from_username(
-        username
-    ):
-        raise InvitationRejected("username_exists", "该用户名已存在，请使用其他用户名")
-    created, result = emby.add_user(username=username, password=password)
-    if not created:
-        raise InvitationRejected("create_failed", f"创建用户失败: {result}")
-    emby_id = str(result)
-    _mark_registration_used(
-        code=code, used_by=username, service="emby", emby_id=emby_id or None
+    reg_enabled = accounts_service.is_registration_enabled("emby")
+    code_owner, is_privileged = invitation_repository.preclaim_invitation_code(
+        code=code,
+        used_by=username,
+        service="emby",
+        registration_enabled=reg_enabled,
+    )
+    logger.info(
+        "邀请码 %s 已由用户名 %s 预占 (owner=%s, privileged=%s)",
+        code,
+        username,
+        code_owner,
+        is_privileged,
+    )
+
+    try:
+        emby = emby_factory()
+        if identity_service.find_emby_by_username(
+            username
+        ) or emby.get_uid_from_username(username):
+            raise InvitationRejected(
+                "username_exists", "该用户名已存在，请使用其他用户名"
+            )
+        created, result = emby.add_user(username=username, password=password)
+        if not created:
+            raise InvitationRejected("create_failed", f"创建用户失败: {result}")
+        emby_id = str(result)
+    except Exception:
+        invitation_repository.release_invitation_code(code=code, used_by=username)
+        raise
+
+    invitation_repository.confirm_invitation_redemption(
+        code=code, emby_id=emby_id or None
     )
 
     telegram_bound = False
@@ -351,8 +410,6 @@ async def register_emby(
             )
         except Exception:
             logger.exception("发送 Emby 邀请管理员通知失败: %s", admin)
-    if privileged:
-        _remove_privileged_code(code)
     return telegram_bound, code_owner, password
 
 

@@ -4,7 +4,6 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
-from app.domains.badge_awards.jobs import check_and_award_game_king_badge
 from app.domains.prediction import service as prediction_service
 from app.domains.prediction.exceptions import PredictionError
 from app.domains.prediction.schemas import (
@@ -124,11 +123,6 @@ async def place_bet(
             tg_id=int(current_user.id),
             option=int(data.option),
             amount=int(data.amount),
-        )
-
-        background_tasks.add_task(
-            check_and_award_game_king_badge,
-            user_id=int(current_user.id),
         )
 
         return {"success": True, **result}

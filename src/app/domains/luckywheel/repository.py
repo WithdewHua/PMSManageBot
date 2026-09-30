@@ -219,8 +219,6 @@ def spin_tx(
         cost_credits,
         source,
     )
-    if privileged:
-        invitation_repository.persist_privileged_codes_tx(issued_codes)
     final_credits, _ = credits_repository.get_tx(
         session, CreditAccount.tg(int(tg_id)), for_update=True
     )
@@ -867,3 +865,24 @@ def count_paid_spins_tx(
     if paid_only:
         stmt = stmt.where(WheelStats.source == "paid")
     return int(session.execute(stmt).scalar_one())
+
+
+def count_badge_spins(tg_id: int) -> int:
+    """Count every recorded spin, including free spins, as the legacy badge did."""
+    with get_session() as session:
+        return int(
+            session.execute(
+                select(func.count(WheelStats.id)).where(WheelStats.tg_id == tg_id)
+            ).scalar_one()
+        )
+
+
+def list_badge_eligible_tg_ids(min_spins: int) -> list[int]:
+    with get_session() as session:
+        return list(
+            session.execute(
+                select(WheelStats.tg_id)
+                .group_by(WheelStats.tg_id)
+                .having(func.count(WheelStats.id) >= min_spins)
+            ).scalars()
+        )

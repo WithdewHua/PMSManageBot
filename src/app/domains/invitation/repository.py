@@ -1,9 +1,8 @@
-import threading
+from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import func, select, update
 
-from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
 from app.domains.credits import repository as credits_repository
@@ -12,6 +11,7 @@ from app.domains.identity import repository as identity_repository
 from app.domains.invitation.exceptions import (
     InvitationCodeNotFound,
     InvitationCodeUsed,
+    InvitationRejected,
 )
 from app.domains.invitation.models import Invitation
 
@@ -285,10 +285,6 @@ def redeem_invitation_code_tx(
     return float(mutation.after)
 
 
-#: 特权码写 data/.env 是文档化的 pre-commit 例外（docs/architecture.md 已知例外）。
-_INVITATION_PRIVILEGED_CODES_LOCK = threading.Lock()
-
-
 def list_used_invitation_records() -> list[dict[str, object]]:
     with get_session() as session:
         rows = session.execute(
@@ -394,19 +390,27 @@ def create_invitation_codes(
                     "insufficient_credits",
                     f"积分不足，您当前积分 {available}，需要 {charge:g} 积分才能生成邀请码",
                 ) from error
-        inserted = insert_invitation_codes_tx(session, int(owner_tg_id), codes)
-        if privileged:
-            persist_privileged_codes_tx(inserted)
+        inserted = insert_invitation_codes_tx(
+            session, int(owner_tg_id), codes, privileged=privileged
+        )
         return inserted
 
 
 def insert_invitation_codes_tx(
-    session, owner_tg_id: int, codes: list[str]
+    session, owner_tg_id: int, codes: list[str], *, privileged: bool = False
 ) -> list[str]:
     if not codes:
         raise ValueError("邀请码数量必须为正")
+    is_privileged = 1 if privileged else 0
     for code in codes:
-        session.add(Invitation(code=str(code), owner=int(owner_tg_id), is_used=0))
+        session.add(
+            Invitation(
+                code=str(code),
+                owner=int(owner_tg_id),
+                is_used=0,
+                is_privileged=is_privileged,
+            )
+        )
     session.flush()
     return list(codes)
 
@@ -434,29 +438,169 @@ def issue_codes_tx(
     if total <= 0:
         raise ValueError("邀请码数量必须为正")
     codes = [uuid4().hex for _ in range(total)]
-    return insert_invitation_codes_tx(session, owner_tg_id, codes)
+    return insert_invitation_codes_tx(
+        session, owner_tg_id, codes, privileged=privileged
+    )
 
 
-def persist_privileged_codes_tx(codes) -> None:
-    """把特权码写入配置（pre-commit 例外，调用方须在最后一次 flush 之后调用）。
+def preclaim_invitation_code_tx(
+    session,
+    *,
+    code: str,
+    used_by: str,
+    service: str,
+    registration_enabled: bool,
+) -> tuple[int, bool]:
+    """预占邀请码并校验特权与注册开关。
 
-    配置文件不是事务性的：先更新内存列表再落盘，写失败就恢复内存列表并把异常
-    抛给调用方，让整个领取事务回滚（这是唯一被允许的 pre-commit 副作用）。
+    返回 (owner_tg_id, is_privileged)。
     """
-    if not codes:
-        return
-    with _INVITATION_PRIVILEGED_CODES_LOCK:
-        original_codes = list(settings.PRIVILEGED_CODES)
-        new_codes = original_codes.copy()
-        for code in codes:
-            if code not in new_codes:
-                new_codes.append(code)
-        settings.PRIVILEGED_CODES[:] = new_codes
-        try:
-            settings.save_config_to_env_file(
-                {"PRIVILEGED_CODES": ",".join(new_codes)},
-                raise_on_error=True,
+    stmt = (
+        update(Invitation)
+        .where(Invitation.code == code, Invitation.is_used == 0)
+        .values(is_used=1, used_by=used_by, service=service)
+    )
+    result = session.execute(stmt)
+    if result.rowcount > 0:
+        inv = session.execute(
+            select(Invitation.owner, Invitation.is_privileged).where(
+                Invitation.code == code
             )
-        except Exception:
-            settings.PRIVILEGED_CODES[:] = original_codes
-            raise
+        ).one()
+        owner = int(inv[0])
+        is_privileged = bool(inv[1])
+        if not registration_enabled and not is_privileged:
+            raise InvitationRejected(
+                f"{service}_registration_closed",
+                f"{service.title()} 当前不接受新用户注册",
+            )
+        return owner, is_privileged
+
+    # rowcount == 0: either does not exist, or already used
+    if not registration_enabled:
+        raise InvitationRejected(
+            f"{service}_registration_closed",
+            f"{service.title()} 当前不接受新用户注册",
+        )
+
+    existing = session.execute(
+        select(Invitation.is_used).where(Invitation.code == code)
+    ).scalar_one_or_none()
+    if existing is None:
+        raise InvitationCodeNotFound()
+    raise InvitationCodeUsed()
+
+
+def preclaim_invitation_code(
+    *,
+    code: str,
+    used_by: str,
+    service: str,
+    registration_enabled: bool,
+) -> tuple[int, bool]:
+    with get_session() as session:
+        return preclaim_invitation_code_tx(
+            session,
+            code=code,
+            used_by=used_by,
+            service=service,
+            registration_enabled=registration_enabled,
+        )
+
+
+def release_invitation_code_tx(
+    session,
+    *,
+    code: str,
+    used_by: str,
+) -> None:
+    session.execute(
+        update(Invitation)
+        .where(Invitation.code == code, Invitation.used_by == used_by)
+        .values(is_used=0, used_by=None, service=None)
+    )
+
+
+def release_invitation_code(*, code: str, used_by: str) -> None:
+    with get_session() as session:
+        release_invitation_code_tx(session, code=code, used_by=used_by)
+
+
+def confirm_invitation_redemption_tx(
+    session,
+    *,
+    code: str,
+    plex_id: int | None = None,
+    emby_id: str | None = None,
+) -> None:
+    values: dict[str, Any] = {}
+    if plex_id is not None:
+        values["plex_id"] = plex_id
+    if emby_id is not None:
+        values["emby_id"] = emby_id
+    if values:
+        session.execute(
+            update(Invitation).where(Invitation.code == code).values(**values)
+        )
+
+
+def confirm_invitation_redemption(
+    *,
+    code: str,
+    plex_id: int | None = None,
+    emby_id: str | None = None,
+) -> None:
+    with get_session() as session:
+        confirm_invitation_redemption_tx(
+            session, code=code, plex_id=plex_id, emby_id=emby_id
+        )
+
+
+def check_privileged_codes_tx(session, codes: list[str]) -> set[str]:
+    if not codes:
+        return set()
+    rows = (
+        session.execute(
+            select(Invitation.code).where(
+                Invitation.code.in_([str(c) for c in codes]),
+                Invitation.is_used == 0,
+                Invitation.is_privileged == 1,
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return set(rows)
+
+
+def check_privileged_codes(codes: list[str]) -> set[str]:
+    if not codes:
+        return set()
+    with get_session() as session:
+        return check_privileged_codes_tx(session, codes)
+
+
+def import_privileged_codes_tx(session, codes: list[str]) -> dict[str, list[str]]:
+    summary: dict[str, list[str]] = {
+        "marked": [],
+        "used_skipped": [],
+        "not_found_skipped": [],
+    }
+    for code in codes:
+        row = session.get(Invitation, str(code))
+        if row is None:
+            logger.warning("导入特权码跳过：邀请码 %s 在数据库中不存在", code)
+            summary["not_found_skipped"].append(str(code))
+        elif row.is_used != 0:
+            logger.info("导入特权码跳过：邀请码 %s 已被使用", code)
+            summary["used_skipped"].append(str(code))
+        else:
+            row.is_privileged = 1
+            summary["marked"].append(str(code))
+            logger.info("特权码导入成功：%s 标记为特权码", code)
+    return summary
+
+
+def import_privileged_codes(codes: list[str]) -> dict[str, list[str]]:
+    with get_session() as session:
+        return import_privileged_codes_tx(session, codes)

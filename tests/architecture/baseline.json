@@ -2,125 +2,6 @@
   "version": 1,
   "cross_domain_calls": [
     {
-      "key": "call|src/app/domains/badge_awards/jobs.py|115|imported|badges|UserBadge",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badge_awards/jobs.py",
-      "line": 115,
-      "kind": "call",
-      "source_domain": "badge_awards",
-      "target_domain": "badges",
-      "target": "UserBadge",
-      "b3_source_id": "app.databases.db_func:check_and_award_supreme_contributor_badge"
-    },
-    {
-      "key": "call|src/app/domains/badge_awards/jobs.py|207|imported|blackjack|get_blackjack_config_dict",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badge_awards/jobs.py",
-      "line": 207,
-      "kind": "call",
-      "source_domain": "badge_awards",
-      "target_domain": "blackjack",
-      "target": "get_blackjack_config_dict",
-      "b3_source_id": "app.databases.db_func:check_and_award_game_king_badge"
-    },
-    {
-      "key": "call|src/app/domains/badge_awards/jobs.py|220|imported|badges|get_badge_by_type",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badge_awards/jobs.py",
-      "line": 220,
-      "kind": "call",
-      "source_domain": "badge_awards",
-      "target_domain": "badges",
-      "target": "get_badge_by_type",
-      "b3_source_id": "app.databases.db_func:check_and_award_game_king_badge"
-    },
-    {
-      "key": "call|src/app/domains/badge_awards/jobs.py|223|imported|badges|create_badge",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badge_awards/jobs.py",
-      "line": 223,
-      "kind": "call",
-      "source_domain": "badge_awards",
-      "target_domain": "badges",
-      "target": "create_badge",
-      "b3_source_id": "app.databases.db_func:check_and_award_game_king_badge"
-    },
-    {
-      "key": "call|src/app/domains/badge_awards/jobs.py|253|imported|blackjack|get_user_blackjack_stats",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badge_awards/jobs.py",
-      "line": 253,
-      "kind": "call",
-      "source_domain": "badge_awards",
-      "target_domain": "blackjack",
-      "target": "get_user_blackjack_stats",
-      "b3_source_id": "app.databases.db_func:check_and_award_game_king_badge"
-    },
-    {
-      "key": "call|src/app/domains/badge_awards/jobs.py|331|imported|blackjack|get_game_king_eligible_tg_ids_tx",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badge_awards/jobs.py",
-      "line": 331,
-      "kind": "call",
-      "source_domain": "badge_awards",
-      "target_domain": "blackjack",
-      "target": "get_game_king_eligible_tg_ids_tx",
-      "b3_source_id": "app.databases.db_func:check_and_award_game_king_badge"
-    },
-    {
-      "key": "call|src/app/domains/badge_awards/jobs.py|374|imported|badges|UserBadge",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badge_awards/jobs.py",
-      "line": 374,
-      "kind": "call",
-      "source_domain": "badge_awards",
-      "target_domain": "badges",
-      "target": "UserBadge",
-      "b3_source_id": "app.databases.db_func:check_and_award_game_king_badge"
-    },
-    {
-      "key": "call|src/app/domains/badge_awards/jobs.py|38|imported|badges|get_badge_by_type",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badge_awards/jobs.py",
-      "line": 38,
-      "kind": "call",
-      "source_domain": "badge_awards",
-      "target_domain": "badges",
-      "target": "get_badge_by_type",
-      "b3_source_id": "app.databases.db_func:check_and_award_supreme_contributor_badge"
-    },
-    {
-      "key": "call|src/app/domains/badge_awards/jobs.py|41|imported|badges|create_badge",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badge_awards/jobs.py",
-      "line": 41,
-      "kind": "call",
-      "source_domain": "badge_awards",
-      "target_domain": "badges",
-      "target": "create_badge",
-      "b3_source_id": "app.databases.db_func:check_and_award_supreme_contributor_badge"
-    },
-    {
-      "key": "call|src/app/domains/badges/repository.py|289|imported|credits|register_cache_invalidation",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badges/repository.py",
-      "line": 289,
-      "kind": "call",
-      "source_domain": "badges",
-      "target_domain": "credits",
-      "target": "register_cache_invalidation"
-    },
-    {
-      "key": "call|src/app/domains/badges/router.py|183|imported|credits|read_optional",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badges/router.py",
-      "line": 183,
-      "kind": "call",
-      "source_domain": "badges",
-      "target_domain": "credits",
-      "target": "read_optional"
-    },
-    {
       "key": "call|src/app/domains/credits/router.py|106|imported|profile|CreditsTransferResponse",
       "owner": "make-credit-changes-atomic",
       "path": "src/app/domains/credits/router.py",
@@ -211,54 +92,44 @@
       "target": "CreditsTransferResponse"
     },
     {
-      "key": "call|src/app/domains/crypto_donation/router.py|446|imported|donation|get_donation_multiplier",
+      "key": "call|src/app/domains/crypto_donation/router.py|445|imported|donation|get_donation_multiplier",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 446,
+      "line": 445,
       "kind": "call",
       "source_domain": "crypto_donation",
       "target_domain": "donation",
       "target": "get_donation_multiplier"
     },
     {
-      "key": "call|src/app/domains/crypto_donation/router.py|449|facade|donation|update_user_donation",
+      "key": "call|src/app/domains/crypto_donation/router.py|448|facade|donation|update_user_donation",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 449,
+      "line": 448,
       "kind": "facade_call",
       "source_domain": "crypto_donation",
       "target_domain": "donation",
       "target": "update_user_donation"
     },
     {
-      "key": "call|src/app/domains/crypto_donation/router.py|451|imported|credits|add",
+      "key": "call|src/app/domains/crypto_donation/router.py|450|imported|credits|add",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 451,
+      "line": 450,
       "kind": "call",
       "source_domain": "crypto_donation",
       "target_domain": "credits",
       "target": "add"
     },
     {
-      "key": "call|src/app/domains/crypto_donation/router.py|463|imported|donation|get_donation_multiplier",
+      "key": "call|src/app/domains/crypto_donation/router.py|462|imported|donation|get_donation_multiplier",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 463,
+      "line": 462,
       "kind": "call",
       "source_domain": "crypto_donation",
       "target_domain": "donation",
       "target": "get_donation_multiplier"
-    },
-    {
-      "key": "call|src/app/domains/crypto_donation/router.py|537|imported|badge_awards|check_and_award_supreme_contributor_badge",
-      "owner": "promote-remaining-domains",
-      "path": "src/app/domains/crypto_donation/router.py",
-      "line": 537,
-      "kind": "call",
-      "source_domain": "crypto_donation",
-      "target_domain": "badge_awards",
-      "target": "check_and_award_supreme_contributor_badge"
     },
     {
       "key": "call|src/app/domains/custom_lines/repository.py|455|imported|traffic|_get_line_monthly_traffic",
@@ -281,24 +152,14 @@
       "target": "_get_line_monthly_traffic"
     },
     {
-      "key": "call|src/app/domains/donation/admin_router.py|51|imported|credits|add",
+      "key": "call|src/app/domains/donation/admin_router.py|49|imported|credits|add",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/donation/admin_router.py",
-      "line": 51,
+      "line": 49,
       "kind": "call",
       "source_domain": "donation",
       "target_domain": "credits",
       "target": "add"
-    },
-    {
-      "key": "call|src/app/domains/donation/admin_router.py|85|imported|badge_awards|check_and_award_supreme_contributor_badge",
-      "owner": "promote-remaining-domains",
-      "path": "src/app/domains/donation/admin_router.py",
-      "line": 85,
-      "kind": "call",
-      "source_domain": "donation",
-      "target_domain": "badge_awards",
-      "target": "check_and_award_supreme_contributor_badge"
     },
     {
       "key": "call|src/app/domains/donation/bot.py|45|imported|credits|add",
@@ -852,30 +713,20 @@
       "b3_source_id": "app.domains.rankings.bot:rank_24h"
     },
     {
-      "key": "call|src/app/domains/rankings/repository.py|174|self|badges|_user_badge_to_dict",
+      "key": "call|src/app/domains/rankings/repository.py|227|imported|blackjack|get_blackjack_skill_ranks",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/rankings/repository.py",
-      "line": 174,
-      "kind": "self_call",
-      "source_domain": "rankings",
-      "target_domain": "badges",
-      "target": "_user_badge_to_dict"
-    },
-    {
-      "key": "call|src/app/domains/rankings/repository.py|189|imported|blackjack|get_blackjack_skill_ranks",
-      "owner": "promote-remaining-domains",
-      "path": "src/app/domains/rankings/repository.py",
-      "line": 189,
+      "line": 227,
       "kind": "call",
       "source_domain": "rankings",
       "target_domain": "blackjack",
       "target": "get_blackjack_skill_ranks"
     },
     {
-      "key": "call|src/app/domains/rankings/repository.py|193|imported|blackjack|get_blackjack_max_win_rank",
+      "key": "call|src/app/domains/rankings/repository.py|231|imported|blackjack|get_blackjack_max_win_rank",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/rankings/repository.py",
-      "line": 193,
+      "line": 231,
       "kind": "call",
       "source_domain": "rankings",
       "target_domain": "blackjack",
@@ -1102,253 +953,6 @@
       "target": "deduct"
     },
     {
-      "key": "call|src/app/domains/watch_rewards/service.py|247|imported|identity|isnot",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 247,
-      "kind": "call",
-      "source_domain": "watch_rewards",
-      "target_domain": "identity",
-      "target": "isnot"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|265|imported|premium|_resolve_premium_status_for_settlement",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 265,
-      "kind": "call",
-      "source_domain": "watch_rewards",
-      "target_domain": "premium",
-      "target": "_resolve_premium_status_for_settlement"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|282|imported|premium|_settle_premium_traffic_usage",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 282,
-      "kind": "call",
-      "source_domain": "watch_rewards",
-      "target_domain": "premium",
-      "target": "_settle_premium_traffic_usage"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|311|facade|badges|get_user_active_badges_with_bonus",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 311,
-      "kind": "facade_call",
-      "source_domain": "watch_rewards",
-      "target_domain": "badges",
-      "target": "get_user_active_badges_with_bonus"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|433|imported|premium|_resolve_premium_status_for_settlement",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 433,
-      "kind": "call",
-      "source_domain": "watch_rewards",
-      "target_domain": "premium",
-      "target": "_resolve_premium_status_for_settlement"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|450|imported|premium|_settle_premium_traffic_usage",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 450,
-      "kind": "call",
-      "source_domain": "watch_rewards",
-      "target_domain": "premium",
-      "target": "_settle_premium_traffic_usage"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|477|facade|badges|get_user_active_badges_with_bonus",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 477,
-      "kind": "facade_call",
-      "source_domain": "watch_rewards",
-      "target_domain": "badges",
-      "target": "get_user_active_badges_with_bonus"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|657|imported|identity|ensure_statistics_tx",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 657,
-      "kind": "call",
-      "source_domain": "watch_rewards",
-      "target_domain": "identity",
-      "target": "ensure_statistics_tx"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|659|imported|credits|move_tx",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 659,
-      "kind": "call",
-      "source_domain": "watch_rewards",
-      "target_domain": "credits",
-      "target": "move_tx"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|667|imported|credits|add_tx",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 667,
-      "kind": "call",
-      "source_domain": "watch_rewards",
-      "target_domain": "credits",
-      "target": "add_tx"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|668|imported|credits|charge_premium_traffic_tx",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 668,
-      "kind": "call",
-      "source_domain": "watch_rewards",
-      "target_domain": "credits",
-      "target": "charge_premium_traffic_tx"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|674|imported|credits|add_tx",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 674,
-      "kind": "call",
-      "source_domain": "watch_rewards",
-      "target_domain": "credits",
-      "target": "add_tx"
-    },
-    {
-      "key": "call|src/app/domains/watch_rewards/service.py|685|imported|premium|update_traffic_debt_tx",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 685,
-      "kind": "call",
-      "source_domain": "watch_rewards",
-      "target_domain": "premium",
-      "target": "update_traffic_debt_tx"
-    },
-    {
-      "key": "import|src/app/domains/badge_awards/jobs.py|10|app.domains.blackjack.service|service",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badge_awards/jobs.py",
-      "line": 10,
-      "kind": "import",
-      "source_domain": "badge_awards",
-      "target_domain": "blackjack",
-      "target_module": "app.domains.blackjack.service",
-      "symbol": "service",
-      "b3_source_id": "app.databases.db_func:@import:19"
-    },
-    {
-      "key": "import|src/app/domains/badge_awards/jobs.py|11|app.domains.identity.models|Statistics",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badge_awards/jobs.py",
-      "line": 11,
-      "kind": "import",
-      "source_domain": "badge_awards",
-      "target_domain": "identity",
-      "target_module": "app.domains.identity.models",
-      "symbol": "Statistics",
-      "b3_source_id": "app.databases.db_func:@import:20"
-    },
-    {
-      "key": "import|src/app/domains/badge_awards/jobs.py|12|app.domains.luckywheel.models|WheelStats",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badge_awards/jobs.py",
-      "line": 12,
-      "kind": "import",
-      "source_domain": "badge_awards",
-      "target_domain": "luckywheel",
-      "target_module": "app.domains.luckywheel.models",
-      "symbol": "WheelStats",
-      "b3_source_id": "app.databases.db_func:@import:21"
-    },
-    {
-      "key": "import|src/app/domains/badge_awards/jobs.py|13|app.domains.prediction.models|PredictionBet",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badge_awards/jobs.py",
-      "line": 13,
-      "kind": "import",
-      "source_domain": "badge_awards",
-      "target_domain": "prediction",
-      "target_module": "app.domains.prediction.models",
-      "symbol": "PredictionBet",
-      "b3_source_id": "app.databases.db_func:@import:22"
-    },
-    {
-      "key": "import|src/app/domains/badge_awards/jobs.py|14|app.domains.treasure.models|TreasureParticipation",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badge_awards/jobs.py",
-      "line": 14,
-      "kind": "import",
-      "source_domain": "badge_awards",
-      "target_domain": "treasure",
-      "target_module": "app.domains.treasure.models",
-      "symbol": "TreasureParticipation",
-      "b3_source_id": "app.databases.db_func:@import:23"
-    },
-    {
-      "key": "import|src/app/domains/badge_awards/jobs.py|8|app.domains.badges.service|service",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badge_awards/jobs.py",
-      "line": 8,
-      "kind": "import",
-      "source_domain": "badge_awards",
-      "target_domain": "badges",
-      "target_module": "app.domains.badges.service",
-      "symbol": "service"
-    },
-    {
-      "key": "import|src/app/domains/badge_awards/jobs.py|9|app.domains.badges.models|UserBadge",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badge_awards/jobs.py",
-      "line": 9,
-      "kind": "import",
-      "source_domain": "badge_awards",
-      "target_domain": "badges",
-      "target_module": "app.domains.badges.models",
-      "symbol": "UserBadge",
-      "b3_source_id": "app.databases.db_func:@import:18"
-    },
-    {
-      "key": "import|src/app/domains/badges/repository.py|13|app.domains.credits.service|service",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badges/repository.py",
-      "line": 13,
-      "kind": "import",
-      "source_domain": "badges",
-      "target_domain": "credits",
-      "target_module": "app.domains.credits.service",
-      "symbol": "service"
-    },
-    {
-      "key": "import|src/app/domains/badges/router.py|16|app.domains.credits.service|service",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/badges/router.py",
-      "line": 16,
-      "kind": "import",
-      "source_domain": "badges",
-      "target_domain": "credits",
-      "target_module": "app.domains.credits.service",
-      "symbol": "service"
-    },
-    {
-      "key": "import|src/app/domains/blackjack/router/cash.py|15|app.domains.badge_awards.jobs|check_and_award_game_king_badge",
-      "owner": "promote-blackjack-domain",
-      "path": "src/app/domains/blackjack/router/cash.py",
-      "line": 15,
-      "kind": "import",
-      "source_domain": "blackjack",
-      "target_domain": "badge_awards",
-      "target_module": "app.domains.badge_awards.jobs",
-      "symbol": "check_and_award_game_king_badge",
-      "b3_source_id": "app.databases.db_func:check_and_award_game_king_badge"
-    },
-    {
       "key": "import|src/app/domains/credits/jobs.py|6|app.domains.identity.models|EmbyUser",
       "owner": "make-credit-changes-atomic",
       "path": "src/app/domains/credits/jobs.py",
@@ -1407,10 +1011,10 @@
       "symbol": "CreditsTransferResponse"
     },
     {
-      "key": "import|src/app/domains/crypto_donation/router.py|16|app.domains.credits.service|service",
+      "key": "import|src/app/domains/crypto_donation/router.py|15|app.domains.credits.service|service",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 16,
+      "line": 15,
       "kind": "import",
       "source_domain": "crypto_donation",
       "target_domain": "credits",
@@ -1418,10 +1022,10 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/crypto_donation/router.py|28|app.domains.donation.service|service",
+      "key": "import|src/app/domains/crypto_donation/router.py|27|app.domains.donation.service|service",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 28,
+      "line": 27,
       "kind": "import",
       "source_domain": "crypto_donation",
       "target_domain": "donation",
@@ -1429,10 +1033,10 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/crypto_donation/router.py|29|app.domains.identity.models|EmbyUser",
+      "key": "import|src/app/domains/crypto_donation/router.py|28|app.domains.identity.models|EmbyUser",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 29,
+      "line": 28,
       "kind": "import",
       "source_domain": "crypto_donation",
       "target_domain": "identity",
@@ -1440,26 +1044,15 @@
       "symbol": "EmbyUser"
     },
     {
-      "key": "import|src/app/domains/crypto_donation/router.py|29|app.domains.identity.models|PlexUser",
+      "key": "import|src/app/domains/crypto_donation/router.py|28|app.domains.identity.models|PlexUser",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/crypto_donation/router.py",
-      "line": 29,
+      "line": 28,
       "kind": "import",
       "source_domain": "crypto_donation",
       "target_domain": "identity",
       "target_module": "app.domains.identity.models",
       "symbol": "PlexUser"
-    },
-    {
-      "key": "import|src/app/domains/crypto_donation/router.py|533|app.domains.badge_awards.jobs|check_and_award_supreme_contributor_badge",
-      "owner": "promote-remaining-domains",
-      "path": "src/app/domains/crypto_donation/router.py",
-      "line": 533,
-      "kind": "import",
-      "source_domain": "crypto_donation",
-      "target_domain": "badge_awards",
-      "target_module": "app.domains.badge_awards.jobs",
-      "symbol": "check_and_award_supreme_contributor_badge"
     },
     {
       "key": "import|src/app/domains/custom_lines/repository.py|23|app.domains.lines.models|LineSchedule",
@@ -1473,26 +1066,15 @@
       "symbol": "LineSchedule"
     },
     {
-      "key": "import|src/app/domains/donation/admin_router.py|7|app.domains.credits.service|service",
+      "key": "import|src/app/domains/donation/admin_router.py|5|app.domains.credits.service|service",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/donation/admin_router.py",
-      "line": 7,
+      "line": 5,
       "kind": "import",
       "source_domain": "donation",
       "target_domain": "credits",
       "target_module": "app.domains.credits.service",
       "symbol": "service"
-    },
-    {
-      "key": "import|src/app/domains/donation/admin_router.py|81|app.domains.badge_awards.jobs|check_and_award_supreme_contributor_badge",
-      "owner": "promote-remaining-domains",
-      "path": "src/app/domains/donation/admin_router.py",
-      "line": 81,
-      "kind": "import",
-      "source_domain": "donation",
-      "target_domain": "badge_awards",
-      "target_module": "app.domains.badge_awards.jobs",
-      "symbol": "check_and_award_supreme_contributor_badge"
     },
     {
       "key": "import|src/app/domains/donation/bot.py|6|app.domains.credits.service|service",
@@ -1539,17 +1121,6 @@
       "symbol": "add_redeem_code"
     },
     {
-      "key": "import|src/app/domains/donation/router.py|333|app.domains.badge_awards.jobs|check_and_award_supreme_contributor_badge",
-      "owner": "promote-remaining-domains",
-      "path": "src/app/domains/donation/router.py",
-      "line": 333,
-      "kind": "import",
-      "source_domain": "donation",
-      "target_domain": "badge_awards",
-      "target_module": "app.domains.badge_awards.jobs",
-      "symbol": "check_and_award_supreme_contributor_badge"
-    },
-    {
       "key": "import|src/app/domains/donation/router.py|8|app.domains.credits.service|service",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/donation/router.py",
@@ -1594,18 +1165,6 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/luckywheel/router.py|7|app.domains.badge_awards.jobs|check_and_award_game_king_badge",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/luckywheel/router.py",
-      "line": 7,
-      "kind": "import",
-      "source_domain": "luckywheel",
-      "target_domain": "badge_awards",
-      "target_module": "app.domains.badge_awards.jobs",
-      "symbol": "check_and_award_game_king_badge",
-      "b3_source_id": "app.databases.db_func:check_and_award_game_king_badge"
-    },
-    {
       "key": "import|src/app/domains/media_access/repository.py|11|app.domains.identity.rules|rules",
       "owner": "promote-line-domains",
       "path": "src/app/domains/media_access/repository.py",
@@ -1626,18 +1185,6 @@
       "target_domain": "credits",
       "target_module": "app.domains.credits.exceptions",
       "symbol": "InsufficientCredits"
-    },
-    {
-      "key": "import|src/app/domains/prediction/router.py|7|app.domains.badge_awards.jobs|check_and_award_game_king_badge",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/prediction/router.py",
-      "line": 7,
-      "kind": "import",
-      "source_domain": "prediction",
-      "target_domain": "badge_awards",
-      "target_module": "app.domains.badge_awards.jobs",
-      "symbol": "check_and_award_game_king_badge",
-      "b3_source_id": "app.databases.db_func:check_and_award_game_king_badge"
     },
     {
       "key": "import|src/app/domains/premium/admin_router.py|15|app.domains.traffic.service|service",
@@ -1828,10 +1375,10 @@
       "b3_source_id": "app.utils.report:stats_report"
     },
     {
-      "key": "import|src/app/domains/rankings/repository.py|7|app.domains.blackjack.service|service",
+      "key": "import|src/app/domains/rankings/repository.py|9|app.domains.blackjack.service|service",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/rankings/repository.py",
-      "line": 7,
+      "line": 9,
       "kind": "import",
       "source_domain": "rankings",
       "target_domain": "blackjack",
@@ -2148,18 +1695,6 @@
       "symbol": "PlexUser"
     },
     {
-      "key": "import|src/app/domains/treasure/router.py|4|app.domains.badge_awards.jobs|check_and_award_game_king_badge",
-      "owner": "promote-activity-domains",
-      "path": "src/app/domains/treasure/router.py",
-      "line": 4,
-      "kind": "import",
-      "source_domain": "treasure",
-      "target_domain": "badge_awards",
-      "target_module": "app.domains.badge_awards.jobs",
-      "symbol": "check_and_award_game_king_badge",
-      "b3_source_id": "app.databases.db_func:check_and_award_game_king_badge"
-    },
-    {
       "key": "import|src/app/domains/vaultwarden/router.py|18|app.domains.credits.service|service",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/vaultwarden/router.py",
@@ -2169,94 +1704,6 @@
       "target_domain": "credits",
       "target_module": "app.domains.credits.service",
       "symbol": "service"
-    },
-    {
-      "key": "import|src/app/domains/watch_rewards/service.py|12|app.domains.credits.repository|repository",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 12,
-      "kind": "import",
-      "source_domain": "watch_rewards",
-      "target_domain": "credits",
-      "target_module": "app.domains.credits.repository",
-      "symbol": "repository"
-    },
-    {
-      "key": "import|src/app/domains/watch_rewards/service.py|15|app.domains.identity.repository|repository",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 15,
-      "kind": "import",
-      "source_domain": "watch_rewards",
-      "target_domain": "identity",
-      "target_module": "app.domains.identity.repository",
-      "symbol": "repository"
-    },
-    {
-      "key": "import|src/app/domains/watch_rewards/service.py|16|app.domains.identity.models|EmbyUser",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 16,
-      "kind": "import",
-      "source_domain": "watch_rewards",
-      "target_domain": "identity",
-      "target_module": "app.domains.identity.models",
-      "symbol": "EmbyUser"
-    },
-    {
-      "key": "import|src/app/domains/watch_rewards/service.py|16|app.domains.identity.models|PlexUser",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 16,
-      "kind": "import",
-      "source_domain": "watch_rewards",
-      "target_domain": "identity",
-      "target_module": "app.domains.identity.models",
-      "symbol": "PlexUser"
-    },
-    {
-      "key": "import|src/app/domains/watch_rewards/service.py|16|app.domains.identity.models|Statistics",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 16,
-      "kind": "import",
-      "source_domain": "watch_rewards",
-      "target_domain": "identity",
-      "target_module": "app.domains.identity.models",
-      "symbol": "Statistics"
-    },
-    {
-      "key": "import|src/app/domains/watch_rewards/service.py|18|app.domains.premium.repository|repository",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 18,
-      "kind": "import",
-      "source_domain": "watch_rewards",
-      "target_domain": "premium",
-      "target_module": "app.domains.premium.repository",
-      "symbol": "repository"
-    },
-    {
-      "key": "import|src/app/domains/watch_rewards/service.py|207|app.domains.premium.rules|_resolve_premium_status_for_settlement",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 207,
-      "kind": "import",
-      "source_domain": "watch_rewards",
-      "target_domain": "premium",
-      "target_module": "app.domains.premium.rules",
-      "symbol": "_resolve_premium_status_for_settlement"
-    },
-    {
-      "key": "import|src/app/domains/watch_rewards/service.py|207|app.domains.premium.rules|_settle_premium_traffic_usage",
-      "owner": "promote-reward-domains",
-      "path": "src/app/domains/watch_rewards/service.py",
-      "line": 207,
-      "kind": "import",
-      "source_domain": "watch_rewards",
-      "target_domain": "premium",
-      "target_module": "app.domains.premium.rules",
-      "symbol": "_settle_premium_traffic_usage"
     }
   ],
   "config_access": [],
@@ -2268,14 +1715,14 @@
     "Top-level architecture": 0,
     "External integration isolation": 0,
     "Legacy database facade freeze": 0,
-    "SQLAlchemy direct use scope": 7,
-    "Database engine import scope": 9,
-    "Domain model import scope": 10,
-    "Six-tier domain dependencies": 26,
-    "Acyclic domain siblings": 9,
+    "SQLAlchemy direct use scope": 6,
+    "Database engine import scope": 8,
+    "Domain model import scope": 9,
+    "Six-tier domain dependencies": 24,
+    "Acyclic domain siblings": 8,
     "Domain internal layering": 3,
     "Domain types are pure value modules": 0,
     "Domain rules are pure value computations": 0,
-    "Domain entry points do not touch data layer": 33
+    "Domain entry points do not touch data layer": 32
   }
 }

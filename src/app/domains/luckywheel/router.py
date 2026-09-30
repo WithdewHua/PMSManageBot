@@ -4,7 +4,6 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from fastapi.responses import JSONResponse
 
 from app.core.log import logger
-from app.domains.badge_awards.jobs import check_and_award_game_king_badge
 from app.domains.luckywheel import constants as luckywheel_constants
 from app.domains.luckywheel import exceptions as luckywheel_exceptions
 from app.domains.luckywheel import notifications as luckywheel_notifications
@@ -142,7 +141,6 @@ async def spin_wheel(
             f"{spin_result.item.name}, 积分变化: {spin_result.credits_change}, "
             f"最终积分: {spin_result.current_credits}"
         )
-        background_tasks.add_task(check_and_award_game_king_badge, user_id=user_id)
         return spin_result
     except HTTPException:
         raise
@@ -175,7 +173,6 @@ async def spin_wheel_ten_times(
             f"总积分变化: {result.total_credits_change}, "
             f"最终积分: {result.current_credits}"
         )
-        background_tasks.add_task(check_and_award_game_king_badge, user_id=user_id)
         return result
     except HTTPException:
         raise

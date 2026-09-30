@@ -1,5 +1,3 @@
-import asyncio
-
 from fastapi import APIRouter, Body, Depends, Request
 
 from app.core.log import uvicorn_logger as logger
@@ -77,12 +75,10 @@ async def submit_donation_record(
             except Exception as e:
                 logger.warning(f"发送捐赠通知失败: {e!s}")
 
-            # 检查并授予至尊贡献者勋章（异步后台任务）
-            from app.domains.badge_awards.jobs import (
-                check_and_award_supreme_contributor_badge,
-            )
+            from app.core import events
+            from app.domains.donation import events as donation_events
 
-            asyncio.create_task(check_and_award_supreme_contributor_badge(tg_id))
+            events.emit(donation_events.DonationApproved(int(tg_id)))
 
             return BaseResponse(
                 success=True, message=f"成功为 {user_name} 添加 {amount}元 捐赠记录"

@@ -1,3 +1,5 @@
+import time
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 
@@ -9,6 +11,44 @@ from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 from app.domains.invitation.models import Invitation
 from app.domains.luckywheel.models import WheelStats
 from app.domains.treasure.models import TreasureIssue
+
+
+def _rank_user_badge(row: UserBadge) -> dict:
+    """Read-model-local conversion: do not depend on facade MRO helpers."""
+    result = {
+        key: getattr(row, key)
+        for key in (
+            "id",
+            "tg_id",
+            "badge_id",
+            "credits_cost",
+            "redeemed_at",
+            "expires_at",
+            "is_active",
+        )
+    }
+    result["bonus_active"] = row.expires_at > int(time.time())
+    result["badge"] = (
+        {
+            key: getattr(row.badge, key)
+            for key in (
+                "id",
+                "badge_type",
+                "name",
+                "description",
+                "icon_url",
+                "credits_cost",
+                "bonus_percentage",
+                "valid_days",
+                "is_enabled",
+                "created_at",
+                "updated_at",
+            )
+        }
+        if row.badge
+        else None
+    )
+    return result
 
 
 class RankingsRepository:
@@ -170,9 +210,7 @@ class RankingsRepository:
                         {
                             "tg_id": tg_id,
                             "badge_count": badge_count,
-                            "badges": [
-                                self._user_badge_to_dict(ub) for ub in user_badges
-                            ],
+                            "badges": [_rank_user_badge(ub) for ub in user_badges],
                         }
                     )
 

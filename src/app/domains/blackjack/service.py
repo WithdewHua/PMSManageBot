@@ -1,8 +1,10 @@
 import datetime
 
+from app.core import events
 from app.core.config import settings
 from app.core.log import logger, uvicorn_logger
 from app.domains.badges import service as badges_service
+from app.domains.blackjack import events as blackjack_events
 from app.domains.blackjack import repository as blackjack_repository
 from app.domains.blackjack.config import (
     TOURNAMENT_REGISTERING,
@@ -175,23 +177,35 @@ def set_blackjack_config(config_key: str, config_json: str) -> bool:
 
 
 def create_blackjack_hand(tg_id: int, bet_credits: int) -> dict:
-    return blackjack_repository.create_blackjack_hand(tg_id, bet_credits)
+    result = blackjack_repository.create_blackjack_hand(tg_id, bet_credits)
+    if result.get("settled"):
+        events.emit(blackjack_events.CashHandPlayed(int(tg_id)))
+    return result
 
 
 def blackjack_hit(tg_id: int, hand_id: int) -> dict:
-    return blackjack_repository.blackjack_hit(tg_id, hand_id)
+    result = blackjack_repository.blackjack_hit(tg_id, hand_id)
+    if result.get("settled"):
+        events.emit(blackjack_events.CashHandPlayed(int(tg_id)))
+    return result
 
 
 def blackjack_stand(tg_id: int, hand_id: int) -> dict:
-    return blackjack_repository.blackjack_stand(tg_id, hand_id)
+    result = blackjack_repository.blackjack_stand(tg_id, hand_id)
+    events.emit(blackjack_events.CashHandPlayed(int(tg_id)))
+    return result
 
 
 def blackjack_double(tg_id: int, hand_id: int) -> dict:
-    return blackjack_repository.blackjack_double(tg_id, hand_id)
+    result = blackjack_repository.blackjack_double(tg_id, hand_id)
+    events.emit(blackjack_events.CashHandPlayed(int(tg_id)))
+    return result
 
 
 def blackjack_surrender(tg_id: int, hand_id: int) -> dict:
-    return blackjack_repository.blackjack_surrender(tg_id, hand_id)
+    result = blackjack_repository.blackjack_surrender(tg_id, hand_id)
+    events.emit(blackjack_events.CashHandPlayed(int(tg_id)))
+    return result
 
 
 def settle_blackjack_hand_by_timeout(hand_id: int) -> dict:
@@ -625,3 +639,7 @@ async def create_weekly_tournament() -> dict | None:
     except Exception as e:
         uvicorn_logger.error(f"自动创建锦标赛失败: {e}")
         return None
+
+
+def get_game_king_eligible_tg_ids(min_hands: int, min_accuracy: float) -> list[int]:
+    return blackjack_analytics.get_game_king_eligible_tg_ids(min_hands, min_accuracy)

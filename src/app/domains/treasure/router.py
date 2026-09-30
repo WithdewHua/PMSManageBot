@@ -1,7 +1,6 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 from app.core.log import uvicorn_logger as logger
-from app.domains.badge_awards.jobs import check_and_award_game_king_badge
 from app.domains.treasure import exceptions as treasure_exceptions
 from app.domains.treasure import service as treasure_service
 from app.domains.treasure.schemas import (
@@ -129,10 +128,6 @@ async def join_issue(
             issue_id=int(issue_id),
             tg_id=int(current_user.id),
             quantity=int(getattr(data, "quantity", 1)),
-        )
-        background_tasks.add_task(
-            check_and_award_game_king_badge,
-            user_id=int(current_user.id),
         )
         return TreasureJoinResponse(
             success=True,

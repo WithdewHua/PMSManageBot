@@ -311,3 +311,16 @@ def update_donation_credits(old_multiplier: float, new_multiplier: float) -> Non
             logger.info(
                 f"用户 {tg_id} 捐赠：{donation}, 更新积分: {credits} -> {mutation.after}"
             )
+
+
+def list_badge_eligible_donors(
+    threshold: float, tg_id: int | None = None
+) -> list[tuple[int, float]]:
+    """Return strict-above-threshold donors without opening a session in callers."""
+    stmt = select(Statistics.tg_id, Statistics.donation).where(
+        Statistics.donation > threshold
+    )
+    if tg_id:
+        stmt = stmt.where(Statistics.tg_id == tg_id)
+    with get_session() as session:
+        return [(int(row[0]), float(row[1])) for row in session.execute(stmt)]

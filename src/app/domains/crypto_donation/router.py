@@ -2,7 +2,6 @@
 Crypto 捐赠相关 API 路由
 """
 
-import asyncio
 from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -529,12 +528,12 @@ async def upay_payment_callback(request: Request):
                 except Exception as e:
                     logger.warning(f"发送 Crypto 捐赠订单完成通知失败: {e}")
 
-                # 检查并授予至尊贡献者勋章（异步后台任务）
-                from app.domains.badge_awards.jobs import (
-                    check_and_award_supreme_contributor_badge,
-                )
+                from app.core import events
+                from app.domains.crypto_donation import events as crypto_donation_events
 
-                asyncio.create_task(check_and_award_supreme_contributor_badge(user_id))
+                events.emit(
+                    crypto_donation_events.CryptoDonationCompleted(int(user_id))
+                )
 
             else:
                 logger.error(f"更新用户 {user_id} 捐赠金额或积分失败")

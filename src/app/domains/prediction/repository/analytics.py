@@ -351,3 +351,23 @@ def count_bets_tx(session, tg_id: int, since: int, until: int) -> int:
             )
         ).scalar_one()
     )
+
+
+def count_badge_bets(tg_id: int) -> int:
+    with get_session() as session:
+        return int(
+            session.execute(
+                select(func.count(PredictionBet.id)).where(PredictionBet.tg_id == tg_id)
+            ).scalar_one()
+        )
+
+
+def list_badge_eligible_tg_ids(min_bets: int) -> list[int]:
+    with get_session() as session:
+        return list(
+            session.execute(
+                select(PredictionBet.tg_id)
+                .group_by(PredictionBet.tg_id)
+                .having(func.count(PredictionBet.id) >= min_bets)
+            ).scalars()
+        )

@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import time
 
+from app.core import events
 from app.core.log import logger
+from app.domains.prediction import events as prediction_events
 from app.domains.prediction import notifications as prediction_notifications
 from app.domains.prediction import repository as prediction_repository
 from app.integrations.telegram import profiles as telegram_profiles
@@ -62,6 +64,7 @@ async def place_prediction_bet(
         option=option,
         amount=amount,
     )
+    events.emit(prediction_events.PredictionBetPlaced(int(tg_id)))
     try:
         market = result.get("market") or {}
         await prediction_notifications.notify_prediction_bet_placed(
@@ -305,3 +308,15 @@ __all__ = [
     "review_prediction_submission",
     "submit_prediction_market",
 ]
+
+
+def count_badge_bets(tg_id: int) -> int:
+    from app.domains.prediction.repository import analytics
+
+    return analytics.count_badge_bets(tg_id)
+
+
+def list_badge_eligible_tg_ids(min_bets: int) -> list[int]:
+    from app.domains.prediction.repository import analytics
+
+    return analytics.list_badge_eligible_tg_ids(min_bets)

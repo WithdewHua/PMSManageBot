@@ -102,7 +102,6 @@ allowed_importers = [
 
 
 
-    "app.domains.badges.router", # promote-reward-domains (B2 inherited)
 
 
 
@@ -180,7 +179,6 @@ ignore_imports = [
     "app.domains.reports.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
     "app.domains.credits.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.traffic.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
-    "app.domains.watch_rewards.service -> sqlalchemy", # B3 mechanical relocation; audit in 5.6
 ]
 unmatched_ignore_imports_alerting = "error"
 [[tool.importlinter.contracts]]
@@ -219,7 +217,6 @@ ignore_imports = [
     "app.domains.vaultwarden.router -> app.core.db", # promote-remaining-domains (B2 inherited)
     "app.domains.credits.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.traffic.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
-    "app.domains.watch_rewards.service -> app.core.db", # B3 mechanical relocation; audit in 5.6
 ]
 unmatched_ignore_imports_alerting = "error"
 
@@ -258,7 +255,6 @@ ignore_imports = [
     "app.domains.vaultwarden.router -> app.domains.vaultwarden.models", # promote-remaining-domains (B2 inherited)
     "app.domains.credits.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.traffic.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
-    "app.domains.watch_rewards.service -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
 ]
 unmatched_ignore_imports_alerting = "error"
 
@@ -278,7 +274,6 @@ layers = [
 ignore_imports = [
     # restructure-backend-architecture: transitional facade composition hides
     # domain-to-domain dependencies; AST cross-domain checks still cover self/db.
-    "app.databases.db -> app.domains.badges.repository",
     "app.databases.db -> app.domains.crypto_donation.repository",
     "app.databases.db -> app.domains.donation.repository",
     "app.databases.db -> app.domains.invitation.repository",
@@ -290,7 +285,6 @@ ignore_imports = [
 
 
 
-    "app.domains.badges.router -> app.databases.db", # promote-reward-domains (B2 inherited)
 
 
 
@@ -368,7 +362,6 @@ ignore_imports = [
     # promote-line-domains: traffic consumes the lines-owned catalog interface.
     "app.domains.traffic.repository -> app.domains.lines.catalog",
     # restructure-backend-architecture: transitional facade composition
-    "app.databases.db -> app.domains.badges.repository",
     "app.databases.db -> app.domains.crypto_donation.repository",
     "app.databases.db -> app.domains.donation.repository",
     "app.databases.db -> app.domains.invitation.repository",
@@ -460,7 +453,6 @@ forbidden_modules = [
 allow_indirect_imports = true
 ignore_imports = [
     # B2 mechanical relocation retains direct legacy data access.
-    "app.domains.badges.router -> app.databases.db", # promote-reward-domains (B2 inherited)
     "app.domains.crypto_donation.router -> app.core.db", # promote-remaining-domains (B2 inherited)
     "app.domains.crypto_donation.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
     "app.domains.crypto_donation.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)

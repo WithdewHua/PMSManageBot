@@ -180,7 +180,7 @@ def _install(
         wr_service, "_settle_premium_traffic_usage", fake_traffic_settlement
     )
 
-    from app.databases import db
+    from app.domains.traffic import service as traffic_service
 
     def fake_daily_traffic(user_id, service, date, premium_only=False):
         active_account["plex_id"] = int(user_id)
@@ -188,7 +188,7 @@ def _install(
             raise RuntimeError("injected traffic query failure")
         return 0
 
-    monkeypatch.setattr(db, "get_user_daily_traffic", fake_daily_traffic)
+    monkeypatch.setattr(traffic_service, "get_user_daily_traffic", fake_daily_traffic)
     monkeypatch.setattr(
         credits_repository, "invalidate_user_credits", lambda cache_keys: None
     )

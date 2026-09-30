@@ -6,10 +6,44 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
+
+
+class LineCatalog(Base):
+    """Line catalog model - ordinary and premium streaming backends."""
+
+    __tablename__ = "line_catalog"
+
+    id: Mapped[int] = mapped_column(
+        BIGINT().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True
+    )
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    kind: Mapped[str] = mapped_column(String, nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    tags: Mapped[str] = mapped_column(
+        Text, default="[]", server_default="[]", nullable=False
+    )
+    free_open: Mapped[int] = mapped_column(
+        SMALLINT, default=0, server_default="0", nullable=False
+    )
+    created_at: Mapped[int] = mapped_column(BIGINT, nullable=False)
+    updated_at: Mapped[int] = mapped_column(BIGINT, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("name", name="uq_line_catalog_name"),
+        UniqueConstraint("kind", "position", name="uq_line_catalog_kind_position"),
+        CheckConstraint("kind IN ('normal', 'premium')", name="ck_line_catalog_kind"),
+        CheckConstraint("position >= 0", name="ck_line_catalog_position"),
+        CheckConstraint(
+            "free_open IN (0, 1) AND (free_open = 0 OR kind = 'premium')",
+            name="ck_line_catalog_free_open",
+        ),
+    )
 
 
 class LineSchedule(Base):

@@ -8,7 +8,7 @@ from app.model_registry import MODEL_MODULES, init_db, metadata
 
 def test_registry_imports_every_domain_model() -> None:
     assert metadata is Base.metadata
-    assert len(metadata.tables) == 33
+    assert len(metadata.tables) == 34
     assert len(MODEL_MODULES) == 17
     configure_mappers()
 

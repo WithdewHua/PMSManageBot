@@ -217,3 +217,8 @@ __all__ = [
     "get_blackjack_skill_ranks_tx",
     "get_game_king_eligible_tg_ids_tx",
 ]
+
+
+def get_game_king_eligible_tg_ids(min_hands: int, min_accuracy: float) -> list[int]:
+    with get_session() as session:
+        return get_game_king_eligible_tg_ids_tx(session, min_hands, min_accuracy)

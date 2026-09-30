@@ -264,7 +264,8 @@ def main(argv: list[str] | None = None) -> int:
         gift_pack_notifications._notify_detached = _record_notification
         credits_repository.invalidate_user_credits = _record_cache_invalidation
         credits_service.invalidate_cache_keys = _record_cache_invalidation
-        invitation_repository.persist_privileged_codes_tx = _record_privileged_codes
+        if hasattr(invitation_repository, "persist_privileged_codes_tx"):
+            invitation_repository.persist_privileged_codes_tx = _record_privileged_codes
         premium_service.apply_download_unlock_to_media = _record_download_unlock
         premium_service.sync_premium_media_access = _record_premium_sync
 

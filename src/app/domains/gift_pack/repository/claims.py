@@ -190,7 +190,7 @@ class _GiftPackRepositoryClaims:
                 snapshot,
                 pending_permission_sync,
                 pending_download_sync,
-                pending_privileged_codes,
+                _pending_privileged_codes,
             ) = self._grant_gift_pack_rewards(session, tg_id, rewards, context)
 
             pack.claimed_count = int(pack.claimed_count) + 1
@@ -208,12 +208,6 @@ class _GiftPackRepositoryClaims:
                         prompt_count=0,
                     )
                 )
-
-            # 所有数据库行已写入且 flush 成功后，才在提交前写特权码配置；
-            # 写入失败抛异常，get_session 回滚积分、邀请码及领取记录。
-            if pending_privileged_codes:
-                session.flush()
-                self._persist_privileged_invite_codes(pending_privileged_codes)
 
             claimed_count = int(pack.claimed_count)
             remaining = rules._gift_pack_remaining(pack)

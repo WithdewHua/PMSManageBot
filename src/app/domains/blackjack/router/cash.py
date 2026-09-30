@@ -12,7 +12,6 @@ import json
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 
 from app.core.log import uvicorn_logger as logger
-from app.domains.badge_awards.jobs import check_and_award_game_king_badge
 from app.domains.blackjack import service as blackjack_service
 from app.domains.blackjack.exceptions import BlackjackError
 from app.domains.blackjack.rules import BlackjackRuleError
@@ -131,12 +130,6 @@ async def deal(
                 timeout_minutes=int(hand["hand_timeout_minutes"]),
             )
 
-        if result.get("settled"):
-            background_tasks.add_task(
-                check_and_award_game_king_badge,
-                user_id=int(current_user.id),
-            )
-
         return _build_action_response(result, int(current_user.id), "发牌成功")
     except ValueError as e:
         _raise_for_value_error(e)
@@ -160,11 +153,6 @@ async def hit(
         result = blackjack_service.blackjack_hit(
             tg_id=int(current_user.id), hand_id=int(hand_id)
         )
-        if result.get("settled"):
-            background_tasks.add_task(
-                check_and_award_game_king_badge,
-                user_id=int(current_user.id),
-            )
         return _build_action_response(result, int(current_user.id), "要牌成功")
     except ValueError as e:
         _raise_for_value_error(e)
@@ -187,10 +175,6 @@ async def stand(
     try:
         result = blackjack_service.blackjack_stand(
             tg_id=int(current_user.id), hand_id=int(hand_id)
-        )
-        background_tasks.add_task(
-            check_and_award_game_king_badge,
-            user_id=int(current_user.id),
         )
         return _build_action_response(result, int(current_user.id), "停牌成功")
     except ValueError as e:
@@ -215,10 +199,6 @@ async def double(
         result = blackjack_service.blackjack_double(
             tg_id=int(current_user.id), hand_id=int(hand_id)
         )
-        background_tasks.add_task(
-            check_and_award_game_king_badge,
-            user_id=int(current_user.id),
-        )
         return _build_action_response(result, int(current_user.id), "加倍成功")
     except ValueError as e:
         _raise_for_value_error(e)
@@ -241,10 +221,6 @@ async def surrender(
     try:
         result = blackjack_service.blackjack_surrender(
             tg_id=int(current_user.id), hand_id=int(hand_id)
-        )
-        background_tasks.add_task(
-            check_and_award_game_king_badge,
-            user_id=int(current_user.id),
         )
         return _build_action_response(result, int(current_user.id), "已投降")
     except ValueError as e:
