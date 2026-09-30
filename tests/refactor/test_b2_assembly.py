@@ -66,11 +66,11 @@ def test_bot_handler_registration_surface_is_unchanged():
 
 def test_migrated_empty_pydantic_list_defaults_are_equivalent():
     from app.domains.custom_lines import schemas as custom_line_schemas
-    from app.domains.profile import schemas as current
+    from app.domains.lines import schemas as line_schemas
 
     for module, name, field in (
         (custom_line_schemas, "CustomLineListResponse", "lines"),
-        (current, "LineScheduleListResponse", "schedules"),
+        (line_schemas, "LineScheduleListResponse", "schedules"),
     ):
         model = getattr(module, name)
         response = model(success=True)

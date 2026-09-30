@@ -2236,7 +2236,7 @@ reason = "db.py section: Wheel Operations"
 [[items]]
 id = "app.databases.db:DatabaseORM.aggregate_monthly_traffic_data"
 target = "app.domains.traffic.compat"
-class = "TrafficCompat"
+class = "TrafficRepository"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
@@ -2307,7 +2307,7 @@ planned_target = "app.domains.blackjack.repository.tournament_play"
 [[items]]
 id = "app.databases.db:DatabaseORM.bulk_create_line_traffic_entries"
 target = "app.domains.traffic.compat"
-class = "TrafficCompat"
+class = "TrafficRepository"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
@@ -2427,7 +2427,7 @@ reason = "db.py section: Blackjack (21 点) Operations"
 [[items]]
 id = "app.databases.db:DatabaseORM.cleanup_monthly_traffic_data"
 target = "app.domains.traffic.compat"
-class = "TrafficCompat"
+class = "TrafficRepository"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
@@ -2551,7 +2551,7 @@ reason = "db.py section: 线路调度功能相关方法"
 [[items]]
 id = "app.databases.db:DatabaseORM.create_line_traffic_entry"
 target = "app.domains.traffic.compat"
-class = "TrafficCompat"
+class = "TrafficRepository"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
@@ -3026,7 +3026,7 @@ reason = "transitional facade assembly"
 [[items]]
 id = "app.databases.db:DatabaseORM.get_emby_traffic_rank"
 target = "app.domains.traffic.compat"
-class = "TrafficCompat"
+class = "TrafficRepository"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
@@ -3276,7 +3276,7 @@ reason = "transitional facade assembly"
 [[items]]
 id = "app.databases.db:DatabaseORM.get_plex_traffic_rank"
 target = "app.domains.traffic.compat"
-class = "TrafficCompat"
+class = "TrafficRepository"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
@@ -3336,7 +3336,7 @@ reason = "db.py section: Prediction Market (预测游戏) Operations"
 [[items]]
 id = "app.databases.db:DatabaseORM.get_premium_line_traffic_statistics"
 target = "app.domains.traffic.compat"
-class = "TrafficCompat"
+class = "TrafficRepository"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
@@ -3454,7 +3454,7 @@ reason = "transitional facade assembly"
 [[items]]
 id = "app.databases.db:DatabaseORM.get_user_daily_traffic"
 target = "app.domains.traffic.compat"
-class = "TrafficCompat"
+class = "TrafficRepository"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
@@ -3956,7 +3956,7 @@ reason = "db.py section: 线路调度功能相关方法"
 [[items]]
 id = "app.databases.db:DatabaseORM.update_traffic_username"
 target = "app.domains.traffic.compat"
-class = "TrafficCompat"
+class = "TrafficRepository"
 kind = "method"
 reason = "db.py section: Traffic Statistics Operations"
 
@@ -24155,3 +24155,263 @@ b3_behavior_test = "tests/refactor/test_blackjack_cross_domain.py::test_external
     "_PredictionRepositorySettlement",
     "_PredictionRepositoryAnalytics",
 ]
+
+# promote-line-domains: frozen legacy mixin members retained for provenance.
+[[items]]
+id = "app.databases.db:DatabaseORM.unlock_line_schedule_with_credit"
+target = "app.domains.lines.repository"
+class = "LinesRepository"
+kind = "method"
+reason = "legacy line scheduling member; promoted to module-level repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/admin_router.py:37"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/admin_router.py:49"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/admin_router.py:129"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/admin_router.py:131"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/admin_router.py:276"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/admin_router.py:278"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/admin_router.py:376"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/admin_router.py:378"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/admin_router.py:458"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/admin_router.py:460"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/admin_router.py:542"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/admin_router.py:544"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/admin_router.py:292"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/jobs.py:41"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/jobs.py:94"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/jobs.py:108"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/repository.py:20"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/repository.py:35"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:56"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:62"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:164"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:170"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:220"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:227"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:279"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:281"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:341"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:343"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:440"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:442"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:504"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:506"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:606"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:608"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:747"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:749"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/router.py:368"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/service.py:284"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/service.py:142"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/service.py:154"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/service.py:305"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "custom_lines.sql:src/app/domains/custom_lines/service.py:169"
+target = "app.domains.custom_lines.repository"
+kind = "sql"
+reason = "promote-line-domains SQL inventory moved behind repository"

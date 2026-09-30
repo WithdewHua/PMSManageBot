@@ -2,14 +2,12 @@ import asyncio
 
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
 
-from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
-from app.databases import db
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity import service as identity_service
+from app.domains.lines import catalog
 from app.domains.lines import notifications as lines_notifications
-from app.domains.lines import repository as lines_repository
 from app.domains.lines import service as lines_service
 from app.domains.lines.gateway_cache import (
     emby_last_user_defined_line_cache,
@@ -19,19 +17,14 @@ from app.domains.lines.gateway_cache import (
 )
 from app.domains.lines.jobs import auto_switch_user_lines
 from app.domains.lines.rules import is_binded_premium_line
-from app.domains.lines.service import (
-    _auth_bind_emby_line,
-    _auth_bind_plex_line,
-    check_line_permission,
-    unlock_line_schedule_with_credit,
-)
-from app.domains.profile.schemas import (
+from app.domains.lines.schemas import (
     AuthBindLineRequest,
     CurrentLineResponse,
     EmbyLineInfo,
     EmbyLineRequest,
     EmbyLinesResponse,
     LineScheduleCreate,
+    LineScheduleInfo,
     LineScheduleListResponse,
     LineScheduleStatusResponse,
     LineScheduleUnlockRequest,
@@ -40,6 +33,12 @@ from app.domains.profile.schemas import (
     PlexLineInfo,
     PlexLineRequest,
     PlexLinesResponse,
+)
+from app.domains.lines.service import (
+    _auth_bind_emby_line,
+    _auth_bind_plex_line,
+    check_line_permission,
+    unlock_line_schedule_with_credit,
 )
 from app.integrations.telegram.profiles import get_user_name_from_tg_id
 from app.transport.http.auth import get_telegram_user, require_telegram_auth
@@ -57,7 +56,7 @@ async def get_emby_lines(
     """获取可用的Emby线路列表"""
 
     # 获取 emby 用户信息，确认是否是 premium 用户
-    emby_info = db.get_emby_info_by_tg_id(telegram_user.id)
+    emby_info = identity_service.get_emby_info_by_tg_id(telegram_user.id)
     if not emby_info:
         logger.warning(
             f"用户 {telegram_user.username or telegram_user.id} 未绑定 Emby 账户"
@@ -68,37 +67,35 @@ async def get_emby_lines(
     is_premium = emby_info[8] == 1
 
     # 基础线路
-    available_lines = settings.STREAM_BACKEND.copy()
+    available_lines = catalog.normal_lines().copy()
     line_infos = []
 
     # 添加基础线路信息
     for line in available_lines:
         line_infos.append(
-            EmbyLineInfo(
-                name=line, tags=lines_repository.get_line_tags(line), is_premium=False
-            )
+            EmbyLineInfo(name=line, tags=catalog.line_tags(line), is_premium=False)
         )
 
     # 如果是premium用户，直接添加所有高级线路
     if is_premium:
-        for line in settings.PREMIUM_STREAM_BACKEND:
+        for line in catalog.premium_lines():
             line_infos.append(
                 EmbyLineInfo(
                     name=line,
-                    tags=lines_repository.get_line_tags(line),
+                    tags=catalog.line_tags(line),
                     is_premium=True,
                 )
             )
     # 如果不是premium用户，检查免费高级线路
     elif lines_service.is_premium_free_enabled():
         # 从数据库获取免费高级线路列表
-        free_premium_lines = lines_repository.get_free_premium_lines()
+        free_premium_lines = catalog.free_premium_lines()
 
         for line in free_premium_lines:
             line_infos.append(
                 EmbyLineInfo(
                     name=line,
-                    tags=lines_repository.get_line_tags(line) + ["PREMIUM"],
+                    tags=catalog.line_tags(line) + ["PREMIUM"],
                     is_premium=True,
                 )
             )
@@ -123,7 +120,7 @@ async def bind_emby_line(
 
     try:
         # 检查用户是否绑定了Emby账户
-        emby_info = db.get_emby_info_by_tg_id(tg_id)
+        emby_info = identity_service.get_emby_info_by_tg_id(tg_id)
         if not emby_info:
             logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定 Emby 账户")
             return BaseResponse(success=False, message="您尚未绑定Emby账户，请先绑定")
@@ -139,7 +136,7 @@ async def bind_emby_line(
         if not has_permission:
             return BaseResponse(success=False, message=error_msg)
 
-        success = lines_repository.set_emby_line(line, tg_id=tg_id)
+        success = lines_service.set_emby_line(line, tg_id=tg_id)
 
         if not success:
             logger.error(f"设置用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 线路失败")
@@ -147,7 +144,9 @@ async def bind_emby_line(
 
         # 更新 redis 缓存
         binded_line = emby_user_defined_line_cache.get(str(emby_username).lower())
-        if binded_line and not is_binded_premium_line(binded_line):
+        if binded_line and not is_binded_premium_line(
+            binded_line, catalog.premium_lines()
+        ):
             # 满足如下条件：
             # 1. 缓存中存在绑定的线路，且该线路不是高级线路；
             # 将其记录到上一次使用的普通线路缓存中
@@ -182,7 +181,7 @@ async def unbind_emby_line(
 
     try:
         # 检查用户是否绑定了Emby账户
-        emby_info = db.get_emby_info_by_tg_id(tg_id)
+        emby_info = identity_service.get_emby_info_by_tg_id(tg_id)
         if not emby_info:
             logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定Emby账户")
             return BaseResponse(success=False, message="您尚未绑定 Emby 账户，请先绑定")
@@ -193,7 +192,7 @@ async def unbind_emby_line(
             )
             return BaseResponse(success=False, message="您未绑定线路，无需解绑")
 
-        success = lines_repository.set_emby_line(None, tg_id=tg_id)
+        success = lines_service.set_emby_line(None, tg_id=tg_id)
         if not success:
             logger.error(f"重置用户 {get_user_name_from_tg_id(tg_id)} 的 Emby 线路失败")
             return BaseResponse(success=False, message="重置线路失败")
@@ -220,7 +219,7 @@ async def get_plex_lines(
 
     try:
         # 获取 plex 用户信息，确认是否绑定
-        plex_info = db.get_plex_info_by_tg_id(telegram_user.id)
+        plex_info = identity_service.get_plex_info_by_tg_id(telegram_user.id)
         if not plex_info:
             logger.warning(
                 f"用户 {telegram_user.username or telegram_user.id} 未绑定 Plex 账户"
@@ -233,8 +232,8 @@ async def get_plex_lines(
         is_premium_user = plex_info[9] == 1  # 假设 is_premium 字段在索引 9
 
         # 获取基础线路和高级线路
-        available_lines = settings.STREAM_BACKEND.copy()
-        premium_lines = settings.PREMIUM_STREAM_BACKEND.copy()
+        available_lines = catalog.normal_lines().copy()
+        premium_lines = catalog.premium_lines().copy()
         line_infos = []
 
         # 添加基础线路信息
@@ -242,7 +241,7 @@ async def get_plex_lines(
             line_infos.append(
                 PlexLineInfo(
                     name=line,
-                    tags=lines_repository.get_line_tags(line),
+                    tags=catalog.line_tags(line),
                     is_premium=False,
                 )
             )
@@ -254,20 +253,20 @@ async def get_plex_lines(
                 line_infos.append(
                     PlexLineInfo(
                         name=line,
-                        tags=lines_repository.get_line_tags(line),
+                        tags=catalog.line_tags(line),
                         is_premium=True,
                     )
                 )
         elif lines_service.is_premium_free_enabled():
             # 普通用户在免费开放期间可以看到免费的高级线路
-            free_premium_lines = lines_repository.get_free_premium_lines()
+            free_premium_lines = catalog.free_premium_lines()
 
             for line in free_premium_lines:
                 if line in premium_lines:
                     line_infos.append(
                         PlexLineInfo(
                             name=line,
-                            tags=lines_repository.get_line_tags(line),
+                            tags=catalog.line_tags(line),
                             is_premium=True,
                         )
                     )
@@ -297,7 +296,7 @@ async def bind_plex_line(
 
     try:
         # 检查用户是否绑定了Plex账户
-        plex_info = db.get_plex_info_by_tg_id(tg_id)
+        plex_info = identity_service.get_plex_info_by_tg_id(tg_id)
         if not plex_info:
             logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定 Plex 账户")
             return BaseResponse(success=False, message="您尚未绑定Plex账户，请先绑定")
@@ -320,14 +319,16 @@ async def bind_plex_line(
         if not has_permission:
             return BaseResponse(success=False, message=error_msg)
 
-        success = lines_repository.set_plex_line(line, tg_id=tg_id)
+        success = lines_service.set_plex_line(line, tg_id=tg_id)
         if not success:
             logger.error(f"设置用户 {get_user_name_from_tg_id(tg_id)} 的 Plex 线路失败")
             return BaseResponse(success=False, message="设置线路失败")
 
         # 更新 redis 缓存
         binded_line = plex_user_defined_line_cache.get(str(plex_username).lower())
-        if binded_line and not is_binded_premium_line(binded_line):
+        if binded_line and not is_binded_premium_line(
+            binded_line, catalog.premium_lines()
+        ):
             # 满足如下条件：
             # 1. 缓存中存在绑定的线路，且该线路不是高级线路；
             # 将其记录到上一次使用的普通线路缓存中
@@ -362,7 +363,7 @@ async def unbind_plex_line(
 
     try:
         # 检查用户是否绑定了Plex账户
-        plex_info = db.get_plex_info_by_tg_id(tg_id)
+        plex_info = identity_service.get_plex_info_by_tg_id(tg_id)
         if not plex_info:
             logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定Plex账户")
             return BaseResponse(success=False, message="您尚未绑定 Plex 账户，请先绑定")
@@ -374,7 +375,7 @@ async def unbind_plex_line(
             )
             return BaseResponse(success=False, message="您未绑定线路，无需解绑")
 
-        success = lines_repository.set_plex_line(None, tg_id=tg_id)
+        success = lines_service.set_plex_line(None, tg_id=tg_id)
         if not success:
             logger.error(f"重置用户 {tg_id} 的 Plex 线路失败")
             return BaseResponse(success=False, message="重置线路失败")
@@ -472,12 +473,14 @@ async def auth_bind_line(
 
     try:
         if service == "emby":
+            if password is None:
+                return BaseResponse(success=False, message="Emby 认证需要密码")
             success, message = await _auth_bind_emby_line(
-                db, tg_id, username, password, line
+                tg_id, username, password, line
             )
         else:
             success, message = await _auth_bind_plex_line(
-                db, tg_id, username, line, token=token, password=password
+                tg_id, username, line, token=token, password=password
             )
         return BaseResponse(success=success, message=message)
     except Exception as e:
@@ -500,14 +503,14 @@ async def get_emby_lines_by_user(
 
     try:
         # 直接从数据库查询用户信息，无需进行Emby服务器认证
-        emby_info = db.get_emby_info_by_emby_username(username)
+        emby_info = identity_service.get_emby_info_by_emby_username(username)
         is_self = bool(emby_info and emby_info[2] == telegram_user.id)
         is_premium = bool(emby_info and is_self and emby_info[8] == 1)
         if not is_self:
             is_premium = True
 
         # 基础线路
-        available_lines = settings.STREAM_BACKEND.copy()
+        available_lines = catalog.normal_lines().copy()
         line_infos = []
 
         # 添加基础线路信息
@@ -515,32 +518,32 @@ async def get_emby_lines_by_user(
             line_infos.append(
                 EmbyLineInfo(
                     name=line,
-                    tags=lines_repository.get_line_tags(line),
+                    tags=catalog.line_tags(line),
                     is_premium=False,
                 )
             )
 
         # 如果是premium用户,直接添加所有高级线路
         if is_premium:
-            for line in settings.PREMIUM_STREAM_BACKEND:
+            for line in catalog.premium_lines():
                 line_infos.append(
                     EmbyLineInfo(
                         name=line,
-                        tags=lines_repository.get_line_tags(line),
+                        tags=catalog.line_tags(line),
                         is_premium=True,
                     )
                 )
         # 如果不是premium用户,检查免费高级线路
         elif lines_service.is_premium_free_enabled():
             # 从数据库获取免费高级线路列表
-            free_premium_lines = lines_repository.get_free_premium_lines()
+            free_premium_lines = catalog.free_premium_lines()
 
             for line in free_premium_lines:
-                if line in settings.PREMIUM_STREAM_BACKEND:
+                if line in catalog.premium_lines():
                     line_infos.append(
                         EmbyLineInfo(
                             name=line,
-                            tags=lines_repository.get_line_tags(line),
+                            tags=catalog.line_tags(line),
                             is_premium=True,
                         )
                     )
@@ -572,7 +575,7 @@ async def get_plex_lines_by_user(
 
     try:
         # 直接从数据库查询用户信息，无需进行Plex服务器认证
-        plex_info = db.get_plex_info_by_plex_email(email)
+        plex_info = identity_service.get_plex_info_by_plex_email(email)
         is_self = bool(plex_info and plex_info[1] == telegram_user.id)
         # 预览他人账号时返回完整目录；查询自己时保留会员过滤。
         is_premium_user = bool(plex_info and is_self and plex_info[9] == 1)
@@ -580,8 +583,8 @@ async def get_plex_lines_by_user(
             is_premium_user = True
 
         # 获取基础线路和高级线路
-        available_lines = settings.STREAM_BACKEND.copy()
-        premium_lines = settings.PREMIUM_STREAM_BACKEND.copy()
+        available_lines = catalog.normal_lines().copy()
+        premium_lines = catalog.premium_lines().copy()
         line_infos = []
 
         # 添加基础线路信息
@@ -589,7 +592,7 @@ async def get_plex_lines_by_user(
             line_infos.append(
                 PlexLineInfo(
                     name=line,
-                    tags=lines_repository.get_line_tags(line),
+                    tags=catalog.line_tags(line),
                     is_premium=False,
                 )
             )
@@ -601,20 +604,20 @@ async def get_plex_lines_by_user(
                 line_infos.append(
                     PlexLineInfo(
                         name=line,
-                        tags=lines_repository.get_line_tags(line),
+                        tags=catalog.line_tags(line),
                         is_premium=True,
                     )
                 )
         elif lines_service.is_premium_free_enabled():
             # 普通用户在免费开放期间可以看到免费的高级线路
-            free_premium_lines = lines_repository.get_free_premium_lines()
+            free_premium_lines = catalog.free_premium_lines()
 
             for line in free_premium_lines:
                 if line in premium_lines:
                     line_infos.append(
                         PlexLineInfo(
                             name=line,
-                            tags=lines_repository.get_line_tags(line),
+                            tags=catalog.line_tags(line),
                             is_premium=True,
                         )
                     )
@@ -650,7 +653,7 @@ async def get_current_bound_line(
                 return CurrentLineResponse(success=False, message="用户名不能为空")
 
             # 查询Emby用户信息
-            emby_info = db.get_emby_info_by_emby_username(username)
+            emby_info = identity_service.get_emby_info_by_emby_username(username)
             if not emby_info or emby_info[2] != telegram_user.id:
                 return CurrentLineResponse(
                     success=True, line=None, message=f"用户 {username} 未绑定任何线路"
@@ -674,7 +677,7 @@ async def get_current_bound_line(
                 return CurrentLineResponse(success=False, message="邮箱不能为空")
 
             # 查询Plex用户信息
-            plex_info = db.get_plex_info_by_plex_email(email)
+            plex_info = identity_service.get_plex_info_by_plex_email(email)
             if not plex_info or plex_info[1] != telegram_user.id:
                 return CurrentLineResponse(
                     success=True, line=None, message=f"用户 {email} 未绑定任何线路"
@@ -711,7 +714,6 @@ async def check_line_schedule_unlock_status(
         raise HTTPException(status_code=400, detail="服务类型必须是 'emby' 或 'plex'")
 
     try:
-        result = lines_service.check_line_schedule_unlock(user.id, service)
         result = lines_service.check_line_schedule_unlock(user.id, service)
         return {
             "success": True,
@@ -809,7 +811,10 @@ async def get_line_schedules(
 
     try:
         schedules = lines_service.get_user_line_schedules(user.id, service)
-        return LineScheduleListResponse(success=True, schedules=schedules)
+        return LineScheduleListResponse(
+            success=True,
+            schedules=[LineScheduleInfo(**schedule) for schedule in schedules],
+        )
     except Exception as e:
         logger.error(f"获取线路调度列表失败: {e}")
         raise HTTPException(status_code=500, detail="获取线路调度列表失败")
@@ -983,7 +988,9 @@ async def get_line_schedule_status(
             is_unlocked=unlock_status["is_unlocked"],
             is_premium=unlock_status.get("is_premium", False),
             has_schedules=has_schedules,
-            current_schedule=active_schedule,
+            current_schedule=(
+                LineScheduleInfo(**active_schedule) if active_schedule else None
+            ),
         )
 
     except Exception as e:

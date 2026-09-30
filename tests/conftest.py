@@ -38,6 +38,7 @@ for _key in (
 ):
     os.environ.pop(_key, None)
 
+import fakeredis
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -53,6 +54,26 @@ from app.model_registry import metadata
 from app.subscriptions import register_all
 
 register_all()
+
+
+@pytest.fixture
+def fake_redis_server():
+    return fakeredis.FakeServer()
+
+
+@pytest.fixture
+def fake_gateway_redis(fake_redis_server):
+    return fakeredis.FakeRedis(server=fake_redis_server, db=2, decode_responses=True)
+
+
+@pytest.fixture
+def fake_token_redis(fake_redis_server):
+    return fakeredis.FakeRedis(server=fake_redis_server, db=3, decode_responses=True)
+
+
+@pytest.fixture
+def fake_traffic_redis(fake_redis_server):
+    return fakeredis.FakeRedis(server=fake_redis_server, db=15, decode_responses=True)
 
 
 @pytest.fixture(autouse=True)

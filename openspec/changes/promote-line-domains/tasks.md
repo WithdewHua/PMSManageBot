@@ -2,13 +2,13 @@
 
 ## 1. 行为冻结与测试基座
 
-- [ ] 1.1 在 test extra 中加入 `fakeredis`，并为网关缓存、流量队列和 token 缓存建立测试夹具；冻结五个领域的 OpenAPI 与路由（包括按函数名挂载的清单）、调度任务、Redis 写入（键、值和 JSON 键序）、通知文案；把各 mixin 的成员和 custom_lines 的 SQL 位置登记进 `mapping.toml` 并写明目标位置。验证：连续生成两次，快照一致；没有未映射的成员。
-- [ ] 1.2 补齐 lines 和 traffic 的测试：
+- [x] 1.1 在 test extra 中加入 `fakeredis`，并为网关缓存、流量队列和 token 缓存建立测试夹具；冻结五个领域的 OpenAPI 与路由（包括按函数名挂载的清单）、调度任务、Redis 写入（键、值和 JSON 键序）、通知文案；把各 mixin 的成员和 custom_lines 的 SQL 位置登记进 `mapping.toml` 并写明目标位置。验证：连续生成两次，快照一致；没有未映射的成员。
+- [x] 1.2 补齐 lines 和 traffic 的测试：
   - lines：线路列表（Emby 与 Plex 的差异）、绑定与解绑的 Redis 写入、认证绑定、调度的增删改、解锁扣分、生效调度的选择（跨越午夜、优先级）、自动切换（包括 "auto" 字面量、没有调度时不回退）。
   - traffic：两种日志格式的解析与入库去重、月度聚合与清理、改名合并、每日流量与排行。
 
   验证：新测试在当前代码上全部通过。
-- [ ] 1.3 补齐 custom_lines、premium、media_access 的测试：
+- [x] 1.3 补齐 custom_lines、premium、media_access 的测试：
   - custom_lines：全部状态流转、三个定时任务、月度结算公式。
   - premium：购买的价格和折扣、到期、临期、统计、额度与欠额的查询。
   - media_access：NSFW 解锁和锁定（含退款比例）、下载解锁。
@@ -17,10 +17,10 @@
 
 ## 2. traffic 与 lines
 
-- [ ] 2.1 提升 traffic：新增 service（每日流量、高级线路统计、排行、改名）；日志解析和 `event_hash` 改为纯函数；采集、聚合、清理和 `_get_line_monthly_traffic` 移入 repository；从门面摘除 `TrafficRepository`，并提供转发兼容层 `TrafficCompat`。验证：1.2 中 traffic 的测试通过；采集任务的批大小、确认和推回行为不变；调度快照一致。
-- [ ] 2.2 实现 lines 的目录接口，把 lines、premium、traffic、reports 中读写目录的地方都改为调用它；`is_binded_premium_line` 改为纯函数；新增架构检查，禁止在 lines 以外读取目录配置。验证：目录相关接口和 `GET /api/admin/settings` 的响应与夹具一致；架构检查的正反例测试通过。
-- [ ] 2.3 在 `identity/rules.py` 中实现三种会员口径的纯函数，把 lines、media_access 和 gift_pack 的调用点改为调用与原来相同口径的函数。验证：每个调用点都有对照测试，覆盖到期时间缺失和无法解析的情况，结果不变。
-- [ ] 2.4 提升 lines：改为模块级 repository；service 编排绑定、解绑、认证绑定、调度和自动切换；网关缓存集中在 `gateway_cache.py`；自动切换先读后写，每人一个事务；lines 的模型从 `profile/schemas.py` 搬回；经维护者确认后删除 7 个没有调用方的方法；从门面摘除 mixin，并提供 `LinesCompat`。验证：1.2 中 lines 的测试通过；fakeredis 中的键和值与夹具逐字一致；OpenAPI 不变。
+- [x] 2.1 提升 traffic：新增 service（每日流量、高级线路统计、排行、改名）；日志解析和 `event_hash` 改为纯函数；采集、聚合、清理和 `_get_line_monthly_traffic` 移入 repository；从门面摘除 `TrafficRepository`，并提供转发兼容层 `TrafficCompat`。验证：1.2 中 traffic 的测试通过；采集任务的批大小、确认和推回行为不变；调度快照一致。
+- [x] 2.2 实现 lines 的目录接口，把 lines、premium、traffic、reports 中读写目录的地方都改为调用它；`is_binded_premium_line` 改为纯函数；新增架构检查，禁止在 lines 以外读取目录配置。验证：目录相关接口和 `GET /api/admin/settings` 的响应与夹具一致；架构检查的正反例测试通过。
+- [x] 2.3 在 `identity/rules.py` 中实现三种会员口径的纯函数，把 lines、media_access 和 gift_pack 的调用点改为调用与原来相同口径的函数。验证：每个调用点都有对照测试，覆盖到期时间缺失和无法解析的情况，结果不变。
+- [x] 2.4 提升 lines：改为模块级 repository；service 编排绑定、解绑、认证绑定、调度和自动切换；网关缓存集中在 `gateway_cache.py`；自动切换先读后写，每人一个事务；lines 的模型从 `profile/schemas.py` 搬回；经维护者确认后删除 7 个没有调用方的方法；从门面摘除 mixin，并提供 `LinesCompat`。验证：1.2 中 lines 的测试通过；fakeredis 中的键和值与夹具逐字一致；OpenAPI 不变。
 
 ## 3. custom_lines
 
@@ -44,6 +44,6 @@
 
 ## 5. 基线清理与集成验证
 
-- [ ] 5.1 删除 lines 和 media_access 中对 `register_cache_invalidation` 的 2 处显式调用（design D8）；清除本变更名下的基线条目（199 条，其中 15 条 `credits.types` 条目已由礼包变更清除）、65 条忽略项、门面组合边和门面冻结的放行项；兼容层的组合边注释改为 retire 负责；下调封存计数；更新 `test_b3_decycles` 中对函数路径的引用。验证：`lint-imports`、`pytest tests/architecture`、`pytest tests/refactor` 通过；`baseline.json` 中不再有本变更名下的条目。
-- [ ] 5.2 生产形态本地彩排：在完整数据库副本上，依次完成线路绑定与自动切换、会员购买与到期任务、NSFW 与下载解锁、自建线路上线与月度结算、流量采集一批日志（外部服务用替身，Redis 用隔离实例）。验证：数据库和 Redis 的变化，与旧实现在同一份数据上的结果一致。
-- [ ] 5.3 运行全量回归：`pytest tests/`、`ruff check`、`ruff format --check`、`lint-imports`、`pre-commit run --all-files`，然后运行 `openspec validate promote-line-domains --strict`。验证：全部通过；工作区干净。
+- [x] 5.1 删除 lines 和 media_access 中对 `register_cache_invalidation` 的 2 处显式调用（design D8）；清除本变更名下的基线条目（199 条，其中 15 条 `credits.types` 条目已由礼包变更清除）、65 条忽略项、门面组合边和门面冻结的放行项；兼容层的组合边注释改为 retire 负责；下调封存计数；更新 `test_b3_decycles` 中对函数路径的引用。验证：`lint-imports`、`pytest tests/architecture`、`pytest tests/refactor` 通过；`baseline.json` 中不再有本变更名下的条目。
+- [x] 5.2 生产形态本地彩排：在完整数据库副本上，依次完成线路绑定与自动切换、会员购买与到期任务、NSFW 与下载解锁、自建线路上线与月度结算、流量采集一批日志（外部服务用替身，Redis 用隔离实例）。验证：数据库和 Redis 的变化，与旧实现在同一份数据上的结果一致。
+- [x] 5.3 运行全量回归：`pytest tests/`、`ruff check`、`ruff format --check`、`lint-imports`、`pre-commit run --all-files`，然后运行 `openspec validate promote-line-domains --strict`。验证：全部通过；工作区干净。

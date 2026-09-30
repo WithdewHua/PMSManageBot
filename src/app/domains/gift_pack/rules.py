@@ -14,6 +14,7 @@ from datetime import datetime
 from app.core.config import settings
 from app.domains.gift_pack.exceptions import gift_pack_error
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
+from app.domains.identity import rules as identity_rules
 
 #: 需要向各领域计数器取数的条件类型（次数的具体查询由 repository 负责）。
 _GIFT_PACK_METRICS = (
@@ -112,18 +113,11 @@ def _gift_pack_local_date(timestamp: int) -> str:
 
 def _is_premium_active(is_premium, expiry_time) -> bool:
     """判断某个服务的 Premium 是否当前有效（永久会员视为有效）"""
-    if not is_premium:
-        return False
-    if not expiry_time:
-        # 有 is_premium 标记但无到期时间 = 永久会员
-        return True
-    try:
-        return datetime.fromisoformat(str(expiry_time)).astimezone(
-            settings.TZ
-        ) > datetime.now(settings.TZ)
-    except (ValueError, TypeError):
-        # 到期时间无法解析时退回标记位，避免因脏数据误判为不可领取
-        return bool(is_premium)
+    return identity_rules.premium_active(
+        {"is_premium": is_premium, "premium_expiry_time": expiry_time},
+        datetime.now(settings.TZ),
+        invalid_expiry=True,
+    )
 
 
 def _legacy_gift_pack_requirements(legacy: dict) -> list[dict]:

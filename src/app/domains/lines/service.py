@@ -1,5 +1,6 @@
 from app.core.log import uvicorn_logger as logger
-from app.databases.db import DatabaseORM
+from app.domains.identity import service as identity_service
+from app.domains.lines import catalog
 from app.domains.lines import repository as lines_repository
 from app.domains.lines.config import LINES_CONFIG
 from app.domains.lines.gateway_cache import (
@@ -36,6 +37,32 @@ def put_cached_line(service: str, username: str, value: str) -> None:
 def delete_cached_line(service: str, username: str, *, last: bool = False) -> None:
     current_cache, last_cache = _line_cache_pair(service)
     (last_cache if last else current_cache).delete(str(username).lower())
+
+
+def unbind_premium_line(service: str, username: str, tg_id: int) -> str:
+    """Restore the previous ordinary line after Premium expiry."""
+    if service not in ("plex", "emby"):
+        raise ValueError("不支持的服务类型")
+    try:
+        last_line = get_cached_line(service, username, last=True)
+    except Exception as error:
+        logger.warning("读取用户 %s 的历史线路失败: %s", username, error)
+        last_line = None
+    if service == "plex":
+        updated = lines_repository.set_plex_line(last_line, tg_id=tg_id)
+    else:
+        updated = lines_repository.set_emby_line(last_line, tg_id=tg_id)
+    if not updated:
+        raise RuntimeError("恢复 Premium 线路失败")
+    try:
+        if last_line:
+            put_cached_line(service, username, last_line)
+            delete_cached_line(service, username, last=True)
+        else:
+            delete_cached_line(service, username)
+    except Exception as error:
+        logger.warning("清理用户 %s 的线路缓存失败: %s", username, error)
+    return last_line or "AUTO"
 
 
 def is_premium_free_enabled() -> bool:
@@ -81,7 +108,7 @@ async def unbind_emby_premium_free():
             if is_premium:
                 continue
             # 如果是普通用户，检查是否是高级线路
-            is_premium_line = is_binded_premium_line(emby_line)
+            is_premium_line = is_binded_premium_line(emby_line, catalog.premium_lines())
             if not is_premium_line:
                 # 如果不是高级线路，跳过
                 continue
@@ -126,7 +153,7 @@ async def unbind_plex_premium_free():
             if is_premium:
                 continue
             # 如果是普通用户，检查是否是高级线路
-            is_premium_line = is_binded_premium_line(plex_line)
+            is_premium_line = is_binded_premium_line(plex_line, catalog.premium_lines())
             if not is_premium_line:
                 # 如果不是高级线路，跳过
                 continue
@@ -390,7 +417,7 @@ def check_line_permission(is_premium: bool, line: str) -> tuple[bool, str]:
         return True, ""
 
     # 检查是否为高级线路
-    is_premium_line_flag = is_binded_premium_line(line)
+    is_premium_line_flag = is_binded_premium_line(line, catalog.premium_lines())
     if not is_premium_line_flag:
         # 普通线路，所有用户都可以使用
         return True, ""
@@ -408,7 +435,6 @@ def check_line_permission(is_premium: bool, line: str) -> tuple[bool, str]:
 
 
 async def _auth_bind_emby_line(
-    db: DatabaseORM,
     tg_id: int,
     username: str,
     password: str,
@@ -428,7 +454,7 @@ async def _auth_bind_emby_line(
         return False, "用户名或密码错误"
 
     # 获取用户信息以检查线路权限
-    existing_emby_info = db.get_emby_info_by_emby_username(username)
+    existing_emby_info = identity_service.get_emby_info_by_emby_username(username)
 
     # 检查线路权限
     # 如果用户不存在于数据库，视为普通用户；否则使用数据库中的 premium 状态
@@ -446,7 +472,7 @@ async def _auth_bind_emby_line(
 
     # 更新 redis 缓存 - 记录线路绑定
     binded_line = emby_user_defined_line_cache.get(str(username).lower())
-    if binded_line and not is_binded_premium_line(binded_line):
+    if binded_line and not is_binded_premium_line(binded_line, catalog.premium_lines()):
         logger.debug(f"记录用户 {username} 上一次使用的普通线路 {binded_line}")
         emby_last_user_defined_line_cache.put(str(username).lower(), binded_line)
     emby_user_defined_line_cache.put(str(username).lower(), line)
@@ -458,7 +484,6 @@ async def _auth_bind_emby_line(
 
 
 async def _auth_bind_plex_line(
-    db: DatabaseORM,
     tg_id: int,
     username: str,
     line: str,
@@ -476,12 +501,12 @@ async def _auth_bind_plex_line(
     auth_success, plex_id = plex.authenticate_user(
         username=username, password=password, token=token
     )
-    if not auth_success:
+    if not auth_success or plex_id is None:
         logger.warning(f"Plex 用户 {username} 认证失败")
         return False, "用户名或密码错误"
 
     # 获取 Plex 用户信息
-    existing_plex_info = db.get_plex_info_by_plex_id(plex_id)
+    existing_plex_info = identity_service.get_plex_info_by_plex_id(plex_id)
 
     # 检查线路权限
     # 如果用户不存在于数据库，视为普通用户；否则使用数据库中的 premium 状态
@@ -502,7 +527,7 @@ async def _auth_bind_plex_line(
     # 更新 redis 缓存 - 记录线路绑定
     plex_username = plex.get_username_by_user_id(plex_id)
     binded_line = plex_user_defined_line_cache.get(str(plex_username).lower())
-    if binded_line and not is_binded_premium_line(binded_line):
+    if binded_line and not is_binded_premium_line(binded_line, catalog.premium_lines()):
         logger.debug(f"记录用户 {plex_username} 上一次使用的普通线路 {binded_line}")
         plex_last_user_defined_line_cache.put(str(plex_username).lower(), binded_line)
     plex_user_defined_line_cache.put(str(plex_username).lower(), line)
@@ -564,7 +589,9 @@ async def auto_switch_user_lines(
                     else emby_last_user_defined_line_cache
                 )
                 previous = current_cache.get(cache_key)
-                if previous and not is_binded_premium_line(previous):
+                if previous and not is_binded_premium_line(
+                    previous, catalog.premium_lines()
+                ):
                     previous_cache.put(cache_key, previous)
                 current_cache.put(cache_key, result["line"])
 
@@ -595,6 +622,14 @@ async def auto_switch_user_lines(
             logger.info("自动切换线路任务完成，没有需要切换的线路")
     except Exception as error:
         logger.error(f"自动切换用户线路失败: {error}")
+
+
+def set_emby_line(line: str | None, *, tg_id: int) -> bool:
+    return lines_repository.set_emby_line(line, tg_id=tg_id)
+
+
+def set_plex_line(line: str | None, *, tg_id: int) -> bool:
+    return lines_repository.set_plex_line(line, tg_id=tg_id)
 
 
 # Schedule entry points stay in the service layer; repository owns transaction boundaries.

@@ -7,6 +7,7 @@ from app.core.db import get_session
 from app.core.log import logger
 from app.domains.identity import service as identity_service
 from app.domains.identity.models import EmbyUser, PlexUser
+from app.domains.lines import catalog as line_catalog
 from app.domains.traffic.models import LineTrafficMonthlyStats, LineTrafficStats
 
 
@@ -143,7 +144,7 @@ def get_premium_line_traffic_statistics() -> list:
         month_start = today_start.replace(day=1)
 
         # 获取Premium线路列表
-        premium_lines = settings.PREMIUM_STREAM_BACKEND
+        premium_lines = line_catalog.premium_lines()
 
         line_stats = []
 
@@ -259,7 +260,7 @@ def get_user_daily_traffic(
                 ]
 
             if premium_only:
-                premium_lines = settings.PREMIUM_STREAM_BACKEND
+                premium_lines = line_catalog.premium_lines()
                 if premium_lines:
                     conditions.append(LineTrafficStats.line.in_(premium_lines))
                 else:

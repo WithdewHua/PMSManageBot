@@ -1,4 +1,3 @@
-from app.core.db import get_session
 from app.core.log import logger
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
@@ -39,9 +38,13 @@ def set_nsfw_libs(libs: list[str]) -> list[str]:
     return list(MEDIA_ACCESS_CONFIG.update(nsfw_libs=libs).nsfw_libs)
 
 
+def check_download_unlock(tg_id: int, service: str) -> dict:
+    return media_access_repository.check_download_unlock(int(tg_id), service)
+
+
 def is_download_unlocked(tg_id: int, service: str) -> bool:
     """Return whether persisted or Premium-derived access is available."""
-    status = media_access_repository.check_download_unlock(int(tg_id), service)
+    status = check_download_unlock(int(tg_id), service)
     return bool(status.get("is_unlocked"))
 
 
@@ -101,10 +104,7 @@ async def perform_nsfw_operation(tg_id: int, service: str, operation: str) -> di
 
 async def unlock_nsfw(tg_id: int, service: str, cost: float) -> dict:
     """Commit NSFW unlock, then synchronize the media server with compensation."""
-    with get_session() as session:
-        committed = media_access_repository.unlock_nsfw_tx(
-            session, int(tg_id), service, float(cost)
-        )
+    committed = media_access_repository.unlock_nsfw(int(tg_id), service, float(cost))
 
     try:
         if service == "plex":
@@ -122,10 +122,9 @@ async def unlock_nsfw(tg_id: int, service: str, cost: float) -> dict:
     except Exception as error:
         logger.error("同步 %s NSFW 解锁失败: %s", service, error)
         try:
-            with get_session() as session:
-                media_access_repository.compensate_nsfw_unlock_tx(
-                    session, int(tg_id), service, float(cost)
-                )
+            media_access_repository.compensate_nsfw_unlock(
+                int(tg_id), service, float(cost)
+            )
         except Exception as compensation_error:
             logger.error("NSFW 解锁补偿失败: %s", compensation_error)
             await media_access_notifications.notify_nsfw_compensation_failed(
@@ -142,10 +141,7 @@ async def unlock_nsfw(tg_id: int, service: str, cost: float) -> dict:
 async def lock_nsfw(tg_id: int, service: str, unlock_time, unlock_credits: int) -> dict:
     """Commit NSFW lock and refund, then synchronize with compensation."""
     refund = caculate_credits_fund(unlock_time, unlock_credits)
-    with get_session() as session:
-        committed = media_access_repository.lock_nsfw_tx(
-            session, int(tg_id), service, float(refund)
-        )
+    committed = media_access_repository.lock_nsfw(int(tg_id), service, float(refund))
 
     try:
         if service == "plex":
@@ -168,10 +164,9 @@ async def lock_nsfw(tg_id: int, service: str, unlock_time, unlock_credits: int) 
     except Exception as error:
         logger.error("同步 %s NSFW 锁定失败: %s", service, error)
         try:
-            with get_session() as session:
-                media_access_repository.compensate_nsfw_lock_tx(
-                    session, int(tg_id), service, float(refund)
-                )
+            media_access_repository.compensate_nsfw_lock(
+                int(tg_id), service, float(refund)
+            )
         except Exception as compensation_error:
             logger.error("NSFW 锁定补偿失败: %s", compensation_error)
             await media_access_notifications.notify_nsfw_compensation_failed(
@@ -183,3 +178,19 @@ async def lock_nsfw(tg_id: int, service: str, unlock_time, unlock_credits: int) 
         "credits": credits_service.read_optional(CreditAccount.tg(int(tg_id))) or 0.0,
         "refund": float(refund),
     }
+
+
+def update_all_lib_flag(*args, **kwargs) -> bool:
+    return media_access_repository.update_all_lib_flag(*args, **kwargs)
+
+
+def set_download_unlocked(tg_id: int, service: str) -> bool:
+    return media_access_repository.set_download_unlocked(tg_id, service)
+
+
+def deduct_credits_for_download_unlock(tg_id: int) -> tuple[bool, str, float]:
+    return media_access_repository.deduct_credits_for_download_unlock(tg_id)
+
+
+def get_download_unlocked_users_num() -> int:
+    return media_access_repository.get_download_unlocked_users_num()

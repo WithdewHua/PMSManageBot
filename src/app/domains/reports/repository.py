@@ -7,6 +7,7 @@ from app.core.db import get_session
 from app.core.log import logger
 from app.domains.custom_lines.models import CustomLine
 from app.domains.identity.models import EmbyUser, PlexUser
+from app.domains.lines import catalog as line_catalog
 from app.domains.traffic.models import LineTrafficStats
 from app.domains.vaultwarden.models import VaultwardenRedeemRecords
 
@@ -142,7 +143,7 @@ class ReportsRepository:
                         is_known_line = False
                         # 检查是否是已知线路
                         for _line in (
-                            settings.STREAM_BACKEND + settings.PREMIUM_STREAM_BACKEND
+                            line_catalog.normal_lines() + line_catalog.premium_lines()
                         ):
                             if line.lower() in _line.lower():
                                 period_data["lines"].append(

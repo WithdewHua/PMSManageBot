@@ -7,225 +7,179 @@ from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
 from app.domains.credits import repository as credits_repository
-from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.domains.identity import rules as identity_rules
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 from app.domains.media_access import exceptions as media_exceptions
 from app.domains.media_access.config import MEDIA_ACCESS_CONFIG
 
 
-class MediaAccessRepository:
-    def update_all_lib_flag(
-        self,
-        all_lib: int,
-        unlock_time: str | None = None,
-        plex_id: int | None = None,
-        emby_id: str | None = None,
-        tg_id: int | None = None,
-        media_server: str = "plex",
-    ) -> bool:
-        """更新全库权限标志"""
-        try:
-            with get_session() as session:
-                if media_server.lower() == "plex":
-                    if plex_id is not None:
-                        session.execute(
-                            update(PlexUser)
-                            .where(PlexUser.plex_id == plex_id)
-                            .values(all_lib=all_lib, unlock_time=unlock_time)
-                        )
-                    elif tg_id is not None:
-                        session.execute(
-                            update(PlexUser)
-                            .where(PlexUser.tg_id == tg_id)
-                            .values(all_lib=all_lib, unlock_time=unlock_time)
-                        )
-                elif media_server.lower() == "emby":
-                    if emby_id is not None:
-                        session.execute(
-                            update(EmbyUser)
-                            .where(EmbyUser.emby_id == emby_id)
-                            .values(
-                                emby_is_unlock=all_lib, emby_unlock_time=unlock_time
-                            )
-                        )
-                    elif tg_id is not None:
-                        session.execute(
-                            update(EmbyUser)
-                            .where(EmbyUser.tg_id == tg_id)
-                            .values(
-                                emby_is_unlock=all_lib, emby_unlock_time=unlock_time
-                            )
-                        )
-                else:
-                    logger.error("Error: please specify correct media server")
-                    return False
-                return True
-        except Exception as e:
-            logger.error(f"Error updating all_lib_flag: {e}")
-            return False
-
-    def check_download_unlock(self, tg_id: int, service: str) -> dict:
-        """Return persisted and Premium-derived download permission status."""
+def update_all_lib_flag(
+    all_lib: int,
+    unlock_time: str | None = None,
+    plex_id: int | None = None,
+    emby_id: str | None = None,
+    tg_id: int | None = None,
+    media_server: str = "plex",
+) -> bool:
+    """更新全库权限标志"""
+    try:
         with get_session() as session:
-            is_premium = False
-            unlock_time = None
-
-            if service == "plex":
-                stmt = select(
-                    PlexUser.is_premium,
-                    PlexUser.premium_expiry_time,
-                    PlexUser.sync_unlocked,
-                    PlexUser.sync_unlock_time,
-                ).where(PlexUser.tg_id == tg_id)
-                result = session.execute(stmt).fetchone()
-            elif service == "emby":
-                stmt = select(
-                    EmbyUser.is_premium,
-                    EmbyUser.premium_expiry_time,
-                    EmbyUser.download_unlocked,
-                    EmbyUser.download_unlock_time,
-                ).where(EmbyUser.tg_id == tg_id)
-                result = session.execute(stmt).fetchone()
-            else:
-                raise ValueError(f"不支持的服务类型: {service}")
-
-            if result:
-                if result[0] == 1:
-                    if not result[1]:
-                        is_premium = True
-                    else:
-                        expiry = datetime.fromisoformat(str(result[1]))
-                        if expiry > datetime.now(settings.TZ):
-                            is_premium = True
-                if result[2] == 1:
-                    unlock_time = result[3]
-
-            return {
-                "is_unlocked": is_premium or unlock_time is not None,
-                "is_premium": is_premium,
-                "unlock_time": unlock_time,
-            }
-
-    def set_download_unlocked(self, tg_id: int, service: str) -> bool:
-        """
-        设置用户下载权限为已解锁（仅更新数据库）
-
-        Args:
-            tg_id: 用户的 Telegram ID
-            service: 服务类型 (plex/emby)
-
-        Returns:
-            是否成功
-        """
-        try:
-            with get_session() as session:
-                unlock_time = int(time.time())
-
-                if service == "plex":
-                    stmt = (
+            if media_server.lower() == "plex":
+                if plex_id is not None:
+                    session.execute(
+                        update(PlexUser)
+                        .where(PlexUser.plex_id == plex_id)
+                        .values(all_lib=all_lib, unlock_time=unlock_time)
+                    )
+                elif tg_id is not None:
+                    session.execute(
                         update(PlexUser)
                         .where(PlexUser.tg_id == tg_id)
-                        .values(
-                            sync_unlocked=1,
-                            sync_unlock_time=unlock_time,
-                        )
+                        .values(all_lib=all_lib, unlock_time=unlock_time)
                     )
-                elif service == "emby":
-                    stmt = (
+            elif media_server.lower() == "emby":
+                if emby_id is not None:
+                    session.execute(
+                        update(EmbyUser)
+                        .where(EmbyUser.emby_id == emby_id)
+                        .values(emby_is_unlock=all_lib, emby_unlock_time=unlock_time)
+                    )
+                elif tg_id is not None:
+                    session.execute(
                         update(EmbyUser)
                         .where(EmbyUser.tg_id == tg_id)
-                        .values(
-                            download_unlocked=1,
-                            download_unlock_time=unlock_time,
-                        )
+                        .values(emby_is_unlock=all_lib, emby_unlock_time=unlock_time)
                     )
-                else:
-                    logger.error(f"未知的服务类型: {service}")
-                    return False
-
-                session.execute(stmt)
-                logger.info(f"用户 {tg_id} 的 {service} 下载权限已解锁")
-                return True
-
-        except Exception as e:
-            logger.error(f"设置 {service} 下载权限解锁失败: {e}")
-            return False
-
-    def deduct_credits_for_download_unlock(self, tg_id: int) -> tuple[bool, str, float]:
-        """
-        扣除解锁下载权限所需积分
-
-        Args:
-            tg_id: 用户的 Telegram ID
-
-        Returns:
-            (是否成功, 消息, 剩余积分)
-        """
-        try:
-            with get_session() as session:
-                stmt = select(Statistics.credits).where(Statistics.tg_id == tg_id)
-                credits = session.execute(stmt).scalar()
-
-                if credits is None:
-                    return False, "用户不存在", 0
-
-                required_credits = MEDIA_ACCESS_CONFIG.get().download_unlock_credits
-                if credits < required_credits:
-                    return (
-                        False,
-                        f"积分不足，需要 {required_credits} 积分，当前积分 {credits:.2f}",
-                        credits,
-                    )
-
-                # 扣除积分
-                mutation = credits_repository.deduct_tx(
-                    session, CreditAccount.tg(int(tg_id)), required_credits
-                )
-                credits_service.register_cache_invalidation(session, mutation)
-                new_credits = mutation.after
-
-                logger.info(
-                    f"用户 {tg_id} 扣除 {required_credits} 积分用于解锁下载权限"
-                )
-                return True, f"消耗 {required_credits} 积分", new_credits
-
-        except Exception as e:
-            logger.error(f"扣除积分失败: {e}")
-            return False, f"扣除积分失败: {e!s}", 0
-
-    def get_download_unlocked_users_num(self) -> int:
-        """
-        获取已解锁下载权限的用户数量（不包括 Premium 用户）
-
-        Returns:
-            解锁用户数量
-        """
-        try:
-            with get_session() as session:
-                # Plex 用户
-                plex_count = session.execute(
-                    select(func.count()).where(PlexUser.sync_unlocked == 1)
-                ).scalar()
-
-                # Emby 用户
-                emby_count = session.execute(
-                    select(func.count()).where(EmbyUser.download_unlocked == 1)
-                ).scalar()
-
-                return (plex_count or 0) + (emby_count or 0)
-        except Exception as e:
-            logger.error(f"获取下载权限解锁用户数量失败: {e}")
-            return 0
-
-
-# 模块级入口：处于 service 端的调用方（如 premium 的权限同步）不持有门面实例。
-_media_access_repository = MediaAccessRepository()
+            else:
+                logger.error("Error: please specify correct media server")
+                return False
+            return True
+    except Exception as e:
+        logger.error(f"Error updating all_lib_flag: {e}")
+        return False
 
 
 def check_download_unlock(tg_id: int, service: str) -> dict:
-    """该用户在指定服务上的下载/同步权限状态（含 Premium 自动解锁）。"""
-    return _media_access_repository.check_download_unlock(tg_id, service)
+    """Return persisted and Premium-derived download permission status."""
+    with get_session() as session:
+        if service == "plex":
+            stmt = select(
+                PlexUser.is_premium,
+                PlexUser.premium_expiry_time,
+                PlexUser.sync_unlocked,
+                PlexUser.sync_unlock_time,
+            ).where(PlexUser.tg_id == tg_id)
+            result = session.execute(stmt).fetchone()
+        elif service == "emby":
+            stmt = select(
+                EmbyUser.is_premium,
+                EmbyUser.premium_expiry_time,
+                EmbyUser.download_unlocked,
+                EmbyUser.download_unlock_time,
+            ).where(EmbyUser.tg_id == tg_id)
+            result = session.execute(stmt).fetchone()
+        else:
+            raise ValueError(f"不支持的服务类型: {service}")
+
+        is_premium = False
+        unlock_time = None
+        if result:
+            is_premium = identity_rules.premium_active(
+                {
+                    "is_premium": result[0],
+                    "premium_expiry_time": result[1],
+                },
+                datetime.now(settings.TZ),
+                invalid_expiry=None,
+            )
+            if result[2] == 1:
+                unlock_time = result[3]
+
+        return {
+            "is_unlocked": is_premium or unlock_time is not None,
+            "is_premium": is_premium,
+            "unlock_time": unlock_time,
+        }
+
+
+def set_download_unlocked(tg_id: int, service: str) -> bool:
+    """设置用户下载权限为已解锁（仅更新数据库）"""
+    try:
+        with get_session() as session:
+            unlock_time = int(time.time())
+            if service == "plex":
+                stmt = (
+                    update(PlexUser)
+                    .where(PlexUser.tg_id == tg_id)
+                    .values(
+                        sync_unlocked=1,
+                        sync_unlock_time=unlock_time,
+                    )
+                )
+            elif service == "emby":
+                stmt = (
+                    update(EmbyUser)
+                    .where(EmbyUser.tg_id == tg_id)
+                    .values(
+                        download_unlocked=1,
+                        download_unlock_time=unlock_time,
+                    )
+                )
+            else:
+                logger.error(f"未知的服务类型: {service}")
+                return False
+            session.execute(stmt)
+            logger.info(f"用户 {tg_id} 的 {service} 下载权限已解锁")
+            return True
+    except Exception as e:
+        logger.error(f"设置 {service} 下载权限解锁失败: {e}")
+        return False
+
+
+def deduct_credits_for_download_unlock(
+    tg_id: int,
+) -> tuple[bool, str, float]:
+    """扣除解锁下载权限所需积分。"""
+    try:
+        with get_session() as session:
+            credits = session.execute(
+                select(Statistics.credits).where(Statistics.tg_id == tg_id)
+            ).scalar()
+            if credits is None:
+                return False, "用户不存在", 0
+
+            required_credits = MEDIA_ACCESS_CONFIG.get().download_unlock_credits
+            if credits < required_credits:
+                return (
+                    False,
+                    f"积分不足，需要 {required_credits} 积分，当前积分 {credits:.2f}",
+                    credits,
+                )
+            mutation = credits_repository.deduct_tx(
+                session, CreditAccount.tg(int(tg_id)), required_credits
+            )
+            logger.info(f"用户 {tg_id} 扣除 {required_credits} 积分用于解锁下载权限")
+            return True, f"消耗 {required_credits} 积分", mutation.after
+    except Exception as e:
+        logger.error(f"扣除积分失败: {e}")
+        return False, f"扣除积分失败: {e!s}", 0
+
+
+def get_download_unlocked_users_num() -> int:
+    """获取已解锁下载权限的用户数量（不包括 Premium 用户）。"""
+    try:
+        with get_session() as session:
+            plex_count = session.execute(
+                select(func.count()).where(PlexUser.sync_unlocked == 1)
+            ).scalar()
+            emby_count = session.execute(
+                select(func.count()).where(EmbyUser.download_unlocked == 1)
+            ).scalar()
+            return (plex_count or 0) + (emby_count or 0)
+    except Exception as e:
+        logger.error(f"获取下载权限解锁用户数量失败: {e}")
+        return 0
 
 
 def get_download_sync_target(tg_id: int, service: str) -> str | None:
@@ -389,6 +343,26 @@ def compensate_nsfw_unlock_tx(session, tg_id: int, service: str, cost: float) ->
         row.emby_unlock_time = None
     credits_repository.add_tx(session, CreditAccount.tg(int(tg_id)), float(cost))
     session.flush()
+
+
+def unlock_nsfw(tg_id: int, service: str, cost: float) -> dict:
+    with get_session() as session:
+        return unlock_nsfw_tx(session, int(tg_id), service, float(cost))
+
+
+def lock_nsfw(tg_id: int, service: str, refund: float) -> dict:
+    with get_session() as session:
+        return lock_nsfw_tx(session, int(tg_id), service, float(refund))
+
+
+def compensate_nsfw_unlock(tg_id: int, service: str, cost: float) -> None:
+    with get_session() as session:
+        compensate_nsfw_unlock_tx(session, int(tg_id), service, float(cost))
+
+
+def compensate_nsfw_lock(tg_id: int, service: str, refund: float) -> None:
+    with get_session() as session:
+        compensate_nsfw_lock_tx(session, int(tg_id), service, float(refund))
 
 
 def compensate_nsfw_lock_tx(session, tg_id: int, service: str, refund: float) -> None:

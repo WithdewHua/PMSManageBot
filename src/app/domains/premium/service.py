@@ -9,6 +9,7 @@ from app.core.byte_size import format_bytes
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
+from app.domains.lines import catalog as line_catalog
 from app.domains.media_access import service as media_access_service
 from app.domains.premium import repository as premium_repository
 from app.domains.premium.config import PREMIUM_CONFIG
@@ -17,6 +18,38 @@ from app.integrations.telegram.messaging import send_message_by_url
 from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
 is_download_unlocked = media_access_service.is_download_unlocked
+
+
+def get_premium_statistics() -> dict:
+    return premium_repository.get_premium_statistics()
+
+
+def get_plex_premium_quota_status(plex_id: int) -> dict:
+    return premium_repository.get_plex_premium_quota_status(plex_id)
+
+
+def get_emby_premium_quota_status(emby_username: str) -> dict:
+    return premium_repository.get_emby_premium_quota_status(emby_username)
+
+
+def get_expired_premium_users() -> list:
+    return premium_repository.get_expired_premium_users()
+
+
+def update_expired_premium_status() -> int:
+    return premium_repository.update_expired_premium_status()
+
+
+def get_premium_users_expiring_soon(days: int = 3) -> list:
+    return premium_repository.get_premium_users_expiring_soon(days)
+
+
+def get_all_active_premium_users() -> list:
+    return premium_repository.get_all_active_premium_users()
+
+
+def get_all_premium_traffic_debt_users() -> list:
+    return premium_repository.get_all_premium_traffic_debt_users()
 
 
 def get_premium_config():
@@ -102,8 +135,7 @@ async def check_premium_expiry():
             line = expired.get("line")
             display_line = line or "自动线路"
             if line and (
-                line in settings.PREMIUM_STREAM_BACKEND
-                or "premium" in str(line).lower()
+                line in line_catalog.premium_lines() or "premium" in str(line).lower()
             ):
                 try:
                     new_line = (
@@ -234,35 +266,9 @@ def apply_download_unlock_to_media(tg_id: int, service: str) -> None:
 
 
 def _unbind_premium_line(service: str, username: str, tg_id: int):
-    """Use the lines service unbinder, retaining a local compatibility fallback."""
-    from app.domains.lines import repository as lines_repository
     from app.domains.lines import service as lines_service
 
-    unbinder = getattr(lines_service, "unbind_premium_line", None)
-    if unbinder is not None:
-        return unbinder(service, username, tg_id)
-
-    if service not in ("plex", "emby"):
-        raise ValueError("不支持的服务类型")
-    last_line = None
-    try:
-        last_line = lines_service.get_cached_line(service, username, last=True)
-    except Exception as error:
-        logger.warning("读取用户 %s 的历史线路失败: %s", username, error)
-    repository = lines_repository.LinesRepository()
-    if service == "plex":
-        repository.set_plex_line(last_line, tg_id=tg_id)
-    else:
-        repository.set_emby_line(last_line, tg_id=tg_id)
-    try:
-        if last_line:
-            lines_service.put_cached_line(service, username, last_line)
-            lines_service.delete_cached_line(service, username, last=True)
-        else:
-            lines_service.delete_cached_line(service, username)
-    except Exception as error:
-        logger.warning("清理用户 %s 的线路缓存失败: %s", username, error)
-    return last_line or "AUTO"
+    return lines_service.unbind_premium_line(service, username, tg_id)
 
 
 def format_premium_statistics_message(

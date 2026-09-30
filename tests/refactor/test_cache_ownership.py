@@ -40,6 +40,7 @@ def test_business_cache_protocol_is_preserved_in_owning_modules() -> None:
     )
     actual = {}
     for path in (
+        ROOT / "src/app/domains/lines/gateway_cache.py",
         ROOT / "src/app/domains/lines/cache.py",
         ROOT / "src/app/domains/traffic/cache.py",
         ROOT / "src/app/domains/credits/cache.py",

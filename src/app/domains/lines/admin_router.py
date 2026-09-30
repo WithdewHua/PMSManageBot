@@ -2,16 +2,16 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Re
 
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
-from app.domains.lines import repository as lines_repository
+from app.domains.lines import catalog as line_catalog
 from app.domains.lines import service as lines_service
-from app.domains.lines.service import (
-    disable_line_schedules_and_notify,
-    unbind_specified_line_for_all_users,
-)
-from app.domains.profile.schemas import (
+from app.domains.lines.schemas import (
     AllLineTagsResponse,
     LineTagRequest,
     LineTagResponse,
+)
+from app.domains.lines.service import (
+    disable_line_schedules_and_notify,
+    unbind_specified_line_for_all_users,
 )
 from app.integrations.telegram.messaging import send_message_by_url
 from app.transport.http.auth import (
@@ -36,7 +36,7 @@ async def set_line_tags(
 
     try:
         # 使用数据库函数设置标签
-        success = lines_repository.set_line_tags(data.line_name, data.tags)
+        success = line_catalog.set_line_tags(data.line_name, data.tags)
 
         if success:
             logger.info(
@@ -63,7 +63,7 @@ async def get_line_tags_admin(
     check_admin_permission(user)
 
     try:
-        tags = lines_repository.get_line_tags(line_name)
+        tags = line_catalog.line_tags(line_name)
         return LineTagResponse(line_name=line_name, tags=tags)
     except Exception as e:
         logger.error(f"获取线路标签失败: {e!s}")
@@ -82,13 +82,13 @@ async def get_all_line_tags(
     try:
         # 获取所有线路名称
         all_lines = set()
-        all_lines.update(settings.STREAM_BACKEND)
-        all_lines.update(settings.PREMIUM_STREAM_BACKEND)
+        all_lines.update(line_catalog.normal_lines())
+        all_lines.update(line_catalog.premium_lines())
 
         # 获取每个线路的标签
         lines_tags = {}
         for line in all_lines:
-            tags = lines_repository.get_line_tags(line)
+            tags = line_catalog.line_tags(line)
             lines_tags[line] = tags
 
         return AllLineTagsResponse(lines=lines_tags)
@@ -109,9 +109,9 @@ async def delete_line_tags(
 
     try:
         # 检查标签是否存在
-        existing_tags = lines_repository.get_line_tags(line_name)
+        existing_tags = line_catalog.line_tags(line_name)
         if existing_tags:
-            success = lines_repository.delete_line_tags(line_name)
+            success = line_catalog.delete_line_tags(line_name)
             if success:
                 logger.info(
                     f"管理员 {user.username or user.id} 删除线路 {line_name} 的所有标签"
@@ -169,8 +169,8 @@ async def get_lines_config(
 
     try:
         lines_data = {
-            "normal_lines": settings.STREAM_BACKEND,
-            "premium_lines": settings.PREMIUM_STREAM_BACKEND,
+            "normal_lines": line_catalog.normal_lines(),
+            "premium_lines": line_catalog.premium_lines(),
         }
 
         logger.info(f"管理员 {user.username or user.id} 获取线路配置")
@@ -196,17 +196,13 @@ async def add_normal_line_generic(
         if not line_name:
             return BaseResponse(success=False, message="线路名称不能为空")
 
-        if line_name in settings.STREAM_BACKEND:
+        if line_name in line_catalog.normal_lines():
             return BaseResponse(success=False, message="该普通线路已存在")
 
-        if line_name in settings.PREMIUM_STREAM_BACKEND:
+        if line_name in line_catalog.premium_lines():
             return BaseResponse(success=False, message="该线路已存在于高级线路中")
 
-        # 添加到普通线路列表
-        new_lines = settings.STREAM_BACKEND + [line_name]
-        settings.STREAM_BACKEND = new_lines
-        # 保存时使用通用的环境变量名
-        settings.save_config_to_env_file({"STREAM_BACKEND": ",".join(new_lines)})
+        line_catalog.add_line(line_name, premium=False)
 
         logger.info(f"管理员 {user.username or user.id} 添加普通线路: {line_name}")
 
@@ -241,17 +237,13 @@ async def delete_normal_line_generic(
     check_admin_permission(user)
 
     try:
-        if line_name not in settings.STREAM_BACKEND:
+        if line_name not in line_catalog.normal_lines():
             return BaseResponse(success=False, message="该普通线路不存在")
 
-        # 从普通线路列表中移除
-        new_lines = [line for line in settings.STREAM_BACKEND if line != line_name]
-        settings.STREAM_BACKEND = new_lines
-        # 保存时使用通用的环境变量名
-        settings.save_config_to_env_file({"STREAM_BACKEND": ",".join(new_lines)})
+        line_catalog.delete_line(line_name, premium=False)
 
         # 删除该线路的标签（如果有）
-        lines_repository.delete_line_tags(line_name)
+        line_catalog.delete_line_tags(line_name)
         # 解绑所有绑定了该线路的用户
         await unbind_specified_line_for_all_users(line_name)
         # 禁用该线路的所有调度并通知用户

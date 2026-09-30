@@ -8,8 +8,8 @@ from app.domains.donation.repository import DonationRepository
 from app.domains.identity.compat import IdentityRepository
 from app.domains.invitation.repository import InvitationRepository
 from app.domains.lines.compat import LinesCompat
-from app.domains.media_access.repository import MediaAccessRepository
-from app.domains.premium.repository import PremiumRepository
+from app.domains.media_access.compat import MediaAccessCompat
+from app.domains.premium.compat import PremiumCompat
 from app.domains.rankings.repository import RankingsRepository
 from app.domains.reports.repository import ReportsRepository
 from app.domains.tg_rebind.repository import TgRebindRepository
@@ -20,11 +20,11 @@ from app.domains.watch_rewards.repository import WatchRewardsRepository
 class DatabaseORM(
     IdentityRepository,
     ReportsRepository,
-    PremiumRepository,
+    PremiumCompat,
     DonationRepository,
     InvitationRepository,
     TgRebindRepository,
-    MediaAccessRepository,
+    MediaAccessCompat,
     RankingsRepository,
     LinesCompat,
     TrafficCompat,

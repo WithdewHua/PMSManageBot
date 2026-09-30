@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
-from app.databases import db
+from app.domains.lines import catalog as line_catalog
 from app.domains.reports import service as reports_service
 from app.transport.http.auth import (
     check_admin_permission,
@@ -24,7 +23,7 @@ async def get_admin_settings(
 
     try:
         # 从数据库获取免费高级线路列表
-        free_premium_lines = db.get_free_premium_lines()
+        free_premium_lines = line_catalog.free_premium_lines()
         business_config = reports_service.get_business_config_overview()
 
         settings_data = {
@@ -32,8 +31,8 @@ async def get_admin_settings(
             "emby_register": business_config["emby_register"],
             "premium_free": business_config["premium_free"],
             "premium_unlock_enabled": business_config["premium_unlock_enabled"],
-            "lines": settings.STREAM_BACKEND,
-            "premium_lines": settings.PREMIUM_STREAM_BACKEND,
+            "lines": line_catalog.normal_lines(),
+            "premium_lines": line_catalog.premium_lines(),
             "free_premium_lines": free_premium_lines,
             "invitation_credits": business_config["invitation_credits"],
             "unlock_credits": business_config["unlock_credits"],

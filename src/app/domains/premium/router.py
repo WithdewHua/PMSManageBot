@@ -10,7 +10,6 @@ from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.identity import service as identity_service
 from app.domains.premium import notifications as premium_notifications
-from app.domains.premium import repository as premium_repository
 from app.domains.premium import service as premium_service
 from app.domains.traffic import service as traffic_service
 from app.integrations.telegram.profiles import get_user_name_from_tg_id
@@ -151,7 +150,7 @@ async def get_premium_statistics(
 ):
     """获取Premium用户统计信息"""
     try:
-        stats = premium_repository.get_premium_statistics()
+        stats = premium_service.get_premium_statistics()
         logger.info(f"用户 {get_user_name_from_tg_id(user.id)} 获取 Premium 统计信息")
         return PremiumStatisticsResponse(**stats)
 

@@ -1105,6 +1105,14 @@
       },
       {
         "kind": "from",
+        "module": "app.domains.gift_pack.rules",
+        "module_target": "app.domains.identity",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.identity.rules"
+      },
+      {
+        "kind": "from",
         "module": "app.domains.gift_pack.schemas",
         "module_target": "typing",
         "resolved": true,

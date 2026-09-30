@@ -1,6 +1,3 @@
-from app.core.config import settings
-
-
 def normalize_line_domain(line_domain: str) -> str:
     """
     将线路域名规范化为纯主机名（host 或 host:port），去除协议前缀和路径后缀。
@@ -34,8 +31,10 @@ def normalize_line_domain(line_domain: str) -> str:
     return netloc
 
 
-def is_binded_premium_line(line: str | None) -> bool:
-    """Return whether a bound line belongs to the premium catalog."""
+def is_binded_premium_line(
+    line: str | None, premium_lines: tuple[str, ...] | list[str]
+) -> bool:
+    """Return whether a bound line belongs to the supplied premium catalog."""
     if not line:
         return False
-    return any(premium_line in line for premium_line in settings.PREMIUM_STREAM_BACKEND)
+    return any(premium_line in line for premium_line in premium_lines)

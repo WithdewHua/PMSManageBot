@@ -5,7 +5,6 @@ from app.domains.credits.exceptions import InsufficientCredits
 from app.domains.identity import service as identity_service
 from app.domains.media_access import exceptions as media_access_exceptions
 from app.domains.media_access import notifications as media_access_notifications
-from app.domains.media_access import repository as media_access_repository
 from app.domains.media_access import service as media_access_service
 from app.domains.media_access.rules import caculate_credits_fund
 from app.integrations.telegram.profiles import get_user_name_from_tg_id
@@ -109,7 +108,7 @@ async def get_download_permission_status(
     if service not in ["plex", "emby"]:
         raise HTTPException(status_code=400, detail="服务类型必须是 'plex' 或 'emby'")
     try:
-        unlock_status = media_access_repository.check_download_unlock(user.id, service)
+        unlock_status = media_access_service.check_download_unlock(user.id, service)
         return {
             "success": True,
             "is_unlocked": unlock_status["is_unlocked"],
@@ -135,7 +134,7 @@ async def unlock_download_permission(
         raise HTTPException(status_code=400, detail="服务类型必须是 'plex' 或 'emby'")
     tg_id = int(user.id)
     try:
-        unlock_status = media_access_repository.check_download_unlock(tg_id, service)
+        unlock_status = media_access_service.check_download_unlock(tg_id, service)
         if unlock_status["is_unlocked"]:
             if unlock_status["is_premium"]:
                 return BaseResponse(

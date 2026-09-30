@@ -2,7 +2,7 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, Request
 
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
-from app.domains.lines import repository as lines_repository
+from app.domains.lines import catalog as line_catalog
 from app.domains.lines import service as lines_service
 from app.domains.lines.service import (
     disable_line_schedules_and_notify,
@@ -86,15 +86,14 @@ async def set_free_premium_lines(
 
         # 验证线路是否都在高级线路列表中
         for line in free_lines:
-            if line not in settings.PREMIUM_STREAM_BACKEND:
+            if line not in line_catalog.premium_lines():
                 return BaseResponse(
                     success=False, message=f"线路 {line} 不在高级线路列表中"
                 )
 
         # 保存到数据库
-        catalog = lines_repository.LinesRepository()
-        old_free_lines = catalog.get_free_premium_lines()
-        catalog.set_free_premium_lines(free_lines)
+        old_free_lines = line_catalog.free_premium_lines()
+        line_catalog.set_free_premium_lines(free_lines)
 
         removed_lines = set(old_free_lines) - set(free_lines)
         added_lines = set(free_lines) - set(old_free_lines)
@@ -250,19 +249,14 @@ async def add_premium_line_generic(
         if not line_name:
             return BaseResponse(success=False, message="线路名称不能为空")
 
-        if line_name in settings.PREMIUM_STREAM_BACKEND:
+        if line_name in line_catalog.premium_lines():
             return BaseResponse(success=False, message="该高级线路已存在")
 
-        if line_name in settings.STREAM_BACKEND:
+        if line_name in line_catalog.normal_lines():
             return BaseResponse(success=False, message="该线路已存在于普通线路中")
 
         # 添加到高级线路列表
-        new_lines = settings.PREMIUM_STREAM_BACKEND + [line_name]
-        settings.PREMIUM_STREAM_BACKEND = new_lines
-        # 保存时使用通用的环境变量名
-        settings.save_config_to_env_file(
-            {"PREMIUM_STREAM_BACKEND": ",".join(new_lines)}
-        )
+        line_catalog.add_line(line_name, premium=True)
 
         logger.info(f"管理员 {user.username or user.id} 添加高级线路: {line_name}")
 
@@ -297,28 +291,20 @@ async def delete_premium_line_generic(
     check_admin_permission(user)
 
     try:
-        if line_name not in settings.PREMIUM_STREAM_BACKEND:
+        if line_name not in line_catalog.premium_lines():
             return BaseResponse(success=False, message="该高级线路不存在")
 
         # 从高级线路列表中移除
-        new_lines = [
-            line for line in settings.PREMIUM_STREAM_BACKEND if line != line_name
-        ]
-        settings.PREMIUM_STREAM_BACKEND = new_lines
-        # 保存时使用通用的环境变量名
-        settings.save_config_to_env_file(
-            {"PREMIUM_STREAM_BACKEND": ",".join(new_lines)}
-        )
+        line_catalog.delete_line(line_name, premium=True)
 
         # 从免费高级线路列表中移除（如果存在）
-        catalog = lines_repository.LinesRepository()
-        free_premium_lines = catalog.get_free_premium_lines()
+        free_premium_lines = line_catalog.free_premium_lines()
         if line_name in free_premium_lines:
             free_premium_lines.remove(line_name)
-            catalog.set_free_premium_lines(free_premium_lines)
+            line_catalog.set_free_premium_lines(free_premium_lines)
 
         # 删除该线路的标签（如果有）
-        catalog.delete_line_tags(line_name)
+        line_catalog.delete_line_tags(line_name)
 
         # 处理绑定了该线路的用户
         await unbind_specified_line_for_all_users(line_name)

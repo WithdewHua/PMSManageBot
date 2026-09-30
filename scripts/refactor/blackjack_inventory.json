@@ -2193,83 +2193,6 @@
     },
     {
       "kind": "facade_import",
-      "line": 5,
-      "path": "src/app/domains/lines/admin_router.py",
-      "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
-      "line": 5,
-      "path": "src/app/domains/lines/jobs.py",
-      "symbol": "app.databases.db",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
-      "line": 7,
-      "path": "src/app/domains/lines/router.py",
-      "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
-      "line": 2,
-      "path": "src/app/domains/lines/service.py",
-      "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
-      "line": 3,
-      "path": "src/app/domains/lines/service.py",
-      "symbol": "app.databases.db",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
-      "line": 6,
-      "path": "src/app/domains/media_access/router.py",
-      "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
-      "line": 5,
-      "path": "src/app/domains/premium/admin_router.py",
-      "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
-      "line": 9,
-      "path": "src/app/domains/premium/router.py",
-      "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
-      "line": 56,
-      "path": "src/app/domains/premium/service.py",
-      "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
-      "line": 145,
-      "path": "src/app/domains/premium/service.py",
-      "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
-      "line": 450,
-      "path": "src/app/domains/premium/service.py",
-      "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
       "line": 4,
       "path": "src/app/domains/profile/bot.py",
       "symbol": "app.databases",
@@ -2340,23 +2263,9 @@
     },
     {
       "kind": "facade_import",
-      "line": 5,
-      "path": "src/app/domains/reports/admin_router.py",
-      "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
       "line": 7,
       "path": "src/app/domains/reports/router.py",
       "symbol": "app.databases",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
-      "line": 13,
-      "path": "src/app/domains/traffic/jobs.py",
-      "symbol": "app.databases.db",
       "target_role": "blackjack.service"
     },
     {
@@ -2368,7 +2277,7 @@
     },
     {
       "kind": "facade_import",
-      "line": 12,
+      "line": 11,
       "path": "src/app/domains/watch_rewards/service.py",
       "symbol": "app.databases.db",
       "target_role": "blackjack.service"
@@ -2403,5 +2312,5 @@
     }
   ],
   "schema_version": 1,
-  "total": 343
+  "total": 330
 }

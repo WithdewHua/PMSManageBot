@@ -261,223 +261,20 @@
       "target": "check_and_award_supreme_contributor_badge"
     },
     {
-      "key": "call|src/app/domains/custom_lines/admin_router.py|121|imported|profile|CustomLineApproveRequest",
+      "key": "call|src/app/domains/custom_lines/repository.py|455|imported|traffic|_get_line_monthly_traffic",
       "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/admin_router.py",
-      "line": 121,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target": "CustomLineApproveRequest"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/admin_router.py|272|imported|profile|AdminCustomLineUpdateRequest",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/admin_router.py",
-      "line": 272,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target": "AdminCustomLineUpdateRequest"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/admin_router.py|398|imported|lines|unbind_specified_line_for_all_users",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/admin_router.py",
-      "line": 398,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "lines",
-      "target": "unbind_specified_line_for_all_users"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/admin_router.py|43|imported|profile|CustomLineListResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/admin_router.py",
-      "line": 43,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target": "CustomLineListResponse"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/admin_router.py|475|imported|lines|unbind_specified_line_for_all_users",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/admin_router.py",
-      "line": 475,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "lines",
-      "target": "unbind_specified_line_for_all_users"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/admin_router.py|53|imported|profile|CustomLineInfo",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/admin_router.py",
-      "line": 53,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target": "CustomLineInfo"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/admin_router.py|82|imported|profile|CustomLineListResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/admin_router.py",
-      "line": 82,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target": "CustomLineListResponse"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/admin_router.py|93|imported|profile|CustomLineListResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/admin_router.py",
-      "line": 93,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target": "CustomLineListResponse"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/jobs.py|122|imported|traffic|_get_line_monthly_traffic",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/jobs.py",
-      "line": 122,
+      "path": "src/app/domains/custom_lines/repository.py",
+      "line": 455,
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "traffic",
-      "target": "_get_line_monthly_traffic",
-      "b3_source_id": "app.modules.custom_line:check_custom_line_traffic"
+      "target": "_get_line_monthly_traffic"
     },
     {
-      "key": "call|src/app/domains/custom_lines/jobs.py|162|imported|lines|unbind_specified_line_for_all_users",
+      "key": "call|src/app/domains/custom_lines/repository.py|585|imported|traffic|_get_line_monthly_traffic",
       "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/jobs.py",
-      "line": 162,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "lines",
-      "target": "unbind_specified_line_for_all_users",
-      "b3_source_id": "app.modules.custom_line:check_custom_line_traffic"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/jobs.py|180|imported|lines|disable_line_schedules_and_notify",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/jobs.py",
-      "line": 180,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "lines",
-      "target": "disable_line_schedules_and_notify",
-      "b3_source_id": "app.modules.custom_line:check_custom_line_traffic"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/router.py|174|imported|profile|CustomLineInfo",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 174,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target": "CustomLineInfo"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/router.py|198|imported|profile|CustomLineListResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 198,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target": "CustomLineListResponse"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/router.py|207|imported|profile|CustomLineListResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 207,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target": "CustomLineListResponse"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/router.py|285|imported|profile|CustomLineDetailResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 285,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target": "CustomLineDetailResponse"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/router.py|291|imported|profile|CustomLineDetailResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 291,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target": "CustomLineDetailResponse"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/router.py|295|imported|profile|CustomLineInfo",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 295,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target": "CustomLineInfo"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/router.py|317|imported|profile|CustomLineDetailResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 317,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target": "CustomLineDetailResponse"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/router.py|323|imported|profile|CustomLineDetailResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 323,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target": "CustomLineDetailResponse"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/router.py|533|imported|lines|unbind_specified_line_for_all_users",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 533,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "lines",
-      "target": "unbind_specified_line_for_all_users"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/router.py|545|imported|lines|disable_line_schedules_and_notify",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 545,
-      "kind": "call",
-      "source_domain": "custom_lines",
-      "target_domain": "lines",
-      "target": "disable_line_schedules_and_notify"
-    },
-    {
-      "key": "call|src/app/domains/custom_lines/service.py|161|imported|traffic|_get_line_monthly_traffic",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/service.py",
-      "line": 161,
+      "path": "src/app/domains/custom_lines/repository.py",
+      "line": 585,
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "traffic",
@@ -564,524 +361,154 @@
       "target": "register_cache_invalidation"
     },
     {
-      "key": "call|src/app/domains/lines/admin_router.py|67|imported|profile|LineTagResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/admin_router.py",
-      "line": 67,
+      "key": "call|src/app/domains/gift_pack/rules.py|116|imported|identity|premium_active",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/rules.py",
+      "line": 116,
       "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "LineTagResponse"
+      "source_domain": "gift_pack",
+      "target_domain": "identity",
+      "target": "premium_active"
     },
     {
-      "key": "call|src/app/domains/lines/admin_router.py|94|imported|profile|AllLineTagsResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/admin_router.py",
-      "line": 94,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "AllLineTagsResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/repository.py|314|imported|credits|register_cache_invalidation",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/repository.py",
-      "line": 314,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "credits",
-      "target": "register_cache_invalidation"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|221|imported|profile|PlexLinesResponse",
+      "key": "call|src/app/domains/lines/router.py|123|imported|identity|get_emby_info_by_tg_id",
       "owner": "promote-line-domains",
       "path": "src/app/domains/lines/router.py",
-      "line": 221,
+      "line": 123,
       "kind": "call",
       "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "PlexLinesResponse"
+      "target_domain": "identity",
+      "target": "get_emby_info_by_tg_id"
     },
     {
-      "key": "call|src/app/domains/lines/router.py|236|imported|profile|PlexLineInfo",
+      "key": "call|src/app/domains/lines/router.py|184|imported|identity|get_emby_info_by_tg_id",
       "owner": "promote-line-domains",
       "path": "src/app/domains/lines/router.py",
-      "line": 236,
+      "line": 184,
       "kind": "call",
       "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "PlexLineInfo"
+      "target_domain": "identity",
+      "target": "get_emby_info_by_tg_id"
     },
     {
-      "key": "call|src/app/domains/lines/router.py|244|imported|profile|PlexLineInfo",
+      "key": "call|src/app/domains/lines/router.py|222|imported|identity|get_plex_info_by_tg_id",
       "owner": "promote-line-domains",
       "path": "src/app/domains/lines/router.py",
-      "line": 244,
+      "line": 222,
       "kind": "call",
       "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "PlexLineInfo"
+      "target_domain": "identity",
+      "target": "get_plex_info_by_tg_id"
     },
     {
-      "key": "call|src/app/domains/lines/router.py|255|imported|profile|PlexLineInfo",
+      "key": "call|src/app/domains/lines/router.py|299|imported|identity|get_plex_info_by_tg_id",
       "owner": "promote-line-domains",
       "path": "src/app/domains/lines/router.py",
-      "line": 255,
+      "line": 299,
       "kind": "call",
       "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "PlexLineInfo"
+      "target_domain": "identity",
+      "target": "get_plex_info_by_tg_id"
     },
     {
-      "key": "call|src/app/domains/lines/router.py|260|imported|profile|PlexLinesResponse",
+      "key": "call|src/app/domains/lines/router.py|366|imported|identity|get_plex_info_by_tg_id",
       "owner": "promote-line-domains",
       "path": "src/app/domains/lines/router.py",
-      "line": 260,
+      "line": 366,
       "kind": "call",
       "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "PlexLinesResponse"
+      "target_domain": "identity",
+      "target": "get_plex_info_by_tg_id"
     },
     {
-      "key": "call|src/app/domains/lines/router.py|265|imported|profile|PlexLinesResponse",
+      "key": "call|src/app/domains/lines/router.py|506|imported|identity|get_emby_info_by_emby_username",
       "owner": "promote-line-domains",
       "path": "src/app/domains/lines/router.py",
-      "line": 265,
+      "line": 506,
       "kind": "call",
       "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "PlexLinesResponse"
+      "target_domain": "identity",
+      "target": "get_emby_info_by_emby_username"
     },
     {
-      "key": "call|src/app/domains/lines/router.py|412|imported|profile|EmbyLineRequest",
+      "key": "call|src/app/domains/lines/router.py|578|imported|identity|get_plex_info_by_plex_email",
       "owner": "promote-line-domains",
       "path": "src/app/domains/lines/router.py",
-      "line": 412,
+      "line": 578,
       "kind": "call",
       "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "EmbyLineRequest"
+      "target_domain": "identity",
+      "target": "get_plex_info_by_plex_email"
     },
     {
-      "key": "call|src/app/domains/lines/router.py|415|imported|profile|PlexLineRequest",
+      "key": "call|src/app/domains/lines/router.py|59|imported|identity|get_emby_info_by_tg_id",
       "owner": "promote-line-domains",
       "path": "src/app/domains/lines/router.py",
-      "line": 415,
+      "line": 59,
       "kind": "call",
       "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "PlexLineRequest"
+      "target_domain": "identity",
+      "target": "get_emby_info_by_tg_id"
     },
     {
-      "key": "call|src/app/domains/lines/router.py|484|imported|profile|EmbyLinesResponse",
+      "key": "call|src/app/domains/lines/router.py|656|imported|identity|get_emby_info_by_emby_username",
       "owner": "promote-line-domains",
       "path": "src/app/domains/lines/router.py",
-      "line": 484,
+      "line": 656,
       "kind": "call",
       "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "EmbyLinesResponse"
+      "target_domain": "identity",
+      "target": "get_emby_info_by_emby_username"
     },
     {
-      "key": "call|src/app/domains/lines/router.py|501|imported|profile|EmbyLineInfo",
+      "key": "call|src/app/domains/lines/router.py|680|imported|identity|get_plex_info_by_plex_email",
       "owner": "promote-line-domains",
       "path": "src/app/domains/lines/router.py",
-      "line": 501,
+      "line": 680,
       "kind": "call",
       "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "EmbyLineInfo"
+      "target_domain": "identity",
+      "target": "get_plex_info_by_plex_email"
     },
     {
-      "key": "call|src/app/domains/lines/router.py|508|imported|profile|EmbyLineInfo",
+      "key": "call|src/app/domains/lines/router.py|758|imported|credits|read_optional",
       "owner": "promote-line-domains",
       "path": "src/app/domains/lines/router.py",
-      "line": 508,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "EmbyLineInfo"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|520|imported|profile|EmbyLineInfo",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 520,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "EmbyLineInfo"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|526|imported|profile|EmbyLinesResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 526,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "EmbyLinesResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|532|imported|profile|EmbyLinesResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 532,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "EmbyLinesResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|548|imported|profile|PlexLinesResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 548,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "PlexLinesResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|567|imported|profile|PlexLineInfo",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 567,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "PlexLineInfo"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|575|imported|profile|PlexLineInfo",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 575,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "PlexLineInfo"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|586|imported|profile|PlexLineInfo",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 586,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "PlexLineInfo"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|592|imported|profile|PlexLinesResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 592,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "PlexLinesResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|598|imported|profile|PlexLinesResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 598,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "PlexLinesResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|619|imported|profile|CurrentLineResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 619,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "CurrentLineResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|624|imported|profile|CurrentLineResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 624,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "CurrentLineResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|630|imported|profile|CurrentLineResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 630,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "CurrentLineResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|636|imported|profile|CurrentLineResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 636,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "CurrentLineResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|643|imported|profile|CurrentLineResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 643,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "CurrentLineResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|648|imported|profile|CurrentLineResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 648,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "CurrentLineResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|64|imported|profile|EmbyLinesResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 64,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "EmbyLinesResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|654|imported|profile|CurrentLineResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 654,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "CurrentLineResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|660|imported|profile|CurrentLineResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 660,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "CurrentLineResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|666|imported|profile|CurrentLineResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 666,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "CurrentLineResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|707|imported|profile|LineScheduleUnlockResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 707,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "LineScheduleUnlockResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|715|imported|profile|LineScheduleUnlockResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 715,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "LineScheduleUnlockResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|724|imported|credits|read_optional",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 724,
+      "line": 758,
       "kind": "call",
       "source_domain": "lines",
       "target_domain": "credits",
       "target": "read_optional"
     },
     {
-      "key": "call|src/app/domains/lines/router.py|726|imported|profile|LineScheduleUnlockResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 726,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "LineScheduleUnlockResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|730|imported|profile|LineScheduleUnlockResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 730,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "LineScheduleUnlockResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|739|imported|profile|LineScheduleUnlockResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 739,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "LineScheduleUnlockResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|758|imported|profile|LineScheduleUnlockResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 758,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "LineScheduleUnlockResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|764|imported|profile|LineScheduleUnlockResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 764,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "LineScheduleUnlockResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|76|imported|profile|EmbyLineInfo",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 76,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "EmbyLineInfo"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|780|imported|profile|LineScheduleListResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 780,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "LineScheduleListResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|83|imported|profile|EmbyLineInfo",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 83,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "EmbyLineInfo"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|92|imported|profile|EmbyLineInfo",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 92,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "EmbyLineInfo"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|953|imported|profile|LineScheduleStatusResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 953,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "LineScheduleStatusResponse"
-    },
-    {
-      "key": "call|src/app/domains/lines/router.py|99|imported|profile|EmbyLinesResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 99,
-      "kind": "call",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target": "EmbyLinesResponse"
-    },
-    {
-      "key": "call|src/app/domains/media_access/repository.py|185|imported|credits|register_cache_invalidation",
+      "key": "call|src/app/domains/media_access/repository.py|88|imported|identity|premium_active",
       "owner": "promote-line-domains",
       "path": "src/app/domains/media_access/repository.py",
-      "line": 185,
+      "line": 88,
       "kind": "call",
       "source_domain": "media_access",
-      "target_domain": "credits",
-      "target": "register_cache_invalidation"
+      "target_domain": "identity",
+      "target": "premium_active"
     },
     {
-      "key": "call|src/app/domains/media_access/router.py|126|imported|credits|deduct",
+      "key": "call|src/app/domains/media_access/router.py|33|imported|identity|find_plex_by_tg",
       "owner": "promote-line-domains",
       "path": "src/app/domains/media_access/router.py",
-      "line": 126,
+      "line": 33,
       "kind": "call",
       "source_domain": "media_access",
-      "target_domain": "credits",
-      "target": "deduct"
+      "target_domain": "identity",
+      "target": "find_plex_by_tg"
     },
     {
-      "key": "call|src/app/domains/media_access/router.py|168|imported|credits|deduct",
+      "key": "call|src/app/domains/media_access/router.py|35|imported|identity|find_emby_by_tg",
       "owner": "promote-line-domains",
       "path": "src/app/domains/media_access/router.py",
-      "line": 168,
+      "line": 35,
       "kind": "call",
       "source_domain": "media_access",
-      "target_domain": "credits",
-      "target": "deduct"
-    },
-    {
-      "key": "call|src/app/domains/media_access/router.py|218|imported|credits|add",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/media_access/router.py",
-      "line": 218,
-      "kind": "call",
-      "source_domain": "media_access",
-      "target_domain": "credits",
-      "target": "add"
-    },
-    {
-      "key": "call|src/app/domains/media_access/router.py|260|imported|credits|add",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/media_access/router.py",
-      "line": 260,
-      "kind": "call",
-      "source_domain": "media_access",
-      "target_domain": "credits",
-      "target": "add"
+      "target_domain": "identity",
+      "target": "find_emby_by_tg"
     },
     {
       "key": "call|src/app/domains/premium/admin_router.py|187|imported|traffic|get_premium_user_traffic_limit",
@@ -1104,50 +531,100 @@
       "target": "set_premium_user_traffic_limit"
     },
     {
-      "key": "call|src/app/domains/premium/admin_router.py|313|facade|lines|get_free_premium_lines",
+      "key": "call|src/app/domains/premium/admin_router.py|252|imported|lines|premium_lines",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/admin_router.py",
-      "line": 313,
-      "kind": "facade_call",
+      "line": 252,
+      "kind": "call",
       "source_domain": "premium",
       "target_domain": "lines",
-      "target": "get_free_premium_lines"
+      "target": "premium_lines"
     },
     {
-      "key": "call|src/app/domains/premium/admin_router.py|316|facade|lines|set_free_premium_lines",
+      "key": "call|src/app/domains/premium/admin_router.py|255|imported|lines|normal_lines",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/admin_router.py",
-      "line": 316,
-      "kind": "facade_call",
+      "line": 255,
+      "kind": "call",
+      "source_domain": "premium",
+      "target_domain": "lines",
+      "target": "normal_lines"
+    },
+    {
+      "key": "call|src/app/domains/premium/admin_router.py|259|imported|lines|add_line",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/admin_router.py",
+      "line": 259,
+      "kind": "call",
+      "source_domain": "premium",
+      "target_domain": "lines",
+      "target": "add_line"
+    },
+    {
+      "key": "call|src/app/domains/premium/admin_router.py|294|imported|lines|premium_lines",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/admin_router.py",
+      "line": 294,
+      "kind": "call",
+      "source_domain": "premium",
+      "target_domain": "lines",
+      "target": "premium_lines"
+    },
+    {
+      "key": "call|src/app/domains/premium/admin_router.py|298|imported|lines|delete_line",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/admin_router.py",
+      "line": 298,
+      "kind": "call",
+      "source_domain": "premium",
+      "target_domain": "lines",
+      "target": "delete_line"
+    },
+    {
+      "key": "call|src/app/domains/premium/admin_router.py|301|imported|lines|free_premium_lines",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/admin_router.py",
+      "line": 301,
+      "kind": "call",
+      "source_domain": "premium",
+      "target_domain": "lines",
+      "target": "free_premium_lines"
+    },
+    {
+      "key": "call|src/app/domains/premium/admin_router.py|304|imported|lines|set_free_premium_lines",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/admin_router.py",
+      "line": 304,
+      "kind": "call",
       "source_domain": "premium",
       "target_domain": "lines",
       "target": "set_free_premium_lines"
     },
     {
-      "key": "call|src/app/domains/premium/admin_router.py|319|facade|lines|delete_line_tags",
+      "key": "call|src/app/domains/premium/admin_router.py|307|imported|lines|delete_line_tags",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/admin_router.py",
-      "line": 319,
-      "kind": "facade_call",
+      "line": 307,
+      "kind": "call",
       "source_domain": "premium",
       "target_domain": "lines",
       "target": "delete_line_tags"
     },
     {
-      "key": "call|src/app/domains/premium/admin_router.py|322|imported|lines|unbind_specified_line_for_all_users",
+      "key": "call|src/app/domains/premium/admin_router.py|310|imported|lines|unbind_specified_line_for_all_users",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/admin_router.py",
-      "line": 322,
+      "line": 310,
       "kind": "call",
       "source_domain": "premium",
       "target_domain": "lines",
       "target": "unbind_specified_line_for_all_users"
     },
     {
-      "key": "call|src/app/domains/premium/admin_router.py|324|imported|lines|disable_line_schedules_and_notify",
+      "key": "call|src/app/domains/premium/admin_router.py|312|imported|lines|disable_line_schedules_and_notify",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/admin_router.py",
-      "line": 324,
+      "line": 312,
       "kind": "call",
       "source_domain": "premium",
       "target_domain": "lines",
@@ -1174,74 +651,124 @@
       "target": "set_premium_free"
     },
     {
-      "key": "call|src/app/domains/premium/admin_router.py|95|facade|lines|get_free_premium_lines",
+      "key": "call|src/app/domains/premium/admin_router.py|89|imported|lines|premium_lines",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/admin_router.py",
+      "line": 89,
+      "kind": "call",
+      "source_domain": "premium",
+      "target_domain": "lines",
+      "target": "premium_lines"
+    },
+    {
+      "key": "call|src/app/domains/premium/admin_router.py|95|imported|lines|free_premium_lines",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/admin_router.py",
       "line": 95,
-      "kind": "facade_call",
+      "kind": "call",
       "source_domain": "premium",
       "target_domain": "lines",
-      "target": "get_free_premium_lines"
+      "target": "free_premium_lines"
     },
     {
-      "key": "call|src/app/domains/premium/admin_router.py|96|facade|lines|set_free_premium_lines",
+      "key": "call|src/app/domains/premium/admin_router.py|96|imported|lines|set_free_premium_lines",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/admin_router.py",
       "line": 96,
-      "kind": "facade_call",
+      "kind": "call",
       "source_domain": "premium",
       "target_domain": "lines",
       "target": "set_free_premium_lines"
     },
     {
-      "key": "call|src/app/domains/premium/repository.py|34|imported|traffic|get_traffic_config",
+      "key": "call|src/app/domains/premium/repository.py|36|imported|traffic|get_traffic_config",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/repository.py",
-      "line": 34,
+      "line": 36,
       "kind": "call",
       "source_domain": "premium",
       "target_domain": "traffic",
       "target": "get_traffic_config"
     },
     {
-      "key": "call|src/app/domains/premium/repository.py|84|imported|traffic|get_traffic_config",
+      "key": "call|src/app/domains/premium/repository.py|427|imported|lines|premium_lines",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/repository.py",
-      "line": 84,
+      "line": 427,
+      "kind": "call",
+      "source_domain": "premium",
+      "target_domain": "lines",
+      "target": "premium_lines"
+    },
+    {
+      "key": "call|src/app/domains/premium/repository.py|452|imported|traffic|get_traffic_config",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/repository.py",
+      "line": 452,
       "kind": "call",
       "source_domain": "premium",
       "target_domain": "traffic",
       "target": "get_traffic_config"
     },
     {
-      "key": "call|src/app/domains/premium/router.py|177|imported|traffic|premium_line_statistics",
+      "key": "call|src/app/domains/premium/repository.py|455|imported|traffic|get_user_daily_traffic_tx",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/repository.py",
+      "line": 455,
+      "kind": "call",
+      "source_domain": "premium",
+      "target_domain": "traffic",
+      "target": "get_user_daily_traffic_tx"
+    },
+    {
+      "key": "call|src/app/domains/premium/repository.py|496|imported|traffic|get_user_daily_traffic_tx",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/repository.py",
+      "line": 496,
+      "kind": "call",
+      "source_domain": "premium",
+      "target_domain": "traffic",
+      "target": "get_user_daily_traffic_tx"
+    },
+    {
+      "key": "call|src/app/domains/premium/repository.py|87|imported|traffic|get_traffic_config",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/repository.py",
+      "line": 87,
+      "kind": "call",
+      "source_domain": "premium",
+      "target_domain": "traffic",
+      "target": "get_traffic_config"
+    },
+    {
+      "key": "call|src/app/domains/premium/router.py|172|imported|traffic|premium_line_statistics",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/router.py",
-      "line": 177,
+      "line": 172,
       "kind": "call",
       "source_domain": "premium",
       "target_domain": "traffic",
       "target": "premium_line_statistics"
     },
     {
-      "key": "call|src/app/domains/premium/router.py|96|imported|credits|read_optional",
+      "key": "call|src/app/domains/premium/router.py|95|imported|credits|read_optional",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/router.py",
-      "line": 96,
+      "line": 95,
       "kind": "call",
       "source_domain": "premium",
       "target_domain": "credits",
       "target": "read_optional"
     },
     {
-      "key": "call|src/app/domains/premium/service.py|107|imported|lines|is_binded_premium_line",
+      "key": "call|src/app/domains/premium/service.py|138|imported|lines|premium_lines",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/service.py",
-      "line": 107,
+      "line": 138,
       "kind": "call",
       "source_domain": "premium",
       "target_domain": "lines",
-      "target": "is_binded_premium_line"
+      "target": "premium_lines"
     },
     {
       "key": "call|src/app/domains/profile/bot.py|14|facade|invitation|get_invitation_code_by_owner",
@@ -1272,26 +799,6 @@
       "source_domain": "profile",
       "target_domain": "traffic",
       "target": "daily_usage"
-    },
-    {
-      "key": "call|src/app/domains/profile/router.py|119|facade|media_access|check_download_unlock",
-      "owner": "promote-remaining-domains",
-      "path": "src/app/domains/profile/router.py",
-      "line": 119,
-      "kind": "facade_call",
-      "source_domain": "profile",
-      "target_domain": "media_access",
-      "target": "check_download_unlock"
-    },
-    {
-      "key": "call|src/app/domains/profile/router.py|120|facade|premium|get_emby_premium_quota_status",
-      "owner": "promote-remaining-domains",
-      "path": "src/app/domains/profile/router.py",
-      "line": 120,
-      "kind": "facade_call",
-      "source_domain": "profile",
-      "target_domain": "premium",
-      "target": "get_emby_premium_quota_status"
     },
     {
       "key": "call|src/app/domains/profile/router.py|189|facade|invitation|get_invitee_count_by_owner",
@@ -1332,26 +839,6 @@
       "source_domain": "profile",
       "target_domain": "traffic",
       "target": "daily_usage"
-    },
-    {
-      "key": "call|src/app/domains/profile/router.py|60|facade|media_access|check_download_unlock",
-      "owner": "promote-remaining-domains",
-      "path": "src/app/domains/profile/router.py",
-      "line": 60,
-      "kind": "facade_call",
-      "source_domain": "profile",
-      "target_domain": "media_access",
-      "target": "check_download_unlock"
-    },
-    {
-      "key": "call|src/app/domains/profile/router.py|61|facade|premium|get_plex_premium_quota_status",
-      "owner": "promote-remaining-domains",
-      "path": "src/app/domains/profile/router.py",
-      "line": 61,
-      "kind": "facade_call",
-      "source_domain": "profile",
-      "target_domain": "premium",
-      "target": "get_plex_premium_quota_status"
     },
     {
       "key": "call|src/app/domains/rankings/bot.py|161|imported|reports|stats_report",
@@ -1415,24 +902,54 @@
       "target": "traffic_rank"
     },
     {
-      "key": "call|src/app/domains/reports/admin_router.py|27|facade|lines|get_free_premium_lines",
+      "key": "call|src/app/domains/reports/admin_router.py|26|imported|lines|free_premium_lines",
       "owner": "promote-remaining-domains",
       "path": "src/app/domains/reports/admin_router.py",
-      "line": 27,
-      "kind": "facade_call",
+      "line": 26,
+      "kind": "call",
       "source_domain": "reports",
       "target_domain": "lines",
-      "target": "get_free_premium_lines"
+      "target": "free_premium_lines"
     },
     {
-      "key": "call|src/app/domains/reports/router.py|41|facade|media_access|get_download_unlocked_users_num",
+      "key": "call|src/app/domains/reports/admin_router.py|34|imported|lines|normal_lines",
       "owner": "promote-remaining-domains",
-      "path": "src/app/domains/reports/router.py",
-      "line": 41,
-      "kind": "facade_call",
+      "path": "src/app/domains/reports/admin_router.py",
+      "line": 34,
+      "kind": "call",
       "source_domain": "reports",
-      "target_domain": "media_access",
-      "target": "get_download_unlocked_users_num"
+      "target_domain": "lines",
+      "target": "normal_lines"
+    },
+    {
+      "key": "call|src/app/domains/reports/admin_router.py|35|imported|lines|premium_lines",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/reports/admin_router.py",
+      "line": 35,
+      "kind": "call",
+      "source_domain": "reports",
+      "target_domain": "lines",
+      "target": "premium_lines"
+    },
+    {
+      "key": "call|src/app/domains/reports/repository.py|146|imported|lines|normal_lines",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/reports/repository.py",
+      "line": 146,
+      "kind": "call",
+      "source_domain": "reports",
+      "target_domain": "lines",
+      "target": "normal_lines"
+    },
+    {
+      "key": "call|src/app/domains/reports/repository.py|146|imported|lines|premium_lines",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/reports/repository.py",
+      "line": 146,
+      "kind": "call",
+      "source_domain": "reports",
+      "target_domain": "lines",
+      "target": "premium_lines"
     },
     {
       "key": "call|src/app/domains/reports/router.py|46|imported|identity|isnot",
@@ -1515,20 +1032,40 @@
       "target": "isnot"
     },
     {
-      "key": "call|src/app/domains/traffic/repository.py|727|imported|identity|get_plex_info_by_tg_id",
+      "key": "call|src/app/domains/traffic/repository.py|147|imported|lines|premium_lines",
       "owner": "promote-line-domains",
       "path": "src/app/domains/traffic/repository.py",
-      "line": 727,
+      "line": 147,
+      "kind": "call",
+      "source_domain": "traffic",
+      "target_domain": "lines",
+      "target": "premium_lines"
+    },
+    {
+      "key": "call|src/app/domains/traffic/repository.py|263|imported|lines|premium_lines",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/traffic/repository.py",
+      "line": 263,
+      "kind": "call",
+      "source_domain": "traffic",
+      "target_domain": "lines",
+      "target": "premium_lines"
+    },
+    {
+      "key": "call|src/app/domains/traffic/repository.py|728|imported|identity|get_plex_info_by_tg_id",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/traffic/repository.py",
+      "line": 728,
       "kind": "call",
       "source_domain": "traffic",
       "target_domain": "identity",
       "target": "get_plex_info_by_tg_id"
     },
     {
-      "key": "call|src/app/domains/traffic/repository.py|730|imported|identity|get_emby_info_by_tg_id",
+      "key": "call|src/app/domains/traffic/repository.py|731|imported|identity|get_emby_info_by_tg_id",
       "owner": "promote-line-domains",
       "path": "src/app/domains/traffic/repository.py",
-      "line": 730,
+      "line": 731,
       "kind": "call",
       "source_domain": "traffic",
       "target_domain": "identity",
@@ -1683,6 +1220,16 @@
       "source_domain": "watch_rewards",
       "target_domain": "credits",
       "target": "add_tx"
+    },
+    {
+      "key": "call|src/app/domains/watch_rewards/service.py|685|imported|premium|update_traffic_debt_tx",
+      "owner": "promote-reward-domains",
+      "path": "src/app/domains/watch_rewards/service.py",
+      "line": 685,
+      "kind": "call",
+      "source_domain": "watch_rewards",
+      "target_domain": "premium",
+      "target": "update_traffic_debt_tx"
     },
     {
       "key": "import|src/app/domains/badge_awards/jobs.py|10|app.domains.blackjack.service|service",
@@ -1915,216 +1462,15 @@
       "symbol": "check_and_award_supreme_contributor_badge"
     },
     {
-      "key": "import|src/app/domains/custom_lines/admin_router.py|117|app.domains.profile.schemas|CustomLineApproveRequest",
+      "key": "import|src/app/domains/custom_lines/repository.py|23|app.domains.lines.models|LineSchedule",
       "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/admin_router.py",
-      "line": 117,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineApproveRequest"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/admin_router.py|268|app.domains.profile.schemas|AdminCustomLineUpdateRequest",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/admin_router.py",
-      "line": 268,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "AdminCustomLineUpdateRequest"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/admin_router.py|35|app.domains.profile.schemas|CustomLineInfo",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/admin_router.py",
-      "line": 35,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineInfo"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/admin_router.py|35|app.domains.profile.schemas|CustomLineListResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/admin_router.py",
-      "line": 35,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineListResponse"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/admin_router.py|5|app.domains.lines.service|unbind_specified_line_for_all_users",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/admin_router.py",
-      "line": 5,
+      "path": "src/app/domains/custom_lines/repository.py",
+      "line": 23,
       "kind": "import",
       "source_domain": "custom_lines",
       "target_domain": "lines",
-      "target_module": "app.domains.lines.service",
-      "symbol": "unbind_specified_line_for_all_users"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/admin_router.py|91|app.domains.profile.schemas|CustomLineListResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/admin_router.py",
-      "line": 91,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineListResponse"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/jobs.py|176|app.domains.lines.service|disable_line_schedules_and_notify",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/jobs.py",
-      "line": 176,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "lines",
-      "target_module": "app.domains.lines.service",
-      "symbol": "disable_line_schedules_and_notify",
-      "b3_source_id": "app.modules.custom_line:check_custom_line_traffic"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/jobs.py|22|app.domains.lines.service|unbind_specified_line_for_all_users",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/jobs.py",
-      "line": 22,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "lines",
-      "target_module": "app.domains.lines.service",
-      "symbol": "unbind_specified_line_for_all_users",
-      "b3_source_id": "app.modules.custom_line:@import:10"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/jobs.py|79|app.domains.traffic.repository|_get_line_monthly_traffic",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/jobs.py",
-      "line": 79,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "traffic",
-      "target_module": "app.domains.traffic.repository",
-      "symbol": "_get_line_monthly_traffic",
-      "b3_source_id": "app.modules.custom_line:_get_line_monthly_traffic"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/router.py|10|app.domains.profile.schemas|CustomLineDetailResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 10,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineDetailResponse"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/router.py|10|app.domains.profile.schemas|CustomLineInfo",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 10,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineInfo"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/router.py|10|app.domains.profile.schemas|CustomLineListResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 10,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineListResponse"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/router.py|10|app.domains.profile.schemas|CustomLineOnlineRequest",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 10,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineOnlineRequest"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/router.py|10|app.domains.profile.schemas|CustomLineRenewRequest",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 10,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineRenewRequest"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/router.py|10|app.domains.profile.schemas|CustomLineSubmitRequest",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 10,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineSubmitRequest"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/router.py|10|app.domains.profile.schemas|CustomLineUpdateRequest",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 10,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "CustomLineUpdateRequest"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/router.py|529|app.domains.lines.service|unbind_specified_line_for_all_users",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 529,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "lines",
-      "target_module": "app.domains.lines.service",
-      "symbol": "unbind_specified_line_for_all_users"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/router.py|543|app.domains.lines.service|disable_line_schedules_and_notify",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/router.py",
-      "line": 543,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "lines",
-      "target_module": "app.domains.lines.service",
-      "symbol": "disable_line_schedules_and_notify"
-    },
-    {
-      "key": "import|src/app/domains/custom_lines/service.py|112|app.domains.traffic.repository|_get_line_monthly_traffic",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/custom_lines/service.py",
-      "line": 112,
-      "kind": "import",
-      "source_domain": "custom_lines",
-      "target_domain": "traffic",
-      "target_module": "app.domains.traffic.repository",
-      "symbol": "_get_line_monthly_traffic"
+      "target_module": "app.domains.lines.models",
+      "symbol": "LineSchedule"
     },
     {
       "key": "import|src/app/domains/donation/admin_router.py|7|app.domains.credits.service|service",
@@ -2226,232 +1572,21 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/lines/admin_router.py|11|app.domains.profile.schemas|AllLineTagsResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/admin_router.py",
-      "line": 11,
+      "key": "import|src/app/domains/gift_pack/rules.py|17|app.domains.identity.rules|rules",
+      "owner": "promote-gift-pack-domain",
+      "path": "src/app/domains/gift_pack/rules.py",
+      "line": 17,
       "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "AllLineTagsResponse"
-    },
-    {
-      "key": "import|src/app/domains/lines/admin_router.py|11|app.domains.profile.schemas|LineTagRequest",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/admin_router.py",
-      "line": 11,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "LineTagRequest"
-    },
-    {
-      "key": "import|src/app/domains/lines/admin_router.py|11|app.domains.profile.schemas|LineTagResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/admin_router.py",
-      "line": 11,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "LineTagResponse"
-    },
-    {
-      "key": "import|src/app/domains/lines/jobs.py|6|app.domains.identity.models|EmbyUser",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/jobs.py",
-      "line": 6,
-      "kind": "import",
-      "source_domain": "lines",
+      "source_domain": "gift_pack",
       "target_domain": "identity",
-      "target_module": "app.domains.identity.models",
-      "symbol": "EmbyUser",
-      "b3_source_id": "app.databases.db_func:@import:20"
+      "target_module": "app.domains.identity.rules",
+      "symbol": "rules"
     },
     {
-      "key": "import|src/app/domains/lines/jobs.py|6|app.domains.identity.models|PlexUser",
+      "key": "import|src/app/domains/lines/router.py|6|app.domains.credits.service|service",
       "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/jobs.py",
+      "path": "src/app/domains/lines/router.py",
       "line": 6,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "identity",
-      "target_module": "app.domains.identity.models",
-      "symbol": "PlexUser",
-      "b3_source_id": "app.databases.db_func:@import:20"
-    },
-    {
-      "key": "import|src/app/domains/lines/repository.py|11|app.domains.credits.service|service",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/repository.py",
-      "line": 11,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "credits",
-      "target_module": "app.domains.credits.service",
-      "symbol": "service"
-    },
-    {
-      "key": "import|src/app/domains/lines/router.py|27|app.domains.profile.schemas|AuthBindLineRequest",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 27,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "AuthBindLineRequest"
-    },
-    {
-      "key": "import|src/app/domains/lines/router.py|27|app.domains.profile.schemas|CurrentLineResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 27,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "CurrentLineResponse"
-    },
-    {
-      "key": "import|src/app/domains/lines/router.py|27|app.domains.profile.schemas|EmbyLineInfo",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 27,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "EmbyLineInfo"
-    },
-    {
-      "key": "import|src/app/domains/lines/router.py|27|app.domains.profile.schemas|EmbyLineRequest",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 27,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "EmbyLineRequest"
-    },
-    {
-      "key": "import|src/app/domains/lines/router.py|27|app.domains.profile.schemas|EmbyLinesResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 27,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "EmbyLinesResponse"
-    },
-    {
-      "key": "import|src/app/domains/lines/router.py|27|app.domains.profile.schemas|LineScheduleCreate",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 27,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "LineScheduleCreate"
-    },
-    {
-      "key": "import|src/app/domains/lines/router.py|27|app.domains.profile.schemas|LineScheduleListResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 27,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "LineScheduleListResponse"
-    },
-    {
-      "key": "import|src/app/domains/lines/router.py|27|app.domains.profile.schemas|LineScheduleStatusResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 27,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "LineScheduleStatusResponse"
-    },
-    {
-      "key": "import|src/app/domains/lines/router.py|27|app.domains.profile.schemas|LineScheduleUnlockRequest",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 27,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "LineScheduleUnlockRequest"
-    },
-    {
-      "key": "import|src/app/domains/lines/router.py|27|app.domains.profile.schemas|LineScheduleUnlockResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 27,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "LineScheduleUnlockResponse"
-    },
-    {
-      "key": "import|src/app/domains/lines/router.py|27|app.domains.profile.schemas|LineScheduleUpdate",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 27,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "LineScheduleUpdate"
-    },
-    {
-      "key": "import|src/app/domains/lines/router.py|27|app.domains.profile.schemas|PlexLineInfo",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 27,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "PlexLineInfo"
-    },
-    {
-      "key": "import|src/app/domains/lines/router.py|27|app.domains.profile.schemas|PlexLineRequest",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 27,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "PlexLineRequest"
-    },
-    {
-      "key": "import|src/app/domains/lines/router.py|27|app.domains.profile.schemas|PlexLinesResponse",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 27,
-      "kind": "import",
-      "source_domain": "lines",
-      "target_domain": "profile",
-      "target_module": "app.domains.profile.schemas",
-      "symbol": "PlexLinesResponse"
-    },
-    {
-      "key": "import|src/app/domains/lines/router.py|8|app.domains.credits.service|service",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/lines/router.py",
-      "line": 8,
       "kind": "import",
       "source_domain": "lines",
       "target_domain": "credits",
@@ -2471,38 +1606,26 @@
       "b3_source_id": "app.databases.db_func:check_and_award_game_king_badge"
     },
     {
-      "key": "import|src/app/domains/media_access/repository.py|10|app.domains.credits.service|service",
+      "key": "import|src/app/domains/media_access/repository.py|11|app.domains.identity.rules|rules",
       "owner": "promote-line-domains",
       "path": "src/app/domains/media_access/repository.py",
-      "line": 10,
-      "kind": "import",
-      "source_domain": "media_access",
-      "target_domain": "credits",
-      "target_module": "app.domains.credits.service",
-      "symbol": "service"
-    },
-    {
-      "key": "import|src/app/domains/media_access/router.py|7|app.domains.credits.service|service",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/media_access/router.py",
-      "line": 7,
-      "kind": "import",
-      "source_domain": "media_access",
-      "target_domain": "credits",
-      "target_module": "app.domains.credits.service",
-      "symbol": "service"
-    },
-    {
-      "key": "import|src/app/domains/media_access/service.py|5|app.domains.identity.models|PlexUser",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/media_access/service.py",
-      "line": 5,
+      "line": 11,
       "kind": "import",
       "source_domain": "media_access",
       "target_domain": "identity",
-      "target_module": "app.domains.identity.models",
-      "symbol": "PlexUser",
-      "b3_source_id": "app.databases.db_func:@import:20"
+      "target_module": "app.domains.identity.rules",
+      "symbol": "rules"
+    },
+    {
+      "key": "import|src/app/domains/media_access/router.py|4|app.domains.credits.exceptions|InsufficientCredits",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/media_access/router.py",
+      "line": 4,
+      "kind": "import",
+      "source_domain": "media_access",
+      "target_domain": "credits",
+      "target_module": "app.domains.credits.exceptions",
+      "symbol": "InsufficientCredits"
     },
     {
       "key": "import|src/app/domains/prediction/router.py|7|app.domains.badge_awards.jobs|check_and_award_game_king_badge",
@@ -2526,6 +1649,17 @@
       "target_domain": "traffic",
       "target_module": "app.domains.traffic.service",
       "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/premium/admin_router.py|5|app.domains.lines|catalog",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/admin_router.py",
+      "line": 5,
+      "kind": "import",
+      "source_domain": "premium",
+      "target_domain": "lines",
+      "target_module": "app.domains.lines",
+      "symbol": "catalog"
     },
     {
       "key": "import|src/app/domains/premium/admin_router.py|6|app.domains.lines.service|service",
@@ -2594,21 +1728,32 @@
       "symbol": "unbind_specified_line_for_all_users"
     },
     {
-      "key": "import|src/app/domains/premium/repository.py|10|app.domains.traffic.models|LineTrafficStats",
+      "key": "import|src/app/domains/premium/repository.py|10|app.domains.lines|catalog",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/repository.py",
       "line": 10,
       "kind": "import",
       "source_domain": "premium",
-      "target_domain": "traffic",
-      "target_module": "app.domains.traffic.models",
-      "symbol": "LineTrafficStats"
+      "target_domain": "lines",
+      "target_module": "app.domains.lines",
+      "symbol": "catalog"
     },
     {
-      "key": "import|src/app/domains/premium/repository.py|9|app.domains.traffic.service|service",
+      "key": "import|src/app/domains/premium/repository.py|12|app.domains.traffic|repository_tx",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/repository.py",
-      "line": 9,
+      "line": 12,
+      "kind": "import",
+      "source_domain": "premium",
+      "target_domain": "traffic",
+      "target_module": "app.domains.traffic",
+      "symbol": "repository_tx"
+    },
+    {
+      "key": "import|src/app/domains/premium/repository.py|13|app.domains.traffic.service|service",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/repository.py",
+      "line": 13,
       "kind": "import",
       "source_domain": "premium",
       "target_domain": "traffic",
@@ -2616,10 +1761,21 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/premium/router.py|10|app.domains.credits.service|service",
+      "key": "import|src/app/domains/premium/router.py|14|app.domains.traffic.service|service",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/router.py",
-      "line": 10,
+      "line": 14,
+      "kind": "import",
+      "source_domain": "premium",
+      "target_domain": "traffic",
+      "target_module": "app.domains.traffic.service",
+      "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/premium/router.py|9|app.domains.credits.service|service",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/premium/router.py",
+      "line": 9,
       "kind": "import",
       "source_domain": "premium",
       "target_domain": "credits",
@@ -2627,27 +1783,15 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/premium/router.py|15|app.domains.traffic.service|service",
-      "owner": "promote-line-domains",
-      "path": "src/app/domains/premium/router.py",
-      "line": 15,
-      "kind": "import",
-      "source_domain": "premium",
-      "target_domain": "traffic",
-      "target_module": "app.domains.traffic.service",
-      "symbol": "service"
-    },
-    {
-      "key": "import|src/app/domains/premium/service.py|12|app.domains.lines.rules|is_binded_premium_line",
+      "key": "import|src/app/domains/premium/service.py|12|app.domains.lines|catalog",
       "owner": "promote-line-domains",
       "path": "src/app/domains/premium/service.py",
       "line": 12,
       "kind": "import",
       "source_domain": "premium",
       "target_domain": "lines",
-      "target_module": "app.domains.lines.rules",
-      "symbol": "is_binded_premium_line",
-      "b3_source_id": "app.utils.utils:is_binded_premium_line"
+      "target_module": "app.domains.lines",
+      "symbol": "catalog"
     },
     {
       "key": "import|src/app/domains/profile/router.py|11|app.domains.traffic.service|service",
@@ -2704,6 +1848,28 @@
       "target_domain": "traffic",
       "target_module": "app.domains.traffic.service",
       "symbol": "service"
+    },
+    {
+      "key": "import|src/app/domains/reports/admin_router.py|4|app.domains.lines|catalog",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/reports/admin_router.py",
+      "line": 4,
+      "kind": "import",
+      "source_domain": "reports",
+      "target_domain": "lines",
+      "target_module": "app.domains.lines",
+      "symbol": "catalog"
+    },
+    {
+      "key": "import|src/app/domains/reports/repository.py|10|app.domains.lines|catalog",
+      "owner": "promote-remaining-domains",
+      "path": "src/app/domains/reports/repository.py",
+      "line": 10,
+      "kind": "import",
+      "source_domain": "reports",
+      "target_domain": "lines",
+      "target_module": "app.domains.lines",
+      "symbol": "catalog"
     },
     {
       "key": "import|src/app/domains/reports/router.py|8|app.domains.identity.models|EmbyUser",
@@ -2926,6 +2092,17 @@
       "symbol": "PlexUser"
     },
     {
+      "key": "import|src/app/domains/traffic/repository.py|10|app.domains.lines|catalog",
+      "owner": "promote-line-domains",
+      "path": "src/app/domains/traffic/repository.py",
+      "line": 10,
+      "kind": "import",
+      "source_domain": "traffic",
+      "target_domain": "lines",
+      "target_module": "app.domains.lines",
+      "symbol": "catalog"
+    },
+    {
       "key": "import|src/app/domains/traffic/repository.py|8|app.domains.identity.service|service",
       "owner": "promote-line-domains",
       "path": "src/app/domains/traffic/repository.py",
@@ -2994,10 +2171,10 @@
       "symbol": "service"
     },
     {
-      "key": "import|src/app/domains/watch_rewards/service.py|13|app.domains.credits.repository|repository",
+      "key": "import|src/app/domains/watch_rewards/service.py|12|app.domains.credits.repository|repository",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 13,
+      "line": 12,
       "kind": "import",
       "source_domain": "watch_rewards",
       "target_domain": "credits",
@@ -3005,10 +2182,10 @@
       "symbol": "repository"
     },
     {
-      "key": "import|src/app/domains/watch_rewards/service.py|16|app.domains.identity.repository|repository",
+      "key": "import|src/app/domains/watch_rewards/service.py|15|app.domains.identity.repository|repository",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 16,
+      "line": 15,
       "kind": "import",
       "source_domain": "watch_rewards",
       "target_domain": "identity",
@@ -3016,10 +2193,10 @@
       "symbol": "repository"
     },
     {
-      "key": "import|src/app/domains/watch_rewards/service.py|17|app.domains.identity.models|EmbyUser",
+      "key": "import|src/app/domains/watch_rewards/service.py|16|app.domains.identity.models|EmbyUser",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 17,
+      "line": 16,
       "kind": "import",
       "source_domain": "watch_rewards",
       "target_domain": "identity",
@@ -3027,10 +2204,10 @@
       "symbol": "EmbyUser"
     },
     {
-      "key": "import|src/app/domains/watch_rewards/service.py|17|app.domains.identity.models|PlexUser",
+      "key": "import|src/app/domains/watch_rewards/service.py|16|app.domains.identity.models|PlexUser",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 17,
+      "line": 16,
       "kind": "import",
       "source_domain": "watch_rewards",
       "target_domain": "identity",
@@ -3038,15 +2215,26 @@
       "symbol": "PlexUser"
     },
     {
-      "key": "import|src/app/domains/watch_rewards/service.py|17|app.domains.identity.models|Statistics",
+      "key": "import|src/app/domains/watch_rewards/service.py|16|app.domains.identity.models|Statistics",
       "owner": "promote-reward-domains",
       "path": "src/app/domains/watch_rewards/service.py",
-      "line": 17,
+      "line": 16,
       "kind": "import",
       "source_domain": "watch_rewards",
       "target_domain": "identity",
       "target_module": "app.domains.identity.models",
       "symbol": "Statistics"
+    },
+    {
+      "key": "import|src/app/domains/watch_rewards/service.py|18|app.domains.premium.repository|repository",
+      "owner": "promote-reward-domains",
+      "path": "src/app/domains/watch_rewards/service.py",
+      "line": 18,
+      "kind": "import",
+      "source_domain": "watch_rewards",
+      "target_domain": "premium",
+      "target_module": "app.domains.premium.repository",
+      "symbol": "repository"
     },
     {
       "key": "import|src/app/domains/watch_rewards/service.py|207|app.domains.premium.rules|_resolve_premium_status_for_settlement",
@@ -3080,14 +2268,14 @@
     "Top-level architecture": 0,
     "External integration isolation": 0,
     "Legacy database facade freeze": 0,
-    "SQLAlchemy direct use scope": 14,
-    "Database engine import scope": 15,
-    "Domain model import scope": 18,
-    "Six-tier domain dependencies": 42,
-    "Acyclic domain siblings": 11,
+    "SQLAlchemy direct use scope": 7,
+    "Database engine import scope": 9,
+    "Domain model import scope": 10,
+    "Six-tier domain dependencies": 26,
+    "Acyclic domain siblings": 9,
     "Domain internal layering": 3,
     "Domain types are pure value modules": 0,
     "Domain rules are pure value computations": 0,
-    "Domain entry points do not touch data layer": 54
+    "Domain entry points do not touch data layer": 33
   }
 }

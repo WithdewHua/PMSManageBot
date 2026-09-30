@@ -1,0 +1,1461 @@
+{
+  "legacy_mixin_members": {
+    "LinesRepository": [
+      "set_emby_line",
+      "get_emby_line",
+      "get_emby_user_with_binded_line",
+      "set_plex_line",
+      "get_plex_line",
+      "get_plex_user_with_binded_line",
+      "get_free_premium_lines",
+      "set_free_premium_lines",
+      "is_free_premium_line",
+      "get_line_tags",
+      "set_line_tags",
+      "delete_line_tags",
+      "get_all_line_tags",
+      "check_line_schedule_unlock",
+      "unlock_line_schedule_with_credit",
+      "unlock_line_schedule",
+      "create_line_schedule",
+      "get_user_line_schedules",
+      "update_line_schedule",
+      "delete_line_schedule",
+      "check_schedule_conflict",
+      "get_current_active_schedule",
+      "disable_schedules_by_line",
+      "get_users_with_line_schedule"
+    ],
+    "TrafficRepository": [
+      "create_line_traffic_entry",
+      "bulk_create_line_traffic_entries",
+      "get_premium_line_traffic_statistics",
+      "get_user_daily_traffic",
+      "get_plex_traffic_rank",
+      "get_emby_traffic_rank",
+      "aggregate_monthly_traffic_data",
+      "cleanup_monthly_traffic_data",
+      "update_traffic_username"
+    ]
+  },
+  "notification_literals": [
+    "' 删除成功",
+    "' 提交成功，请等待管理员审核",
+    "' 添加成功",
+    ")\n⏰ 有效期:",
+    ")\n🌐 域名:",
+    ") | 线路:",
+    ") 的",
+    ", 原始数据:",
+    ": 发送通知失败:",
+    ": 撤销下载权限失败:",
+    ": 查询下载权限失败:",
+    ": 解绑会员线路失败:",
+    "Emby Premium Free 功能未启用，跳过解绑操作",
+    "Emby 下载权限更新失败",
+    "Emby 下载权限更新失败:",
+    "Emby 认证需要密码",
+    "Emby用户",
+    "GB\n\n用户现在可以重新绑定此线路",
+    "GB\n\n线路已自动下线并解绑所有用户\n下月 1 号将自动恢复使用",
+    "GB\n⏰ 有效期:",
+    "GB\n流量限制:",
+    "GB\n流量限制：",
+    "GB\n过期时间:",
+    "GB (单向)\n获得积分：",
+    "GB | 积分:",
+    "GB) 不能大于总流量 (",
+    "JSON 解析错误:",
+    "NSFW 内容已",
+    "NSFW 媒体库列表已更新",
+    "NSFW 解锁补偿失败: %s",
+    "NSFW 锁定补偿失败: %s",
+    "Plex Premium Free 功能未启用，跳过解绑操作",
+    "Plex 同步权限更新失败",
+    "Plex 和 Emby 服务",
+    "Plex 用户",
+    "Plex 用户信息异常，暂时无法绑定线路",
+    "Premium 会员相关功能,包括检查过期状态和即将过期的用户。",
+    "Premium 会员相关路由",
+    "Premium 将在",
+    "Premium 已过期，到期时间为",
+    "Premium 用户已自动拥有下载权限，无需解锁",
+    "Premium 统计信息发送完成，成功发送给",
+    "Premium 解锁功能暂未开放",
+    "Premium 解锁已",
+    "Premium 过期处理未完成: %s",
+    "Premium 过期权限查询失败:",
+    "Premium统计信息响应模型",
+    "Premium解锁响应模型",
+    "Premium解锁请求模型",
+    "`\n原因：",
+    "` 已不再免费开放，您的 Emby 绑定线路已切换为 `",
+    "` 已不再开放，您绑定的 Plex 线路已切换为 `",
+    "| 今日超出流量:",
+    "| 到期时间:",
+    "| 成功切换:",
+    "| 服务类型:",
+    "| 永久会员 | 线路:",
+    "| 累计欠额:",
+    "| 线路:",
+    "| 预计结算后欠额:",
+    "⏰ 天数:",
+    "⏰ 有效期:",
+    "⏰ 统计时间:",
+    "⏰ 自定义线路即将过期提醒\n\n域名：",
+    "━━━━━━━ 明细列表 ━━━━━━━",
+    "⚠️",
+    "⚠️ 您的自定义线路已被",
+    "⚠️ 线路调度变更通知\n\n线路：`",
+    "⚠️ 自定义线路流量超限通知\n\n域名：",
+    "✅ 您的自定义线路已通过审核\n\n🌐 域名:",
+    "✅ 结算完成时间：",
+    "✅ 自定义线路已恢复上线\n\n域名:",
+    "✨ Premium 解锁成功\n\n👤 用户:",
+    "❌ 您的自定义线路未通过审核\n\n🌐 域名:",
+    "⭐ 类型: Premium 线路",
+    "⭐ 类型: 普通线路",
+    "。当前线路为:",
+    "。请重新解锁 Premium 以继续使用高级功能。",
+    "上一次使用的普通线路",
+    "下载权限已解锁，无需重复解锁",
+    "下载权限，跳过 Premium 授权",
+    "不在高级线路列表中",
+    "不支持的操作类型",
+    "不支持的操作类型:",
+    "不支持的服务类型",
+    "不支持的服务类型:",
+    "个",
+    "个使用线路",
+    "个即将过期的 Premium 用户",
+    "个用户的线路",
+    "个管理员",
+    "个调度并通知",
+    "为",
+    "为 Emby 用户",
+    "为 Plex 用户",
+    "为 Premium 用户",
+    "人)",
+    "人):",
+    "今天不是每月1号，跳过月度流量数据迁移任务。当前日期:",
+    "从 Redis 转移流量日志到处理中队列失败:",
+    "从处理中队列获取",
+    "从源队列获取",
+    "位用户",
+    "免费 Premium 线路设置已更新，共",
+    "关闭",
+    "写入线路缓存时发生错误:",
+    "分享线路！",
+    "分享限制 (",
+    "创建线路调度",
+    "创建线路调度失败",
+    "创建线路调度失败:",
+    "创建线路调度成功",
+    "删除\n\n🌐 域名:",
+    "删除成功",
+    "删除指定线路的所有标签（管理员功能）",
+    "删除普通线路:",
+    "删除普通线路失败",
+    "删除普通线路失败:",
+    "删除普通线路（兼容性接口，推荐使用 /lines/normal/{line_name}）",
+    "删除普通线路（通用，同时支持Plex和Emby）",
+    "删除标签失败",
+    "删除线路",
+    "删除线路标签失败:",
+    "删除线路调度",
+    "删除线路调度失败",
+    "删除线路调度失败:",
+    "删除线路调度失败或无权限",
+    "删除线路调度成功",
+    "删除高级线路:",
+    "删除高级线路失败",
+    "删除高级线路失败:",
+    "删除高级线路（兼容性接口，推荐使用 /lines/premium/{line_name}）",
+    "删除高级线路（通用，同时支持Plex和Emby）",
+    "剩余时间：约",
+    "加载用户ID映射失败:",
+    "发现",
+    "发送 Premium 统计信息给管理员",
+    "发送 Premium 过期查询失败汇总失败",
+    "发送即将过期提醒失败 (线路 %s): %s",
+    "发送消息给管理员",
+    "发送管理员结算汇总通知\n\n    Args:\n        settle_month: 结算月份\n        settlement_details: 结算详情列表\n        settled_count: 结算线路数量\n        total_credits: 总赠送积分",
+    "发送管理员结算汇总通知失败:",
+    "发送线路调度禁用通知",
+    "发送线路调度禁用通知给用户",
+    "发送线路调度通知给用户 %s 失败: %s",
+    "发送结算汇总通知给管理员",
+    "发送自定义线路提交通知失败: %s",
+    "发送自定义线路通知失败: %s",
+    "同步 %s NSFW 解锁失败: %s",
+    "同步 %s NSFW 锁定失败: %s",
+    "启用",
+    "启用 Emby 下载权限",
+    "启用 Plex 同步权限",
+    "基于用户名获取可用的Emby线路列表（无需认证，仅查询数据库中的用户信息）",
+    "基于邮箱获取可用的Plex线路列表（无需认证，仅查询数据库中的用户信息）",
+    "增加免费高级线路变更处理任务",
+    "处理 Premium 过期用户 %s/%s 失败",
+    "处理免费高级线路变更时发生错误:",
+    "处理免费高级线路变更，检查并处理不再免费的线路",
+    "处理日志时发生错误:",
+    "天",
+    "天\n原过期时间:",
+    "天\n💎 花费:",
+    "天 Premium 会员",
+    "天内即将过期的 Premium 用户",
+    "天后到期",
+    "天后过期 (到期时间:",
+    "天后过期，到期时间为",
+    "天，费用",
+    "失败",
+    "失败:",
+    "如有疑问，请联系管理员。",
+    "如有需要，可在面板绑定使用",
+    "媒体库列表必须是非空字符串列表",
+    "字节",
+    "定时任务：月度流量数据迁移聚合",
+    "审批失败，请稍后再试",
+    "审批自定义线路失败",
+    "小时\n\n⚠️ 过期后线路将自动下线并解绑所有用户\n请及时在个人中心续期以继续使用",
+    "尝试绑定 Emby 线路",
+    "尝试绑定 Plex 线路",
+    "尝试解绑 Emby 线路",
+    "尝试解绑 Plex 线路",
+    "尝试解锁",
+    "尝试认证并绑定",
+    "已上线\n流量限制:",
+    "已下线",
+    "已下线线路:",
+    "已为 Premium 用户",
+    "已切换到自动选择线路",
+    "已删除线路:",
+    "已发送结算汇总通知给管理员",
+    "已向用户",
+    "已批准线路:",
+    "已拒绝线路:",
+    "已更新线路标签",
+    "已用积分解锁",
+    "已禁用",
+    "已绑定该线路",
+    "已被所有者下线",
+    "已被管理员下线",
+    "已被管理员删除",
+    "已过期",
+    "年付: ¥",
+    "开启",
+    "开始执行月度流量数据迁移任务，目标月份:",
+    "开始获取Premium线路统计信息",
+    "开放",
+    "当前绑定线路:",
+    "当月流量:",
+    "当月流量：",
+    "总量",
+    "恢复 Premium 线路失败",
+    "您不是 premium 用户，无法使用该线路",
+    "您尚未绑定",
+    "您尚未绑定 Emby 账户，请先绑定",
+    "您尚未绑定 Plex 账户，请先绑定",
+    "您尚未绑定 Plex/Emby 账户",
+    "您尚未绑定Emby账户，请先绑定",
+    "您尚未绑定Plex账户，请先绑定",
+    "您尚未解锁 NSFW 内容",
+    "您已拥有全部库权限",
+    "您已是永久 Premium 会员，无需续费",
+    "您已经解锁了线路调度功能",
+    "您未绑定 Emby 账户，无法查看线路",
+    "您未绑定 Plex 账户，无法查看线路",
+    "您未绑定线路，无需解绑",
+    "您未解锁NSFW内容",
+    "您的",
+    "感谢",
+    "感谢您的分享，积分已自动发放到您的账户 🎉",
+    "成功发送 Premium 统计信息给管理员",
+    "成功禁用",
+    "成功绑定 Emby 线路",
+    "成功绑定 Plex 线路",
+    "成功解绑",
+    "成功解绑 Emby 线路",
+    "成功解绑 Plex 线路",
+    "成功解锁",
+    "成功解锁线路调度功能，消耗",
+    "成功认证并绑定 Plex 线路",
+    "成功认证并绑定Emby线路",
+    "成功！",
+    "成功！请重新播放以应用线路变更",
+    "所有符合条件的用户",
+    "执行 NSFW 操作时发生错误: %s",
+    "批量确认处理完成的流量日志时发生错误:",
+    "找到 %s 条即将过期的自定义线路",
+    "把 Premium 对应的下载/同步权限同步到媒体服务器（提交后 best-effort）。\n\n    这是纯外部副作用：失败只记 warning，不影响 Premium 本身的发放，也不会把\n    HTTP 往返关进事务。`services` 为空时检查用户绑定过的 Plex 与 Emby；已经用\n    积分解锁下载权限的用户直接跳过，保持原有行为。签名里不再需要门面实例。",
+    "折 优惠！",
+    "操作失败，请稍后再试",
+    "数据清理成功:",
+    "数据聚合成功:",
+    "新过期时间:",
+    "无",
+    "无效的操作",
+    "无效的流量类型",
+    "无效的状态",
+    "无权上线此线路",
+    "无权下线此线路",
+    "无权查看此线路",
+    "无法找到 token 对应的用户名:",
+    "无法解析日志格式:",
+    "无限制",
+    "时发生错误:",
+    "普通用户每日免费 Premium 流量额度已设置为",
+    "普通线路 '",
+    "更新失败，请稍后再试",
+    "更新成功",
+    "更新线路流量统计时发生错误:",
+    "更新线路的流量数据",
+    "更新线路调度",
+    "更新线路调度失败",
+    "更新线路调度失败:",
+    "更新线路调度成功",
+    "月付: ¥",
+    "月度流量数据聚合失败:",
+    "月度流量数据聚合成功，但清理失败:",
+    "月度流量数据迁移任务执行失败:",
+    "月度流量数据迁移完成\n=====================\n\n目标月份：",
+    "月限",
+    "服务",
+    "服务:",
+    "服务类型必须是 'emby' 或 'plex'",
+    "服务类型必须是 'plex' 或 'emby'",
+    "未发现",
+    "未找到绑定的",
+    "未提供",
+    "未知",
+    "未绑定 Emby 账户",
+    "未绑定 Plex 账户",
+    "未绑定Emby账户",
+    "未绑定Plex账户",
+    "未绑定任何线路",
+    "未绑定线路，无需解绑",
+    "未获取到 Premium 线路统计数据、用户数据和欠额数据",
+    "未设置",
+    "未配置管理员 ID，无法发送统计信息",
+    "权限失败:",
+    "条",
+    "条, 业务跳过",
+    "条, 已确认",
+    "条, 成功新增",
+    "条, 留待重试",
+    "条, 重复跳过",
+    "条日志",
+    "条线路",
+    "条线路信息",
+    "格式化 Premium 线路统计信息为 Telegram 消息格式\n    :param stats: 统计数据列表\n    :param premium_users: Premium 用户列表（可选）\n    :param premium_debt_users: Premium 流量欠额用户列表（可选）\n    :return: 格式化后的消息字符串",
+    "检查",
+    "检查即将过期的 Premium 用户并记录日志",
+    "检查即将过期的 Premium 用户时出错:",
+    "检查用户是否有权使用指定线路\n\n    Args:\n        is_premium: 是否为 premium 用户\n        line: 线路名称\n\n    Returns:\n        tuple[bool, str]: (是否有权限, 错误消息)",
+    "检查用户是否解锁了线路调度功能",
+    "检查线路调度解锁状态失败:",
+    "检查自定义线路流量失败",
+    "检查解锁状态失败",
+    "检查过期自定义线路失败",
+    "每 10GB 流量扣费已设置为",
+    "没有受影响的调度",
+    "没有新的流量日志数据",
+    "没有设置标签",
+    "没有需要禁用的调度（线路:",
+    "流量:",
+    "流量已用尽",
+    "流量日志入库失败，将保留在处理中队列重试: event_hash=",
+    "流量日志处理完成: 本次转移",
+    "流量检查完成: %s 条线路变更",
+    "流量额度必须是非负整数",
+    "消耗",
+    "消耗流量：",
+    "添加普通线路:",
+    "添加普通线路失败",
+    "添加普通线路失败:",
+    "添加普通线路（兼容性接口，推荐使用 /lines/normal）",
+    "添加普通线路（通用，同时支持Plex和Emby）",
+    "添加解绑所有普通用户的高级线路任务",
+    "添加高级线路:",
+    "添加高级线路失败",
+    "添加高级线路失败:",
+    "添加高级线路（兼容性接口，推荐使用 /lines/premium）",
+    "添加高级线路（通用，同时支持Plex和Emby）",
+    "清理用户 %s 的线路缓存失败: %s",
+    "清理结果：",
+    "用户",
+    "用户ID:",
+    "用户不存在",
+    "用户分享",
+    "用户名不能为空",
+    "用户名或密码错误",
+    "的 Emby 线路失败",
+    "的 Plex 用户名为空",
+    "的 Plex 线路失败",
+    "的所有标签",
+    "的标签:",
+    "的标签已清空",
+    "的标签设置成功",
+    "的线路:",
+    "的线路列表时发生错误:",
+    "的线路失败",
+    "的调度",
+    "的调度失败",
+    "的调度并通知用户时发生错误:",
+    "禁用指定线路的所有调度并通知相关用户\n\n    Args:\n        line_name: 线路名称\n        reason: 禁用原因，用于通知用户\n        only_non_premium: 是否只禁用非 premium 用户的调度",
+    "禁用线路",
+    "禁用线路调度并通知用户时发生错误:",
+    "积分",
+    "积分\n💰 剩余:",
+    "积分\n📅 到期:",
+    "积分不足",
+    "积分不足，需要",
+    "积分值必须是非负整数",
+    "积分解锁",
+    "积分，剩余",
+    "积分，当前仅有",
+    "管理员",
+    "管理员更新自定义线路失败",
+    "线路",
+    "线路不存在",
+    "线路名称不能为空",
+    "线路已下线",
+    "线路已不再免费开放",
+    "线路已自动下线并解绑所有用户\n您可以在个人中心续期或删除该线路",
+    "线路已被管理员下线",
+    "线路时发生错误:",
+    "线路流量已重置，现已恢复上线！",
+    "线路由",
+    "线路调度功能",
+    "线路调度功能已解锁",
+    "线路调度已被自动禁用。\n\n如需继续使用该线路，请在管理面板中重新启用调度或选择其他线路。",
+    "绑定 Plex 线路时发生错误:",
+    "绑定Emby线路",
+    "绑定Emby线路时发生错误:",
+    "绑定Plex线路",
+    "绑定失败:",
+    "绑定线路",
+    "绑定线路（通用，同时支持Plex和Emby）",
+    "结算月份：",
+    "给用户延长 Premium 天数，提交后再同步媒体权限。\n\n    行为与旧实现一致：永久会员返回 None 且不写入；未过期从原到期时间续期，\n    否则从当前时间起算。写入本身在 `premium.repository.grant_premium_days_tx`\n    里完成（行锁 + 调用方事务），需要复用外层事务的调用方直接用那个 `*_tx`。",
+    "续期成功！延长",
+    "缺少 backend 信息:",
+    "缺少必要的参数 service 或 token，或缺少 backend:",
+    "网络情况：",
+    "聚合结果：",
+    "自动切换",
+    "自动切换用户线路失败:",
+    "自动切换线路任务完成 - 处理范围:",
+    "自动切换线路任务完成，没有需要切换的线路",
+    "自动线路",
+    "自定义线路 '",
+    "自定义线路过期检查完成: %s 条过期",
+    "自建线路结算失败列表: %s",
+    "获取 Emby 用户",
+    "获取 Emby 线路列表成功",
+    "获取 Plex 用户",
+    "获取 Plex 线路列表失败",
+    "获取 Plex 线路列表成功",
+    "获取 Plex 线路列表时发生错误:",
+    "获取 Premium 线路流量统计信息",
+    "获取 Premium 线路流量统计失败:",
+    "获取 Premium 统计信息",
+    "获取 Premium 统计信息失败:",
+    "获取NSFW操作所需积分或可退回积分",
+    "获取Premium用户统计信息",
+    "获取Premium线路流量统计信息",
+    "获取Premium线路统计信息并发送给管理员",
+    "获取下载权限状态",
+    "获取下载权限状态失败",
+    "获取下载权限状态失败: %s",
+    "获取可用的Emby线路列表",
+    "获取可用的Plex线路列表",
+    "获取可用的线路列表（通用，同时支持Plex和Emby）",
+    "获取失败，请稍后再试",
+    "获取已批准自定义线路失败",
+    "获取并发送 Premium 统计信息时出错:",
+    "获取当前生效的线路调度状态",
+    "获取当前绑定线路失败，请稍后再试",
+    "获取成功",
+    "获取所有Emby线路配置（兼容性接口，推荐使用 /lines）",
+    "获取所有标签失败",
+    "获取所有线路标签失败:",
+    "获取所有线路的标签信息（管理员功能）",
+    "获取所有线路配置（通用，同时支持Plex和Emby）",
+    "获取指定线路的标签（管理员功能）",
+    "获取标签失败",
+    "获取流量统计失败",
+    "获取用户当前绑定的线路信息（基于用户名/邮箱）",
+    "获取用户当前绑定线路时发生错误:",
+    "获取用户的线路调度列表",
+    "获取用户自定义线路失败",
+    "获取线路列表失败，请稍后再试",
+    "获取线路列表成功",
+    "获取线路标签失败:",
+    "获取线路调度列表失败",
+    "获取线路调度列表失败:",
+    "获取线路调度状态失败",
+    "获取线路调度状态失败:",
+    "获取线路配置",
+    "获取线路配置失败",
+    "获取线路配置失败:",
+    "获取统计信息失败",
+    "获取自定义线路列表失败",
+    "获取自定义线路详情失败",
+    "解绑 Emby 线路时发生错误:",
+    "解绑 Plex 线路时发生错误:",
+    "解绑Emby线路（恢复自动选择）",
+    "解绑Plex线路（恢复自动选择）",
+    "解绑失败:",
+    "解绑所有 Emby Premium Free（恢复普通用户）",
+    "解绑所有 Plex Premium Free（恢复普通用户）",
+    "解绑所有普通用户的 premium 线路时发生错误:",
+    "解绑所有用户的",
+    "解绑所有用户的指定线路（通用，同时支持Plex和Emby）\n\n    Args:\n        line: 线路名称或域名\n        reason: 下线原因，用于通知用户\n\n    Returns:\n        (success, unbind_count): 成功标志和解绑用户数量",
+    "解绑线路 %s 用户失败",
+    "解绑线路（通用，同时支持Plex和Emby）",
+    "解锁",
+    "解锁 NSFW 所需积分已设置为",
+    "解锁 Premium 失败:",
+    "解锁 Premium 每日所需积分已设置为",
+    "解锁Premium会员",
+    "解锁下载/同步功能所需积分已设置为",
+    "解锁下载权限失败",
+    "解锁天数必须在 1-365 天之间",
+    "解锁失败",
+    "解锁失败，请稍后再试",
+    "解锁失败，请联系管理员",
+    "解锁成功！消耗",
+    "解锁线路调度功能失败:",
+    "解锁线路调度功能所需积分已设置为",
+    "解锁线路调度功能（消耗积分）",
+    "认证失败",
+    "认证并绑定 Emby 线路",
+    "认证并绑定 Plex 线路",
+    "认证并绑定Emby线路的内部方法",
+    "认证并绑定Plex线路的内部方法",
+    "认证并绑定线路（通用，同时支持Plex和Emby）",
+    "认证绑定",
+    "认证绑定失败:",
+    "记录用户",
+    "设置 Emby 用户",
+    "设置 NSFW 媒体库列表失败:",
+    "设置 Plex 线路失败",
+    "设置 Premium 每日积分失败:",
+    "设置 Premium 解锁开放状态",
+    "设置 Premium 解锁开放状态为:",
+    "设置 Premium 解锁开放状态失败:",
+    "设置Emby高级线路免费使用开关（兼容性接口，推荐使用 /settings/premium-free）",
+    "设置不展示/不授权的 NSFW 媒体库列表。",
+    "设置免费 Premium 线路为:",
+    "设置免费 Premium 线路失败:",
+    "设置免费的Emby高级线路列表（兼容性接口，推荐使用 /settings/free-premium-lines）",
+    "设置免费的高级线路列表（通用，同时支持Plex和Emby）",
+    "设置失败",
+    "设置普通用户每日免费 Premium 流量额度",
+    "设置普通用户每日免费 Premium 流量额度为:",
+    "设置普通用户每日免费 Premium 流量额度失败:",
+    "设置标签失败",
+    "设置每 10GB 流量扣费失败:",
+    "设置每 10GB 超额流量扣除的积分。",
+    "设置用户",
+    "设置线路",
+    "设置线路失败",
+    "设置线路标签失败:",
+    "设置线路标签（管理员功能）",
+    "设置解锁 NSFW 所需积分为:",
+    "设置解锁 Premium 每日所需积分",
+    "设置解锁 Premium 每日所需积分为:",
+    "设置解锁NSFW所需积分",
+    "设置解锁下载/同步功能所需积分",
+    "设置解锁下载/同步功能所需积分为:",
+    "设置解锁下载/同步功能积分失败:",
+    "设置解锁积分失败:",
+    "设置解锁线路调度功能所需积分",
+    "设置解锁线路调度功能所需积分为:",
+    "设置解锁线路调度功能积分失败:",
+    "设置高级用户每日免费 Premium 流量额度",
+    "设置高级用户每日免费 Premium 流量额度为:",
+    "设置高级用户每日免费 Premium 流量额度失败:",
+    "设置高级线路免费使用开关（通用，同时支持Plex和Emby）",
+    "设置高级线路免费使用状态为:",
+    "设置高级线路免费使用状态失败:",
+    "该普通线路不存在",
+    "该普通线路已存在",
+    "该线路已存在于普通线路中",
+    "该线路已存在于高级线路中",
+    "该线路已绑定，请勿重复操作",
+    "该高级线路不存在",
+    "该高级线路已存在",
+    "该高级线路暂未开放免费使用",
+    "请先绑定 Plex/Emby 账户",
+    "请先解锁线路调度功能",
+    "读取 Premium 过期用户失败",
+    "读取用户 %s 的历史线路失败: %s",
+    "调度不存在",
+    "账号",
+    "账户",
+    "账户未绑定",
+    "费用计算错误",
+    "跳过非流媒体请求:",
+    "过期时间：",
+    "返回",
+    "通知：您绑定的 Emby 线路 `",
+    "通知：您绑定的 Plex 线路 `",
+    "通知：线路 `",
+    "通知：高级线路开放通道已关闭，您绑定的线路已切换为 `",
+    "邮箱不能为空",
+    "重新上线！感谢分享！",
+    "重置用户",
+    "重置线路失败",
+    "锁定",
+    "长期可用",
+    "非 Premium",
+    "高级用户每日免费 Premium 流量额度已设置为",
+    "高级线路 '",
+    "高级线路免费使用已",
+    "高级线路已被管理员下线",
+    "（TG ID:",
+    "）",
+    "，原线路：",
+    "，已切换为 `AUTO`",
+    "，无法创建调度",
+    "，无法更新调度",
+    "🌍 网络信息:",
+    "🌐",
+    "🎉 Premium 线路免费开放通知\n\n以下 Premium 线路现已免费开放：",
+    "🎉 享受了",
+    "🎉 新线路上线通知\n\n🌐 线路:",
+    "🎉 线路恢复上线通知\n\n🌐 线路:",
+    "🎉 线路重新上线通知\n\n🌐 线路:",
+    "🎬 Plex Premium (",
+    "🎬 Plex 欠额:",
+    "👑 Premium 用户统计 (共",
+    "👥 今日TOP用户:",
+    "👥 今日暂无用户使用",
+    "💎 花费:",
+    "💰 价格:",
+    "💰 总赠送积分：",
+    "💰 自定义线路流量结算通知\n\n线路域名：",
+    "💳 Premium 流量欠额用户 (共",
+    "💾 总消耗流量：",
+    "📅 结算月份：",
+    "📈 今日总流量:",
+    "📈 今日流量:",
+    "📈 结算线路数：",
+    "📉 本月总流量:",
+    "📉 本月流量:",
+    "📊 Premium 统计信息",
+    "📊 Premium 统计信息\n\n❌ 暂无统计数据",
+    "📊 本周总流量:",
+    "📊 本周流量:",
+    "📊 流量:",
+    "📊 流量限制:",
+    "📊 自定义线路流量结算汇总报告",
+    "📋 流量总计:",
+    "📝 备注:",
+    "📝 拒绝原因:",
+    "📝 管理员备注:",
+    "📡 网络情况:",
+    "📢 自定义线路过期通知\n\n您提交的自定义线路已过期：\n域名：",
+    "📥 下载权限解锁通知\n\n👤 用户:",
+    "📺 Emby Premium (",
+    "📺 Emby 欠额:",
+    "🔗 线路:",
+    "🔞 NSFW 权限解锁通知\n\n👤 用户:",
+    "🗓️ 线路调度解锁通知\n\n👤 用户:",
+    "🛣️ 新的自定义线路提交\n\n👤 提交用户:"
+  ],
+  "redis_expressions": [
+    {
+      "expression": "cache_key",
+      "operation": "current_cache.get"
+    },
+    {
+      "expression": "cache_key, result['line']",
+      "operation": "current_cache.put"
+    },
+    {
+      "expression": "str(username).lower(), value",
+      "operation": "current_cache.put"
+    },
+    {
+      "expression": "str(emby_username).lower()",
+      "operation": "emby_last_user_defined_line_cache.delete"
+    },
+    {
+      "expression": "str(emby_username).lower()",
+      "operation": "emby_last_user_defined_line_cache.get"
+    },
+    {
+      "expression": "str(emby_username).lower(), binded_line",
+      "operation": "emby_last_user_defined_line_cache.put"
+    },
+    {
+      "expression": "str(username).lower(), binded_line",
+      "operation": "emby_last_user_defined_line_cache.put"
+    },
+    {
+      "expression": "t",
+      "operation": "emby_token_to_name.get"
+    },
+    {
+      "expression": "token",
+      "operation": "emby_token_to_name.get"
+    },
+    {
+      "expression": "str(emby_username).lower()",
+      "operation": "emby_user_defined_line_cache.delete"
+    },
+    {
+      "expression": "str(emby_username).lower()",
+      "operation": "emby_user_defined_line_cache.get"
+    },
+    {
+      "expression": "str(username).lower()",
+      "operation": "emby_user_defined_line_cache.get"
+    },
+    {
+      "expression": "str(emby_username).lower(), last_line",
+      "operation": "emby_user_defined_line_cache.put"
+    },
+    {
+      "expression": "str(emby_username).lower(), line",
+      "operation": "emby_user_defined_line_cache.put"
+    },
+    {
+      "expression": "str(username).lower(), line",
+      "operation": "emby_user_defined_line_cache.put"
+    },
+    {
+      "expression": "str(username).lower()",
+      "operation": "last_cache if last else current_cache.delete"
+    },
+    {
+      "expression": "str(username).lower()",
+      "operation": "last_cache if last else current_cache.get"
+    },
+    {
+      "expression": "str(plex_username).lower()",
+      "operation": "plex_last_user_defined_line_cache.delete"
+    },
+    {
+      "expression": "str(plex_username).lower()",
+      "operation": "plex_last_user_defined_line_cache.get"
+    },
+    {
+      "expression": "str(plex_username).lower(), binded_line",
+      "operation": "plex_last_user_defined_line_cache.put"
+    },
+    {
+      "expression": "token",
+      "operation": "plex_token_to_name.get"
+    },
+    {
+      "expression": "str(plex_username).lower()",
+      "operation": "plex_user_defined_line_cache.delete"
+    },
+    {
+      "expression": "str(plex_username).lower()",
+      "operation": "plex_user_defined_line_cache.get"
+    },
+    {
+      "expression": "str(plex_username).lower(), last_line",
+      "operation": "plex_user_defined_line_cache.put"
+    },
+    {
+      "expression": "str(plex_username).lower(), line",
+      "operation": "plex_user_defined_line_cache.put"
+    },
+    {
+      "expression": "str(username).lower(), line",
+      "operation": "plex_user_defined_line_cache.put"
+    },
+    {
+      "expression": "cache_key, previous",
+      "operation": "previous_cache.put"
+    }
+  ],
+  "redis_literals": [
+    "emby_last_user_defined_line:",
+    "emby_last_user_defined_line_cache",
+    "emby_user_defined_line:",
+    "emby_user_defined_line_cache",
+    "plex_last_user_defined_line:",
+    "plex_last_user_defined_line_cache",
+    "plex_user_defined_line:",
+    "plex_user_defined_line_cache",
+    "stream_traffic_cache"
+  ],
+  "routes": [
+    {
+      "endpoint": "get_nsfw_info",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_nsfw_info",
+      "order": 11,
+      "path": "/api/user/nsfw-info",
+      "response_model": null
+    },
+    {
+      "endpoint": "nsfw_operation",
+      "methods": [
+        "POST"
+      ],
+      "name": "nsfw_operation",
+      "order": 12,
+      "path": "/api/user/nsfw/{operation}",
+      "response_model": null
+    },
+    {
+      "endpoint": "get_lines_generic",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_lines_generic",
+      "order": 16,
+      "path": "/api/user/lines/{service}",
+      "response_model": null
+    },
+    {
+      "endpoint": "bind_line_generic",
+      "methods": [
+        "POST"
+      ],
+      "name": "bind_line_generic",
+      "order": 17,
+      "path": "/api/user/lines/{service}/bind",
+      "response_model": "BaseResponse"
+    },
+    {
+      "endpoint": "unbind_line_generic",
+      "methods": [
+        "POST"
+      ],
+      "name": "unbind_line_generic",
+      "order": 18,
+      "path": "/api/user/lines/{service}/unbind",
+      "response_model": "BaseResponse"
+    },
+    {
+      "endpoint": "get_emby_lines_by_user",
+      "methods": [
+        "POST"
+      ],
+      "name": "get_emby_lines_by_user",
+      "order": 20,
+      "path": "/api/user/lines/emby/available",
+      "response_model": "EmbyLinesResponse"
+    },
+    {
+      "endpoint": "get_plex_lines_by_user",
+      "methods": [
+        "POST"
+      ],
+      "name": "get_plex_lines_by_user",
+      "order": 21,
+      "path": "/api/user/lines/plex/available",
+      "response_model": "PlexLinesResponse"
+    },
+    {
+      "endpoint": "get_current_bound_line",
+      "methods": [
+        "POST"
+      ],
+      "name": "get_current_bound_line",
+      "order": 24,
+      "path": "/api/user/lines/{service}/current",
+      "response_model": "CurrentLineResponse"
+    },
+    {
+      "endpoint": "check_line_schedule_unlock_status",
+      "methods": [
+        "GET"
+      ],
+      "name": "check_line_schedule_unlock_status",
+      "order": 25,
+      "path": "/api/user/line-schedules/unlock-status/{service}",
+      "response_model": null
+    },
+    {
+      "endpoint": "unlock_line_schedule",
+      "methods": [
+        "POST"
+      ],
+      "name": "unlock_line_schedule",
+      "order": 26,
+      "path": "/api/user/line-schedules/unlock",
+      "response_model": "LineScheduleUnlockResponse"
+    },
+    {
+      "endpoint": "get_line_schedules",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_line_schedules",
+      "order": 27,
+      "path": "/api/user/line-schedules/{service}",
+      "response_model": "LineScheduleListResponse"
+    },
+    {
+      "endpoint": "create_line_schedule",
+      "methods": [
+        "POST"
+      ],
+      "name": "create_line_schedule",
+      "order": 28,
+      "path": "/api/user/line-schedules",
+      "response_model": "BaseResponse"
+    },
+    {
+      "endpoint": "update_line_schedule",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_line_schedule",
+      "order": 29,
+      "path": "/api/user/line-schedules/{schedule_id}",
+      "response_model": "BaseResponse"
+    },
+    {
+      "endpoint": "delete_line_schedule",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_line_schedule",
+      "order": 30,
+      "path": "/api/user/line-schedules/{schedule_id}",
+      "response_model": "BaseResponse"
+    },
+    {
+      "endpoint": "get_line_schedule_status",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_line_schedule_status",
+      "order": 31,
+      "path": "/api/user/line-schedules/status/{service}",
+      "response_model": "LineScheduleStatusResponse"
+    },
+    {
+      "endpoint": "get_download_permission_status",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_download_permission_status",
+      "order": 32,
+      "path": "/api/user/download-permission/status/{service}",
+      "response_model": null
+    },
+    {
+      "endpoint": "unlock_download_permission",
+      "methods": [
+        "POST"
+      ],
+      "name": "unlock_download_permission",
+      "order": 33,
+      "path": "/api/user/download-permission/unlock/{service}",
+      "response_model": null
+    },
+    {
+      "endpoint": "submit_custom_line",
+      "methods": [
+        "POST"
+      ],
+      "name": "submit_custom_line",
+      "order": 34,
+      "path": "/api/user/custom-lines/submit",
+      "response_model": null
+    },
+    {
+      "endpoint": "get_my_custom_lines",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_my_custom_lines",
+      "order": 35,
+      "path": "/api/user/custom-lines/my-lines",
+      "response_model": null
+    },
+    {
+      "endpoint": "get_approved_custom_lines",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_approved_custom_lines",
+      "order": 36,
+      "path": "/api/user/custom-lines/approved",
+      "response_model": null
+    },
+    {
+      "endpoint": "get_custom_line_detail",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_custom_line_detail",
+      "order": 37,
+      "path": "/api/user/custom-lines/{line_id}",
+      "response_model": null
+    },
+    {
+      "endpoint": "update_custom_line",
+      "methods": [
+        "PUT"
+      ],
+      "name": "update_custom_line",
+      "order": 38,
+      "path": "/api/user/custom-lines/{line_id}",
+      "response_model": null
+    },
+    {
+      "endpoint": "delete_custom_line",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_custom_line",
+      "order": 39,
+      "path": "/api/user/custom-lines/{line_id}",
+      "response_model": null
+    },
+    {
+      "endpoint": "offline_custom_line",
+      "methods": [
+        "POST"
+      ],
+      "name": "offline_custom_line",
+      "order": 40,
+      "path": "/api/user/custom-lines/{line_id}/offline",
+      "response_model": null
+    },
+    {
+      "endpoint": "online_custom_line",
+      "methods": [
+        "POST"
+      ],
+      "name": "online_custom_line",
+      "order": 41,
+      "path": "/api/user/custom-lines/{line_id}/online",
+      "response_model": null
+    },
+    {
+      "endpoint": "renew_custom_line",
+      "methods": [
+        "POST"
+      ],
+      "name": "renew_custom_line",
+      "order": 42,
+      "path": "/api/user/custom-lines/{line_id}/renew",
+      "response_model": null
+    },
+    {
+      "endpoint": "get_plex_traffic_rankings",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_plex_traffic_rankings",
+      "order": 53,
+      "path": "/api/rankings/traffic/plex",
+      "response_model": null
+    },
+    {
+      "endpoint": "get_emby_traffic_rankings",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_emby_traffic_rankings",
+      "order": 54,
+      "path": "/api/rankings/traffic/emby",
+      "response_model": null
+    },
+    {
+      "endpoint": "get_traffic_overview",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_traffic_overview",
+      "order": 57,
+      "path": "/api/system/traffic-overview",
+      "response_model": null
+    },
+    {
+      "endpoint": "unlock_premium",
+      "methods": [
+        "POST"
+      ],
+      "name": "unlock_premium",
+      "order": 66,
+      "path": "/api/premium/unlock",
+      "response_model": "PremiumUnlockResponse"
+    },
+    {
+      "endpoint": "get_premium_statistics",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_premium_statistics",
+      "order": 67,
+      "path": "/api/premium/statistics",
+      "response_model": "PremiumStatisticsResponse"
+    },
+    {
+      "endpoint": "get_premium_line_traffic_stats",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_premium_line_traffic_stats",
+      "order": 68,
+      "path": "/api/premium/line-traffic-stats",
+      "response_model": null
+    },
+    {
+      "endpoint": "set_premium_free",
+      "methods": [
+        "POST"
+      ],
+      "name": "set_premium_free",
+      "order": 72,
+      "path": "/api/admin/settings/premium-free",
+      "response_model": null
+    },
+    {
+      "endpoint": "set_line_tags",
+      "methods": [
+        "POST"
+      ],
+      "name": "set_line_tags",
+      "order": 77,
+      "path": "/api/admin/line_tags",
+      "response_model": "BaseResponse"
+    },
+    {
+      "endpoint": "get_line_tags_admin",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_line_tags_admin",
+      "order": 78,
+      "path": "/api/admin/line_tags/{line_name}",
+      "response_model": "LineTagResponse"
+    },
+    {
+      "endpoint": "delete_line_tags",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_line_tags",
+      "order": 80,
+      "path": "/api/admin/line_tags/{line_name}",
+      "response_model": "BaseResponse"
+    },
+    {
+      "endpoint": "set_premium_daily_credits",
+      "methods": [
+        "POST"
+      ],
+      "name": "set_premium_daily_credits",
+      "order": 83,
+      "path": "/api/admin/settings/premium-daily-credits",
+      "response_model": null
+    },
+    {
+      "endpoint": "set_premium_user_traffic_limit",
+      "methods": [
+        "POST"
+      ],
+      "name": "set_premium_user_traffic_limit",
+      "order": 85,
+      "path": "/api/admin/settings/premium-user-traffic-limit",
+      "response_model": null
+    },
+    {
+      "endpoint": "set_premium_unlock_enabled",
+      "methods": [
+        "POST"
+      ],
+      "name": "set_premium_unlock_enabled",
+      "order": 86,
+      "path": "/api/admin/settings/premium-unlock-enabled",
+      "response_model": null
+    },
+    {
+      "endpoint": "set_line_schedule_unlock_credits",
+      "methods": [
+        "POST"
+      ],
+      "name": "set_line_schedule_unlock_credits",
+      "order": 88,
+      "path": "/api/admin/settings/line-schedule-unlock-credits",
+      "response_model": null
+    },
+    {
+      "endpoint": "set_download_unlock_credits",
+      "methods": [
+        "POST"
+      ],
+      "name": "set_download_unlock_credits",
+      "order": 89,
+      "path": "/api/admin/settings/download-unlock-credits",
+      "response_model": null
+    },
+    {
+      "endpoint": "set_nsfw_libs",
+      "methods": [
+        "POST"
+      ],
+      "name": "set_nsfw_libs",
+      "order": 91,
+      "path": "/api/admin/settings/nsfw-libs",
+      "response_model": null
+    },
+    {
+      "endpoint": "get_lines_config",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_lines_config",
+      "order": 96,
+      "path": "/api/admin/lines",
+      "response_model": null
+    },
+    {
+      "endpoint": "add_normal_line_generic",
+      "methods": [
+        "POST"
+      ],
+      "name": "add_normal_line_generic",
+      "order": 97,
+      "path": "/api/admin/lines/normal",
+      "response_model": null
+    },
+    {
+      "endpoint": "add_premium_line_generic",
+      "methods": [
+        "POST"
+      ],
+      "name": "add_premium_line_generic",
+      "order": 98,
+      "path": "/api/admin/lines/premium",
+      "response_model": null
+    },
+    {
+      "endpoint": "delete_normal_line_generic",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_normal_line_generic",
+      "order": 99,
+      "path": "/api/admin/lines/normal/{line_name}",
+      "response_model": null
+    },
+    {
+      "endpoint": "delete_premium_line_generic",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_premium_line_generic",
+      "order": 100,
+      "path": "/api/admin/lines/premium/{line_name}",
+      "response_model": null
+    },
+    {
+      "endpoint": "add_premium_line",
+      "methods": [
+        "POST"
+      ],
+      "name": "add_premium_line",
+      "order": 103,
+      "path": "/api/admin/emby-lines/premium",
+      "response_model": null
+    },
+    {
+      "endpoint": "delete_premium_line",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "delete_premium_line",
+      "order": 105,
+      "path": "/api/admin/emby-lines/premium/{line_name}",
+      "response_model": null
+    },
+    {
+      "endpoint": "get_all_custom_lines",
+      "methods": [
+        "GET"
+      ],
+      "name": "get_all_custom_lines",
+      "order": 107,
+      "path": "/api/admin/custom-lines",
+      "response_model": null
+    },
+    {
+      "endpoint": "approve_custom_line",
+      "methods": [
+        "POST"
+      ],
+      "name": "approve_custom_line",
+      "order": 108,
+      "path": "/api/admin/custom-lines/{line_id}/approve",
+      "response_model": null
+    },
+    {
+      "endpoint": "admin_update_custom_line",
+      "methods": [
+        "PUT"
+      ],
+      "name": "admin_update_custom_line",
+      "order": 109,
+      "path": "/api/admin/custom-lines/{line_id}",
+      "response_model": null
+    },
+    {
+      "endpoint": "admin_offline_custom_line",
+      "methods": [
+        "POST"
+      ],
+      "name": "admin_offline_custom_line",
+      "order": 110,
+      "path": "/api/admin/custom-lines/{line_id}/offline",
+      "response_model": null
+    },
+    {
+      "endpoint": "admin_delete_custom_line",
+      "methods": [
+        "DELETE"
+      ],
+      "name": "admin_delete_custom_line",
+      "order": 111,
+      "path": "/api/admin/custom-lines/{line_id}",
+      "response_model": null
+    },
+    {
+      "endpoint": "admin_set_custom_line_tags",
+      "methods": [
+        "POST"
+      ],
+      "name": "admin_set_custom_line_tags",
+      "order": 112,
+      "path": "/api/admin/custom-lines/{line_id}/tags",
+      "response_model": null
+    }
+  ],
+  "scheduler_jobs": [
+    {
+      "args": [],
+      "executor": "async",
+      "kwargs": {
+        "id": "check_premium_expiry",
+        "max_instances": 1,
+        "minutes": 5,
+        "next_run_time": {
+          "relative_seconds": 30
+        },
+        "replace_existing": true,
+        "trigger": "interval"
+      }
+    },
+    {
+      "args": [],
+      "executor": "async",
+      "kwargs": {
+        "day_of_week": "*",
+        "hour": 9,
+        "id": "check_premium_expiring_soon",
+        "max_instances": 1,
+        "minute": 0,
+        "replace_existing": true,
+        "trigger": "cron"
+      }
+    },
+    {
+      "args": [],
+      "executor": "async",
+      "kwargs": {
+        "id": "update_line_traffic_stats",
+        "max_instances": 1,
+        "minute": "*/1",
+        "replace_existing": true,
+        "trigger": "cron"
+      }
+    },
+    {
+      "args": [],
+      "executor": "async",
+      "kwargs": {
+        "day": 1,
+        "hour": 1,
+        "id": "monthly_traffic_data_migration",
+        "max_instances": 1,
+        "minute": 0,
+        "replace_existing": true,
+        "trigger": "cron"
+      }
+    },
+    {
+      "args": [],
+      "executor": "async",
+      "kwargs": {
+        "day_of_week": "*",
+        "hour": 23,
+        "id": "send_premium_statistics",
+        "max_instances": 1,
+        "minute": 59,
+        "replace_existing": true,
+        "trigger": "cron"
+      }
+    },
+    {
+      "args": [],
+      "executor": "async",
+      "kwargs": {
+        "id": "auto_switch_user_lines",
+        "max_instances": 1,
+        "minute": "*/1",
+        "replace_existing": true,
+        "trigger": "cron"
+      }
+    },
+    {
+      "args": [],
+      "executor": "async",
+      "kwargs": {
+        "id": "check_expired_custom_lines",
+        "max_instances": 1,
+        "minutes": 5,
+        "next_run_time": {
+          "relative_seconds": 180
+        },
+        "replace_existing": true,
+        "trigger": "interval"
+      }
+    },
+    {
+      "args": [],
+      "executor": "async",
+      "kwargs": {
+        "id": "check_custom_line_traffic",
+        "max_instances": 1,
+        "minutes": 3,
+        "next_run_time": {
+          "relative_seconds": 60
+        },
+        "replace_existing": true,
+        "trigger": "interval"
+      }
+    },
+    {
+      "args": [],
+      "executor": "async",
+      "kwargs": {
+        "day": 1,
+        "hour": 2,
+        "id": "settle_custom_line_traffic",
+        "max_instances": 1,
+        "minute": 0,
+        "replace_existing": true,
+        "trigger": "cron"
+      }
+    }
+  ],
+  "schema": 1
+}
