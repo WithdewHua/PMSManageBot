@@ -78,13 +78,18 @@ async def execute():
 
     # The read-model aggregation moved from traffic to reports unchanged.
     from app.databases import db
-    read_module = importlib.import_module(type(db).get_traffic_statistics.__module__)
+    if hasattr(db, "get_traffic_statistics"):
+        read_module = importlib.import_module(type(db).get_traffic_statistics.__module__)
+        read_statistics = db.get_traffic_statistics
+    else:
+        read_module = importlib.import_module("app.domains.reports.service")
+        read_statistics = read_module.get_traffic_statistics
     class FrozenDatetime(datetime):
         @classmethod
         def now(cls, tz=None):
             return cls(2026, 1, 3, tzinfo=tz)
     read_module.datetime = FrozenDatetime
-    cases.append(["read-model", db.get_traffic_statistics()])
+    cases.append(["read-model", read_statistics()])
     return cases
 print("B3_DEYCLE_RESULTS=" + json.dumps(asyncio.run(execute())))
 """

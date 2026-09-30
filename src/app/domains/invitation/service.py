@@ -461,11 +461,15 @@ __all__ = [
     "generate_codes",
     "generate_codes_and_notify",
     "generate_one_code",
+    "get_invitation_code_by_owner",
     "get_invitation_credits",
+    "get_invitation_rank",
+    "get_invitee_count_by_owner",
     "get_inviter_tg_id_by_emby_id",
     "get_inviter_tg_id_by_plex_id",
     "get_points_info",
     "get_register_status",
+    "invitee_counts",
     "redeem_for_credits",
     "refresh_emby_user_info",
     "register_emby",
@@ -475,3 +479,23 @@ __all__ = [
     "set_invitation_credits",
     "update_invitation_plex_id",
 ]
+
+
+def invitee_counts() -> list[tuple[int, int]]:
+    """获取按被邀请人去重计数的邀请排行榜数据 [(owner_tg_id, invite_count), ...]"""
+    return invitation_repository.get_invitation_rank()
+
+
+get_invitation_rank = invitee_counts
+
+
+def get_invitation_code_by_owner(tg_id: int, is_available: bool = True) -> list[str]:
+    """获取用户的邀请码列表"""
+    return invitation_repository.get_invitation_code_by_owner(
+        int(tg_id), is_available=is_available
+    )
+
+
+def get_invitee_count_by_owner(tg_id: int) -> int:
+    """获取用户邀请的人数"""
+    return invitation_repository.get_invitee_count_by_owner(int(tg_id))

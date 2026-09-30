@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
 import pytest
 
 from app.domains.crypto_donation import router as crypto_router
+from app.domains.crypto_donation import service as crypto_service
 from app.integrations import upay
 
 
@@ -85,7 +85,7 @@ async def test_callback_logs_no_payload_or_signature(monkeypatch, caplog):
         def verify_callback_signature(self, data: dict) -> bool:
             return False
 
-    monkeypatch.setattr(crypto_router, "UPayService", InvalidUPay)
+    monkeypatch.setattr(crypto_service.upay, "UPayService", InvalidUPay)
     with caplog.at_level("INFO"):
         response = await crypto_router.upay_payment_callback(JsonRequest(payload))
 
@@ -114,12 +114,14 @@ async def test_callback_amount_mismatch_does_not_complete_order(monkeypatch):
         def verify_callback_signature(self, data: dict) -> bool:
             return True
 
-    monkeypatch.setattr(crypto_router, "UPayService", ValidUPay)
+    monkeypatch.setattr(crypto_service.upay, "UPayService", ValidUPay)
     monkeypatch.setattr(
-        crypto_router.db, "get_crypto_donation_order_by_trade_id", lambda _: order
+        crypto_service.repository,
+        "get_crypto_donation_order_by_trade_id",
+        lambda _: order,
     )
-    monkeypatch.setattr(crypto_router.db, "complete_crypto_donation_order", complete)
-    monkeypatch.setattr(crypto_router, "_notify_upay_admins", notify)
+    monkeypatch.setattr(crypto_service.repository, "settle_payment", complete)
+    monkeypatch.setattr(crypto_service.notifications, "notify_admins", notify)
 
     response = await crypto_router.upay_payment_callback(JsonRequest(payload))
 
@@ -149,40 +151,38 @@ async def test_callback_credits_local_order_amount(monkeypatch):
         "status": 1,
         "crypto_type": "USDT-ERC20",
     }
-    update_donation = Mock()
-    add_credits = Mock(return_value=SimpleNamespace(after=112.0))
+    committed = {
+        "order": order,
+        "credits_reward": 10.0,
+        "new_donation": 12.0,
+        "new_credits": 112.0,
+    }
+    settle = Mock(return_value=committed)
+    notify = AsyncMock()
 
     class ValidUPay:
         def verify_callback_signature(self, data: dict) -> bool:
             return True
 
-    monkeypatch.setattr(crypto_router, "UPayService", ValidUPay)
+    monkeypatch.setattr(crypto_service.upay, "UPayService", ValidUPay)
     monkeypatch.setattr(
-        crypto_router.db, "get_crypto_donation_order_by_trade_id", lambda _: order
+        crypto_service.repository,
+        "get_crypto_donation_order_by_trade_id",
+        lambda _: order,
     )
+    monkeypatch.setattr(crypto_service.repository, "settle_payment", settle)
     monkeypatch.setattr(
-        crypto_router.db, "complete_crypto_donation_order", lambda **_: True
+        crypto_service.donation_service, "get_donation_multiplier", lambda: 1.0
     )
-    monkeypatch.setattr(
-        crypto_router.db, "get_stats_by_tg_id", lambda _: (7, 2.0, 102.0)
-    )
-    monkeypatch.setattr(crypto_router.db, "update_user_donation", update_donation)
-    monkeypatch.setattr(crypto_router.credits_service, "add", add_credits)
-    monkeypatch.setattr(
-        crypto_router.donation_service, "get_donation_multiplier", lambda: 1.0
-    )
-    monkeypatch.setattr(crypto_router, "get_user_name_from_tg_id", lambda _: "user")
-    monkeypatch.setattr(crypto_router, "send_message_by_url", AsyncMock())
-    from app.core import events
-
-    emit = Mock()
-    monkeypatch.setattr(events, "emit", emit)
-
+    monkeypatch.setattr(crypto_service.notifications, "notify_payment", notify)
     response = await crypto_router.upay_payment_callback(JsonRequest(payload))
-
     assert response.status_code == 200
-    update_donation.assert_called_once_with(12.0, 7)
-    add_credits.assert_called_once()
-    assert add_credits.call_args.args[1] == 10.0
-    assert emit.call_count == 1
-    assert emit.call_args.args[0].tg_id == 7
+    settle.assert_called_once_with(
+        trade_id="trade-valid",
+        callback_amount=10.004,
+        actual_amount=9.5,
+        block_transaction_id="tx",
+        multiplier=1.0,
+    )
+    notify.assert_awaited_once()
+    assert notify.call_args.args[1] == committed

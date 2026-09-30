@@ -543,3 +543,10 @@ def settle_premium_traffic_usage(
         premium_user_traffic_limit,
         credits_cost_per_10gb,
     )
+
+
+def project_daily_debt(current_debt: float, usage: float, daily_limit: float) -> float:
+    """Expose Premium's daily debt policy to read-model consumers."""
+    from app.domains.premium import rules
+
+    return rules.project_daily_debt(current_debt, usage, daily_limit)

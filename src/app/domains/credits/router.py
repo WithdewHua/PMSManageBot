@@ -3,7 +3,7 @@ from fastapi import APIRouter, Body, Depends, Request
 from app.core.log import uvicorn_logger as logger
 from app.domains.credits import exceptions as credits_exceptions
 from app.domains.credits import service as credits_service
-from app.domains.profile.schemas import CreditsTransferRequest, CreditsTransferResponse
+from app.domains.credits.schemas import CreditsTransferRequest, CreditsTransferResponse
 from app.integrations.telegram.messaging import send_message_by_url
 from app.transport.http.auth import get_telegram_user, require_telegram_auth
 from app.transport.http.schemas import TelegramUser

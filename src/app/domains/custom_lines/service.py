@@ -463,3 +463,8 @@ def _is_line_valid(line: Any, current_time: int) -> bool:
 
 
 _send_admin_settlement_summary = notifications._send_admin_settlement_summary
+
+
+def list_approved_domains() -> list[str]:
+    """List domains of approved custom lines for traffic classification."""
+    return repository.list_approved_domains()

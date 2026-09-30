@@ -94,9 +94,9 @@ def test_redemption_payload_and_rank(badge_api):
     with get_session() as session:
         assert session.get(Statistics, 42).credits == 70
     assert badge_api.get_user_badges(42) == [expected]
-    from app.databases.db import DatabaseORM
+    from app.domains.rankings import repository as rankings_repository
 
-    assert DatabaseORM().get_badge_rank() == [
+    assert rankings_repository.get_badge_rank() == [
         {"tg_id": 42, "badge_count": 1, "badges": [expected]}
     ]
     assert badge_api.redeem_badge(42, 1) == (False, "您已经拥有该勋章", None)

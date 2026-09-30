@@ -664,3 +664,15 @@ def delete_settlement_candidates(line_domain: str) -> dict[str, Any] | None:
             select(CustomLine).where(CustomLine.domain == line_domain)
         ).scalar_one_or_none()
         return line_to_dict(line) if line else None
+
+
+def list_approved_domains_tx(session: Any) -> list[str]:
+    """List domains of custom lines with status 'approved' in caller transaction."""
+    stmt = select(CustomLine.domain).where(CustomLine.status == "approved")
+    return list(session.execute(stmt).scalars().all())
+
+
+def list_approved_domains() -> list[str]:
+    """List domains of custom lines with status 'approved' for traffic classification."""
+    with get_session() as session:
+        return list_approved_domains_tx(session)

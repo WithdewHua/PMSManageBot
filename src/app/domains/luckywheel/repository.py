@@ -886,3 +886,17 @@ def list_badge_eligible_tg_ids(min_spins: int) -> list[int]:
                 .having(func.count(WheelStats.id) >= min_spins)
             ).scalars()
         )
+
+
+def get_wheel_invite_code_rank() -> list[tuple[int, int]]:
+    """获取幸运大转盘邀请码获得排行榜 [(tg_id, invite_count), ...]"""
+    with get_session() as session:
+        invite_count = func.count(WheelStats.id).label("invite_count")
+        stmt = (
+            select(WheelStats.tg_id, invite_count)
+            .where(WheelStats.item_name == "邀请码 1 枚")
+            .group_by(WheelStats.tg_id)
+            .order_by(invite_count.desc())
+        )
+        results = session.execute(stmt).fetchall()
+        return [(int(r[0]), int(r[1] or 0)) for r in results if int(r[1] or 0) > 0]

@@ -260,6 +260,8 @@ __all__ = [
     "cancel_treasure_issue",
     "create_treasure_issue",
     "get_treasure_issue",
+    "get_treasure_win_credits_rank",
+    "get_treasure_win_issue_rank",
     "get_user_treasure_stats",
     "join_treasure_issue",
     "list_treasure_issues",
@@ -267,6 +269,8 @@ __all__ = [
     "open_next_issue",
     "reopen_overdue_issues",
     "schedule_auto_reopen_treasure_issue",
+    "win_credits_rank",
+    "win_issue_rank",
 ]
 
 
@@ -276,3 +280,17 @@ def count_badge_issues(tg_id: int) -> int:
 
 def list_badge_eligible_tg_ids(min_issues: int) -> list[int]:
     return treasure_repository.list_badge_eligible_tg_ids(min_issues)
+
+
+def get_treasure_win_issue_rank() -> list[tuple[int, int]]:
+    """获取夺宝奇兵中奖期数排行榜 [(winner_tg_id, win_count), ...]"""
+    return treasure_repository.get_treasure_win_issue_rank()
+
+
+def get_treasure_win_credits_rank() -> list[tuple[int, int]]:
+    """获取夺宝奇兵中奖积分排行榜 [(winner_tg_id, win_credits), ...]"""
+    return treasure_repository.get_treasure_win_credits_rank()
+
+
+win_issue_rank = get_treasure_win_issue_rank
+win_credits_rank = get_treasure_win_credits_rank

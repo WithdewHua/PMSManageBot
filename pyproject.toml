@@ -105,13 +105,6 @@ allowed_importers = [
 
 
 
-    "app.domains.crypto_donation.router", # promote-remaining-domains (B2 inherited)
-
-    "app.domains.donation.admin_router", # promote-remaining-domains (B2 inherited)
-
-    "app.domains.donation.bot", # promote-remaining-domains (B2 inherited)
-
-    "app.domains.donation.router", # promote-remaining-domains (B2 inherited)
 
 
 
@@ -125,20 +118,16 @@ allowed_importers = [
 
 
 
-    "app.domains.profile.bot", # promote-remaining-domains (B2 inherited)
-
-    "app.domains.profile.router", # promote-remaining-domains (B2 inherited)
-
-    "app.domains.rankings.bot", # promote-remaining-domains (B2 inherited)
-
-    "app.domains.rankings.router", # promote-remaining-domains (B2 inherited)
-
-    "app.domains.reports.admin_router", # promote-remaining-domains (B2 inherited)
-
-    "app.domains.reports.router", # promote-remaining-domains (B2 inherited)
 
 
-    "app.domains.vaultwarden.router", # promote-remaining-domains (B2 inherited)
+
+
+
+
+
+
+
+
     "app.schedule", # B3 registry temporarily imports legacy job implementations until 5.5
     "app.domains.accounts.service", # B3 mechanical relocation; audit in 5.6
     "app.domains.blackjack.service", # B3 mechanical relocation; audit in 5.6
@@ -168,16 +157,11 @@ ignore_imports = [
     # restructure-backend-architecture: B3 legacy orchestration and utilities
     # restructure-backend-architecture: B2 legacy API handlers
 
-    "app.domains.crypto_donation.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
 
 
 
-    "app.domains.donation.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
 
-    "app.domains.profile.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
 
-    "app.domains.reports.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
-    "app.domains.credits.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.traffic.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
 ]
 unmatched_ignore_imports_alerting = "error"
@@ -204,18 +188,12 @@ ignore_imports = [
     "app.domains.premium.service -> app.core.db",
     # restructure-backend-architecture: B2 API migration
 
-    "app.domains.crypto_donation.router -> app.core.db", # promote-remaining-domains (B2 inherited)
 
 
 
-    "app.domains.donation.router -> app.core.db", # promote-remaining-domains (B2 inherited)
 
-    "app.domains.profile.router -> app.core.db", # promote-remaining-domains (B2 inherited)
 
-    "app.domains.reports.router -> app.core.db", # promote-remaining-domains (B2 inherited)
 
-    "app.domains.vaultwarden.router -> app.core.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.credits.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.traffic.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
 ]
 unmatched_ignore_imports_alerting = "error"
@@ -240,20 +218,13 @@ ignore_imports = [
     # promote-line-domains: remaining Premium/custom-line business logic
     # restructure-backend-architecture: B2 legacy routers
 
-    "app.domains.crypto_donation.router -> app.domains.crypto_donation.models", # promote-remaining-domains (B2 inherited)
-
-    "app.domains.crypto_donation.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
 
 
 
-    "app.domains.donation.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
 
-    "app.domains.profile.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
 
-    "app.domains.reports.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
 
-    "app.domains.vaultwarden.router -> app.domains.vaultwarden.models", # promote-remaining-domains (B2 inherited)
-    "app.domains.credits.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
+
     "app.domains.traffic.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
 ]
 unmatched_ignore_imports_alerting = "error"
@@ -274,11 +245,7 @@ layers = [
 ignore_imports = [
     # restructure-backend-architecture: transitional facade composition hides
     # domain-to-domain dependencies; AST cross-domain checks still cover self/db.
-    "app.databases.db -> app.domains.crypto_donation.repository",
-    "app.databases.db -> app.domains.donation.repository",
     "app.databases.db -> app.domains.invitation.repository",
-    "app.databases.db -> app.domains.rankings.repository",
-    "app.databases.db -> app.domains.reports.repository",
     "app.databases.db -> app.domains.tg_rebind.repository",
     "app.databases.db -> app.domains.watch_rewards.repository",
 
@@ -290,28 +257,6 @@ ignore_imports = [
 
 
 
-    "app.domains.credits.router -> app.domains.profile.schemas", # make-credit-changes-atomic (B2 inherited)
-
-    "app.domains.crypto_donation.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
-
-
-    "app.domains.crypto_donation.router -> app.domains.crypto_donation.models", # promote-remaining-domains (B2 inherited)
-
-    "app.domains.crypto_donation.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
-
-
-
-
-
-    "app.domains.donation.admin_router -> app.databases.db", # promote-remaining-domains (B2 inherited)
-
-
-    "app.domains.donation.bot -> app.databases.db", # promote-remaining-domains (B2 inherited)
-
-    "app.domains.donation.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
-
-
-    "app.domains.donation.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
 
 
 
@@ -331,26 +276,31 @@ ignore_imports = [
 
 
 
-    "app.domains.profile.bot -> app.databases.db", # promote-remaining-domains (B2 inherited)
-
-    "app.domains.profile.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
-
-    "app.domains.profile.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
-
-    "app.domains.rankings.bot -> app.databases.db", # promote-remaining-domains (B2 inherited)
-
-    "app.domains.rankings.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
-
-
-    "app.domains.reports.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
-
-    "app.domains.reports.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
 
 
 
-    "app.domains.vaultwarden.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
 
-    "app.domains.vaultwarden.router -> app.domains.vaultwarden.models", # promote-remaining-domains (B2 inherited)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ]
 unmatched_ignore_imports_alerting = "error"
 
@@ -362,11 +312,7 @@ ignore_imports = [
     # promote-line-domains: traffic consumes the lines-owned catalog interface.
     "app.domains.traffic.repository -> app.domains.lines.catalog",
     # restructure-backend-architecture: transitional facade composition
-    "app.databases.db -> app.domains.crypto_donation.repository",
-    "app.databases.db -> app.domains.donation.repository",
     "app.databases.db -> app.domains.invitation.repository",
-    "app.databases.db -> app.domains.rankings.repository",
-    "app.databases.db -> app.domains.reports.repository",
     "app.databases.db -> app.domains.tg_rebind.repository",
     "app.databases.db -> app.domains.watch_rewards.repository",
 ]
@@ -453,37 +399,8 @@ forbidden_modules = [
 allow_indirect_imports = true
 ignore_imports = [
     # B2 mechanical relocation retains direct legacy data access.
-    "app.domains.crypto_donation.router -> app.core.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.crypto_donation.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.crypto_donation.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
-    "app.domains.donation.admin_router -> app.databases.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.donation.bot -> app.databases.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.donation.router -> app.core.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.donation.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.donation.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
-    "app.domains.credits.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
     "app.domains.traffic.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
-    "app.domains.profile.bot -> app.databases.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.profile.router -> app.core.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.profile.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.profile.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
-    "app.domains.rankings.bot -> app.databases.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.rankings.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.reports.router -> app.core.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.reports.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.reports.router -> sqlalchemy", # promote-remaining-domains (B2 inherited)
-    "app.domains.vaultwarden.router -> app.core.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.vaultwarden.router -> app.databases.db", # promote-remaining-domains (B2 inherited)
-    "app.domains.crypto_donation.router -> app.domains.crypto_donation.models", # promote-remaining-domains (B2 inherited)
-    "app.domains.crypto_donation.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
-    "app.domains.donation.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
-    "app.domains.profile.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
-    "app.domains.reports.router -> app.domains.identity.models", # promote-remaining-domains (B2 inherited)
-    "app.domains.vaultwarden.router -> app.domains.vaultwarden.models", # promote-remaining-domains (B2 inherited)
-    "app.domains.credits.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
     "app.domains.traffic.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
-    "app.domains.crypto_donation.jobs -> app.databases.db", # B3 mechanical relocation; audit in 5.6
-    "app.domains.credits.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
     "app.domains.traffic.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
 ]
 unmatched_ignore_imports_alerting = "error"

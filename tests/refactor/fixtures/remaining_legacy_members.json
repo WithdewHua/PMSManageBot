@@ -1,0 +1,175 @@
+{
+  "source_commit": "761b0a5",
+  "members": [
+    {
+      "domain": "donation",
+      "class": "DonationRepository",
+      "method": "update_user_donation"
+    },
+    {
+      "domain": "donation",
+      "class": "DonationRepository",
+      "method": "create_donation_registration"
+    },
+    {
+      "domain": "donation",
+      "class": "DonationRepository",
+      "method": "get_donation_registration_by_id"
+    },
+    {
+      "domain": "donation",
+      "class": "DonationRepository",
+      "method": "get_donation_registrations_by_user"
+    },
+    {
+      "domain": "donation",
+      "class": "DonationRepository",
+      "method": "get_pending_donation_registrations"
+    },
+    {
+      "domain": "donation",
+      "class": "DonationRepository",
+      "method": "confirm_donation_registration"
+    },
+    {
+      "domain": "donation",
+      "class": "DonationRepository",
+      "method": "delete_donation_registration"
+    },
+    {
+      "domain": "donation",
+      "class": "DonationRepository",
+      "method": "get_donation_statistics"
+    },
+    {
+      "domain": "crypto_donation",
+      "class": "CryptoDonationRepository",
+      "method": "create_crypto_donation_order"
+    },
+    {
+      "domain": "crypto_donation",
+      "class": "CryptoDonationRepository",
+      "method": "update_crypto_donation_order_upay_info"
+    },
+    {
+      "domain": "crypto_donation",
+      "class": "CryptoDonationRepository",
+      "method": "complete_crypto_donation_order"
+    },
+    {
+      "domain": "crypto_donation",
+      "class": "CryptoDonationRepository",
+      "method": "get_crypto_donation_order_by_order_id"
+    },
+    {
+      "domain": "crypto_donation",
+      "class": "CryptoDonationRepository",
+      "method": "get_crypto_donation_order_by_trade_id"
+    },
+    {
+      "domain": "crypto_donation",
+      "class": "CryptoDonationRepository",
+      "method": "get_crypto_donation_orders_by_user"
+    },
+    {
+      "domain": "crypto_donation",
+      "class": "CryptoDonationRepository",
+      "method": "get_all_crypto_donation_orders"
+    },
+    {
+      "domain": "crypto_donation",
+      "class": "CryptoDonationRepository",
+      "method": "get_crypto_donation_orders_count"
+    },
+    {
+      "domain": "crypto_donation",
+      "class": "CryptoDonationRepository",
+      "method": "get_expired_crypto_donation_orders"
+    },
+    {
+      "domain": "crypto_donation",
+      "class": "CryptoDonationRepository",
+      "method": "update_expired_crypto_donation_orders"
+    },
+    {
+      "domain": "rankings",
+      "class": "RankingsRepository",
+      "method": "get_credits_rank"
+    },
+    {
+      "domain": "rankings",
+      "class": "RankingsRepository",
+      "method": "get_donation_rank"
+    },
+    {
+      "domain": "rankings",
+      "class": "RankingsRepository",
+      "method": "get_plex_watched_time_rank"
+    },
+    {
+      "domain": "rankings",
+      "class": "RankingsRepository",
+      "method": "get_emby_watched_time_rank"
+    },
+    {
+      "domain": "rankings",
+      "class": "RankingsRepository",
+      "method": "get_invitation_rank"
+    },
+    {
+      "domain": "rankings",
+      "class": "RankingsRepository",
+      "method": "get_wheel_credits_rank"
+    },
+    {
+      "domain": "rankings",
+      "class": "RankingsRepository",
+      "method": "get_wheel_invite_code_rank"
+    },
+    {
+      "domain": "rankings",
+      "class": "RankingsRepository",
+      "method": "get_treasure_win_issue_rank"
+    },
+    {
+      "domain": "rankings",
+      "class": "RankingsRepository",
+      "method": "get_treasure_win_credits_rank"
+    },
+    {
+      "domain": "rankings",
+      "class": "RankingsRepository",
+      "method": "get_badge_rank"
+    },
+    {
+      "domain": "reports",
+      "class": "ReportsRepository",
+      "method": "get_plex_users_num"
+    },
+    {
+      "domain": "reports",
+      "class": "ReportsRepository",
+      "method": "get_emby_users_num"
+    },
+    {
+      "domain": "reports",
+      "class": "ReportsRepository",
+      "method": "get_nsfw_unlocked_users_num"
+    },
+    {
+      "domain": "reports",
+      "class": "ReportsRepository",
+      "method": "get_line_schedule_unlocked_users_num"
+    },
+    {
+      "domain": "reports",
+      "class": "ReportsRepository",
+      "method": "get_vaultwarden_redeemed_users_num"
+    },
+    {
+      "domain": "reports",
+      "class": "ReportsRepository",
+      "method": "get_traffic_statistics"
+    }
+  ]
+}

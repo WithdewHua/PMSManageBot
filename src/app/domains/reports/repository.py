@@ -1,189 +1,213 @@
-from datetime import datetime, timedelta
+"""Read-only database queries for reports and system statistics.
+
+This module is strictly read-only: no writes, no mutations, and no ORM model
+instantiations. Queries are limited to wide-table counts/aggregations and
+traffic statistics.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 
-from app.core.config import settings
 from app.core.db import get_session
-from app.core.log import logger
-from app.domains.custom_lines.models import CustomLine
 from app.domains.identity.models import EmbyUser, PlexUser
-from app.domains.lines import catalog as line_catalog
 from app.domains.traffic.models import LineTrafficStats
-from app.domains.vaultwarden.models import VaultwardenRedeemRecords
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
-class ReportsRepository:
-    def get_plex_users_num(self) -> int:
-        """获取 Plex 用户数量"""
-        with get_session() as session:
-            stmt = select(func.count(PlexUser.plex_id))
-            return session.execute(stmt).scalar()
+def get_plex_users_num_tx(session: Session) -> int:
+    """Get total count of Plex users."""
+    stmt = select(func.count(PlexUser.plex_id))
+    return int(session.execute(stmt).scalar() or 0)
 
-    def get_emby_users_num(self) -> int:
-        """获取 Emby 用户数量"""
-        with get_session() as session:
-            stmt = select(func.count(EmbyUser.emby_username))
-            return session.execute(stmt).scalar()
 
-    def get_nsfw_unlocked_users_num(self) -> int:
-        """获取 NSFW 解锁用户数量"""
-        with get_session() as session:
-            # Plex 用户中已解锁 NSFW 的数量
-            plex_stmt = select(func.count(PlexUser.id)).where(PlexUser.all_lib == 1)
-            plex_count = session.execute(plex_stmt).scalar() or 0
+def get_plex_users_num() -> int:
+    """Get total count of Plex users in a standalone read session."""
+    with get_session() as session:
+        return get_plex_users_num_tx(session)
 
-            # Emby 用户中已解锁 NSFW 的数量
-            emby_stmt = select(func.count(EmbyUser.emby_username)).where(
-                EmbyUser.emby_is_unlock == 1
-            )
-            emby_count = session.execute(emby_stmt).scalar() or 0
 
-            return plex_count + emby_count
+def get_emby_users_num_tx(session: Session) -> int:
+    """Get total count of Emby users."""
+    stmt = select(func.count(EmbyUser.emby_username))
+    return int(session.execute(stmt).scalar() or 0)
 
-    def get_line_schedule_unlocked_users_num(self) -> int:
-        """获取线路调度解锁用户数量"""
-        with get_session() as session:
-            # Plex 用户中已解锁线路调度的数量
-            plex_stmt = select(func.count(PlexUser.id)).where(
-                PlexUser.line_schedule_unlocked == 1
-            )
-            plex_count = session.execute(plex_stmt).scalar() or 0
 
-            # Emby 用户中已解锁线路调度的数量
-            emby_stmt = select(func.count(EmbyUser.emby_username)).where(
-                EmbyUser.line_schedule_unlocked == 1
-            )
-            emby_count = session.execute(emby_stmt).scalar() or 0
+def get_emby_users_num() -> int:
+    """Get total count of Emby users in a standalone read session."""
+    with get_session() as session:
+        return get_emby_users_num_tx(session)
 
-            return plex_count + emby_count
 
-    def get_vaultwarden_redeemed_users_num(self) -> int:
-        """获取 Vaultwarden 兑换次数"""
-        with get_session() as session:
-            # 统计总兑换次数
-            stmt = select(func.count(VaultwardenRedeemRecords.id))
-            return session.execute(stmt).scalar() or 0
+def get_total_users_num_tx(session: Session) -> int:
+    """Get total deduplicated user count across Plex and Emby accounts.
 
-    def get_traffic_statistics(self) -> dict:
-        """获取全面的流量统计信息，包括今日/本周/本月，按服务类型和线路分类"""
-        try:
-            now = datetime.now(settings.TZ)
-            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            week_start = today_start - timedelta(days=now.weekday())
-            month_start = today_start.replace(day=1)
+    1. Counts unique non-null tg_ids across PlexUser and EmbyUser.
+    2. Adds accounts where tg_id is NULL for Plex and Emby separately.
+    """
+    plex_tg_ids = select(PlexUser.tg_id).where(PlexUser.tg_id.isnot(None))
+    emby_tg_ids = select(EmbyUser.tg_id).where(EmbyUser.tg_id.isnot(None))
+    union_query = plex_tg_ids.union(emby_tg_ids)
+    union_subquery = union_query.subquery()
+    unique_tg_count = (
+        session.execute(select(func.count()).select_from(union_subquery)).scalar() or 0
+    )
 
-            periods = [
-                ("today", today_start.isoformat()),
-                ("week", week_start.isoformat()),
-                ("month", month_start.isoformat()),
-            ]
+    plex_no_tg = (
+        session.execute(
+            select(func.count()).select_from(PlexUser).where(PlexUser.tg_id.is_(None))
+        ).scalar()
+        or 0
+    )
 
-            result = {}
+    emby_no_tg = (
+        session.execute(
+            select(func.count()).select_from(EmbyUser).where(EmbyUser.tg_id.is_(None))
+        ).scalar()
+        or 0
+    )
 
-            with get_session() as session:
-                # 获取所有已批准的自定义线路域名
-                approved_custom_lines = (
-                    session.execute(
-                        select(CustomLine.domain).where(CustomLine.status == "approved")
-                    )
-                    .scalars()
-                    .all()
-                )
+    return int(unique_tg_count + plex_no_tg + emby_no_tg)
 
-                for period_name, start_time in periods:
-                    # 查询按服务类型分组的流量统计
-                    service_results = session.execute(
-                        select(
-                            LineTrafficStats.service,
-                            func.coalesce(
-                                func.sum(LineTrafficStats.send_bytes), 0
-                            ).label("total_traffic"),
-                        )
-                        .where(LineTrafficStats.timestamp >= start_time)
-                        .group_by(LineTrafficStats.service)
-                    ).fetchall()
 
-                    # 查询按线路分组的流量统计
-                    line_results = session.execute(
-                        select(
-                            LineTrafficStats.line,
-                            func.coalesce(
-                                func.sum(LineTrafficStats.send_bytes), 0
-                            ).label("total_traffic"),
-                        )
-                        .where(LineTrafficStats.timestamp >= start_time)
-                        .group_by(LineTrafficStats.line)
-                        .order_by(func.sum(LineTrafficStats.send_bytes).desc())
-                    ).fetchall()
+def get_total_users_num() -> int:
+    """Get total deduplicated user count across Plex and Emby in a standalone read session."""
+    with get_session() as session:
+        return get_total_users_num_tx(session)
 
-                    # 计算总流量
-                    total_traffic = session.execute(
-                        select(
-                            func.coalesce(func.sum(LineTrafficStats.send_bytes), 0)
-                        ).where(LineTrafficStats.timestamp >= start_time)
-                    ).scalar()
 
-                    # 构建期间数据
-                    period_data = {
-                        "total": total_traffic,
-                        "emby": 0,
-                        "plex": 0,
-                        "lines": [],
-                        "custom_lines": [],  # 新增：自定义线路统计
-                    }
+def get_nsfw_unlocked_users_num_tx(session: Session) -> int:
+    """Get total count of NSFW-unlocked users across Plex and Emby."""
+    plex_stmt = select(func.count(PlexUser.id)).where(PlexUser.all_lib == 1)
+    plex_count = session.execute(plex_stmt).scalar() or 0
 
-                    for service, traffic in service_results:
-                        if service.lower() == "emby":
-                            period_data["emby"] = traffic
-                        elif service.lower() == "plex":
-                            period_data["plex"] = traffic
+    emby_stmt = select(func.count(EmbyUser.emby_username)).where(
+        EmbyUser.emby_is_unlock == 1
+    )
+    emby_count = session.execute(emby_stmt).scalar() or 0
 
-                    # 添加线路数据
-                    for line, traffic in line_results:
-                        is_known_line = False
-                        # 检查是否是已知线路
-                        for _line in (
-                            line_catalog.normal_lines() + line_catalog.premium_lines()
-                        ):
-                            if line.lower() in _line.lower():
-                                period_data["lines"].append(
-                                    {"line": line, "traffic": traffic}
-                                )
-                                is_known_line = True
-                                break
+    return int(plex_count + emby_count)
 
-                        # 如果不是已知线路，检查是否是已批准的自定义线路
-                        if not is_known_line and line in approved_custom_lines:
-                            period_data["custom_lines"].append(
-                                {"line": line, "traffic": traffic, "is_custom": True}
-                            )
 
-                    result[period_name] = period_data
+def get_nsfw_unlocked_users_num() -> int:
+    """Get total count of NSFW-unlocked users in a standalone read session."""
+    with get_session() as session:
+        return get_nsfw_unlocked_users_num_tx(session)
 
-            return result
 
-        except Exception as e:
-            logger.error(f"Error getting comprehensive traffic statistics: {e}")
-            return {
-                "today": {
-                    "total": 0,
-                    "emby": 0,
-                    "plex": 0,
-                    "lines": [],
-                    "custom_lines": [],
-                },
-                "week": {
-                    "total": 0,
-                    "emby": 0,
-                    "plex": 0,
-                    "lines": [],
-                    "custom_lines": [],
-                },
-                "month": {
-                    "total": 0,
-                    "emby": 0,
-                    "plex": 0,
-                    "lines": [],
-                    "custom_lines": [],
-                },
-            }
+def get_line_schedule_unlocked_users_num_tx(session: Session) -> int:
+    """Get total count of line schedule unlocked users across Plex and Emby."""
+    plex_stmt = select(func.count(PlexUser.id)).where(
+        PlexUser.line_schedule_unlocked == 1
+    )
+    plex_count = session.execute(plex_stmt).scalar() or 0
+
+    emby_stmt = select(func.count(EmbyUser.emby_username)).where(
+        EmbyUser.line_schedule_unlocked == 1
+    )
+    emby_count = session.execute(emby_stmt).scalar() or 0
+
+    return int(plex_count + emby_count)
+
+
+def get_line_schedule_unlocked_users_num() -> int:
+    """Get total count of line schedule unlocked users in a standalone read session."""
+    with get_session() as session:
+        return get_line_schedule_unlocked_users_num_tx(session)
+
+
+def get_download_unlocked_users_num_tx(session: Session) -> int:
+    """Get total count of download unlocked users across Plex and Emby."""
+    plex_stmt = select(func.count(PlexUser.id)).where(PlexUser.sync_unlocked == 1)
+    plex_count = session.execute(plex_stmt).scalar() or 0
+
+    emby_stmt = select(func.count(EmbyUser.emby_username)).where(
+        EmbyUser.download_unlocked == 1
+    )
+    emby_count = session.execute(emby_stmt).scalar() or 0
+
+    return int(plex_count + emby_count)
+
+
+def get_download_unlocked_users_num() -> int:
+    """Get total count of download unlocked users in a standalone read session."""
+    with get_session() as session:
+        return get_download_unlocked_users_num_tx(session)
+
+
+def get_traffic_period_metrics_tx(
+    session: Session, start_time: str
+) -> tuple[int, list[tuple[str, int]], list[tuple[str, int]]]:
+    """Query raw traffic stats for a single period starting at start_time.
+
+    Returns:
+        (total_traffic, service_results, line_results)
+    """
+    total_stmt = select(func.coalesce(func.sum(LineTrafficStats.send_bytes), 0)).where(
+        LineTrafficStats.timestamp >= start_time
+    )
+    total_traffic = int(session.execute(total_stmt).scalar() or 0)
+
+    service_stmt = (
+        select(
+            LineTrafficStats.service,
+            func.coalesce(func.sum(LineTrafficStats.send_bytes), 0).label(
+                "total_traffic"
+            ),
+        )
+        .where(LineTrafficStats.timestamp >= start_time)
+        .group_by(LineTrafficStats.service)
+    )
+    service_results = [
+        (str(row[0]), int(row[1])) for row in session.execute(service_stmt).fetchall()
+    ]
+
+    line_stmt = (
+        select(
+            LineTrafficStats.line,
+            func.coalesce(func.sum(LineTrafficStats.send_bytes), 0).label(
+                "total_traffic"
+            ),
+        )
+        .where(LineTrafficStats.timestamp >= start_time)
+        .group_by(LineTrafficStats.line)
+        .order_by(func.sum(LineTrafficStats.send_bytes).desc())
+    )
+    line_results = [
+        (str(row[0]), int(row[1])) for row in session.execute(line_stmt).fetchall()
+    ]
+
+    return total_traffic, service_results, line_results
+
+
+def get_raw_traffic_stats(
+    periods: list[tuple[str, str]],
+) -> dict[str, tuple[int, list[tuple[str, int]], list[tuple[str, int]]]]:
+    """Query raw traffic statistics for multiple periods in a single session."""
+    result: dict[str, tuple[int, list[tuple[str, int]], list[tuple[str, int]]]] = {}
+    with get_session() as session:
+        for period_name, start_time in periods:
+            result[period_name] = get_traffic_period_metrics_tx(session, start_time)
+    return result
+
+
+__all__ = [
+    "get_download_unlocked_users_num",
+    "get_download_unlocked_users_num_tx",
+    "get_emby_users_num",
+    "get_emby_users_num_tx",
+    "get_line_schedule_unlocked_users_num",
+    "get_line_schedule_unlocked_users_num_tx",
+    "get_nsfw_unlocked_users_num",
+    "get_nsfw_unlocked_users_num_tx",
+    "get_plex_users_num",
+    "get_plex_users_num_tx",
+    "get_raw_traffic_stats",
+    "get_total_users_num",
+    "get_total_users_num_tx",
+    "get_traffic_period_metrics_tx",
+]

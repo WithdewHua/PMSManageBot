@@ -2,6 +2,7 @@ from app.core.log import uvicorn_logger as logger
 from app.domains.identity import service as identity_service
 from app.domains.lines import catalog
 from app.domains.lines import repository as lines_repository
+from app.domains.lines import rules as lines_rules
 from app.domains.lines.config import LINES_CONFIG
 from app.domains.lines.gateway_cache import (
     emby_last_user_defined_line_cache,
@@ -671,3 +672,30 @@ def delete_line_schedule(schedule_id: int, tg_id: int) -> bool:
 
 def get_current_active_schedule(tg_id: int, service: str) -> dict | None:
     return lines_repository.get_current_active_schedule(tg_id, service)
+
+
+def get_normal_lines() -> list[str]:
+    """Return normal line URLs from catalog."""
+    return catalog.normal_lines()
+
+
+def get_premium_lines() -> list[str]:
+    """Return premium line URLs from catalog."""
+    return catalog.premium_lines()
+
+
+def get_free_premium_lines() -> list[str]:
+    """Return free premium line URLs from catalog."""
+    return catalog.free_premium_lines()
+
+
+def get_traffic_classification_catalog_lines() -> list[str]:
+    """Return catalog lines ordered in historical normal + premium order for traffic classification."""
+    return catalog.normal_lines() + catalog.premium_lines()
+
+
+def is_known_catalog_line(line: str) -> bool:
+    """Return whether line matches any normal or premium catalog line using historical substring match."""
+    return lines_rules.match_catalog_line(
+        line, get_traffic_classification_catalog_lines()
+    )

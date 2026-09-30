@@ -365,7 +365,9 @@ __all__ = [
     "get_user_status",
     "get_user_wheel_stats",
     "get_wheel_config",
+    "get_wheel_invite_code_rank",
     "get_wheel_stats",
+    "invite_code_prize_counts",
     "list_expiring_blackjack_freespins",
     "random_select_winner",
     "register_free_spin_progress_provider",
@@ -385,3 +387,11 @@ def count_badge_spins(tg_id: int) -> int:
 
 def list_badge_eligible_tg_ids(min_spins: int) -> list[int]:
     return repository.list_badge_eligible_tg_ids(min_spins)
+
+
+def get_wheel_invite_code_rank() -> list[tuple[int, int]]:
+    """获取幸运大转盘邀请码获得排行榜 [(tg_id, invite_count), ...]"""
+    return repository.get_wheel_invite_code_rank()
+
+
+invite_code_prize_counts = get_wheel_invite_code_rank

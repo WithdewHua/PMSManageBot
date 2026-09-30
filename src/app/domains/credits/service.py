@@ -112,3 +112,19 @@ __all__ = [
     "transfer",
     "validate_amount",
 ]
+
+
+def refresh_balance_cache() -> None:
+    """Refresh gateway balances, preserving legacy service ordering and keys."""
+    from app.domains.credits import cache
+
+    statistics = repository.get_cache_statistics_balances()
+    for service in ("plex", "emby"):
+        for media_id, tg_id, balance, username in repository.list_cache_media_balances(
+            service
+        ):
+            if service == "plex" and not media_id:
+                continue
+            if tg_id:
+                balance = statistics.get(tg_id, 0)
+            cache.user_credits_cache.put(f"{service}:{username.lower()}", balance)

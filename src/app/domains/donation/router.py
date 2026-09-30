@@ -1,12 +1,13 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
-from sqlalchemy import update as sql_update
+"""Donation HTTP router."""
 
+from __future__ import annotations
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+
+from app.core import errors
 from app.core.config import settings
-from app.core.db import get_session
 from app.core.log import logger
-from app.databases import db
-from app.domains.credits import service as credits_service
-from app.domains.credits.types import CreditAccount
+from app.domains.donation import notifications
 from app.domains.donation import service as donation_service
 from app.domains.donation.schemas import (
     DonationRegistrationConfirmResponse,
@@ -17,8 +18,6 @@ from app.domains.donation.schemas import (
     DonationRegistrationResponse,
     DonationRegistrationUpdate,
 )
-from app.domains.identity.models import Statistics
-from app.integrations.telegram.messaging import send_message_by_url
 from app.integrations.telegram.profiles import (
     get_user_name_from_tg_id,
     refresh_tg_user_profile,
@@ -29,7 +28,6 @@ from app.transport.http.auth import (
     require_telegram_auth,
 )
 from app.transport.http.schemas import TelegramUser
-from app.transport.telegram.admin import notify_admins_by_url
 
 router = APIRouter(prefix="/api/donations", tags=["donations"])
 
@@ -43,7 +41,6 @@ async def create_donation_registration(
     user: TelegramUser = Depends(get_telegram_user),
 ):
     """创建捐赠自助登记"""
-    registration = None
     try:
         user_id = user.id
         if not user_id:
@@ -75,18 +72,13 @@ async def create_donation_registration(
             )
 
         # 发送管理员通知
-        registration_type = (
-            "捐赠开号" if registration_data.is_donation_registration else "普通捐赠"
+        await notifications.notify_admins_of_registration(
+            user_id=user_id,
+            user_name=get_user_name_from_tg_id(user_id),
+            payment_method=registration_data.payment_method.value,
+            amount=registration_data.amount,
+            is_donation_registration=registration_data.is_donation_registration,
         )
-        await notify_admins_by_url(
-            f"用户 {get_user_name_from_tg_id(user_id)} 提交了{registration_type}登记: {registration_data.payment_method.value} {registration_data.amount}元"
-        )
-
-        logger.info(
-            f"用户 {get_user_name_from_tg_id(user_id)} 提交了{'捐赠开号' if registration_data.is_donation_registration else '普通捐赠'}登记: {registration_data.payment_method.value} {registration_data.amount}元"
-        )
-
-        # 增加刷新用户信息的任务
 
         return DonationRegistrationCreateResponse(
             success=True,
@@ -96,6 +88,8 @@ async def create_donation_registration(
 
     except HTTPException:
         raise
+    except errors.DomainError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message) from e
     except Exception as e:
         logger.error(f"创建捐赠登记失败: {e}")
         raise HTTPException(
@@ -120,7 +114,6 @@ async def get_user_donation_registrations(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="用户信息不完整"
             )
 
-        # 限制分页参数
         per_page = min(per_page, 100)
 
         registrations = donation_service.get_donation_registrations_by_user(
@@ -141,6 +134,8 @@ async def get_user_donation_registrations(
 
     except HTTPException:
         raise
+    except errors.DomainError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message) from e
     except Exception as e:
         logger.error(f"获取用户捐赠登记历史失败: {e}")
         raise HTTPException(
@@ -155,9 +150,7 @@ async def get_pending_donation_registrations(
 ):
     """获取待处理的捐赠登记列表（管理员专用）"""
     try:
-        # 检查管理员权限
         check_admin_permission(user)
-        # 限制查询数量
         limit = min(limit, 200)
 
         registrations = donation_service.get_pending_donation_registrations(limit=limit)
@@ -176,6 +169,8 @@ async def get_pending_donation_registrations(
 
     except HTTPException:
         raise
+    except errors.DomainError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message) from e
     except Exception as e:
         logger.error(f"获取待处理捐赠登记失败: {e}")
         raise HTTPException(
@@ -217,6 +212,8 @@ async def get_donation_registration_detail(
 
     except HTTPException:
         raise
+    except errors.DomainError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message) from e
     except Exception as e:
         logger.error(f"获取捐赠登记详情失败: {e}")
         raise HTTPException(
@@ -238,200 +235,29 @@ async def confirm_donation_registration(
 ):
     """确认捐赠登记（管理员专用）"""
     try:
-        # 检查管理员权限
         check_admin_permission(user)
         admin_id = user.id
 
-        # 检查登记记录是否存在
-        registration = donation_service.get_donation_registration_by_id(registration_id)
-        if not registration:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="捐赠登记记录不存在"
-            )
-
-        # 检查状态是否为待处理
-        if registration["status"] != "pending":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"此登记记录状态为 {registration['status']}，无法处理",
-            )
-
-        # 第一步：只更新登记状态
-        success = db.confirm_donation_registration(
+        updated = await donation_service.confirm_donation_registration(
             registration_id=registration_id,
+            admin_id=admin_id,
             approved=confirm_data.approved,
             admin_note=confirm_data.admin_note,
-            processed_by=admin_id,
-        )
-
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="处理捐赠登记失败",
-            )
-
-        # 第二步：如果批准，处理积分和邀请码
-        if confirm_data.approved:
-            user_id = registration["user_id"]
-            amount = registration["amount"]
-            is_donation_registration = registration.get(
-                "is_donation_registration", False
-            )
-
-            # 更新捐赠金额和积分
-            current_stats = db.get_stats_by_tg_id(user_id)
-            if current_stats:
-                new_donation = current_stats[1] + amount
-
-                # 捐赠开号只记录捐赠金额；普通捐赠的积分在事务内增量写入。
-
-                with get_session() as session:
-                    if not is_donation_registration:
-                        mutation = credits_service.apply_tx(
-                            session,
-                            CreditAccount.tg(int(user_id)),
-                            amount * donation_service.get_donation_multiplier(),
-                        )
-                        if mutation is not None:
-                            credits_service.register_cache_invalidation(
-                                session, mutation
-                            )
-                    stmt = (
-                        sql_update(Statistics)
-                        .where(Statistics.tg_id == user_id)
-                        .values(donation=new_donation)
-                    )
-                    session.execute(stmt)
-            else:
-                # 如果用户统计记录不存在，创建一个
-                if is_donation_registration:
-                    # 捐赠开号：只记录捐赠金额
-                    db.add_user_data(
-                        user_id,
-                        credits=0,
-                        donation=amount,
-                    )
-                else:
-                    # 普通捐赠：记录捐赠金额和积分
-                    db.add_user_data(
-                        user_id,
-                        credits=amount * donation_service.get_donation_multiplier(),
-                        donation=amount,
-                    )
-
-            # 如果是捐赠开号，生成一个普通邀请码
-            if is_donation_registration:
-                from app.domains.invitation.service import add_redeem_code
-
-                try:
-                    add_redeem_code(tg_id=user_id, num=1, is_privileged=False)
-                    logger.info(f"为捐赠开号用户 {user_id} 生成邀请码成功")
-                except Exception as e:
-                    logger.error(f"为捐赠开号用户 {user_id} 生成邀请码失败: {e}")
-
-            # Existing transaction has committed; checks remain outside the response.
-            from app.core import events
-            from app.domains.donation import events as donation_events
-
-            background_tasks.add_task(
-                events.emit, donation_events.DonationApproved(int(user_id))
-            )
-
-        # 获取更新后的记录
-        updated_registration = donation_service.get_donation_registration_by_id(
-            registration_id
         )
 
         action = "批准" if confirm_data.approved else "拒绝"
         message = f"捐赠登记已{action}"
 
-        # 记录管理员操作
-        logger.info(f"管理员 {admin_id} {action}了捐赠登记 {registration_id}")
-
-        # 发送用户通知
-        try:
-            user_id = registration["user_id"]
-            user_name = get_user_name_from_tg_id(user_id)
-            admin_name = get_user_name_from_tg_id(admin_id)
-
-            if confirm_data.approved:
-                # 获取登记信息以判断是否为捐赠开号
-                is_donation_registration = registration.get(
-                    "is_donation_registration", False
-                )
-
-                # 批准通知
-                notification_text = f"""✅ 您的{"捐赠开号" if is_donation_registration else "捐赠"}登记已批准
-
-📝 登记编号: #{registration_id}
-💰 捐赠金额: {registration["amount"]}元
-💳 支付方式: {registration["payment_method"]}
-📋 登记类型: {"捐赠开号" if is_donation_registration else "普通捐赠"}
-👨‍💼 处理管理员: {admin_name}
-⏰ 处理时间: {updated_registration["processed_at"]}"""
-
-                if confirm_data.admin_note:
-                    notification_text += f"\n📋 管理员备注: {confirm_data.admin_note}"
-
-                if is_donation_registration:
-                    notification_text += "\n\n🎫 已为您生成邀请码，可在个人中心查看。"
-                    notification_text += "\n📝 捐赠开号只记录捐赠金额，不增加积分。"
-                else:
-                    notification_text += "\n\n💎 您的捐赠金额和积分已更新。"
-
-                notification_text += "\n\n感谢您的支持！"
-            else:
-                # 获取登记信息以判断是否为捐赠开号
-                is_donation_registration = registration.get(
-                    "is_donation_registration", False
-                )
-
-                # 拒绝通知
-                notification_text = f"""❌ 您的{"捐赠开号" if is_donation_registration else "捐赠"}登记被拒绝
-
-📝 登记编号: #{registration_id}
-💰 捐赠金额: {registration["amount"]}元
-💳 支付方式: {registration["payment_method"]}
-📋 登记类型: {"捐赠开号" if is_donation_registration else "普通捐赠"}
-👨‍💼 处理管理员: {admin_name}
-⏰ 处理时间: {updated_registration["processed_at"]}"""
-
-                if confirm_data.admin_note:
-                    notification_text += f"\n📋 拒绝原因: {confirm_data.admin_note}"
-                else:
-                    notification_text += "\n📋 拒绝原因: 未提供具体原因"
-
-                notification_text += "\n\n如有疑问，请联系管理员。"
-
-            await send_message_by_url(
-                chat_id=user_id,
-                text=notification_text,
-                parse_mode="HTML",
-            )
-
-            logger.info(f"已向用户 {user_name}({user_id}) 发送捐赠登记{action}通知")
-
-            # 发送通知给管理员确认通知已发送
-            admin_notification_text = f"管理员 {admin_name}，已成功{action}捐赠登记 {registration_id}，用户 {user_name}({user_id}) 已收到通知。"
-
-        except Exception as e:
-            logger.warning(f"发送用户捐赠登记{action}通知失败: {e}")
-            # 即使通知发送失败，也不影响主要业务逻辑，但发送通知给管理员
-            admin_notification_text = f"管理员 {admin_name}，处理的捐赠登记 {registration_id} 的通知发送失败，请检查日志。"
-        await send_message_by_url(
-            chat_id=admin_id,
-            text=admin_notification_text,
-            parse_mode="HTML",
-        )
-
         return DonationRegistrationConfirmResponse(
             success=True,
             message=message,
-            data=DonationRegistrationResponse(**updated_registration),
+            data=DonationRegistrationResponse(**updated),
         )
 
     except HTTPException:
         raise
+    except errors.DomainError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message) from e
     except Exception as e:
         logger.error(f"确认捐赠登记失败: {e}")
         raise HTTPException(
@@ -446,15 +272,14 @@ async def get_donation_statistics(
 ):
     """获取捐赠统计信息（管理员专用）"""
     try:
-        # 检查管理员权限
         check_admin_permission(user)
-
-        stats = db.get_donation_statistics()
-
+        stats = donation_service.get_donation_statistics()
         return {"success": True, "data": stats}
 
     except HTTPException:
         raise
+    except errors.DomainError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message) from e
     except Exception as e:
         logger.error(f"获取捐赠统计信息失败: {e}")
         raise HTTPException(

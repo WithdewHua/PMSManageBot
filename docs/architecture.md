@@ -112,7 +112,7 @@ core/（公共设施）
 
 ## 已知例外和清理责任
 
-- **读模型直读跨域表**：T5 的 rankings、reports、profile repository 可以跨表只读聚合，不可写入其他领域的数据。后续 `promote-remaining-domains` 核对查询。
+- **读模型直读跨域表**：T5 的 rankings、reports、profile repository 只能直接执行不包含业务规则的只读聚合，例如对原始列计数、求和、排序、过滤；不得构造领域模型、写入数据或管理业务变更。涉及奖品类别、奖金口径、有效邀请去重、线路分类、Premium 欠额等业务规则时，通过拥有该规则的领域 service 提供的只读分析能力获取数据，再由读模型 service 组织展示。不能因为查询只有读模型调用，就把规则复制到读模型。`tests/architecture/test_read_model_readonly.py` 对写操作、模型构造和属性赋值进行正反例检查。
 - **过渡门面**：`app.databases.db` 暂时组合 repository mixin，以保持旧调用面；门面文件本身不新增方法，新方法写入所属领域的 repository mixin，只允许本领域经 `db.xxx()` 调用，不新增跨域调用。`retire-legacy-db-facade` 删除它。旧的跨域 `db.xxx()` / `self.xxx()` 依赖登记在架构测试基线，按所属领域的提升变更清理。
 - **入口层领域环**：活动领域与 badge_awards 之间的反向依赖已由 `promote-reward-domains` 消除（D3 第 1 处环）：活动成功提交后发布事件，组装层订阅触发勋章检查，badge_awards 仅通过各领域 service 读取统计；luckywheel 消耗 blackjack 来源免费次数时反读 blackjack 配置（`promote-blackjack-domain`：发放时保存参数）。accounts 的 Plex 邮箱回填通过提交后 `PlexUserIdResolved` 事件通知 invitation，不再建立 sibling 直接调用。搬迁阶段仅登记，不改变行为。
 - **identity 兼容层**：`app.domains.identity.compat.IdentityRepository` 只允许转发到 `identity.service` 并恢复旧元组形状；不得导入 SQLAlchemy、模型或 `app.core.db`。尚未提升的旧调用方继续通过 `app.databases.db` 使用它，分别由对应领域提案负责迁移。
@@ -126,6 +126,7 @@ core/（公共设施）
 | 操作 | 入口及调用方式 | 保留理由 / 后续责任 |
 |---|---|---|
 | TG 用户换绑 | `db.rebind_user_tg_id(...)`，由管理员在运维 Python 环境手动调用；搬迁后仍由 `from app.databases import db` 获取门面 | 虽无代码调用方，但属于人工操作入口；现有漏迁问题由 `promote-tg-rebind-domain` 修复，删除前须与维护者确认 |
+| 捐赠倍率重算 | `from app.domains.donation import service; service.update_donation_credits(old_multiplier, new_multiplier)`，仅由维护者在运维 Python 环境显式调用 | 历史捐赠积分的人工调整工具；无日常代码调用方不代表可删除。必须先审查旧/新倍率与目标数据库，并遵循积分领域事务接口 |
 | 过期下载权限清单 | `scripts/list_expired_download_holders.py`；默认只读，确认名单后用 `--apply --input <json>` 仅撤销名单项 | `scripts/sync_download_permissions.py` 是单向同步脚本，不能用于对账或撤销，也不得代替本清单脚本 |
 
 ## Core 与 transport 边界
@@ -291,3 +292,18 @@ B3 起，部署回退必须在维护窗口执行：停止所有 B3 调度器 →
 - 同一副本的独立数据库验证 `f3a4b5c6d7e8 → a4b5c6d7e8f9 → b5c6d7e8f9a0`，执行升级、降级回起点、再升级。业务 ORM 与 APScheduler 自有 metadata 联合比较无差异；未删除或忽略调度表。
 - 整合审查修复：Plex 邀请成功后的 ID 查询失败不释放已用邀请码；免费线路批量更新锁定候选行；目录缓存通过版本校验拒绝在失效后重新写入旧快照。均保留原有外部接口。
 - 全程不修改生产数据库、生产 `.env` 或媒体账户权限；测试数据与生产导出只保留在本机隔离目录，不加入 Git。
+
+
+### 剩余领域提升后的兼容层边界
+
+`donation`、`crypto_donation`、`rankings`、`reports` 已从 `DatabaseORM` 的继承列表移除；对应操作通过领域 service 和模块级 repository 实现。`profile` 的个人信息/转账收件人列表通过只读 repository 与所属领域的 service 组合，积分转账请求/响应模型归属 `credits.schemas`，缓存重写任务的查询也归属 credits repository。
+
+`tests/refactor/test_remaining_baseline.py` 扫描运行时代码与非 refactor 运维脚本，确认 identity/invitation 兼容方法没有生产代码调用方。门面自身组合、历史对照脚本及测试夹具不计作业务消费方。兼容类保留到 `retire-legacy-db-facade` 统一删除；人工 `db.rebind_user_tg_id(...)` 仍是受保护的运维入口，先由 `promote-tg-rebind-domain` 完成迁移。此前线路、流量、Premium、媒体权限、观看奖励的过渡适配器也仍留在门面中，本次不以“只剩两个类”作为不符合实际的完成标准。
+
+#### 剩余领域提升验证记录
+
+- 以 `761b0a5` 为不可变旧实现，在一次性本地 PostgreSQL 生产副本上执行 `scripts/refactor/remaining_rehearsal.py`：44 项排行、统计、个人信息、Bot 与周报对比全部一致；固定时钟与外部服务替身，使用 FastAPI 的 `jsonable_encoder` 比较实际响应类型，不能用 `default=str` 将 PostgreSQL Decimal 错判为字符串合同。
+- 彩排只接受本机指定端口、`pms_test_remaining_compare_` 前缀数据库，禁止连接参数覆盖目标，强制只读；逐表指纹验证运行前后数据不变。真实用户 ID 在运行时从本地副本选择，不写入脚本。原始差异报告保留在本地临时目录；已修复转盘/夺宝字段命名、观看/邀请榜多余标识字段和周报任务返回值偏差。
+- `tests/test_remaining_postgres.py` 在独立 schema 中以 8 路并发验证捐赠审批和支付回调均只入账一次。捐赠批准事件由 service 在成功提交后发出，拒绝、回滚与 Bot 人工录入路径不发出该事件。
+- 清除剩余领域 52 条及 credits 14 条架构遗留，活动基线从 163 降至 97 条，合约忽略计数总量从 90 降至 18；历史来源证明另存 `remaining_retired_b3_entries.json`，不重新污染活动基线。
+- Gemini/Herdr 只读审查发现订单列表查询残留 `self` 导致参数错位，已修复并增加跨用户隔离、状态分页和模块级函数签名检查。所有公共路由顺序、OpenAPI、Bot 注册和调度入口保持冻结。

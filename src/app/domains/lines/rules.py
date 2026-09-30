@@ -38,3 +38,9 @@ def is_binded_premium_line(
     if not line:
         return False
     return any(premium_line in line for premium_line in premium_lines)
+
+
+def match_catalog_line(line: str, catalog_lines: tuple[str, ...] | list[str]) -> bool:
+    """Categorize line using historical substring match: line.lower() in cat_line.lower()."""
+    line_lower = line.lower()
+    return any(line_lower in cat_line.lower() for cat_line in catalog_lines)

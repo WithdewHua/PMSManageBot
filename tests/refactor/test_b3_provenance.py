@@ -148,13 +148,23 @@ def test_blackjack_service_rebindings_are_itemized_and_proven() -> None:
             historical[key], mappings=_mapping_items(), frozen=_frozen_items()
         )
 
+    remaining_retired = json.loads(
+        (
+            BASELINE.parent.parent
+            / "refactor/fixtures/remaining_retired_b3_entries.json"
+        ).read_text()
+    )
+    remaining_historical = {
+        _normalized_key(item["key"]): item for item in remaining_retired["entries"]
+    }
     normalized = {_normalized_key(key): entry for key, entry in entries.items()}
     for key, owner in REVIEWED_BOUNDARY_REPLACEMENTS.items():
         if owner == "promote-reward-domains":
             assert _normalized_key(key) not in normalized
             assert historical[key]["owner"] == owner
         else:
-            entry = normalized[_normalized_key(key)]
+            assert _normalized_key(key) not in normalized
+            entry = remaining_historical[_normalized_key(key)]
             assert entry["owner"] == owner
             assert "b3_source_id" not in entry
 

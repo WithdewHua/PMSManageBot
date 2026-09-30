@@ -1,17 +1,19 @@
 """Vaultwarden redemption notifications."""
 
+from __future__ import annotations
+
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
 from app.integrations.telegram.messaging import send_message_by_url
 
 
-async def _notify_admins_vaultwarden_redeem(
+async def notify_admins_vaultwarden_redeem(
     user_id: int,
     user_name: str,
     email: str,
     required_credits: float,
     new_credits: float,
-):
+) -> None:
     """后台发送 Vaultwarden 兑换成功管理员通知"""
     for admin in settings.TG_ADMIN_CHAT_ID:
         try:
@@ -29,3 +31,41 @@ async def _notify_admins_vaultwarden_redeem(
             )
         except Exception as e:
             logger.warning(f"发送管理员通知失败 {admin}: {e}")
+
+
+# Legacy alias
+_notify_admins_vaultwarden_redeem = notify_admins_vaultwarden_redeem
+
+
+async def notify_admins_vaultwarden_refund_failed(
+    user_id: int,
+    user_name: str,
+    email: str,
+    credits: float,
+    error_detail: str,
+) -> None:
+    """后台发送 Vaultwarden 积分退还失败管理员通知"""
+    for admin in settings.TG_ADMIN_CHAT_ID:
+        try:
+            await send_message_by_url(
+                chat_id=admin,
+                text=(
+                    f"⚠️ <b>Vaultwarden 积分退还失败警告</b>\n\n"
+                    f"用户 <b>{user_name}</b>（TG ID: <code>{user_id}</code>）\n"
+                    f"开号失败后退还积分失败！\n"
+                    f"邮箱：<code>{email}</code>\n"
+                    f"需退还积分：{credits}\n"
+                    f"错误详情：{error_detail}\n"
+                    f"请管理员手动核实并补发积分。"
+                ),
+                parse_mode="HTML",
+            )
+        except Exception as e:
+            logger.warning(f"发送管理员通知失败 {admin}: {e}")
+
+
+__all__ = [
+    "_notify_admins_vaultwarden_redeem",
+    "notify_admins_vaultwarden_redeem",
+    "notify_admins_vaultwarden_refund_failed",
+]

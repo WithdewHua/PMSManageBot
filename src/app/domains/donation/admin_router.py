@@ -1,12 +1,16 @@
+"""Donation admin router."""
+
+from __future__ import annotations
+
 from fastapi import APIRouter, Body, Depends, Request
 
 from app.core.log import uvicorn_logger as logger
-from app.databases import db
-from app.domains.credits import service as credits_service
-from app.domains.credits.types import CreditAccount
-from app.domains.donation import service as donation_service
-from app.integrations.telegram.messaging import send_message_by_url
-from app.integrations.telegram.profiles import get_user_name_from_tg_id
+from app.domains.donation import (
+    exceptions as donation_exceptions,
+)
+from app.domains.donation import (
+    service as donation_service,
+)
 from app.transport.http.auth import (
     check_admin_permission,
     get_telegram_user,
@@ -35,57 +39,21 @@ async def submit_donation_record(
         if not tg_id or amount <= 0:
             return BaseResponse(success=False, message="参数错误")
 
-        # 获取当前捐赠金额
-        stats_info = db.get_stats_by_tg_id(tg_id)
-        if not stats_info:
-            return BaseResponse(success=False, message="用户不存在")
+        result = await donation_service.admin_record_donation(
+            tg_id=int(tg_id),
+            amount=float(amount),
+            admin_id=user.id,
+            note=note,
+        )
 
-        current_donation = stats_info[1] if stats_info[1] else 0
-        new_donation = round(current_donation + float(amount), 2)
-        # 更新捐赠金额
-        success = db.update_user_donation(new_donation, tg_id)
-
-        if success:
-            credits_service.add(
-                CreditAccount.tg(int(tg_id)),
-                float(amount) * donation_service.get_donation_multiplier(),
-            )
-
-            # 获取用户显示名称
-            user_name = get_user_name_from_tg_id(tg_id)
-
-            logger.info(
-                f"管理员 {user.username or user.id} 为用户 {user_name}({tg_id}) 添加捐赠记录: {amount}元"
-                + (f", 备注: {note}" if note else "")
-            )
-
-            # 发送通知给用户
-            try:
-                await send_message_by_url(
-                    chat_id=tg_id,
-                    text=f"""
-感谢您的捐赠！
-
-💰 本次捐赠: {amount}元
-💳 累计捐赠: {new_donation}元
-"""
-                    + (f"""📝 备注: {note}""" if note else ""),
-                    parse_mode="HTML",
-                )
-            except Exception as e:
-                logger.warning(f"发送捐赠通知失败: {e!s}")
-
-            from app.core import events
-            from app.domains.donation import events as donation_events
-
-            events.emit(donation_events.DonationApproved(int(tg_id)))
-
-            return BaseResponse(
-                success=True, message=f"成功为 {user_name} 添加 {amount}元 捐赠记录"
-            )
-        else:
-            return BaseResponse(success=False, message="更新捐赠记录失败")
-
+        return BaseResponse(
+            success=True,
+            message=f"成功为 {result['user_name']} 添加 {amount}元 捐赠记录",
+        )
+    except donation_exceptions.DonationUserNotFound:
+        return BaseResponse(success=False, message="用户不存在")
+    except donation_exceptions.DonationInvalidAmount:
+        return BaseResponse(success=False, message="参数错误")
     except Exception as e:
         logger.error(f"提交捐赠记录失败: {e!s}")
         return BaseResponse(success=False, message="提交失败")

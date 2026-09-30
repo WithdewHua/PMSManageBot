@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.core.log import uvicorn_logger as logger
-from app.domains.lines import catalog as line_catalog
 from app.domains.reports import service as reports_service
 from app.transport.http.auth import (
     check_admin_permission,
@@ -22,36 +21,7 @@ async def get_admin_settings(
     check_admin_permission(user)
 
     try:
-        # 从数据库获取免费高级线路列表
-        free_premium_lines = line_catalog.free_premium_lines()
-        business_config = reports_service.get_business_config_overview()
-
-        settings_data = {
-            "plex_register": business_config["plex_register"],
-            "emby_register": business_config["emby_register"],
-            "premium_free": business_config["premium_free"],
-            "premium_unlock_enabled": business_config["premium_unlock_enabled"],
-            "lines": line_catalog.normal_lines(),
-            "premium_lines": line_catalog.premium_lines(),
-            "free_premium_lines": free_premium_lines,
-            "invitation_credits": business_config["invitation_credits"],
-            "unlock_credits": business_config["unlock_credits"],
-            "premium_daily_credits": business_config["premium_daily_credits"],
-            "user_traffic_limit": business_config["user_traffic_limit"],
-            "premium_user_traffic_limit": business_config["premium_user_traffic_limit"],
-            "credits_transfer_enabled": business_config["credits_transfer_enabled"],
-            "line_schedule_unlock_credits": business_config[
-                "line_schedule_unlock_credits"
-            ],
-            "download_unlock_credits": business_config["download_unlock_credits"],
-            "credits_cost_per_10gb": business_config["credits_cost_per_10gb"],
-            "nsfw_libs": business_config["nsfw_libs"],
-            "donation_multiplier": business_config["donation_multiplier"],
-            "upay_crypto_types": business_config["upay_crypto_types"],
-            "vaultwarden_enabled": business_config["vaultwarden_enabled"],
-            "vaultwarden_redeem_credits": business_config["vaultwarden_redeem_credits"],
-        }
-
+        settings_data = reports_service.get_admin_settings_overview()
         logger.info(f"管理员 {user.username or user.id} 获取系统设置")
         return settings_data
     except Exception as e:

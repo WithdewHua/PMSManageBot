@@ -4,11 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.core.config import settings
 from app.core.log import uvicorn_logger as logger
-from app.databases import db
 from app.domains.rankings import service as rankings_service
-from app.domains.traffic import service as traffic_service
-from app.integrations.emby import Emby
-from app.integrations.plex import Plex
 from app.integrations.telegram.profiles import (
     get_user_avatar_from_tg_id,
     get_user_name_from_tg_id,
@@ -33,20 +29,6 @@ def _safe_avatar(tg_id: int) -> str:
         return ""
 
 
-def _safe_plex_avatar(username: str) -> str:
-    try:
-        return str(Plex.get_user_avatar_by_username(username) or "")
-    except Exception:
-        return ""
-
-
-def _safe_emby_avatar(client: Emby, username: str) -> str:
-    try:
-        return str(client.get_user_avatar_by_username(username, from_emby=False) or "")
-    except Exception:
-        return ""
-
-
 @router.get("/rankings/badge")
 @require_telegram_auth
 async def get_badge_rankings(
@@ -56,27 +38,15 @@ async def get_badge_rankings(
     logger.info(f"{user.username or user.first_name or user.id} 开始获取勋章排行榜数据")
 
     try:
-        badge_rankings = []
-        logger.debug("正在查询勋章排行")
-        badge_data = db.get_badge_rank()
-        if badge_data:
-            badge_rankings = [
-                {
-                    "tg_id": info["tg_id"],
-                    "name": _safe_name(info["tg_id"]),
-                    "badge_count": info["badge_count"],
-                    "badges": info["badges"],
-                    "avatar": _safe_avatar(info["tg_id"]),
-                    "is_self": info["tg_id"] == user.id,
-                }
-                for info in badge_data
-                if info["tg_id"] not in settings.TG_ADMIN_CHAT_ID
-            ]
-
+        badge_rankings = rankings_service.get_badge_rank(
+            exclude_admins=True, current_user_id=user.id
+        )
         logger.info(
             f"{user.username or user.first_name or user.id} 获取勋章排行榜数据成功"
         )
         return {"badge_rank": badge_rankings}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"获取勋章排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取勋章排行榜数据失败")
@@ -91,26 +61,15 @@ async def get_credits_rankings(
     logger.info(f"{user.username or user.first_name or user.id} 开始获取积分排行榜数据")
 
     try:
-        credits_rankings = []
-        logger.debug("正在查询积分排行")
-        credits_data = db.get_credits_rank()
-        if credits_data:
-            credits_rankings = [
-                {
-                    "tg_id": info[0],  # 添加 tg_id 字段用于加载勋章
-                    "name": _safe_name(info[0]),
-                    "credits": info[1],
-                    "avatar": _safe_avatar(info[0]),
-                    "is_self": info[0] == user.id,  # tg_id 比较
-                }
-                for info in credits_data
-                if info[0] not in settings.TG_ADMIN_CHAT_ID
-            ]
-
+        credits_rankings = rankings_service.get_credits_rank(
+            exclude_admins=True, current_user_id=user.id
+        )
         logger.info(
             f"{user.username or user.first_name or user.id} 获取积分排行榜数据成功"
         )
         return {"credits_rank": credits_rankings}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"获取积分排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取积分排行榜数据失败")
@@ -125,26 +84,15 @@ async def get_donation_rankings(
     logger.info(f"{user.username or user.first_name or user.id} 开始获取捐赠排行榜数据")
 
     try:
-        donation_rankings = []
-        logger.debug("正在查询捐赠排行")
-        donation_data = db.get_donation_rank()
-        if donation_data:
-            donation_rankings = [
-                {
-                    "tg_id": info[0],  # 添加 tg_id 字段用于加载勋章
-                    "name": _safe_name(info[0]),
-                    "donation": info[1],
-                    "avatar": _safe_avatar(info[0]),
-                    "is_self": info[0] == user.id,  # tg_id 比较
-                }
-                for info in donation_data
-                if info[1] > 0
-            ]
-
+        donation_rankings = rankings_service.get_donation_rank(
+            exclude_admins=True, include_zero=False, current_user_id=user.id
+        )
         logger.info(
             f"{user.username or user.first_name or user.id} 获取捐赠排行榜数据成功"
         )
         return {"donation_rank": donation_rankings}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"获取捐赠排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取捐赠排行榜数据失败")
@@ -161,28 +109,15 @@ async def get_plex_watched_time_rankings(
     )
 
     try:
-        watched_time_rank_plex = []
-        logger.debug("正在查询Plex播放时长排行")
-        plex_watch_time_data = db.get_plex_watched_time_rank()
-        if plex_watch_time_data:
-            watched_time_rank_plex = [
-                {
-                    "name": info[2],
-                    "watched_time": info[3],
-                    "avatar": _safe_plex_avatar(info[2]),
-                    "is_premium": bool(info[4])
-                    if len(info) > 4 and info[4] is not None
-                    else False,
-                    "is_self": info[1] == user.id,  # tg_id 比较
-                }
-                for info in plex_watch_time_data
-                if info[3] > 0
-            ]
-
+        watched_time_rank_plex = rankings_service.get_watch_time_rank(
+            "plex", include_zero=False, with_avatar=True, current_user_id=user.id
+        )
         logger.info(
             f"{user.username or user.first_name or user.id} 获取Plex观看时长排行榜数据成功"
         )
         return {"watched_time_rank_plex": watched_time_rank_plex}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"获取Plex观看时长排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取Plex观看时长排行榜数据失败")
@@ -199,31 +134,15 @@ async def get_emby_watched_time_rankings(
     )
 
     try:
-        watched_time_rank_emby = []
-        emby = Emby()
-        logger.debug("正在查询Emby播放时长排行")
-        emby_watch_time_data = db.get_emby_watched_time_rank()
-        if emby_watch_time_data:
-            watched_time_rank_emby = [
-                {
-                    "name": info[1],
-                    "watched_time": info[2],
-                    "avatar": _safe_emby_avatar(emby, info[1]),
-                    "is_premium": bool(info[3])
-                    if len(info) > 3 and info[3] is not None
-                    else False,
-                    "is_self": info[4] == user.id
-                    if len(info) > 4
-                    else False,  # tg_id 比较
-                }
-                for info in emby_watch_time_data
-                if info[2] > 0
-            ]
-
+        watched_time_rank_emby = rankings_service.get_watch_time_rank(
+            "emby", include_zero=False, with_avatar=True, current_user_id=user.id
+        )
         logger.info(
             f"{user.username or user.first_name or user.id} 获取Emby观看时长排行榜数据成功"
         )
         return {"watched_time_rank_emby": watched_time_rank_emby}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"获取Emby观看时长排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取Emby观看时长排行榜数据失败")
@@ -238,25 +157,15 @@ async def get_invitation_rankings(
     logger.info(f"{user.username or user.first_name or user.id} 开始获取邀请排行榜数据")
 
     try:
-        invitation_rankings = []
-        logger.debug("正在查询邀请排行")
-        invitation_data = db.get_invitation_rank()
-        if invitation_data:
-            invitation_rankings = [
-                {
-                    "name": _safe_name(info[0]),
-                    "invite_count": info[1],
-                    "avatar": _safe_avatar(info[0]),
-                    "is_self": info[0] == user.id,  # tg_id 比较
-                }
-                for info in invitation_data
-                if info[0] not in settings.TG_ADMIN_CHAT_ID and info[1] > 0
-            ]
-
+        invitation_rankings = rankings_service.get_invitation_rank(
+            exclude_admins=True, current_user_id=user.id
+        )
         logger.info(
             f"{user.username or user.first_name or user.id} 获取邀请排行榜数据成功"
         )
         return {"invitation_rank": invitation_rankings}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"获取邀请排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取邀请排行榜数据失败")
@@ -273,47 +182,15 @@ async def get_wheel_game_rankings(
     )
 
     try:
-        wheel_credits_rank = []
-        wheel_invite_code_rank = []
-
-        logger.debug("正在查询幸运大转盘积分赚取排行")
-        wheel_credits_data = rankings_service.get_wheel_credits_rank()
-        if wheel_credits_data:
-            wheel_credits_rank = [
-                {
-                    "tg_id": info[0],
-                    "name": _safe_name(info[0]),
-                    "earned_credits": float(info[1]),
-                    "play_count": int(info[2]),
-                    "avatar": _safe_avatar(info[0]),
-                    "is_self": info[0] == user.id,
-                }
-                for info in wheel_credits_data
-                if info[0] not in settings.TG_ADMIN_CHAT_ID
-            ]
-
-        logger.debug("正在查询幸运大转盘邀请码获得排行")
-        wheel_invite_code_data = rankings_service.get_wheel_invite_code_rank()
-        if wheel_invite_code_data:
-            wheel_invite_code_rank = [
-                {
-                    "tg_id": info[0],
-                    "name": _safe_name(info[0]),
-                    "invite_code_count": int(info[1]),
-                    "avatar": _safe_avatar(info[0]),
-                    "is_self": info[0] == user.id,
-                }
-                for info in wheel_invite_code_data
-                if info[0] not in settings.TG_ADMIN_CHAT_ID
-            ]
-
+        game_rankings = rankings_service.get_wheel_game_rankings(
+            exclude_admins=True, current_user_id=user.id
+        )
         logger.info(
             f"{user.username or user.first_name or user.id} 获取幸运大转盘排行榜数据成功"
         )
-        return {
-            "wheel_credits_rank": wheel_credits_rank,
-            "wheel_invite_code_rank": wheel_invite_code_rank,
-        }
+        return game_rankings
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"获取幸运大转盘排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取幸运大转盘排行榜数据失败")
@@ -330,46 +207,15 @@ async def get_treasure_game_rankings(
     )
 
     try:
-        treasure_win_issue_rank = []
-        treasure_win_credits_rank = []
-
-        logger.debug("正在查询夺宝奇兵中奖期数排行")
-        treasure_win_issue_data = rankings_service.get_treasure_win_issue_rank()
-        if treasure_win_issue_data:
-            treasure_win_issue_rank = [
-                {
-                    "tg_id": info[0],
-                    "name": _safe_name(info[0]),
-                    "win_issue_count": int(info[1]),
-                    "avatar": _safe_avatar(info[0]),
-                    "is_self": info[0] == user.id,
-                }
-                for info in treasure_win_issue_data
-                if info[0] not in settings.TG_ADMIN_CHAT_ID
-            ]
-
-        logger.debug("正在查询夺宝奇兵中奖积分排行")
-        treasure_win_credits_data = rankings_service.get_treasure_win_credits_rank()
-        if treasure_win_credits_data:
-            treasure_win_credits_rank = [
-                {
-                    "tg_id": info[0],
-                    "name": _safe_name(info[0]),
-                    "win_credits": int(info[1]),
-                    "avatar": _safe_avatar(info[0]),
-                    "is_self": info[0] == user.id,
-                }
-                for info in treasure_win_credits_data
-                if info[0] not in settings.TG_ADMIN_CHAT_ID
-            ]
-
+        game_rankings = rankings_service.get_treasure_game_rankings(
+            exclude_admins=True, current_user_id=user.id
+        )
         logger.info(
             f"{user.username or user.first_name or user.id} 获取夺宝奇兵排行榜数据成功"
         )
-        return {
-            "treasure_win_issue_rank": treasure_win_issue_rank,
-            "treasure_win_credits_rank": treasure_win_credits_rank,
-        }
+        return game_rankings
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"获取夺宝奇兵排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取夺宝奇兵排行榜数据失败")
@@ -436,6 +282,8 @@ async def get_prediction_game_rankings(
             "prediction_net_profit_rank": prediction_net_profit_rank,
             "prediction_win_rate_rank": prediction_win_rate_rank,
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"获取大预言家排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取大预言家排行榜数据失败")
@@ -463,7 +311,6 @@ async def get_blackjack_game_rankings(
         blackjack_win_rate_rank = []
         blackjack_max_win_rank = []
 
-        # 准确率榜与胜率榜共用同一份聚合，一次扫描算出两个榜
         logger.debug("正在查询 21 点决策准确率与胜率排行")
         skill_ranks = rankings_service.get_blackjack_skill_ranks()
         accuracy_data = skill_ranks.get("accuracy") or []
@@ -524,6 +371,8 @@ async def get_blackjack_game_rankings(
             "blackjack_win_rate_rank": blackjack_win_rate_rank,
             "blackjack_max_win_rank": blackjack_max_win_rank,
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"获取 21 点排行榜数据时发生未预期的错误: {e!s}")
         raise HTTPException(status_code=500, detail="获取 21 点排行榜数据失败")
@@ -548,13 +397,11 @@ async def get_plex_traffic_rankings(
     )
 
     try:
-        # 解析日期参数
         parsed_start_date = None
         parsed_end_date = None
 
         if start_date:
             try:
-                # Parse as aware to retain strict strptime validation, then use configured wall time.
                 parsed_start_date = datetime.strptime(
                     f"{start_date} +0000", "%Y-%m-%d %z"
                 ).replace(tzinfo=settings.TZ)
@@ -573,27 +420,12 @@ async def get_plex_traffic_rankings(
                     status_code=400, detail="结束日期格式错误，应为 YYYY-MM-DD"
                 )
 
-        traffic_rank_plex = []
         logger.debug(
             f"正在查询 Plex 流量排行 (日期范围: {parsed_start_date} - {parsed_end_date})"
         )
-        plex_traffic_data = traffic_service.traffic_rank(
-            "plex", parsed_start_date, parsed_end_date
+        traffic_rank_plex = rankings_service.get_traffic_rank(
+            "plex", parsed_start_date, parsed_end_date, current_user_id=user.id
         )
-        if plex_traffic_data:
-            traffic_rank_plex = [
-                {
-                    "name": info[0],  # username
-                    "traffic": info[2],  # total_traffic
-                    "avatar": _safe_plex_avatar(info[0]),
-                    "is_premium": bool(info[3])
-                    if info[3] is not None
-                    else False,  # is_premium
-                    "is_self": info[4] == user.id if info[4] else False,  # tg_id 比较
-                }
-                for info in plex_traffic_data
-                if info[2] > 0  # 流量大于0
-            ]
 
         logger.info(
             f"{user.username or user.first_name or user.id} 获取 Plex 流量排行榜数据成功"
@@ -625,13 +457,11 @@ async def get_emby_traffic_rankings(
     )
 
     try:
-        # 解析日期参数
         parsed_start_date = None
         parsed_end_date = None
 
         if start_date:
             try:
-                # Parse as aware to retain strict strptime validation, then use configured wall time.
                 parsed_start_date = datetime.strptime(
                     f"{start_date} +0000", "%Y-%m-%d %z"
                 ).replace(tzinfo=settings.TZ)
@@ -650,28 +480,12 @@ async def get_emby_traffic_rankings(
                     status_code=400, detail="结束日期格式错误，应为 YYYY-MM-DD"
                 )
 
-        traffic_rank_emby = []
-        emby = Emby()
         logger.debug(
             f"正在查询 Emby 流量排行 (日期范围: {parsed_start_date} - {parsed_end_date})"
         )
-        emby_traffic_data = traffic_service.traffic_rank(
-            "emby", parsed_start_date, parsed_end_date
+        traffic_rank_emby = rankings_service.get_traffic_rank(
+            "emby", parsed_start_date, parsed_end_date, current_user_id=user.id
         )
-        if emby_traffic_data:
-            traffic_rank_emby = [
-                {
-                    "name": info[0],  # username
-                    "traffic": info[2],  # total_traffic
-                    "avatar": _safe_emby_avatar(emby, info[0]),
-                    "is_premium": bool(info[3])
-                    if info[3] is not None
-                    else False,  # is_premium
-                    "is_self": info[4] == user.id if info[4] else False,  # tg_id 比较
-                }
-                for info in emby_traffic_data
-                if info[2] > 0  # 流量大于0
-            ]
 
         logger.info(
             f"{user.username or user.first_name or user.id} 获取 Emby 流量排行榜数据成功"

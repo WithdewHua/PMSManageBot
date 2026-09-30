@@ -22,7 +22,9 @@ def test_registry_init_db_uses_registered_metadata(monkeypatch) -> None:
 
 def test_cross_domain_read_models_live_in_rankings_repository() -> None:
     from app.databases import db
-    from app.domains.rankings.repository import RankingsRepository
+    from app.domains.rankings import repository
 
     for method in ("get_credits_rank", "get_donation_rank", "get_badge_rank"):
-        assert getattr(db, method).__func__ is getattr(RankingsRepository, method)
+        assert callable(getattr(repository, method))
+        assert not hasattr(db, method)
+    assert not hasattr(repository, "RankingsRepository")

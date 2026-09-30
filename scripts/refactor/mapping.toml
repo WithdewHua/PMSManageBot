@@ -24415,3 +24415,207 @@ id = "custom_lines.sql:src/app/domains/custom_lines/service.py:169"
 target = "app.domains.custom_lines.repository"
 kind = "sql"
 reason = "promote-line-domains SQL inventory moved behind repository"
+
+[[items]]
+id = "remaining.legacy:DonationRepository.update_user_donation"
+target = "app.domains.donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability; absolute setter replaced by add_donation_tx"
+
+[[items]]
+id = "remaining.legacy:DonationRepository.create_donation_registration"
+target = "app.domains.donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:DonationRepository.get_donation_registration_by_id"
+target = "app.domains.donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:DonationRepository.get_donation_registrations_by_user"
+target = "app.domains.donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:DonationRepository.get_pending_donation_registrations"
+target = "app.domains.donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:DonationRepository.confirm_donation_registration"
+target = "app.domains.donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability; replaced by atomic confirm_registration_tx"
+
+[[items]]
+id = "remaining.legacy:DonationRepository.delete_donation_registration"
+target = "app.domains.donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:DonationRepository.get_donation_statistics"
+target = "app.domains.donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:CryptoDonationRepository.create_crypto_donation_order"
+target = "app.domains.crypto_donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:CryptoDonationRepository.update_crypto_donation_order_upay_info"
+target = "app.domains.crypto_donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:CryptoDonationRepository.complete_crypto_donation_order"
+target = "app.domains.crypto_donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:CryptoDonationRepository.get_crypto_donation_order_by_order_id"
+target = "app.domains.crypto_donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:CryptoDonationRepository.get_crypto_donation_order_by_trade_id"
+target = "app.domains.crypto_donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:CryptoDonationRepository.get_crypto_donation_orders_by_user"
+target = "app.domains.crypto_donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:CryptoDonationRepository.get_all_crypto_donation_orders"
+target = "app.domains.crypto_donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:CryptoDonationRepository.get_crypto_donation_orders_count"
+target = "app.domains.crypto_donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:CryptoDonationRepository.get_expired_crypto_donation_orders"
+target = "app.domains.crypto_donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:CryptoDonationRepository.update_expired_crypto_donation_orders"
+target = "app.domains.crypto_donation.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:RankingsRepository.get_credits_rank"
+target = "app.domains.rankings.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:RankingsRepository.get_donation_rank"
+target = "app.domains.rankings.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:RankingsRepository.get_plex_watched_time_rank"
+target = "app.domains.rankings.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:RankingsRepository.get_emby_watched_time_rank"
+target = "app.domains.rankings.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:RankingsRepository.get_invitation_rank"
+target = "app.domains.invitation.service"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:RankingsRepository.get_wheel_credits_rank"
+target = "app.domains.rankings.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:RankingsRepository.get_wheel_invite_code_rank"
+target = "app.domains.luckywheel.service"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:RankingsRepository.get_treasure_win_issue_rank"
+target = "app.domains.treasure.service"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:RankingsRepository.get_treasure_win_credits_rank"
+target = "app.domains.treasure.service"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:RankingsRepository.get_badge_rank"
+target = "app.domains.rankings.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:ReportsRepository.get_plex_users_num"
+target = "app.domains.reports.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:ReportsRepository.get_emby_users_num"
+target = "app.domains.reports.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:ReportsRepository.get_nsfw_unlocked_users_num"
+target = "app.domains.reports.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:ReportsRepository.get_line_schedule_unlocked_users_num"
+target = "app.domains.reports.repository"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:ReportsRepository.get_vaultwarden_redeemed_users_num"
+target = "app.domains.vaultwarden.service"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"
+
+[[items]]
+id = "remaining.legacy:ReportsRepository.get_traffic_statistics"
+target = "app.domains.reports.service"
+kind = "method"
+reason = "promote-remaining-domains: frozen 761b0a5 member; module-level owner capability"

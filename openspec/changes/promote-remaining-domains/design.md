@@ -66,18 +66,20 @@
 
 **测试**：只有倍率重算的 2 个测试。
 
+实施基线为 `761b0a5`：上述“现状”包含历史缺陷描述，不能用来覆盖 `fix-live-defects` 及此前提升已经修复的行为。接口和业务冻结以该提交及 Non-Goals 的修复后契约为准；依赖条目数量按实时 AST 清点，不恢复已清除的历史豁免。
+
 ## Goals / Non-Goals
 
 **Goals：**
 
 - 三个业务领域达到目标形态，捐赠和积分的每个用例都在一个事务里完成。
 - 读模型的边界清楚：只读；不涉及业务规则的聚合直接读表；需要其他领域业务规则的数据，通过该领域的 service 获取。
-- 清空 remaining 名下的基线条目，以及 credits 的遗留条目。到本变更结束时，门面只剩 identity 和 invitation 的兼容层，而它们已经没有调用方。
+- 清空 remaining 名下的基线条目，以及 credits 的遗留条目。到本变更结束时，删除本变更拥有的四个 mixin，identity 和 invitation 兼容层不再有业务调用方。实施基线仍包含此前保留的 lines/traffic/premium/media_access/watch_rewards 适配器及人工 tg_rebind 入口，它们按所属后续变更统一退场，不在本次额外删除。
 
 **Non-Goals：**
 
 - 不重复修复已由 `fix-live-defects` 完成的缺陷；本变更冻结以下修复后的行为：
-  - 排行接口查询或头像补全出错时返回固定 500；空结果仍返回 200 加空列表。
+  - 核心排行查询失败返回固定 500；空结果仍返回 200 加空列表。单行姓名或头像补全失败时保留排行并使用空字段，不中断整榜。
   - bot `/info` 在缺少统计行时按 0 显示。
   - bot 通知使用实际入账的积分倍率。
   - 登记通知失败不删除已保存的登记；保存失败返回固定 500 文案。
@@ -93,7 +95,7 @@
 - **确认**（`service.confirm_registration(id, admin_id, approve)`），在一个事务里依次执行：
   1. 条件更新：`UPDATE … WHERE id=? AND status='pending'`；影响行数为 0 时，返回原来的"状态不是 pending"。
   2. 批准时：`identity.repository.ensure_statistics_tx` → `add_donation_tx` → 对非开号捐赠调用 `credits.repository.add_tx`。
-  3. 事务提交后：捐赠开号（`invitation.service.generate_codes`），失败只记日志，与现在一致；发布 `DonationApproved`（从路由的 `emit` 改为 service 的 `publish`）；通知用户和管理员。
+  3. 事务提交后：捐赠开号（`invitation.service.generate_codes`），失败只记日志，与现在一致；发布 `DonationApproved`（从路由移至 service；已提交事务使用现有 `emit`，不让 service 为调用需要 Session 的 `publish` 而持有数据库会话）；通知用户和管理员。
 - **管理员登记和 bot 登记**：同样在单事务中写入捐赠额增量和积分；bot 路径仍不发布勋章事件。
 - **登记**：改用 `ensure_statistics_tx` 建档，不再在 donation 中构造 `Statistics`。
 - **通知**：通知模板移入 `notifications.py`，文案不变。

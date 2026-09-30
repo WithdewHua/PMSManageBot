@@ -1,11 +1,21 @@
+"""Donation Telegram bot commands."""
+
+from __future__ import annotations
+
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
 from app.core.config import settings
-from app.databases import db
-from app.domains.credits import service as credits_service
-from app.domains.credits.types import CreditAccount
-from app.domains.donation import service as donation_service
+from app.core.log import logger
+from app.domains.donation import (
+    exceptions as donation_exceptions,
+)
+from app.domains.donation import (
+    notifications,
+)
+from app.domains.donation import (
+    service as donation_service,
+)
 from app.integrations.telegram.messaging import send_message
 from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
@@ -23,38 +33,39 @@ async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             chat_id=chat_id, text="错误：请按照格式填写", context=context
         )
         return
-    tg_id = int(text[1])
-    donation = float(text[2])
+    try:
+        tg_id = int(text[1])
+        donation = float(text[2])
+    except (ValueError, TypeError):
+        await send_message(
+            chat_id=chat_id, text="错误：请按照格式填写", context=context
+        )
+        return
+
     add_credits = len(text) == 3
-    info = db.get_stats_by_tg_id(tg_id)
-    if not info:
+
+    try:
+        _cumulative, credits_delta = donation_service.bot_record_donation(
+            tg_id=tg_id,
+            amount=donation,
+            add_credits=add_credits,
+        )
+    except donation_exceptions.DonationUserNotFound:
         await send_message(
             chat_id=chat_id, text=f"错误：用户 {tg_id} 不存在，请确认", context=context
         )
         return
-    _donation = info[1]
-    donate = _donation + donation
-    res = db.update_user_donation(donate, tg_id=tg_id)
-    if not res:
+    except Exception as e:
+        logger.error(f"Bot set_donation error: {e}")
         await send_message(
             chat_id=chat_id, text="错误：更新捐赠金额失败，请检查", context=context
         )
         return
-    if add_credits:
-        try:
-            mutation = credits_service.add(
-                CreditAccount.tg(int(tg_id)),
-                donation * donation_service.get_donation_multiplier(),
-            )
-        except Exception:
-            await send_message(
-                chat_id=chat_id, text="错误：更新积分失败，请检查", context=context
-            )
-            return
-        # 通知该用户
-        await send_message(
-            chat_id=tg_id,
-            text=f"通知：感谢您的捐赠，已为您增加积分 {mutation.delta}",
+
+    if credits_delta is not None:
+        await notifications.send_bot_donation_credit_notification(
+            tg_id=tg_id,
+            delta=credits_delta,
             context=context,
         )
 
@@ -66,3 +77,5 @@ async def set_donation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 set_donation_handler = CommandHandler("set_donation", set_donation)
+
+__all__ = ["set_donation", "set_donation_handler"]

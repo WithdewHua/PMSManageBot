@@ -5700,14 +5700,6 @@
         "resolved": true
       },
       {
-        "module": "app.domains.rankings.repository",
-        "scope": "module",
-        "kind": "from",
-        "target": "app.domains.blackjack.service",
-        "module_target": "app.domains.blackjack",
-        "resolved": true
-      },
-      {
         "module": "app.domains.rankings.service",
         "scope": "module",
         "kind": "from",

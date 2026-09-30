@@ -278,3 +278,29 @@ def transfer(
             cache_keys=tuple(dict.fromkeys((*sender_keys, *recipient_keys))),
         )
     return result
+
+
+def get_cache_statistics_balances() -> dict[int, float]:
+    """Read Telegram balances for the gateway cache refresh."""
+    with get_session() as session:
+        return dict(session.execute(select(Statistics.tg_id, Statistics.credits)).all())
+
+
+def list_cache_media_balances(service: str) -> list[tuple]:
+    """Return raw account rows, leaving cache keys and side effects to service."""
+    with get_session() as session:
+        if service == "plex":
+            query = select(
+                PlexUser.plex_id,
+                PlexUser.tg_id,
+                PlexUser.credits,
+                PlexUser.plex_username,
+            )
+        else:
+            query = select(
+                EmbyUser.emby_id,
+                EmbyUser.tg_id,
+                EmbyUser.emby_credits,
+                EmbyUser.emby_username,
+            )
+        return [tuple(row) for row in session.execute(query).all()]

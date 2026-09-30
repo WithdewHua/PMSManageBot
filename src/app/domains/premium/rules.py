@@ -100,3 +100,8 @@ def _settle_premium_traffic_usage(
         "traffic_cost_credits": traffic_cost_credits,
         "next_debt_updated_date": settlement_date.strftime("%Y-%m-%d"),
     }
+
+
+def project_daily_debt(current_debt: float, usage: float, daily_limit: float) -> float:
+    """Project today's outstanding bytes, capped at two daily allowances."""
+    return min(max(current_debt + usage - daily_limit, 0), daily_limit * 2)

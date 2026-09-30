@@ -2,33 +2,21 @@
 Crypto 捐赠相关 API 路由
 """
 
-from decimal import Decimal, InvalidOperation
-
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse, PlainTextResponse
-from sqlalchemy import delete, select
 
-from app.core.config import settings
-from app.core.db import get_session
 from app.core.log import logger
-from app.databases import db
-from app.domains.credits import service as credits_service
-from app.domains.credits.types import CreditAccount
+from app.domains.crypto_donation import exceptions as crypto_errors
 from app.domains.crypto_donation import service as crypto_donation_service
-from app.domains.crypto_donation.models import CryptoDonationOrders
 from app.domains.crypto_donation.schemas import (
     CryptoDonationOrderCreate,
     CryptoDonationOrderCreateResponse,
     CryptoDonationOrderListResponse,
     CryptoDonationOrderResponse,
     CryptoTypesResponse,
-    UPayCallbackData,
 )
-from app.domains.donation import service as donation_service
-from app.domains.identity.models import EmbyUser, PlexUser
-from app.integrations.telegram.messaging import send_message_by_url
+from app.domains.crypto_donation.types import NewOrder
 from app.integrations.telegram.profiles import get_user_name_from_tg_id
-from app.integrations.upay import UPayService, upay_secret_configured
 from app.transport.http.auth import (
     check_admin_permission,
     get_telegram_user,
@@ -37,48 +25,6 @@ from app.transport.http.auth import (
 from app.transport.http.schemas import TelegramUser
 
 router = APIRouter(prefix="/api/crypto-donations", tags=["crypto-donations"])
-
-
-async def _notify_upay_admins(message: str) -> None:
-    """Notify every configured administrator without aborting the callback."""
-    for admin_chat_id in settings.TG_ADMIN_CHAT_ID:
-        try:
-            await send_message_by_url(
-                chat_id=admin_chat_id,
-                text=message,
-                parse_mode="HTML",
-            )
-        except Exception as error:
-            logger.warning("发送 UPay 管理员通知失败 %s: %s", admin_chat_id, error)
-
-
-def _amounts_match(order_amount: object, callback_amount: object) -> bool:
-    """Compare CNY amounts at the two-decimal precision used by orders."""
-    try:
-        quantizer = Decimal("0.01")
-        return Decimal(str(order_amount)).quantize(quantizer) == Decimal(
-            str(callback_amount)
-        ).quantize(quantizer)
-    except (InvalidOperation, TypeError, ValueError):
-        return False
-
-
-def check_user_binding(user_id: int) -> bool:
-    """检查用户是否绑定了 emby 或 plex 账号"""
-    try:
-        with get_session() as session:
-            # 检查 emby 绑定
-            emby_stmt = select(EmbyUser.emby_id).where(EmbyUser.tg_id == user_id)
-            emby_result = session.execute(emby_stmt).scalar_one_or_none()
-
-            # 检查 plex 绑定
-            plex_stmt = select(PlexUser.plex_id).where(PlexUser.tg_id == user_id)
-            plex_result = session.execute(plex_stmt).scalar_one_or_none()
-
-        return bool(emby_result or plex_result)
-    except Exception as e:
-        logger.error(f"检查用户绑定状态失败: {e}")
-        return False
 
 
 @router.get("/crypto-types", response_model=CryptoTypesResponse)
@@ -105,129 +51,21 @@ async def create_crypto_donation_order(
 ):
     """创建 Crypto 捐赠订单"""
     try:
-        user_id = user.id
-        if not user_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="用户信息不完整"
-            )
-
-        # 检查用户是否绑定了 emby 或 plex 账号
-        if not check_user_binding(user_id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="不接受无帐号捐赠，请先绑定 Emby 或 Plex 账号后再进行捐赠",
-            )
-
-        upay_service = UPayService()
-        if not upay_secret_configured():
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="UPAY 服务未配置",
-            )
-
-        # 生成唯一订单ID
-        order_id = upay_service.generate_order_id()
-
-        # 创建本地订单记录
-        success = db.create_crypto_donation_order(
-            user_id=user_id,
-            order_id=order_id,
-            crypto_type=order_data.crypto_type,
-            amount=order_data.amount,
-            note=order_data.note,
+        order = await crypto_donation_service.create_order(
+            user.id,
+            NewOrder(order_data.crypto_type, order_data.amount, order_data.note),
         )
-
-        if not success:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="创建订单失败",
-            )
-
-        # 调用 UPAY 创建订单
-        upay_result = await upay_service.create_order(
-            crypto_type=order_data.crypto_type,
-            amount=order_data.amount,
-            order_id=order_id,
-        )
-
-        if not upay_result:
-            # 删除本地订单记录
-            with get_session() as session:
-                stmt = delete(CryptoDonationOrders).where(
-                    CryptoDonationOrders.order_id == order_id
-                )
-                session.execute(stmt)
-
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="创建支付订单失败，请稍后重试",
-            )
-
-        # 更新订单的 UPAY 信息
-        db.update_crypto_donation_order_upay_info(
-            order_id=order_id,
-            trade_id=upay_result.get("trade_id"),
-            actual_amount=upay_result.get("actual_amount"),
-            payment_address=upay_result.get("token"),
-            payment_url=upay_result.get("payment_url"),
-            expiration_time=upay_result.get("expiration_time"),
-        )
-
-        # 获取更新后的订单
-        updated_order = db.get_crypto_donation_order_by_order_id(order_id)
-
-        if not updated_order:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="获取订单信息失败",
-            )
-
-        # 构造响应
-        order_response = CryptoDonationOrderResponse(**updated_order)
-
-        # 发送管理员通知 - 用户创建了新的 Crypto 捐赠订单
-        try:
-            user_name = get_user_name_from_tg_id(user_id)
-            admin_message = f"""
-💰 <b>新的 Crypto 捐赠订单</b>
-
-👤 用户: {user_name} ({user_id})
-🆔 订单号: {order_id}
-💳 加密货币: {order_data.crypto_type}
-💵 金额: {order_data.amount:.2f} CNY
-📝 备注: {order_data.note or "无"}
-
-💰 支付地址: <code>{upay_result.get("token", "未获取")}</code>
-🔗 支付链接: {upay_result.get("payment_url", "未获取")}
-⏰ 创建时间: {updated_order.get("created_at", "未知")}
-"""
-
-            for admin_chat_id in settings.TG_ADMIN_CHAT_ID:
-                try:
-                    await send_message_by_url(
-                        chat_id=admin_chat_id, text=admin_message, parse_mode="HTML"
-                    )
-                except Exception as e:
-                    logger.warning(f"发送管理员通知失败 {admin_chat_id}: {e}")
-
-            logger.info(f"已向管理员发送 Crypto 捐赠订单创建通知，订单ID: {order_id}")
-
-        except Exception as e:
-            logger.warning(f"发送 Crypto 捐赠订单创建通知失败: {e}")
-            # 即使通知发送失败，也不影响主要业务逻辑
-
         return CryptoDonationOrderCreateResponse(
-            message="Crypto 捐赠订单创建成功，请完成支付", data=order_response
+            message="Crypto 捐赠订单创建成功，请完成支付",
+            data=CryptoDonationOrderResponse(**order),
         )
-
+    except crypto_errors.CryptoDonationError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error)) from error
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"创建 Crypto 捐赠订单失败: {e!s}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="创建订单失败",
-        )
+    except Exception:
+        logger.exception("创建 Crypto 捐赠订单失败")
+        raise HTTPException(status_code=500, detail="创建订单失败")
 
 
 @router.get("/orders/all", response_model=CryptoDonationOrderListResponse)
@@ -250,12 +88,12 @@ async def get_all_crypto_donation_orders(
         offset = (page - 1) * per_page
 
         # 获取订单列表
-        orders = db.get_all_crypto_donation_orders(
+        orders = crypto_donation_service.get_all_orders(
             limit=per_page, offset=offset, status_filter=status_filter
         )
 
         # 获取总数
-        total = db.get_crypto_donation_orders_count(status_filter=status_filter)
+        total = crypto_donation_service.get_order_count(status_filter=status_filter)
 
         # 为每个订单添加用户名信息
         order_responses = []
@@ -295,7 +133,7 @@ async def get_user_crypto_donation_orders(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="用户信息不完整"
             )
 
-        orders = db.get_crypto_donation_orders_by_user(user_id, limit=50)
+        orders = crypto_donation_service.get_user_orders(user_id, limit=50)
 
         order_responses = [CryptoDonationOrderResponse(**order) for order in orders]
 
@@ -328,7 +166,7 @@ async def get_crypto_donation_order(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="用户信息不完整"
             )
 
-        order = db.get_crypto_donation_order_by_order_id(order_id)
+        order = crypto_donation_service.get_order(order_id)
 
         if not order:
             raise HTTPException(
@@ -359,192 +197,14 @@ async def get_crypto_donation_order(
 async def upay_payment_callback(request: Request):
     """UPAY 支付完成回调"""
     try:
-        # 获取回调数据
-        callback_data = await request.json()
-        logger.info(
-            "接收到 UPAY 回调: order_id=%s trade_id=%s",
-            callback_data.get("order_id"),
-            callback_data.get("trade_id"),
-        )
-
-        # 验证回调数据
-        upay_service = UPayService()
-        if not upay_service.verify_callback_signature(callback_data):
-            logger.error("UPAY 回调签名验证失败")
-            return JSONResponse(
-                status_code=400, content={"error": "signature verification failed"}
-            )
-
-        # 解析回调数据
-        try:
-            callback = UPayCallbackData(**callback_data)
-        except Exception as e:
-            logger.error(f"解析 UPAY 回调数据失败: {e}")
-            return JSONResponse(
-                status_code=400, content={"error": "invalid callback data"}
-            )
-
-        # 只处理支付成功的回调
-        if callback.status != 2:
-            logger.warning(f"接收到非支付成功回调，状态: {callback.status}")
-            return PlainTextResponse(content="ok")
-
-        # 查找订单
-        order = db.get_crypto_donation_order_by_trade_id(callback.trade_id)
-        if not order:
-            logger.error(f"找不到交易ID为 {callback.trade_id} 的订单")
-            return JSONResponse(status_code=404, content={"error": "order not found"})
-
-        if not _amounts_match(order["amount"], callback.amount):
-            logger.warning(
-                "UPAY 回调金额不一致: order_id=%s trade_id=%s",
-                callback.order_id,
-                callback.trade_id,
-            )
-            await _notify_upay_admins(
-                "⚠️ <b>UPay 回调金额不一致</b>\n\n"
-                f"订单号: <code>{callback.order_id}</code>\n"
-                f"交易号: <code>{callback.trade_id}</code>\n"
-                f"订单金额: {float(order['amount']):.2f} CNY\n"
-                f"回调金额: {callback.amount:.2f} CNY"
-            )
-            return JSONResponse(status_code=400, content={"error": "amount mismatch"})
-
-        # 检查订单是否已经处理过
-        if order["status"] == 2:
-            logger.info(f"订单 {callback.order_id} 已经处理过，跳过")
-            return PlainTextResponse(content="ok")
-
-        # 更新订单状态为已支付
-        success = db.complete_crypto_donation_order(
-            trade_id=callback.trade_id,
-            block_transaction_id=callback.block_transaction_id,
-            actual_amount=callback.actual_amount,
-        )
-
-        if not success:
-            logger.error(f"更新订单 {callback.order_id} 状态失败")
-            return JSONResponse(
-                status_code=500, content={"error": "failed to update order status"}
-            )
-
-        # 获取用户当前捐赠金额和积分
-        user_id = order["user_id"]
-        stats_info = db.get_stats_by_tg_id(user_id)
-
-        if stats_info:
-            current_donation = stats_info[1] if stats_info[1] else 0
-            current_credits = stats_info[2] if stats_info[2] else 0
-
-            # 入账金额必须以本地订单记录为准，而不是信任回调金额。
-            donation_amount_cny = float(order["amount"])
-            new_donation = round(current_donation + donation_amount_cny, 2)
-
-            # 计算新的积分（捐赠金额的积分奖励，应用捐赠倍数）
-            credits_reward = round(
-                donation_amount_cny * donation_service.get_donation_multiplier(), 2
-            )
-            # 更新用户捐赠金额和积分
-            donation_success = db.update_user_donation(new_donation, user_id)
-            try:
-                mutation = credits_service.add(
-                    CreditAccount.tg(int(user_id)), credits_reward
-                )
-                new_credits = mutation.after
-                credits_success = True
-            except Exception:
-                credits_success = False
-                new_credits = current_credits
-
-            if donation_success and credits_success:
-                logger.info(
-                    f"用户 {user_id} Crypto 捐赠处理成功: "
-                    f"捐赠金额 {donation_amount_cny:.2f} CNY, 积分奖励 {credits_reward} (倍数: {donation_service.get_donation_multiplier()})"
-                )
-
-                # 发送用户通知 - 支付成功
-                try:
-                    user_name = get_user_name_from_tg_id(user_id)
-                    user_message = f"""
-🎉 <b>Crypto 捐赠支付成功</b>
-
-感谢您的捐赠！
-
-🆔 订单号: {callback.order_id}
-💳 加密货币: {order["crypto_type"]}
-💵 支付金额: {donation_amount_cny:.2f} CNY
-🏆 获得积分: {credits_reward}
-💰 累计捐赠: {new_donation:.2f} CNY
-⭐ 当前积分: {new_credits:.2f}
-
-您的支持是我们前进的动力！
-"""
-
-                    await send_message_by_url(
-                        chat_id=user_id, text=user_message, parse_mode="HTML"
-                    )
-
-                    logger.info(
-                        f"已向用户 {user_name}({user_id}) 发送 Crypto 捐赠支付成功通知"
-                    )
-
-                except Exception as e:
-                    logger.warning(f"发送用户 Crypto 捐赠支付成功通知失败: {e}")
-
-                # 发送管理员通知 - 订单支付完成
-                try:
-                    user_name = get_user_name_from_tg_id(user_id)
-                    admin_message = f"""
-✅ <b>Crypto 捐赠订单支付完成</b>
-
-👤 用户: {user_name} ({user_id})
-🆔 订单号: {callback.order_id}
-💳 加密货币: {order["crypto_type"]}
-💵 支付金额: {donation_amount_cny:.2f} CNY
-🏆 积分奖励: {credits_reward}
-💰 用户累计捐赠: {new_donation:.2f} CNY
-⭐ 用户当前积分: {new_credits:.2f}
-
-🔗 区块链交易: <code>{callback.block_transaction_id or "未提供"}</code>
-⏰ 完成时间: {callback.time or "未知"}
-"""
-
-                    for admin_chat_id in settings.TG_ADMIN_CHAT_ID:
-                        try:
-                            await send_message_by_url(
-                                chat_id=admin_chat_id,
-                                text=admin_message,
-                                parse_mode="HTML",
-                            )
-                        except Exception as e:
-                            logger.warning(
-                                f"发送管理员完成通知失败 {admin_chat_id}: {e}"
-                            )
-
-                    logger.info(
-                        f"已向管理员发送 Crypto 捐赠订单完成通知，订单ID: {callback.order_id}"
-                    )
-
-                except Exception as e:
-                    logger.warning(f"发送 Crypto 捐赠订单完成通知失败: {e}")
-
-                from app.core import events
-                from app.domains.crypto_donation import events as crypto_donation_events
-
-                events.emit(
-                    crypto_donation_events.CryptoDonationCompleted(int(user_id))
-                )
-
-            else:
-                logger.error(f"更新用户 {user_id} 捐赠金额或积分失败")
-        else:
-            logger.error(f"找不到用户 {user_id} 的统计信息")
-
-        logger.info(f"UPAY 回调处理完成，订单 {callback.order_id} 支付成功")
+        await crypto_donation_service.process_callback(await request.json())
         return PlainTextResponse(content="ok")
-
-    except Exception as e:
-        logger.error(f"处理 UPAY 回调失败: {e}")
+    except crypto_errors.CryptoDonationError as error:
+        return JSONResponse(
+            status_code=error.status_code, content={"error": str(error)}
+        )
+    except Exception:
+        logger.exception("处理 UPAY 回调失败")
         return JSONResponse(status_code=500, content={"error": "internal server error"})
 
 

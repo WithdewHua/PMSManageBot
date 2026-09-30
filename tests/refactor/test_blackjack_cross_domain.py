@@ -14,7 +14,7 @@ ALLOWED_BLACKJACK_TARGETS = {
 #: 跨域调用只走 service，或有明确所有权的 `*_tx`（design D2）。
 SERVICE_BOUNDARY_CALLERS = {
     "src/app/domains/badge_awards/service.py": "blackjack_service",
-    "src/app/domains/rankings/repository.py": "blackjack_service",
+    "src/app/domains/rankings/service.py": "blackjack_service",
 }
 REPOSITORY_TX_CALLERS = {
     "src/app/domains/gift_pack/repository/conditions.py": (

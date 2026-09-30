@@ -435,10 +435,7 @@
         }
       },
       "scheduler_jobs": [],
-      "facade_methods": [
-        "get_wheel_credits_rank",
-        "get_wheel_invite_code_rank"
-      ],
+      "facade_methods": [],
       "metadata_tables": [
         {
           "name": "luckywheel_free_spins",
@@ -752,6 +749,7 @@
         "count_paid_spins_tx",
         "free_spin_summary",
         "get_user_wheel_stats",
+        "get_wheel_invite_code_rank",
         "get_wheel_stats",
         "grant_free_spins",
         "grant_free_spins_tx",
@@ -1712,6 +1710,14 @@
             "resolved": true
           },
           {
+            "module": "app.domains.rankings.service",
+            "scope": "module",
+            "kind": "from",
+            "target": "app.domains.luckywheel.service",
+            "module_target": "app.domains.luckywheel",
+            "resolved": true
+          },
+          {
             "module": "app.domains.tg_rebind.repository",
             "scope": "module",
             "kind": "from",
@@ -1736,12 +1742,12 @@
             "resolved": true
           },
           {
-            "module": "app.subscriptions",
-            "scope": "module",
             "kind": "from",
-            "target": "app.domains.luckywheel.service",
+            "module": "app.subscriptions",
             "module_target": "app.domains.luckywheel",
-            "resolved": true
+            "resolved": true,
+            "scope": "module",
+            "target": "app.domains.luckywheel.service"
           }
         ],
         "strings": []
@@ -2176,10 +2182,7 @@
           }
         }
       ],
-      "facade_methods": [
-        "get_treasure_win_credits_rank",
-        "get_treasure_win_issue_rank"
-      ],
+      "facade_methods": [],
       "metadata_tables": [
         {
           "name": "statistics",
@@ -2622,6 +2625,8 @@
         "create_treasure_issue",
         "create_treasure_issue_tx",
         "get_treasure_issue_by_id",
+        "get_treasure_win_credits_rank",
+        "get_treasure_win_issue_rank",
         "get_user_treasure_stats",
         "join_treasure_issue",
         "join_treasure_issue_tx",
@@ -2659,11 +2664,11 @@
             "resolved": true
           },
           {
-            "module": "app.domains.rankings.repository",
+            "module": "app.domains.rankings.service",
             "scope": "module",
             "kind": "from",
-            "target": "app.domains.treasure.models.TreasureIssue",
-            "module_target": "app.domains.treasure.models",
+            "target": "app.domains.treasure.service",
+            "module_target": "app.domains.treasure",
             "resolved": true
           },
           {

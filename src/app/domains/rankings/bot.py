@@ -3,22 +3,18 @@ from telegram.ext import CommandHandler, ContextTypes
 
 from app.core.config import settings
 from app.core.log import logger
-from app.databases import db
-from app.domains.reports.service import stats_report
-from app.integrations.emby import Emby
+from app.domains.rankings import service as rankings_service
 from app.integrations.telegram.messaging import send_message
-from app.integrations.telegram.profiles import get_user_name_from_tg_id
 
 
 # 积分榜
 async def credits_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
     try:
-        res = db.get_credits_rank()
+        res = rankings_service.get_credits_rank(limit=30, exclude_admins=False)
         rank = [
-            f"{i}. {get_user_name_from_tg_id(info[0])}: {info[1]:.2f}"
-            for i, info in enumerate(res, 1)
-            if i <= 30
+            f"{i}. {item['name']}: {item['credits']:.2f}"
+            for i, item in enumerate(res, 1)
         ]
         body_text = """
 <strong>积分榜</strong>
@@ -43,11 +39,12 @@ async def credits_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 async def donation_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
     try:
-        res = db.get_donation_rank()
+        res = rankings_service.get_donation_rank(
+            exclude_admins=False, include_zero=False
+        )
         rank = [
-            f"{i}. {get_user_name_from_tg_id(info[0])}: {info[1]:.2f}"
-            for i, info in enumerate(res, 1)
-            if info[1] > 0
+            f"{i}. {item['name']}: {item['donation']:.2f}"
+            for i, item in enumerate(res, 1)
         ]
         body_text = """
 <strong>捐赠榜</strong>
@@ -72,15 +69,19 @@ async def donation_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def watched_time_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     chat_id = update._effective_chat.id
     try:
-        res = db.get_plex_watched_time_rank()
+        plex_res = rankings_service.get_watch_time_rank(
+            "plex", limit=15, include_zero=True, with_avatar=False
+        )
         rank = [
-            f"{i}. {info[2]}: {info[3]:.2f}" for i, info in enumerate(res, 1) if i <= 15
+            f"{i}. {item['name']}: {item['watched_time']:.2f}"
+            for i, item in enumerate(plex_res, 1)
         ]
-        emby_res = db.get_emby_watched_time_rank()
+        emby_res = rankings_service.get_watch_time_rank(
+            "emby", limit=15, include_zero=True, with_avatar=False
+        )
         emby_rank = [
-            f"{i}. {info[1]}: {info[2]:.2f}"
-            for i, info in enumerate(emby_res, 1)
-            if i <= 15
+            f"{i}. {item['name']}: {item['watched_time']:.2f}"
+            for i, item in enumerate(emby_res, 1)
         ]
         body_text = """
 <strong>观看时长榜 (Hour)</strong>
@@ -108,13 +109,10 @@ async def device_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if chat_id not in settings.TG_ADMIN_CHAT_ID:
         await send_message(chat_id=chat_id, text="错误：越权操作", context=context)
         return
-    emby = Emby()
-    devices_data = sorted(
-        emby.get_devices_per_user(), key=lambda x: len(x["devices"]), reverse=True
-    )
+    devices_data = rankings_service.get_device_rank(limit=30)
     rank = [
-        f"{i}. {user_devices.get('user_name')}: 设备 {len(user_devices.get('devices'))}, 客户端 {len(user_devices.get('clients'))}, IP {len(user_devices.get('ip'))}"
-        for i, user_devices in enumerate(devices_data[:30], 1)
+        f"{i}. {user_devices.get('user_name')}: 设备 {user_devices.get('device_count')}, 客户端 {user_devices.get('client_count')}, IP {user_devices.get('ip_count')}"
+        for i, user_devices in enumerate(devices_data, 1)
     ]
 
     body_text = """
@@ -130,43 +128,7 @@ async def device_rank(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 
 async def rank_24h(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    body_text = """
-======================
-<strong>🔥Ranking 24h🔥</strong>
-======================
-
------------<strong>Plex</strong>-----------
-<strong>👤用户榜</strong>
-{user_stats}
-
-<strong>🎥电影榜</strong>
-{watched_movie_stats}
-
-<strong>📺剧集榜</strong>
-{watched_tv_stats}
-    """
-
-    emby_body_text = """
------------<strong>Emby</strong>-----------
-<strong>👤用户榜</strong>
-{emby_user_stats}
-
-<strong>🎥电影榜</strong>
-{emby_watched_movie_stats}
-
-<strong>📺剧集榜</strong>
-{emby_watched_tv_stats}
-    """
-
-    body_text = stats_report(
-        days=1,
-        top=10,
-        user_stats=True,
-        watched_stats=True,
-        body_text=body_text,
-        emby_body_text=emby_body_text,
-        emby=True,
-    )
+    body_text = rankings_service.render_recent_media_rankings()
     await context.bot.send_message(
         chat_id=update.effective_chat.id, text=body_text, parse_mode="HTML"
     )

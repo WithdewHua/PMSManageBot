@@ -110,30 +110,40 @@ class InvitationRepository:
         self, tg_id: int, is_available: bool = True
     ) -> list:
         """获取用户的邀请码"""
-        with get_session() as session:
-            if is_available:
-                stmt = select(Invitation.code).where(
-                    Invitation.owner == tg_id, Invitation.is_used == 0
-                )
-            else:
-                stmt = select(Invitation.code).where(Invitation.owner == tg_id)
-            results = session.execute(stmt).fetchall()
-            return [r[0] for r in results]
+        return get_invitation_code_by_owner(tg_id, is_available=is_available)
 
     def get_invitee_count_by_owner(self, tg_id: int) -> int:
         """获取用户邀请的人数"""
-        try:
-            with get_session() as session:
-                stmt = select(func.count(func.distinct(Invitation.used_by))).where(
-                    Invitation.owner == tg_id,
-                    Invitation.is_used == 1,
-                    Invitation.used_by.isnot(None),
-                )
-                count = session.execute(stmt).scalar()
-                return count if count else 0
-        except Exception as e:
-            logger.error(f"获取邀请人数失败: {e}")
-            return 0
+        return get_invitee_count_by_owner(tg_id)
+
+
+def get_invitation_code_by_owner(tg_id: int, is_available: bool = True) -> list[str]:
+    """获取用户的邀请码列表"""
+    with get_session() as session:
+        if is_available:
+            stmt = select(Invitation.code).where(
+                Invitation.owner == int(tg_id), Invitation.is_used == 0
+            )
+        else:
+            stmt = select(Invitation.code).where(Invitation.owner == int(tg_id))
+        results = session.execute(stmt).fetchall()
+        return [str(r[0]) for r in results]
+
+
+def get_invitee_count_by_owner(tg_id: int) -> int:
+    """获取用户邀请的人数"""
+    try:
+        with get_session() as session:
+            stmt = select(func.count(func.distinct(Invitation.used_by))).where(
+                Invitation.owner == int(tg_id),
+                Invitation.is_used == 1,
+                Invitation.used_by.isnot(None),
+            )
+            count = session.execute(stmt).scalar()
+            return int(count) if count else 0
+    except Exception as e:
+        logger.error(f"获取邀请人数失败: {e}")
+        return 0
 
 
 def count_invitees_tx(session, tg_id: int, since: int, until: int) -> int:
@@ -604,3 +614,19 @@ def import_privileged_codes_tx(session, codes: list[str]) -> dict[str, list[str]
 def import_privileged_codes(codes: list[str]) -> dict[str, list[str]]:
     with get_session() as session:
         return import_privileged_codes_tx(session, codes)
+
+
+def get_invitation_rank() -> list[tuple[int, int]]:
+    """获取邀请排行榜数据 [(owner_tg_id, invite_count), ...]"""
+    with get_session() as session:
+        stmt = (
+            select(
+                Invitation.owner,
+                func.count(func.distinct(Invitation.used_by)).label("invite_count"),
+            )
+            .where(Invitation.is_used == 1, Invitation.used_by.isnot(None))
+            .group_by(Invitation.owner)
+            .order_by(func.count(func.distinct(Invitation.used_by)).desc())
+        )
+        results = session.execute(stmt).fetchall()
+        return [(int(r[0]), int(r[1])) for r in results]

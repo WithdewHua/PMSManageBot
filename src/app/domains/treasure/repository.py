@@ -826,3 +826,37 @@ def list_badge_eligible_tg_ids(min_issues: int) -> list[int]:
                 )
             ).scalars()
         )
+
+
+def get_treasure_win_issue_rank() -> list[tuple[int, int]]:
+    """获取夺宝奇兵中奖期数排行榜 [(winner_tg_id, win_count), ...]"""
+    with get_session() as session:
+        win_count = func.count(TreasureIssue.id).label("win_count")
+        stmt = (
+            select(TreasureIssue.winner_tg_id, win_count)
+            .where(
+                TreasureIssue.status == 2,
+                TreasureIssue.winner_tg_id.isnot(None),
+            )
+            .group_by(TreasureIssue.winner_tg_id)
+            .order_by(win_count.desc())
+        )
+        results = session.execute(stmt).fetchall()
+        return [(int(r[0]), int(r[1] or 0)) for r in results if int(r[1] or 0) > 0]
+
+
+def get_treasure_win_credits_rank() -> list[tuple[int, int]]:
+    """获取夺宝奇兵中奖积分排行榜 [(winner_tg_id, win_credits), ...]"""
+    with get_session() as session:
+        win_credits = func.sum(TreasureIssue.prize_credits).label("win_credits")
+        stmt = (
+            select(TreasureIssue.winner_tg_id, win_credits)
+            .where(
+                TreasureIssue.status == 2,
+                TreasureIssue.winner_tg_id.isnot(None),
+            )
+            .group_by(TreasureIssue.winner_tg_id)
+            .order_by(win_credits.desc())
+        )
+        results = session.execute(stmt).fetchall()
+        return [(int(r[0]), int(r[1] or 0)) for r in results if int(r[1] or 0) > 0]
