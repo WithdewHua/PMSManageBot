@@ -55,10 +55,10 @@
             
             <!-- 管理员设置内容 -->
             <div v-else>
-            <!-- 服务注册控制 -->
+            <!-- 媒体服务与访问控制 -->
             <v-card class="admin-card-enhanced mb-4">
               <v-card-title class="text-center">
-                <v-icon start color="primary">mdi-server-plus</v-icon> 服务注册控制
+                <v-icon start color="primary">mdi-server-network</v-icon> 媒体服务与访问控制
               </v-card-title>
               <v-card-text>
                 <div v-if="adminLoading" class="text-center my-4">
@@ -97,6 +97,30 @@
                       hide-details
                       @change="updateEmbyRegister"
                     ></v-switch>
+                  </div>
+
+                  <v-divider class="my-3"></v-divider>
+
+                  <!-- NSFW 媒体库配置 -->
+                  <div>
+                    <div class="d-flex align-center mb-2">
+                      <v-icon size="small" color="pink-darken-2" class="mr-2">mdi-lock-open-outline</v-icon>
+                      <span>NSFW 媒体库：</span>
+                    </div>
+                    <v-combobox
+                      v-model="adminSettings.nsfw_libs"
+                      multiple
+                      chips
+                      closable-chips
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      placeholder="输入媒体库名称并回车添加"
+                      @change="updateNsfwLibs"
+                    ></v-combobox>
+                    <div class="text-caption text-grey mt-1">
+                      配置属于限制级的媒体库名称，用户解锁 NSFW 权限后方可访问
+                    </div>
                   </div>
                 </div>
               </v-card-text>
@@ -182,8 +206,51 @@
               <v-card-title class="text-center">
                 <v-icon start color="red-darken-2">mdi-gift</v-icon> 捐赠管理
               </v-card-title>
-              <v-card-text class="py-4">
+              <v-card-text>
                 <div v-if="!adminLoading && !adminError">
+                  <!-- 捐赠积分倍率 -->
+                  <div class="d-flex justify-space-between align-center mb-3">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="red-darken-2" class="mr-2">mdi-cash-multiple</v-icon>
+                      <span>捐赠积分倍率：</span>
+                    </div>
+                    <div class="d-flex align-center">
+                      <v-text-field
+                        v-model.number="adminSettings.donation_multiplier"
+                        type="number"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        suffix="积分/元"
+                        style="width: 140px"
+                        min="0"
+                        @blur="updateDonationMultiplier"
+                        @keyup.enter="updateDonationMultiplier"
+                      ></v-text-field>
+                    </div>
+                  </div>
+
+                  <!-- UPAY 加密货币类型 -->
+                  <div class="mb-3">
+                    <div class="d-flex align-center mb-2">
+                      <v-icon size="small" color="purple-darken-2" class="mr-2">mdi-bitcoin</v-icon>
+                      <span>UPAY 支持加密货币类型：</span>
+                    </div>
+                    <v-combobox
+                      v-model="adminSettings.upay_crypto_types"
+                      multiple
+                      chips
+                      closable-chips
+                      density="compact"
+                      variant="outlined"
+                      hide-details
+                      placeholder="输入币种并回车添加（如 USDT-TRC20）"
+                      @change="updateUpayCryptoTypes"
+                    ></v-combobox>
+                  </div>
+
+                  <v-divider class="my-3"></v-divider>
+
                   <div class="donation-button-group">
                     <!-- 添加捐赠按钮 -->
                     <v-btn
@@ -280,50 +347,9 @@
               </v-card-title>
               <v-card-text>
                 <div v-if="!adminLoading && !adminError">
-                  <!-- 邀请码积分设置 -->
-                  <div class="d-flex justify-space-between align-center mb-3">
-                    <div class="d-flex align-center">
-                      <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-ticket-confirmation</v-icon>
-                      <span>生成邀请码所需积分：</span>
-                    </div>
-                    <div class="d-flex align-center">
-                      <v-text-field
-                        v-model.number="adminSettings.invitation_credits"
-                        type="number"
-                        density="compact"
-                        variant="outlined"
-                        hide-details
-                        style="width: 100px"
-                        min="0"
-                        max="10000"
-                        @blur="updateInvitationCredits"
-                        @keyup.enter="updateInvitationCredits"
-                      ></v-text-field>
-                    </div>
-                  </div>
-                  
-                  <!-- 解锁NSFW积分设置 -->
-                  <div class="d-flex justify-space-between align-center mb-3">
-                    <div class="d-flex align-center">
-                      <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-lock-open</v-icon>
-                      <span>解锁 NSFW 所需积分：</span>
-                    </div>
-                    <div class="d-flex align-center">
-                      <v-text-field
-                        v-model.number="adminSettings.unlock_credits"
-                        type="number"
-                        density="compact"
-                        variant="outlined"
-                        hide-details
-                        style="width: 100px"
-                        min="0"
-                        max="10000"
-                        @blur="updateUnlockCredits"
-                        @keyup.enter="updateUnlockCredits"
-                      ></v-text-field>
-                    </div>
-                  </div>
-                  
+                  <!-- 功能解锁积分 -->
+                  <div class="text-caption font-weight-bold text-grey-darken-1 mb-2">功能解锁积分</div>
+
                   <!-- 解锁Premium每日积分设置 -->
                   <div class="d-flex justify-space-between align-center mb-3">
                     <div class="d-flex align-center">
@@ -345,6 +371,77 @@
                       ></v-text-field>
                     </div>
                   </div>
+
+                  <!-- 解锁线路调度功能积分设置 -->
+                  <div class="d-flex justify-space-between align-center mb-3">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="teal-darken-1" class="mr-2">mdi-calendar-clock</v-icon>
+                      <span>解锁线路调度所需积分：</span>
+                    </div>
+                    <div class="d-flex align-center">
+                      <v-text-field
+                        v-model.number="adminSettings.line_schedule_unlock_credits"
+                        type="number"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        style="width: 100px"
+                        min="0"
+                        max="10000"
+                        @blur="updateLineScheduleUnlockCredits"
+                        @keyup.enter="updateLineScheduleUnlockCredits"
+                      ></v-text-field>
+                    </div>
+                  </div>
+                  
+                  <!-- 解锁下载/同步功能积分设置 -->
+                  <div class="d-flex justify-space-between align-center mb-3">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="deep-purple-darken-1" class="mr-2">mdi-download</v-icon>
+                      <span>解锁下载/同步所需积分：</span>
+                    </div>
+                    <div class="d-flex align-center">
+                      <v-text-field
+                        v-model.number="adminSettings.download_unlock_credits"
+                        type="number"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        style="width: 100px"
+                        min="0"
+                        max="10000"
+                        @blur="updateDownloadUnlockCredits"
+                        @keyup.enter="updateDownloadUnlockCredits"
+                      ></v-text-field>
+                    </div>
+                  </div>
+
+                  <!-- 解锁NSFW积分设置 -->
+                  <div class="d-flex justify-space-between align-center mb-3">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-lock-open</v-icon>
+                      <span>解锁 NSFW 所需积分：</span>
+                    </div>
+                    <div class="d-flex align-center">
+                      <v-text-field
+                        v-model.number="adminSettings.unlock_credits"
+                        type="number"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        style="width: 100px"
+                        min="0"
+                        max="10000"
+                        @blur="updateUnlockCredits"
+                        @keyup.enter="updateUnlockCredits"
+                      ></v-text-field>
+                    </div>
+                  </div>
+
+                  <v-divider class="my-3"></v-divider>
+
+                  <!-- 流量额度与超额扣费 -->
+                  <div class="text-caption font-weight-bold text-grey-darken-1 mb-2">流量额度与超额扣费</div>
 
                   <!-- 普通用户每日免费 Premium 流量额度 -->
                   <div class="d-flex justify-space-between align-center mb-3">
@@ -391,16 +488,43 @@
                       ></v-text-field>
                     </div>
                   </div>
-                  
-                  <!-- 解锁线路调度功能积分设置 -->
+
+                  <!-- 每 10GB 超额流量扣费积分 -->
                   <div class="d-flex justify-space-between align-center mb-3">
                     <div class="d-flex align-center">
-                      <v-icon size="small" color="teal-darken-1" class="mr-2">mdi-calendar-clock</v-icon>
-                      <span>解锁线路调度所需积分：</span>
+                      <v-icon size="small" color="blue-grey-darken-1" class="mr-2">mdi-database-minus</v-icon>
+                      <span>每 10GB 超额流量扣费：</span>
                     </div>
                     <div class="d-flex align-center">
                       <v-text-field
-                        v-model.number="adminSettings.line_schedule_unlock_credits"
+                        v-model.number="adminSettings.credits_cost_per_10gb"
+                        type="number"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        suffix="积分"
+                        style="width: 120px"
+                        min="0"
+                        @blur="updateCreditsCostPer10Gb"
+                        @keyup.enter="updateCreditsCostPer10Gb"
+                      ></v-text-field>
+                    </div>
+                  </div>
+
+                  <v-divider class="my-3"></v-divider>
+
+                  <!-- 基础设置与转账 -->
+                  <div class="text-caption font-weight-bold text-grey-darken-1 mb-2">基础设置与转账</div>
+
+                  <!-- 邀请码积分设置 -->
+                  <div class="d-flex justify-space-between align-center mb-3">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="grey-darken-1" class="mr-2">mdi-ticket-confirmation</v-icon>
+                      <span>生成邀请码所需积分：</span>
+                    </div>
+                    <div class="d-flex align-center">
+                      <v-text-field
+                        v-model.number="adminSettings.invitation_credits"
                         type="number"
                         density="compact"
                         variant="outlined"
@@ -408,34 +532,12 @@
                         style="width: 100px"
                         min="0"
                         max="10000"
-                        @blur="updateLineScheduleUnlockCredits"
-                        @keyup.enter="updateLineScheduleUnlockCredits"
+                        @blur="updateInvitationCredits"
+                        @keyup.enter="updateInvitationCredits"
                       ></v-text-field>
                     </div>
                   </div>
-                  
-                  <!-- 解锁下载/同步功能积分设置 -->
-                  <div class="d-flex justify-space-between align-center mb-3">
-                    <div class="d-flex align-center">
-                      <v-icon size="small" color="deep-purple-darken-1" class="mr-2">mdi-download</v-icon>
-                      <span>解锁下载/同步所需积分：</span>
-                    </div>
-                    <div class="d-flex align-center">
-                      <v-text-field
-                        v-model.number="adminSettings.download_unlock_credits"
-                        type="number"
-                        density="compact"
-                        variant="outlined"
-                        hide-details
-                        style="width: 100px"
-                        min="0"
-                        max="10000"
-                        @blur="updateDownloadUnlockCredits"
-                        @keyup.enter="updateDownloadUnlockCredits"
-                      ></v-text-field>
-                    </div>
-                  </div>
-                  
+
                   <!-- 积分转移功能开关 -->
                   <div class="d-flex justify-space-between align-center">
                     <div class="d-flex align-center">
@@ -449,33 +551,57 @@
                       hide-details
                       @change="updateCreditsTransferEnabled"
                     ></v-switch>
-                   </div>
+                  </div>
+                </div>
+              </v-card-text>
+            </v-card>
 
-                   <v-divider class="my-3"></v-divider>
-                   <div class="text-subtitle-2 mb-2">新增业务配置</div>
-                   <v-row dense>
-                     <v-col cols="12" md="4">
-                       <v-text-field v-model.number="adminSettings.credits_cost_per_10gb" label="每 10GB 扣费积分" type="number" min="0" density="compact" variant="outlined" hide-details @blur="updateCreditsCostPer10Gb" @keyup.enter="updateCreditsCostPer10Gb" />
-                     </v-col>
-                     <v-col cols="12" md="4">
-                       <v-text-field v-model.number="adminSettings.donation_multiplier" label="捐赠积分倍率" type="number" min="0" density="compact" variant="outlined" hide-details @blur="updateDonationMultiplier" @keyup.enter="updateDonationMultiplier" />
-                     </v-col>
-                     <v-col cols="12" md="4">
-                       <v-text-field v-model.number="adminSettings.vaultwarden_redeem_credits" label="Vaultwarden 兑换积分" type="number" min="0" density="compact" variant="outlined" hide-details @blur="updateVaultwardenRedeemCredits" @keyup.enter="updateVaultwardenRedeemCredits" />
-                     </v-col>
-                     <v-col cols="12" md="6">
-                       <v-combobox v-model="adminSettings.nsfw_libs" label="NSFW 媒体库" multiple chips closable-chips density="compact" variant="outlined" hide-details @change="updateNsfwLibs" />
-                     </v-col>
-                     <v-col cols="12" md="6">
-                       <v-combobox v-model="adminSettings.upay_crypto_types" label="UPAY 加密货币类型" multiple chips closable-chips density="compact" variant="outlined" hide-details @change="updateUpayCryptoTypes" />
-                     </v-col>
-                     <v-col cols="12">
-                       <v-switch v-model="adminSettings.vaultwarden_enabled" label="Vaultwarden 兑换开放" color="success" density="compact" hide-details @change="updateVaultwardenEnabled" />
-                     </v-col>
-                   </v-row>
-                 </div>
-               </v-card-text>
-             </v-card>
+            <!-- Vaultwarden 兑换服务设置 -->
+            <v-card class="admin-card-enhanced mb-4">
+              <v-card-title class="text-center">
+                <v-icon start color="blue-grey-darken-1">mdi-shield-key</v-icon> Vaultwarden 兑换设置
+              </v-card-title>
+              <v-card-text>
+                <div v-if="!adminLoading && !adminError">
+                  <!-- Vaultwarden 兑换开放开关 -->
+                  <div class="d-flex justify-space-between align-center mb-3">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="blue-grey-darken-1" class="mr-2">mdi-lock-check</v-icon>
+                      <span>Vaultwarden 兑换开放：</span>
+                    </div>
+                    <v-switch
+                      v-model="adminSettings.vaultwarden_enabled"
+                      color="success"
+                      density="compact"
+                      hide-details
+                      @change="updateVaultwardenEnabled"
+                    ></v-switch>
+                  </div>
+
+                  <!-- 账号兑换所需积分 -->
+                  <div class="d-flex justify-space-between align-center">
+                    <div class="d-flex align-center">
+                      <v-icon size="small" color="amber-darken-3" class="mr-2">mdi-star-circle</v-icon>
+                      <span>账号兑换所需积分：</span>
+                    </div>
+                    <div class="d-flex align-center">
+                      <v-text-field
+                        v-model.number="adminSettings.vaultwarden_redeem_credits"
+                        type="number"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                        suffix="积分"
+                        style="width: 120px"
+                        min="0"
+                        @blur="updateVaultwardenRedeemCredits"
+                        @keyup.enter="updateVaultwardenRedeemCredits"
+                      ></v-text-field>
+                    </div>
+                  </div>
+                </div>
+              </v-card-text>
+            </v-card>
 
              <!-- 勋章管理 -->
             <v-card class="admin-card-enhanced mb-4">
