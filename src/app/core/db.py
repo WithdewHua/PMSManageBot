@@ -11,16 +11,19 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.config import settings
 from app.core.log import logger
 
-# Create SQLAlchemy engine with configuration from settings
-engine = create_engine(
-    settings.DB_URL,
-    echo=settings.DB_ECHO,
-    connect_args=settings.DB_CONNECT_ARGS,
-    pool_size=settings.DB_POOL_SIZE,
-    max_overflow=settings.DB_MAX_OVERFLOW,
-    pool_recycle=settings.DB_POOL_RECYCLE,
-    pool_pre_ping=True,  # 验证连接是否有效
-)
+# Create SQLAlchemy engine with configuration from settings.
+_engine_options = {
+    "echo": settings.DB_ECHO,
+    "connect_args": settings.DB_CONNECT_ARGS,
+    "pool_pre_ping": True,
+}
+if not settings.DB_URL.split(":", 1)[0].lower().startswith("sqlite"):
+    _engine_options.update(
+        pool_size=settings.DB_POOL_SIZE,
+        max_overflow=settings.DB_MAX_OVERFLOW,
+        pool_recycle=settings.DB_POOL_RECYCLE,
+    )
+engine = create_engine(settings.DB_URL, **_engine_options)
 
 from sqlalchemy.orm import DeclarativeBase
 

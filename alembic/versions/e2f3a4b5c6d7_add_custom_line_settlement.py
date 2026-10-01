@@ -19,7 +19,12 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.create_table(
         "custom_line_settlement",
-        sa.Column("id", sa.BIGINT(), nullable=False),
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
         sa.Column("line_id", sa.BIGINT(), nullable=False),
         sa.Column("tg_id", sa.BIGINT(), nullable=False),
         sa.Column("domain", sa.Text(), nullable=False),

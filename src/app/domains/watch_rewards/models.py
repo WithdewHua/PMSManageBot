@@ -18,7 +18,11 @@ class WatchRewardSettlement(Base):
 
     __tablename__ = "watch_reward_settlement"
 
-    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        BIGINT().with_variant(Integer(), "sqlite"),
+        primary_key=True,
+        autoincrement=True,
+    )
     service: Mapped[str] = mapped_column(Text, nullable=False)
     account_key: Mapped[str] = mapped_column(Text, nullable=False)
     settlement_date: Mapped[str] = mapped_column(Text, nullable=False)

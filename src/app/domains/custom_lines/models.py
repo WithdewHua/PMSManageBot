@@ -22,7 +22,11 @@ class CustomLineSettlement(Base):
 
     __tablename__ = "custom_line_settlement"
 
-    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        BIGINT().with_variant(Integer(), "sqlite"),
+        primary_key=True,
+        autoincrement=True,
+    )
     line_id: Mapped[int] = mapped_column(BIGINT, nullable=False)
     tg_id: Mapped[int] = mapped_column(BIGINT, nullable=False, info={"tg_id": "user"})
     domain: Mapped[str] = mapped_column(Text, nullable=False)

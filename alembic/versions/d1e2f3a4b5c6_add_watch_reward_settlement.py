@@ -19,7 +19,12 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.create_table(
         "watch_reward_settlement",
-        sa.Column("id", sa.BIGINT(), nullable=False),
+        sa.Column(
+            "id",
+            sa.BigInteger().with_variant(sa.Integer(), "sqlite"),
+            autoincrement=True,
+            nullable=False,
+        ),
         sa.Column("service", sa.Text(), nullable=False),
         sa.Column("account_key", sa.Text(), nullable=False),
         sa.Column("settlement_date", sa.Text(), nullable=False),
