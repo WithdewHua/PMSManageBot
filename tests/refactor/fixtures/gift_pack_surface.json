@@ -377,6 +377,14 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "datetime",
+        "resolved": true,
+        "scope": "module",
+        "target": "datetime.datetime"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.conditions",
         "module_target": "typing",
         "resolved": true,
         "scope": "module",
@@ -389,6 +397,14 @@
         "resolved": true,
         "scope": "module",
         "target": "sqlalchemy.select"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "app.core.config",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.core.config.settings"
       },
       {
         "kind": "from",
@@ -469,6 +485,14 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.identity.models.Statistics"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.conditions",
+        "module_target": "app.domains.identity.types",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.identity.types.premium_active"
       },
       {
         "kind": "from",
@@ -798,14 +822,6 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.credits.repository"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.repository.rewards",
-        "module_target": "app.domains.credits",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.credits.service"
       },
       {
         "kind": "from",
@@ -1169,6 +1185,14 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.rules",
+        "module_target": "typing",
+        "resolved": true,
+        "scope": "module",
+        "target": "typing.Any"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.rules",
         "module_target": "app.core.config",
         "resolved": true,
         "scope": "module",
@@ -1185,26 +1209,10 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.rules",
-        "module_target": "app.domains.gift_pack.models",
+        "module_target": "app.domains.identity.types",
         "resolved": true,
         "scope": "module",
-        "target": "app.domains.gift_pack.models.GiftPack"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.rules",
-        "module_target": "app.domains.gift_pack.models",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.gift_pack.models.GiftPackUserState"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.gift_pack.rules",
-        "module_target": "app.domains.identity",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.identity.rules"
+        "target": "app.domains.identity.types.premium_active"
       },
       {
         "kind": "from",

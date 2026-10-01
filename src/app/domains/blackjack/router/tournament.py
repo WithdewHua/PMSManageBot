@@ -59,9 +59,6 @@ _TICK_LIST_LIMIT = 100
 # ============================================================
 
 
-from app.domains.blackjack.jobs.tournament import (
-    _schedule_tournament_hand_timeout,
-)
 from app.domains.blackjack.notifications.tournament import (
     notify_tournament_started,
 )
@@ -365,7 +362,6 @@ async def deal(
         logger.error(f"赛内发牌失败 (tg_id={current_user.id}): {e}")
         raise HTTPException(status_code=500, detail="发牌失败，请稍后再试")
 
-    _schedule_tournament_hand_timeout(result)
     return _action_response(result, "发牌成功")
 
 

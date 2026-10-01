@@ -232,30 +232,6 @@
         "target": "app.integrations.telegram.messaging.send_message_by_url"
       },
       {
-        "kind": "from",
-        "module": "app.domains.blackjack.jobs.cash",
-        "module_target": "datetime",
-        "resolved": true,
-        "scope": "function",
-        "target": "datetime.datetime"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.jobs.cash",
-        "module_target": "datetime",
-        "resolved": true,
-        "scope": "function",
-        "target": "datetime.timedelta"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.jobs.cash",
-        "module_target": "app.core.scheduler",
-        "resolved": true,
-        "scope": "function",
-        "target": "app.core.scheduler.schedule_task"
-      },
-      {
         "kind": "import",
         "module": "app.domains.blackjack.jobs.cash",
         "resolved": true,
@@ -285,14 +261,6 @@
         "resolved": true,
         "scope": "module",
         "target": "app.domains.blackjack.service"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.jobs.tournament",
-        "module_target": "app.domains.blackjack.jobs.cash",
-        "resolved": true,
-        "scope": "function",
-        "target": "app.domains.blackjack.jobs.cash._schedule_blackjack_timeout"
       },
       {
         "kind": "from",
@@ -2344,14 +2312,6 @@
       },
       {
         "kind": "from",
-        "module": "app.domains.blackjack.router.cash",
-        "module_target": "app.domains.blackjack.jobs.cash",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.jobs.cash._schedule_blackjack_timeout"
-      },
-      {
-        "kind": "from",
         "module": "app.domains.blackjack.router.tournament",
         "module_target": "fastapi",
         "resolved": true,
@@ -2573,14 +2533,6 @@
         "resolved": true,
         "scope": "module",
         "target": "app.transport.http.schemas.TelegramUser"
-      },
-      {
-        "kind": "from",
-        "module": "app.domains.blackjack.router.tournament",
-        "module_target": "app.domains.blackjack.jobs.tournament",
-        "resolved": true,
-        "scope": "module",
-        "target": "app.domains.blackjack.jobs.tournament._schedule_tournament_hand_timeout"
       },
       {
         "kind": "from",
@@ -3017,6 +2969,22 @@
         "resolved": true,
         "scope": "function",
         "target": "time"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "datetime",
+        "resolved": true,
+        "scope": "function",
+        "target": "datetime.timedelta"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.blackjack.service",
+        "module_target": "app.core.scheduler",
+        "resolved": true,
+        "scope": "function",
+        "target": "app.core.scheduler.schedule_task"
       },
       {
         "kind": "from",

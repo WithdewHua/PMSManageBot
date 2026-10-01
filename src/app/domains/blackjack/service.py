@@ -176,10 +176,42 @@ def set_blackjack_config(config_key: str, config_json: str) -> bool:
     return blackjack_repository.set_blackjack_config(config_key, config_json)
 
 
+def schedule_blackjack_timeout(*, hand_id: int, timeout_minutes: float) -> None:
+    try:
+        from datetime import timedelta
+
+        from app.core.scheduler import schedule_task
+
+        run_date = datetime.datetime.now(settings.TZ) + timedelta(
+            seconds=float(timeout_minutes) * 60.0
+        )
+        schedule_task(
+            "blackjack.hand_timeout",
+            run_date=run_date,
+            job_id=f"blackjack_timeout_{int(hand_id)}",
+            kwargs={"hand_id": int(hand_id)},
+            misfire_grace_time=None,
+            replace_existing=True,
+            max_instances=1,
+        )
+        logger.info(
+            f"Blackjack timeout scheduled: hand={hand_id}, minutes={timeout_minutes}"
+        )
+    except Exception as e:
+        logger.error(f"Blackjack timeout schedule failed (hand={hand_id}): {e}")
+
+
 def create_blackjack_hand(tg_id: int, bet_credits: int) -> dict:
     result = blackjack_repository.create_blackjack_hand(tg_id, bet_credits)
     if result.get("settled"):
         events.emit(blackjack_events.CashHandPlayed(int(tg_id)))
+    else:
+        hand = result.get("hand") or {}
+        if hand.get("id") and hand.get("hand_timeout_minutes") is not None:
+            schedule_blackjack_timeout(
+                hand_id=int(hand["id"]),
+                timeout_minutes=float(hand["hand_timeout_minutes"]),
+            )
     return result
 
 
@@ -313,9 +345,17 @@ def claim_tournament_reminder(tournament_id: int) -> dict:
 def create_blackjack_tournament_hand(
     tg_id: int, tournament_id: int, bet_chips: int
 ) -> dict:
-    return blackjack_repository.create_blackjack_tournament_hand(
+    result = blackjack_repository.create_blackjack_tournament_hand(
         tg_id, tournament_id, bet_chips
     )
+    if not result.get("settled"):
+        hand = result.get("hand") or {}
+        if hand.get("id") and hand.get("hand_timeout_minutes") is not None:
+            schedule_blackjack_timeout(
+                hand_id=int(hand["id"]),
+                timeout_minutes=float(hand["hand_timeout_minutes"]),
+            )
+    return result
 
 
 def blackjack_tournament_hit(tg_id: int, hand_id: int) -> dict:

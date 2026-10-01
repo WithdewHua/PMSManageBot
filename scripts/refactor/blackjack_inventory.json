@@ -85,106 +85,113 @@
       "target_role": "blackjack.service"
     },
     {
-      "kind": "side_effect",
-      "line": 67,
+      "kind": "service_call",
+      "line": 49,
       "path": "src/app/domains/blackjack/jobs/cash.py",
-      "symbol": "schedule_task",
+      "symbol": "blackjack_service.schedule_blackjack_timeout",
+      "target_role": "blackjack.service"
+    },
+    {
+      "kind": "side_effect",
+      "line": 49,
+      "path": "src/app/domains/blackjack/jobs/cash.py",
+      "symbol": "blackjack_service.schedule_blackjack_timeout",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 96,
+      "line": 67,
       "path": "src/app/domains/blackjack/jobs/cash.py",
       "symbol": "blackjack_service.list_active_blackjack_hands",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 105,
+      "line": 76,
       "path": "src/app/domains/blackjack/jobs/cash.py",
       "symbol": "_schedule_blackjack_timeout",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 124,
+      "line": 95,
       "path": "src/app/domains/blackjack/jobs/cash.py",
       "symbol": "blackjack_service.sweep_timed_out_blackjack_hands",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 138,
+      "line": 109,
       "path": "src/app/domains/blackjack/jobs/cash.py",
       "symbol": "blackjack_service.get_blackjack_config_dict",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 145,
+      "line": 116,
       "path": "src/app/domains/blackjack/jobs/cash.py",
       "symbol": "blackjack_service.claim_unannounced_jackpot_wins",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 157,
+      "line": 128,
       "path": "src/app/domains/blackjack/jobs/cash.py",
       "symbol": "blackjack_service.claim_unannounced_jackpot_wins",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 164,
+      "line": 135,
       "path": "src/app/domains/blackjack/jobs/cash.py",
       "symbol": "blackjack_service.get_blackjack_jackpot",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 168,
+      "line": 139,
       "path": "src/app/domains/blackjack/jobs/cash.py",
       "symbol": "send_message_by_url",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 191,
+      "line": 162,
       "path": "src/app/domains/blackjack/jobs/cash.py",
       "symbol": "blackjack_service.claim_unnotified_blackjack_freespins",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 199,
+      "line": 170,
       "path": "src/app/domains/blackjack/jobs/cash.py",
       "symbol": "send_message_by_url",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 225,
+      "line": 196,
       "path": "src/app/domains/blackjack/jobs/cash.py",
       "symbol": "blackjack_service.list_expiring_blackjack_freespins",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 238,
+      "line": 209,
       "path": "src/app/domains/blackjack/jobs/cash.py",
       "symbol": "send_message_by_url",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 260,
+      "line": 231,
       "path": "src/app/domains/blackjack/jobs/cash.py",
       "symbol": "blackjack_service.settle_blackjack_weekly_cashback",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 270,
+      "line": 241,
       "path": "src/app/domains/blackjack/jobs/cash.py",
       "symbol": "send_message_by_url",
       "target_role": "blackjack.service"
@@ -211,17 +218,17 @@
       "target_role": "blackjack.service"
     },
     {
-      "kind": "facade_import",
+      "kind": "service_call",
       "line": 44,
       "path": "src/app/domains/blackjack/jobs/tournament.py",
-      "symbol": "app.domains.blackjack.jobs.cash",
+      "symbol": "blackjack_service.schedule_blackjack_timeout",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 48,
+      "line": 44,
       "path": "src/app/domains/blackjack/jobs/tournament.py",
-      "symbol": "_schedule_blackjack_timeout",
+      "symbol": "blackjack_service.schedule_blackjack_timeout",
       "target_role": "blackjack.service"
     },
     {
@@ -1401,190 +1408,176 @@
       "target_role": "blackjack.service"
     },
     {
-      "kind": "facade_import",
-      "line": 42,
-      "path": "src/app/domains/blackjack/router/cash.py",
-      "symbol": "app.domains.blackjack.jobs.cash",
-      "target_role": "blackjack.service"
-    },
-    {
       "kind": "service_call",
-      "line": 100,
+      "line": 95,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_current_credits",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 102,
+      "line": 97,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_blackjack_jackpot",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 120,
+      "line": 115,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.create_blackjack_hand",
       "target_role": "blackjack.service"
     },
     {
-      "kind": "side_effect",
-      "line": 128,
-      "path": "src/app/domains/blackjack/router/cash.py",
-      "symbol": "_schedule_blackjack_timeout",
-      "target_role": "blackjack.service"
-    },
-    {
       "kind": "value_error_handler",
-      "line": 134,
+      "line": 119,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "service_call",
-      "line": 153,
+      "line": 138,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.blackjack_hit",
       "target_role": "blackjack.service"
     },
     {
       "kind": "value_error_handler",
-      "line": 157,
+      "line": 142,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "service_call",
-      "line": 176,
+      "line": 161,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.blackjack_stand",
       "target_role": "blackjack.service"
     },
     {
       "kind": "value_error_handler",
-      "line": 180,
+      "line": 165,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "service_call",
-      "line": 199,
+      "line": 184,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.blackjack_double",
       "target_role": "blackjack.service"
     },
     {
       "kind": "value_error_handler",
-      "line": 203,
+      "line": 188,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "service_call",
-      "line": 222,
+      "line": 207,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.blackjack_surrender",
       "target_role": "blackjack.service"
     },
     {
       "kind": "value_error_handler",
-      "line": 226,
+      "line": 211,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "service_call",
-      "line": 248,
+      "line": 233,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_current_blackjack_hand",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 254,
+      "line": 239,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_current_credits",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 256,
+      "line": 241,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_blackjack_jackpot",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 257,
+      "line": 242,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_blackjack_free_hands_remaining",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 274,
+      "line": 259,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_user_blackjack_stats",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 292,
+      "line": 277,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_blackjack_config_dict",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 306,
+      "line": 291,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_blackjack_jackpot",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 332,
+      "line": 317,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_blackjack_config_dict",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 367,
+      "line": 352,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.set_blackjack_config",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 372,
+      "line": 357,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_blackjack_config_dict",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 394,
+      "line": 379,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.seed_blackjack_jackpot",
       "target_role": "blackjack.service"
     },
     {
       "kind": "value_error_handler",
-      "line": 400,
+      "line": 385,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "service_call",
-      "line": 423,
+      "line": 408,
       "path": "src/app/domains/blackjack/router/cash.py",
       "symbol": "blackjack_service.get_blackjack_admin_stats",
       "target_role": "blackjack.service"
@@ -1628,33 +1621,33 @@
       "kind": "facade_import",
       "line": 62,
       "path": "src/app/domains/blackjack/router/tournament.py",
-      "symbol": "app.domains.blackjack.jobs.tournament",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "facade_import",
-      "line": 65,
-      "path": "src/app/domains/blackjack/router/tournament.py",
       "symbol": "app.domains.blackjack.notifications.tournament",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 191,
+      "line": 188,
       "path": "src/app/domains/blackjack/router/tournament.py",
       "symbol": "blackjack_service.list_blackjack_tournaments",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 214,
+      "line": 211,
       "path": "src/app/domains/blackjack/router/tournament.py",
       "symbol": "blackjack_service.get_blackjack_tournament_wallet",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 227,
+      "line": 224,
+      "path": "src/app/domains/blackjack/router/tournament.py",
+      "symbol": "blackjack_service.get_blackjack_tournament",
+      "target_role": "blackjack.service"
+    },
+    {
+      "kind": "service_call",
+      "line": 240,
       "path": "src/app/domains/blackjack/router/tournament.py",
       "symbol": "blackjack_service.get_blackjack_tournament",
       "target_role": "blackjack.service"
@@ -1663,89 +1656,75 @@
       "kind": "service_call",
       "line": 243,
       "path": "src/app/domains/blackjack/router/tournament.py",
-      "symbol": "blackjack_service.get_blackjack_tournament",
-      "target_role": "blackjack.service"
-    },
-    {
-      "kind": "service_call",
-      "line": 246,
-      "path": "src/app/domains/blackjack/router/tournament.py",
       "symbol": "blackjack_service.get_blackjack_tournament_standings",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 277,
+      "line": 274,
       "path": "src/app/domains/blackjack/router/tournament.py",
       "symbol": "blackjack_service.register_blackjack_tournament",
       "target_role": "blackjack.service"
     },
     {
       "kind": "value_error_handler",
-      "line": 280,
+      "line": 277,
       "path": "src/app/domains/blackjack/router/tournament.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "side_effect",
-      "line": 291,
+      "line": 288,
       "path": "src/app/domains/blackjack/router/tournament.py",
       "symbol": "background_tasks.add_task",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 317,
+      "line": 314,
       "path": "src/app/domains/blackjack/router/tournament.py",
       "symbol": "blackjack_service.get_blackjack_tournament",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 327,
+      "line": 324,
       "path": "src/app/domains/blackjack/router/tournament.py",
       "symbol": "blackjack_service.sweep_timed_out_blackjack_hands",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 328,
+      "line": 325,
       "path": "src/app/domains/blackjack/router/tournament.py",
       "symbol": "blackjack_service.get_user_blackjack_tournament_entry",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 332,
+      "line": 329,
       "path": "src/app/domains/blackjack/router/tournament.py",
       "symbol": "blackjack_service.get_current_blackjack_hand",
       "target_role": "blackjack.service"
     },
     {
       "kind": "service_call",
-      "line": 357,
+      "line": 354,
       "path": "src/app/domains/blackjack/router/tournament.py",
       "symbol": "blackjack_service.create_blackjack_tournament_hand",
       "target_role": "blackjack.service"
     },
     {
       "kind": "value_error_handler",
-      "line": 360,
+      "line": 357,
       "path": "src/app/domains/blackjack/router/tournament.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
     },
     {
-      "kind": "side_effect",
-      "line": 368,
-      "path": "src/app/domains/blackjack/router/tournament.py",
-      "symbol": "_schedule_tournament_hand_timeout",
-      "target_role": "blackjack.service"
-    },
-    {
       "kind": "value_error_handler",
-      "line": 381,
+      "line": 377,
       "path": "src/app/domains/blackjack/router/tournament.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
@@ -2046,91 +2025,112 @@
     },
     {
       "kind": "side_effect",
-      "line": 375,
+      "line": 188,
+      "path": "src/app/domains/blackjack/service.py",
+      "symbol": "schedule_task",
+      "target_role": "blackjack.service"
+    },
+    {
+      "kind": "side_effect",
+      "line": 211,
+      "path": "src/app/domains/blackjack/service.py",
+      "symbol": "schedule_blackjack_timeout",
+      "target_role": "blackjack.service"
+    },
+    {
+      "kind": "side_effect",
+      "line": 354,
+      "path": "src/app/domains/blackjack/service.py",
+      "symbol": "schedule_blackjack_timeout",
+      "target_role": "blackjack.service"
+    },
+    {
+      "kind": "side_effect",
+      "line": 415,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "notify_tournament_started",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 378,
+      "line": 418,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_notify_enabled",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 382,
+      "line": 422,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_notify_enabled",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 390,
+      "line": 430,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_send_many",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 435,
+      "line": 475,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_notify_enabled",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 448,
+      "line": 488,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_send_many",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 512,
+      "line": 552,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_notify_enabled",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 523,
+      "line": 563,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_send_many",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 528,
+      "line": 568,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_broadcast_group",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 632,
+      "line": 672,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_notify_enabled",
       "target_role": "blackjack.service"
     },
     {
       "kind": "side_effect",
-      "line": 633,
+      "line": 673,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "_broadcast_group",
       "target_role": "blackjack.service"
     },
     {
       "kind": "value_error_handler",
-      "line": 635,
+      "line": 675,
       "path": "src/app/domains/blackjack/service.py",
       "symbol": "except ValueError",
       "target_role": "blackjack.errors"
     },
     {
       "kind": "facade_import",
-      "line": 9,
+      "line": 11,
       "path": "src/app/domains/gift_pack/repository/conditions.py",
       "symbol": "app.domains.blackjack",
       "target_role": "blackjack.service"

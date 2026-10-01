@@ -44,40 +44,11 @@ async def _settle_blackjack_hand_on_timeout(*, hand_id: int) -> None:
 def _schedule_blackjack_timeout(*, hand_id: int, timeout_minutes: float) -> None:
     """安排手牌的超时结算任务。
 
-    用持久化 jobstore，服务重启不丢（spec：超时任务 SHALL 持久化）。
-
-    时限按**秒**换算而非 `int(分钟)`：重启后重建任务时传入的是剩余时间（小数
-    分钟），取整会把 14.9 分钟压成 14 分钟，任务提前 54 秒触发，玩家还在思考
-    时手牌就被按停牌结算，下一次要牌只会得到「该手牌已结束」。
-
-    `misfire_grace_time=None` 表示不设错过窗口：调度器全局默认只有 60 秒，
-    一次超过一分钟的重启就会让 APScheduler 判定任务错过而**永久丢弃**它，
-    手牌将带着已扣的押注长期悬挂。配合 `restore_blackjack_timeouts()`（启动时
-    重建任务）与 `sweep_expired_blackjack_hands_job()`（定时全量兜底），三者
-    共同满足 spec 的「服务重启 SHALL NOT 导致待处置的手牌被遗漏」。
+    委托给 blackjack_service.schedule_blackjack_timeout 统一执行。
     """
-    try:
-        from datetime import datetime, timedelta
-
-        from app.core.scheduler import schedule_task
-
-        run_date = datetime.now(settings.TZ) + timedelta(
-            seconds=float(timeout_minutes) * 60.0
-        )
-        schedule_task(
-            "blackjack.hand_timeout",
-            run_date=run_date,
-            job_id=f"blackjack_timeout_{int(hand_id)}",
-            kwargs={"hand_id": int(hand_id)},
-            misfire_grace_time=None,
-            replace_existing=True,
-            max_instances=1,
-        )
-        logger.info(
-            f"Blackjack timeout scheduled: hand={hand_id}, minutes={timeout_minutes}"
-        )
-    except Exception as e:
-        logger.error(f"Blackjack timeout schedule failed (hand={hand_id}): {e}")
+    blackjack_service.schedule_blackjack_timeout(
+        hand_id=hand_id, timeout_minutes=timeout_minutes
+    )
 
 
 def restore_blackjack_timeouts() -> None:

@@ -41,11 +41,7 @@ def _schedule_tournament_hand_timeout(result: dict) -> None:
     if result.get("settled"):
         return
     try:
-        from app.domains.blackjack.jobs.cash import (
-            _schedule_blackjack_timeout,
-        )
-
-        _schedule_blackjack_timeout(
+        blackjack_service.schedule_blackjack_timeout(
             hand_id=int(result["hand"]["id"]),
             timeout_minutes=float(result["hand"]["hand_timeout_minutes"]),
         )
