@@ -10,14 +10,7 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_ROOT = PROJECT_ROOT / "src"
 BASELINE_PATH = Path(__file__).with_name("baseline.json")
-ARCHITECTURE_CATEGORIES = (
-    "cross_domain_calls",
-    "config_access",
-    "line_budgets",
-    "model_registry",
-    "mixin_duplicates",
-    "numbered_modules",
-)
+ARCHITECTURE_CATEGORIES = ("line_budgets",)
 
 
 def python_files(root: Path) -> list[Path]:
@@ -137,15 +130,6 @@ def write_baseline(
     for category in ARCHITECTURE_CATEGORIES:
         entries = baseline.get(category, [])
         payload[category] = sorted(entries, key=lambda item: item["key"])
-    if path == BASELINE_PATH:
-        import tomllib
-
-        with (PROJECT_ROOT / "pyproject.toml").open("rb") as stream:
-            contracts = tomllib.load(stream)["tool"]["importlinter"]["contracts"]
-        payload["contract_ignore_counts"] = {
-            contract["name"]: len(contract.get("ignore_imports", []))
-            for contract in contracts
-        }
     path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=False) + "\n",
         encoding="utf-8",

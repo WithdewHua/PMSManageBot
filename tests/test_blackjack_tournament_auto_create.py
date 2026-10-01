@@ -76,7 +76,7 @@ def before_registration_deadline(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_auto_create_uses_week_aligned_deadlines(
-    orm, explicit_ids, monkeypatch, before_registration_deadline
+    explicit_ids, monkeypatch, before_registration_deadline
 ):
     BLACKJACK_CONFIG.update(**_config())
     monkeypatch.setattr(blackjack_service, "_notify_enabled", lambda: False)
@@ -98,12 +98,11 @@ async def test_auto_create_uses_week_aligned_deadlines(
 
 
 @pytest.mark.asyncio
-async def test_auto_create_skips_when_registration_open(orm, monkeypatch):
+async def test_auto_create_skips_when_registration_open(monkeypatch):
     """去重闸门：已有报名未截止的赛事（无论谁建）就不再重复建。"""
     import time
 
     add_tournament(
-        orm,
         status=TOURNAMENT_REGISTERING,
         register_deadline_ms=int(time.time() * 1000) + 3600 * 1000,
     )
@@ -120,7 +119,7 @@ async def test_auto_create_skips_when_registration_open(orm, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_auto_create_double_fire_is_idempotent(
-    orm, explicit_ids, monkeypatch, before_registration_deadline
+    explicit_ids, monkeypatch, before_registration_deadline
 ):
     """任务重复触发：第一轮建了周赛，第二轮必须被闸门挡下。"""
     BLACKJACK_CONFIG.update(**_config())
@@ -134,7 +133,7 @@ async def test_auto_create_double_fire_is_idempotent(
 
 
 @pytest.mark.asyncio
-async def test_auto_create_respects_switches(orm, monkeypatch):
+async def test_auto_create_respects_switches(monkeypatch):
     """活动总开关或自动开赛开关任一关闭，都不创建。"""
     monkeypatch.setattr(blackjack_service, "_notify_enabled", lambda: False)
 
@@ -149,7 +148,7 @@ async def test_auto_create_respects_switches(orm, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_auto_create_skips_when_count_unavailable(orm, monkeypatch):
+async def test_auto_create_skips_when_count_unavailable(monkeypatch):
     """闸门查询失败返回 None 时按「无法确认」跳过，宁可漏一期也不重复建。"""
     BLACKJACK_CONFIG.update(**_config())
     monkeypatch.setattr(

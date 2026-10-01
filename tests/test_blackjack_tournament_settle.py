@@ -37,7 +37,7 @@ def _row(tournament: dict) -> dict:
     }
 
 
-def test_empty_id_list_does_not_hit_db(orm, monkeypatch):
+def test_empty_id_list_does_not_hit_db(monkeypatch):
     monkeypatch.setattr(
         _db_mod,
         "get_session",
@@ -51,15 +51,15 @@ def test_empty_id_list_does_not_hit_db(orm, monkeypatch):
     )
 
 
-def test_playing_query_returns_only_playing_ids(orm):
-    t_playing = add_tournament(orm, title="still playing")
-    t_done = add_tournament(orm, title="all terminal")
-    add_user(orm, 101)
-    add_user(orm, 102)
-    add_user(orm, 201)
-    add_entry(orm, t_playing["id"], 101, status=ENTRY_FINISHED)
-    add_entry(orm, t_playing["id"], 102, status=ENTRY_PLAYING)
-    add_entry(orm, t_done["id"], 201, status=ENTRY_ELIMINATED)
+def test_playing_query_returns_only_playing_ids():
+    t_playing = add_tournament(title="still playing")
+    t_done = add_tournament(title="all terminal")
+    add_user(101)
+    add_user(102)
+    add_user(201)
+    add_entry(t_playing["id"], 101, status=ENTRY_FINISHED)
+    add_entry(t_playing["id"], 102, status=ENTRY_PLAYING)
+    add_entry(t_done["id"], 201, status=ENTRY_ELIMINATED)
 
     found = blackjack_repository.list_blackjack_tournaments_with_playing_entries(
         [t_playing["id"], t_done["id"], 999]
@@ -67,7 +67,7 @@ def test_playing_query_returns_only_playing_ids(orm):
     assert found == {t_playing["id"]}
 
 
-def test_playing_query_failure_returns_none(orm, monkeypatch):
+def test_playing_query_failure_returns_none(monkeypatch):
     def _boom():
         raise RuntimeError("db down")
 
@@ -78,12 +78,12 @@ def test_playing_query_failure_returns_none(orm, monkeypatch):
     )
 
 
-def test_settle_all_terminal_before_deadline(orm):
-    t = add_tournament(orm)
-    add_user(orm, 1, credits=0)
-    add_user(orm, 2, credits=0)
-    add_entry(orm, t["id"], 1, status=ENTRY_FINISHED, chips=1200, registered_at_ms=1)
-    add_entry(orm, t["id"], 2, status=ENTRY_ELIMINATED, chips=800, registered_at_ms=2)
+def test_settle_all_terminal_before_deadline():
+    t = add_tournament()
+    add_user(1, credits=0)
+    add_user(2, credits=0)
+    add_entry(t["id"], 1, status=ENTRY_FINISHED, chips=1200, registered_at_ms=1)
+    add_entry(t["id"], 2, status=ENTRY_ELIMINATED, chips=800, registered_at_ms=2)
 
     result = blackjack_repository.settle_blackjack_tournament(t["id"])
     assert result["settled"] is True
@@ -92,12 +92,12 @@ def test_settle_all_terminal_before_deadline(orm):
     assert [row["tg_id"] for row in result["standings"] if row["final_rank"]] == [1, 2]
 
 
-def test_settle_skips_ineligible_playing_entry(orm):
-    t = add_tournament(orm, play_deadline_ms=int(time.time() * 1000) - 1000)
-    add_user(orm, 1, credits=0)
-    add_user(orm, 2, credits=0)
-    add_entry(orm, t["id"], 1, status=ENTRY_FINISHED, chips=1200, registered_at_ms=1)
-    add_entry(orm, t["id"], 2, status=ENTRY_PLAYING, chips=2000, registered_at_ms=2)
+def test_settle_skips_ineligible_playing_entry():
+    t = add_tournament(play_deadline_ms=int(time.time() * 1000) - 1000)
+    add_user(1, credits=0)
+    add_user(2, credits=0)
+    add_entry(t["id"], 1, status=ENTRY_FINISHED, chips=1200, registered_at_ms=1)
+    add_entry(t["id"], 2, status=ENTRY_PLAYING, chips=2000, registered_at_ms=2)
 
     result = blackjack_repository.settle_blackjack_tournament(t["id"])
     assert result["settled"] is True
@@ -108,10 +108,10 @@ def test_settle_skips_ineligible_playing_entry(orm):
     assert sitting["prize_credits"] == 0.0
 
 
-def test_settle_is_idempotent(orm):
-    t = add_tournament(orm)
-    add_user(orm, 1)
-    add_entry(orm, t["id"], 1, status=ENTRY_FINISHED, chips=1000)
+def test_settle_is_idempotent():
+    t = add_tournament()
+    add_user(1)
+    add_entry(t["id"], 1, status=ENTRY_FINISHED, chips=1000)
     first = blackjack_repository.settle_blackjack_tournament(t["id"])
     second = blackjack_repository.settle_blackjack_tournament(t["id"])
     assert first["settled"] is True
@@ -120,11 +120,11 @@ def test_settle_is_idempotent(orm):
     assert second["tournament"]["status"] == TOURNAMENT_SETTLED
 
 
-def test_settle_aborts_when_pending_hand_exists(orm):
-    t = add_tournament(orm)
-    add_user(orm, 1)
-    add_entry(orm, t["id"], 1, status=ENTRY_PLAYING, chips=990)
-    add_pending_hand(orm, t["id"], 1)
+def test_settle_aborts_when_pending_hand_exists():
+    t = add_tournament()
+    add_user(1)
+    add_entry(t["id"], 1, status=ENTRY_PLAYING, chips=990)
+    add_pending_hand(t["id"], 1)
 
     result = blackjack_repository.settle_blackjack_tournament(t["id"])
     assert result["settled"] is False
@@ -132,30 +132,30 @@ def test_settle_aborts_when_pending_hand_exists(orm):
     assert again["status"] == TOURNAMENT_RUNNING
 
 
-def test_deal_rejects_after_settled(orm):
-    t = add_tournament(orm)
-    add_user(orm, 1)
-    add_entry(orm, t["id"], 1, status=ENTRY_FINISHED, chips=1000)
+def test_deal_rejects_after_settled():
+    t = add_tournament()
+    add_user(1)
+    add_entry(t["id"], 1, status=ENTRY_FINISHED, chips=1000)
     blackjack_repository.settle_blackjack_tournament(t["id"])
 
     with pytest.raises(ValueError, match="tournament not running"):
         blackjack_repository.create_blackjack_tournament_hand(1, t["id"], 10)
 
 
-def test_deal_rejects_after_deadline(orm, monkeypatch):
+def test_deal_rejects_after_deadline(monkeypatch):
     past = int(time.time() * 1000) - 1000
-    t = add_tournament(orm, play_deadline_ms=past)
-    add_user(orm, 1)
-    add_entry(orm, t["id"], 1, status=ENTRY_PLAYING, chips=1000)
+    t = add_tournament(play_deadline_ms=past)
+    add_user(1)
+    add_entry(t["id"], 1, status=ENTRY_PLAYING, chips=1000)
 
     with pytest.raises(ValueError, match="tournament finished"):
         blackjack_repository.create_blackjack_tournament_hand(1, t["id"], 10)
 
 
-def test_deal_uses_wall_clock_after_lock(orm, monkeypatch):
-    t = add_tournament(orm, play_deadline_ms=int(time.time() * 1000) + 60_000)
-    add_user(orm, 1)
-    add_entry(orm, t["id"], 1, status=ENTRY_PLAYING, chips=1000)
+def test_deal_uses_wall_clock_after_lock(monkeypatch):
+    t = add_tournament(play_deadline_ms=int(time.time() * 1000) + 60_000)
+    add_user(1)
+    add_entry(t["id"], 1, status=ENTRY_PLAYING, chips=1000)
 
     real_lock = blackjack_repository._repository._lock_running_tournament
 
@@ -171,12 +171,12 @@ def test_deal_uses_wall_clock_after_lock(orm, monkeypatch):
         blackjack_repository.create_blackjack_tournament_hand(1, t["id"], 10)
 
 
-def test_lock_running_misses_settled_tournament(orm):
+def test_lock_running_misses_settled_tournament():
     from app.core.db import get_session
 
-    t = add_tournament(orm)
-    add_user(orm, 1)
-    add_entry(orm, t["id"], 1, status=ENTRY_FINISHED, chips=1000)
+    t = add_tournament()
+    add_user(1)
+    add_entry(t["id"], 1, status=ENTRY_FINISHED, chips=1000)
     blackjack_repository.settle_blackjack_tournament(t["id"])
 
     with get_session() as session:
@@ -184,12 +184,12 @@ def test_lock_running_misses_settled_tournament(orm):
 
 
 @pytest.mark.asyncio
-async def test_tick_settles_all_terminal_before_deadline(orm, monkeypatch):
-    t = add_tournament(orm)
-    add_user(orm, 1)
-    add_user(orm, 2)
-    add_entry(orm, t["id"], 1, status=ENTRY_FINISHED, chips=1200, registered_at_ms=1)
-    add_entry(orm, t["id"], 2, status=ENTRY_ELIMINATED, chips=800, registered_at_ms=2)
+async def test_tick_settles_all_terminal_before_deadline(monkeypatch):
+    t = add_tournament()
+    add_user(1)
+    add_user(2)
+    add_entry(t["id"], 1, status=ENTRY_FINISHED, chips=1200, registered_at_ms=1)
+    add_entry(t["id"], 2, status=ENTRY_ELIMINATED, chips=800, registered_at_ms=2)
 
     monkeypatch.setattr(blackjack_service, "_notify_enabled", lambda: False)
     award = AsyncMock()
@@ -205,12 +205,12 @@ async def test_tick_settles_all_terminal_before_deadline(orm, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_tick_does_not_settle_while_someone_is_playing(orm, monkeypatch):
-    t = add_tournament(orm)
-    add_user(orm, 1)
-    add_user(orm, 2)
-    add_entry(orm, t["id"], 1, status=ENTRY_FINISHED, chips=1200)
-    add_entry(orm, t["id"], 2, status=ENTRY_PLAYING, chips=800)
+async def test_tick_does_not_settle_while_someone_is_playing(monkeypatch):
+    t = add_tournament()
+    add_user(1)
+    add_user(2)
+    add_entry(t["id"], 1, status=ENTRY_FINISHED, chips=1200)
+    add_entry(t["id"], 2, status=ENTRY_PLAYING, chips=800)
 
     settle = MagicMock()
     monkeypatch.setattr(blackjack_service, "settle_blackjack_tournament", settle)
@@ -224,12 +224,12 @@ async def test_tick_does_not_settle_while_someone_is_playing(orm, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_tick_settles_at_deadline_even_with_playing_entry(orm, monkeypatch):
-    t = add_tournament(orm, play_deadline_ms=int(time.time() * 1000) - 1000)
-    add_user(orm, 1)
-    add_user(orm, 2)
-    add_entry(orm, t["id"], 1, status=ENTRY_FINISHED, chips=1200, registered_at_ms=1)
-    add_entry(orm, t["id"], 2, status=ENTRY_PLAYING, chips=800, registered_at_ms=2)
+async def test_tick_settles_at_deadline_even_with_playing_entry(monkeypatch):
+    t = add_tournament(play_deadline_ms=int(time.time() * 1000) - 1000)
+    add_user(1)
+    add_user(2)
+    add_entry(t["id"], 1, status=ENTRY_FINISHED, chips=1200, registered_at_ms=1)
+    add_entry(t["id"], 2, status=ENTRY_PLAYING, chips=800, registered_at_ms=2)
 
     monkeypatch.setattr(blackjack_service, "_notify_enabled", lambda: False)
     monkeypatch.setattr(
@@ -244,10 +244,10 @@ async def test_tick_settles_at_deadline_even_with_playing_entry(orm, monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_tick_query_none_does_not_early_settle(orm, monkeypatch):
-    t = add_tournament(orm)
-    add_user(orm, 1)
-    add_entry(orm, t["id"], 1, status=ENTRY_FINISHED, chips=1000)
+async def test_tick_query_none_does_not_early_settle(monkeypatch):
+    t = add_tournament()
+    add_user(1)
+    add_entry(t["id"], 1, status=ENTRY_FINISHED, chips=1000)
 
     monkeypatch.setattr(
         blackjack_service,
@@ -262,10 +262,10 @@ async def test_tick_query_none_does_not_early_settle(orm, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_tick_skips_settle_when_clear_fails(orm, monkeypatch):
-    t = add_tournament(orm)
-    add_user(orm, 1)
-    add_entry(orm, t["id"], 1, status=ENTRY_FINISHED, chips=1000)
+async def test_tick_skips_settle_when_clear_fails(monkeypatch):
+    t = add_tournament()
+    add_user(1)
+    add_entry(t["id"], 1, status=ENTRY_FINISHED, chips=1000)
 
     monkeypatch.setattr(
         blackjack_service,

@@ -25,33 +25,7 @@
       "type": "CommandHandler"
     }
   ],
-  "facade_methods": [
-    "add_emby_user",
-    "add_invitation_code",
-    "add_overseerr_user",
-    "add_plex_user",
-    "add_user_data",
-    "delete_plex_user",
-    "get_emby_info_by_emby_username",
-    "get_emby_info_by_tg_id",
-    "get_emby_line",
-    "get_emby_premium_quota_status",
-    "get_emby_traffic_rank",
-    "get_emby_user_with_binded_line",
-    "get_overseerr_info_by_email",
-    "get_overseerr_info_by_tg_id",
-    "get_plex_info_by_plex_email",
-    "get_plex_info_by_plex_id",
-    "get_plex_info_by_tg_id",
-    "get_plex_line",
-    "get_plex_premium_quota_status",
-    "get_plex_traffic_rank",
-    "get_plex_user_with_binded_line",
-    "get_stats_by_tg_id",
-    "update_invitation_plex_id",
-    "update_invitation_status",
-    "verify_invitation_code_is_used"
-  ],
+  "facade_methods": [],
   "named_tasks": [
     {
       "registered": true,
@@ -119,7 +93,6 @@
       "write_user_info_cache"
     ],
     "invitation": [
-      "add_invitation_code",
       "check_privileged_codes",
       "check_privileged_codes_tx",
       "check_tg_id_reassign_tx",
@@ -154,7 +127,6 @@
       "update_invitation_status",
       "update_invitation_status_tx",
       "verify_invitation_code",
-      "verify_invitation_code_is_used",
       "verify_invitation_code_tx"
     ]
   },

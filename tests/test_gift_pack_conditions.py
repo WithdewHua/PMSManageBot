@@ -356,7 +356,7 @@ def test_schema_requires_include_list_for_start_notification():
 # Legacy conversion and condition evaluation (OpenSpec 3.1, 3.3, 3.4)
 
 
-def test_resolve_conditions_converts_legacy_eligibility_without_mutating_pack(orm):
+def test_resolve_conditions_converts_legacy_eligibility_without_mutating_pack():
     pack = _pack(
         start_at=100,
         end_at=200,
@@ -379,7 +379,7 @@ def test_resolve_conditions_converts_legacy_eligibility_without_mutating_pack(or
     assert pack.eligibility is not None
 
 
-def test_resolve_conditions_prefers_new_columns_over_legacy(orm):
+def test_resolve_conditions_prefers_new_columns_over_legacy():
     pack = _pack(
         start_at=100,
         end_at=200,
@@ -394,8 +394,8 @@ def test_resolve_conditions_prefers_new_columns_over_legacy(orm):
     assert requirements == [{"type": "wheel_spins", "min": 3}]
 
 
-def test_load_context_contains_live_state_sets_and_request_metric_cache(orm):
-    add_user(orm, 1, credits=42)
+def test_load_context_contains_live_state_sets_and_request_metric_cache():
+    add_user(1, credits=42)
     with get_session() as session:
         claimed_pack = _pack(start_at=100, end_at=200)
         claimed_pack.id = 88
@@ -446,7 +446,7 @@ def test_load_context_contains_live_state_sets_and_request_metric_cache(orm):
     assert "_metric_cache" not in context
 
 
-def test_condition_progress_and_any_of_group_report_all_children(orm, monkeypatch):
+def test_condition_progress_and_any_of_group_report_all_children(monkeypatch):
     pack = _pack(start_at=100, end_at=1000)
     calls = []
 
@@ -499,8 +499,8 @@ def test_condition_progress_and_any_of_group_report_all_children(orm, monkeypatc
 # Counter primitives (OpenSpec 3.2)
 
 
-def test_wheel_counter_includes_time_boundaries_and_filters_free_spins(orm):
-    add_user(orm, 1)
+def test_wheel_counter_includes_time_boundaries_and_filters_free_spins():
+    add_user(1)
     with get_session() as session:
         for row_id, timestamp, source in (
             (next_id(), 100, "paid"),
@@ -536,17 +536,15 @@ def test_wheel_counter_includes_time_boundaries_and_filters_free_spins(orm):
         )
 
 
-def test_blackjack_counter_excludes_tournaments_filters_bet_and_calculates_accuracy(
-    orm,
-):
-    add_user(orm, 1)
-    first = add_cash_hand(orm, 1, bet_credits=5, created_at_ms=100000)
-    second = add_cash_hand(orm, 1, bet_credits=10, created_at_ms=200000)
+def test_blackjack_counter_excludes_tournaments_filters_bet_and_calculates_accuracy():
+    add_user(1)
+    first = add_cash_hand(1, bet_credits=5, created_at_ms=100000)
+    second = add_cash_hand(1, bet_credits=10, created_at_ms=200000)
     tournament_hand = add_cash_hand(
-        orm, 1, bet_credits=100, created_at_ms=150000, tournament_id=999
+        1, bet_credits=100, created_at_ms=150000, tournament_id=999
     )
-    outside = add_cash_hand(orm, 1, bet_credits=10, created_at_ms=999999)
-    pending = add_cash_hand(orm, 1, bet_credits=10, created_at_ms=150000)
+    outside = add_cash_hand(1, bet_credits=10, created_at_ms=999999)
+    pending = add_cash_hand(1, bet_credits=10, created_at_ms=150000)
     _update_hand(first, decisions_total=4, decisions_correct=3)
     _update_hand(second, decisions_total=0, decisions_correct=0)
     _update_hand(
@@ -578,8 +576,8 @@ def test_blackjack_counter_excludes_tournaments_filters_bet_and_calculates_accur
     assert accuracy == pytest.approx(75.0)
 
 
-def test_treasure_and_auction_counters_deduplicate_by_issue_and_auction(orm):
-    add_user(orm, 1)
+def test_treasure_and_auction_counters_deduplicate_by_issue_and_auction():
+    add_user(1)
     issue_a, issue_b = next_id(), next_id()
     auction_a, auction_b = next_id(), next_id()
     _insert_treasure_issue(issue_a)
@@ -666,8 +664,8 @@ def test_treasure_and_auction_counters_deduplicate_by_issue_and_auction(orm):
         )
 
 
-def test_prediction_counter_uses_utc_datetime_boundaries(orm):
-    add_user(orm, 1)
+def test_prediction_counter_uses_utc_datetime_boundaries():
+    add_user(1)
     market_id = next_id()
     _insert_market(market_id)
     with get_session() as session:
@@ -708,16 +706,16 @@ def test_prediction_counter_uses_utc_datetime_boundaries(orm):
         )
 
 
-def test_tournament_counter_excludes_cancelled_events_and_applies_time_window(orm):
-    add_user(orm, 1)
-    active = add_tournament(orm, status=TOURNAMENT_RUNNING)
-    active_two = add_tournament(orm, status=TOURNAMENT_RUNNING)
-    cancelled = add_tournament(orm, status=4)
-    add_entry(orm, active["id"], 1, registered_at_ms=100000)
-    add_entry(orm, cancelled["id"], 1, registered_at_ms=150000)
-    add_entry(orm, active_two["id"], 1, registered_at_ms=200000)
-    outside = add_tournament(orm, status=TOURNAMENT_RUNNING)
-    add_entry(orm, outside["id"], 1, registered_at_ms=999999)
+def test_tournament_counter_excludes_cancelled_events_and_applies_time_window():
+    add_user(1)
+    active = add_tournament(status=TOURNAMENT_RUNNING)
+    active_two = add_tournament(status=TOURNAMENT_RUNNING)
+    cancelled = add_tournament(status=4)
+    add_entry(active["id"], 1, registered_at_ms=100000)
+    add_entry(cancelled["id"], 1, registered_at_ms=150000)
+    add_entry(active_two["id"], 1, registered_at_ms=200000)
+    outside = add_tournament(status=TOURNAMENT_RUNNING)
+    add_entry(outside["id"], 1, registered_at_ms=999999)
 
     with get_session() as session:
         assert (
@@ -728,8 +726,8 @@ def test_tournament_counter_excludes_cancelled_events_and_applies_time_window(or
         )
 
 
-def test_invitees_and_watched_hours_are_historical_and_distinct(orm):
-    add_user(orm, 1)
+def test_invitees_and_watched_hours_are_historical_and_distinct():
+    add_user(1)
     with get_session() as session:
         session.add_all(
             [
@@ -763,7 +761,7 @@ def test_invitees_and_watched_hours_are_historical_and_distinct(orm):
 # Cache, deadline freezing, and lifecycle (OpenSpec 3.3-3.5)
 
 
-def test_metric_cache_is_shared_by_same_metric_window_and_qualifiers(orm, monkeypatch):
+def test_metric_cache_is_shared_by_same_metric_window_and_qualifiers(monkeypatch):
     pack = _pack(start_at=100, end_at=1000)
     calls = []
 
@@ -788,7 +786,7 @@ def test_metric_cache_is_shared_by_same_metric_window_and_qualifiers(orm, monkey
     assert len(calls) == 1
 
 
-def test_pack_window_before_start_returns_zero_without_count_query(orm, monkeypatch):
+def test_pack_window_before_start_returns_zero_without_count_query(monkeypatch):
     pack = _pack(start_at=500, end_at=1000)
 
     def should_not_query(*args, **kwargs):
@@ -810,7 +808,7 @@ def test_pack_window_before_start_returns_zero_without_count_query(orm, monkeypa
     assert rules.metric_value(items[0], pack, 499, metrics) == 0
 
 
-def test_lifecycle_boundaries_and_frozen_phase_reference(orm):
+def test_lifecycle_boundaries_and_frozen_phase_reference():
     active_pack = _pack(start_at=100, end_at=300, task_end_at=200)
     no_task_deadline = _pack(start_at=100, end_at=300)
     deadline_at_end = _pack(start_at=100, end_at=300, task_end_at=300)
@@ -829,9 +827,9 @@ def test_lifecycle_boundaries_and_frozen_phase_reference(orm):
     assert rules._gift_pack_phase_ref(no_task_deadline, 250) == 250
 
 
-def test_blackjack_accuracy_with_no_decisions_is_zero(orm):
-    add_user(orm, 1)
-    hand_id = add_cash_hand(orm, 1, bet_credits=10, created_at_ms=100000)
+def test_blackjack_accuracy_with_no_decisions_is_zero():
+    add_user(1)
+    hand_id = add_cash_hand(1, bet_credits=10, created_at_ms=100000)
     _update_hand(hand_id, decisions_total=0, decisions_correct=0)
 
     with get_session() as session:
@@ -862,13 +860,13 @@ def test_blackjack_accuracy_with_no_decisions_is_zero(orm):
         ),
     ],
 )
-def test_legacy_fields_each_map_to_an_equivalent_leaf(orm, old, new):
+def test_legacy_fields_each_map_to_an_equivalent_leaf(old, new):
     pack = _pack(start_at=100, end_at=200, eligibility=old)
     _, requirements = rules._resolve_gift_pack_conditions(pack)
     assert requirements == new
 
 
-def test_legacy_pack_uses_zero_task_prompt_limit(orm):
+def test_legacy_pack_uses_zero_task_prompt_limit():
     # Omit new columns just as an existing row would under the add-column migration.
     pack_id = next_id()
     with get_session() as session:
@@ -910,11 +908,11 @@ def _pack_with_rewards(*, start_at: int, end_at: int, rewards: list[dict]) -> Gi
     return pack
 
 
-def test_claim_rejections_keep_their_messages(orm):
+def test_claim_rejections_keep_their_messages():
     """领取的每类拒绝都保留原有文案，供 router 与前端展示。"""
     now = int(time.time())
-    add_user(orm, 1)
-    add_user(orm, 2)
+    add_user(1)
+    add_user(2)
 
     def claim(pack_id: int, tg_id: int = 1):
         return gift_pack_service.claim_gift_pack(pack_id, tg_id)

@@ -43,20 +43,20 @@ def _boom(*args, **kwargs):
     raise RuntimeError("telegram down")
 
 
-def _settle_ready_tournament(orm) -> dict:
-    t = add_tournament(orm)
-    add_user(orm, 1, credits=0.0)
-    add_user(orm, 2, credits=0.0)
-    add_entry(orm, t["id"], 1, status=ENTRY_FINISHED, chips=1200, registered_at_ms=1)
-    add_entry(orm, t["id"], 2, status=ENTRY_ELIMINATED, chips=800, registered_at_ms=2)
+def _settle_ready_tournament() -> dict:
+    t = add_tournament()
+    add_user(1, credits=0.0)
+    add_user(2, credits=0.0)
+    add_entry(t["id"], 1, status=ENTRY_FINISHED, chips=1200, registered_at_ms=1)
+    add_entry(t["id"], 2, status=ENTRY_ELIMINATED, chips=800, registered_at_ms=2)
     return t
 
 
 @pytest.mark.asyncio
-async def test_settlement_commits_even_when_notifications_fail(orm, monkeypatch):
+async def test_settlement_commits_even_when_notifications_fail(monkeypatch):
     """派奖先提交；赛果通知失败只记日志，不回滚赛事状态与积分。"""
 
-    t = _settle_ready_tournament(orm)
+    t = _settle_ready_tournament()
     monkeypatch.setattr(blackjack_service, "_notify_enabled", lambda: True)
     monkeypatch.setattr(
         blackjack_service, "award_blackjack_champion_badge", AsyncMock()
@@ -70,11 +70,8 @@ async def test_settlement_commits_even_when_notifications_fail(orm, monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_start_notification_failure_leaves_the_tournament_running(
-    orm, monkeypatch
-):
+async def test_start_notification_failure_leaves_the_tournament_running(monkeypatch):
     t = add_tournament(
-        orm,
         status=TOURNAMENT_REGISTERING,
         register_deadline_ms=NOW_MS - 1000,
         entrant_count=2,
@@ -87,15 +84,13 @@ async def test_start_notification_failure_leaves_the_tournament_running(
 
 
 @pytest.mark.asyncio
-async def test_one_failing_tournament_does_not_stop_the_others(orm, monkeypatch):
+async def test_one_failing_tournament_does_not_stop_the_others(monkeypatch):
     first = add_tournament(
-        orm,
         status=TOURNAMENT_REGISTERING,
         register_deadline_ms=NOW_MS - 1000,
         title="will fail",
     )
     second = add_tournament(
-        orm,
         status=TOURNAMENT_REGISTERING,
         register_deadline_ms=NOW_MS - 1000,
         title="will start",
@@ -119,17 +114,16 @@ async def test_one_failing_tournament_does_not_stop_the_others(orm, monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_reminders_advance_the_dedupe_cursor_without_sending(orm, monkeypatch):
+async def test_reminders_advance_the_dedupe_cursor_without_sending(monkeypatch):
     """通知关闭时仍推进 reminder_sent_at，避免重新打开后倾泻积压提醒。"""
 
     t = add_tournament(
-        orm,
         status=TOURNAMENT_RUNNING,
         play_deadline_ms=NOW_MS + 3600 * 1000,
         register_deadline_ms=NOW_MS - 2 * 3600 * 1000,
     )
-    add_user(orm, 1)
-    add_entry(orm, t["id"], 1, status=ENTRY_PLAYING, hands_played=0)
+    add_user(1)
+    add_entry(t["id"], 1, status=ENTRY_PLAYING, hands_played=0)
 
     BLACKJACK_CONFIG.update(tournament_remind_lead_hours=6)
     monkeypatch.setattr(blackjack_service, "_notify_enabled", lambda: False)
@@ -175,7 +169,7 @@ async def test_tick_swallows_list_failures(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_tick_runs_every_phase_for_the_fetched_status_lists(orm, monkeypatch):
+async def test_tick_runs_every_phase_for_the_fetched_status_lists(monkeypatch):
     """每轮 tick 按状态各查一次列表，并依次跑三个阶段。"""
 
     calls: list[tuple[str, tuple, dict]] = []

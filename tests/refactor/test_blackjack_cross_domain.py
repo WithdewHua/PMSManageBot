@@ -3,6 +3,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).parents[2]
 DOMAINS = ROOT / "src/app/domains"
 ALLOWED_BLACKJACK_TARGETS = {
@@ -126,25 +128,5 @@ def test_blackjack_analytics_exports_use_explicit_repository_apis() -> None:
 
 
 def test_database_facade_has_no_blackjack_operations() -> None:
-    from app.databases.db import DatabaseORM
-
-    prefixes = (
-        "blackjack_",
-        "create_blackjack",
-        "settle_blackjack",
-        "get_blackjack",
-        "get_user_blackjack",
-        "list_blackjack",
-        "register_blackjack",
-        "start_blackjack",
-        "cancel_blackjack",
-        "update_blackjack",
-        "sweep_timed_out_blackjack",
-        "force_settle_tournament",
-        "claim_tournament_reminder",
-        "count_registering_blackjack",
-        "check_blackjack_tournament",
-        "seed_blackjack_jackpot",
-    )
-    operations = sorted(name for name in dir(DatabaseORM) if name.startswith(prefixes))
-    assert operations == []
+    with pytest.raises(ModuleNotFoundError):
+        import app.databases.db  # noqa: F401

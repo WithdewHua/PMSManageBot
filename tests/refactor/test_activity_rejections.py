@@ -31,7 +31,6 @@ from starlette.responses import Response
 
 from app.core.db import get_session
 from app.core.kv import SystemConfig
-from app.databases.db import DatabaseORM
 from app.domains.auction import router as auc
 from app.domains.auction import service as auction_service
 from app.domains.auction.models import Auctions
@@ -211,9 +210,9 @@ def _insert(model: Any, row_id: int, **kwargs: Any) -> int:
         return int(row.id)
 
 
-def _seed(orm: DatabaseORM) -> None:
-    add_user(orm, 1, credits=100.0)
-    add_user(orm, 2, credits=5.0)
+def _seed() -> None:
+    add_user(1, credits=100.0)
+    add_user(2, credits=5.0)
 
     for issue_id, status, shares_sold in (
         (TREASURE_ACTIVE, 1, 0),
@@ -1511,9 +1510,9 @@ def _dump(value: dict) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
 
 
-async def test_activity_rejections(orm, monkeypatch) -> None:
+async def test_activity_rejections(monkeypatch) -> None:
     _install_noops(monkeypatch)
-    _seed(orm)
+    _seed()
 
     first = await _build()
     second = await _build()

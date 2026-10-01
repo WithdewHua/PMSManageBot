@@ -71,7 +71,10 @@ def test_identity_and_invitation_compatibility_have_no_runtime_consumers():
         ("identity/compat.py", "IdentityRepository"),
         ("invitation/repository.py", "InvitationRepository"),
     ]:
-        tree = ast.parse((root / "src/app/domains" / module).read_text())
+        target = root / "src/app/domains" / module
+        if not target.exists():
+            continue
+        tree = ast.parse(target.read_text())
         for node in tree.body:
             if isinstance(node, ast.ClassDef) and node.name == class_name:
                 legacy_methods.update(

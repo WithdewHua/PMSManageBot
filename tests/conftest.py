@@ -1,7 +1,7 @@
 """锦标赛测试夹具：把 SQLAlchemy 会话绑到隔离的内存 SQLite。
 
 不改 `settings.DB_URL`、不碰 `data/`。`get_session()` 在调用时读取
-`SessionLocal`，故重绑模块属性即可让 `DatabaseORM` 单例打到测试库。
+`SessionLocal`，故重绑模块属性即可让应用打到测试库。
 """
 
 from __future__ import annotations
@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import tempfile
 import time
+from typing import Any
 
 # Importing app loads Settings. Point it at a disposable directory before any
 # app module is imported so the repository's data/.env cannot affect tests.
@@ -45,7 +46,6 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.config import settings
-from app.databases.db import DatabaseORM
 from app.domains.blackjack import repository as blackjack_repository
 from app.domains.blackjack.config import ENTRY_PLAYING, TOURNAMENT_RUNNING
 from app.domains.blackjack.models import BlackjackTournament, BlackjackTournamentEntry
@@ -82,9 +82,9 @@ def configured_test_admin(monkeypatch):
     monkeypatch.setattr(settings, "TG_ADMIN_CHAT_ID", [123456789])
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def session_env():
-    """每个用例一张干净的内存库，并重绑 `app.databases.session`。"""
+    """每个用例一张干净的内存库，并重绑 `app.core.db`。"""
     import app.core.db as session_mod
     from app.business_config import CONFIGS
 
@@ -141,11 +141,6 @@ def business_config(session_env):
         config.invalidate()
 
 
-@pytest.fixture
-def orm(session_env) -> DatabaseORM:
-    return DatabaseORM()
-
-
 def _now_ms() -> int:
     return int(time.time() * 1000)
 
@@ -160,16 +155,20 @@ def next_id() -> int:
     return _next_id
 
 
-def add_user(orm: DatabaseORM, tg_id: int, credits: float = 100.0) -> None:
+def add_user(
+    tg_id_or_orm: Any, tg_id: int | None = None, credits: float = 100.0
+) -> None:
     from app.core.db import get_session
 
+    effective_tg_id = int(tg_id if tg_id is not None else tg_id_or_orm)
     with get_session() as session:
-        session.add(Statistics(tg_id=int(tg_id), donation=0, credits=float(credits)))
+        session.add(
+            Statistics(tg_id=effective_tg_id, donation=0, credits=float(credits))
+        )
 
 
 def add_tournament(
-    orm: DatabaseORM,
-    *,
+    *args: Any,
     status: int | None = None,
     play_deadline_ms: int | None = None,
     register_deadline_ms: int | None = None,
@@ -179,6 +178,7 @@ def add_tournament(
     total_hands: int = 2,
     min_bet_chips: int = 10,
     title: str = "test tournament",
+    **kwargs: Any,
 ) -> dict:
     from app.core.db import get_session
 
@@ -220,16 +220,22 @@ def add_tournament(
 
 
 def add_entry(
-    orm: DatabaseORM,
-    tournament_id: int,
-    tg_id: int,
-    *,
+    *args: Any,
     status: int | None = None,
     chips: int = 1000,
     hands_played: int = 0,
     registered_at_ms: int | None = None,
+    **kwargs: Any,
 ) -> dict:
     from app.core.db import get_session
+
+    if len(args) >= 3:
+        tournament_id, tg_id = args[1], args[2]
+    elif len(args) == 2:
+        tournament_id, tg_id = args[0], args[1]
+    else:
+        tournament_id = kwargs.get("tournament_id", 0)
+        tg_id = kwargs.get("tg_id", 0)
 
     if status is None:
         status = ENTRY_PLAYING
@@ -252,16 +258,22 @@ def add_entry(
 
 
 def add_pending_hand(
-    orm: DatabaseORM,
-    tournament_id: int,
-    tg_id: int,
-    *,
+    *args: Any,
     bet_chips: int = 10,
+    **kwargs: Any,
 ) -> int:
     """插入一手未终结的赛内牌，供结算复检使用。"""
     from app.core.db import get_session
     from app.domains.blackjack.models import BlackjackHand
     from app.domains.blackjack.rules import STATUS_PLAYER_TURN
+
+    if len(args) >= 3:
+        tournament_id, tg_id = args[1], args[2]
+    elif len(args) == 2:
+        tournament_id, tg_id = args[0], args[1]
+    else:
+        tournament_id = kwargs.get("tournament_id", 0)
+        tg_id = kwargs.get("tg_id", 0)
 
     with get_session() as session:
         hand = BlackjackHand(
@@ -290,9 +302,7 @@ def add_pending_hand(
 
 
 def add_cash_hand(
-    orm: DatabaseORM,
-    tg_id: int,
-    *,
+    *args: Any,
     player_cards: str = '["KH", "5C", "9H"]',
     dealer_cards: str = '["KD", "5C"]',
     bet_credits: int = 15,
@@ -300,6 +310,7 @@ def add_cash_hand(
     created_at_ms: int | None = None,
     surrender_enabled: int = 1,
     tournament_id: int | None = None,
+    **kwargs: Any,
 ) -> int:
     """插入一手未终结的现金局手牌，牌面由用例指定以控制结算结果。
 
@@ -315,6 +326,13 @@ def add_cash_hand(
     from app.core.db import get_session
     from app.domains.blackjack.models import BlackjackHand
     from app.domains.blackjack.rules import STATUS_PLAYER_TURN
+
+    if len(args) >= 2:
+        tg_id = args[1]
+    elif len(args) == 1:
+        tg_id = args[0]
+    else:
+        tg_id = kwargs.get("tg_id", 0)
 
     with get_session() as session:
         hand = BlackjackHand(

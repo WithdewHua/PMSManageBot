@@ -366,21 +366,6 @@ def mark_ghost_compensation_rows_tx(session: Session, row_ids: list[int]) -> Non
         )
 
 
-class WatchRewardsRepository:
-    """Legacy method-shaped adapter retained for compatibility."""
-
-    get_logged_ghost_row_ids = staticmethod(get_logged_ghost_row_ids)
-    add_ghost_session_log = staticmethod(add_ghost_session_log)
-    get_undeleted_ghost_row_ids = staticmethod(get_undeleted_ghost_row_ids)
-    mark_ghost_sessions_deleted = staticmethod(mark_ghost_sessions_deleted)
-
-    def get_pending_ghost_compensation(self) -> dict[str, float]:
-        return {
-            user_id: value["hours"]
-            for user_id, value in get_pending_ghost_compensation_rows().items()
-        }
-
-
 REASSIGNED_TG_ID_COLUMNS: tuple[str, ...] = (
     "watch_reward_settlement.tg_id",
     "watch_reward_settlement.inviter_tg_id",

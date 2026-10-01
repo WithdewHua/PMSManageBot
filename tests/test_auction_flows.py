@@ -151,7 +151,7 @@ async def _bid(auction_id: int, tg_id: int, amount: float, background_tasks=None
 # --------------------------------------------------------------------------- #
 
 
-async def test_create_auction_persists_and_schedules_finish(orm, auction_env) -> None:
+async def test_create_auction_persists_and_schedules_finish(auction_env) -> None:
     background_tasks = BackgroundTasks()
 
     result = await auc.create_auction(
@@ -181,9 +181,7 @@ async def test_create_auction_persists_and_schedules_finish(orm, auction_env) ->
     assert len(background_tasks.tasks) == 0
 
 
-async def test_update_auction_admin_updates_fields_and_reschedules(
-    orm, auction_env
-) -> None:
+async def test_update_auction_admin_updates_fields_and_reschedules(auction_env) -> None:
     auction_id = _create_auction()
 
     result = await auc.update_auction_admin(
@@ -206,7 +204,7 @@ async def test_update_auction_admin_updates_fields_and_reschedules(
     assert auction_env["jobs"][0]["job_id"] == f"finish_auction_{auction_id}"
 
 
-async def test_delete_auction_admin_removes_row_and_job(orm, auction_env) -> None:
+async def test_delete_auction_admin_removes_row_and_job(auction_env) -> None:
     auction_id = _create_auction()
     auction_repository.place_bid(auction_id=auction_id, bidder_id=1, bid_amount=150.0)
 
@@ -227,9 +225,9 @@ async def test_delete_auction_admin_removes_row_and_job(orm, auction_env) -> Non
 # --------------------------------------------------------------------------- #
 
 
-async def test_place_bid_updates_price_and_records_bid(orm, auction_env) -> None:
+async def test_place_bid_updates_price_and_records_bid(auction_env) -> None:
     auction_id = _create_auction()
-    add_user(orm, 1, credits=1000.0)
+    add_user(1, credits=1000.0)
     background_tasks = BackgroundTasks()
 
     result = await _bid(auction_id, 1, 150.0, background_tasks)
@@ -244,14 +242,14 @@ async def test_place_bid_updates_price_and_records_bid(orm, auction_env) -> None
     assert background_tasks.tasks[0].kwargs["bid_amount"] == 150.0
 
 
-async def test_place_bid_rejections(orm, auction_env) -> None:
+async def test_place_bid_rejections(auction_env) -> None:
     active = _create_auction()
     inactive = _create_auction()
     auction_repository.finish_auction_by_id(inactive)
     expired = _create_auction(end_time=PAST)
     own = _create_auction(created_by=1)
-    add_user(orm, 1, credits=1000.0)
-    add_user(orm, 2, credits=5.0)
+    add_user(1, credits=1000.0)
+    add_user(2, credits=5.0)
 
     with pytest.raises(HTTPException) as missing:
         await _bid(999_999, 1, 150.0)
@@ -299,9 +297,9 @@ async def test_place_bid_rejections(orm, auction_env) -> None:
 # --------------------------------------------------------------------------- #
 
 
-async def test_finish_auction_admin_deducts_winner(orm, auction_env) -> None:
+async def test_finish_auction_admin_deducts_winner(auction_env) -> None:
     auction_id = _create_auction()
-    add_user(orm, 1, credits=1000.0)
+    add_user(1, credits=1000.0)
     auction_repository.place_bid(auction_id=auction_id, bidder_id=1, bid_amount=150.0)
     background_tasks = BackgroundTasks()
 
@@ -322,7 +320,7 @@ async def test_finish_auction_admin_deducts_winner(orm, auction_env) -> None:
 
 
 async def test_finish_auction_without_bids_sends_only_forfeit_notification(
-    orm, auction_env
+    auction_env,
 ) -> None:
     """流拍不向空的赢家接收人发送消息，只发送流拍通知。"""
     auction_id = _create_auction()
@@ -340,10 +338,10 @@ async def test_finish_auction_without_bids_sends_only_forfeit_notification(
     assert "无人出价" in auction_env["channel"][0]
 
 
-def test_finish_auction_by_id_is_idempotent(orm, auction_env) -> None:
+def test_finish_auction_by_id_is_idempotent(auction_env) -> None:
     """仓储按活动行加锁，重复结束不再扣分。"""
     auction_id = _create_auction()
-    add_user(orm, 1, credits=1000.0)
+    add_user(1, credits=1000.0)
     auction_repository.place_bid(auction_id=auction_id, bidder_id=1, bid_amount=150.0)
 
     first, _ = auction_repository.finish_auction_by_id(auction_id)
@@ -357,7 +355,7 @@ def test_finish_auction_by_id_is_idempotent(orm, auction_env) -> None:
     assert _credits(1) == 850.0
 
 
-async def test_finish_auction_admin_rejects_inactive_auction(orm, auction_env) -> None:
+async def test_finish_auction_admin_rejects_inactive_auction(auction_env) -> None:
     auction_id = _create_auction()
     auction_repository.finish_auction_by_id(auction_id)
 
@@ -377,7 +375,7 @@ async def test_finish_auction_admin_rejects_inactive_auction(orm, auction_env) -
 # --------------------------------------------------------------------------- #
 
 
-async def test_finish_expired_auctions_job_notifies_forfeit(orm, auction_env) -> None:
+async def test_finish_expired_auctions_job_notifies_forfeit(auction_env) -> None:
     """兜底任务安全处理流拍并发送流拍通知。"""
     _create_auction(end_time=PAST)
 
@@ -389,7 +387,7 @@ async def test_finish_expired_auctions_job_notifies_forfeit(orm, auction_env) ->
 
 
 def test_finish_expired_auctions_group_by_returns_max_bidder_on_sqlite(
-    orm, auction_env
+    auction_env,
 ) -> None:
     """已知缺陷：`group_by(auction_id)` 却选了 `bidder_id`。
 
@@ -397,8 +395,8 @@ def test_finish_expired_auctions_group_by_returns_max_bidder_on_sqlite(
     会因 `bidder_id` 不在 GROUP BY 中直接报错，使真个方法返回空列表。
     """
     auction_id = _create_auction()
-    add_user(orm, 1, credits=1000.0)
-    add_user(orm, 2, credits=1000.0)
+    add_user(1, credits=1000.0)
+    add_user(2, credits=1000.0)
     auction_repository.place_bid(auction_id=auction_id, bidder_id=1, bid_amount=150.0)
     auction_repository.place_bid(auction_id=auction_id, bidder_id=2, bid_amount=200.0)
     # `place_bid` 只接受未过期竞拍，先把出价写入再把结束时间改到过去
@@ -415,7 +413,7 @@ def test_finish_expired_auctions_group_by_returns_max_bidder_on_sqlite(
     assert _auction(auction_id)["is_active"] == 0
 
 
-def test_restore_auction_schedules_all_active_auctions(orm, auction_env) -> None:
+def test_restore_auction_schedules_all_active_auctions(auction_env) -> None:
     """启动恢复处理全部未结束的活动竞拍。"""
     with get_session() as session:
         for index in range(51):

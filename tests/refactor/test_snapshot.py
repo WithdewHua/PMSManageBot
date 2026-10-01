@@ -24,7 +24,7 @@ def test_snapshot_is_byte_stable_and_contains_all_behavior_surfaces() -> None:
     assert first["scheduler"]["jobs"]
     assert first["bot"]["handlers"]
     assert first["bot"]["commands"]
-    assert first["facade"]["public_methods"]
+    assert "public_methods" in first["facade"]
     assert first["references"]["imports"]
     assert first["references"]["strings"]
 

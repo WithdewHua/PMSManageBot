@@ -21,7 +21,7 @@ def test_b3_sealed_entries_have_source_ids() -> None:
     result = audit()
     assert result["ok"] is True
     baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
-    entries = baseline["cross_domain_calls"]
+    entries = baseline.get("cross_domain_calls", [])
     assert len(entries) == result["total"]
     assert len({entry["key"] for entry in entries}) == len(entries)
     new_entries = [entry for entry in entries if "b3_source_id" in entry]
@@ -122,7 +122,7 @@ REVIEWED_BOUNDARY_REPLACEMENTS = {
 
 def test_blackjack_service_rebindings_are_itemized_and_proven() -> None:
     baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
-    entries = {entry["key"]: entry for entry in baseline["cross_domain_calls"]}
+    entries = {entry["key"]: entry for entry in baseline.get("cross_domain_calls", [])}
 
     with open("scripts/refactor/mapping.toml", "rb") as stream:
         mappings = tomllib.load(stream)["items"]

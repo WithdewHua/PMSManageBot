@@ -465,7 +465,7 @@ def audit(*, write: bool = False) -> dict[str, object]:
     frozen = _frozen_items()
     actual = scan_all(ROOT)["cross_domain_calls"]
     baseline_groups: defaultdict[str, list[dict[str, object]]] = defaultdict(list)
-    for entry in baseline["cross_domain_calls"]:
+    for entry in baseline.get("cross_domain_calls", []):
         baseline_groups[_normalized(entry)].append(entry)
     actual_groups: defaultdict[str, list[dict[str, object]]] = defaultdict(list)
     for entry in actual:

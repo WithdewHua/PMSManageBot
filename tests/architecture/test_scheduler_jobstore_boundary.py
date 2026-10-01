@@ -1,7 +1,6 @@
 """The B3 jobstore migration gets one narrowly scoped infrastructure DB edge."""
 
 import ast
-import subprocess
 import tomllib
 
 from tests.architecture.helpers import PROJECT_ROOT
@@ -19,20 +18,18 @@ def _allowed_importers(text: str) -> set[str]:
 
 
 def test_scheduler_is_the_only_new_database_engine_importer() -> None:
-    commit = (PROJECT_ROOT / "scripts/refactor/B3_BASE").read_text().strip()
-    original = subprocess.check_output(
-        ["git", "show", f"{commit}:pyproject.toml"],
-        cwd=PROJECT_ROOT,
-        text=True,
-    )
     current = (PROJECT_ROOT / "pyproject.toml").read_text()
-    assert _allowed_importers(current) - _allowed_importers(original) == {
-        "app.core.scheduler",
+    assert _allowed_importers(current) == {
+        "app.core.kv",
         "app.core.domain_config",
         "app.core.events",
+        "app.core.scheduler",
+        "app.domains.*.models",
+        "app.domains.*.repository",
+        "app.domains.*.repository.*",
         "app.domains.traffic.repository_tx",
+        "app.model_registry",
     }
-    assert not _allowed_importers(original) - _allowed_importers(current)
     assert "app.core.*" not in _allowed_importers(current)
 
 

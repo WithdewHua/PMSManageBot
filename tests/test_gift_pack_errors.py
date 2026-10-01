@@ -141,7 +141,7 @@ def test_router_uses_typed_status_codes_instead_of_substrings() -> None:
     assert '"不存在" in message' not in source
 
 
-def _started_pack(orm) -> int:
+def _started_pack() -> int:
     """一个已经开始、可以领取的礼包，用于编辑/删除路径的状态码断言。"""
     import json
     import time
@@ -168,7 +168,7 @@ def _started_pack(orm) -> int:
     return 900001
 
 
-def test_delete_missing_pack_is_a_404_typed_error(orm) -> None:
+def test_delete_missing_pack_is_a_404_typed_error() -> None:
     with pytest.raises(GiftPackError) as rejected:
         gift_pack_repository.delete_gift_pack(999999)
 
@@ -177,7 +177,7 @@ def test_delete_missing_pack_is_a_404_typed_error(orm) -> None:
     assert rejected.value.as_response()["detail"] == "礼包不存在"
 
 
-def test_update_missing_pack_is_a_400_typed_error(orm) -> None:
+def test_update_missing_pack_is_a_400_typed_error() -> None:
     with pytest.raises(GiftPackError) as rejected:
         gift_pack_repository.update_gift_pack(999999, title="新标题")
 
@@ -185,8 +185,8 @@ def test_update_missing_pack_is_a_400_typed_error(orm) -> None:
     assert rejected.value.status_code == 400
 
 
-def test_post_start_edit_rejection_is_typed(orm) -> None:
-    pack_id = _started_pack(orm)
+def test_post_start_edit_rejection_is_typed() -> None:
+    pack_id = _started_pack()
 
     with pytest.raises(GiftPackError) as rejected:
         gift_pack_repository.update_gift_pack(

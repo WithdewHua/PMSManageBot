@@ -106,9 +106,9 @@ def _fail_with(message: str):
     return _raise
 
 
-def test_cash_settlement_rolls_back_when_payout_fails(orm, monkeypatch):
-    add_user(orm, 1, credits=100.0)
-    hand_id = add_cash_hand(orm, 1, **WINNING_HAND)
+def test_cash_settlement_rolls_back_when_payout_fails(monkeypatch):
+    add_user(1, credits=100.0)
+    hand_id = add_cash_hand(1, **WINNING_HAND)
     monkeypatch.setattr(credits_repository, "add_tx", _fail_with("payout unavailable"))
 
     with (
@@ -124,9 +124,9 @@ def test_cash_settlement_rolls_back_when_payout_fails(orm, monkeypatch):
     assert _hand(hand_id)["outcome"] is None
 
 
-def test_timeout_settlement_rolls_back_when_payout_fails(orm, monkeypatch):
-    add_user(orm, 1, credits=100.0)
-    hand_id = add_cash_hand(orm, 1, **WINNING_HAND)
+def test_timeout_settlement_rolls_back_when_payout_fails(monkeypatch):
+    add_user(1, credits=100.0)
+    hand_id = add_cash_hand(1, **WINNING_HAND)
     monkeypatch.setattr(credits_repository, "add_tx", _fail_with("payout unavailable"))
 
     with (
@@ -141,16 +141,15 @@ def test_timeout_settlement_rolls_back_when_payout_fails(orm, monkeypatch):
     assert _hand(hand_id)["status"] == STATUS_PLAYER_TURN
 
 
-def test_tournament_registration_rolls_back_when_buy_in_fails(orm, monkeypatch):
+def test_tournament_registration_rolls_back_when_buy_in_fails(monkeypatch):
     now_ms = int(time.time() * 1000)
     tournament = add_tournament(
-        orm,
         status=TOURNAMENT_REGISTERING,
         register_deadline_ms=now_ms + 3600 * 1000,
         entrant_count=0,
         buy_in_credits=30,
     )
-    add_user(orm, 1, credits=100.0)
+    add_user(1, credits=100.0)
     monkeypatch.setattr(
         credits_repository, "deduct_tx", _fail_with("balance update unavailable")
     )
@@ -173,16 +172,14 @@ def test_tournament_registration_rolls_back_when_buy_in_fails(orm, monkeypatch):
     assert _entry(tournament["id"], 1) is None
 
 
-def test_tournament_settlement_rolls_back_when_prize_payout_fails(orm, monkeypatch):
-    tournament = add_tournament(orm, status=TOURNAMENT_RUNNING)
-    add_user(orm, 1, credits=0.0)
-    add_user(orm, 2, credits=0.0)
+def test_tournament_settlement_rolls_back_when_prize_payout_fails(monkeypatch):
+    tournament = add_tournament(status=TOURNAMENT_RUNNING)
+    add_user(1, credits=0.0)
+    add_user(2, credits=0.0)
     add_entry(
-        orm, tournament["id"], 1, status=ENTRY_FINISHED, chips=1200, registered_at_ms=1
+        tournament["id"], 1, status=ENTRY_FINISHED, chips=1200, registered_at_ms=1
     )
-    add_entry(
-        orm, tournament["id"], 2, status=ENTRY_FINISHED, chips=800, registered_at_ms=2
-    )
+    add_entry(tournament["id"], 2, status=ENTRY_FINISHED, chips=800, registered_at_ms=2)
     monkeypatch.setattr(
         credits_repository, "add_tx", _fail_with("prize payout unavailable")
     )
@@ -199,10 +196,10 @@ def test_tournament_settlement_rolls_back_when_prize_payout_fails(orm, monkeypat
     assert _stats(1)["credits"] == 0.0
 
 
-def test_free_spin_grant_failure_aborts_cash_settlement(orm, monkeypatch):
-    add_user(orm, 1, credits=100.0)
+def test_free_spin_grant_failure_aborts_cash_settlement(monkeypatch):
+    add_user(1, credits=100.0)
     _set_freespin_progress(1, int(CONFIG["freespins_hand_threshold"]) - 1)
-    hand_id = add_cash_hand(orm, 1, **WINNING_HAND)
+    hand_id = add_cash_hand(1, **WINNING_HAND)
     monkeypatch.setattr(
         luckywheel_repository,
         "grant_free_spins_tx",
@@ -225,10 +222,10 @@ def test_free_spin_grant_failure_aborts_cash_settlement(orm, monkeypatch):
     assert _freespin_ids(1) == []
 
 
-def test_free_spin_grants_share_the_settlement_transaction(orm):
-    add_user(orm, 1, credits=100.0)
+def test_free_spin_grants_share_the_settlement_transaction():
+    add_user(1, credits=100.0)
     _set_freespin_progress(1, int(CONFIG["freespins_hand_threshold"]) - 1)
-    hand_id = add_cash_hand(orm, 1, **WINNING_HAND)
+    hand_id = add_cash_hand(1, **WINNING_HAND)
 
     with pytest.raises(RuntimeError, match="caller aborted"), get_session() as session:
         result = blackjack_repository.blackjack_stand_tx(
@@ -246,8 +243,8 @@ def test_free_spin_grants_share_the_settlement_transaction(orm):
     assert _hand(hand_id)["status"] == STATUS_PLAYER_TURN
 
 
-def test_free_spin_grant_rolls_back_on_caller_abort(orm):
-    add_user(orm, 1, credits=0.0)
+def test_free_spin_grant_rolls_back_on_caller_abort():
+    add_user(1, credits=0.0)
     now_ms = int(time.time() * 1000)
 
     with pytest.raises(RuntimeError, match="caller aborted"), get_session() as session:
@@ -265,8 +262,8 @@ def test_free_spin_grant_rolls_back_on_caller_abort(orm):
     assert _freespin_ids(1) == []
 
 
-def test_free_spin_grant_commits_with_the_caller_transaction(orm):
-    add_user(orm, 1, credits=0.0)
+def test_free_spin_grant_commits_with_the_caller_transaction():
+    add_user(1, credits=0.0)
     now_ms = int(time.time() * 1000)
 
     with get_session() as session:
@@ -282,18 +279,16 @@ def test_free_spin_grant_commits_with_the_caller_transaction(orm):
     assert len(_freespin_ids(1)) == 1
 
 
-def test_tournament_settlement_commits_when_payouts_succeed(orm):
+def test_tournament_settlement_commits_when_payouts_succeed():
     """对照：同一路径成功时名次、状态与奖金一起落库。"""
 
-    tournament = add_tournament(orm, status=TOURNAMENT_RUNNING)
-    add_user(orm, 1, credits=0.0)
-    add_user(orm, 2, credits=0.0)
+    tournament = add_tournament(status=TOURNAMENT_RUNNING)
+    add_user(1, credits=0.0)
+    add_user(2, credits=0.0)
     add_entry(
-        orm, tournament["id"], 1, status=ENTRY_FINISHED, chips=1200, registered_at_ms=1
+        tournament["id"], 1, status=ENTRY_FINISHED, chips=1200, registered_at_ms=1
     )
-    add_entry(
-        orm, tournament["id"], 2, status=ENTRY_FINISHED, chips=800, registered_at_ms=2
-    )
+    add_entry(tournament["id"], 2, status=ENTRY_FINISHED, chips=800, registered_at_ms=2)
 
     with get_session() as session:
         result = blackjack_repository.settle_blackjack_tournament_tx(

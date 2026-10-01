@@ -960,8 +960,6 @@ async def test_bot_error_handling_fallback(session_env, monkeypatch) -> None:
 
 def test_invitation_owner_invitee_count_and_codes(session_env) -> None:
     """invitation.service/repository 的 get_invitee_count_by_owner 与 get_invitation_code_by_owner 测试。"""
-    from app.domains.invitation.repository import InvitationRepository
-
     with get_session() as session:
         # Owner 501: 2 available codes, 1 used code with used_by, 1 used code with duplicate used_by, 1 used code with None used_by
         session.add(Invitation(code="avail_1", owner=501, is_used=0, used_by=None))
@@ -979,28 +977,14 @@ def test_invitation_owner_invitee_count_and_codes(session_env) -> None:
     assert invitation_service.get_invitee_count_by_owner(502) == 0
     assert invitation_service.get_invitee_count_by_owner(999) == 0
 
-    # 类方法转发一致性
-    legacy_repo = InvitationRepository()
-    assert legacy_repo.get_invitee_count_by_owner(501) == 2
-    assert legacy_repo.get_invitee_count_by_owner(502) == 0
-
     # 2. get_invitation_code_by_owner 测试
     # 默认 is_available=True：只返回 is_used == 0
     avail_codes = invitation_service.get_invitation_code_by_owner(501)
     assert set(avail_codes) == {"avail_1", "avail_2"}
-    assert set(legacy_repo.get_invitation_code_by_owner(501)) == {"avail_1", "avail_2"}
 
     # is_available=False：返回所有 code
     all_codes = invitation_service.get_invitation_code_by_owner(501, is_available=False)
     assert set(all_codes) == {
-        "avail_1",
-        "avail_2",
-        "used_1",
-        "used_2",
-        "used_3",
-        "used_none",
-    }
-    assert set(legacy_repo.get_invitation_code_by_owner(501, is_available=False)) == {
         "avail_1",
         "avail_2",
         "used_1",

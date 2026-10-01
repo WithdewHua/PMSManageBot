@@ -306,15 +306,18 @@ def _bot_snapshot() -> dict[str, Any]:
 
 
 def _facade_snapshot() -> dict[str, Any]:
-    from app.databases import db
+    try:
+        from app.databases import db
 
-    return {
-        "public_methods": sorted(
-            name
-            for name in dir(db)
-            if not name.startswith("_") and callable(getattr(db, name))
-        )
-    }
+        return {
+            "public_methods": sorted(
+                name
+                for name in dir(db)
+                if not name.startswith("_") and callable(getattr(db, name))
+            )
+        }
+    except ModuleNotFoundError:
+        return {"public_methods": []}
 
 
 def _module_name(path: Path, root: Path) -> str:
