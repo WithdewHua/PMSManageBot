@@ -149,7 +149,9 @@ def build_activity_snapshot() -> dict[str, Any]:
         "domains": sections,
         "named_tasks": _named_tasks(),
         "legacy_task_refs": sorted(
-            __import__("app.schedule", fromlist=["LEGACY_TASK_REFS"]).LEGACY_TASK_REFS
+            __import__(
+                "scripts.migrate_legacy_job_refs", fromlist=["LEGACY_TASK_REFS"]
+            ).LEGACY_TASK_REFS
         ),
     }
 

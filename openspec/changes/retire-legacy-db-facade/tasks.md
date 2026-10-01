@@ -12,8 +12,8 @@
 
 ## 3. 任务引用迁移移出应用
 
-- [ ] 3.1 新增独立脚本 `scripts/migrate_legacy_job_refs.py`：原样迁入正向和反向改写逻辑，不导入 `app`，保留 `--reverse --scheduler-stopped` 的确认。然后删除 `LEGACY_TASK_REFS`、`migrate_persisted_jobs`、`core/scheduler.py` 中的改写助手和过渡开关、`core/db.py` 中的 `rewrite_scheduler_rows`，以及 `core.scheduler` 对 `core.db` 的例外放行。验证：原 `test_job_references.py` 的场景改为针对脚本运行，全部通过，包括逐字节反向恢复和缺少停止确认时拒绝；`app` 中不再出现 `LEGACY_TASK_REFS`。
-- [ ] 3.2 新增启动守卫 `assert_no_legacy_job_refs`，在 `scheduler.start()` 之前运行；在 `docs/architecture.md` 的部署回退一节和发布说明中写明升级步骤。验证：
+- [x] 3.1 新增独立脚本 `scripts/migrate_legacy_job_refs.py`：原样迁入正向和反向改写逻辑，不导入 `app`，保留 `--reverse --scheduler-stopped` 的确认。然后删除 `LEGACY_TASK_REFS`、`migrate_persisted_jobs`、`core/scheduler.py` 中的改写助手和过渡开关、`core/db.py` 中的 `rewrite_scheduler_rows`，以及 `core.scheduler` 对 `core.db` 的例外放行。验证：原 `test_job_references.py` 的场景改为针对脚本运行，全部通过，包括逐字节反向恢复和缺少停止确认时拒绝；`app` 中不再出现 `LEGACY_TASK_REFS`。
+- [x] 3.2 新增启动守卫 `assert_no_legacy_job_refs`，在 `scheduler.start()` 之前运行；在 `docs/architecture.md` 的部署回退一节和发布说明中写明升级步骤。验证：
   - 在一次性环境中预置两条旧格式记录后启动，进程以非 0 状态退出，日志给出脚本的用法，记录不被改动。
   - 运行脚本后启动正常，任务按原定时间触发。
   - 表不存在时正常启动。

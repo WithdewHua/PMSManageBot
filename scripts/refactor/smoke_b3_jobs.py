@@ -15,10 +15,9 @@ from sqlalchemy import select, update
 from app.core.scheduler import (
     RUN_TASK_REF,
     register_task,
-    rewrite_job_references,
     run_task,
 )
-from app.schedule import LEGACY_TASK_REFS
+from scripts.migrate_legacy_job_refs import LEGACY_TASK_REFS, rewrite_job_references
 
 
 async def main() -> int:

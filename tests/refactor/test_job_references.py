@@ -9,9 +9,15 @@ from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import inspect, select, update
 
-from app.core.scheduler import RUN_TASK_REF, rewrite_job_references, run_task
-from app.schedule import LEGACY_TASK_REFS
-from scripts.refactor.rewrite_job_refs import main as rewrite_cli
+from app.core.scheduler import run_task
+from scripts.migrate_legacy_job_refs import (
+    LEGACY_TASK_REFS,
+    RUN_TASK_REF,
+    rewrite_job_references,
+)
+from scripts.migrate_legacy_job_refs import (
+    main as rewrite_cli,
+)
 
 
 def _install_legacy_callable(

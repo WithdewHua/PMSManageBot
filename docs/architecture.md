@@ -192,9 +192,24 @@ B2 过渡基线以 `scripts/refactor/B2_BASE` 中的 B1 提交为来源。B3 机
 
 已审阅旧 `CreditsRepository.update_user_credits`：代码库和手工运维清单均无调用者，也没有对应的 `app.manage` 操作入口；该方法已删除，不保留兼容 wrapper。后续人工调整积分必须通过经过审计的 credits service/repository delta API，并记录事务所有者。
 
-## 部署回退
+## 部署回退与任务引用迁移
 
-B3 起，部署回退必须在维护窗口执行：停止所有 B3 调度器 → 运行 `python -m scripts.refactor.rewrite_job_refs --reverse --scheduler-stopped` → 不启动 B3，直接回退镜像并启动旧版本。脚本会拒绝未知格式、无停止确认或运行中回退，确保 jobstore 记录逐字节可恢复。
+升级步骤：
+从 B3 之前的版本升级时，如果数据库中包含旧格式的任务引用（例如模块完整路径而非具名任务），应用启动时的启动守卫 `assert_no_legacy_job_refs` 会拒绝启动并输出错误提示，防止 APScheduler 静默删除无法解析的任务记录。升级前请先在维护窗口停止调度器并执行迁移脚本：
+```bash
+python -m scripts.migrate_legacy_job_refs
+```
+迁移完成后启动应用，调度任务按原定时间触发。表不存在或记录已迁移时，启动守卫自动通过。
+
+部署回退：
+若需回退到 B3 之前的旧版本镜像，必须在维护窗口执行以下步骤：
+1. 停止所有运行中的调度器进程。
+2. 运行反向恢复脚本（必须提供 `--reverse --scheduler-stopped` 确认标志）：
+   ```bash
+   python -m scripts.migrate_legacy_job_refs --reverse --scheduler-stopped
+   ```
+   脚本会逐字节恢复旧版本所需的函数引用格式。
+3. 不启动新版本，直接回退镜像并启动旧版本。
 
 ## B3 本地部署彩排证据
 
