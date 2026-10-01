@@ -20,12 +20,12 @@
 
 ## 4. 工具、测试与脚本精简
 
-- [ ] 4.1 把 `snapshot.py` 和 `check_metadata_pg.py` 移到 `scripts/verify/`，去掉门面方法清单、BASE 回退和字符串引用解析；删除 `main.py` 中的兼容垫片；更新对应的测试。验证：连续生成两次快照，输出逐字节一致；与改动前的快照相比，只少了被删除的那几项。
-- [ ] 4.2 删除 `scripts/refactor/` 中其余的脚本和数据文件，以及 21 点试点的冻结夹具和测试；把 `tests/refactor/` 中测试生产代码的 5 个文件移到 `tests/`，然后删除 `tests/refactor/`。验证：全量测试通过；`scripts/refactor/` 和 `tests/refactor/` 都不存在；`pre-commit run --all-files` 通过，而且不再创建 git worktree。
+- [x] 4.1 把 `snapshot.py` 和 `check_metadata_pg.py` 移到 `scripts/verify/`，去掉门面方法清单、BASE 回退和字符串引用解析；删除 `main.py` 中的兼容垫片；更新对应的测试。验证：连续生成两次快照，输出逐字节一致；与改动前的快照相比，只少了被删除的那几项。
+- [x] 4.2 删除 `scripts/refactor/` 中其余的脚本和数据文件，以及 21 点试点的冻结夹具和测试；把 `tests/refactor/` 中测试生产代码的 5 个文件移到 `tests/`，然后删除 `tests/refactor/`。验证：全量测试通过；`scripts/refactor/` 和 `tests/refactor/` 都不存在；`pre-commit run --all-files` 通过，而且不再创建 git worktree。
 - [x] 4.3 对 `migrate_redis_to_database.py` 和 `migrate_line_traffic_stats.py`，核对手动运维清单并请维护者逐个确认：保留的改用领域 API，并登记进清单；不需要的删除。验证：确认结论记录在本变更中；`scripts` 中不再导入 `app.databases`。
 
 ## 5. 文档与集成验证
 
-- [ ] 5.1 按 design D7 更新 AGENTS.md 和 `docs/architecture.md`。验证：两份文档中都不再出现 `app.databases`、`DatabaseORM`、`db_func`、`app.log`、`app/config.py`、`app/models/models.py` 和"过渡"字样的规则；文中的命令都能按原样执行。
+- [x] 5.1 按 design D7 更新 AGENTS.md 和 `docs/architecture.md`。验证：两份文档中都不再出现 `app.databases`、`DatabaseORM`、`db_func`、`app.log`、`app/config.py`、`app/models/models.py` 和"过渡"字样的规则；文中的命令都能按原样执行。
 - [ ] 5.2 在干净环境中运行全部校验：新的 worktree，editable 安装，没有 `__pycache__`。校验项包括 `pytest tests/`、`ruff check`、`ruff format --check`、`lint-imports`、`pre-commit run --all-files` 和 `scripts/verify/check_metadata_pg.py`；并新增测试，断言导入 `app.databases`、`app.webapp`、`app.models` 会抛出 `ModuleNotFoundError`。验证：全部通过；元数据没有差异。
 - [ ] 5.3 运行 `openspec validate retire-legacy-db-facade --strict`。验证：校验通过；工作区干净。

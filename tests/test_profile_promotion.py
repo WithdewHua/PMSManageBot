@@ -150,9 +150,7 @@ def legacy_namespace():
         ),
     }
     fixture = json.loads(
-        (
-            Path(__file__).parent / "refactor/fixtures/profile_legacy_routes.json"
-        ).read_text()
+        (Path(__file__).parent / "fixtures/profile_legacy_routes.json").read_text()
     )
     for source in fixture["functions"].values():
         exec(compile(source, fixture["source_ref"], "exec"), namespace)  # noqa: S102 -- versioned test fixture only

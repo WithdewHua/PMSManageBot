@@ -3,19 +3,12 @@ import threading
 
 from telegram.ext import ApplicationBuilder
 
-from app.bot.app import register_handlers
+from app.bot.app import register_handlers, set_bot_commands
 from app.core import events
 from app.core.config import settings
 from app.core.log import logger
 from app.core.scheduler import Scheduler
 from app.model_registry import init_db
-
-
-async def set_bot_commands(application):
-    """Compatibility alias for the bot assembly command menu."""
-    from app.bot.app import set_bot_commands as configure_commands
-
-    await configure_commands(application)
 
 
 async def post_init_services(application):
@@ -58,13 +51,6 @@ def start_api_server():
 def start_bot(application):
     """启动 Telegram Bot"""
     application.run_polling()
-
-
-def add_init_scheduler_job() -> None:
-    """Register all recurring jobs and startup recovery hooks."""
-    from app.schedule import register_all
-
-    register_all(Scheduler())
 
 
 if __name__ == "__main__":

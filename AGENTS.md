@@ -124,7 +124,6 @@ uv pip install ".[test]"
   from app.domains.credits import service as credits_service
   from app.core.config import settings
   ```
-  Existing imports retain their old paths only until the corresponding B-stage relocation; don't introduce new dependencies on those paths.
 - Order: stdlib → third-party → local (enforced by ruff `I` ruleset).
 - Avoid wildcard imports. Bot handlers are explicitly registered in the target `app.bot.app`.
 
@@ -133,9 +132,9 @@ uv pip install ".[test]"
 | Category | Style | Example |
 |---|---|---|
 | Variables & functions | `snake_case` | `plex_id`, `get_plex_info_by_tg_id()` |
-| Classes | `PascalCase` | `DatabaseORM`, `TelegramAuthMiddleware` |
+| Classes | `PascalCase` | `TelegramAuthMiddleware`, `RedisCache` |
 | Constants / env vars | `SCREAMING_SNAKE_CASE` | `TG_API_TOKEN`, `PLEX_BASE_URL` |
-| Module filenames | `snake_case` | `db_func.py`, `custom_line.py` |
+| Module filenames | `snake_case` | `custom_line.py`, `service.py` |
 | ORM table/column names | `snake_case` | `plex_user`, `auction_bids` |
 | Private methods | Single underscore prefix | `_load_from_env_file()`, `_get_cache_key()` |
 
@@ -160,9 +159,9 @@ uv pip install ".[test]"
 
 #### Error Handling
 
-1. **Legacy DB operations** — existing complete-transaction methods wrap in `try/except Exception as e`, log with `logger.error`, and return `False`/`None`. Keep this behavior when mechanically moving them. `*_tx(session, …)` helpers must **not** swallow exceptions; let them propagate so the outer transaction rolls back:
+1. **Domain repository operations** — standalone complete-transaction methods wrap in `try/except Exception as e`, log with `logger.error`, and return `False`/`None`. `*_tx(session, …)` helpers must **not** swallow exceptions; let them propagate so the outer transaction rolls back:
    ```python
-   def some_db_operation(self, ...) -> bool:
+   def some_db_operation(...) -> bool:
        try:
            with get_session() as session:
                ...
@@ -172,7 +171,7 @@ uv pip install ".[test]"
            return False
    ```
 
-2. **Session management** — use the `get_session()` context manager (currently `app.databases.session`, moving to `app.core.db`) **only inside a domain repository**. It handles commit/rollback/close automatically. Cross-domain operations in one transaction must call the target domain's `*_tx(session, …)` helper, not open a second session.
+2. **Session management** — use the `get_session()` context manager (`app.core.db.get_session`) **only inside a domain repository**. It handles commit/rollback/close automatically. Cross-domain operations in one transaction must call the target domain's `*_tx(session, …)` helper, not open a second session.
 
 3. **FastAPI routes** — raise `HTTPException` with appropriate status codes. Detail messages
    follow the existing Chinese-language convention:
@@ -183,7 +182,7 @@ uv pip install ".[test]"
    )
    ```
 
-4. **Business logic violations** — keep raising `ValueError` until the shared `DomainError` base is introduced by the first `promote-*` change that needs it; after that, new domain code uses a domain-specific `DomainError` subclass (in that domain's `exceptions.py`) with structured code and payload. Preserve existing `ValueError` handling when mechanically relocating legacy code; conversion belongs to the relevant `promote-*` change.
+4. **Business logic violations** — use a domain-specific `DomainError` subclass (in that domain's `exceptions.py`) with structured code and payload; the API layer converts `DomainError` to HTTP responses.
 
 5. **Critical operations** — include `traceback.print_exc()` alongside `logger.error` when
    a full stack trace is needed for debugging.
@@ -195,7 +194,7 @@ uv pip install ".[test]"
 Use the project logger exclusively — never `print()` in backend code (scripts are exempt):
 
 ```python
-from app.core.log import logger  # legacy code retains app.log until its relocation
+from app.core.log import logger
 
 logger.info("Message")
 logger.error(f"Error doing X: {e}")
@@ -240,7 +239,7 @@ logger.warning("Warning message")
 The domain inventory, ownership of wide-table columns, existing exceptions and manual operations are in [docs/architecture.md](docs/architecture.md).
 
 - **Invocation direction:** entry points (`router`, `admin_router`, `jobs`, `bot`) → `service` → `repository` → `models`; pure computation belongs in `rules`. Dependencies across domains flow from higher to lower tiers (T5 → T0); same-tier dependencies must not cycle. T4 domains coordinate multi-domain operations; do not create a separate application layer.
-- **Service API granularity:** expose the owning domain's capabilities and use cases, not a mirror of foreign APIs. Coordinate foreign `service` calls inside the local use case; do not add public one-line cross-domain forwarding methods merely to satisfy import boundaries (e.g. prefer a badge-center use case over `badges.get_user_credits`). Simple delegation from a service to its **own** repository is valid, as are explicitly tracked transitional compat facades. Reuse existing semantic APIs; do not force one method per endpoint or merge unrelated operations into a giant workflow. Review meaning and ownership, not method length. See 「Service 接口粒度」 in `docs/architecture.md`.
+- **Service API granularity:** expose the owning domain's capabilities and use cases, not a mirror of foreign APIs. Coordinate foreign `service` calls inside the local use case; do not add public one-line cross-domain forwarding methods merely to satisfy import boundaries (e.g. prefer a badge-center use case over `badges.get_user_credits`). Simple delegation from a service to its **own** repository is valid. Reuse existing semantic APIs; do not force one method per endpoint or merge unrelated operations into a giant workflow. Review meaning and ownership, not method length. See 「Service 接口粒度」 in `docs/architecture.md`.
 - **Database boundary:** only domain `repository.py` (or a same-named repository package) contains business SQLAlchemy queries and transaction management. Routers, services, and jobs do not call `get_session()` or query ORM models. A cross-domain transaction calls the target domain's `*_tx(session, …)` helper; a separate session would break atomicity and may deadlock.
 - **Side effects:** network API calls, notifications and background scheduling happen in services after commit, not inside repository transactions. Lower tiers notify higher tiers with post-commit domain events, never direct upward imports. All invitation code issuance (including privileged codes) executes transactionally inside domain repositories.
 - **Credits:** change user balances only through locked delta increment/decrement operations in the credits domain, not by writing absolute balances. Do not add user state columns to `Statistics`, `PlexUser` or `EmbyUser`; put new per-user state in the owning domain's table keyed by `tg_id`.
@@ -253,6 +252,7 @@ The domain inventory, ownership of wide-table columns, existing exceptions and m
 
 | New work | Location |
 |---|---|
+| New domain package | Assign tier in `pyproject.toml` Six-tier contract first (`exhaustive = true`); domain package under `src/app/domains/<domain>/` |
 | HTTP endpoint / Telegram command / scheduled entry | Owning domain's `router.py` or `admin_router.py` / `bot.py` / `jobs.py`; composition only in `api/`, `bot/app.py` or `schedule.py` |
 | Business workflow, especially coordination of multiple domains | Owning domain's `service.py`; multi-domain strategy in a T4 domain, **not** a new application layer |
 | SQLAlchemy query, write or transactional helper | Owning domain's `repository.py` / `repository/`; model in `models.py` |
@@ -261,9 +261,9 @@ The domain inventory, ownership of wide-table columns, existing exceptions and m
 | HTTP transport adapter / Telegram admin delivery | `transport/http/` / `transport/telegram/` |
 | Runtime business setting / infrastructure secret | Business settings use domain `config.py` backed by `SystemConfig`; infrastructure secrets and deployment settings remain read-only in `data/.env` via `core.config` |
 
-**Transition (B-stage mechanical move):** Existing `db.xxx()` calls remain intact. The `app.databases.db` singleton temporarily composes domain repository mixins; the facade file itself gets no new methods. A new database operation goes in its owning domain's repository mixin and may be called as `db.xxx()` from that same domain, but do not add new cross-domain `db.xxx()` calls. Move old code without altering behavior or broadly replacing existing calls; later `promote-*` changes introduce services and remove the facade. Do not add compatibility import modules for moved code. Modules exceeding 1,000 lines become same-named packages split by subtopic.
+Modules exceeding 1,000 lines become same-named packages split by subtopic.
 
-A function with no codebase callers is **not necessarily dead**. Before removing one, check the manual operations list in [docs/architecture.md](docs/architecture.md) and confirm with the maintainer; `db.rebind_user_tg_id(...)` is a known manual entry point.
+A function with no codebase callers is **not necessarily dead**. Before removing one, check the manual operations list in [docs/architecture.md](docs/architecture.md) and confirm with the maintainer; `python -m app.manage` subcommands are known manual entry points.
 
 ---
 
@@ -273,7 +273,7 @@ A function with no codebase callers is **not necessarily dead**. Before removing
 - `WEBAPP_INIT_DATA_MAX_AGE` 默认为 `86400` 秒；Mini App 打开超过有效期后需重新打开以获得新的 initData。
 
 - Copy `.env.example` to `data/.env` and fill in values before running locally.
-- `Settings` (`pydantic-settings` `BaseSettings`; currently `app/core/config.py`) loads infrastructure settings from system env → `data/.env` → defaults. Runtime business settings are typed `DomainConfig` declarations persisted in `SystemConfig`; legacy business keys in `.env` are read only for first-run seeding.
+- `Settings` (`pydantic-settings` `BaseSettings`; `app.core.config`) loads infrastructure settings from system env → `data/.env` → defaults. Runtime business settings are typed `DomainConfig` declarations persisted in `SystemConfig`; legacy business keys in `.env` are read only for first-run seeding.
 - Never hardcode secrets or service URLs — always read from `settings.*`.
 - Key variables: `TG_API_TOKEN`, `PLEX_BASE_URL`, `EMBY_BASE_URL`, `DATABASE_URL`,
   `REDIS_HOST`, `WEBAPP_URL`, `SESSION_SECRET_KEY`.
@@ -282,7 +282,7 @@ A function with no codebase callers is **not necessarily dead**. Before removing
 
 ## Database Migrations
 
-- Always create a migration when changing SQLAlchemy models in a domain `models.py` (legacy models remain in `app/models/models.py` until B1):
+- Always create a migration when changing SQLAlchemy models in a domain `models.py`:
   ```bash
   alembic revision --autogenerate -m "add column foo to plex_user"
   alembic upgrade head

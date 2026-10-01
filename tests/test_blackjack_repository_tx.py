@@ -51,14 +51,22 @@ def test_module_tx_exports_have_explicit_caller_session() -> None:
 
 
 def _planned_mixin_modules() -> list[Path]:
-    """The modules the reviewed split plan declares for this repository."""
-    import tomllib
-
+    """The modules in this repository package."""
     root = Path(__file__).parents[1]
-    with (root / "scripts/refactor/split_plans.toml").open("rb") as stream:
-        plan = tomllib.load(stream)["blackjack_repository"]
-    package = root / "src" / Path(*plan["package"].split("."))
-    return [package / f"{stem}.py" for stem in plan["mixins"]]
+    package = root / "src/app/domains/blackjack/repository"
+    mixin_stems = [
+        "hands",
+        "settlement",
+        "jackpot",
+        "retention",
+        "wallet",
+        "stats",
+        "tournaments",
+        "tournament_entries",
+        "tournament_play",
+        "config_store",
+    ]
+    return [package / f"{stem}.py" for stem in mixin_stems]
 
 
 def test_extracted_tx_methods_do_not_open_or_commit_sessions() -> None:
