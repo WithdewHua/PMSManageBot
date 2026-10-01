@@ -16,7 +16,7 @@ from app.domains.tg_rebind.exceptions import (
     TgRebindRejected,
     TgRebindSameId,
 )
-from tests.refactor.tg_rebind_backends import rebind_backend
+from tests.tg_rebind_backends import rebind_backend
 from tests.tg_rebind_fixture import (
     DEFAULT_NEW_TG_ID,
     DEFAULT_OLD_TG_ID,
