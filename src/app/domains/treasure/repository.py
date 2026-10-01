@@ -127,7 +127,7 @@ class TreasureRepository:
             ]
 
     def list_treasure_participations(
-        self, issue_id: int, limit: int = 200
+        self, issue_id: int, limit: int = 200, offset: int = 0
     ) -> list[dict]:
 
         with get_session() as session:
@@ -152,6 +152,7 @@ class TreasureRepository:
                 )
                 .where(TreasureParticipation.issue_id == issue_id)
                 .order_by(TreasureParticipation.id.desc())
+                .offset(offset)
                 .limit(limit)
             )
             rows = session.execute(stmt).all()
@@ -483,8 +484,12 @@ def list_treasure_issues(*, limit: int = 50, include_closed: bool = True) -> lis
     )
 
 
-def list_treasure_participations(issue_id: int, *, limit: int = 100) -> list[dict]:
-    return _repository.list_treasure_participations(int(issue_id), limit=int(limit))
+def list_treasure_participations(
+    issue_id: int, *, limit: int = 100, offset: int = 0
+) -> list[dict]:
+    return _repository.list_treasure_participations(
+        int(issue_id), limit=int(limit), offset=int(offset)
+    )
 
 
 def join_treasure_issue_tx(

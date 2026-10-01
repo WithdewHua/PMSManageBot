@@ -51,6 +51,30 @@ def _credits(tg_id: int) -> float:
         return float(row.credits)
 
 
+def test_list_participations_forwards_offset(monkeypatch) -> None:
+    calls: dict[str, int] = {}
+
+    def fake_list(issue_id: int, *, limit: int, offset: int) -> list[dict]:
+        calls.update(issue_id=issue_id, limit=limit, offset=offset)
+        return [{"tg_id": 123}]
+
+    monkeypatch.setattr(
+        treasure_repository._repository,
+        "list_treasure_participations",
+        fake_list,
+    )
+    monkeypatch.setattr(
+        treasure_service.telegram_profiles,
+        "get_user_name_from_tg_id",
+        lambda tg_id: "tester",
+    )
+
+    rows = treasure_service.list_treasure_participations(63, limit=50)
+
+    assert rows == [{"tg_id": 123, "tg_username": "tester"}]
+    assert calls == {"issue_id": 63, "limit": 50, "offset": 0}
+
+
 def _issue(issue_id: int) -> dict:
     with get_session() as session:
         row = session.get(TreasureIssue, int(issue_id))
