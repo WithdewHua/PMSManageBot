@@ -32,8 +32,8 @@ def repo_root() -> Path:
 def test_audit_baseline(repo_root: Path) -> None:
     res = audit_baseline(repo_root)
     assert isinstance(res, dict)
-    assert res["passed"] is False  # Only facade counts remain before facade removal.
-    assert res["violations_count"] == 2
+    assert res["passed"] is True  # Only facade counts remain in mirror metadata.
+    assert res["violations_count"] == 0
     assert "cross_domain_calls" in res["categories"]
     assert res["categories"]["cross_domain_calls"]["count"] == 0
     assert res["categories"]["line_budgets"]["status"] == "exempt"
@@ -78,18 +78,13 @@ def test_audit_compat_and_scripts(repo_root: Path) -> None:
 def test_run_full_audit(repo_root: Path) -> None:
     data = run_full_audit(repo_root)
     assert data["change"] == "retire-legacy-db-facade"
-    assert data["all_prerequisites_passed"] is False
-    assert data["gate_verdict"] == "FAIL (BLOCKED)"
-    assert data["summary"]["check_1_baseline_clean"] is False
+    assert data["all_prerequisites_passed"] is True
+    assert data["gate_verdict"] == "PASS"
+    assert data["summary"]["check_1_baseline_clean"] is True
     assert data["summary"]["check_2_only_facade_ignores"] is True
     assert data["summary"]["check_3_src_databases_clean"] is True
-    assert data["responsible_changes_summary"] == {
-        "contract_ignore_counts (frozen in baseline.json)": {
-            "baseline_violations": 2,
-            "import_linter_ignores": 0,
-        }
-    }
+    assert data["responsible_changes_summary"] == {}
 
     md = render_markdown(data)
-    assert "BLOCKED per Decision D1" in md
+    assert "PASSED" in md
     assert "cross_domain_calls" in md

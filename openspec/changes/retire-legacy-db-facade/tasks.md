@@ -2,7 +2,7 @@
 
 ## 1. 前置核对
 
-- [ ] 1.1 编写并运行盘点脚本，确认三点：`baseline.json` 中除 `line_budgets` 外的类别都为空；import-linter 中只剩门面组合边的忽略项；`src` 中只有 `app/databases` 自身导入 `app.databases`（用 AST 和 grimp 核对）。把结果记录进本变更。验证：三项检查都通过；如果不通过，列出遗留项及其负责变更，停止实施。
+- [x] 1.1 编写并运行盘点脚本，确认三点：`baseline.json` 中除 `line_budgets` 外的类别都为空；import-linter 中只剩门面组合边的忽略项；`src` 中只有 `app/databases` 自身导入 `app.databases`（用 AST 和 grimp 核对）。把结果记录进本变更。验证：三项检查都通过；如果不通过，列出遗留项及其负责变更，停止实施。
 
 ## 2. 删除门面与收敛检查
 

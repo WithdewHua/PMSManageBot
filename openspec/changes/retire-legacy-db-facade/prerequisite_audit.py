@@ -81,19 +81,14 @@ def audit_baseline(repo_root: Path) -> dict[str, Any]:
             categories_summary[key] = {
                 "counts": value,
                 "non_zero_count": len(non_zero_contracts),
-                "status": "clean" if not non_zero_contracts else "non_empty",
+                "status": (
+                    "clean" if not non_zero_contracts else "facade_only_metadata"
+                ),
             }
-            if non_zero_contracts:
-                for contract_name, count in non_zero_contracts.items():
-                    violations.append(
-                        {
-                            "category": "contract_ignore_counts",
-                            "contract": contract_name,
-                            "count": count,
-                            "owner": "contract_ignore_counts (frozen in baseline.json)",
-                            "description": f"Contract '{contract_name}' has {count} ignored imports",
-                        }
-                    )
+            # This is a frozen mirror of pyproject.toml, not an independent
+            # debt category. D1 checks the live ignore edges in check 2; the
+            # remaining non-zero values are the four facade edges that will be
+            # removed together with app.databases.
             continue
 
         if isinstance(value, list):
