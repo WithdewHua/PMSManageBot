@@ -27,5 +27,5 @@
 ## 5. 文档与集成验证
 
 - [x] 5.1 按 design D7 更新 AGENTS.md 和 `docs/architecture.md`。验证：两份文档中都不再出现 `app.databases`、`DatabaseORM`、`db_func`、`app.log`、`app/config.py`、`app/models/models.py` 和"过渡"字样的规则；文中的命令都能按原样执行。
-- [ ] 5.2 在干净环境中运行全部校验：新的 worktree，editable 安装，没有 `__pycache__`。校验项包括 `pytest tests/`、`ruff check`、`ruff format --check`、`lint-imports`、`pre-commit run --all-files` 和 `scripts/verify/check_metadata_pg.py`；并新增测试，断言导入 `app.databases`、`app.webapp`、`app.models` 会抛出 `ModuleNotFoundError`。验证：全部通过；元数据没有差异。
-- [ ] 5.3 运行 `openspec validate retire-legacy-db-facade --strict`。验证：校验通过；工作区干净。
+- [x] 5.2 在干净环境中运行全部校验：新的 worktree，editable 安装，没有 `__pycache__`。校验项包括 `pytest tests/`、`ruff check`、`ruff format --check`、`lint-imports`、`pre-commit run --all-files` 和 `scripts/verify/check_metadata_pg.py`；并新增测试，断言导入 `app.databases`、`app.webapp`、`app.models` 会抛出 `ModuleNotFoundError`。验证：全部通过；元数据没有差异。证据：detached clean worktree（共享 editable `.venv` symlink）中 `1006 passed, 5 skipped`，11 个 import-linter 合约、Ruff、pre-commit 和工具 CLI 均通过。
+- [x] 5.3 运行 `openspec validate retire-legacy-db-facade --strict`。验证：校验通过；工作区干净。
