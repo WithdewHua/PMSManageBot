@@ -13,7 +13,6 @@ from sqlalchemy import and_, delete, func, select, update
 
 from app.core.config import settings
 from app.core.log import logger
-from app.domains.identity import service as identity_service
 from app.domains.identity.models import EmbyUser, PlexUser
 from app.domains.traffic.models import LineTrafficMonthlyStats, LineTrafficStats
 from app.domains.traffic.rules import normalize_line_domain
@@ -427,12 +426,16 @@ def get_line_monthly_traffic_tx(
     normalized = normalize_line_domain(line_domain)
     owner_usernames = set(owner_usernames or ())
     if owner_tg_id is not None and not owner_usernames:
-        plex = identity_service.get_plex_info_by_tg_id(owner_tg_id)
-        if plex and plex[4]:
-            owner_usernames.add(plex[4].lower())
-        emby = identity_service.get_emby_info_by_tg_id(owner_tg_id)
-        if emby and emby[0]:
-            owner_usernames.add(emby[0].lower())
+        plex_user = session.execute(
+            select(PlexUser.plex_username).where(PlexUser.tg_id == owner_tg_id)
+        ).scalar()
+        if plex_user:
+            owner_usernames.add(plex_user.lower())
+        emby_user = session.execute(
+            select(EmbyUser.emby_username).where(EmbyUser.tg_id == owner_tg_id)
+        ).scalar()
+        if emby_user:
+            owner_usernames.add(emby_user.lower())
     month_start, next_month = _month_bounds(year_month)
     model = LineTrafficStats if from_raw_table else LineTrafficMonthlyStats
     time_conditions = (

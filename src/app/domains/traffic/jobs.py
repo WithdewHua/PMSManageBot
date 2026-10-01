@@ -2,12 +2,8 @@ import json
 import traceback
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
-
 from app.core.config import settings
-from app.core.db import get_session
 from app.core.log import logger
-from app.domains.identity.models import EmbyUser, PlexUser
 from app.domains.traffic import rules as traffic_rules
 from app.domains.traffic import service as traffic_service
 from app.domains.traffic.cache import stream_traffic_cache
@@ -157,28 +153,9 @@ async def update_line_traffic_stats(
     emby_username_to_id = {}
 
     try:
-        with get_session() as session:
-            # 加载所有 Plex 用户名到 ID 的映射
-            stmt = select(PlexUser.plex_username, PlexUser.plex_id).where(
-                PlexUser.plex_username.isnot(None), PlexUser.plex_id.isnot(None)
-            )
-            plex_users = session.execute(stmt).fetchall()
-            plex_username_to_id = {
-                username.lower(): plex_id
-                for username, plex_id in plex_users
-                if username
-            }
-
-            # 加载所有 Emby 用户名到 ID 的映射
-            stmt = select(EmbyUser.emby_username, EmbyUser.emby_id).where(
-                EmbyUser.emby_username.isnot(None), EmbyUser.emby_id.isnot(None)
-            )
-            emby_users = session.execute(stmt).fetchall()
-            emby_username_to_id = {
-                username.lower(): emby_id
-                for username, emby_id in emby_users
-                if username
-            }
+        plex_username_to_id, emby_username_to_id = (
+            traffic_service.get_username_to_id_mappings()
+        )
     except Exception as e:
         logger.error(f"加载用户ID映射失败: {e}")
         return

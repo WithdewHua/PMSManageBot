@@ -3,9 +3,6 @@ import asyncio
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Request
 
 from app.core.log import uvicorn_logger as logger
-from app.domains.credits import service as credits_service
-from app.domains.credits.types import CreditAccount
-from app.domains.identity import service as identity_service
 from app.domains.lines import catalog
 from app.domains.lines import notifications as lines_notifications
 from app.domains.lines import service as lines_service
@@ -15,7 +12,6 @@ from app.domains.lines.gateway_cache import (
     plex_last_user_defined_line_cache,
     plex_user_defined_line_cache,
 )
-from app.domains.lines.jobs import auto_switch_user_lines
 from app.domains.lines.rules import is_binded_premium_line
 from app.domains.lines.schemas import (
     AuthBindLineRequest,
@@ -37,8 +33,8 @@ from app.domains.lines.schemas import (
 from app.domains.lines.service import (
     _auth_bind_emby_line,
     _auth_bind_plex_line,
+    auto_switch_user_lines,
     check_line_permission,
-    unlock_line_schedule_with_credit,
 )
 from app.integrations.telegram.profiles import get_user_name_from_tg_id
 from app.transport.http.auth import get_telegram_user, require_telegram_auth
@@ -56,7 +52,7 @@ async def get_emby_lines(
     """获取可用的Emby线路列表"""
 
     # 获取 emby 用户信息，确认是否是 premium 用户
-    emby_info = identity_service.get_emby_info_by_tg_id(telegram_user.id)
+    emby_info = lines_service.get_user_emby_info(telegram_user.id)
     if not emby_info:
         logger.warning(
             f"用户 {telegram_user.username or telegram_user.id} 未绑定 Emby 账户"
@@ -120,7 +116,7 @@ async def bind_emby_line(
 
     try:
         # 检查用户是否绑定了Emby账户
-        emby_info = identity_service.get_emby_info_by_tg_id(tg_id)
+        emby_info = lines_service.get_user_emby_info(tg_id)
         if not emby_info:
             logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定 Emby 账户")
             return BaseResponse(success=False, message="您尚未绑定Emby账户，请先绑定")
@@ -181,7 +177,7 @@ async def unbind_emby_line(
 
     try:
         # 检查用户是否绑定了Emby账户
-        emby_info = identity_service.get_emby_info_by_tg_id(tg_id)
+        emby_info = lines_service.get_user_emby_info(tg_id)
         if not emby_info:
             logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定Emby账户")
             return BaseResponse(success=False, message="您尚未绑定 Emby 账户，请先绑定")
@@ -219,7 +215,7 @@ async def get_plex_lines(
 
     try:
         # 获取 plex 用户信息，确认是否绑定
-        plex_info = identity_service.get_plex_info_by_tg_id(telegram_user.id)
+        plex_info = lines_service.get_user_plex_info(telegram_user.id)
         if not plex_info:
             logger.warning(
                 f"用户 {telegram_user.username or telegram_user.id} 未绑定 Plex 账户"
@@ -296,7 +292,7 @@ async def bind_plex_line(
 
     try:
         # 检查用户是否绑定了Plex账户
-        plex_info = identity_service.get_plex_info_by_tg_id(tg_id)
+        plex_info = lines_service.get_user_plex_info(tg_id)
         if not plex_info:
             logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定 Plex 账户")
             return BaseResponse(success=False, message="您尚未绑定Plex账户，请先绑定")
@@ -363,7 +359,7 @@ async def unbind_plex_line(
 
     try:
         # 检查用户是否绑定了Plex账户
-        plex_info = identity_service.get_plex_info_by_tg_id(tg_id)
+        plex_info = lines_service.get_user_plex_info(tg_id)
         if not plex_info:
             logger.warning(f"用户 {get_user_name_from_tg_id(tg_id)} 未绑定Plex账户")
             return BaseResponse(success=False, message="您尚未绑定 Plex 账户，请先绑定")
@@ -503,7 +499,7 @@ async def get_emby_lines_by_user(
 
     try:
         # 直接从数据库查询用户信息，无需进行Emby服务器认证
-        emby_info = identity_service.get_emby_info_by_emby_username(username)
+        emby_info = lines_service.get_emby_info_by_username(username)
         is_self = bool(emby_info and emby_info[2] == telegram_user.id)
         is_premium = bool(emby_info and is_self and emby_info[8] == 1)
         if not is_self:
@@ -575,7 +571,7 @@ async def get_plex_lines_by_user(
 
     try:
         # 直接从数据库查询用户信息，无需进行Plex服务器认证
-        plex_info = identity_service.get_plex_info_by_plex_email(email)
+        plex_info = lines_service.get_plex_info_by_email(email)
         is_self = bool(plex_info and plex_info[1] == telegram_user.id)
         # 预览他人账号时返回完整目录；查询自己时保留会员过滤。
         is_premium_user = bool(plex_info and is_self and plex_info[9] == 1)
@@ -653,7 +649,7 @@ async def get_current_bound_line(
                 return CurrentLineResponse(success=False, message="用户名不能为空")
 
             # 查询Emby用户信息
-            emby_info = identity_service.get_emby_info_by_emby_username(username)
+            emby_info = lines_service.get_emby_info_by_username(username)
             if not emby_info or emby_info[2] != telegram_user.id:
                 return CurrentLineResponse(
                     success=True, line=None, message=f"用户 {username} 未绑定任何线路"
@@ -677,7 +673,7 @@ async def get_current_bound_line(
                 return CurrentLineResponse(success=False, message="邮箱不能为空")
 
             # 查询Plex用户信息
-            plex_info = identity_service.get_plex_info_by_plex_email(email)
+            plex_info = lines_service.get_plex_info_by_email(email)
             if not plex_info or plex_info[1] != telegram_user.id:
                 return CurrentLineResponse(
                     success=True, line=None, message=f"用户 {email} 未绑定任何线路"
@@ -753,31 +749,18 @@ async def unlock_line_schedule(
                 else "线路调度功能已解锁",
             )
 
-        # 检查积分是否足够
-        credits_needed = lines_service.get_line_schedule_unlock_credits()
-        current_credits = credits_service.read_optional(CreditAccount.tg(int(user.id)))
-        if not current_credits:
-            return LineScheduleUnlockResponse(
-                success=False, message="您尚未绑定 Plex/Emby 账户"
-            )
-        if current_credits < credits_needed:
-            return LineScheduleUnlockResponse(
-                success=False,
-                message=f"积分不足，需要 {credits_needed} 积分，当前仅有 {current_credits} 积分",
-            )
-
         # 解锁线路调度功能并在同一事务中扣除积分
-        try:
-            unlock_line_schedule_with_credit(user.id, service, credits_needed)
-        except Exception:
-            return LineScheduleUnlockResponse(success=False, message="解锁失败")
-        new_credits = current_credits - credits_needed
+        success, message, credits_needed, new_credits = (
+            lines_service.unlock_line_schedule_flow(user.id, service)
+        )
+        if not success:
+            return LineScheduleUnlockResponse(success=False, message=message)
 
         logger.info(
             f"用户 {get_user_name_from_tg_id(user.id)} 消耗 {credits_needed} 积分解锁 {service} 线路调度功能"
         )
 
-        service_name, service_emoji = identity_service.get_service_label(service)
+        service_name, service_emoji = lines_service.get_service_label(service)
         user_name = get_user_name_from_tg_id(user.id)
         background_tasks.add_task(
             lines_notifications.notify_schedule_unlocked,
@@ -789,9 +772,7 @@ async def unlock_line_schedule(
 💰 剩余: {new_credits:.2f} 积分""",
         )
 
-        return LineScheduleUnlockResponse(
-            success=True, message=f"成功解锁线路调度功能，消耗 {credits_needed} 积分"
-        )
+        return LineScheduleUnlockResponse(success=True, message=message)
 
     except Exception as e:
         logger.error(f"解锁线路调度功能失败: {e}")

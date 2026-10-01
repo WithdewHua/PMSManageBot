@@ -135,14 +135,14 @@ async def test_owner_traffic_excluded_case_insensitively(
 
 
 async def test_traffic_query_failure_propagates(session_env, monkeypatch):
-    from app.domains.traffic import repository as traffic_repository
+    from app.domains.traffic import service as traffic_service
 
     class BrokenSession:
         def execute(self, *_args, **_kwargs):
             raise RuntimeError("injected query failure")
 
     with pytest.raises(RuntimeError):
-        await traffic_repository._get_line_monthly_traffic(
+        await traffic_service._get_line_monthly_traffic(
             BrokenSession(), "line.example.com", "2026-09", from_raw_table=False
         )
 

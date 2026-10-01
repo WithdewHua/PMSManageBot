@@ -44,7 +44,7 @@ def _role_for_module(module: str) -> str | None:
     parts = module.split(".")
     if "domains" not in parts:
         return None
-    if "repository" in parts:
+    if "repository" in parts or parts[-1].startswith("repository"):
         return "repository"
     role = parts[-1]
     return (
@@ -294,7 +294,11 @@ def _import_allowed(
     ):
         return True
     if source_role == "service":
-        return target_role in {"service", "exceptions", "constants"}
+        return target_role in {"service", "exceptions", "constants"} or (
+            target_domain == "identity"
+            and target_role == "rules"
+            and symbol in {"rules", "premium_active", "premium_flag_set"}
+        )
     if source_role == "repository":
         return (
             (
@@ -322,7 +326,9 @@ def _call_allowed(
     ):
         return True
     if source_role == "service":
-        return target_role in {"service", "exceptions", "constants"}
+        return target_role in {"service", "exceptions", "constants"} or (
+            target_role == "rules" and symbol in {"premium_active", "premium_flag_set"}
+        )
     if source_role == "repository":
         # Model constructors and class methods are legal only when the import
         # itself is allowed; _import_allowed checks the identity/read-model rule.

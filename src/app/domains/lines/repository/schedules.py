@@ -102,73 +102,9 @@ def disable_schedules_by_line(
     """
     try:
         with get_session() as session:
-            # 查找所有使用该线路且已启用的调度
-            stmt = select(LineSchedule).where(
-                LineSchedule.line == line_name, LineSchedule.is_enabled == 1
+            return disable_schedules_by_line_tx(
+                session, line_name, only_non_premium=only_non_premium
             )
-            schedules = session.execute(stmt).scalars().all()
-
-            if not schedules:
-                logger.info(f"没有找到使用线路 {line_name} 的已启用调度")
-                return True, 0, []
-
-            # 如果需要过滤 premium 用户，先查询用户的 premium 状态
-            premium_users = set()
-            if only_non_premium:
-                # 获取所有相关用户的 tg_id
-                tg_ids = list({schedule.tg_id for schedule in schedules})
-
-                # 查询 Plex 用户的 premium 状态
-                plex_stmt = select(PlexUser.tg_id).where(
-                    PlexUser.tg_id.in_(tg_ids), PlexUser.is_premium == 1
-                )
-                plex_premium = session.execute(plex_stmt).scalars().all()
-                premium_users.update(plex_premium)
-
-                # 查询 Emby 用户的 premium 状态
-                emby_stmt = select(EmbyUser.tg_id).where(
-                    EmbyUser.tg_id.in_(tg_ids), EmbyUser.is_premium == 1
-                )
-                emby_premium = session.execute(emby_stmt).scalars().all()
-                premium_users.update(emby_premium)
-
-            # 统计受影响的用户（在禁用前）
-            user_service_map = {}
-            schedules_to_disable = []
-            for schedule in schedules:
-                # 如果只禁用非 premium 用户，跳过 premium 用户
-                if only_non_premium and schedule.tg_id in premium_users:
-                    continue
-
-                schedules_to_disable.append(schedule)
-                key = (schedule.tg_id, schedule.service)
-                if key not in user_service_map:
-                    user_service_map[key] = {
-                        "tg_id": schedule.tg_id,
-                        "service": schedule.service,
-                        "schedule_count": 0,
-                    }
-                user_service_map[key]["schedule_count"] += 1
-
-            if not schedules_to_disable:
-                logger.info(f"没有需要禁用的调度（线路: {line_name}）")
-                return True, 0, []
-
-            # 禁用所有调度
-            count = 0
-            current_time = int(time.time())
-            for schedule in schedules_to_disable:
-                schedule.is_enabled = 0
-                schedule.updated_at = current_time
-                count += 1
-
-            affected_users = list(user_service_map.values())
-            logger.info(
-                f"已禁用 {count} 个使用线路 {line_name} 的调度，"
-                f"影响 {len(affected_users)} 位用户"
-                + (" (仅非 premium 用户)" if only_non_premium else "")
-            )
-            return True, count, affected_users
 
     except Exception as e:
         logger.error(f"禁用线路 {line_name} 的调度失败: {e}")

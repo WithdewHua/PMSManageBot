@@ -7,9 +7,10 @@ from datetime import datetime
 
 from app.core.byte_size import format_bytes
 from app.core.config import settings
-from app.core.db import get_session
 from app.core.log import logger
-from app.domains.lines import catalog as line_catalog
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
+from app.domains.lines import service as lines_service
 from app.domains.media_access import service as media_access_service
 from app.domains.premium import repository as premium_repository
 from app.domains.premium.config import PREMIUM_CONFIG
@@ -24,12 +25,77 @@ def get_premium_statistics() -> dict:
     return premium_repository.get_premium_statistics()
 
 
+def _calculate_quota_status(
+    *,
+    is_premium: bool,
+    debt_bytes: int | None,
+    updated_date: str | None,
+    traffic_limit: int,
+    now: datetime,
+) -> dict:
+    current_debt = int(debt_bytes or 0)
+    if updated_date:
+        try:
+            debt_day = datetime.strptime(updated_date, "%Y-%m-%d").replace(
+                tzinfo=settings.TZ
+            )
+            gap_days = max((now.date() - debt_day.date()).days - 1, 0)
+            current_debt = max(current_debt - gap_days * traffic_limit, 0)
+        except ValueError:
+            logger.warning("Invalid Premium traffic debt date: %s", updated_date)
+    return {
+        "daily_limit": traffic_limit,
+        "current_debt": current_debt,
+        "remaining_free": max(traffic_limit - current_debt, 0),
+    }
+
+
 def get_plex_premium_quota_status(plex_id: int) -> dict:
-    return premium_repository.get_plex_premium_quota_status(plex_id)
+    try:
+        user = premium_repository.get_plex_premium_debt_record(plex_id)
+        if not user:
+            return {"daily_limit": 0, "current_debt": 0, "remaining_free": 0}
+        traffic_config = traffic_service.get_traffic_config()
+        daily_limit = (
+            traffic_config.premium_user_traffic_limit
+            if user[0]
+            else traffic_config.user_traffic_limit
+        )
+        return _calculate_quota_status(
+            is_premium=user[0],
+            debt_bytes=user[1],
+            updated_date=user[2],
+            traffic_limit=daily_limit,
+            now=datetime.now(settings.TZ),
+        )
+    except Exception as e:
+        logger.error(f"Error getting Plex premium quota status for {plex_id}: {e}")
+        return {"daily_limit": 0, "current_debt": 0, "remaining_free": 0}
 
 
 def get_emby_premium_quota_status(emby_username: str) -> dict:
-    return premium_repository.get_emby_premium_quota_status(emby_username)
+    try:
+        user = premium_repository.get_emby_premium_debt_record(emby_username)
+        if not user:
+            return {"daily_limit": 0, "current_debt": 0, "remaining_free": 0}
+        traffic_config = traffic_service.get_traffic_config()
+        daily_limit = (
+            traffic_config.premium_user_traffic_limit
+            if user[0]
+            else traffic_config.user_traffic_limit
+        )
+        return _calculate_quota_status(
+            is_premium=user[0],
+            debt_bytes=user[1],
+            updated_date=user[2],
+            traffic_limit=daily_limit,
+            now=datetime.now(settings.TZ),
+        )
+    except Exception as e:
+        logger.error(
+            f"Error getting Emby premium quota status for {emby_username}: {e}"
+        )
+        return {"daily_limit": 0, "current_debt": 0, "remaining_free": 0}
 
 
 def get_expired_premium_users() -> list:
@@ -49,7 +115,106 @@ def get_all_active_premium_users() -> list:
 
 
 def get_all_premium_traffic_debt_users() -> list:
-    return premium_repository.get_all_premium_traffic_debt_users()
+    debt_users = []
+    now = datetime.now(settings.TZ)
+    premium_lines = lines_service.get_premium_lines()
+    if not premium_lines:
+        return debt_users
+
+    try:
+        plex_users, emby_users = premium_repository.get_all_users_for_traffic_debt()
+        traffic_config = traffic_service.get_traffic_config()
+
+        for user in plex_users:
+            today_traffic = traffic_service.get_user_daily_traffic(
+                user_id=str(user[0]),
+                service="plex",
+                date=now,
+                premium_only=True,
+                premium_lines=premium_lines,
+            )
+            limit = (
+                traffic_config.premium_user_traffic_limit
+                if user[3]
+                else traffic_config.user_traffic_limit
+            )
+            quota = _calculate_quota_status(
+                is_premium=user[3],
+                debt_bytes=user[4],
+                updated_date=user[5],
+                traffic_limit=limit,
+                now=now,
+            )
+            projected_debt = min(
+                max(quota["current_debt"] + today_traffic - quota["daily_limit"], 0),
+                quota["daily_limit"] * 2,
+            )
+            if quota["current_debt"] > 0 or projected_debt > 0:
+                debt_users.append(
+                    {
+                        "service": "Plex",
+                        "username": user[2],
+                        "tg_id": user[1],
+                        "is_premium": bool(user[3]),
+                        "current_debt": quota["current_debt"],
+                        "today_exceed_traffic": max(
+                            today_traffic - quota["remaining_free"], 0
+                        ),
+                        "projected_debt": projected_debt,
+                    }
+                )
+
+        for user in emby_users:
+            today_traffic = traffic_service.get_user_daily_traffic(
+                username=user[0],
+                service="emby",
+                date=now,
+                premium_only=True,
+                premium_lines=premium_lines,
+            )
+            limit = (
+                traffic_config.premium_user_traffic_limit
+                if user[2]
+                else traffic_config.user_traffic_limit
+            )
+            quota = _calculate_quota_status(
+                is_premium=user[2],
+                debt_bytes=user[3],
+                updated_date=user[4],
+                traffic_limit=limit,
+                now=now,
+            )
+            projected_debt = min(
+                max(quota["current_debt"] + today_traffic - quota["daily_limit"], 0),
+                quota["daily_limit"] * 2,
+            )
+            if quota["current_debt"] > 0 or projected_debt > 0:
+                debt_users.append(
+                    {
+                        "service": "Emby",
+                        "username": user[0],
+                        "tg_id": user[1],
+                        "is_premium": bool(user[2]),
+                        "current_debt": quota["current_debt"],
+                        "today_exceed_traffic": max(
+                            today_traffic - quota["remaining_free"], 0
+                        ),
+                        "projected_debt": projected_debt,
+                    }
+                )
+
+        debt_users.sort(
+            key=lambda item: (
+                item["service"],
+                -item["projected_debt"],
+                -item["current_debt"],
+                item["username"] or "",
+            )
+        )
+        return debt_users
+    except Exception as e:
+        logger.error(f"Error getting premium traffic debt users: {e}")
+        return []
 
 
 def get_premium_config():
@@ -100,10 +265,9 @@ async def check_premium_expiry():
         service = str(candidate["service"])
         try:
             now = datetime.now(settings.TZ)
-            with get_session() as session:
-                expired = premium_repository.expire_user_tx(
-                    session, tg_id=tg_id, service=service, now=now
-                )
+            expired = premium_repository.expire_user(
+                tg_id=tg_id, service=service, now=now
+            )
             if expired is None:
                 continue
 
@@ -135,7 +299,8 @@ async def check_premium_expiry():
             line = expired.get("line")
             display_line = line or "自动线路"
             if line and (
-                line in line_catalog.premium_lines() or "premium" in str(line).lower()
+                line in lines_service.get_premium_lines()
+                or "premium" in str(line).lower()
             ):
                 try:
                     new_line = (
@@ -196,6 +361,32 @@ async def check_premium_expiring_soon(days: int = 3):
         logger.error(f"检查即将过期的 Premium 用户时出错: {e!s}")
 
 
+def get_premium_line_traffic_stats() -> list:
+    """Return line traffic statistics from the traffic domain."""
+    return traffic_service.premium_line_statistics()
+
+
+def purchase_premium_with_credit_check(
+    *,
+    tg_id: int,
+    service: str,
+    days: int,
+    cost: float,
+    expected_cost: float | None = None,
+):
+    """Verify credits and purchase Premium."""
+    current_credits = credits_service.read_optional(CreditAccount.tg(int(tg_id)))
+    if current_credits is None:
+        raise ValueError("用户不存在")
+    if current_credits < cost:
+        raise ValueError("积分不足")
+    if expected_cost is not None and cost != expected_cost:
+        raise ValueError("费用计算错误")
+    return purchase_premium(
+        tg_id=int(tg_id), service=service, days=int(days), cost=float(cost)
+    )
+
+
 def is_permanent_member(tg_id: int, service: str) -> bool:
     return premium_repository.is_permanent_member(int(tg_id), service)
 
@@ -216,10 +407,7 @@ def update_premium_status(tg_id: int, service: str, days: int = 30) -> datetime 
     否则从当前时间起算。写入本身在 `premium.repository.grant_premium_days_tx`
     里完成（行锁 + 调用方事务），需要复用外层事务的调用方直接用那个 `*_tx`。
     """
-    with get_session() as session:
-        new_expiry = premium_repository.grant_premium_days_tx(
-            session, tg_id, service, days
-        )
+    new_expiry = premium_repository.grant_premium_days(tg_id, service, days)
     if new_expiry is not None:
         sync_premium_media_access(tg_id, (service,))
     return new_expiry
