@@ -40,11 +40,35 @@ def _json_safe(value: Any) -> Any:
     return repr(value)
 
 
+DISPOSABLE_DB_PREFIXES = (
+    "disposable",
+    "check",
+    "test",
+    "pms_check",
+    "pms_test",
+    "tmp",
+    "temp",
+)
+ALLOWED_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+
 def validate_postgres_url(url: str) -> None:
     parsed = make_url(url)
     if parsed.get_backend_name() not in {"postgresql", "postgres"}:
         raise MetadataCheckError(
             "metadata comparison requires a PostgreSQL URL; use a disposable PostgreSQL database"
+        )
+    host = (parsed.host or "").lower()
+    if host not in ALLOWED_HOSTS:
+        raise MetadataCheckError(
+            f"metadata comparison requires a local PostgreSQL instance (host must be localhost or 127.0.0.1, got {parsed.host!r})"
+        )
+    db_name = (parsed.database or "").lower()
+    if not db_name or not any(
+        db_name.startswith(prefix) for prefix in DISPOSABLE_DB_PREFIXES
+    ):
+        raise MetadataCheckError(
+            f"metadata comparison requires a disposable database name starting with disposable/check/test (e.g. 'pms_check', 'test_...'); got {parsed.database!r}"
         )
 
 
@@ -140,11 +164,15 @@ def check_metadata(base_ref: str, url: str, repository: Path) -> list[Any]:
         if result.returncode:
             raise MetadataCheckError(result.stderr.strip())
         try:
-            _create_baseline(repository, base_root, url)
             try:
+                _create_baseline(repository, base_root, url)
                 return _compare_current(repository, repository, url)
             finally:
-                _cleanup_baseline(repository, base_root, url)
+                try:
+                    _cleanup_baseline(repository, base_root, url)
+                except Exception:
+                    if sys.exc_info()[0] is None:
+                        raise
         finally:
             subprocess.run(
                 ["git", "worktree", "remove", "--force", str(base_root)],

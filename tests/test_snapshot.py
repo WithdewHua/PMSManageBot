@@ -5,6 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
+from scripts.verify import snapshot
 from scripts.verify.snapshot import (
     _dump,
     _static_reference_snapshot,
@@ -30,21 +33,40 @@ def test_snapshot_is_byte_stable_and_contains_all_behavior_surfaces() -> None:
 
 
 def test_snapshot_does_not_require_database_for_scheduler_registration() -> None:
-    snapshot = build_snapshot()
+    snapshot_data = build_snapshot()
     job_ids = {
         job["kwargs"]["id"]
-        for job in snapshot["scheduler"]["jobs"]
+        for job in snapshot_data["scheduler"]["jobs"]
         if "id" in job["kwargs"]
     }
     assert "update_credits" in job_ids
-    assert snapshot["scheduler"]["restoration_hooks"] == [
+    assert snapshot_data["scheduler"]["restoration_hooks"] == [
         "restore_auction_schedules",
         "restore_blackjack_timeouts",
     ]
     assert all(
         "relative_seconds" not in job["kwargs"].get("id", "")
-        for job in snapshot["scheduler"]["jobs"]
+        for job in snapshot_data["scheduler"]["jobs"]
     )
+
+
+def test_build_snapshot_fails_when_src_app_missing(tmp_path: Path) -> None:
+    with pytest.raises(RuntimeError, match="src/app directory missing"):
+        build_snapshot(root=tmp_path)
+
+
+def test_build_snapshot_fails_when_routes_empty(monkeypatch) -> None:
+    monkeypatch.setattr(snapshot, "_route_snapshot", lambda app: {"routes": []})
+    with pytest.raises(RuntimeError, match="Snapshot openapi routes must not be empty"):
+        build_snapshot()
+
+
+def test_build_snapshot_fails_when_imports_empty(monkeypatch) -> None:
+    monkeypatch.setattr(
+        snapshot, "_static_reference_snapshot", lambda root: {"imports": []}
+    )
+    with pytest.raises(RuntimeError, match="Snapshot static imports must not be empty"):
+        build_snapshot()
 
 
 def test_static_reference_snapshot_resolves_function_imports_and_paths(
@@ -64,10 +86,10 @@ def test_static_reference_snapshot_resolves_function_imports_and_paths(
         encoding="utf-8",
     )
 
-    snapshot = _static_reference_snapshot(tmp_path)
+    ref_snapshot = _static_reference_snapshot(tmp_path)
     function_imports = [
-        item for item in snapshot["imports"] if item["scope"] == "function"
+        item for item in ref_snapshot["imports"] if item["scope"] == "function"
     ]
     assert any(item["target"] == "app.pkg.worker.run" for item in function_imports)
     assert all(item["resolved"] for item in function_imports)
-    assert "not a callable reference" not in json.dumps(snapshot)
+    assert "not a callable reference" not in json.dumps(ref_snapshot)

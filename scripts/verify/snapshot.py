@@ -12,6 +12,7 @@ import ast
 import asyncio
 import importlib.util
 import json
+import sys
 from contextlib import ExitStack
 from datetime import date, datetime
 from pathlib import Path
@@ -19,6 +20,7 @@ from typing import Any
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
+assert (ROOT / "src/app").is_dir(), f"src/app directory missing at {ROOT}"
 
 
 def _json_value(value: Any) -> Any:
@@ -349,15 +351,26 @@ def _static_reference_snapshot(root: Path) -> dict[str, Any]:
 def build_snapshot(root: Path = ROOT) -> dict[str, Any]:
     """Build a JSON-serializable snapshot without writing application state."""
     root = root.resolve()
+    app_dir = root / "src/app"
+    if not app_dir.is_dir():
+        raise RuntimeError(f"src/app directory missing at {app_dir}")
     from app.api.app import app
+
+    routes = _route_snapshot(app)
+    if not routes.get("routes"):
+        raise RuntimeError("Snapshot openapi routes must not be empty")
+
+    references = _static_reference_snapshot(root)
+    if not references.get("imports"):
+        raise RuntimeError("Snapshot static imports must not be empty")
 
     return {
         "schema": 1,
-        "openapi": _route_snapshot(app),
+        "openapi": routes,
         "metadata": _metadata_snapshot(),
         "scheduler": _scheduler_snapshot(root),
         "bot": _bot_snapshot(),
-        "references": _static_reference_snapshot(root),
+        "references": references,
     }
 
 
@@ -365,7 +378,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    text = _dump(build_snapshot())
+    try:
+        snapshot = build_snapshot()
+    except RuntimeError as err:
+        print(f"Snapshot build failed: {err}", file=sys.stderr)
+        return 1
+    text = _dump(snapshot)
     if args.output:
         args.output.write_text(text, encoding="utf-8")
     else:
