@@ -183,22 +183,6 @@ python -m scripts.migrate_legacy_job_refs
    ```
 3. 启动旧版本镜像。
 
-## 1.0.0 生产发布验收（quince）
-
-2026-10-01 在 quince 的 PostgreSQL 18.3 生产副本上完成了升级、回退再升级、容器启动和只读接口彩排；随后在维护窗口完成正式发布。发布过程遵循“先备份、停调度器、迁移数据库、迁移任务引用、启动验收”的顺序，未执行 Redis `FLUSHALL`/`FLUSHDB`，也未把过时的 SQLite 副本用于生产结论。
-
-- Alembic 从 `b9c0d1e2f3a4` 升至 `b5c6d7e8f9a0`；共享业务表行数保持一致，`line_catalog` 创建并导入 9 条线路（普通 7、高级 2）。
-- `invitation/privileged_codes_imported` 和 `lines/catalog_imported` 完成标记已写入；旧业务配置仅用于首次导入，之后以数据库为准。
-- `scripts/migrate_legacy_job_refs.py` 在发布前执行；quince 当时没有需要改写的旧持久化任务（`rewritten=0`），scheduler 启动守卫和 33 个调度入口正常。
-- Redis 仅做连通性和 traffic 队列只读检查；历史 Redis 配置键均不存在，因此未运行 `scripts/migrate_redis_to_database.py`。DB 15 traffic 队列未被清空。
-- 最终容器为 `pmsmanagebot:dev`，包版本 `1.0.0`，重启次数为 0；`/health` 返回 200、OpenAPI 返回 200、未认证保护路由返回 401。
-
-## 重构验证工具与一次性脚本的保留边界
-
-- `scripts/verify/check_metadata_pg.py` 和 `scripts/verify/snapshot.py` 是长期验证工具，不是已完成重构后的临时垃圾；前者强制只连接本机 disposable PostgreSQL，后者生成无数据库副作用的确定性快照。对应的 `tests/test_metadata_pg.py` 和 `tests/test_snapshot.py` 必须保留。
-- 历史 `scripts/refactor/`、`tests/refactor/` 树及已迁移的 B 阶段夹具已经清除；不要为了“清理重构脚本”删除永久保护事件边界、Telegram I/O 禁止、规则不变量、scheduler guard 和 PostgreSQL 元数据安全边界的测试。
-- `scripts/migrate_legacy_job_refs.py`、`scripts/migrate_line_traffic_stats.py`、`scripts/migrate_redis_to_database.py`、导出/回退脚本和媒体权限审计脚本属于人工运维入口，不能依据“无代码调用方”删除；删除前必须更新手动运维表和发布回退流程。
-
 ## accounts / identity / invitation 提升证据
 
 `promote-account-domains` 已将 `identity` 的 SQL 查询和事务写入收拢到模块级 `repository`，由 `identity.service` 暴露类型化数据类。Plex、Emby、Statistics 和 Overseerr 的建档统一经过 `identity.repository.ensure_statistics_tx`（需要 Telegram 统计行时），缓存写入登记在事务提交后的 callback 中。
