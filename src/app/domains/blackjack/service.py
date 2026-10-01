@@ -1,5 +1,7 @@
 import datetime
 
+from apscheduler.jobstores.base import JobLookupError
+
 from app.core import events
 from app.core.config import settings
 from app.core.log import logger, uvicorn_logger
@@ -201,6 +203,31 @@ def schedule_blackjack_timeout(*, hand_id: int, timeout_minutes: float) -> None:
         logger.error(f"Blackjack timeout schedule failed (hand={hand_id}): {e}")
 
 
+def cancel_blackjack_timeout(*, hand_id: int) -> None:
+    """取消已结算手牌对应的持久化超时任务。
+
+    超时任务是为了兜底未完成的手牌；正常操作提前结算后不应让它继续留在
+    SQLAlchemyJobStore 中等待触发。任务可能正在执行或已经被 APScheduler 自动
+    删除，因此找不到任务属于正常竞态，不能影响已经提交的牌局结算。
+    """
+    try:
+        from app.core.scheduler import Scheduler
+
+        Scheduler().remove_job(
+            f"blackjack_timeout_{int(hand_id)}", jobstore="sqlalchemy"
+        )
+    except JobLookupError:
+        return
+    except Exception as e:
+        # 清理是提交后的最佳努力副作用，失败不能改写已成功的牌局结果。
+        logger.error(f"Blackjack timeout cleanup failed (hand={hand_id}): {e}")
+
+
+def _cancel_blackjack_timeout_if_settled(hand_id: int, result: dict) -> None:
+    if result.get("settled"):
+        cancel_blackjack_timeout(hand_id=hand_id)
+
+
 def create_blackjack_hand(tg_id: int, bet_credits: int) -> dict:
     result = blackjack_repository.create_blackjack_hand(tg_id, bet_credits)
     if result.get("settled"):
@@ -218,30 +245,36 @@ def create_blackjack_hand(tg_id: int, bet_credits: int) -> dict:
 def blackjack_hit(tg_id: int, hand_id: int) -> dict:
     result = blackjack_repository.blackjack_hit(tg_id, hand_id)
     if result.get("settled"):
+        cancel_blackjack_timeout(hand_id=hand_id)
         events.emit(blackjack_events.CashHandPlayed(int(tg_id)))
     return result
 
 
 def blackjack_stand(tg_id: int, hand_id: int) -> dict:
     result = blackjack_repository.blackjack_stand(tg_id, hand_id)
+    _cancel_blackjack_timeout_if_settled(hand_id, result)
     events.emit(blackjack_events.CashHandPlayed(int(tg_id)))
     return result
 
 
 def blackjack_double(tg_id: int, hand_id: int) -> dict:
     result = blackjack_repository.blackjack_double(tg_id, hand_id)
+    _cancel_blackjack_timeout_if_settled(hand_id, result)
     events.emit(blackjack_events.CashHandPlayed(int(tg_id)))
     return result
 
 
 def blackjack_surrender(tg_id: int, hand_id: int) -> dict:
     result = blackjack_repository.blackjack_surrender(tg_id, hand_id)
+    _cancel_blackjack_timeout_if_settled(hand_id, result)
     events.emit(blackjack_events.CashHandPlayed(int(tg_id)))
     return result
 
 
 def settle_blackjack_hand_by_timeout(hand_id: int) -> dict:
-    return blackjack_repository.settle_blackjack_hand_by_timeout(hand_id)
+    result = blackjack_repository.settle_blackjack_hand_by_timeout(hand_id)
+    cancel_blackjack_timeout(hand_id=hand_id)
+    return result
 
 
 def sweep_timed_out_blackjack_hands(tg_id: int | None = None) -> int:
@@ -359,23 +392,34 @@ def create_blackjack_tournament_hand(
 
 
 def blackjack_tournament_hit(tg_id: int, hand_id: int) -> dict:
-    return blackjack_repository.blackjack_tournament_hit(tg_id, hand_id)
+    result = blackjack_repository.blackjack_tournament_hit(tg_id, hand_id)
+    _cancel_blackjack_timeout_if_settled(hand_id, result)
+    return result
 
 
 def blackjack_tournament_stand(tg_id: int, hand_id: int) -> dict:
-    return blackjack_repository.blackjack_tournament_stand(tg_id, hand_id)
+    result = blackjack_repository.blackjack_tournament_stand(tg_id, hand_id)
+    _cancel_blackjack_timeout_if_settled(hand_id, result)
+    return result
 
 
 def blackjack_tournament_double(tg_id: int, hand_id: int) -> dict:
-    return blackjack_repository.blackjack_tournament_double(tg_id, hand_id)
+    result = blackjack_repository.blackjack_tournament_double(tg_id, hand_id)
+    _cancel_blackjack_timeout_if_settled(hand_id, result)
+    return result
 
 
 def blackjack_tournament_surrender(tg_id: int, hand_id: int) -> dict:
-    return blackjack_repository.blackjack_tournament_surrender(tg_id, hand_id)
+    result = blackjack_repository.blackjack_tournament_surrender(tg_id, hand_id)
+    _cancel_blackjack_timeout_if_settled(hand_id, result)
+    return result
 
 
 def force_settle_tournament_hands(tournament_id: int) -> dict:
-    return blackjack_repository.force_settle_tournament_hands(tournament_id)
+    result = blackjack_repository.force_settle_tournament_hands(tournament_id)
+    for hand_id in result.get("settled_hand_ids", []):
+        cancel_blackjack_timeout(hand_id=int(hand_id))
+    return result
 
 
 def settle_blackjack_tournament(tournament_id: int) -> dict:

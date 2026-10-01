@@ -196,3 +196,87 @@ async def test_tick_runs_every_phase_for_the_fetched_status_lists(monkeypatch):
         (TOURNAMENT_RUNNING,),
     ]
     assert [mock.await_count for mock in phases.values()] == [1, 1, 1]
+
+
+def test_settled_blackjack_hand_cancels_timeout_job(monkeypatch):
+    removed: list[tuple[str, str | None]] = []
+
+    class Scheduler:
+        def remove_job(self, job_id, *, jobstore=None):
+            removed.append((job_id, jobstore))
+
+    monkeypatch.setattr("app.core.scheduler.Scheduler", Scheduler)
+    monkeypatch.setattr(
+        blackjack_service.blackjack_repository,
+        "blackjack_stand",
+        lambda tg_id, hand_id: {"settled": True},
+    )
+    monkeypatch.setattr(blackjack_service.events, "emit", lambda event: None)
+
+    result = blackjack_service.blackjack_stand(1, 42)
+
+    assert result == {"settled": True}
+    assert removed == [("blackjack_timeout_42", "sqlalchemy")]
+
+
+def test_unsettled_blackjack_hit_keeps_timeout_job(monkeypatch):
+    removed: list[tuple[str, str | None]] = []
+
+    class Scheduler:
+        def remove_job(self, job_id, *, jobstore=None):
+            removed.append((job_id, jobstore))
+
+    monkeypatch.setattr("app.core.scheduler.Scheduler", Scheduler)
+    monkeypatch.setattr(
+        blackjack_service.blackjack_repository,
+        "blackjack_hit",
+        lambda tg_id, hand_id: {"settled": False},
+    )
+
+    result = blackjack_service.blackjack_hit(1, 42)
+
+    assert result == {"settled": False}
+    assert removed == []
+
+
+def test_timeout_settlement_cleans_up_its_persisted_job(monkeypatch):
+    removed: list[tuple[str, str | None]] = []
+
+    class Scheduler:
+        def remove_job(self, job_id, *, jobstore=None):
+            removed.append((job_id, jobstore))
+
+    monkeypatch.setattr("app.core.scheduler.Scheduler", Scheduler)
+    monkeypatch.setattr(
+        blackjack_service.blackjack_repository,
+        "settle_blackjack_hand_by_timeout",
+        lambda hand_id: {"already_settled": True},
+    )
+
+    result = blackjack_service.settle_blackjack_hand_by_timeout(42)
+
+    assert result == {"already_settled": True}
+    assert removed == [("blackjack_timeout_42", "sqlalchemy")]
+
+
+def test_forced_tournament_settlement_cancels_hand_timeout_jobs(monkeypatch):
+    removed: list[tuple[str, str | None]] = []
+
+    class Scheduler:
+        def remove_job(self, job_id, *, jobstore=None):
+            removed.append((job_id, jobstore))
+
+    monkeypatch.setattr("app.core.scheduler.Scheduler", Scheduler)
+    monkeypatch.setattr(
+        blackjack_service.blackjack_repository,
+        "force_settle_tournament_hands",
+        lambda tournament_id: {"settled": 2, "settled_hand_ids": [41, 42]},
+    )
+
+    result = blackjack_service.force_settle_tournament_hands(7)
+
+    assert result["settled"] == 2
+    assert removed == [
+        ("blackjack_timeout_41", "sqlalchemy"),
+        ("blackjack_timeout_42", "sqlalchemy"),
+    ]

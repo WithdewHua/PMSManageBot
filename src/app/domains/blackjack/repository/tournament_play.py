@@ -596,8 +596,10 @@ class _BlackjackRepositoryTournamentPlay:
         **每手牌自成一个事务**：不把整批放进一个事务，否则第 N 手上的任何异常
         都会回滚前面已算好的赔付，而返回值仍会把它们报成已结算。
 
-        返回 `{"settled": 本次结算手数, "remaining": 仍未终结手数, "cleared": bool}`。
-        **`cleared` 必须由调用方检查**：单手结算失败会被本函数吞掉（只丢那一手），
+        返回 `{"settled": 本次结算手数, "settled_hand_ids": [...],
+        "remaining": 仍未终结手数, "cleared": bool}`；其中手牌 id 供 service
+        层清理对应的持久化超时任务。**`cleared` 必须由调用方检查**：单手结算失败
+        会被本函数吞掉（只丢那一手），
         此时排名读到的是被低估的筹码，而派奖的 CAS 一旦触发就再没有重试的机会。
         `remaining` 由结算后的**重新扫描**得出，不靠计数相减——扫描才能反映期间
         被其他事务终结的手牌。
@@ -624,6 +626,7 @@ class _BlackjackRepositoryTournamentPlay:
             return {"settled": 0, "remaining": -1, "cleared": False}
 
         settled = 0
+        settled_hand_ids: list[int] = []
         for hand_id in pending_ids:
             try:
                 with get_session() as session:
@@ -646,6 +649,7 @@ class _BlackjackRepositoryTournamentPlay:
                     # 记为已结算而非已弃牌：它是被赛事截止收走的，不是玩家离场
                     self._settle_blackjack_tournament_hand(session, hand)
                     settled += 1
+                    settled_hand_ids.append(hand_id)
             except Exception as e:
                 logger.error(f"清场赛内手牌失败 (hand={hand_id}): {e}")
 
@@ -662,7 +666,12 @@ class _BlackjackRepositoryTournamentPlay:
                 f"赛事 {tournament_id} 清场未尽：仍有 {remaining} 手未终结，"
                 f"本轮跳过派奖，等下一分钟重试"
             )
-        return {"settled": settled, "remaining": remaining, "cleared": remaining == 0}
+        return {
+            "settled": settled,
+            "settled_hand_ids": settled_hand_ids,
+            "remaining": remaining,
+            "cleared": remaining == 0,
+        }
 
     def _compute_tournament_payouts(
         self, eligible_count: int, structure: list, net_pool: float
