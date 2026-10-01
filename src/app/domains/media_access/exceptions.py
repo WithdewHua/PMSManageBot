@@ -23,3 +23,13 @@ class DownloadAlreadyUnlocked(DomainError, ValueError):
             status_code=200,
             payload={"detail": "下载权限已解锁，无需重复解锁"},
         )
+
+
+class InsufficientCredits(DomainError, ValueError):
+    def __init__(self, message: str = "积分不足"):
+        super().__init__(
+            "media.insufficient_credits",
+            message,
+            status_code=400,
+            payload={"detail": message},
+        )

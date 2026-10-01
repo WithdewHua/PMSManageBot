@@ -43,7 +43,7 @@ with core_db.get_session() as session:
 if os.environ["B3_TRAFFIC_SIDE"] == "b2":
     from app.modules.custom_line import _get_line_monthly_traffic as lookup
 else:
-    from app.domains.traffic.repository import _get_line_monthly_traffic as lookup
+    from app.domains.traffic.service import _get_line_monthly_traffic as lookup
 
 original = identity_repository.get_session
 trace = []

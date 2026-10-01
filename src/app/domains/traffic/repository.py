@@ -5,10 +5,33 @@ from sqlalchemy import delete, func, select, update
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
-from app.domains.identity import service as identity_service
 from app.domains.identity.models import EmbyUser, PlexUser
-from app.domains.lines import catalog as line_catalog
 from app.domains.traffic.models import LineTrafficMonthlyStats, LineTrafficStats
+from app.domains.traffic.repository_tx import get_line_monthly_traffic_tx
+
+__all__ = [
+    "get_line_monthly_traffic_tx",
+]
+
+
+def execute(session) -> None:
+    session.execute(select(1))
+
+
+def get_media_username_to_id_maps() -> tuple[dict[str, int], dict[str, str]]:
+    """读取所有已绑定 Plex 和 Emby 用户名到媒体服务 ID 的映射字典。"""
+    with get_session() as session:
+        p_stmt = select(PlexUser.plex_username, PlexUser.plex_id).where(
+            PlexUser.plex_username.is_not(None), PlexUser.plex_id.is_not(None)
+        )
+        e_stmt = select(EmbyUser.emby_username, EmbyUser.emby_id).where(
+            EmbyUser.emby_username.is_not(None), EmbyUser.emby_id.is_not(None)
+        )
+        plex = session.execute(p_stmt).fetchall()
+        emby = session.execute(e_stmt).fetchall()
+        return {u.lower(): pid for u, pid in plex if u}, {
+            u.lower(): eid for u, eid in emby if u
+        }
 
 
 def create_line_traffic_entry(
@@ -135,7 +158,9 @@ def bulk_create_line_traffic_entries(
     return result
 
 
-def get_premium_line_traffic_statistics() -> list:
+def get_premium_line_traffic_statistics(
+    premium_lines: list[str] | None = None,
+) -> list:
     """获取Premium线路流量统计信息"""
     try:
         now = datetime.now(settings.TZ)
@@ -143,8 +168,7 @@ def get_premium_line_traffic_statistics() -> list:
         week_start = today_start - timedelta(days=now.weekday())
         month_start = today_start.replace(day=1)
 
-        # 获取Premium线路列表
-        premium_lines = line_catalog.premium_lines()
+        premium_lines = premium_lines or []
 
         line_stats = []
 
@@ -222,6 +246,7 @@ def get_user_daily_traffic(
     service: str | None = None,
     date: datetime | None = None,
     premium_only: bool = False,
+    premium_lines: list[str] | None = None,
 ) -> int:
     """获取用户指定日期的流量消耗，默认为今日"""
     if not username and not user_id:
@@ -260,7 +285,6 @@ def get_user_daily_traffic(
                 ]
 
             if premium_only:
-                premium_lines = line_catalog.premium_lines()
                 if premium_lines:
                     conditions.append(LineTrafficStats.line.in_(premium_lines))
                 else:
@@ -710,36 +734,3 @@ def update_traffic_username(old_username: str, new_username: str) -> bool:
     except Exception as e:
         logger.error(f"更新流量统计用户名失败: {e}")
         return False
-
-
-async def _get_line_monthly_traffic(
-    session,
-    line_domain: str,
-    year_month: str,
-    owner_tg_id: int | None = None,
-    from_raw_table: bool = False,
-) -> float:
-    """Compatibility coroutine around the caller-owned transaction helper."""
-    from app.domains.traffic.repository_tx import get_line_monthly_traffic_tx
-
-    owner_usernames: set[str] = set()
-    if owner_tg_id is not None:
-        try:
-            plex_user = identity_service.get_plex_info_by_tg_id(owner_tg_id)
-            if plex_user and plex_user[4]:
-                owner_usernames.add(plex_user[4].lower())
-            emby_user = identity_service.get_emby_info_by_tg_id(owner_tg_id)
-            if emby_user and emby_user[0]:
-                owner_usernames.add(emby_user[0].lower())
-        except Exception:
-            logger.exception("读取线路所有者信息失败，按旧行为返回 0 流量")
-            return 0.0
-    session.execute(select(1))
-    return get_line_monthly_traffic_tx(
-        session,
-        line_domain,
-        year_month,
-        owner_tg_id=None,
-        from_raw_table=from_raw_table,
-        owner_usernames=owner_usernames,
-    )

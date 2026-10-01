@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from app.core.log import logger
 from app.domains.traffic import repository as traffic_repository
 from app.domains.traffic.cache import stream_traffic_cache
 from app.domains.traffic.config import TRAFFIC_CONFIG
@@ -18,18 +19,29 @@ def daily_usage(
     service: str | None = None,
     date: datetime | None = None,
     premium_only: bool = False,
+    premium_lines: list[str] | None = None,
 ) -> int:
+    if premium_only and premium_lines is None:
+        from app.domains.lines import service as lines_service
+
+        premium_lines = lines_service.get_premium_lines()
     return traffic_repository.get_user_daily_traffic(
         username=username,
         user_id=user_id,
         service=service,
         date=date,
         premium_only=premium_only,
+        premium_lines=premium_lines,
     )
 
 
 def premium_line_statistics() -> list:
-    return traffic_repository.get_premium_line_traffic_statistics()
+    from app.domains.lines import service as lines_service
+
+    premium_lines = lines_service.get_premium_lines()
+    return traffic_repository.get_premium_line_traffic_statistics(
+        premium_lines=premium_lines
+    )
 
 
 def traffic_rank(service: str, start_date=None, end_date=None) -> list:
@@ -62,6 +74,45 @@ def store_traffic_batch(rows: list[dict], **kwargs) -> dict[str, str]:
 
 def get_user_daily_traffic(*args, **kwargs) -> int:
     return daily_usage(*args, **kwargs)
+
+
+def get_username_to_id_mappings() -> tuple[dict[str, int], dict[str, str]]:
+    return traffic_repository.get_media_username_to_id_maps()
+
+
+async def _get_line_monthly_traffic(
+    session,
+    line_domain: str,
+    year_month: str,
+    owner_tg_id: int | None = None,
+    from_raw_table: bool = False,
+) -> float:
+    """Compatibility coroutine around the caller-owned transaction helper."""
+    from app.domains.identity import service as identity_service
+
+    owner_usernames: set[str] = set()
+    if owner_tg_id is not None:
+        try:
+            plex_user = identity_service.get_plex_info_by_tg_id(owner_tg_id)
+            if plex_user and plex_user[4]:
+                owner_usernames.add(plex_user[4].lower())
+            emby_user = identity_service.get_emby_info_by_tg_id(owner_tg_id)
+            if emby_user and emby_user[0]:
+                owner_usernames.add(emby_user[0].lower())
+        except Exception:
+            logger.exception(
+                "Failed to read line owner information, returning 0 traffic by legacy behavior"
+            )
+            return 0.0
+    traffic_repository.execute(session)
+    return traffic_repository.get_line_monthly_traffic_tx(
+        session,
+        line_domain,
+        year_month,
+        owner_tg_id=None,
+        from_raw_table=from_raw_table,
+        owner_usernames=owner_usernames,
+    )
 
 
 def get_premium_line_traffic_statistics() -> list:

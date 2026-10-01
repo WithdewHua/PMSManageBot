@@ -30,7 +30,7 @@ def test_b3_created_cycle_imports_are_not_baselined() -> None:
 
 
 def test_custom_line_traffic_uses_independent_identity_sessions() -> None:
-    tree = ast.parse((ROOT / "traffic/repository.py").read_text())
+    tree = ast.parse((ROOT / "traffic/service.py").read_text())
     function = next(
         node
         for node in ast.walk(tree)

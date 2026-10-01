@@ -1,4 +1,6 @@
 from app.core.log import uvicorn_logger as logger
+from app.domains.credits import service as credits_service
+from app.domains.credits.types import CreditAccount
 from app.domains.identity import service as identity_service
 from app.domains.lines import catalog
 from app.domains.lines import repository as lines_repository
@@ -698,4 +700,49 @@ def is_known_catalog_line(line: str) -> bool:
     """Return whether line matches any normal or premium catalog line using historical substring match."""
     return lines_rules.match_catalog_line(
         line, get_traffic_classification_catalog_lines()
+    )
+
+
+def get_user_emby_info(tg_id: int) -> tuple | None:
+    return identity_service.get_emby_info_by_tg_id(tg_id)
+
+
+def get_user_plex_info(tg_id: int) -> tuple | None:
+    return identity_service.get_plex_info_by_tg_id(tg_id)
+
+
+def get_emby_info_by_username(username: str) -> tuple | None:
+    return identity_service.get_emby_info_by_emby_username(username)
+
+
+def get_plex_info_by_email(email: str) -> tuple | None:
+    return identity_service.get_plex_info_by_plex_email(email)
+
+
+def get_service_label(service: str) -> tuple[str, str]:
+    return identity_service.get_service_label(service)
+
+
+def unlock_line_schedule_flow(tg_id: int, service: str) -> tuple[bool, str, int, float]:
+    credits_needed = get_line_schedule_unlock_credits()
+    current_credits = credits_service.read_optional(CreditAccount.tg(int(tg_id)))
+    if not current_credits:
+        return False, "您尚未绑定 Plex/Emby 账户", credits_needed, 0.0
+    if current_credits < credits_needed:
+        return (
+            False,
+            f"积分不足，需要 {credits_needed} 积分，当前仅有 {current_credits} 积分",
+            credits_needed,
+            current_credits,
+        )
+    try:
+        unlock_line_schedule_with_credit(tg_id, service, credits_needed)
+    except Exception:
+        return False, "解锁失败", credits_needed, current_credits
+    new_credits = current_credits - credits_needed
+    return (
+        True,
+        f"成功解锁线路调度功能，消耗 {credits_needed} 积分",
+        credits_needed,
+        new_credits,
     )

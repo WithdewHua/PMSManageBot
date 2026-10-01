@@ -6,12 +6,9 @@ from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Re
 from pydantic import BaseModel
 
 from app.core.log import uvicorn_logger as logger
-from app.domains.credits import service as credits_service
-from app.domains.credits.types import CreditAccount
 from app.domains.identity import service as identity_service
 from app.domains.premium import notifications as premium_notifications
 from app.domains.premium import service as premium_service
-from app.domains.traffic import service as traffic_service
 from app.integrations.telegram.profiles import get_user_name_from_tg_id
 from app.transport.http.auth import get_telegram_user, require_telegram_auth
 from app.transport.http.schemas import BaseResponse, TelegramUser
@@ -92,16 +89,16 @@ async def unlock_premium(
     expected_cost = int(base_cost * discount)
 
     try:
-        current_credits = credits_service.read_optional(CreditAccount.tg(int(tg_id)))
-        if current_credits is None:
-            raise HTTPException(status_code=400, detail="用户不存在")
-        if current_credits < total_cost:
-            raise HTTPException(status_code=400, detail="积分不足")
-        if total_cost != expected_cost:
-            raise HTTPException(status_code=400, detail="费用计算错误")
-        new_expiry, mutation = premium_service.purchase_premium(
-            tg_id=int(tg_id), service=service, days=int(days), cost=total_cost
-        )
+        try:
+            new_expiry, mutation = premium_service.purchase_premium_with_credit_check(
+                tg_id=int(tg_id),
+                service=service,
+                days=int(days),
+                cost=total_cost,
+                expected_cost=expected_cost,
+            )
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
         new_credits = mutation.after
 
         logger.info(
@@ -169,7 +166,7 @@ async def get_premium_line_traffic_stats(
 ):
     """获取Premium线路流量统计信息"""
     try:
-        stats = traffic_service.premium_line_statistics()
+        stats = premium_service.get_premium_line_traffic_stats()
         logger.info(
             f"用户 {get_user_name_from_tg_id(user.id)} 获取 Premium 线路流量统计信息"
         )

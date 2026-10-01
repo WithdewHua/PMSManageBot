@@ -44,7 +44,7 @@ def _role_for_module(module: str) -> str | None:
     parts = module.split(".")
     if "domains" not in parts:
         return None
-    if "repository" in parts:
+    if "repository" in parts or parts[-1].startswith("repository"):
         return "repository"
     role = parts[-1]
     return (
@@ -294,7 +294,11 @@ def _import_allowed(
     ):
         return True
     if source_role == "service":
-        return target_role in {"service", "exceptions", "constants"}
+        return target_role in {"service", "exceptions", "constants"} or (
+            target_domain == "identity"
+            and target_role == "rules"
+            and symbol in {"rules", "premium_active", "premium_flag_set"}
+        )
     if source_role == "repository":
         return (
             (
@@ -311,7 +315,10 @@ def _import_allowed(
 
 
 def _call_allowed(
-    source_role: str | None, target_role: str | None, symbol: str
+    source_role: str | None,
+    target_domain: str,
+    target_role: str | None,
+    symbol: str,
 ) -> bool:
     if target_role == "types":
         return True
@@ -322,7 +329,11 @@ def _call_allowed(
     ):
         return True
     if source_role == "service":
-        return target_role in {"service", "exceptions", "constants"}
+        return target_role in {"service", "exceptions", "constants"} or (
+            target_domain == "identity"
+            and target_role == "rules"
+            and symbol in {"premium_active", "premium_flag_set"}
+        )
     if source_role == "repository":
         # Model constructors and class methods are legal only when the import
         # itself is allowed; _import_allowed checks the identity/read-model rule.
@@ -378,7 +389,7 @@ def scan_cross_domain_calls(root: Path) -> list[dict[str, Any]]:
                 binding, symbol = binding_call
                 target_domain = binding["domain"]
                 target_role = binding["role"] or None
-                if not _call_allowed(role, target_role, symbol):
+                if not _call_allowed(role, target_domain, target_role, symbol):
                     key = (
                         f"call|{relative_path(path, root)}|{node.lineno}|imported|"
                         f"{target_domain}|{symbol}"

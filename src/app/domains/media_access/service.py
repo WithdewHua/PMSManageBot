@@ -1,6 +1,11 @@
+from datetime import datetime
+
+from app.core.config import settings
 from app.core.log import logger
+from app.domains.credits import exceptions as credits_exceptions
 from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
+from app.domains.identity import rules as identity_rules
 from app.domains.identity import service as identity_service
 from app.domains.media_access import exceptions as media_access_exceptions
 from app.domains.media_access import notifications as media_access_notifications
@@ -39,7 +44,46 @@ def set_nsfw_libs(libs: list[str]) -> list[str]:
 
 
 def check_download_unlock(tg_id: int, service: str) -> dict:
-    return media_access_repository.check_download_unlock(int(tg_id), service)
+    record = media_access_repository.get_download_unlock_record(int(tg_id), service)
+    is_premium = False
+    unlock_time = None
+    if record:
+        is_premium = identity_rules.premium_active(
+            {
+                "is_premium": record["is_premium"],
+                "premium_expiry_time": record["premium_expiry_time"],
+            },
+            datetime.now(settings.TZ),
+            invalid_expiry=None,
+        )
+        if record["download_unlocked"] == 1:
+            unlock_time = record["download_unlock_time"]
+
+    return {
+        "is_unlocked": is_premium or unlock_time is not None,
+        "is_premium": is_premium,
+        "unlock_time": unlock_time,
+    }
+
+
+def get_nsfw_info(tg_id: int, service: str, operation: str) -> dict:
+    if service not in ("plex", "emby"):
+        raise ValueError("不支持的服务类型")
+    if operation not in ("unlock", "lock"):
+        raise ValueError("不支持的操作类型")
+    if operation == "unlock":
+        return {"cost": get_unlock_credits()}
+    account = (
+        identity_service.find_plex_by_tg(tg_id)
+        if service == "plex"
+        else identity_service.find_emby_by_tg(tg_id)
+    )
+    if not account or (
+        not account.all_lib if service == "plex" else not account.emby_is_unlock
+    ):
+        raise ValueError("您尚未解锁 NSFW 内容")
+    unlock_time = account.unlock_time if service == "plex" else account.emby_unlock_time
+    return {"refund": caculate_credits_fund(unlock_time, get_unlock_credits())}
 
 
 def is_download_unlocked(tg_id: int, service: str) -> bool:
@@ -104,7 +148,12 @@ async def perform_nsfw_operation(tg_id: int, service: str, operation: str) -> di
 
 async def unlock_nsfw(tg_id: int, service: str, cost: float) -> dict:
     """Commit NSFW unlock, then synchronize the media server with compensation."""
-    committed = media_access_repository.unlock_nsfw(int(tg_id), service, float(cost))
+    try:
+        committed = media_access_repository.unlock_nsfw(
+            int(tg_id), service, float(cost)
+        )
+    except credits_exceptions.InsufficientCredits as error:
+        raise media_access_exceptions.InsufficientCredits() from error
 
     try:
         if service == "plex":

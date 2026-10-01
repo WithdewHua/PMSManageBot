@@ -1,0 +1,367 @@
+{
+  "change": "retire-legacy-db-facade",
+  "audit_version": "1.0",
+  "repo_root": "/Users/withdewhua/Documents/Projects/PMSManageBot",
+  "all_prerequisites_passed": false,
+  "gate_verdict": "FAIL (BLOCKED)",
+  "summary": {
+    "check_1_baseline_clean": false,
+    "check_2_only_facade_ignores": true,
+    "check_3_src_databases_clean": true
+  },
+  "responsible_changes_summary": {
+    "contract_ignore_counts (frozen in baseline.json)": {
+      "baseline_violations": 2,
+      "import_linter_ignores": 0
+    }
+  },
+  "check_1_baseline": {
+    "passed": false,
+    "categories": {
+      "config_access": {
+        "count": 0,
+        "status": "clean"
+      },
+      "contract_ignore_counts": {
+        "counts": {
+          "Acyclic domain siblings": 2,
+          "Database engine import scope": 0,
+          "Domain entry points do not touch data layer": 0,
+          "Domain internal layering": 0,
+          "Domain model import scope": 0,
+          "Domain rules are pure value computations": 0,
+          "Domain types are pure value modules": 0,
+          "External integration isolation": 0,
+          "Legacy database facade freeze": 0,
+          "SQLAlchemy direct use scope": 0,
+          "Six-tier domain dependencies": 2,
+          "Top-level architecture": 0
+        },
+        "non_zero_count": 2,
+        "status": "non_empty"
+      },
+      "cross_domain_calls": {
+        "count": 0,
+        "status": "clean"
+      },
+      "line_budgets": {
+        "count": 0,
+        "status": "exempt"
+      },
+      "mixin_duplicates": {
+        "count": 0,
+        "status": "clean"
+      },
+      "model_registry": {
+        "count": 0,
+        "status": "clean"
+      },
+      "numbered_modules": {
+        "count": 0,
+        "status": "clean"
+      },
+      "version": {
+        "count": 0,
+        "status": "exempt"
+      }
+    },
+    "violations_count": 2,
+    "violations": [
+      {
+        "category": "contract_ignore_counts",
+        "contract": "Acyclic domain siblings",
+        "count": 2,
+        "owner": "contract_ignore_counts (frozen in baseline.json)",
+        "description": "Contract 'Acyclic domain siblings' has 2 ignored imports"
+      },
+      {
+        "category": "contract_ignore_counts",
+        "contract": "Six-tier domain dependencies",
+        "count": 2,
+        "owner": "contract_ignore_counts (frozen in baseline.json)",
+        "description": "Contract 'Six-tier domain dependencies' has 2 ignored imports"
+      }
+    ]
+  },
+  "check_2_import_linter": {
+    "passed": true,
+    "total_ignore_imports": 4,
+    "facade_composition_count": 4,
+    "facade_composition_edges": [
+      {
+        "contract": "Six-tier domain dependencies",
+        "edge": "app.databases.db -> app.domains.invitation.repository",
+        "importer": "app.databases.db",
+        "imported": "app.domains.invitation.repository",
+        "comment": "restructure-backend-architecture: transitional facade composition",
+        "owner": "unknown",
+        "active_in_src": true,
+        "evidence": [
+          {
+            "path": "src/app/databases/db.py",
+            "line": 6,
+            "snippet": "from app.domains.invitation.repository import InvitationRepository"
+          }
+        ]
+      },
+      {
+        "contract": "Six-tier domain dependencies",
+        "edge": "app.databases.db -> app.domains.watch_rewards.repository",
+        "importer": "app.databases.db",
+        "imported": "app.domains.watch_rewards.repository",
+        "comment": "",
+        "owner": "unknown",
+        "active_in_src": true,
+        "evidence": [
+          {
+            "path": "src/app/databases/db.py",
+            "line": 11,
+            "snippet": "from app.domains.watch_rewards.repository import WatchRewardsRepository"
+          }
+        ]
+      },
+      {
+        "contract": "Acyclic domain siblings",
+        "edge": "app.databases.db -> app.domains.invitation.repository",
+        "importer": "app.databases.db",
+        "imported": "app.domains.invitation.repository",
+        "comment": "restructure-backend-architecture: transitional facade composition",
+        "owner": "unknown",
+        "active_in_src": true,
+        "evidence": [
+          {
+            "path": "src/app/databases/db.py",
+            "line": 6,
+            "snippet": "from app.domains.invitation.repository import InvitationRepository"
+          }
+        ]
+      },
+      {
+        "contract": "Acyclic domain siblings",
+        "edge": "app.databases.db -> app.domains.watch_rewards.repository",
+        "importer": "app.databases.db",
+        "imported": "app.domains.watch_rewards.repository",
+        "comment": "",
+        "owner": "unknown",
+        "active_in_src": true,
+        "evidence": [
+          {
+            "path": "src/app/databases/db.py",
+            "line": 11,
+            "snippet": "from app.domains.watch_rewards.repository import WatchRewardsRepository"
+          }
+        ]
+      }
+    ],
+    "non_facade_legacy_count": 0,
+    "non_facade_legacy_edges": [],
+    "facade_freeze_allowed_importers": [
+      "app.main",
+      "app.schedule",
+      "app.domains.accounts.service",
+      "app.domains.blackjack.service",
+      "app.domains.crypto_donation.jobs",
+      "app.domains.custom_lines.service",
+      "app.domains.invitation.service",
+      "app.domains.lines.jobs",
+      "app.domains.traffic.jobs",
+      "app.domains.watch_rewards.service"
+    ]
+  },
+  "check_3_src_databases": {
+    "passed": true,
+    "ast_total_imports": 1,
+    "ast_internal_imports": [
+      {
+        "path": "src/app/databases/__init__.py",
+        "line": 1,
+        "statement": "from app.databases.db import db",
+        "imported": "app.databases.db (db)",
+        "is_within_databases": true
+      }
+    ],
+    "ast_external_imports": [],
+    "grimp_downstream_databases": [],
+    "grimp_downstream_db": [
+      "app.databases"
+    ],
+    "grimp_direct_importers": [
+      {
+        "importer": "app.databases",
+        "target": "app.databases.db"
+      }
+    ]
+  },
+  "check_4_compat_and_scripts": {
+    "composed_mixins": [
+      "IdentityRepository",
+      "PremiumCompat",
+      "InvitationRepository",
+      "MediaAccessCompat",
+      "LinesCompat",
+      "TrafficCompat",
+      "WatchRewardsRepository"
+    ],
+    "compat_class_methods": {
+      "IdentityRepository": [
+        "write_user_info_cache",
+        "add_plex_user",
+        "delete_plex_user",
+        "get_plex_info_by_tg_id",
+        "get_plex_info_by_plex_id",
+        "get_plex_info_by_plex_email",
+        "add_emby_user",
+        "get_emby_info_by_emby_username",
+        "get_emby_info_by_tg_id",
+        "add_user_data",
+        "get_stats_by_tg_id",
+        "add_overseerr_user",
+        "get_overseerr_info_by_tg_id",
+        "get_overseerr_info_by_email",
+        "_list_statistics_tg_ids"
+      ],
+      "PremiumCompat": [
+        "get_plex_premium_quota_status",
+        "get_emby_premium_quota_status",
+        "get_expired_premium_users",
+        "update_expired_premium_status",
+        "get_premium_users_expiring_soon",
+        "get_premium_statistics",
+        "get_all_active_premium_users",
+        "get_all_premium_traffic_debt_users"
+      ],
+      "InvitationRepository": [
+        "add_invitation_code",
+        "update_invitation_status",
+        "update_invitation_plex_id",
+        "get_inviter_tg_id_by_plex_id",
+        "get_inviter_tg_id_by_emby_id",
+        "verify_invitation_code_is_used",
+        "get_invitation_code_by_owner",
+        "get_invitee_count_by_owner"
+      ],
+      "MediaAccessCompat": [
+        "update_all_lib_flag",
+        "check_download_unlock",
+        "set_download_unlocked",
+        "deduct_credits_for_download_unlock",
+        "get_download_unlocked_users_num"
+      ],
+      "LinesCompat": [
+        "set_emby_line",
+        "get_emby_line",
+        "get_emby_user_with_binded_line",
+        "set_plex_line",
+        "get_plex_line",
+        "get_plex_user_with_binded_line",
+        "get_free_premium_lines",
+        "set_free_premium_lines",
+        "is_free_premium_line",
+        "get_line_tags",
+        "set_line_tags",
+        "delete_line_tags",
+        "get_all_line_tags",
+        "check_line_schedule_unlock",
+        "unlock_line_schedule_with_credit",
+        "unlock_line_schedule",
+        "create_line_schedule",
+        "get_user_line_schedules",
+        "update_line_schedule",
+        "delete_line_schedule",
+        "check_schedule_conflict",
+        "get_current_active_schedule",
+        "disable_schedules_by_line",
+        "get_users_with_line_schedule"
+      ],
+      "TrafficCompat": [
+        "create_line_traffic_entry",
+        "bulk_create_line_traffic_entries",
+        "get_premium_line_traffic_statistics",
+        "get_user_daily_traffic",
+        "get_plex_traffic_rank",
+        "get_emby_traffic_rank",
+        "aggregate_monthly_traffic_data",
+        "cleanup_monthly_traffic_data",
+        "update_traffic_username"
+      ],
+      "WatchRewardsRepository": [
+        "get_pending_ghost_compensation"
+      ]
+    },
+    "identity_compat_methods_count": 15,
+    "db_calls_src_count": 0,
+    "db_calls_src": [],
+    "db_calls_tests_count": 4,
+    "db_calls_tests": [
+      {
+        "path": "tests/test_remaining_postgres.py",
+        "line": 98,
+        "target_var": "db",
+        "method": "get_session",
+        "snippet": "with db.get_session() as session:"
+      },
+      {
+        "path": "tests/test_remaining_postgres.py",
+        "line": 106,
+        "target_var": "db",
+        "method": "get_session",
+        "snippet": "with db.get_session() as session:"
+      },
+      {
+        "path": "tests/test_remaining_postgres.py",
+        "line": 130,
+        "target_var": "db",
+        "method": "get_session",
+        "snippet": "with db.get_session() as session:"
+      },
+      {
+        "path": "tests/test_remaining_postgres.py",
+        "line": 48,
+        "target_var": "db",
+        "method": "get_session",
+        "snippet": "with db.get_session() as session:"
+      }
+    ],
+    "db_calls_scripts_count": 0,
+    "db_calls_scripts": [],
+    "scripts_databases_imports": [
+      {
+        "path": "scripts/refactor/snapshot.py",
+        "line": 309,
+        "statement": "from app.databases import db"
+      }
+    ],
+    "tests_databases_imports": [
+      {
+        "path": "tests/conftest.py",
+        "line": 48,
+        "statement": "from app.databases.db import DatabaseORM"
+      },
+      {
+        "path": "tests/test_badge_awards_promotion.py",
+        "line": 398,
+        "statement": "from app.databases.db import DatabaseORM"
+      },
+      {
+        "path": "tests/test_accounts_sync_resilience.py",
+        "line": 68,
+        "statement": "from app.databases import db"
+      },
+      {
+        "path": "tests/refactor/test_blackjack_cross_domain.py",
+        "line": 129,
+        "statement": "from app.databases.db import DatabaseORM"
+      },
+      {
+        "path": "tests/refactor/test_model_registry.py",
+        "line": 24,
+        "statement": "from app.databases import db"
+      },
+      {
+        "path": "tests/refactor/test_activity_rejections.py",
+        "line": 34,
+        "statement": "from app.databases.db import DatabaseORM"
+      }
+    ]
+  }
+}

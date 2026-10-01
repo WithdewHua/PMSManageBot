@@ -15,7 +15,6 @@ from app.domains.lines.gateway_cache import (
     emby_user_defined_line_cache,
 )
 from app.domains.lines.schemas import LineTagRequest
-from app.domains.premium import admin_router as premium_admin
 from app.transport.http.schemas import TelegramUser
 
 
@@ -56,7 +55,7 @@ async def test_admin_lines_add_delete_and_list() -> None:
     assert res.success is True
 
     # Add premium lines
-    res = await premium_admin.add_premium_line_generic.__wrapped__(
+    res = await lines_admin.add_premium_line_generic.__wrapped__(
         request=req, background_tasks=bg, data={"line_name": "prem-1"}, user=admin
     )
     assert res.success is True
@@ -79,7 +78,7 @@ async def test_admin_lines_add_delete_and_list() -> None:
     )
     assert del_res.success is True
 
-    del_prem = await premium_admin.delete_premium_line_generic.__wrapped__(
+    del_prem = await lines_admin.delete_premium_line_generic.__wrapped__(
         line_name="prem-1", request=req, user=admin
     )
     assert del_prem.success is True
@@ -132,7 +131,7 @@ async def test_d2_difference_tag_order_and_all_line_tags_order() -> None:
     await lines_admin.add_normal_line_generic.__wrapped__(
         request=req, background_tasks=bg, data={"line_name": "norm-1"}, user=admin
     )
-    await premium_admin.add_premium_line_generic.__wrapped__(
+    await lines_admin.add_premium_line_generic.__wrapped__(
         request=req, background_tasks=bg, data={"line_name": "prem-1"}, user=admin
     )
 
@@ -161,15 +160,15 @@ async def test_d2_difference_free_premium_lines_order_and_validation() -> None:
     bg = BackgroundTasks()
     admin = TelegramUser(id=123456789, first_name="Admin")
 
-    await premium_admin.add_premium_line_generic.__wrapped__(
+    await lines_admin.add_premium_line_generic.__wrapped__(
         request=req, background_tasks=bg, data={"line_name": "prem-z"}, user=admin
     )
-    await premium_admin.add_premium_line_generic.__wrapped__(
+    await lines_admin.add_premium_line_generic.__wrapped__(
         request=req, background_tasks=bg, data={"line_name": "prem-a"}, user=admin
     )
 
     # Valid free premium lines setting
-    res = await premium_admin.set_free_premium_lines.__wrapped__(
+    res = await lines_admin.set_free_premium_lines.__wrapped__(
         request=req,
         background_tasks=bg,
         data={"free_lines": ["prem-a", "prem-z"]},
@@ -181,7 +180,7 @@ async def test_d2_difference_free_premium_lines_order_and_validation() -> None:
     assert catalog.free_premium_lines() == ["prem-z", "prem-a"]
 
     # Reject non-premium line
-    res_bad = await premium_admin.set_free_premium_lines.__wrapped__(
+    res_bad = await lines_admin.set_free_premium_lines.__wrapped__(
         request=req,
         background_tasks=bg,
         data={"free_lines": ["prem-z", "not-a-line"]},

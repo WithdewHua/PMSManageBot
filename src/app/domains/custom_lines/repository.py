@@ -19,9 +19,8 @@ from app.domains.credits import repository as credits_repository
 from app.domains.credits.types import CreditAccount
 from app.domains.custom_lines import rules
 from app.domains.custom_lines.models import CustomLine, CustomLineSettlement
-from app.domains.identity.models import EmbyUser, PlexUser
 from app.domains.identity.types import TgIdReassignIssue
-from app.domains.lines.models import LineSchedule
+from app.domains.lines import repository as lines_repository
 
 _ACTIVE_DOMAIN_STATUSES = ("pending", "approved", "offline")
 
@@ -104,55 +103,11 @@ def list_admin_lines(status: str | None = None) -> list[dict[str, Any]]:
 def _disable_schedules_tx(
     session, line_name: str, *, only_non_premium: bool = False
 ) -> list[dict[str, int | str]]:
-    """Disable schedules in the caller's transaction and return notification data.
-
-    New lines repositories expose this operation as a ``*_tx`` helper.  The
-    direct fallback keeps this change usable on the pre-promotion tree without
-    opening a second transaction.
-    """
-    schedules = (
-        session.execute(
-            select(LineSchedule).where(
-                LineSchedule.line == line_name, LineSchedule.is_enabled == 1
-            )
-        )
-        .scalars()
-        .all()
+    """Disable schedules in the caller's transaction and return notification data."""
+    _success, _count, affected_users = lines_repository.disable_schedules_by_line_tx(
+        session, line_name, only_non_premium=only_non_premium
     )
-    if not schedules:
-        return []
-
-    premium_tg_ids: set[int] = set()
-    if only_non_premium:
-        tg_ids = {int(schedule.tg_id) for schedule in schedules}
-        premium_tg_ids.update(
-            session.execute(
-                select(PlexUser.tg_id).where(
-                    PlexUser.tg_id.in_(tg_ids), PlexUser.is_premium == 1
-                )
-            ).scalars()
-        )
-        premium_tg_ids.update(
-            session.execute(
-                select(EmbyUser.tg_id).where(
-                    EmbyUser.tg_id.in_(tg_ids), EmbyUser.is_premium == 1
-                )
-            ).scalars()
-        )
-
-    affected: dict[tuple[int, str], int] = {}
-    now = int(datetime.now(settings.TZ).timestamp())
-    for schedule in schedules:
-        if only_non_premium and schedule.tg_id in premium_tg_ids:
-            continue
-        schedule.is_enabled = 0
-        schedule.updated_at = now
-        key = (int(schedule.tg_id), schedule.service)
-        affected[key] = affected.get(key, 0) + 1
-    return [
-        {"tg_id": tg_id, "service": service, "schedule_count": count}
-        for (tg_id, service), count in affected.items()
-    ]
+    return affected_users
 
 
 def _new_line(values: dict[str, Any]) -> CustomLine:
@@ -442,24 +397,13 @@ async def check_traffic() -> list[dict[str, Any]]:
         transitions: list[dict[str, Any]] = []
         for line in lines:
             try:
-                traffic_reader = getattr(
-                    traffic_repository, "get_line_monthly_traffic", None
+                traffic_gb = traffic_repository.get_line_monthly_traffic_tx(
+                    session,
+                    line.domain,
+                    current_month,
+                    owner_tg_id=None,
+                    from_raw_table=True,
                 )
-                if traffic_reader is not None:
-                    traffic_gb = await traffic_reader(
-                        line.domain,
-                        current_month,
-                        owner_tg_id=None,
-                        from_raw_table=True,
-                    )
-                else:
-                    traffic_gb = await traffic_repository._get_line_monthly_traffic(
-                        session,
-                        line.domain,
-                        current_month,
-                        owner_tg_id=None,
-                        from_raw_table=True,
-                    )
             except Exception:
                 logger.exception("检查线路 %s 流量失败，继续处理下一条", line.domain)
                 continue
@@ -571,26 +515,13 @@ async def settle_lines(
                 line = line_to_dict(orm_line)
                 try:
                     with session.begin_nested():
-                        traffic_reader = getattr(
-                            traffic_repository, "get_line_monthly_traffic", None
+                        traffic_gb = traffic_repository.get_line_monthly_traffic_tx(
+                            session,
+                            line["domain"],
+                            settle_month,
+                            line["tg_id"],
+                            from_raw_table=from_raw_table,
                         )
-                        if traffic_reader is not None:
-                            traffic_gb = await traffic_reader(
-                                line["domain"],
-                                settle_month,
-                                owner_tg_id=line["tg_id"],
-                                from_raw_table=from_raw_table,
-                            )
-                        else:
-                            traffic_gb = (
-                                await traffic_repository._get_line_monthly_traffic(
-                                    session,
-                                    line["domain"],
-                                    settle_month,
-                                    line["tg_id"],
-                                    from_raw_table=from_raw_table,
-                                )
-                            )
                         already_settled = (
                             session.execute(
                                 select(

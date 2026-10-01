@@ -1,14 +1,11 @@
 import time
-from datetime import datetime
 
 from sqlalchemy import func, select, update
 
-from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
 from app.domains.credits import repository as credits_repository
 from app.domains.credits.types import CreditAccount
-from app.domains.identity import rules as identity_rules
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
 from app.domains.media_access import exceptions as media_exceptions
 from app.domains.media_access.config import MEDIA_ACCESS_CONFIG
@@ -60,8 +57,8 @@ def update_all_lib_flag(
         return False
 
 
-def check_download_unlock(tg_id: int, service: str) -> dict:
-    """Return persisted and Premium-derived download permission status."""
+def get_download_unlock_record(tg_id: int, service: str) -> dict | None:
+    """Return persisted and Premium-derived download permission record columns."""
     with get_session() as session:
         if service == "plex":
             stmt = select(
@@ -82,24 +79,13 @@ def check_download_unlock(tg_id: int, service: str) -> dict:
         else:
             raise ValueError(f"不支持的服务类型: {service}")
 
-        is_premium = False
-        unlock_time = None
-        if result:
-            is_premium = identity_rules.premium_active(
-                {
-                    "is_premium": result[0],
-                    "premium_expiry_time": result[1],
-                },
-                datetime.now(settings.TZ),
-                invalid_expiry=None,
-            )
-            if result[2] == 1:
-                unlock_time = result[3]
-
+        if not result:
+            return None
         return {
-            "is_unlocked": is_premium or unlock_time is not None,
-            "is_premium": is_premium,
-            "unlock_time": unlock_time,
+            "is_premium": result[0],
+            "premium_expiry_time": result[1],
+            "download_unlocked": result[2],
+            "download_unlock_time": result[3],
         }
 
 

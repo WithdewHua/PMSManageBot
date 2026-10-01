@@ -162,7 +162,6 @@ ignore_imports = [
 
 
 
-    "app.domains.traffic.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
 ]
 unmatched_ignore_imports_alerting = "error"
 [[tool.importlinter.contracts]]
@@ -184,8 +183,6 @@ allowed_importers = [
 as_packages = false
 ignore_imports = [
     # restructure-backend-architecture: B3 orchestration/utility migration
-    # promote-line-domains: SQL in legacy service
-    "app.domains.premium.service -> app.core.db",
     # restructure-backend-architecture: B2 API migration
 
 
@@ -194,7 +191,6 @@ ignore_imports = [
 
 
 
-    "app.domains.traffic.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
 ]
 unmatched_ignore_imports_alerting = "error"
 
@@ -222,7 +218,6 @@ ignore_imports = [
 
 
 
-    "app.domains.traffic.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
 ]
 unmatched_ignore_imports_alerting = "error"
 
@@ -305,8 +300,6 @@ name = "Acyclic domain siblings"
 type = "acyclic_siblings"
 ancestors = ["app.domains"]
 ignore_imports = [
-    # promote-line-domains: traffic consumes the lines-owned catalog interface.
-    "app.domains.traffic.repository -> app.domains.lines.catalog",
     # restructure-backend-architecture: transitional facade composition
     "app.databases.db -> app.domains.invitation.repository",
         "app.databases.db -> app.domains.watch_rewards.repository",
@@ -324,7 +317,6 @@ layers = [
     "(models)",
 ]
 ignore_imports = [
-    "app.domains.lines.router -> app.domains.lines.jobs", # B3 mechanical relocation; audit in 5.6
 ]
 unmatched_ignore_imports_alerting = "error"
 
@@ -390,10 +382,3 @@ forbidden_modules = [
     "app.domains.*.models",
 ]
 allow_indirect_imports = true
-ignore_imports = [
-    # B2 mechanical relocation retains direct legacy data access.
-    "app.domains.traffic.jobs -> sqlalchemy", # B3 mechanical db_func relocation; audit in 5.6
-    "app.domains.traffic.jobs -> app.core.db", # B3 mechanical relocation; audit in 5.6
-    "app.domains.traffic.jobs -> app.domains.identity.models", # B3 mechanical relocation; audit in 5.6
-]
-unmatched_ignore_imports_alerting = "error"
