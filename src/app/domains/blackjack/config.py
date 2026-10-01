@@ -5,7 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator
 
 from app.core.domain_config import DomainConfig, JsonDocument
 
@@ -101,6 +101,19 @@ class BlackjackConfigModel(BaseModel):
             DEFAULT_BLACKJACK_CONFIG["tournament_defaults"]
         )
     )
+
+    @field_validator(
+        "min_deal_interval_seconds",
+        "jackpot_suited_bj_pct",
+        "badge_min_accuracy",
+        mode="before",
+    )
+    @classmethod
+    def _coerce_legacy_integral_float(cls, value: Any) -> Any:
+        """Accept integral JSON floats written by the legacy config model."""
+        if isinstance(value, float) and value.is_integer():
+            return int(value)
+        return value
 
 
 BLACKJACK_CONFIG = DomainConfig(
