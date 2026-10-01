@@ -78,7 +78,7 @@ __all__ = [
 ]
 
 
-# These tuple layouts are part of the temporary DatabaseORM compatibility API.
+# These tuple layouts preserve the legacy positional response contract.
 def plex_legacy_tuple(account: PlexAccount) -> tuple:
     return (
         account.plex_id,

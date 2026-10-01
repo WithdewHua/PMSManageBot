@@ -1,6 +1,6 @@
 """Manual operational commands for the backend.
 
-The old ``app.databases.db_func`` and ``app.utils.report`` module entry points
+The old ``app.utils.report`` module entry point
 are intentionally replaced by these explicit subcommands in B3. The command
 bodies preserve their historical ordering, defaults, and side effects.
 """

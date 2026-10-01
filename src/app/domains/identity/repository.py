@@ -1,7 +1,7 @@
 """Identity queries and transaction-owned identity mutations.
 
 The module-level functions are the typed identity boundary. The temporary
-SQLAlchemy-free DatabaseORM compatibility facade lives in ``identity.compat``.
+Identity persistence is exposed through module-level repository functions.
 """
 
 from __future__ import annotations
