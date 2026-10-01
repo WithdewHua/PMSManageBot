@@ -171,6 +171,7 @@ class _RecordingScheduler:
 
 def _scheduler_snapshot(root: Path = ROOT) -> dict[str, Any]:
     from app import main, schedule
+    from app.core import scheduler as scheduler_module
     from app.core.config import settings
 
     recorder = _RecordingScheduler()
@@ -184,14 +185,22 @@ def _scheduler_snapshot(root: Path = ROOT) -> dict[str, Any]:
             )
 
     # Startup also restores jobs from live DB state. Record the hooks but never
-    # call them: a snapshot must neither require nor mutate a database.
-    with ExitStack() as stack:
-        stack.enter_context(patch.object(main, "Scheduler", return_value=recorder))
-        stack.enter_context(patch.object(schedule, "datetime", FrozenDateTime))
-        stack.enter_context(
-            patch.object(schedule, "ON_STARTUP", [lambda: None, lambda: None])
-        )
-        schedule.register_all(recorder)
+    # call them: a snapshot must neither require nor mutate a database. The
+    # task registry is process-global, so isolate this read-only registration
+    # from any earlier test or application bootstrap.
+    previous_registry = scheduler_module.TASK_REGISTRY.copy()
+    scheduler_module.TASK_REGISTRY.clear()
+    try:
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(main, "Scheduler", return_value=recorder))
+            stack.enter_context(patch.object(schedule, "datetime", FrozenDateTime))
+            stack.enter_context(
+                patch.object(schedule, "ON_STARTUP", [lambda: None, lambda: None])
+            )
+            schedule.register_all(recorder)
+    finally:
+        scheduler_module.TASK_REGISTRY.clear()
+        scheduler_module.TASK_REGISTRY.update(previous_registry)
     jobs = []
     for job in recorder.jobs:
         item = dict(job)
