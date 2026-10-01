@@ -172,7 +172,6 @@ allowed_importers = [
     "app.core.kv",
     "app.core.domain_config",
     "app.core.events",
-    "app.core.scheduler", # B3 jobstore migration delegates atomic SQL to core.db only
     "app.domains.*.models",
     "app.domains.*.repository",
     "app.domains.*.repository.*", # generated submodules of large repositories

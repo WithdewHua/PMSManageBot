@@ -166,16 +166,22 @@ core/（公共设施）
 
 ## 部署回退与任务引用迁移
 
-从 B3 之前的版本升级时，需要先运行一次迁移脚本；若需回退到 B3 之前的镜像，也必须使用该脚本的反向模式：
+从旧版本升级时，如果数据库中存在旧格式的持久化任务引用，先在维护窗口停止应用与调度器，再运行独立迁移脚本：
+
+```bash
+python -m scripts.migrate_legacy_job_refs
+```
+
+迁移完成后再启动应用。应用在 `scheduler.start()` 前会只读检查 jobstore；发现未迁移且无法解析的旧引用时，会记录迁移命令并以非 0 状态退出，避免 APScheduler 静默删除任务记录。表不存在或记录已经是具名任务格式时检查通过。
+
+如需回退到旧版本镜像：
 
 1. 停止所有运行中的应用与调度器实例。
-2. 回退模式运行迁移脚本：
+2. 执行逐字节反向恢复，并显式确认调度器已停止：
    ```bash
-   python scripts/migrate_legacy_job_refs.py --reverse --scheduler-stopped
+   python -m scripts.migrate_legacy_job_refs --reverse --scheduler-stopped
    ```
 3. 启动旧版本镜像。
-
-应用在 `scheduler.start()` 前会通过只读检查验证 jobstore 中的持久化任务引用。若发现未迁移的旧格式引用且无法解析，进程会直接记录错误并以非 0 状态退出，阻止调度器启动，避免 APScheduler 静默删除无法解析的任务记录。
 
 ## accounts / identity / invitation 提升证据
 
@@ -191,7 +197,7 @@ core/（公共设施）
 
 `promote-blackjack-domain` 把领域提升的做法固化成可复用模板，后续变更按同一顺序执行：
 
-1. **冻结表面**：为路由、OpenAPI path、调度任务 ID、公开门面方法与 ORM 表生成确定性快照夹具（`tests/refactor/fixtures/blackjack_surface.json`），并用 AST 清单（`scripts/refactor/blackjack_inventory.py` → `blackjack_inventory.json`）记录门面调用方、`ValueError` 抛出点与副作用位置及其目标角色。
+1. **冻结表面**：为路由、OpenAPI path、调度任务 ID、公开 repository/service 导出与 ORM 表生成确定性快照夹具，并用 AST 清单记录 `ValueError` 抛出点与副作用位置及其目标角色。
 2. **消除反向依赖**：领域间反向读取（luckywheel 消耗 blackjack 配置）改为在下游补齐自洽数据，而不是导入对方模型；本次在 `luckywheel_free_spins` 上落库消耗参数快照。
 3. **抽取纯规则与类型化错误**：结算、奖池、赛制校验等计算进入 `rules.py`（零 I/O）；业务拒绝改抛 `DomainError` 子类（`BlackjackError` 同时继承 `ValueError` 以兼容未迁移调用方），路由不再匹配错误字符串。
 4. **repository 模块级化**：repository 包对外暴露模块级函数与调用方持有的 `*_tx(session, ...)`；`*_tx` 一律以 `session` 为首参且不得自行 `get_session`/`commit`/`close`，`_tx` 集合与公开导出集合必须双向一致。

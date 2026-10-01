@@ -5,8 +5,7 @@ Database session management for SQLAlchemy
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 
-from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
-from sqlalchemy import create_engine, inspect, select, update
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
@@ -108,35 +107,3 @@ def get_db_session() -> Session:
     Note: Caller is responsible for closing the session.
     """
     return SessionLocal()
-
-
-def rewrite_scheduler_rows(
-    jobstore: SQLAlchemyJobStore,
-    transform: Callable[[bytes], bytes | None],
-) -> int:
-    """Apply an atomic, compare-and-swap transformation to stored job states.
-
-    This is scheduler infrastructure SQL rather than a domain business query;
-    the byte-level reference transform remains in ``core.scheduler``.
-    """
-    table = jobstore.jobs_t
-    if not inspect(jobstore.engine).has_table(table.name, schema=table.schema):
-        return 0
-    updated = 0
-    with jobstore.engine.begin() as connection:
-        rows = connection.execute(
-            select(table.c.id, table.c.job_state).with_for_update()
-        ).all()
-        for row in rows:
-            replacement = transform(row.job_state)
-            if replacement is None:
-                continue
-            result = connection.execute(
-                update(table)
-                .where(table.c.id == row.id, table.c.job_state == row.job_state)
-                .values(job_state=replacement)
-            )
-            if result.rowcount != 1:
-                raise RuntimeError(f"job changed while migrating: {row.id}")
-            updated += 1
-    return updated

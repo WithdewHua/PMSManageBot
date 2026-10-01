@@ -18,12 +18,15 @@ async def post_init_services(application):
 
     try:
         scheduler = Scheduler()
-        from app.schedule import migrate_persisted_jobs, register_all
+        from app.core.scheduler import assert_no_legacy_job_refs
+        from app.schedule import register_all
 
         register_all(scheduler)
-        migrate_persisted_jobs(scheduler)
+        assert_no_legacy_job_refs(scheduler.jobstores["sqlalchemy"])
         scheduler.start()
         logger.info("调度器初始化完成")
+    except SystemExit:
+        raise
     except Exception as e:
         logger.error(f"初始化调度器失败: {e}")
 

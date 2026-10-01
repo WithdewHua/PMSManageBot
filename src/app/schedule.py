@@ -12,7 +12,6 @@ from app.core.log import logger
 from app.core.scheduler import (
     Scheduler,
     register_task,
-    rewrite_job_references,
     schedule_task,
 )
 from app.domains.accounts.jobs import refresh_emby_user_info, update_users_last_viewed
@@ -86,10 +85,6 @@ TASKS = {
     "auction.finish": None,
     "blackjack.hand_timeout": _settle_blackjack_hand_on_timeout,
     "treasure.open_next_issue": None,
-}
-LEGACY_TASK_REFS = {
-    "app.webapp.routers.activities.blackjack:_settle_blackjack_hand_on_timeout": "blackjack.hand_timeout",
-    "app.webapp.routers.activities.treasure:_auto_create_next_treasure_issue_from": "treasure.open_next_issue",
 }
 ON_STARTUP = [
     restore_auction_schedules,
@@ -417,7 +412,8 @@ def register_all(scheduler: Scheduler | None = None) -> None:
             **kwargs,
         )
         logger.info(job.log_message)
-    scheduler.enable_named_persistent_tasks()
+    if hasattr(scheduler, "enable_named_persistent_tasks"):
+        scheduler.enable_named_persistent_tasks()
 
 
 def _load_treasure_task() -> Callable[..., Any]:
@@ -426,17 +422,10 @@ def _load_treasure_task() -> Callable[..., Any]:
     return _auto_create_next_treasure_issue_from
 
 
-def migrate_persisted_jobs(scheduler: Scheduler | None = None) -> int:
-    scheduler = scheduler or Scheduler()
-    return rewrite_job_references(scheduler.jobstores["sqlalchemy"], LEGACY_TASK_REFS)
-
-
 __all__ = [
-    "LEGACY_TASK_REFS",
     "ON_STARTUP",
     "TASKS",
     "_jobs",
-    "migrate_persisted_jobs",
     "register_all",
     "schedule_task",
 ]

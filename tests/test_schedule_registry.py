@@ -87,7 +87,7 @@ def test_named_tasks_register_before_api_thread_is_started(isolated_registry) ->
 
 
 @pytest.mark.asyncio
-async def test_main_starts_scheduler_only_after_registration_and_migration(
+async def test_main_starts_scheduler_only_after_registration_and_guard(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from app import main
@@ -95,6 +95,9 @@ async def test_main_starts_scheduler_only_after_registration_and_migration(
     events: list[str] = []
 
     class FakeScheduler:
+        def __init__(self) -> None:
+            self.jobstores = {"sqlalchemy": object()}
+
         def start(self) -> None:
             events.append("start")
 
@@ -107,12 +110,12 @@ async def test_main_starts_scheduler_only_after_registration_and_migration(
         schedule, "register_all", lambda scheduler: events.append("register")
     )
     monkeypatch.setattr(
-        schedule,
-        "migrate_persisted_jobs",
-        lambda scheduler: events.append("migrate") or 0,
+        scheduler_module,
+        "assert_no_legacy_job_refs",
+        lambda store: events.append("guard"),
     )
     await main.post_init_services(object())
-    assert events == ["register", "migrate", "start"]
+    assert events == ["register", "guard", "start"]
 
 
 def test_schedule_options_keep_legacy_executor_and_offsets() -> None:

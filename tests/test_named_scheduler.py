@@ -59,7 +59,6 @@ def _isolated_scheduler() -> tuple[named.Scheduler, Mock]:
         "default": MemoryJobStore(),
         "sqlalchemy": SQLAlchemyJobStore(url="sqlite:///:memory:"),
     }
-    instance.named_persistent_only = False
     return instance, add_job
 
 
@@ -69,9 +68,6 @@ def test_persistent_store_guard_rejects_every_raw_job_entry_point() -> None:
     async def raw_job() -> None:
         pass
 
-    # Until 5.4 rewrites both legacy callers, the current B2 path stays usable.
-    instance.add_async_job(raw_job, trigger="date", jobstore="sqlalchemy")
-    instance.enable_named_persistent_tasks()
     for entry in (
         lambda: instance.add_async_job(raw_job, trigger="date", jobstore="sqlalchemy"),
         lambda: instance.add_sync_job(raw_job, trigger="date", jobstore="sqlalchemy"),
@@ -79,9 +75,10 @@ def test_persistent_store_guard_rejects_every_raw_job_entry_point() -> None:
     ):
         with pytest.raises(ValueError, match="registered named task"):
             entry()
-    assert add_job.call_count == 1
+    assert add_job.call_count == 0
     # Memory jobstore semantics stay unchanged.
     instance.add_async_job(raw_job, trigger="date", jobstore="default")
+    assert add_job.call_count == 1
     named.register_task("domain.timeout", raw_job)
     instance.add_async_job(
         named.run_task, trigger="date", jobstore="sqlalchemy", args=("domain.timeout",)
@@ -105,14 +102,13 @@ def test_persistent_store_guard_rejects_every_raw_job_entry_point() -> None:
         instance.add_async_job(
             named.run_task, trigger="date", jobstore="sqlalchemy", args=("missing",)
         )
-    assert add_job.call_count == 3
+    assert add_job.call_count == 2
 
 
 def test_schedule_task_persists_name_as_first_arg(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     instance, add_job = _isolated_scheduler()
-    instance.enable_named_persistent_tasks()
     monkeypatch.setattr(named, "Scheduler", lambda: instance)
     named.register_task("blackjack.hand_timeout", lambda *, hand_id: None)
     run_date = datetime(2026, 9, 27, tzinfo=UTC)
