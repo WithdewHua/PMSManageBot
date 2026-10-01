@@ -154,10 +154,10 @@ def _create_issue(**overrides) -> int:
 
 
 async def test_join_below_full_deducts_credits_and_notifies_progress(
-    orm, treasure_env
+    treasure_env,
 ) -> None:
     issue_id = _create_issue()
-    add_user(orm, 1, credits=100.0)
+    add_user(1, credits=100.0)
 
     result = await _join(issue_id, 1)
 
@@ -176,10 +176,10 @@ async def test_join_below_full_deducts_credits_and_notifies_progress(
 
 
 async def test_join_rejects_insufficient_credits_without_side_effects(
-    orm, treasure_env
+    treasure_env,
 ) -> None:
     issue_id = _create_issue()
-    add_user(orm, 2, credits=5.0)
+    add_user(2, credits=5.0)
 
     with pytest.raises(HTTPException) as excinfo:
         await _join(issue_id, 2)
@@ -191,11 +191,11 @@ async def test_join_rejects_insufficient_credits_without_side_effects(
     assert _issue(issue_id)["shares_sold"] == 0
 
 
-async def test_join_rejections_report_issue_state(orm, treasure_env) -> None:
+async def test_join_rejections_report_issue_state(treasure_env) -> None:
     active = _create_issue()
     closed = _create_issue(prize_credits=15, total_credits_required=20)
     treasure_repository.cancel_treasure_issue(issue_id=closed)
-    add_user(orm, 1, credits=100.0)
+    add_user(1, credits=100.0)
 
     with pytest.raises(HTTPException) as missing:
         await _join(999_999, 1)
@@ -237,11 +237,11 @@ def _seed_partially_filled_issue(*, committed_ms: int) -> int:
 
 
 async def test_full_issue_settlement_pays_winner_and_schedules_reopen(
-    orm, treasure_env, monkeypatch
+    treasure_env, monkeypatch
 ) -> None:
     issue_id = _seed_partially_filled_issue(committed_ms=1000)
-    add_user(orm, 1, credits=100.0)
-    add_user(orm, 2, credits=100.0)
+    add_user(1, credits=100.0)
+    add_user(2, credits=100.0)
 
     async def _block_hash():
         return 0
@@ -264,12 +264,10 @@ async def test_full_issue_settlement_pays_winner_and_schedules_reopen(
     assert treasure_env["reopen"] == [issue_id]
 
 
-def test_settlement_winner_number_derives_from_created_at_and_b(
-    orm, treasure_env
-) -> None:
+def test_settlement_winner_number_derives_from_created_at_and_b(treasure_env) -> None:
     issue_id = _seed_partially_filled_issue(committed_ms=1000)
-    add_user(orm, 1, credits=100.0)
-    add_user(orm, 2, credits=100.0)
+    add_user(1, credits=100.0)
+    add_user(2, credits=100.0)
 
     result = treasure_repository.join_treasure_issue(
         issue_id=issue_id, tg_id=2, external_random_b=0, timestamp_ms=2000
@@ -282,13 +280,11 @@ def test_settlement_winner_number_derives_from_created_at_and_b(
     assert _credits(1) == 115.0
 
 
-def test_settlement_sees_the_filling_participation_after_flush(
-    orm, treasure_env
-) -> None:
+def test_settlement_sees_the_filling_participation_after_flush(treasure_env) -> None:
     """满员开奖前 flush 新参与行，填满的参与可以成为得主。"""
     issue_id = _seed_partially_filled_issue(committed_ms=1001)
-    add_user(orm, 1, credits=100.0)
-    add_user(orm, 2, credits=100.0)
+    add_user(1, credits=100.0)
+    add_user(2, credits=100.0)
 
     result = treasure_repository.join_treasure_issue(
         issue_id=issue_id, tg_id=2, external_random_b=0, timestamp_ms=2000
@@ -302,11 +298,11 @@ def test_settlement_sees_the_filling_participation_after_flush(
 
 
 async def test_settlement_filling_participation_succeeds(
-    orm, treasure_env, monkeypatch
+    treasure_env, monkeypatch
 ) -> None:
     issue_id = _seed_partially_filled_issue(committed_ms=1001)
-    add_user(orm, 1, credits=100.0)
-    add_user(orm, 2, credits=100.0)
+    add_user(1, credits=100.0)
+    add_user(2, credits=100.0)
 
     async def _block_hash():
         return 0
@@ -328,7 +324,7 @@ async def test_settlement_filling_participation_succeeds(
 # --------------------------------------------------------------------------- #
 
 
-async def test_create_issue_persists_fields_and_notifies(orm, treasure_env) -> None:
+async def test_create_issue_persists_fields_and_notifies(treasure_env) -> None:
     result = await tr.create_issue(
         request=_request(),
         data=TreasureCreateIssueRequest(
@@ -352,9 +348,9 @@ async def test_create_issue_persists_fields_and_notifies(orm, treasure_env) -> N
     assert treasure_env["created"][0]["issue_id"] == issue_id
 
 
-async def test_cancel_issue_refunds_participants(orm, treasure_env) -> None:
+async def test_cancel_issue_refunds_participants(treasure_env) -> None:
     issue_id = _create_issue()
-    add_user(orm, 1, credits=100.0)
+    add_user(1, credits=100.0)
     await _join(issue_id, 1, quantity=2)
     assert _credits(1) == 80.0
 
@@ -396,10 +392,10 @@ def test_schedule_auto_reopen_registers_named_task(treasure_env, monkeypatch) ->
     assert calls[0]["misfire_grace_time"] == 60
 
 
-async def test_auto_reopen_job_clones_settled_issue(orm, treasure_env) -> None:
+async def test_auto_reopen_job_clones_settled_issue(treasure_env) -> None:
     issue_id = _seed_partially_filled_issue(committed_ms=1000)
-    add_user(orm, 1, credits=100.0)
-    add_user(orm, 2, credits=100.0)
+    add_user(1, credits=100.0)
+    add_user(2, credits=100.0)
     treasure_repository.join_treasure_issue(
         issue_id=issue_id, tg_id=2, external_random_b=0
     )
@@ -420,7 +416,7 @@ async def test_auto_reopen_job_clones_settled_issue(orm, treasure_env) -> None:
     assert len(treasure_env["created"]) == 1
 
 
-async def test_auto_reopen_job_skips_unsettled_source(orm, treasure_env) -> None:
+async def test_auto_reopen_job_skips_unsettled_source(treasure_env) -> None:
     issue_id = _create_issue()
 
     await treasure_jobs._auto_create_next_treasure_issue_from(source_issue_id=issue_id)

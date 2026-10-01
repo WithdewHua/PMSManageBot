@@ -71,7 +71,7 @@ layers = [
     "(app.main)",
     "(app.api) | (app.bot) | (app.schedule) | (app.model_registry) | (app.manage)",
     "(app.subscriptions)",
-    "(app.domains) : (app.databases)",
+    "(app.domains)",
     "(app.transport)",
     "(app.integrations)",
     "(app.core)",
@@ -83,7 +83,6 @@ type = "forbidden"
 source_modules = ["app.integrations"]
 forbidden_modules = [
     "app.domains",
-    "app.databases",
     "app.api",
     "app.bot",
     "app.transport",
@@ -92,53 +91,7 @@ forbidden_modules = [
 allow_indirect_imports = true
 unmatched_ignore_imports_alerting = "error"
 
-[[tool.importlinter.contracts]]
-name = "Legacy database facade freeze"
-type = "protected"
-protected_modules = ["app.databases"]
-allowed_importers = [
-    "app.main", # B1 assembly and B3 scheduler migration
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    "app.schedule", # B3 registry temporarily imports legacy job implementations until 5.5
-    "app.domains.accounts.service", # B3 mechanical relocation; audit in 5.6
-    "app.domains.blackjack.service", # B3 mechanical relocation; audit in 5.6
-    "app.domains.crypto_donation.jobs", # B3 mechanical relocation; audit in 5.6
-    "app.domains.custom_lines.service", # B3 mechanical relocation; audit in 5.6
-    "app.domains.invitation.service", # B3 mechanical relocation; audit in 5.6
-    "app.domains.lines.jobs", # B3 mechanical relocation; audit in 5.6
-    "app.domains.traffic.jobs", # B3 mechanical relocation; audit in 5.6
-    "app.domains.watch_rewards.service", # B3 mechanical relocation; audit in 5.6
-]
-unmatched_ignore_imports_alerting = "error"
 
 [[tool.importlinter.contracts]]
 name = "SQLAlchemy direct use scope"
@@ -147,22 +100,12 @@ protected_modules = ["sqlalchemy"]
 allowed_importers = [
     "app.core.db",
     "app.core.kv",
-    "app.databases.db",
     "app.domains.*.models",
     "app.domains.*.repository",
     "app.domains.traffic.repository_tx",
     "app.model_registry",
 ]
-ignore_imports = [
-    # restructure-backend-architecture: B3 legacy orchestration and utilities
-    # restructure-backend-architecture: B2 legacy API handlers
-
-
-
-
-
-
-]
+ignore_imports = []
 unmatched_ignore_imports_alerting = "error"
 [[tool.importlinter.contracts]]
 name = "Database engine import scope"
@@ -177,20 +120,9 @@ allowed_importers = [
     "app.domains.*.repository.*", # generated submodules of large repositories
     "app.domains.traffic.repository_tx",
     "app.model_registry",
-    "app.models", # Frozen B2 importer; legacy package deleted in B3
 ]
 as_packages = false
-ignore_imports = [
-    # restructure-backend-architecture: B3 orchestration/utility migration
-    # restructure-backend-architecture: B2 API migration
-
-
-
-
-
-
-
-]
+ignore_imports = []
 unmatched_ignore_imports_alerting = "error"
 
 [[tool.importlinter.contracts]]
@@ -205,26 +137,14 @@ allowed_importers = [
     "app.model_registry",
 ]
 as_packages = false
-ignore_imports = [
-    # restructure-backend-architecture: B3 orchestration and utility migration
-    # promote-line-domains: remaining Premium/custom-line business logic
-    # restructure-backend-architecture: B2 legacy routers
-
-
-
-
-
-
-
-
-]
+ignore_imports = []
 unmatched_ignore_imports_alerting = "error"
 
 [[tool.importlinter.contracts]]
 name = "Six-tier domain dependencies"
 type = "layers"
 containers = ["app.domains"]
-exhaustive = false # Enable exhaustive coverage once all domains land in B3.
+exhaustive = true
 layers = [
     "rankings : reports : (profile)",
     "watch_rewards : gift_pack : (badge_awards) : tg_rebind",
@@ -233,76 +153,14 @@ layers = [
     "credits",
     "identity",
 ]
-ignore_imports = [
-    # restructure-backend-architecture: transitional facade composition hides
-    # domain-to-domain dependencies; AST cross-domain checks still cover self/db.
-    "app.databases.db -> app.domains.invitation.repository",
-        "app.databases.db -> app.domains.watch_rewards.repository",
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-]
+ignore_imports = []
 unmatched_ignore_imports_alerting = "error"
 
 [[tool.importlinter.contracts]]
 name = "Acyclic domain siblings"
 type = "acyclic_siblings"
 ancestors = ["app.domains"]
-ignore_imports = [
-    # restructure-backend-architecture: transitional facade composition
-    "app.databases.db -> app.domains.invitation.repository",
-        "app.databases.db -> app.domains.watch_rewards.repository",
-]
+ignore_imports = []
 unmatched_ignore_imports_alerting = "error"
 [[tool.importlinter.contracts]]
 name = "Domain internal layering"
@@ -375,7 +233,6 @@ source_modules = [
 ]
 forbidden_modules = [
     "app.core.db",
-    "app.databases",
     "sqlalchemy",
     "app.domains.*.repository",
     "app.domains.*.models",

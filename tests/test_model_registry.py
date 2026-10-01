@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import configure_mappers
 
-from app.core.db import Base, engine
+from app.core.db import Base
 from app.model_registry import MODEL_MODULES, init_db, metadata
 
 
@@ -14,10 +14,12 @@ def test_registry_imports_every_domain_model() -> None:
 
 
 def test_registry_init_db_uses_registered_metadata(monkeypatch) -> None:
+    import app.core.db as core_db
+
     calls = []
     monkeypatch.setattr(metadata, "create_all", lambda *, bind: calls.append(bind))
     init_db()
-    assert calls == [engine]
+    assert calls == [core_db.engine]
 
 
 def test_cross_domain_read_models_live_in_rankings_repository() -> None:

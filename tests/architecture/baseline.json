@@ -1,23 +1,4 @@
 {
-  "config_access": [],
-  "contract_ignore_counts": {
-    "Acyclic domain siblings": 2,
-    "Database engine import scope": 0,
-    "Domain entry points do not touch data layer": 0,
-    "Domain internal layering": 0,
-    "Domain model import scope": 0,
-    "Domain rules are pure value computations": 0,
-    "Domain types are pure value modules": 0,
-    "External integration isolation": 0,
-    "Legacy database facade freeze": 0,
-    "SQLAlchemy direct use scope": 0,
-    "Six-tier domain dependencies": 2,
-    "Top-level architecture": 0
-  },
-  "cross_domain_calls": [],
   "line_budgets": [],
-  "mixin_duplicates": [],
-  "model_registry": [],
-  "numbered_modules": [],
   "version": 1
 }

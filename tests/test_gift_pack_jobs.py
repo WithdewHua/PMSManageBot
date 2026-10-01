@@ -28,7 +28,7 @@ for _model in (GiftPack, GiftPackUserState):
     event.listen(_model, "before_insert", _assign_bigint_id)
 
 
-def _pack_with_claim(orm, *, total_quantity: int | None = None) -> int:
+def _pack_with_claim(*, total_quantity: int | None = None) -> int:
     """建一个可领取的礼包、领取一次，再把结束时间挪到过去。"""
     now = int(time.time())
     pack_id = gift_pack_repository.create_gift_pack(
@@ -38,7 +38,7 @@ def _pack_with_claim(orm, *, total_quantity: int | None = None) -> int:
         now + 3600,
         total_quantity=total_quantity,
     )
-    add_user(orm, 1)
+    add_user(1)
     gift_pack_service.claim_gift_pack(pack_id, 1)
     with get_session() as session:
         pack = session.get(GiftPack, pack_id)
@@ -54,9 +54,9 @@ def _expiry_notified(pack_id: int) -> int:
         return int(pack.expiry_notified or 0)
 
 
-async def test_scan_sends_summary_once_and_marks_expiry(orm, monkeypatch):
-    add_user(orm, 2)
-    pack_id = _pack_with_claim(orm, total_quantity=5)
+async def test_scan_sends_summary_once_and_marks_expiry(monkeypatch):
+    add_user(2)
+    pack_id = _pack_with_claim(total_quantity=5)
 
     messages: list[tuple[str, dict]] = []
 
@@ -85,8 +85,8 @@ async def test_scan_sends_summary_once_and_marks_expiry(orm, monkeypatch):
     assert len(messages) == 1
 
 
-async def test_scan_leaves_pack_unnotified_when_sending_fails(orm, monkeypatch):
-    pack_id = _pack_with_claim(orm)
+async def test_scan_leaves_pack_unnotified_when_sending_fails(monkeypatch):
+    pack_id = _pack_with_claim()
 
     async def _boom(*args, **kwargs):
         raise RuntimeError("telegram down")
@@ -103,8 +103,8 @@ async def test_scan_leaves_pack_unnotified_when_sending_fails(orm, monkeypatch):
     assert _expiry_notified(pack_id) == 0
 
 
-async def test_scan_reports_unlimited_quantity_wording(orm, monkeypatch):
-    _pack_with_claim(orm)
+async def test_scan_reports_unlimited_quantity_wording(monkeypatch):
+    _pack_with_claim()
 
     messages: list[str] = []
 

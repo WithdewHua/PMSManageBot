@@ -123,10 +123,10 @@ async def _capture(cases: dict[str, Any], name: str, coro) -> None:
     cases[name] = {"status": 200, "body": _normalize(body)}
 
 
-def _seed(orm) -> dict[str, int]:
+def _seed() -> dict[str, int]:
     """建好契约所需的用户与礼包，并预置“领完”“已领取”两种状态。"""
     for tg_id in (1, 2, 3):
-        add_user(orm, tg_id)
+        add_user(tg_id)
     _bind_plex(1)
 
     packs: dict[str, int] = {}
@@ -172,9 +172,9 @@ def _seed(orm) -> dict[str, int]:
     return packs
 
 
-async def _build_contract(orm, monkeypatch) -> dict[str, Any]:
+async def _build_contract(monkeypatch) -> dict[str, Any]:
     monkeypatch.setattr(conftest, "_next_id", ID_BASE)
-    packs = _seed(orm)
+    packs = _seed()
     cases: dict[str, Any] = {}
 
     def tg(tg_id: int) -> TelegramUser:
@@ -393,8 +393,8 @@ async def _build_contract(orm, monkeypatch) -> dict[str, Any]:
     return cases
 
 
-async def test_gift_pack_http_contract(orm, monkeypatch) -> None:
-    contract = await _build_contract(orm, monkeypatch)
+async def test_gift_pack_http_contract(monkeypatch) -> None:
+    contract = await _build_contract(monkeypatch)
 
     if os.environ.get("UPDATE_GIFT_PACK_CONTRACT") == "1":
         FIXTURE.write_text(

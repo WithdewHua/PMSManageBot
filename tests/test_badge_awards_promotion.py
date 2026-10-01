@@ -395,12 +395,11 @@ async def test_real_blackjack_accuracy_rounding_differs_in_single_and_batch(
     session_env, monkeypatch
 ):
     from app.core.db import get_session
-    from app.databases.db import DatabaseORM
     from app.domains.blackjack import rules as blackjack_rules
     from app.domains.blackjack.models import BlackjackHand
     from tests.conftest import add_cash_hand
 
-    hand_id = add_cash_hand(DatabaseORM(), 42)
+    hand_id = add_cash_hand(42)
     with get_session() as session:
         hand = session.get(BlackjackHand, hand_id)
         hand.status = next(iter(blackjack_rules.TERMINAL_STATUSES))

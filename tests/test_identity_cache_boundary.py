@@ -6,10 +6,10 @@ import ast
 from pathlib import Path
 
 import pytest
+from app.domains.identity.compat import IdentityRepository
 
 from app.core.db import get_session
 from app.domains.identity import repository as identity_repository
-from app.domains.identity.compat import IdentityRepository
 from app.domains.identity.models import PlexUser
 
 ROOT = Path(__file__).resolve().parents[1]

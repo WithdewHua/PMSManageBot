@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -12,9 +13,9 @@ import pytest
 from .checks import (
     scan_all,
     scan_config_access,
+    scan_credit_writes,
     scan_cross_domain_calls,
     scan_line_budgets,
-    scan_mixin_duplicates,
     scan_model_registry,
     scan_numbered_modules,
 )
@@ -23,7 +24,6 @@ from .helpers import (
     PROJECT_ROOT,
     assert_baseline_exact,
     load_baseline,
-    owner_for_domain,
     write_baseline,
 )
 
@@ -67,8 +67,12 @@ def test_current_layout_matches_the_architecture_baseline() -> None:
     baseline = load_baseline(BASELINE_PATH)
     actual = scan_all(PROJECT_ROOT)
 
-    for category, entries in actual.items():
-        assert_baseline_exact(category, entries, baseline)
+    assert_baseline_exact("line_budgets", actual["line_budgets"], baseline)
+    assert actual["cross_domain_calls"] == []
+    assert actual["config_access"] == []
+    assert actual["model_registry"] == []
+    assert actual["numbered_modules"] == []
+    assert actual["credit_writes"] == []
 
 
 def test_domain_models_can_configure_mappers_independently() -> None:
@@ -110,75 +114,24 @@ def test_domain_models_can_configure_mappers_independently() -> None:
 
 
 def test_line_budget_regression_is_rejected(tmp_path: Path) -> None:
-    _write(tmp_path, "src/app/databases/db.py", "\n" * 1001)
+    _write(tmp_path, "src/app/domains/demo/service.py", "\n" * 1001)
     actual = scan_line_budgets(tmp_path)
     baseline = {
         "line_budgets": [
             {
-                "key": "src/app/databases/db.py",
+                "key": "src/app/domains/demo/service.py",
                 "owner": "restructure-backend-architecture",
-                "path": "src/app/databases/db.py",
+                "path": "src/app/domains/demo/service.py",
                 "lines": 1001,
+                "budget": 1000,
             }
         ]
     }
     assert_baseline_exact("line_budgets", actual, baseline)
 
-    _write(tmp_path, "src/app/databases/db.py", "\n" * 1002)
+    _write(tmp_path, "src/app/domains/demo/service.py", "\n" * 1002)
     with pytest.raises(AssertionError, match="line counts changed"):
         assert_baseline_exact("line_budgets", scan_line_budgets(tmp_path), baseline)
-
-
-def test_cross_domain_facade_and_self_calls_are_reported(tmp_path: Path) -> None:
-    _write(
-        tmp_path,
-        "src/app/databases/db.py",
-        """
-from app.domains.a.repository import ARepository
-from app.domains.b.repository import BRepository
-
-
-class DatabaseORM(ARepository, BRepository):
-    pass
-
-
-db = DatabaseORM()
-""",
-    )
-    _write(
-        tmp_path,
-        "src/app/domains/a/repository.py",
-        """
-class ARepository:
-    def call_b(self):
-        self.b_method()
-""",
-    )
-    _write(
-        tmp_path,
-        "src/app/domains/b/repository.py",
-        """
-class BRepository:
-    def b_method(self):
-        return True
-""",
-    )
-    _write(
-        tmp_path,
-        "src/app/domains/a/service.py",
-        """
-from app.databases import db
-
-
-def call_b():
-    return db.b_method()
-""",
-    )
-
-    violations = scan_cross_domain_calls(tmp_path)
-    kinds = {entry["kind"] for entry in violations}
-    assert {"facade_call", "self_call"} <= kinds
-    assert all(entry["source_domain"] == "a" for entry in violations)
 
 
 def test_cross_domain_types_imports_and_calls_are_allowed(tmp_path: Path) -> None:
@@ -289,41 +242,11 @@ class LegacyModel(Base):
     assert scan_model_registry(tmp_path) == []
 
 
-def test_mixin_duplicate_members_are_reported(tmp_path: Path) -> None:
-    _write(
-        tmp_path,
-        "src/app/domains/a/repository.py",
-        """
-class ARepository:
-    def shared(self):
-        return 1
-""",
-    )
-    _write(
-        tmp_path,
-        "src/app/domains/b/repository.py",
-        """
-class BRepository:
-    def shared(self):
-        return 2
-""",
-    )
-
-    violations = scan_mixin_duplicates(tmp_path)
-    assert len(violations) == 1
-    assert violations[0]["member"] == "shared"
-
-
 def test_baseline_writer_round_trips_without_refreshing_repository_baseline(
     tmp_path: Path,
 ) -> None:
     baseline = {
-        "cross_domain_calls": [],
-        "config_access": [],
         "line_budgets": [],
-        "model_registry": [],
-        "mixin_duplicates": [],
-        "numbered_modules": [],
     }
     path = tmp_path / "baseline.json"
     write_baseline(baseline, path)
@@ -332,52 +255,12 @@ def test_baseline_writer_round_trips_without_refreshing_repository_baseline(
 
 
 def test_numbered_repository_modules_are_rejected(tmp_path: Path) -> None:
-    baseline_path = tmp_path / "baseline.json"
-    baseline = {
-        category: (
-            [
-                {
-                    "key": "numbered|src/app/domains/demo/repository/part_1.py",
-                    "owner": owner_for_domain("demo"),
-                    "path": "src/app/domains/demo/repository/part_1.py",
-                }
-            ]
-            if category == "numbered_modules"
-            else []
-        )
-        for category in (
-            "cross_domain_calls",
-            "line_budgets",
-            "model_registry",
-            "mixin_duplicates",
-            "numbered_modules",
-        )
-    }
-    write_baseline(baseline, baseline_path)
-    registered = load_baseline(baseline_path)
     _write(
         tmp_path, "src/app/domains/demo/repository/part_1.py", "class M:\n    pass\n"
     )
-    assert_baseline_exact(
-        "numbered_modules", scan_numbered_modules(tmp_path), registered
-    )
-
-    # 新增一个未登记的序号模块 → 检查失败
-    _write(
-        tmp_path, "src/app/domains/demo/repository/part_9.py", "class M:\n    pass\n"
-    )
-    with pytest.raises(AssertionError, match="new violations"):
-        assert_baseline_exact(
-            "numbered_modules", scan_numbered_modules(tmp_path), registered
-        )
-
-    # 文件还在但登记的例外被删掉 → 检查失败
-    (tmp_path / "src/app/domains/demo/repository/part_9.py").unlink()
-    registered["numbered_modules"] = []
-    with pytest.raises(AssertionError, match="new violations"):
-        assert_baseline_exact(
-            "numbered_modules", scan_numbered_modules(tmp_path), registered
-        )
+    violations = scan_numbered_modules(tmp_path)
+    assert len(violations) == 1
+    assert violations[0]["path"] == "src/app/domains/demo/repository/part_1.py"
 
 
 def test_allowed_service_and_transaction_boundaries(tmp_path: Path) -> None:
@@ -419,41 +302,41 @@ class BRepository:
 
 def test_baseline_requires_new_and_removed_entries_and_owner_changes() -> None:
     expected = {
-        "cross_domain_calls": [{"key": "call|a", "owner": "promote-account-domains"}]
+        "line_budgets": [
+            {
+                "key": "src/app/a.py",
+                "owner": "restructure-backend-architecture",
+                "lines": 1001,
+            }
+        ]
     }
     with pytest.raises(AssertionError, match="new violations"):
         assert_baseline_exact(
-            "cross_domain_calls",
-            expected["cross_domain_calls"]
-            + [{"key": "call|b", "owner": "promote-blackjack-domain"}],
+            "line_budgets",
+            expected["line_budgets"]
+            + [
+                {
+                    "key": "src/app/b.py",
+                    "owner": "promote-blackjack-domain",
+                    "lines": 1002,
+                }
+            ],
             expected,
         )
     with pytest.raises(AssertionError, match="stale violations"):
-        assert_baseline_exact("cross_domain_calls", [], expected)
+        assert_baseline_exact("line_budgets", [], expected)
     with pytest.raises(AssertionError, match="owner changes"):
         assert_baseline_exact(
-            "cross_domain_calls",
-            [{"key": "call|a", "owner": "promote-blackjack-domain"}],
+            "line_budgets",
+            [
+                {
+                    "key": "src/app/a.py",
+                    "owner": "promote-blackjack-domain",
+                    "lines": 1001,
+                }
+            ],
             expected,
         )
-
-
-def test_duplicate_members_in_legacy_monolith_are_reported(tmp_path: Path) -> None:
-    _write(
-        tmp_path,
-        "src/app/databases/db.py",
-        """
-class DatabaseORM:
-    def duplicated(self):
-        return 1
-
-    def duplicated(self):
-        return 2
-""",
-    )
-    assert [entry["member"] for entry in scan_mixin_duplicates(tmp_path)] == [
-        "duplicated"
-    ]
 
 
 def test_legacy_models_do_not_mask_missing_future_registry(tmp_path: Path) -> None:
@@ -499,16 +382,93 @@ def test_app_package_does_not_merge_with_stale_installed_modules() -> None:
     assert [Path(path).resolve() for path in app.__path__] == [PROJECT_ROOT / "src/app"]
 
 
-def test_import_contract_ignore_counts_are_frozen() -> None:
-    import json
-    import tomllib
+def test_all_import_linter_contracts_have_no_ignore_imports() -> None:
+    with (PROJECT_ROOT / "pyproject.toml").open("rb") as stream:
+        contracts = tomllib.load(stream)["tool"]["importlinter"]["contracts"]
+    for contract in contracts:
+        assert contract.get("ignore_imports", []) == [], (
+            f"Contract '{contract['name']}' has ignore_imports: {contract.get('ignore_imports')}"
+        )
+
+
+def test_six_tier_contract_rejects_unclassified_domain() -> None:
+    import shutil
 
     with (PROJECT_ROOT / "pyproject.toml").open("rb") as stream:
         contracts = tomllib.load(stream)["tool"]["importlinter"]["contracts"]
-    frozen = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))[
-        "contract_ignore_counts"
-    ]
-    assert frozen == {
-        contract["name"]: len(contract.get("ignore_imports", []))
-        for contract in contracts
-    }
+    six_tier = next(c for c in contracts if c["name"] == "Six-tier domain dependencies")
+    assert six_tier.get("exhaustive") is True
+
+    lint_cmd = Path(sys.executable).parent / "lint-imports"
+    if not lint_cmd.exists():
+        lint_cmd = Path(
+            shutil.which("lint-imports") or (PROJECT_ROOT / ".venv/bin/lint-imports")
+        )
+
+    probe_dir = PROJECT_ROOT / "src/app/domains/_probe_unclassified_domain"
+    probe_dir.mkdir(parents=True, exist_ok=True)
+    (probe_dir / "__init__.py").write_text("", encoding="utf-8")
+    try:
+        env = dict(os.environ)
+        env["PYTHONPATH"] = str(PROJECT_ROOT / "src")
+        result = subprocess.run(
+            [str(lint_cmd), "--no-cache"],
+            cwd=PROJECT_ROOT,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode != 0
+        assert "app.domains._probe_unclassified_domain" in result.stdout
+    finally:
+        if probe_dir.exists():
+            shutil.rmtree(probe_dir)
+
+
+def test_credit_absolute_write_is_rejected(tmp_path: Path) -> None:
+    # 1. 属性赋值
+    p1 = tmp_path / "case1"
+    _write(
+        p1,
+        "src/app/domains/demo/service.py",
+        "def change(stats):\n    stats.credits = 100.0\n",
+    )
+    violations = scan_credit_writes(p1)
+    assert len(violations) == 1
+    assert violations[0]["kind"] == "attribute-assignment"
+    assert violations[0]["target"] == "stats.credits"
+
+    # 2. 增强赋值
+    p2 = tmp_path / "case2"
+    _write(
+        p2,
+        "src/app/domains/demo/service.py",
+        "def change(stats):\n    stats.emby_credits += 10.0\n",
+    )
+    violations = scan_credit_writes(p2)
+    assert len(violations) == 1
+    assert violations[0]["kind"] == "attribute-augmented-assignment"
+    assert violations[0]["target"] == "stats.emby_credits"
+
+    # 3. 门面绝对值调用
+    p3 = tmp_path / "case3"
+    _write(
+        p3,
+        "src/app/domains/demo/service.py",
+        "def change(db):\n    db.update_user_credits(1, 100)\n",
+    )
+    violations = scan_credit_writes(p3)
+    assert len(violations) == 1
+    assert violations[0]["kind"] == "absolute-facade-call"
+
+    # 4. SQL values 写入
+    p4 = tmp_path / "case4"
+    _write(
+        p4,
+        "src/app/domains/demo/repository.py",
+        "def update_sql(session):\n    session.execute(update(Table).values(credits=50))\n",
+    )
+    violations = scan_credit_writes(p4)
+    assert len(violations) == 1
+    assert violations[0]["kind"] == "sql-values-write"

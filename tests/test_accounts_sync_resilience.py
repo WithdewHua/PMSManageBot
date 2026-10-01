@@ -65,10 +65,6 @@ def _seed(plex_id: int | None, email: str, username: str) -> None:
 
 @pytest.fixture
 def no_side_effects(monkeypatch):
-    from app.databases import db
-
-    monkeypatch.setattr(db, "update_traffic_username", lambda **kw: True)
-    monkeypatch.setattr(db, "update_invitation_plex_id", lambda **kw: True)
     from app.integrations import media_tokens
 
     monkeypatch.setattr(

@@ -82,7 +82,7 @@ def _config(**overrides) -> LuckyWheelConfig:
 
 
 @pytest.fixture
-def wheel_env(orm, monkeypatch):
+def wheel_env(monkeypatch):
     """统一的替身：外部通知、媒体同步、配置读写、邀请码生成。"""
 
     async def _noop(*args, **kwargs):
@@ -195,9 +195,9 @@ async def _spin(tg_id: int):
 
 
 async def test_paid_single_spin_charges_cost_and_applies_prize(
-    orm, wheel_env, monkeypatch
+    wheel_env, monkeypatch
 ) -> None:
-    add_user(orm, 1, credits=100.0)
+    add_user(1, credits=100.0)
     _force_prize(monkeypatch, "积分 +30")
 
     result = await _spin(1)
@@ -220,9 +220,9 @@ async def test_paid_single_spin_charges_cost_and_applies_prize(
 
 
 async def test_paid_single_spin_truncates_negative_balance_at_zero(
-    orm, wheel_env, monkeypatch
+    wheel_env, monkeypatch
 ) -> None:
-    add_user(orm, 1, credits=35.0)
+    add_user(1, credits=35.0)
     _force_prize(monkeypatch, "积分 -50")
 
     result = await _spin(1)
@@ -234,8 +234,8 @@ async def test_paid_single_spin_truncates_negative_balance_at_zero(
     assert _wheel_records()[0]["credits_change"] == -25.0
 
 
-async def test_single_spin_rejects_below_minimum_credits(orm, wheel_env) -> None:
-    add_user(orm, 2, credits=5.0)
+async def test_single_spin_rejects_below_minimum_credits(wheel_env) -> None:
+    add_user(2, credits=5.0)
 
     with pytest.raises(HTTPException) as excinfo:
         await _spin(2)
@@ -250,9 +250,9 @@ async def test_single_spin_rejects_below_minimum_credits(orm, wheel_env) -> None
 
 
 async def test_free_spin_single_spin_skips_cost_and_marks_ledger(
-    orm, wheel_env, monkeypatch
+    wheel_env, monkeypatch
 ) -> None:
-    add_user(orm, 1, credits=5.0)
+    add_user(1, credits=5.0)
     _grant_free_spin(1)
     _force_prize(monkeypatch, "积分 +10")
 
@@ -270,9 +270,9 @@ async def test_free_spin_single_spin_skips_cost_and_marks_ledger(
 
 
 async def test_free_spin_is_released_when_the_spin_fails(
-    orm, wheel_env, monkeypatch
+    wheel_env, monkeypatch
 ) -> None:
-    add_user(orm, 1, credits=5.0)
+    add_user(1, credits=5.0)
     _grant_free_spin(1)
 
     async def _boom(**kwargs):
@@ -294,10 +294,8 @@ async def test_free_spin_is_released_when_the_spin_fails(
 # --------------------------------------------------------------------------- #
 
 
-async def test_ten_spin_charges_ten_participation_fees(
-    orm, wheel_env, monkeypatch
-) -> None:
-    add_user(orm, 1, credits=1000.0)
+async def test_ten_spin_charges_ten_participation_fees(wheel_env, monkeypatch) -> None:
+    add_user(1, credits=1000.0)
     _force_prize(monkeypatch, "积分 +10")
 
     result = await lw.spin_wheel_ten_times(
@@ -313,10 +311,8 @@ async def test_ten_spin_charges_ten_participation_fees(
     assert {record["source"] for record in records} == {"paid"}
 
 
-async def test_ten_spin_does_not_consume_free_spins(
-    orm, wheel_env, monkeypatch
-) -> None:
-    add_user(orm, 1, credits=1000.0)
+async def test_ten_spin_does_not_consume_free_spins(wheel_env, monkeypatch) -> None:
+    add_user(1, credits=1000.0)
     _grant_free_spin(1)
     _force_prize(monkeypatch, "积分 +10")
 
@@ -328,8 +324,8 @@ async def test_ten_spin_does_not_consume_free_spins(
     assert row is not None and row["used_at_ms"] is None
 
 
-async def test_ten_spin_requires_ten_times_the_threshold(orm, wheel_env) -> None:
-    add_user(orm, 2, credits=100.0)
+async def test_ten_spin_requires_ten_times_the_threshold(wheel_env) -> None:
+    add_user(2, credits=100.0)
     with pytest.raises(HTTPException) as excinfo:
         await lw.spin_wheel_ten_times(
             request=_request(),
@@ -357,9 +353,9 @@ async def test_ten_spin_requires_ten_times_the_threshold(orm, wheel_env) -> None
     ],
 )
 async def test_credit_prizes_apply_expected_change(
-    orm, wheel_env, monkeypatch, prize: str, expected_change: float
+    wheel_env, monkeypatch, prize: str, expected_change: float
 ) -> None:
-    add_user(orm, 1, credits=100.0)
+    add_user(1, credits=100.0)
     _force_prize(monkeypatch, prize)
 
     result = await _spin(1)
@@ -369,10 +365,8 @@ async def test_credit_prizes_apply_expected_change(
     assert result.current_credits == 90.0 + expected_change
 
 
-async def test_invite_code_prize_issues_a_normal_code(
-    orm, wheel_env, monkeypatch
-) -> None:
-    add_user(orm, 1, credits=100.0)
+async def test_invite_code_prize_issues_a_normal_code(wheel_env, monkeypatch) -> None:
+    add_user(1, credits=100.0)
     _force_prize(monkeypatch, "邀请码 1 枚")
 
     result = await _spin(1)
@@ -382,9 +376,9 @@ async def test_invite_code_prize_issues_a_normal_code(
 
 
 async def test_privileged_toggle_is_consumed_by_exactly_one_code(
-    orm, wheel_env, monkeypatch
+    wheel_env, monkeypatch
 ) -> None:
-    add_user(orm, 1, credits=100.0)
+    add_user(1, credits=100.0)
     wheel_env["config"] = _config(gen_privileged_code=True)
     _force_prize(monkeypatch, "邀请码 1 枚")
 
@@ -399,9 +393,9 @@ async def test_privileged_toggle_is_consumed_by_exactly_one_code(
 
 
 async def test_premium_prize_is_skipped_for_unbound_accounts(
-    orm, wheel_env, monkeypatch
+    wheel_env, monkeypatch
 ) -> None:
-    add_user(orm, 1, credits=100.0)
+    add_user(1, credits=100.0)
     _force_prize(monkeypatch, "Premium 7 天")
 
     result = await _spin(1)
@@ -412,10 +406,8 @@ async def test_premium_prize_is_skipped_for_unbound_accounts(
         assert session.execute(select(EmbyUser)).scalars().all() == []
 
 
-async def test_premium_prize_extends_bound_accounts(
-    orm, wheel_env, monkeypatch
-) -> None:
-    add_user(orm, 1, credits=100.0)
+async def test_premium_prize_extends_bound_accounts(wheel_env, monkeypatch) -> None:
+    add_user(1, credits=100.0)
     with get_session() as session:
         session.add(
             PlexUser(
@@ -465,9 +457,9 @@ def test_randomness_stats_reports_rates_for_every_positive_item() -> None:
     )
 
 
-async def test_user_status_reports_participation_threshold(orm, wheel_env) -> None:
-    add_user(orm, 1, credits=100.0)
-    add_user(orm, 2, credits=10.0)
+async def test_user_status_reports_participation_threshold(wheel_env) -> None:
+    add_user(1, credits=100.0)
+    add_user(2, credits=10.0)
 
     rich = await lw.get_user_status(request=_request(), current_user=_user(1))
     poor = await lw.get_user_status(request=_request(), current_user=_user(2))
@@ -481,8 +473,8 @@ async def test_user_status_reports_participation_threshold(orm, wheel_env) -> No
     assert poor["can_participate"] is False
 
 
-async def test_free_spins_summary_reports_progress(orm, wheel_env) -> None:
-    add_user(orm, 1, credits=0.0)
+async def test_free_spins_summary_reports_progress(wheel_env) -> None:
+    add_user(1, credits=0.0)
     _grant_free_spin(1)
     with get_session() as session:
         session.get(Statistics, 1).blackjack_hands_since_freespin = 7
@@ -508,8 +500,8 @@ def test_service_validation_raises_typed_luckywheel_error() -> None:
         )
 
 
-async def test_free_spin_summary_reads_live_blackjack_threshold(orm, wheel_env) -> None:
-    add_user(orm, 1, credits=0.0)
+async def test_free_spin_summary_reads_live_blackjack_threshold(wheel_env) -> None:
+    add_user(1, credits=0.0)
     config = blackjack_repository.get_blackjack_config_dict()
     config["freespins_hand_threshold"] = 7
     assert blackjack_repository.set_blackjack_config("config", json.dumps(config))
@@ -521,9 +513,9 @@ async def test_free_spin_summary_reads_live_blackjack_threshold(orm, wheel_env) 
 
 
 async def test_spin_transaction_rolls_back_all_writes_when_statistics_fails(
-    orm, wheel_env, monkeypatch
+    wheel_env, monkeypatch
 ) -> None:
-    add_user(orm, 1, credits=100.0)
+    add_user(1, credits=100.0)
     _force_prize(monkeypatch, "积分 +30")
     monkeypatch.setattr(
         luckywheel_service.repository,
@@ -539,9 +531,9 @@ async def test_spin_transaction_rolls_back_all_writes_when_statistics_fails(
 
 
 async def test_free_spin_is_restored_by_transaction_rollback(
-    orm, wheel_env, monkeypatch
+    wheel_env, monkeypatch
 ) -> None:
-    add_user(orm, 1, credits=5.0)
+    add_user(1, credits=5.0)
     _grant_free_spin(1)
     _force_prize(monkeypatch, "积分 +10")
     monkeypatch.setattr(
@@ -560,9 +552,9 @@ async def test_free_spin_is_restored_by_transaction_rollback(
 
 
 async def test_invitation_failure_rolls_back_fee_and_ledger(
-    orm, wheel_env, monkeypatch
+    wheel_env, monkeypatch
 ) -> None:
-    add_user(orm, 1, credits=100.0)
+    add_user(1, credits=100.0)
     _force_prize(monkeypatch, "邀请码 1 枚")
     monkeypatch.setattr(
         invitation_repository,
@@ -578,9 +570,9 @@ async def test_invitation_failure_rolls_back_fee_and_ledger(
 
 
 async def test_premium_failure_rolls_back_fee_and_ledger(
-    orm, wheel_env, monkeypatch
+    wheel_env, monkeypatch
 ) -> None:
-    add_user(orm, 1, credits=100.0)
+    add_user(1, credits=100.0)
     _force_prize(monkeypatch, "Premium 7 天")
     monkeypatch.setattr(
         luckywheel_service.repository.premium_repository,
@@ -596,9 +588,9 @@ async def test_premium_failure_rolls_back_fee_and_ledger(
 
 
 async def test_notification_failure_does_not_undo_committed_spin(
-    orm, wheel_env, monkeypatch
+    wheel_env, monkeypatch
 ) -> None:
-    add_user(orm, 1, credits=100.0)
+    add_user(1, credits=100.0)
     _force_prize(monkeypatch, "邀请码 1 枚")
 
     async def _notification_failure(*args, **kwargs):

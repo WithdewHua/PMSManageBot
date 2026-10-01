@@ -6,9 +6,9 @@
 
 ## 2. 删除门面与收敛检查
 
-- [ ] 2.1 删除 `app/databases/`，包括两个兼容层；改写 import-linter 配置：删除门面冻结合约；删除 SQLAlchemy、引擎合约中的过时放行项；删除外部隔离、入口合约中的过时禁止项；顶层合约改为 `(app.domains)`；删除全部组合边忽略项；六层合约改为 `exhaustive = true`。验证：`PYTHONPATH=src .venv/bin/lint-imports --no-cache` 通过；新增的测试断言所有合约都没有 `ignore_imports`；一个探针领域如果没有在合约中定层，检查会失败。
-- [ ] 2.2 按 design D3 收敛架构测试：删除门面和 mixin 的扫描，以及 `facade_call`、`self_call`、`mixin_duplicates` 三个类别；`baseline.json` 只保留 `line_budgets`；删除 `test_b2_provenance.py`；改写 `test_scheduler_jobstore_boundary.py`；把积分写入检查改为常驻测试。验证：`pytest tests/architecture` 通过；每个保留的检查都有负向探针用例证明它仍然有效，包括跨域导入、行数预算、模型注册、序号模块、换绑覆盖、读模型只读、配置跨域只读和积分绝对值写入。
-- [ ] 2.3 删除 `tests/conftest.py` 中的 `DatabaseORM` 和 `orm` 夹具，以及所有测试中对门面的导入和 patch。验证：`grep` 确认 `tests` 中没有 `app.databases` 和 `DatabaseORM`；全量测试通过。
+- [x] 2.1 删除 `app/databases/`，包括两个兼容层；改写 import-linter 配置：删除门面冻结合约；删除 SQLAlchemy、引擎合约中的过时放行项；删除外部隔离、入口合约中的过时禁止项；顶层合约改为 `(app.domains)`；删除全部组合边忽略项；六层合约改为 `exhaustive = true`。验证：`PYTHONPATH=src .venv/bin/lint-imports --no-cache` 通过；新增的测试断言所有合约都没有 `ignore_imports`；一个探针领域如果没有在合约中定层，检查会失败。
+- [x] 2.2 按 design D3 收敛架构测试：删除门面和 mixin 的扫描，以及 `facade_call`、`self_call`、`mixin_duplicates` 三个类别；`baseline.json` 只保留 `line_budgets`；删除 `test_b2_provenance.py`；改写 `test_scheduler_jobstore_boundary.py`；把积分写入检查改为常驻测试。验证：`pytest tests/architecture` 通过；每个保留的检查都有负向探针用例证明它仍然有效，包括跨域导入、行数预算、模型注册、序号模块、换绑覆盖、读模型只读、配置跨域只读和积分绝对值写入。
+- [x] 2.3 删除 `tests/conftest.py` 中的 `DatabaseORM` 和 `orm` 夹具，以及所有测试中对门面的导入和 patch。验证：`grep` 确认 `tests` 中没有 `app.databases` 和 `DatabaseORM`；全量测试通过。
 
 ## 3. 任务引用迁移移出应用
 

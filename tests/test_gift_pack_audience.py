@@ -164,11 +164,11 @@ def _advance_gift_pack_clock(monkeypatch, now: int) -> None:
             monkeypatch.setattr(module, "time", SimpleNamespace(time=lambda: now))
 
 
-def test_include_and_exclude_audiences_are_live_and_claimed_packs_remain_visible(orm):
+def test_include_and_exclude_audiences_are_live_and_claimed_packs_remain_visible():
     now = int(time.time())
-    add_user(orm, 1)
-    add_user(orm, 2)
-    add_user(orm, 3)
+    add_user(1)
+    add_user(2)
+    add_user(3)
     include_id = _add_pack(
         _pack(
             start_at=now - 10,
@@ -207,9 +207,9 @@ def test_include_and_exclude_audiences_are_live_and_claimed_packs_remain_visible
     }
 
 
-def test_non_list_audience_is_locked_by_prompt_and_survives_state_change(orm):
+def test_non_list_audience_is_locked_by_prompt_and_survives_state_change():
     now = int(time.time())
-    add_user(orm, 1, credits=40)
+    add_user(1, credits=40)
     pack_id = _add_pack(
         _pack(
             start_at=now - 10,
@@ -235,9 +235,9 @@ def test_non_list_audience_is_locked_by_prompt_and_survives_state_change(orm):
     assert gift_pack_service.claim_gift_pack(pack_id, 1)["success"] is True
 
 
-def test_list_membership_is_never_locked_even_after_non_list_audience_lock(orm):
+def test_list_membership_is_never_locked_even_after_non_list_audience_lock():
     now = int(time.time())
-    add_user(orm, 1, credits=40)
+    add_user(1, credits=40)
     pack_id = _add_pack(
         _pack(
             start_at=now - 10,
@@ -266,11 +266,9 @@ def test_list_membership_is_never_locked_even_after_non_list_audience_lock(orm):
     }
 
 
-def test_upcoming_audience_is_not_locked_and_is_rechecked_when_pack_starts(
-    orm, monkeypatch
-):
+def test_upcoming_audience_is_not_locked_and_is_rechecked_when_pack_starts(monkeypatch):
     now = int(time.time())
-    add_user(orm, 1, credits=40)
+    add_user(1, credits=40)
     pack_id = _add_pack(
         _pack(
             start_at=now + 100,
@@ -295,9 +293,9 @@ def test_upcoming_audience_is_not_locked_and_is_rechecked_when_pack_starts(
 # List progress, prompts, and claim-time rechecks (OpenSpec 4.1--4.3)
 
 
-def test_list_returns_structured_progress_and_freezes_count_at_task_deadline(orm):
+def test_list_returns_structured_progress_and_freezes_count_at_task_deadline():
     now = int(time.time())
-    add_user(orm, 1)
+    add_user(1)
     task_end = now - 100
     pack_id = _add_pack(
         _pack(
@@ -321,9 +319,9 @@ def test_list_returns_structured_progress_and_freezes_count_at_task_deadline(orm
     assert item["requirements"][0]["target"] == 5
 
 
-def test_prompt_separates_task_and_claim_counts_and_throttles_each_class(orm):
+def test_prompt_separates_task_and_claim_counts_and_throttles_each_class():
     now = int(time.time())
-    add_user(orm, 1, credits=20)
+    add_user(1, credits=20)
     pack_id = _add_pack(
         _pack(
             start_at=now - 10,
@@ -363,9 +361,9 @@ def test_prompt_separates_task_and_claim_counts_and_throttles_each_class(orm):
     assert _state(pack_id, 1).prompt_count == 1
 
 
-def test_task_prompt_limit_zero_and_claim_only_phase_suppress_task_prompt(orm):
+def test_task_prompt_limit_zero_and_claim_only_phase_suppress_task_prompt():
     now = int(time.time())
-    add_user(orm, 1, credits=20)
+    add_user(1, credits=20)
     zero_id = _add_pack(
         _pack(
             start_at=now - 10,
@@ -395,9 +393,9 @@ def test_task_prompt_limit_zero_and_claim_only_phase_suppress_task_prompt(orm):
         assert state.prompt_count == 0
 
 
-def test_same_day_task_prompt_does_not_block_claim_prompt_after_user_qualifies(orm):
+def test_same_day_task_prompt_does_not_block_claim_prompt_after_user_qualifies():
     now = int(time.time())
-    add_user(orm, 1, credits=20)
+    add_user(1, credits=20)
     pack_id = _add_pack(
         _pack(
             start_at=now - 10,
@@ -414,10 +412,10 @@ def test_same_day_task_prompt_does_not_block_claim_prompt_after_user_qualifies(o
     assert _state(pack_id, 1).prompt_count == 1
 
 
-def test_claim_rechecks_frozen_requirement_and_hides_pack_from_outside_audience(orm):
+def test_claim_rechecks_frozen_requirement_and_hides_pack_from_outside_audience():
     now = int(time.time())
-    add_user(orm, 1)
-    add_user(orm, 2)
+    add_user(1)
+    add_user(2)
     pack_id = _add_pack(
         _pack(
             start_at=now - 1000,
@@ -453,9 +451,9 @@ def test_claim_rechecks_frozen_requirement_and_hides_pack_from_outside_audience(
 # Post-start edit restrictions (OpenSpec 5.2)
 
 
-def _started_edit_pack(orm, *, audience=None, requirements=None, task_end_at=None):
+def _started_edit_pack(*, audience=None, requirements=None, task_end_at=None):
     now = int(time.time())
-    add_user(orm, 1)
+    add_user(1)
     return _add_pack(
         _pack(
             start_at=now - 10,
@@ -467,9 +465,8 @@ def _started_edit_pack(orm, *, audience=None, requirements=None, task_end_at=Non
     )
 
 
-def test_started_pack_rejects_start_reward_and_requirement_structure_changes(orm):
+def test_started_pack_rejects_start_reward_and_requirement_structure_changes():
     pack_id = _started_edit_pack(
-        orm,
         requirements=[{"type": "wheel_spins", "min": 50}],
     )
     now = int(time.time())
@@ -487,9 +484,8 @@ def test_started_pack_rejects_start_reward_and_requirement_structure_changes(orm
         )
 
 
-def test_started_pack_allows_lower_targets_but_rejects_higher_targets(orm):
+def test_started_pack_allows_lower_targets_but_rejects_higher_targets():
     pack_id = _started_edit_pack(
-        orm,
         requirements=[{"type": "wheel_spins", "min": 50}],
     )
 
@@ -507,9 +503,8 @@ def test_started_pack_allows_lower_targets_but_rejects_higher_targets(orm):
         )
 
 
-def test_started_pack_allows_end_extension_and_list_membership_changes_only(orm):
+def test_started_pack_allows_end_extension_and_list_membership_changes_only():
     pack_id = _started_edit_pack(
-        orm,
         audience=[
             {"type": "user_list", "mode": "include", "tg_ids": [1]},
             {"type": "credits", "max": 50},
@@ -540,9 +535,8 @@ def test_started_pack_allows_end_extension_and_list_membership_changes_only(orm)
         )
 
 
-def test_started_pack_cannot_introduce_a_task_deadline(orm):
+def test_started_pack_cannot_introduce_a_task_deadline():
     pack_id = _started_edit_pack(
-        orm,
         requirements=[{"type": "wheel_spins", "min": 1}],
     )
 
@@ -552,10 +546,9 @@ def test_started_pack_cannot_introduce_a_task_deadline(orm):
         )
 
 
-def test_started_pack_can_extend_or_clear_existing_task_deadline(orm):
+def test_started_pack_can_extend_or_clear_existing_task_deadline():
     now = int(time.time())
     pack_id = _started_edit_pack(
-        orm,
         requirements=[{"type": "wheel_spins", "min": 1}],
         task_end_at=now + 100,
     )
@@ -568,10 +561,10 @@ def test_started_pack_can_extend_or_clear_existing_task_deadline(orm):
 # Start DMs (OpenSpec 6.1)
 
 
-def test_start_dm_candidate_scan_marks_once_excludes_claimed_and_finds_new_members(orm):
+def test_start_dm_candidate_scan_marks_once_excludes_claimed_and_finds_new_members():
     now = int(time.time())
     for tg_id, credits in ((1, 40), (2, 40), (3, 40), (4, 40), (5, 100)):
-        add_user(orm, tg_id, credits=credits)
+        add_user(tg_id, credits=credits)
     pack_id = _add_pack(
         _pack(
             start_at=now - 10,
@@ -670,9 +663,9 @@ def test_start_dm_router_requests_200_at_a_time_with_content_and_spacing(monkeyp
     assert "打开小程序的礼包中心领取" in sent[0]["text"]
 
 
-def test_get_list_never_writes_audience_lock_even_when_user_is_eligible(orm):
+def test_get_list_never_writes_audience_lock_even_when_user_is_eligible():
     now = int(time.time())
-    add_user(orm, 1, credits=40)
+    add_user(1, credits=40)
     pack_id = _add_pack(
         _pack(
             start_at=now - 10,
@@ -688,11 +681,9 @@ def test_get_list_never_writes_audience_lock_even_when_user_is_eligible(orm):
     assert _state(pack_id, 1) is None
 
 
-def test_claim_rechecks_sliding_window_instead_of_trusting_previous_list(
-    orm, monkeypatch
-):
+def test_claim_rechecks_sliding_window_instead_of_trusting_previous_list(monkeypatch):
     now = int(time.time())
-    add_user(orm, 1)
+    add_user(1)
     pack_id = _add_pack(
         _pack(
             start_at=now - 8 * 86400,
@@ -719,9 +710,9 @@ def test_claim_rechecks_sliding_window_instead_of_trusting_previous_list(
         assert session.get(GiftPack, pack_id).claimed_count == 0
 
 
-def test_started_pack_quantity_can_only_expand(orm):
+def test_started_pack_quantity_can_only_expand():
     now = int(time.time())
-    add_user(orm, 1)
+    add_user(1)
     pack_id = _add_pack(_pack(start_at=now - 10, end_at=now + 1000, total_quantity=2))
     assert gift_pack_repository.update_gift_pack(pack_id, total_quantity=3) is True
     with pytest.raises(ValueError, match="份数|total_quantity"):
@@ -731,9 +722,9 @@ def test_started_pack_quantity_can_only_expand(orm):
         gift_pack_repository.update_gift_pack(pack_id, total_quantity=4)
 
 
-def test_upcoming_pack_can_change_start_reward_and_condition_freely(orm):
+def test_upcoming_pack_can_change_start_reward_and_condition_freely():
     now = int(time.time())
-    add_user(orm, 1)
+    add_user(1)
     pack_id = _add_pack(
         _pack(
             start_at=now + 3600,
@@ -758,7 +749,7 @@ def test_upcoming_pack_can_change_start_reward_and_condition_freely(orm):
         assert json.loads(pack.requirements)[0]["type"] == "blackjack_hands"
 
 
-def test_admin_references_and_deletion_guard(orm):
+def test_admin_references_and_deletion_guard():
     """References must exist and a referenced pack cannot be deleted."""
     now = int(time.time())
     fields = {
@@ -799,11 +790,11 @@ def test_admin_references_and_deletion_guard(orm):
     assert gift_pack_repository.get_gift_pack_by_id(source_id) is not None
 
 
-def test_admin_resolves_mixed_identifiers_and_rejects_ambiguous_match(orm, monkeypatch):
+def test_admin_resolves_mixed_identifiers_and_rejects_ambiguous_match(monkeypatch):
     from app.domains.identity.models import EmbyUser, PlexUser
 
     for tg_id in (1, 2, 3):
-        add_user(orm, tg_id)
+        add_user(tg_id)
     with get_session() as session:
         session.add_all(
             [
@@ -840,9 +831,9 @@ def test_admin_resolves_mixed_identifiers_and_rejects_ambiguous_match(orm, monke
     assert "未找到" in unresolved["unknown"]
 
 
-def test_named_pack_stats_include_audience_rate_and_task_reminders(orm):
+def test_named_pack_stats_include_audience_rate_and_task_reminders():
     for tg_id in (1, 2, 3):
-        add_user(orm, tg_id)
+        add_user(tg_id)
     now = int(time.time())
     pack_id = gift_pack_repository.create_gift_pack(
         title="named stats",
@@ -867,7 +858,7 @@ def test_named_pack_stats_include_audience_rate_and_task_reminders(orm):
 
 @pytest.mark.asyncio
 async def test_admin_resolve_users_endpoint_requires_admin_and_returns_matches(
-    orm, monkeypatch
+    monkeypatch,
 ):
     from fastapi import HTTPException
     from starlette.requests import Request
@@ -875,7 +866,7 @@ async def test_admin_resolve_users_endpoint_requires_admin_and_returns_matches(
     from app.domains.gift_pack import router
     from app.transport.http.schemas import TelegramUser
 
-    add_user(orm, 1)
+    add_user(1)
 
     def check_admin(user):
         if user.id != 1:
@@ -905,9 +896,7 @@ async def test_admin_resolve_users_endpoint_requires_admin_and_returns_matches(
 
 
 @pytest.mark.asyncio
-async def test_admin_create_accepts_all_seven_rewards_with_new_conditions(
-    orm, monkeypatch
-):
+async def test_admin_create_accepts_all_seven_rewards_with_new_conditions(monkeypatch):
     from fastapi import BackgroundTasks
     from starlette.requests import Request
 
@@ -958,7 +947,7 @@ async def test_admin_create_accepts_all_seven_rewards_with_new_conditions(
 
 
 @pytest.mark.asyncio
-async def test_admin_update_returns_post_start_violation_message(orm, monkeypatch):
+async def test_admin_update_returns_post_start_violation_message(monkeypatch):
     from fastapi import HTTPException
     from starlette.requests import Request
 
@@ -991,7 +980,7 @@ async def test_admin_update_returns_post_start_violation_message(orm, monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_admin_update_and_enabled_return_current_pack(orm, monkeypatch):
+async def test_admin_update_and_enabled_return_current_pack(monkeypatch):
     from starlette.requests import Request
 
     from app.domains.gift_pack import router
@@ -1034,7 +1023,7 @@ async def test_admin_update_and_enabled_return_current_pack(orm, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_claim_route_returns_structured_current_progress_on_recheck_failure(
-    orm, monkeypatch
+    monkeypatch,
 ):
     from fastapi import BackgroundTasks, HTTPException
     from starlette.requests import Request
@@ -1042,7 +1031,7 @@ async def test_claim_route_returns_structured_current_progress_on_recheck_failur
     from app.domains.gift_pack import router
     from app.transport.http.schemas import TelegramUser
 
-    add_user(orm, 1)
+    add_user(1)
     now = int(time.time())
     pack_id = _add_pack(
         _pack(
@@ -1077,7 +1066,7 @@ async def test_claim_route_returns_structured_current_progress_on_recheck_failur
         assert session.get(GiftPack, pack_id).claimed_count == 0
 
 
-def test_prestart_reward_edit_can_explicitly_remove_auto_binding(orm):
+def test_prestart_reward_edit_can_explicitly_remove_auto_binding():
     now = int(time.time())
     pack_id = gift_pack_repository.create_gift_pack(
         title="reward switch",
@@ -1104,13 +1093,13 @@ def test_prestart_reward_edit_can_explicitly_remove_auto_binding(orm):
 
 
 @pytest.mark.asyncio
-async def test_prompt_endpoint_returns_task_packs_for_popup(orm, monkeypatch):
+async def test_prompt_endpoint_returns_task_packs_for_popup(monkeypatch):
     from starlette.requests import Request
 
     from app.domains.gift_pack import router
     from app.transport.http.schemas import TelegramUser
 
-    add_user(orm, 1)
+    add_user(1)
     now = int(time.time())
     pack_id = _add_pack(
         _pack(
@@ -1137,9 +1126,9 @@ async def test_prompt_endpoint_returns_task_packs_for_popup(orm, monkeypatch):
     assert response.task_packs[0].requirements[0].target == 1000
 
 
-def test_earlier_pack_prompt_does_not_suppress_new_task_pack(orm):
+def test_earlier_pack_prompt_does_not_suppress_new_task_pack():
     now = int(time.time())
-    add_user(orm, 1, credits=20)
+    add_user(1, credits=20)
     old_id = _add_pack(
         _pack(
             start_at=now - 3600,
@@ -1166,9 +1155,9 @@ def test_earlier_pack_prompt_does_not_suppress_new_task_pack(orm):
     assert _state(new_id, 1).task_prompt_count == 1
 
 
-def test_prompt_returns_new_task_pack_after_an_earlier_pack_was_claimed(orm):
+def test_prompt_returns_new_task_pack_after_an_earlier_pack_was_claimed():
     now = int(time.time())
-    add_user(orm, 1, credits=20)
+    add_user(1, credits=20)
     earlier_id = _add_pack(
         _pack(
             start_at=now - 3600,
@@ -1214,16 +1203,14 @@ async def _http_outcome(coro) -> tuple[int, object]:
 
 
 @pytest.mark.asyncio
-async def test_admin_list_and_records_endpoints_report_rows_and_totals(
-    orm, monkeypatch
-):
+async def test_admin_list_and_records_endpoints_report_rows_and_totals(monkeypatch):
     from starlette.requests import Request
 
     from app.domains.gift_pack import router
     from app.transport.http.schemas import TelegramUser
 
     now = int(time.time())
-    add_user(orm, 1)
+    add_user(1)
     pack_id = _add_pack(_pack(start_at=now - 10, end_at=now + 3600))
     monkeypatch.setattr(router, "check_admin_permission", lambda user: None)
     request = Request(
@@ -1264,14 +1251,14 @@ async def test_admin_list_and_records_endpoints_report_rows_and_totals(
 
 
 @pytest.mark.asyncio
-async def test_delete_route_splits_404_and_400_despite_title_quirk(orm, monkeypatch):
+async def test_delete_route_splits_404_and_400_despite_title_quirk(monkeypatch):
     from starlette.requests import Request
 
     from app.domains.gift_pack import router
     from app.transport.http.schemas import TelegramUser
 
     now = int(time.time())
-    add_user(orm, 1)
+    add_user(1)
     monkeypatch.setattr(router, "check_admin_permission", lambda user: None)
     request = Request(
         {
@@ -1326,7 +1313,7 @@ async def test_delete_route_splits_404_and_400_despite_title_quirk(orm, monkeypa
 
 
 @pytest.mark.asyncio
-async def test_admin_error_branches_return_fixed_details(orm, monkeypatch):
+async def test_admin_error_branches_return_fixed_details(monkeypatch):
     from fastapi import BackgroundTasks
     from starlette.requests import Request
 
@@ -1338,7 +1325,7 @@ async def test_admin_error_branches_return_fixed_details(orm, monkeypatch):
     from app.transport.http.schemas import TelegramUser
 
     now = int(time.time())
-    add_user(orm, 1)
+    add_user(1)
     pack_id = _add_pack(_pack(start_at=now - 10, end_at=now + 3600))
     monkeypatch.setattr(router, "check_admin_permission", lambda user: None)
     request = Request(

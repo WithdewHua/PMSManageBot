@@ -20,9 +20,9 @@ def _scheduled(monkeypatch) -> list[tuple[str, dict]]:
     return calls
 
 
-def test_restores_timeout_for_active_hand(orm, monkeypatch):
-    add_user(orm, 1, credits=100.0)
-    hand_id = add_cash_hand(orm, 1, created_at_ms=NOW_MS)
+def test_restores_timeout_for_active_hand(monkeypatch):
+    add_user(1, credits=100.0)
+    hand_id = add_cash_hand(1, created_at_ms=NOW_MS)
     calls = _scheduled(monkeypatch)
 
     blackjack_cash_jobs.restore_blackjack_timeouts()
@@ -37,11 +37,11 @@ def test_restores_timeout_for_active_hand(orm, monkeypatch):
     assert 0 < kwargs["run_date"].timestamp() - time.time() < 15 * 60 + 5
 
 
-def test_expired_hand_is_left_to_the_sweeper(orm, monkeypatch):
+def test_expired_hand_is_left_to_the_sweeper(monkeypatch):
     """已过期的牌不在启动阶段处理，交给定时兜底全量清理。"""
 
-    add_user(orm, 1, credits=100.0)
-    add_cash_hand(orm, 1, created_at_ms=NOW_MS - 16 * 60 * 1000)
+    add_user(1, credits=100.0)
+    add_cash_hand(1, created_at_ms=NOW_MS - 16 * 60 * 1000)
     calls = _scheduled(monkeypatch)
 
     blackjack_cash_jobs.restore_blackjack_timeouts()
@@ -49,8 +49,8 @@ def test_expired_hand_is_left_to_the_sweeper(orm, monkeypatch):
     assert calls == []
 
 
-def test_no_active_hands_schedules_nothing(orm, monkeypatch):
-    add_user(orm, 1, credits=100.0)
+def test_no_active_hands_schedules_nothing(monkeypatch):
+    add_user(1, credits=100.0)
     calls = _scheduled(monkeypatch)
 
     blackjack_cash_jobs.restore_blackjack_timeouts()
@@ -58,7 +58,7 @@ def test_no_active_hands_schedules_nothing(orm, monkeypatch):
     assert calls == []
 
 
-def test_restore_never_raises_when_listing_fails(orm, monkeypatch):
+def test_restore_never_raises_when_listing_fails(monkeypatch):
     """启动钩子失败不得阻断启动：异常只记日志。"""
 
     def _boom():

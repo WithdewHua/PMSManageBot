@@ -3,13 +3,10 @@
 from __future__ import annotations
 
 import ast
-from collections import defaultdict
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from .helpers import (
-    class_member_names,
     dotted_name,
     make_violation,
     module_name,
@@ -20,15 +17,6 @@ from .helpers import (
 )
 
 LINE_BUDGET = 1000
-LEGACY_DATABASE_MODULE = "app.databases.db"
-
-
-@dataclass(frozen=True, slots=True)
-class _ClassRecord:
-    path: Path
-    module: str
-    domain: str | None
-    node: ast.ClassDef
 
 
 def _domain_for_module(module: str) -> str | None:
@@ -91,54 +79,16 @@ def _module_from_relative_import(
     return f"{base}.{node.module}" if node.module else base
 
 
-def _repository_classes(root: Path) -> list[_ClassRecord]:
-    records: list[_ClassRecord] = []
-    for path in python_files(root):
-        module = module_name(path, root)
-        is_legacy_database = module == LEGACY_DATABASE_MODULE
-        if _role_for_module(module) != "repository" and not is_legacy_database:
-            continue
-        tree = parse_python(path)
-        for node in tree.body:
-            if not isinstance(node, ast.ClassDef):
-                continue
-            if is_legacy_database and node.name != "DatabaseORM":
-                continue
-            if not is_legacy_database and not node.name.endswith(
-                ("Repository", "Mixin")
-            ):
-                continue
-            records.append(
-                _ClassRecord(
-                    path=path,
-                    module=module,
-                    domain=_domain_for_module(module),
-                    node=node,
-                )
-            )
-    return records
-
-
-def _method_owners(root: Path) -> dict[str, set[str]]:
-    owners: dict[str, set[str]] = defaultdict(set)
-    for record in _repository_classes(root):
-        domain = record.domain or "legacy"
-        for name, _line in class_member_names(record.node):
-            owners[name].add(domain)
-    return owners
-
-
 def _import_bindings(
     path: Path,
     root: Path,
     tree: ast.Module,
-) -> tuple[dict[str, dict[str, str]], set[str], list[dict[str, Any]]]:
-    """Return aliases, facade aliases, and cross-domain import violations."""
+) -> tuple[dict[str, dict[str, str]], list[dict[str, Any]]]:
+    """Return aliases and cross-domain import violations."""
     current_module = module_name(path, root)
     current_domain = _domain_for_module(current_module)
     current_role = _role_for_module(current_module)
     bindings: dict[str, dict[str, str]] = {}
-    facade_aliases: set[str] = set()
     violations: list[dict[str, Any]] = []
 
     # Imports inside handlers and methods are dependencies too, even when delayed
@@ -149,11 +99,6 @@ def _import_bindings(
                 statement, current_module, path
             )
             if imported_module is None:
-                continue
-            if imported_module in {"app.databases", "app.databases.db"}:
-                for alias in statement.names:
-                    if alias.name == "db":
-                        facade_aliases.add(alias.asname or alias.name)
                 continue
 
             for alias in statement.names:
@@ -270,7 +215,7 @@ def _import_bindings(
                             target_module=target_module,
                         )
                     )
-    return bindings, facade_aliases, violations
+    return bindings, violations
 
 
 def _import_allowed(
@@ -365,9 +310,7 @@ def _binding_for_call(
 
 
 def scan_cross_domain_calls(root: Path) -> list[dict[str, Any]]:
-    """Scan cross-domain imports, direct calls, facade calls, and self calls."""
-    method_owners = _method_owners(root)
-    records = _repository_classes(root)
+    """Scan cross-domain imports and direct calls."""
     violations: dict[str, dict[str, Any]] = {}
 
     for path in python_files(root):
@@ -377,7 +320,7 @@ def scan_cross_domain_calls(root: Path) -> list[dict[str, Any]]:
             continue
         role = _role_for_module(module)
         tree = parse_python(path)
-        bindings, facade_aliases, import_violations = _import_bindings(path, root, tree)
+        bindings, import_violations = _import_bindings(path, root, tree)
         for violation in import_violations:
             violations[violation["key"]] = violation
 
@@ -404,72 +347,6 @@ def scan_cross_domain_calls(root: Path) -> list[dict[str, Any]]:
                         target_domain=target_domain,
                         target=symbol,
                     )
-
-            if not isinstance(node.func, ast.Attribute):
-                continue
-            receiver = node.func.value
-            method = node.func.attr
-            if not (isinstance(receiver, ast.Name) and receiver.id in facade_aliases):
-                continue
-            target_domains = {
-                item for item in method_owners.get(method, set()) if item != "legacy"
-            }
-            if len(target_domains) != 1:
-                continue
-            target_domain = next(iter(target_domains))
-            if target_domain == domain:
-                continue
-            key = (
-                f"call|{relative_path(path, root)}|{node.lineno}|"
-                f"facade|{target_domain}|{method}"
-            )
-            violations[key] = make_violation(
-                key,
-                owner_for_domain(domain),
-                path=relative_path(path, root),
-                line=node.lineno,
-                kind="facade_call",
-                source_domain=domain,
-                target_domain=target_domain,
-                target=method,
-            )
-
-    for record in records:
-        if record.domain is None:
-            continue
-        for node in ast.walk(record.node):
-            if not isinstance(node, ast.Call):
-                continue
-            if not isinstance(node.func, ast.Attribute):
-                continue
-            if (
-                not isinstance(node.func.value, ast.Name)
-                or node.func.value.id != "self"
-            ):
-                continue
-            method = node.func.attr
-            target_domains = {
-                item for item in method_owners.get(method, set()) if item != "legacy"
-            }
-            if len(target_domains) != 1:
-                continue
-            target_domain = next(iter(target_domains))
-            if target_domain == record.domain or method.endswith("_tx"):
-                continue
-            key = (
-                f"call|{relative_path(record.path, root)}|{node.lineno}|self|"
-                f"{target_domain}|{method}"
-            )
-            violations[key] = make_violation(
-                key,
-                owner_for_domain(record.domain),
-                path=relative_path(record.path, root),
-                line=node.lineno,
-                kind="self_call",
-                source_domain=record.domain,
-                target_domain=target_domain,
-                target=method,
-            )
 
     return sorted(violations.values(), key=lambda item: item["key"])
 
@@ -572,38 +449,6 @@ def scan_model_registry(root: Path) -> list[dict[str, Any]]:
                 line=node.lineno,
                 model=node.name,
                 module=module,
-            )
-        )
-    return sorted(violations, key=lambda item: item["key"])
-
-
-def scan_mixin_duplicates(root: Path) -> list[dict[str, Any]]:
-    """Find duplicate direct members across repository mixins."""
-    records = _repository_classes(root)
-    members: dict[str, list[tuple[_ClassRecord, int]]] = defaultdict(list)
-    for record in records:
-        for name, line in class_member_names(record.node):
-            members[name].append((record, line))
-
-    violations: list[dict[str, Any]] = []
-    for name, definitions in members.items():
-        classes = sorted(
-            f"{record.module}.{record.node.name}" for record, _line in definitions
-        )
-        if len(definitions) < 2:
-            continue
-        key = f"member|{name}|{','.join(classes)}"
-        first_record, first_line = definitions[0]
-        domains = {record.domain for record, _line in definitions}
-        owner_domain = next(iter(domains)) if len(domains) == 1 else None
-        violations.append(
-            make_violation(
-                key,
-                owner_for_domain(owner_domain),
-                path=relative_path(first_record.path, root),
-                line=first_line,
-                member=name,
-                classes=classes,
             )
         )
     return sorted(violations, key=lambda item: item["key"])
@@ -724,6 +569,112 @@ def scan_config_access(root: Path) -> list[dict[str, Any]]:
     return sorted(violations, key=lambda item: item["key"])
 
 
+CREDIT_ATTRIBUTES = {"credits", "emby_credits"}
+APPROVED_DELTA_WRITERS = {"move_unbound_media_tx"}
+NON_PERSISTED_OUTPUTS = {"user_info"}
+
+
+def _attribute_target(node: ast.AST) -> str | None:
+    if isinstance(node, ast.Attribute) and node.attr in CREDIT_ATTRIBUTES:
+        if isinstance(node.value, ast.Name):
+            if node.value.id in NON_PERSISTED_OUTPUTS:
+                return None
+            return f"{node.value.id}.{node.attr}"
+        return node.attr
+    return None
+
+
+def scan_credit_writes(root: Path) -> list[dict[str, Any]]:
+    """Detect non-delta credit writes (attribute writes, SQL values, update_user_credits)."""
+    violations: list[dict[str, Any]] = []
+    source_root = root / "src" / "app"
+    if not source_root.exists():
+        source_root = root
+
+    for path in python_files(root):
+        if not path.as_posix().startswith(source_root.as_posix()):
+            continue
+        try:
+            tree = parse_python(path)
+        except SyntaxError:
+            continue
+
+        module = module_name(path, root)
+        domain = _domain_for_module(module)
+
+        class Visitor(ast.NodeVisitor):
+            def __init__(self, source_path: Path, source_domain: str | None) -> None:
+                self.stack: list[str] = []
+                self.source_path = source_path
+                self.source_domain = source_domain
+
+            def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+                self.stack.append(node.name)
+                self.generic_visit(node)
+                self.stack.pop()
+
+            def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+                self.stack.append(node.name)
+                self.generic_visit(node)
+                self.stack.pop()
+
+            def visit_ClassDef(self, node: ast.ClassDef) -> None:
+                self.stack.append(node.name)
+                self.generic_visit(node)
+                self.stack.pop()
+
+            def _record(self, node: ast.AST, kind: str, target: str) -> None:
+                stable_path = relative_path(self.source_path, root)
+                key = f"credit_write|{stable_path}|{node.lineno}|{kind}|{target}"
+                violations.append(
+                    make_violation(
+                        key,
+                        owner_for_domain(self.source_domain),
+                        path=stable_path,
+                        line=node.lineno,
+                        kind=kind,
+                        target=target,
+                    )
+                )
+
+            def visit_Assign(self, node: ast.Assign) -> None:
+                for target_node in node.targets:
+                    target = _attribute_target(target_node)
+                    if target:
+                        self._record(node, "attribute-assignment", target)
+                self.generic_visit(node)
+
+            def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+                target = _attribute_target(node.target)
+                if target and node.value:
+                    self._record(node, "attribute-assignment", target)
+                self.generic_visit(node)
+
+            def visit_AugAssign(self, node: ast.AugAssign) -> None:
+                target = _attribute_target(node.target)
+                if target:
+                    self._record(node, "attribute-augmented-assignment", target)
+                self.generic_visit(node)
+
+            def visit_Call(self, node: ast.Call) -> None:
+                if isinstance(node.func, ast.Attribute):
+                    if node.func.attr == "update_user_credits":
+                        self._record(
+                            node, "absolute-facade-call", "update_user_credits"
+                        )
+                    elif node.func.attr == "values" and not any(
+                        func in APPROVED_DELTA_WRITERS for func in self.stack
+                    ):
+                        for keyword in node.keywords:
+                            if keyword.arg in CREDIT_ATTRIBUTES:
+                                self._record(node, "sql-values-write", str(keyword.arg))
+                self.generic_visit(node)
+
+        Visitor(path, domain).visit(tree)
+
+    return sorted(violations, key=lambda item: item["key"])
+
+
 def scan_all(root: Path) -> dict[str, list[dict[str, Any]]]:
     """Run all architecture scanners without reading or writing the baseline."""
     return {
@@ -731,6 +682,6 @@ def scan_all(root: Path) -> dict[str, list[dict[str, Any]]]:
         "config_access": scan_config_access(root),
         "line_budgets": scan_line_budgets(root),
         "model_registry": scan_model_registry(root),
-        "mixin_duplicates": scan_mixin_duplicates(root),
         "numbered_modules": scan_numbered_modules(root),
+        "credit_writes": scan_credit_writes(root),
     }
