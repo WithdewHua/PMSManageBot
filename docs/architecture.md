@@ -126,7 +126,7 @@ core/（公共设施）
 | 捐赠倍率重算 | `from app.domains.donation import service; service.update_donation_credits(old_multiplier, new_multiplier)`，仅由维护者在运维 Python 环境显式调用 | 历史捐赠积分的人工调整工具；无日常代码调用方不代表可删除。必须先审查旧/新倍率与目标数据库，并遵循积分领域事务接口 |
 | 过期下载权限清单 | `scripts/list_expired_download_holders.py`；默认只读，确认名单后用 `--apply --input <json>` 仅撤销名单项 | `scripts/sync_download_permissions.py` 是单向同步脚本，不能用于对账或撤销，也不得代替本清单脚本 |
 | 历史流量月度迁移 | `scripts/migrate_line_traffic_stats.py` | 历史月度流量数据批量聚合与清理工具；调用 `app.domains.traffic.service` 聚合与清理接口，支持按月范围或自动检测最早月份逐月确认/批量处理 |
-| Redis 配置历史迁移 | `scripts/migrate_redis_to_database.py` | 历史 Redis 配置（免费高级线路、线路标签、大转盘配置）向数据库单向迁移工具；调用 `app.domains.lines.catalog` 和 `app.domains.luckywheel.service` 接口 |
+| Redis 配置历史迁移 | `scripts/migrate_redis_to_database.py` | 仅供仍持有旧 Redis 配置键的历史部署使用；不是每次发布的固定步骤。执行前必须只读审计 `luckywheel:*`、`emby_free_premium_lines:free_lines`、`emby_line_tags:*`，确认来源仍是权威配置；不得清空 Redis，迁移后旧键保留待人工核对 |
 
 ## Core 与 transport 边界
 
@@ -183,13 +183,27 @@ python -m scripts.migrate_legacy_job_refs
    ```
 3. 启动旧版本镜像。
 
+## 1.0.0 生产发布验收（quince）
+
+2026-10-01 在 quince 的 PostgreSQL 18.3 生产副本上完成了升级、回退再升级、容器启动和只读接口彩排；随后在维护窗口完成正式发布。发布过程遵循“先备份、停调度器、迁移数据库、迁移任务引用、启动验收”的顺序，未执行 Redis `FLUSHALL`/`FLUSHDB`，也未把过时的 SQLite 副本用于生产结论。
+
+- Alembic 从 `b9c0d1e2f3a4` 升至 `b5c6d7e8f9a0`；共享业务表行数保持一致，`line_catalog` 创建并导入 9 条线路（普通 7、高级 2）。
+- `invitation/privileged_codes_imported` 和 `lines/catalog_imported` 完成标记已写入；旧业务配置仅用于首次导入，之后以数据库为准。
+- `scripts/migrate_legacy_job_refs.py` 在发布前执行；quince 当时没有需要改写的旧持久化任务（`rewritten=0`），scheduler 启动守卫和 33 个调度入口正常。
+- Redis 仅做连通性和 traffic 队列只读检查；历史 Redis 配置键均不存在，因此未运行 `scripts/migrate_redis_to_database.py`。DB 15 traffic 队列未被清空。
+- 最终容器为 `pmsmanagebot:dev`，包版本 `1.0.0`，重启次数为 0；`/health` 返回 200、OpenAPI 返回 200、未认证保护路由返回 401。
+
+## 重构验证工具与一次性脚本的保留边界
+
+- `scripts/verify/check_metadata_pg.py` 和 `scripts/verify/snapshot.py` 是长期验证工具，不是已完成重构后的临时垃圾；前者强制只连接本机 disposable PostgreSQL，后者生成无数据库副作用的确定性快照。对应的 `tests/test_metadata_pg.py` 和 `tests/test_snapshot.py` 必须保留。
+- 历史 `scripts/refactor/`、`tests/refactor/` 树及已迁移的 B 阶段夹具已经清除；不要为了“清理重构脚本”删除永久保护事件边界、Telegram I/O 禁止、规则不变量、scheduler guard 和 PostgreSQL 元数据安全边界的测试。
+- `scripts/migrate_legacy_job_refs.py`、`scripts/migrate_line_traffic_stats.py`、`scripts/migrate_redis_to_database.py`、导出/回退脚本和媒体权限审计脚本属于人工运维入口，不能依据“无代码调用方”删除；删除前必须更新手动运维表和发布回退流程。
+
 ## accounts / identity / invitation 提升证据
 
 `promote-account-domains` 已将 `identity` 的 SQL 查询和事务写入收拢到模块级 `repository`，由 `identity.service` 暴露类型化数据类。Plex、Emby、Statistics 和 Overseerr 的建档统一经过 `identity.repository.ensure_statistics_tx`（需要 Telegram 统计行时），缓存写入登记在事务提交后的 callback 中。
 
 本次已核对并删除四个无调用方入口：`IdentityRepository.get_plex_info_by_plex_username`、`IdentityRepository.get_emby_info_by_emby_id`、`IdentityRepository.update_user_tg_id` 和 `accounts.service.add_all_plex_user`；它们不在手动运维清单中。
-
-账号绑定和凭码注册由 `accounts.service` / `invitation.service` 编排，写入由各自 repository 在调用方事务中完成。`PlexUserIdResolved` 通过 `app.core.events` 在提交后分发，由 `app.subscriptions` 注册 invitation handler；具名任务 `invitation.resolve_plex_id` 在内存 jobstore 使用 interval + `end_date`，任务成功后自行删除。
 
 账号绑定和凭码注册由 `accounts.service` / `invitation.service` 编排，写入由各自 repository 在调用方事务中完成。`PlexUserIdResolved` 通过 `app.core.events` 在提交后分发，由 `app.subscriptions` 注册 invitation handler；具名任务 `invitation.resolve_plex_id` 在内存 jobstore 使用 interval + `end_date`，任务成功后自行删除。
 

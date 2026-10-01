@@ -25,3 +25,16 @@
    python -m scripts.migrate_legacy_job_refs --reverse --scheduler-stopped
    ```
 3. 不启动新版本，直接回退镜像并启动旧版本服务。
+
+## 1.0.0 实际发布记录（quince，2026-10-01）
+
+本版本已在 quince 的 PostgreSQL 18.3 生产环境完成发布。发布前生成并校验了 PostgreSQL custom-format 备份，同时保留部署前 `data/.env` 备份；生产 compose 使用本地构建的 `pmsmanagebot:dev`，未被同步脚本覆盖。
+
+- Alembic：`b9c0d1e2f3a4` → `b5c6d7e8f9a0`。
+- `line_catalog` 首次导入完成：普通线路 7 条、高级线路 2 条；`lines/catalog_imported` marker 已写入。
+- 特权码首次导入完成；`invitation/privileged_codes_imported` marker 已写入。
+- 旧持久化任务引用迁移结果为 `rewritten=0`，启动 guard 通过。
+- Redis 只读审计通过；旧 Redis 配置键不存在，因此未执行 `scripts/migrate_redis_to_database.py`，也未清空 DB 0、DB 2 或 DB 15。
+- 最终容器包版本为 `1.0.0`，health 200，OpenAPI 200，未认证保护路由 401，重启次数 0。
+
+`data/.env` 中已迁移到 `SystemConfig`/`line_catalog` 的业务配置已删除；`WEBAPP_SESSION_SECRET_KEY` 已迁移为持久化 `SESSION_SECRET_KEY`。任何后续从更早版本升级的部署，仍必须先按本文件的任务引用迁移步骤执行，不能仅依据本次 quince 的 `rewritten=0` 省略审计。
