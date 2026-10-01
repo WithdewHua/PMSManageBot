@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,4 +148,51 @@ class TgIdReassignSource:
     media_id: int | str | None = None
 
 
-__all__ += ["TgIdReassignSource"]
+__all__ += [
+    "TgIdReassignSource",
+    "premium_active",
+    "premium_flag_set",
+]
+
+
+def _field(row: Any, name: str, default: Any = None) -> Any:
+    if isinstance(row, dict):
+        return row.get(name, default)
+    return getattr(row, name, default)
+
+
+def premium_flag_set(row: Any) -> bool:
+    """Return whether the persisted Premium flag is set, ignoring expiry."""
+    return int(_field(row, "is_premium", 0) or 0) == 1
+
+
+def premium_active(
+    row: Any,
+    now: datetime,
+    *,
+    invalid_expiry: bool | None = False,
+) -> bool:
+    """Return whether Premium is active at ``now``.
+
+    A missing expiry means permanent membership.  Callers may select the
+    historical fallback for malformed expiry values with ``invalid_expiry``;
+    the default is conservative and treats malformed values as inactive.
+    """
+    if not premium_flag_set(row):
+        return False
+    raw_expiry = _field(row, "premium_expiry_time")
+    if not raw_expiry:
+        return True
+    try:
+        expiry = (
+            raw_expiry
+            if isinstance(raw_expiry, datetime)
+            else datetime.fromisoformat(str(raw_expiry))
+        )
+        if expiry.tzinfo is None and now.tzinfo is not None:
+            expiry = expiry.replace(tzinfo=now.tzinfo)
+        return expiry > now
+    except (TypeError, ValueError, OverflowError):
+        if invalid_expiry is None:
+            raise
+        return bool(invalid_expiry)

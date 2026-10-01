@@ -22,26 +22,6 @@
       "target": "_get_line_monthly_traffic"
     },
     {
-      "key": "call|src/app/domains/gift_pack/repository/rewards.py|75|imported|credits|register_cache_invalidation",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/rewards.py",
-      "line": 75,
-      "kind": "call",
-      "source_domain": "gift_pack",
-      "target_domain": "credits",
-      "target": "register_cache_invalidation"
-    },
-    {
-      "key": "call|src/app/domains/gift_pack/rules.py|116|imported|identity|premium_active",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/rules.py",
-      "line": 116,
-      "kind": "call",
-      "source_domain": "gift_pack",
-      "target_domain": "identity",
-      "target": "premium_active"
-    },
-    {
       "key": "call|src/app/domains/lines/router.py|123|imported|identity|get_emby_info_by_tg_id",
       "owner": "promote-line-domains",
       "path": "src/app/domains/lines/router.py",
@@ -533,28 +513,6 @@
       "symbol": "LineSchedule"
     },
     {
-      "key": "import|src/app/domains/gift_pack/repository/rewards.py|7|app.domains.credits.service|service",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/repository/rewards.py",
-      "line": 7,
-      "kind": "import",
-      "source_domain": "gift_pack",
-      "target_domain": "credits",
-      "target_module": "app.domains.credits.service",
-      "symbol": "service"
-    },
-    {
-      "key": "import|src/app/domains/gift_pack/rules.py|17|app.domains.identity.rules|rules",
-      "owner": "promote-gift-pack-domain",
-      "path": "src/app/domains/gift_pack/rules.py",
-      "line": 17,
-      "kind": "import",
-      "source_domain": "gift_pack",
-      "target_domain": "identity",
-      "target_module": "app.domains.identity.rules",
-      "symbol": "rules"
-    },
-    {
       "key": "import|src/app/domains/lines/router.py|6|app.domains.credits.service|service",
       "owner": "promote-line-domains",
       "path": "src/app/domains/lines/router.py",
@@ -831,10 +789,10 @@
     "Legacy database facade freeze": 0,
     "SQLAlchemy direct use scope": 1,
     "Database engine import scope": 2,
-    "Domain model import scope": 2,
+    "Domain model import scope": 1,
     "Six-tier domain dependencies": 2,
     "Acyclic domain siblings": 3,
-    "Domain internal layering": 3,
+    "Domain internal layering": 1,
     "Domain types are pure value modules": 0,
     "Domain rules are pure value computations": 0,
     "Domain entry points do not touch data layer": 3

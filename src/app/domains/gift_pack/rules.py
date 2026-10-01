@@ -10,11 +10,11 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable, Mapping
 from datetime import datetime
+from typing import Any
 
 from app.core.config import settings
 from app.domains.gift_pack.exceptions import gift_pack_error
-from app.domains.gift_pack.models import GiftPack, GiftPackUserState
-from app.domains.identity import rules as identity_rules
+from app.domains.identity.types import premium_active
 
 #: 需要向各领域计数器取数的条件类型（次数的具体查询由 repository 负责）。
 _GIFT_PACK_METRICS = (
@@ -111,11 +111,11 @@ def _gift_pack_local_date(timestamp: int) -> str:
     return datetime.fromtimestamp(int(timestamp), settings.TZ).strftime("%Y-%m-%d")
 
 
-def _is_premium_active(is_premium, expiry_time) -> bool:
+def _is_premium_active(is_premium, expiry_time, now: datetime | None = None) -> bool:
     """判断某个服务的 Premium 是否当前有效（永久会员视为有效）"""
-    return identity_rules.premium_active(
+    return premium_active(
         {"is_premium": is_premium, "premium_expiry_time": expiry_time},
-        datetime.now(settings.TZ),
+        now or datetime.now(settings.TZ),
         invalid_expiry=True,
     )
 
@@ -142,7 +142,7 @@ def _gift_pack_conditions_with_binding(
     return result
 
 
-def _resolve_gift_pack_conditions(pack: GiftPack) -> tuple[list[dict], list[dict]]:
+def _resolve_gift_pack_conditions(pack: Any) -> tuple[list[dict], list[dict]]:
     """Read new condition JSON, or adapt an unmigrated legacy eligibility row."""
     audience = json.loads(pack.audience) if pack.audience else []
     if pack.requirements:
@@ -248,7 +248,7 @@ def _gift_pack_audience_size(audience: list[dict]) -> int | None:
     return len(members)
 
 
-def metric_key(item: dict, pack: GiftPack, ref: int) -> tuple:
+def metric_key(item: dict, pack: Any, ref: int) -> tuple:
     """一次取数的身份：(条件类型, 起始时间, 参考时间, 限定条件)
 
     同一身份在同一个礼包里只查一次，因此这里的取值必须与查询参数一一对应。
@@ -271,13 +271,13 @@ def metric_key(item: dict, pack: GiftPack, ref: int) -> tuple:
     return (item["type"], since, ref, qualifiers)
 
 
-def metric_window_open(item: dict, pack: GiftPack, ref: int) -> bool:
+def metric_window_open(item: dict, pack: Any, ref: int) -> bool:
     """礼包自己的窗口还没开始时不用取数：直接按 0 计（不发 COUNT 查询）"""
     window = item.get("window") or {"kind": "all"}
     return not (window["kind"] == "pack" and ref < int(pack.start_at))
 
 
-def required_metrics(items: list[dict] | None, pack: GiftPack, ref: int) -> list[tuple]:
+def required_metrics(items: list[dict] | None, pack: Any, ref: int) -> list[tuple]:
     """本次求值需要向各领域计数器取数的条件（去重、顺序稳定）
 
     any_of 组内的每一项都要展示进度，所以这里不做短路：返回组内所有可用的窗口。
@@ -296,7 +296,7 @@ def required_metrics(items: list[dict] | None, pack: GiftPack, ref: int) -> list
 
 
 def metric_value(
-    item: dict, pack: GiftPack, ref: int, metrics: dict
+    item: dict, pack: Any, ref: int, metrics: dict
 ) -> int | float | tuple[int, float]:
     """从预取结果里取一条计数；窗口未打开时按 0 计"""
     if not metric_window_open(item, pack, ref):
@@ -307,7 +307,7 @@ def metric_value(
 def evaluate(
     items: list[dict] | None,
     ctx: dict,
-    pack: GiftPack,
+    pack: Any,
     ref: int,
     *,
     metrics: dict,
@@ -319,9 +319,9 @@ def evaluate(
 def _evaluate_gift_pack_audience(
     audience: list[dict] | None,
     ctx: dict,
-    pack: GiftPack,
+    pack: Any,
     ref: int,
-    state: GiftPackUserState | None = None,
+    state: Any = None,
     *,
     metrics: dict | None = None,
 ) -> bool:
@@ -340,7 +340,7 @@ def _evaluate_gift_pack_audience(
 def _evaluate_conditions(
     items: list[dict] | None,
     ctx: dict,
-    pack: GiftPack,
+    pack: Any,
     ref: int,
     *,
     metrics: dict,
@@ -373,7 +373,7 @@ def _evaluate_conditions(
 
 
 def _evaluate_gift_pack_condition(
-    item: dict, ctx: dict, pack: GiftPack, ref: int, *, metrics: dict
+    item: dict, ctx: dict, pack: Any, ref: int, *, metrics: dict
 ) -> dict:
     kind = item["type"]
     result = {"type": kind, "label": _gift_pack_condition_label(item)}
@@ -438,12 +438,12 @@ def _gift_pack_reward_label(reward: dict) -> str:
     return meta["label"](reward)
 
 
-def _gift_pack_phase_ref(pack: GiftPack, now: int) -> int:
+def _gift_pack_phase_ref(pack: Any, now: int) -> int:
     """Freeze timestamped tasks at their deadline (or the pack's end)."""
     return min(int(now), int(pack.task_end_at or pack.end_at))
 
 
-def _gift_pack_lifecycle(pack: GiftPack, now: int) -> str:
+def _gift_pack_lifecycle(pack: Any, now: int) -> str:
     """礼包相对当前时间的生命周期状态"""
     if now < int(pack.start_at):
         return "upcoming"
@@ -454,7 +454,7 @@ def _gift_pack_lifecycle(pack: GiftPack, now: int) -> str:
     return "active"
 
 
-def _gift_pack_remaining(pack: GiftPack) -> int | None:
+def _gift_pack_remaining(pack: Any) -> int | None:
     """剩余份数；不限量时返回 None"""
     if pack.total_quantity is None:
         return None

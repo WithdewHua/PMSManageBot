@@ -39,11 +39,6 @@ from app.transport.http.schemas import TelegramUser
 router = APIRouter(prefix="/blackjack", tags=["21点"])
 
 
-from app.domains.blackjack.jobs.cash import (
-    _schedule_blackjack_timeout,
-)
-
-
 def _raise_typed_error(error: BlackjackError) -> None:
     payload = error.payload
     code = error.code
@@ -120,16 +115,6 @@ async def deal(
         result = blackjack_service.create_blackjack_hand(
             tg_id=int(current_user.id), bet_credits=int(data.bet_credits)
         )
-        hand = result["hand"]
-
-        # 未结算的手牌需要超时兜底；天胡直接结算的手牌不需要。
-        # 时限取手牌上的快照，与结算口径一致，避免与配置的后续改动脱节。
-        if not result.get("settled"):
-            _schedule_blackjack_timeout(
-                hand_id=int(hand["id"]),
-                timeout_minutes=int(hand["hand_timeout_minutes"]),
-            )
-
         return _build_action_response(result, int(current_user.id), "发牌成功")
     except ValueError as e:
         _raise_for_value_error(e)

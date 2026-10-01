@@ -4,7 +4,6 @@ import time
 
 from app.domains.blackjack import repository as blackjack_repository
 from app.domains.credits import repository as credits_repository
-from app.domains.credits import service as credits_service
 from app.domains.credits.types import CreditAccount
 from app.domains.gift_pack import rules
 from app.domains.gift_pack.exceptions import gift_pack_error
@@ -72,7 +71,6 @@ class _GiftPackRepositoryRewards:
                 mutation = credits_repository.add_tx(
                     session, CreditAccount.tg(int(tg_id)), amount
                 )
-                credits_service.register_cache_invalidation(session, mutation)
                 snapshot.append(
                     {
                         "type": "credits",

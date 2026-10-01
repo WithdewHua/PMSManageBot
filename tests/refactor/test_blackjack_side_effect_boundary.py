@@ -91,9 +91,9 @@ def test_scheduler_submissions_stay_in_the_jobs_layer() -> None:
             for module in _imported_modules(_tree(path))
         )
     }
-    # 一次性超时任务的提交在 jobs/cash（`_schedule_blackjack_timeout`），
+    # 一次性超时任务的提交在 service（`schedule_blackjack_timeout`），
     # 其余调度注册集中在 app.schedule
-    assert submitters == {"cash.py"}
+    assert submitters == {"service.py"}
 
 
 def test_routers_do_not_send_notifications_themselves() -> None:
@@ -113,8 +113,6 @@ def test_notifications_are_not_imported_by_service_transactions_owner() -> None:
         "app.integrations.telegram.messaging" in _imported_modules(_tree(path))
         for path in REPOSITORY_MODULES
     )
-    service_imports = _imported_modules(_tree(BLACKJACK / "service.py"))
-    assert "app.core.scheduler" not in service_imports
 
 
 def test_tick_runs_the_phases_in_the_documented_order() -> None:

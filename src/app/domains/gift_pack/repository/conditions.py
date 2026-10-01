@@ -1,9 +1,11 @@
 """礼包 repository：用户上下文、条件与受众的取数和求值（由 part_1–part_3 与门面机械拆分）。"""
 
+from datetime import datetime
 from typing import ClassVar
 
 from sqlalchemy import select
 
+from app.core.config import settings
 from app.domains.auction import repository as auction_repository
 from app.domains.badges import repository as badges_repository
 from app.domains.blackjack import repository as blackjack_repository
@@ -11,6 +13,7 @@ from app.domains.gift_pack import rules
 from app.domains.gift_pack.exceptions import gift_pack_error
 from app.domains.gift_pack.models import GiftPack, GiftPackUserState
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
+from app.domains.identity.types import premium_active
 from app.domains.invitation import repository as invitation_repository
 from app.domains.luckywheel import repository as luckywheel_repository
 from app.domains.prediction import repository as prediction_repository
@@ -42,10 +45,19 @@ class _GiftPackRepositoryConditions:
             bound_services.append("plex")
         if emby is not None:
             bound_services.append("emby")
+        now = datetime.now(settings.TZ)
         premium_services = []
-        if plex is not None and rules._is_premium_active(plex[0], plex[1]):
+        if plex is not None and premium_active(
+            {"is_premium": plex[0], "premium_expiry_time": plex[1]},
+            now,
+            invalid_expiry=True,
+        ):
             premium_services.append("plex")
-        if emby is not None and rules._is_premium_active(emby[0], emby[1]):
+        if emby is not None and premium_active(
+            {"is_premium": emby[0], "premium_expiry_time": emby[1]},
+            now,
+            invalid_expiry=True,
+        ):
             premium_services.append("emby")
         badge_ids = badges_repository.active_badge_ids_tx(session, tg_id)
         claimed_pack_ids = set(
