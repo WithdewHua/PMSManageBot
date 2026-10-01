@@ -431,6 +431,7 @@ def _publish_emby_cache(user: EmbyUser) -> None:
 
 def write_user_info_cache() -> None:
     with get_session() as session:
+        session.expire_on_commit = False
         plex_users = session.execute(select(PlexUser)).scalars().all()
         emby_users = session.execute(select(EmbyUser)).scalars().all()
     for user in plex_users:
