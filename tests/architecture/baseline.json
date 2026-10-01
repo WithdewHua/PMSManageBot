@@ -2,20 +2,20 @@
   "version": 1,
   "cross_domain_calls": [
     {
-      "key": "call|src/app/domains/custom_lines/repository.py|455|imported|traffic|_get_line_monthly_traffic",
+      "key": "call|src/app/domains/custom_lines/repository.py|456|imported|traffic|_get_line_monthly_traffic",
       "owner": "promote-line-domains",
       "path": "src/app/domains/custom_lines/repository.py",
-      "line": 455,
+      "line": 456,
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "traffic",
       "target": "_get_line_monthly_traffic"
     },
     {
-      "key": "call|src/app/domains/custom_lines/repository.py|585|imported|traffic|_get_line_monthly_traffic",
+      "key": "call|src/app/domains/custom_lines/repository.py|586|imported|traffic|_get_line_monthly_traffic",
       "owner": "promote-line-domains",
       "path": "src/app/domains/custom_lines/repository.py",
-      "line": 585,
+      "line": 586,
       "kind": "call",
       "source_domain": "custom_lines",
       "target_domain": "traffic",
@@ -442,26 +442,6 @@
       "target": "premium_lines"
     },
     {
-      "key": "call|src/app/domains/tg_rebind/repository.py|179|imported|credits|add_tx",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 179,
-      "kind": "call",
-      "source_domain": "tg_rebind",
-      "target_domain": "credits",
-      "target": "add_tx"
-    },
-    {
-      "key": "call|src/app/domains/tg_rebind/repository.py|184|imported|credits|register_cache_invalidation",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 184,
-      "kind": "call",
-      "source_domain": "tg_rebind",
-      "target_domain": "credits",
-      "target": "register_cache_invalidation"
-    },
-    {
       "key": "call|src/app/domains/traffic/jobs.py|163|imported|identity|isnot",
       "owner": "promote-line-domains",
       "path": "src/app/domains/traffic/jobs.py",
@@ -542,10 +522,10 @@
       "target": "get_emby_info_by_tg_id"
     },
     {
-      "key": "import|src/app/domains/custom_lines/repository.py|23|app.domains.lines.models|LineSchedule",
+      "key": "import|src/app/domains/custom_lines/repository.py|24|app.domains.lines.models|LineSchedule",
       "owner": "promote-line-domains",
       "path": "src/app/domains/custom_lines/repository.py",
-      "line": 23,
+      "line": 24,
       "kind": "import",
       "source_domain": "custom_lines",
       "target_domain": "lines",
@@ -762,182 +742,6 @@
       "symbol": "catalog"
     },
     {
-      "key": "import|src/app/domains/tg_rebind/repository.py|11|app.domains.crypto_donation.models|CryptoDonationOrders",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 11,
-      "kind": "import",
-      "source_domain": "tg_rebind",
-      "target_domain": "crypto_donation",
-      "target_module": "app.domains.crypto_donation.models",
-      "symbol": "CryptoDonationOrders"
-    },
-    {
-      "key": "import|src/app/domains/tg_rebind/repository.py|12|app.domains.custom_lines.models|CustomLine",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 12,
-      "kind": "import",
-      "source_domain": "tg_rebind",
-      "target_domain": "custom_lines",
-      "target_module": "app.domains.custom_lines.models",
-      "symbol": "CustomLine"
-    },
-    {
-      "key": "import|src/app/domains/tg_rebind/repository.py|13|app.domains.donation.models|DonationRegistrations",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 13,
-      "kind": "import",
-      "source_domain": "tg_rebind",
-      "target_domain": "donation",
-      "target_module": "app.domains.donation.models",
-      "symbol": "DonationRegistrations"
-    },
-    {
-      "key": "import|src/app/domains/tg_rebind/repository.py|15|app.domains.invitation.models|Invitation",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 15,
-      "kind": "import",
-      "source_domain": "tg_rebind",
-      "target_domain": "invitation",
-      "target_module": "app.domains.invitation.models",
-      "symbol": "Invitation"
-    },
-    {
-      "key": "import|src/app/domains/tg_rebind/repository.py|16|app.domains.lines.models|LineSchedule",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 16,
-      "kind": "import",
-      "source_domain": "tg_rebind",
-      "target_domain": "lines",
-      "target_module": "app.domains.lines.models",
-      "symbol": "LineSchedule"
-    },
-    {
-      "key": "import|src/app/domains/tg_rebind/repository.py|17|app.domains.luckywheel.models|WheelStats",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 17,
-      "kind": "import",
-      "source_domain": "tg_rebind",
-      "target_domain": "luckywheel",
-      "target_module": "app.domains.luckywheel.models",
-      "symbol": "WheelStats"
-    },
-    {
-      "key": "import|src/app/domains/tg_rebind/repository.py|18|app.domains.prediction.models|PredictionBet",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 18,
-      "kind": "import",
-      "source_domain": "tg_rebind",
-      "target_domain": "prediction",
-      "target_module": "app.domains.prediction.models",
-      "symbol": "PredictionBet"
-    },
-    {
-      "key": "import|src/app/domains/tg_rebind/repository.py|18|app.domains.prediction.models|PredictionMarket",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 18,
-      "kind": "import",
-      "source_domain": "tg_rebind",
-      "target_domain": "prediction",
-      "target_module": "app.domains.prediction.models",
-      "symbol": "PredictionMarket"
-    },
-    {
-      "key": "import|src/app/domains/tg_rebind/repository.py|18|app.domains.prediction.models|PredictionMarketSubmission",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 18,
-      "kind": "import",
-      "source_domain": "tg_rebind",
-      "target_domain": "prediction",
-      "target_module": "app.domains.prediction.models",
-      "symbol": "PredictionMarketSubmission"
-    },
-    {
-      "key": "import|src/app/domains/tg_rebind/repository.py|23|app.domains.treasure.models|TreasureIssue",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 23,
-      "kind": "import",
-      "source_domain": "tg_rebind",
-      "target_domain": "treasure",
-      "target_module": "app.domains.treasure.models",
-      "symbol": "TreasureIssue"
-    },
-    {
-      "key": "import|src/app/domains/tg_rebind/repository.py|23|app.domains.treasure.models|TreasureParticipation",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 23,
-      "kind": "import",
-      "source_domain": "tg_rebind",
-      "target_domain": "treasure",
-      "target_module": "app.domains.treasure.models",
-      "symbol": "TreasureParticipation"
-    },
-    {
-      "key": "import|src/app/domains/tg_rebind/repository.py|24|app.domains.vaultwarden.models|VaultwardenRedeemRecords",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 24,
-      "kind": "import",
-      "source_domain": "tg_rebind",
-      "target_domain": "vaultwarden",
-      "target_module": "app.domains.vaultwarden.models",
-      "symbol": "VaultwardenRedeemRecords"
-    },
-    {
-      "key": "import|src/app/domains/tg_rebind/repository.py|7|app.domains.auction.models|AuctionBids",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 7,
-      "kind": "import",
-      "source_domain": "tg_rebind",
-      "target_domain": "auction",
-      "target_module": "app.domains.auction.models",
-      "symbol": "AuctionBids"
-    },
-    {
-      "key": "import|src/app/domains/tg_rebind/repository.py|7|app.domains.auction.models|Auctions",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 7,
-      "kind": "import",
-      "source_domain": "tg_rebind",
-      "target_domain": "auction",
-      "target_module": "app.domains.auction.models",
-      "symbol": "Auctions"
-    },
-    {
-      "key": "import|src/app/domains/tg_rebind/repository.py|8|app.domains.badges.models|UserBadge",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 8,
-      "kind": "import",
-      "source_domain": "tg_rebind",
-      "target_domain": "badges",
-      "target_module": "app.domains.badges.models",
-      "symbol": "UserBadge"
-    },
-    {
-      "key": "import|src/app/domains/tg_rebind/repository.py|9|app.domains.credits.service|service",
-      "owner": "promote-tg-rebind-domain",
-      "path": "src/app/domains/tg_rebind/repository.py",
-      "line": 9,
-      "kind": "import",
-      "source_domain": "tg_rebind",
-      "target_domain": "credits",
-      "target_module": "app.domains.credits.service",
-      "symbol": "service"
-    },
-    {
       "key": "import|src/app/domains/traffic/jobs.py|10|app.domains.identity.models|EmbyUser",
       "owner": "promote-line-domains",
       "path": "src/app/domains/traffic/jobs.py",
@@ -1028,8 +832,8 @@
     "SQLAlchemy direct use scope": 1,
     "Database engine import scope": 2,
     "Domain model import scope": 2,
-    "Six-tier domain dependencies": 3,
-    "Acyclic domain siblings": 4,
+    "Six-tier domain dependencies": 2,
+    "Acyclic domain siblings": 3,
     "Domain internal layering": 3,
     "Domain types are pure value modules": 0,
     "Domain rules are pure value computations": 0,

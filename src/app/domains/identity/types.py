@@ -71,6 +71,7 @@ __all__ = [
     "EmbyAccount",
     "OverseerrAccount",
     "PlexAccount",
+    "TgIdReassignIssue",
     "UserStatistics",
 ]
 
@@ -123,3 +124,26 @@ __all__ += [
     "plex_legacy_tuple",
     "statistics_legacy_tuple",
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class TgIdReassignIssue:
+    """A conflict or in-flight workflow preventing atomic identity reassignment."""
+
+    kind: str
+    domain: str
+    description: str
+    record_ids: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class TgIdReassignSource:
+    """Resolved identity and stable media primary key for administrative binding."""
+
+    tg_id: int | None
+    media_service: str | None = None
+    media_record_key: int | str | None = None
+    media_id: int | str | None = None
+
+
+__all__ += ["TgIdReassignSource"]

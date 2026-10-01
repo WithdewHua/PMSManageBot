@@ -15,10 +15,14 @@ class Auctions(Base):
     starting_price: Mapped[float] = mapped_column(Float, nullable=False)
     current_price: Mapped[float] = mapped_column(Float, nullable=False)
     end_time: Mapped[int] = mapped_column(BIGINT, nullable=False, index=True)
-    created_by: Mapped[int] = mapped_column(BIGINT, nullable=False)
+    created_by: Mapped[int] = mapped_column(
+        BIGINT, nullable=False, info={"tg_id": "admin"}
+    )
     created_at: Mapped[int] = mapped_column(BIGINT, nullable=False, index=True)
     is_active: Mapped[int] = mapped_column(SMALLINT, default=1, nullable=False)
-    winner_id: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    winner_id: Mapped[int | None] = mapped_column(
+        BIGINT, nullable=True, info={"tg_id": "user"}
+    )
     bid_count: Mapped[int] = mapped_column(BIGINT, default=0, nullable=False)
 
     # Relationship
@@ -36,7 +40,9 @@ class AuctionBids(Base):
     auction_id: Mapped[int] = mapped_column(
         BIGINT, ForeignKey("auctions.id"), nullable=False, index=True
     )
-    bidder_id: Mapped[int] = mapped_column(BIGINT, nullable=False, index=True)
+    bidder_id: Mapped[int] = mapped_column(
+        BIGINT, nullable=False, index=True, info={"tg_id": "user"}
+    )
     bid_amount: Mapped[float] = mapped_column(Float, nullable=False)
     bid_time: Mapped[int] = mapped_column(BIGINT, nullable=False, index=True)
 

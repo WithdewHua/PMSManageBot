@@ -125,7 +125,10 @@ core/（公共设施）
 
 | 操作 | 入口及调用方式 | 保留理由 / 后续责任 |
 |---|---|---|
-| TG 用户换绑 | `db.rebind_user_tg_id(...)`，由管理员在运维 Python 环境手动调用；搬迁后仍由 `from app.databases import db` 获取门面 | 虽无代码调用方，但属于人工操作入口；现有漏迁问题由 `promote-tg-rebind-domain` 修复，删除前须与维护者确认 |
+| TG 用户换绑 | `python -m app.manage rebind-tg-id --to <NEW_ID> (--from <OLD_ID> \| --plex-email <EMAIL> \| --emby-username <NAME>) [--dry-run]` | 原子迁移全部领域数据；冲突清单或 21 点在途状态整体拒绝，旧管理员 ID 完成后仍需人工更新部署配置。不同媒体账号冲突、同勋章/礼包/赛事/返水冲突按命令输出逐项处理后重试 |
+| 旧版积分同步 | `python -m app.manage legacy-credit-sync` | 保留历史运维顺序：Plex 积分、Plex 用户信息、Emby 积分 |
+| 统计报告 | `python -m app.manage report [options]` | 保留历史报告参数和输出 |
+| TG 用户换绑（旧入口） | `db.rebind_user_tg_id(...)` | 已删除；`scripts/refactor/smoke_b1.py` 的旧门面检查不再适用，以 `rebind-tg-id` CLI 和 `tests/test_tg_rebind.py` 为准 |
 | 捐赠倍率重算 | `from app.domains.donation import service; service.update_donation_credits(old_multiplier, new_multiplier)`，仅由维护者在运维 Python 环境显式调用 | 历史捐赠积分的人工调整工具；无日常代码调用方不代表可删除。必须先审查旧/新倍率与目标数据库，并遵循积分领域事务接口 |
 | 过期下载权限清单 | `scripts/list_expired_download_holders.py`；默认只读，确认名单后用 `--apply --input <json>` 仅撤销名单项 | `scripts/sync_download_permissions.py` 是单向同步脚本，不能用于对账或撤销，也不得代替本清单脚本 |
 
@@ -298,7 +301,7 @@ B3 起，部署回退必须在维护窗口执行：停止所有 B3 调度器 →
 
 `donation`、`crypto_donation`、`rankings`、`reports` 已从 `DatabaseORM` 的继承列表移除；对应操作通过领域 service 和模块级 repository 实现。`profile` 的个人信息/转账收件人列表通过只读 repository 与所属领域的 service 组合，积分转账请求/响应模型归属 `credits.schemas`，缓存重写任务的查询也归属 credits repository。
 
-`tests/refactor/test_remaining_baseline.py` 扫描运行时代码与非 refactor 运维脚本，确认 identity/invitation 兼容方法没有生产代码调用方。门面自身组合、历史对照脚本及测试夹具不计作业务消费方。兼容类保留到 `retire-legacy-db-facade` 统一删除；人工 `db.rebind_user_tg_id(...)` 仍是受保护的运维入口，先由 `promote-tg-rebind-domain` 完成迁移。此前线路、流量、Premium、媒体权限、观看奖励的过渡适配器也仍留在门面中，本次不以“只剩两个类”作为不符合实际的完成标准。
+`tests/refactor/test_remaining_baseline.py` 扫描运行时代码与非 refactor 运维脚本，确认 identity/invitation 兼容方法没有生产代码调用方。门面自身组合、历史对照脚本及测试夹具不计作业务消费方。兼容类保留到 `retire-legacy-db-facade` 统一删除；TG 换绑已迁移到 `python -m app.manage rebind-tg-id`，不再保留 `db.rebind_user_tg_id(...)`。`smoke_b1.py` 仅用于历史基线，已不再是有效入口检查。此前线路、流量、Premium、媒体权限、观看奖励的过渡适配器也仍留在门面中，本次不以“只剩两个类”作为不符合实际的完成标准。
 
 #### 剩余领域提升验证记录
 

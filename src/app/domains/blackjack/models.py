@@ -33,6 +33,7 @@ class BlackjackWeeklyCashback(Base):
         BIGINT,
         ForeignKey("statistics.tg_id", onupdate="CASCADE"),
         nullable=False,
+        info={"tg_id": "user"},
     )
     # 结算周期起始（该自然周一零点，settings.TZ）的毫秒时间戳
     week_start_ms: Mapped[int] = mapped_column(BIGINT, nullable=False)
@@ -69,6 +70,7 @@ class BlackjackHand(Base):
         ForeignKey("statistics.tg_id", onupdate="CASCADE"),
         nullable=False,
         index=True,
+        info={"tg_id": "user"},
     )
 
     # 状态：1=玩家回合 2=庄家回合 3=已结算 4=超时弃牌（3、4 为终态）
@@ -272,7 +274,9 @@ class BlackjackTournament(Base):
     # 是一条硬规则，缺少提醒会使其等同于静默没收报名费
     reminder_sent_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
 
-    created_by: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    created_by: Mapped[int | None] = mapped_column(
+        BIGINT, nullable=True, info={"tg_id": "admin"}
+    )
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
     )
@@ -370,6 +374,7 @@ class BlackjackTournamentEntry(Base):
         ForeignKey("statistics.tg_id", onupdate="CASCADE"),
         nullable=False,
         index=True,
+        info={"tg_id": "user"},
     )
 
     chips: Mapped[int] = mapped_column(Integer, nullable=False)

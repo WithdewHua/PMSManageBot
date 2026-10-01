@@ -3,7 +3,7 @@
 import time
 from collections.abc import Iterable
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session, joinedload
@@ -16,6 +16,9 @@ from app.domains.badges.models import Badge, UserBadge
 from app.domains.credits import repository as credits_repository
 from app.domains.credits.types import CreditAccount
 from app.domains.identity import repository as identity_repository
+from app.domains.identity.types import TgIdReassignIssue
+
+REASSIGNED_TG_ID_COLUMNS: tuple[str, ...] = ("user_badges.tg_id",)
 
 
 def _badge_to_dict(badge: Badge) -> dict:
@@ -418,3 +421,52 @@ def badges_exist_tx(session: Session, badge_ids: Iterable[int]) -> set[int]:
             select(Badge.id).where(Badge.id.in_(wanted))
         ).scalars()
     }
+
+
+def check_tg_id_reassign_tx(
+    session: Session, old_tg_id: int, new_tg_id: int
+) -> list[TgIdReassignIssue]:
+    """Check for conflicting badge ownership between old and new identities."""
+    if old_tg_id == new_tg_id:
+        return []
+
+    old_badges = set(
+        session.execute(
+            select(UserBadge.badge_id).where(UserBadge.tg_id == int(old_tg_id))
+        )
+        .scalars()
+        .all()
+    )
+    if not old_badges:
+        return []
+
+    new_badges = set(
+        session.execute(
+            select(UserBadge.badge_id).where(UserBadge.tg_id == int(new_tg_id))
+        )
+        .scalars()
+        .all()
+    )
+    common_badges = sorted(old_badges & new_badges)
+    if common_badges:
+        return [
+            TgIdReassignIssue(
+                kind="conflict",
+                domain="badges",
+                description="both IDs hold the same badge(s)",
+                record_ids=tuple(str(b) for b in common_badges),
+            )
+        ]
+    return []
+
+
+def reassign_tg_id_tx(
+    session: Session, old_tg_id: int, new_tg_id: int
+) -> dict[str, int]:
+    """Reassign user badges from old identity to new identity."""
+    result = session.execute(
+        update(UserBadge)
+        .where(UserBadge.tg_id == int(old_tg_id))
+        .values(tg_id=int(new_tg_id))
+    )
+    return {"user_badges.tg_id": result.rowcount}

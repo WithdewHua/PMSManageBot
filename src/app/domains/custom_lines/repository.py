@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 
 from app.core.config import settings
 from app.core.db import get_session
@@ -20,6 +20,7 @@ from app.domains.credits.types import CreditAccount
 from app.domains.custom_lines import rules
 from app.domains.custom_lines.models import CustomLine, CustomLineSettlement
 from app.domains.identity.models import EmbyUser, PlexUser
+from app.domains.identity.types import TgIdReassignIssue
 from app.domains.lines.models import LineSchedule
 
 _ACTIVE_DOMAIN_STATUSES = ("pending", "approved", "offline")
@@ -676,3 +677,34 @@ def list_approved_domains() -> list[str]:
     """List domains of custom lines with status 'approved' for traffic classification."""
     with get_session() as session:
         return list_approved_domains_tx(session)
+
+
+REASSIGNED_TG_ID_COLUMNS: tuple[str, ...] = (
+    "custom_lines.tg_id",
+    "custom_lines.approved_by",
+    "custom_line_settlement.tg_id",
+)
+
+
+def check_tg_id_reassign_tx(
+    session, old_tg_id: int, new_tg_id: int
+) -> list[TgIdReassignIssue]:
+    return []
+
+
+def reassign_tg_id_tx(session, old_tg_id: int, new_tg_id: int) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for model, column in (
+        (CustomLine, CustomLine.tg_id),
+        (CustomLine, CustomLine.approved_by),
+        (CustomLineSettlement, CustomLineSettlement.tg_id),
+    ):
+        result = session.execute(
+            update(model)
+            .where(column == int(old_tg_id))
+            .values({column: int(new_tg_id)})
+        )
+        counts[f"{model.__tablename__}.{column.key}"] = max(
+            0, int(result.rowcount or 0)
+        )
+    return counts

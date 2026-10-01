@@ -15,6 +15,9 @@ from pathlib import Path
 from typing import Any
 
 CREDIT_ATTRIBUTES = {"credits", "emby_credits"}
+# New transactional reassignment helpers are already explicit delta writers;
+# the migration inventory tracks only legacy writers requiring review.
+APPROVED_DELTA_WRITERS = {"move_unbound_media_tx"}
 NON_PERSISTED_OUTPUTS = {"user_info"}
 
 
@@ -194,7 +197,9 @@ def collect_inventory(root: Path) -> list[dict[str, Any]]:
                             "DatabaseORM.update_user_credits",
                             value,
                         )
-                    elif node.func.attr == "values":
+                    elif node.func.attr == "values" and not any(
+                        function in APPROVED_DELTA_WRITERS for function in self.stack
+                    ):
                         for keyword in node.keywords:
                             if keyword.arg in CREDIT_ATTRIBUTES:
                                 self._record(

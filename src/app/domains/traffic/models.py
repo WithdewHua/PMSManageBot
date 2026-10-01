@@ -14,7 +14,9 @@ class LineTrafficStats(Base):
     send_bytes: Mapped[int] = mapped_column(BIGINT, nullable=False)
     service: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     username: Mapped[str] = mapped_column(Text, nullable=False, index=True)
-    user_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_id: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"tg_id": False}
+    )
     timestamp: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     event_hash: Mapped[str] = mapped_column(Text, nullable=False)
     request_uri: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -38,7 +40,9 @@ class LineTrafficMonthlyStats(Base):
     line: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     service: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     username: Mapped[str] = mapped_column(Text, nullable=False, index=True)
-    user_id: Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_id: Mapped[str | None] = mapped_column(
+        Text, nullable=True, info={"tg_id": False}
+    )
     year_month: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     total_bytes: Mapped[int] = mapped_column(BIGINT, nullable=False)
     created_at: Mapped[str] = mapped_column(Text, nullable=False)

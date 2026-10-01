@@ -13,6 +13,12 @@ from collections.abc import Sequence
 from app.domains.accounts.service import update_plex_info
 from app.domains.reports import constants as report_constants
 from app.domains.reports import service as report_service
+from app.domains.tg_rebind import service as tg_rebind_service
+from app.domains.tg_rebind.exceptions import (
+    TgRebindAccountNotFound,
+    TgRebindRejected,
+    TgRebindSameId,
+)
 from app.domains.watch_rewards.service import update_emby_credits, update_plex_credits
 from app.subscriptions import register_all
 
@@ -69,6 +75,17 @@ def _parser() -> argparse.ArgumentParser:
         help="Only retrieve watched movies and tv_shows stats.",
     )
     report.add_argument("--emby", action="store_true", help="Retrieve stats for Emby.")
+
+    rebind = subparsers.add_parser(
+        "rebind-tg-id",
+        description="Atomically move one Telegram identity to another ID.",
+    )
+    rebind.add_argument("--to", required=True, type=int, dest="new_tg_id")
+    locator = rebind.add_mutually_exclusive_group(required=True)
+    locator.add_argument("--from", required=False, type=int, dest="from_tg_id")
+    locator.add_argument("--plex-email")
+    locator.add_argument("--emby-username")
+    rebind.add_argument("--dry-run", action="store_true")
     return parser
 
 
@@ -93,6 +110,39 @@ def _run_report(options: argparse.Namespace) -> None:
     )
 
 
+def _run_rebind(options: argparse.Namespace) -> int:
+    try:
+        report = tg_rebind_service.rebind(
+            options.new_tg_id,
+            from_tg_id=options.from_tg_id,
+            plex_email=options.plex_email,
+            emby_username=options.emby_username,
+            dry_run=options.dry_run,
+        )
+    except TgRebindRejected as error:
+        for issue in error.issues:
+            print(
+                f"[{issue.domain}] {issue.kind}: {issue.description} ({', '.join(issue.record_ids)})"
+            )
+        return 2
+    except TgRebindAccountNotFound as error:
+        print(str(error))
+        return 3
+    except TgRebindSameId as error:
+        print(str(error))
+        return 2
+    except Exception as error:
+        print(f"rebind failed: {error}")
+        return 1
+    print("dry-run" if report.dry_run else "committed")
+    for domain, values in report.counts.items():
+        for column, count in values.items():
+            print(f"{domain}.{column}: {count}")
+    if report.admin_configuration_warning:
+        print("warning: update TG_ADMIN_CHAT_ID deployment configuration manually")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     register_all()
     options = _parser().parse_args(argv)
@@ -100,6 +150,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         _run_legacy_credit_sync()
     elif options.command == "report":
         _run_report(options)
+    elif options.command == "rebind-tg-id":
+        return _run_rebind(options)
     else:  # pragma: no cover - argparse enforces the subcommand choices
         raise AssertionError(f"unknown management command: {options.command}")
     return 0

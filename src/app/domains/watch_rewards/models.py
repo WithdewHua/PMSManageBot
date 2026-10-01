@@ -22,10 +22,14 @@ class WatchRewardSettlement(Base):
     service: Mapped[str] = mapped_column(Text, nullable=False)
     account_key: Mapped[str] = mapped_column(Text, nullable=False)
     settlement_date: Mapped[str] = mapped_column(Text, nullable=False)
-    tg_id: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    tg_id: Mapped[int | None] = mapped_column(
+        BIGINT, nullable=True, info={"tg_id": "user"}
+    )
     credits_delta: Mapped[float] = mapped_column(Numeric, nullable=False)
     premium_charge: Mapped[float] = mapped_column(Numeric, nullable=False)
-    inviter_tg_id: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    inviter_tg_id: Mapped[int | None] = mapped_column(
+        BIGINT, nullable=True, info={"tg_id": "user"}
+    )
     inviter_bonus: Mapped[float] = mapped_column(Numeric, nullable=False)
     created_at: Mapped[int] = mapped_column(BIGINT, nullable=False)
 
@@ -59,7 +63,10 @@ class GhostSessionLog(Base):
         BIGINT, nullable=False
     )  # Tautulli history 的 row_id
     user_id: Mapped[str] = mapped_column(
-        Text, nullable=False, index=True
+        Text,
+        nullable=False,
+        index=True,
+        info={"tg_id": False},
     )  # Plex user_id
     friendly_name: Mapped[str | None] = mapped_column(Text, nullable=True)
     title: Mapped[str | None] = mapped_column(Text, nullable=True)

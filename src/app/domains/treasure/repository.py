@@ -2,7 +2,7 @@ import secrets
 import time
 from datetime import datetime
 
-from sqlalchemy import case, delete, distinct, func, select
+from sqlalchemy import case, delete, distinct, func, select, update
 
 from app.core.config import settings
 from app.core.db import get_session
@@ -11,6 +11,7 @@ from app.domains.credits import repository as credits_repository
 from app.domains.credits.types import CreditAccount
 from app.domains.identity import repository as identity_repository
 from app.domains.identity.models import Statistics
+from app.domains.identity.types import TgIdReassignIssue
 from app.domains.treasure import exceptions as treasure_exceptions
 from app.domains.treasure import rules as treasure_rules
 from app.domains.treasure.models import TreasureIssue, TreasureParticipation
@@ -860,3 +861,34 @@ def get_treasure_win_credits_rank() -> list[tuple[int, int]]:
         )
         results = session.execute(stmt).fetchall()
         return [(int(r[0]), int(r[1] or 0)) for r in results if int(r[1] or 0) > 0]
+
+
+REASSIGNED_TG_ID_COLUMNS: tuple[str, ...] = (
+    "treasure_participation.tg_id",
+    "treasure_issue.winner_tg_id",
+    "treasure_issue.created_by",
+)
+
+
+def check_tg_id_reassign_tx(
+    session, old_tg_id: int, new_tg_id: int
+) -> list[TgIdReassignIssue]:
+    return []
+
+
+def reassign_tg_id_tx(session, old_tg_id: int, new_tg_id: int) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for model, column in (
+        (TreasureParticipation, TreasureParticipation.tg_id),
+        (TreasureIssue, TreasureIssue.winner_tg_id),
+        (TreasureIssue, TreasureIssue.created_by),
+    ):
+        result = session.execute(
+            update(model)
+            .where(column == int(old_tg_id))
+            .values({column: int(new_tg_id)})
+        )
+        counts[f"{model.__tablename__}.{column.key}"] = max(
+            0, int(result.rowcount or 0)
+        )
+    return counts

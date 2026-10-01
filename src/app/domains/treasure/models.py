@@ -50,12 +50,16 @@ class TreasureIssue(Base):
     # 开奖结果
     external_random_b: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
     winner_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    winner_tg_id: Mapped[int | None] = mapped_column(BIGINT, nullable=True, index=True)
+    winner_tg_id: Mapped[int | None] = mapped_column(
+        BIGINT, nullable=True, index=True, info={"tg_id": "user"}
+    )
     settled_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)  # 秒时间戳
     auto_reopen_due_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
     auto_reopen_issue_id: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
 
-    created_by: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    created_by: Mapped[int | None] = mapped_column(
+        BIGINT, nullable=True, info={"tg_id": "admin"}
+    )
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
     )
@@ -98,7 +102,9 @@ class TreasureParticipation(Base):
     issue_id: Mapped[int] = mapped_column(
         BIGINT, ForeignKey("treasure_issue.id"), nullable=False, index=True
     )
-    tg_id: Mapped[int] = mapped_column(BIGINT, nullable=False, index=True)
+    tg_id: Mapped[int] = mapped_column(
+        BIGINT, nullable=False, index=True, info={"tg_id": "user"}
+    )
     lucky_number: Mapped[int] = mapped_column(Integer, nullable=False)
     cost_credits: Mapped[int] = mapped_column(Integer, nullable=False)
 

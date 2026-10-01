@@ -15,6 +15,7 @@ class VaultwardenRedeemRecords(Base):
         ForeignKey("statistics.tg_id", onupdate="CASCADE"),
         nullable=False,
         index=True,
+        info={"tg_id": "user"},
     )
     email: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     credits_cost: Mapped[float] = mapped_column(Float, nullable=False)

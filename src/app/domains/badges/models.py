@@ -69,6 +69,7 @@ class UserBadge(Base):
         ForeignKey("statistics.tg_id", onupdate="CASCADE"),
         nullable=False,
         index=True,
+        info={"tg_id": "user"},
     )
     badge_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("badges.id"), nullable=False, index=True

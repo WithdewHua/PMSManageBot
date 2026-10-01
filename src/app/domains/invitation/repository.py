@@ -8,6 +8,7 @@ from app.core.log import logger
 from app.domains.credits import repository as credits_repository
 from app.domains.credits.types import CreditAccount
 from app.domains.identity import repository as identity_repository
+from app.domains.identity.types import TgIdReassignIssue
 from app.domains.invitation.exceptions import (
     InvitationCodeNotFound,
     InvitationCodeUsed,
@@ -630,3 +631,33 @@ def get_invitation_rank() -> list[tuple[int, int]]:
         )
         results = session.execute(stmt).fetchall()
         return [(int(r[0]), int(r[1])) for r in results]
+
+
+REASSIGNED_TG_ID_COLUMNS: tuple[str, ...] = (
+    "invitation.owner",
+    "invitation.used_by",
+)
+
+
+def check_tg_id_reassign_tx(
+    session, old_tg_id: int, new_tg_id: int
+) -> list[TgIdReassignIssue]:
+    return []
+
+
+def reassign_tg_id_tx(session, old_tg_id: int, new_tg_id: int) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    res_owner = session.execute(
+        update(Invitation)
+        .where(Invitation.owner == int(old_tg_id))
+        .values(owner=int(new_tg_id))
+    )
+    counts["invitation.owner"] = max(0, int(res_owner.rowcount or 0))
+
+    res_used = session.execute(
+        update(Invitation)
+        .where(Invitation.used_by == f"credits_by_{int(old_tg_id)}")
+        .values(used_by=f"credits_by_{int(new_tg_id)}")
+    )
+    counts["invitation.used_by"] = max(0, int(res_used.rowcount or 0))
+    return counts

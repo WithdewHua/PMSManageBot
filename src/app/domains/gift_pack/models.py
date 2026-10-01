@@ -64,7 +64,9 @@ class GiftPack(Base):
         SMALLINT, nullable=False, default=0
     )  # 过期汇总通知是否已发送
     created_by: Mapped[int | None] = mapped_column(
-        BIGINT, nullable=True
+        BIGINT,
+        nullable=True,
+        info={"tg_id": "admin"},
     )  # 创建管理员的 Telegram ID
     created_at: Mapped[int] = mapped_column(BIGINT, nullable=False)
     updated_at: Mapped[int] = mapped_column(BIGINT, nullable=False)
@@ -124,6 +126,7 @@ class GiftPackUserState(Base):
         ForeignKey("statistics.tg_id", onupdate="CASCADE"),
         nullable=False,
         index=True,
+        info={"tg_id": "user"},
     )
     claimed_at: Mapped[int | None] = mapped_column(
         BIGINT, nullable=True

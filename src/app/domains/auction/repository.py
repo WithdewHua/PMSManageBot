@@ -9,6 +9,7 @@ from app.domains.auction import exceptions as auction_exceptions
 from app.domains.auction.models import AuctionBids, Auctions
 from app.domains.credits import repository as credits_repository
 from app.domains.credits.types import CreditAccount
+from app.domains.identity.types import TgIdReassignIssue
 
 
 class AuctionRepository:
@@ -779,3 +780,34 @@ __all__ = [
     "place_bid",
     "update_auction",
 ]
+
+
+REASSIGNED_TG_ID_COLUMNS: tuple[str, ...] = (
+    "auction_bids.bidder_id",
+    "auctions.winner_id",
+    "auctions.created_by",
+)
+
+
+def check_tg_id_reassign_tx(
+    session, old_tg_id: int, new_tg_id: int
+) -> list[TgIdReassignIssue]:
+    return []
+
+
+def reassign_tg_id_tx(session, old_tg_id: int, new_tg_id: int) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for model, column in (
+        (AuctionBids, AuctionBids.bidder_id),
+        (Auctions, Auctions.winner_id),
+        (Auctions, Auctions.created_by),
+    ):
+        result = session.execute(
+            update(model)
+            .where(column == int(old_tg_id))
+            .values({column: int(new_tg_id)})
+        )
+        counts[f"{model.__tablename__}.{column.key}"] = max(
+            0, int(result.rowcount or 0)
+        )
+    return counts

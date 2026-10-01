@@ -44,8 +44,12 @@ class PredictionMarket(Base):
     fee_to_glory: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_by: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
-    resolved_by: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    created_by: Mapped[int | None] = mapped_column(
+        BIGINT, nullable=True, info={"tg_id": "admin"}
+    )
+    resolved_by: Mapped[int | None] = mapped_column(
+        BIGINT, nullable=True, info={"tg_id": "admin"}
+    )
     resolved_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
@@ -105,8 +109,12 @@ class PredictionMarketSubmission(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     betting_deadline: Mapped[int] = mapped_column(BIGINT, nullable=False, index=True)
     status: Mapped[int] = mapped_column(SMALLINT, nullable=False, default=0, index=True)
-    submitter_tg_id: Mapped[int] = mapped_column(BIGINT, nullable=False, index=True)
-    reviewed_by: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+    submitter_tg_id: Mapped[int] = mapped_column(
+        BIGINT, nullable=False, index=True, info={"tg_id": "user"}
+    )
+    reviewed_by: Mapped[int | None] = mapped_column(
+        BIGINT, nullable=True, info={"tg_id": "admin"}
+    )
     reviewed_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
     review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     market_id: Mapped[int | None] = mapped_column(
@@ -136,7 +144,9 @@ class PredictionBet(Base):
     market_id: Mapped[int] = mapped_column(
         BIGINT, ForeignKey("prediction_market.id"), nullable=False, index=True
     )
-    tg_id: Mapped[int] = mapped_column(BIGINT, nullable=False, index=True)
+    tg_id: Mapped[int] = mapped_column(
+        BIGINT, nullable=False, index=True, info={"tg_id": "user"}
+    )
     option: Mapped[int] = mapped_column(SMALLINT, nullable=False)
     amount: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[DateTime] = mapped_column(

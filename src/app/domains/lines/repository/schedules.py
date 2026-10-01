@@ -9,6 +9,7 @@ from app.core.log import logger
 from app.domains.credits import repository as credits_repository
 from app.domains.credits.types import CreditAccount
 from app.domains.identity.models import EmbyUser, PlexUser
+from app.domains.identity.types import TgIdReassignIssue
 from app.domains.lines.models import LineSchedule
 from app.domains.lines.repository.lines import set_emby_line_tx, set_plex_line_tx
 
@@ -851,3 +852,21 @@ def unlock_line_schedule_with_credit(tg_id: int, service: str, cost: float) -> b
     with get_session() as session:
         unlock_line_schedule_with_credit_tx(session, tg_id, service, cost)
         return True
+
+
+REASSIGNED_TG_ID_COLUMNS: tuple[str, ...] = ("line_schedule.tg_id",)
+
+
+def check_tg_id_reassign_tx(
+    session, old_tg_id: int, new_tg_id: int
+) -> list[TgIdReassignIssue]:
+    return []
+
+
+def reassign_tg_id_tx(session, old_tg_id: int, new_tg_id: int) -> dict[str, int]:
+    result = session.execute(
+        update(LineSchedule)
+        .where(LineSchedule.tg_id == int(old_tg_id))
+        .values(tg_id=int(new_tg_id))
+    )
+    return {"line_schedule.tg_id": max(0, int(result.rowcount or 0))}

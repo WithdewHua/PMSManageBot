@@ -18,7 +18,11 @@ class PlexUser(Base):
         BIGINT, unique=True, index=True, nullable=True
     )
     tg_id: Mapped[int | None] = mapped_column(
-        BIGINT, unique=True, index=True, nullable=True
+        BIGINT,
+        unique=True,
+        index=True,
+        nullable=True,
+        info={"tg_id": "user"},
     )
     credits: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     plex_email: Mapped[str | None] = mapped_column(
@@ -68,7 +72,7 @@ class EmbyUser(Base):
         String, unique=True, index=True, nullable=True
     )
     tg_id: Mapped[int | None] = mapped_column(
-        BIGINT, unique=True, index=True, nullable=True
+        BIGINT, unique=True, index=True, nullable=True, info={"tg_id": "user"}
     )
     emby_is_unlock: Mapped[int] = mapped_column(SMALLINT, default=0, nullable=False)
     emby_unlock_time: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
@@ -109,7 +113,7 @@ class Statistics(Base):
 
     __tablename__ = "statistics"
 
-    tg_id: Mapped[int] = mapped_column(BIGINT, primary_key=True)
+    tg_id: Mapped[int] = mapped_column(BIGINT, primary_key=True, info={"tg_id": "user"})
     donation: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     credits: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     # 争霸赛余额：21 点周损失返还的发放去向，仅可支付锦标赛报名费，
@@ -138,6 +142,10 @@ class Overseerr(Base):
 
     __tablename__ = "overseerr"
 
-    user_id: Mapped[int] = mapped_column(BIGINT, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        BIGINT, primary_key=True, info={"tg_id": False}
+    )
     user_email: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
-    tg_id: Mapped[int | None] = mapped_column(BIGINT, index=True, nullable=True)
+    tg_id: Mapped[int | None] = mapped_column(
+        BIGINT, index=True, nullable=True, info={"tg_id": "user"}
+    )

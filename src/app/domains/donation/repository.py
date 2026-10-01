@@ -490,3 +490,49 @@ __all__ = [
     "list_badge_eligible_donors",
     "update_donation_credits",
 ]
+
+
+REASSIGNED_TG_ID_COLUMNS: tuple[str, ...] = (
+    "donation_registrations.user_id",
+    "donation_registrations.processed_by",
+)
+
+
+def check_tg_id_reassign_tx(session, old_tg_id: int, new_tg_id: int) -> list:
+    return []
+
+
+def reassign_tg_id_tx(session, old_tg_id: int, new_tg_id: int) -> dict[str, int]:
+    """Merge donation totals and rewrite registration ownership/audit IDs."""
+    from sqlalchemy import select, update
+
+    from app.domains.identity.models import Statistics
+
+    old_stats = session.execute(
+        select(Statistics).where(Statistics.tg_id == int(old_tg_id)).with_for_update()
+    ).scalar_one_or_none()
+    new_stats = session.execute(
+        select(Statistics).where(Statistics.tg_id == int(new_tg_id)).with_for_update()
+    ).scalar_one_or_none()
+    old_donation = float(old_stats.donation or 0) if old_stats is not None else 0.0
+    if old_stats is not None and new_stats is not None and old_donation:
+        session.execute(
+            update(Statistics)
+            .where(Statistics.tg_id == int(new_tg_id))
+            .values(donation=Statistics.donation + old_donation)
+        )
+        session.execute(
+            update(Statistics)
+            .where(Statistics.tg_id == int(old_tg_id))
+            .values(donation=Statistics.donation - old_donation)
+        )
+        session.flush()
+    counts: dict[str, int] = {}
+    for column in (DonationRegistrations.user_id, DonationRegistrations.processed_by):
+        result = session.execute(
+            update(DonationRegistrations)
+            .where(column == int(old_tg_id))
+            .values({column: int(new_tg_id)})
+        )
+        counts[f"donation_registrations.{column.key}"] = result.rowcount
+    return counts | {"statistics.donation": 1 if old_stats is not None else 0}

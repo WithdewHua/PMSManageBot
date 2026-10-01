@@ -7,7 +7,6 @@ from app.domains.invitation.repository import InvitationRepository
 from app.domains.lines.compat import LinesCompat
 from app.domains.media_access.compat import MediaAccessCompat
 from app.domains.premium.compat import PremiumCompat
-from app.domains.tg_rebind.repository import TgRebindRepository
 from app.domains.traffic.compat import TrafficCompat
 from app.domains.watch_rewards.repository import WatchRewardsRepository
 
@@ -16,7 +15,6 @@ class DatabaseORM(
     IdentityRepository,
     PremiumCompat,
     InvitationRepository,
-    TgRebindRepository,
     MediaAccessCompat,
     LinesCompat,
     TrafficCompat,

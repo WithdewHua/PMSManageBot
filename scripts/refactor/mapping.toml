@@ -3679,13 +3679,6 @@ reason = "db.py section: Blackjack (21 点) Operations"
 
 planned_target = "app.domains.blackjack.repository.jackpot"
 [[items]]
-id = "app.databases.db:DatabaseORM.rebind_user_tg_id"
-target = "app.domains.tg_rebind.repository"
-class = "TgRebindRepository"
-kind = "method"
-reason = "transitional facade assembly"
-
-[[items]]
 id = "app.databases.db:DatabaseORM.redeem_badge"
 target = "app.domains.badges.repository"
 class = "BadgesRepository"

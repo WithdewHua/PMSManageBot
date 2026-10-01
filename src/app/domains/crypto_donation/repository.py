@@ -7,6 +7,7 @@ from app.core.db import get_session
 from app.core.log import logger
 from app.domains.crypto_donation.config import CRYPTO_DONATION_CONFIG
 from app.domains.crypto_donation.models import CryptoDonationOrders
+from app.domains.identity.types import TgIdReassignIssue
 
 
 def create_crypto_donation_order(
@@ -363,3 +364,21 @@ def expire_orders(now_ms: int) -> list[dict]:
         return sorted(
             (dict(row) for row in result.mappings()), key=lambda row: row["created_at"]
         )
+
+
+REASSIGNED_TG_ID_COLUMNS: tuple[str, ...] = ("crypto_donation_orders.user_id",)
+
+
+def check_tg_id_reassign_tx(
+    session, old_tg_id: int, new_tg_id: int
+) -> list[TgIdReassignIssue]:
+    return []
+
+
+def reassign_tg_id_tx(session, old_tg_id: int, new_tg_id: int) -> dict[str, int]:
+    result = session.execute(
+        update(CryptoDonationOrders)
+        .where(CryptoDonationOrders.user_id == int(old_tg_id))
+        .values(user_id=int(new_tg_id))
+    )
+    return {"crypto_donation_orders.user_id": max(0, int(result.rowcount or 0))}

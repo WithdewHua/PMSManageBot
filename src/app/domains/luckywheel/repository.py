@@ -11,6 +11,7 @@ from app.core.kv import SystemConfig
 from app.core.log import logger
 from app.domains.credits import repository as credits_repository
 from app.domains.credits.types import CreditAccount
+from app.domains.identity.types import TgIdReassignIssue
 from app.domains.invitation import repository as invitation_repository
 from app.domains.luckywheel import config as wheel_config
 from app.domains.luckywheel import constants as wheel_constants
@@ -25,6 +26,10 @@ from app.domains.luckywheel.types import FreeSpinProgressProvider
 from app.domains.premium import repository as premium_repository
 
 FREE_SPIN_SOURCES = frozenset({"blackjack", "gift_pack"})
+REASSIGNED_TG_ID_COLUMNS: tuple[str, ...] = (
+    "wheel_stats.tg_id",
+    "luckywheel_free_spins.tg_id",
+)
 _free_spin_progress_provider: FreeSpinProgressProvider | None = None
 
 
@@ -900,3 +905,28 @@ def get_wheel_invite_code_rank() -> list[tuple[int, int]]:
         )
         results = session.execute(stmt).fetchall()
         return [(int(r[0]), int(r[1] or 0)) for r in results if int(r[1] or 0) > 0]
+
+
+def check_tg_id_reassign_tx(
+    session, old_tg_id: int, new_tg_id: int
+) -> list[TgIdReassignIssue]:
+    """Check for in-flight lucky wheel activities or conflicts (none exist)."""
+    return []
+
+
+def reassign_tg_id_tx(session, old_tg_id: int, new_tg_id: int) -> dict[str, int]:
+    """Reassign lucky wheel stats and free spin records to new identity."""
+    res_stats = session.execute(
+        update(WheelStats)
+        .where(WheelStats.tg_id == int(old_tg_id))
+        .values(tg_id=int(new_tg_id))
+    )
+    res_free_spins = session.execute(
+        update(LuckywheelFreeSpin)
+        .where(LuckywheelFreeSpin.tg_id == int(old_tg_id))
+        .values(tg_id=int(new_tg_id))
+    )
+    return {
+        "wheel_stats.tg_id": res_stats.rowcount,
+        "luckywheel_free_spins.tg_id": res_free_spins.rowcount,
+    }

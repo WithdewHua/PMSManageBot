@@ -176,9 +176,20 @@ def reward_prediction_submission(submitter_tg_id: int) -> int:
 
 
 from .analytics import count_bets_tx as count_bets_tx
+from .reassign import (
+    REASSIGNED_TG_ID_COLUMNS as REASSIGNED_TG_ID_COLUMNS,
+)
+from .reassign import (
+    check_tg_id_reassign_tx as check_tg_id_reassign_tx,
+)
+from .reassign import (
+    reassign_tg_id_tx as reassign_tg_id_tx,
+)
 
 __all__ = [
+    "REASSIGNED_TG_ID_COLUMNS",
     "PredictionRepository",
+    "check_tg_id_reassign_tx",
     "close_prediction_market_betting",
     "count_bets_tx",
     "create_prediction_market",
@@ -192,6 +203,7 @@ __all__ = [
     "list_prediction_submissions",
     "list_prediction_user_positions",
     "place_prediction_bet",
+    "reassign_tg_id_tx",
     "resolve_prediction_market",
     "resolve_prediction_market_with_payouts",
     "review_prediction_submission",

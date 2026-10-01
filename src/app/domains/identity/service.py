@@ -32,6 +32,10 @@ def write_user_info_cache() -> None:
     identity_repository.write_user_info_cache()
 
 
+def refresh_user_info_for_tg(tg_id: int) -> None:
+    identity_repository.refresh_user_info_for_tg(int(tg_id))
+
+
 def find_plex_by_tg(tg_id: int) -> PlexAccount | None:
     return identity_repository.find_plex_by_tg(tg_id)
 
@@ -203,6 +207,7 @@ __all__ = [
     "list_statistics_tg_ids",
     "list_unresolved_plex_emails",
     "publish_user_info_snapshot",
+    "refresh_user_info_for_tg",
     "update_emby_last_viewed",
     "update_plex_identity",
     "update_plex_last_viewed",

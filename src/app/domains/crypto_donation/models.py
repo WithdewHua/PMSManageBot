@@ -15,6 +15,7 @@ class CryptoDonationOrders(Base):
         ForeignKey("statistics.tg_id", onupdate="CASCADE"),
         nullable=False,
         index=True,
+        info={"tg_id": "user"},
     )
     order_id: Mapped[str] = mapped_column(Text, nullable=False, unique=True, index=True)
     trade_id: Mapped[str | None] = mapped_column(Text, nullable=True, index=True)

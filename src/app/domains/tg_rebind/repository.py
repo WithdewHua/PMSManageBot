@@ -1,214 +1,228 @@
-import traceback
+"""Transaction-owned orchestration for Telegram identity reassignment."""
 
-from sqlalchemy import func, select, update
+from __future__ import annotations
+
+import importlib
+from dataclasses import dataclass, replace
+
+from sqlalchemy import func, select
 
 from app.core.db import get_session
-from app.core.log import logger
-from app.domains.auction.models import AuctionBids, Auctions
-from app.domains.badges.models import UserBadge
-from app.domains.credits import service as credits_service
-from app.domains.credits.types import CreditAccount
-from app.domains.crypto_donation.models import CryptoDonationOrders
-from app.domains.custom_lines.models import CustomLine
-from app.domains.donation.models import DonationRegistrations
-from app.domains.identity.models import EmbyUser, Overseerr, PlexUser, Statistics
-from app.domains.invitation.models import Invitation
-from app.domains.lines.models import LineSchedule
-from app.domains.luckywheel.models import WheelStats
-from app.domains.prediction.models import (
-    PredictionBet,
-    PredictionMarket,
-    PredictionMarketSubmission,
+from app.domains.identity import repository as identity_repository
+from app.domains.identity.models import EmbyUser, PlexUser, Statistics
+from app.domains.identity.types import TgIdReassignIssue, TgIdReassignSource
+from app.domains.tg_rebind.exceptions import (
+    TgRebindAccountNotFound,
+    TgRebindRejected,
+    TgRebindSameId,
 )
-from app.domains.treasure.models import TreasureIssue, TreasureParticipation
-from app.domains.vaultwarden.models import VaultwardenRedeemRecords
+from app.domains.tg_rebind.types import RebindReport
 
 
-class TgRebindRepository:
-    def rebind_user_tg_id(
-        self,
-        new_tg_id: int,
-        plex_email: str | None = None,
-        emby_username: str | None = None,
-    ) -> bool:
-        """
-        换绑用户 Telegram ID
-        通过 plex_email 或 emby_username 查找用户并更新其 tg_id
-        会同时更新所有相关表（PlexUser/EmbyUser, Statistics, Overseerr, WheelStats,
-        VaultwardenRedeemRecords, LineSchedule, UserBadge, Invitation, Auctions,
-        AuctionBids, DonationRegistrations, CryptoDonationOrders, TreasureIssue,
-        TreasureParticipation, PredictionMarket, PredictionMarketSubmission,
-        PredictionBet, CustomLine）
+@dataclass(frozen=True, slots=True)
+class _LocatedIdentity:
+    tg_id: int | None
+    media_kind: str | None = None
+    media_key: int | str | None = None
+    media_id: int | str | None = None
 
-        Args:
-            new_tg_id: 新的 Telegram ID
-            plex_email: Plex 用户邮箱（可选）
-            emby_username: Emby 用户名（可选）
 
-        Returns:
-            bool: 操作是否成功
-        """
-        if plex_email is None and emby_username is None:
-            logger.error("Error: plex_email and emby_username cannot both be None")
-            return False
+_PARTICIPANT_IMPORTS = {
+    "identity": "app.domains.identity.repository",
+    "credits": "app.domains.credits.repository",
+    "donation": "app.domains.donation.repository",
+    "blackjack": "app.domains.blackjack.repository",
+    "badges": "app.domains.badges.repository",
+    "gift_pack": "app.domains.gift_pack.repository",
+    "luckywheel": "app.domains.luckywheel.repository",
+    "treasure": "app.domains.treasure.repository",
+    "prediction": "app.domains.prediction.repository",
+    "auction": "app.domains.auction.repository",
+    "invitation": "app.domains.invitation.repository",
+    "lines": "app.domains.lines.repository",
+    "custom_lines": "app.domains.custom_lines.repository",
+    "crypto_donation": "app.domains.crypto_donation.repository",
+    "vaultwarden": "app.domains.vaultwarden.repository",
+    "watch_rewards": "app.domains.watch_rewards.repository",
+}
 
-        try:
-            with get_session() as session:
-                old_tg_ids = set()
-                updated = False
 
-                # 处理 Plex 用户
-                if plex_email is not None:
-                    # 先获取旧的 tg_id
-                    stmt = select(PlexUser.tg_id).where(
-                        func.lower(PlexUser.plex_email) == plex_email.lower()
-                    )
-                    old_tg_id = session.execute(stmt).scalar_one_or_none()
+def _participants() -> list[tuple[str, object]]:
+    ordered_domains = (
+        "gift_pack",
+        "blackjack",
+        "luckywheel",
+        "treasure",
+        "prediction",
+        "auction",
+        "invitation",
+        "custom_lines",
+        "lines",
+        "badges",
+        "donation",
+        "crypto_donation",
+        "vaultwarden",
+        "watch_rewards",
+        "credits",
+        "identity",
+    )
+    return [
+        (domain, importlib.import_module(_PARTICIPANT_IMPORTS[domain]))
+        for domain in ordered_domains
+    ]
 
-                    # 更新 PlexUser 表
-                    result = session.execute(
-                        update(PlexUser)
-                        .where(func.lower(PlexUser.plex_email) == plex_email.lower())
-                        .values(tg_id=new_tg_id)
-                    )
-                    if result.rowcount > 0:
-                        updated = True
-                        if old_tg_id is not None:
-                            old_tg_ids.add(old_tg_id)
-                        logger.info(
-                            f"Updated tg_id for Plex user '{plex_email}' to {new_tg_id}"
-                        )
-                    else:
-                        logger.warning(f"No Plex user found with email '{plex_email}'")
 
-                # 处理 Emby 用户
-                if emby_username is not None:
-                    # 先获取旧的 tg_id
-                    stmt = select(EmbyUser.tg_id).where(
-                        EmbyUser.emby_username == emby_username
-                    )
-                    old_tg_id = session.execute(stmt).scalar_one_or_none()
+def locate_old_identity_tx(
+    session,
+    *,
+    from_tg_id: int | None = None,
+    plex_email: str | None = None,
+    emby_username: str | None = None,
+) -> _LocatedIdentity:
+    provided = sum(
+        value is not None for value in (from_tg_id, plex_email, emby_username)
+    )
+    if provided != 1:
+        raise ValueError("exactly one old identity locator is required")
+    if from_tg_id is not None:
+        if (
+            session.execute(
+                select(Statistics.tg_id).where(Statistics.tg_id == int(from_tg_id))
+            ).scalar_one_or_none()
+            is None
+        ):
+            raise TgRebindAccountNotFound(str(from_tg_id))
+        return _LocatedIdentity(int(from_tg_id))
+    if plex_email is not None:
+        account = session.execute(
+            select(PlexUser).where(
+                func.lower(PlexUser.plex_email) == str(plex_email).lower()
+            )
+        ).scalar_one_or_none()
+        if account is None:
+            raise TgRebindAccountNotFound(f"plex:{plex_email}")
+        return _LocatedIdentity(
+            account.tg_id,
+            "plex",
+            account.id,
+            account.plex_id,
+        )
+    account = session.execute(
+        select(EmbyUser).where(
+            func.lower(EmbyUser.emby_username) == str(emby_username).lower()
+        )
+    ).scalar_one_or_none()
+    if account is None:
+        raise TgRebindAccountNotFound(f"emby:{emby_username}")
+    return _LocatedIdentity(
+        account.tg_id, "emby", account.emby_username, account.emby_id
+    )
 
-                    # 更新 EmbyUser 表
-                    result = session.execute(
-                        update(EmbyUser)
-                        .where(EmbyUser.emby_username == emby_username)
-                        .values(tg_id=new_tg_id)
-                    )
-                    if result.rowcount > 0:
-                        updated = True
-                        if old_tg_id is not None:
-                            old_tg_ids.add(old_tg_id)
-                        logger.info(
-                            f"Updated tg_id for Emby user '{emby_username}' to {new_tg_id}"
-                        )
-                    else:
-                        logger.warning(
-                            f"No Emby user found with username '{emby_username}'"
-                        )
 
-                # 更新所有其他相关表的 tg_id
-                if updated and old_tg_ids:
-                    # 引用 statistics.tg_id 但未建外键约束的列：任何换绑场景都需显式迁移
-                    plain_ref_columns = [
-                        (Overseerr, "tg_id"),
-                        (WheelStats, "tg_id"),
-                        (Invitation, "owner"),
-                        (Auctions, "created_by"),
-                        (Auctions, "winner_id"),
-                        (AuctionBids, "bidder_id"),
-                        (TreasureIssue, "winner_tg_id"),
-                        (TreasureIssue, "created_by"),
-                        (TreasureParticipation, "tg_id"),
-                        (PredictionMarket, "created_by"),
-                        (PredictionMarket, "resolved_by"),
-                        (PredictionMarketSubmission, "submitter_tg_id"),
-                        (PredictionMarketSubmission, "reviewed_by"),
-                        (PredictionBet, "tg_id"),
-                    ]
-                    # 设有 statistics.tg_id 外键（ON UPDATE CASCADE）的列：
-                    # 换绑到全新 ID 时随 statistics 主键更新自动级联，无需显式迁移；
-                    # 合并到已存在 ID 时不触发级联，需显式迁移
-                    fk_ref_columns = [
-                        (VaultwardenRedeemRecords, "tg_id"),
-                        (LineSchedule, "tg_id"),
-                        (UserBadge, "tg_id"),
-                        (DonationRegistrations, "user_id"),
-                        (DonationRegistrations, "processed_by"),
-                        (CryptoDonationOrders, "user_id"),
-                        (CustomLine, "tg_id"),
-                        (CustomLine, "approved_by"),
-                    ]
+def _reassign_unbound_media_tx(
+    session, located: _LocatedIdentity, new_tg_id: int
+) -> dict[str, dict[str, int]]:
+    from app.domains.credits import repository as credits_repository
 
-                    for old_tg_id in old_tg_ids:
-                        # tg_id 未变化时无需迁移
-                        if old_tg_id == new_tg_id:
-                            continue
+    source = TgIdReassignSource(
+        tg_id=None,
+        media_service=located.media_kind,
+        media_record_key=located.media_key,
+        media_id=located.media_id,
+    )
+    issues = identity_repository.check_unbound_media_reassign_tx(
+        session, source, new_tg_id
+    )
+    if issues:
+        raise TgRebindRejected(issues)
+    identity_repository.ensure_statistics_tx(session, new_tg_id)
+    credit_counts = credits_repository.move_unbound_media_tx(
+        session,
+        media_service=str(located.media_kind),
+        media_record_key=located.media_key,
+        new_tg_id=new_tg_id,
+    )
+    identity_counts = identity_repository.bind_unbound_media_reassign_tx(
+        session, source, new_tg_id
+    )
+    return {"credits": credit_counts, "identity": identity_counts}
 
-                        locked_ids = sorted({int(old_tg_id), int(new_tg_id)})
-                        locked_stats = {
-                            tg_id: session.execute(
-                                select(Statistics)
-                                .where(Statistics.tg_id == tg_id)
-                                .with_for_update()
-                            )
-                            .scalars()
-                            .one_or_none()
-                            for tg_id in locked_ids
-                        }
-                        old_stat = locked_stats.get(int(old_tg_id))
-                        new_stat = locked_stats.get(int(new_tg_id))
-                        merging = old_stat is not None and new_stat is not None
 
-                        # 无外键约束的列在任何场景都需显式迁移
-                        columns_to_migrate = list(plain_ref_columns)
+class _DryRunRollback(Exception):
+    def __init__(self, report: RebindReport) -> None:
+        self.report = report
 
-                        if old_stat is not None and new_stat is None:
-                            # 目标为全新 ID：直接改 statistics 主键，
-                            # 引用它且设了 ON UPDATE CASCADE 的子表会自动跟随
-                            old_stat.tg_id = new_tg_id
-                            session.flush()
-                            logger.info(
-                                f"Migrated Statistics tg_id (cascade): {old_tg_id} -> {new_tg_id}"
-                            )
-                        elif merging:
-                            # 目标 ID 已存在：合并积分；外键列不触发级联，需显式迁移
-                            new_stat.donation += old_stat.donation
-                            old_credits = float(old_stat.credits or 0)
-                            if old_credits > 0:
-                                mutation = credits_service.add_tx(
-                                    session,
-                                    CreditAccount.tg(int(new_tg_id)),
-                                    old_credits,
-                                )
-                                credits_service.register_cache_invalidation(
-                                    session, mutation
-                                )
-                            session.flush()
-                            columns_to_migrate += fk_ref_columns
 
-                        for model, attr in columns_to_migrate:
-                            column = getattr(model, attr)
-                            result = session.execute(
-                                update(model)
-                                .where(column == old_tg_id)
-                                .values({column: new_tg_id})
-                            )
-                            if result.rowcount > 0:
-                                logger.info(
-                                    f"Migrated {result.rowcount} {model.__tablename__}.{attr}: {old_tg_id} -> {new_tg_id}"
-                                )
+def rebind_tg_id(
+    *,
+    new_tg_id: int,
+    from_tg_id: int | None = None,
+    plex_email: str | None = None,
+    emby_username: str | None = None,
+    dry_run: bool = False,
+) -> RebindReport:
+    try:
+        with get_session() as session:
+            report = rebind_tg_id_tx(
+                session,
+                new_tg_id=new_tg_id,
+                from_tg_id=from_tg_id,
+                plex_email=plex_email,
+                emby_username=emby_username,
+            )
+            if dry_run:
+                raise _DryRunRollback(replace(report, dry_run=True))
+            return report
+    except _DryRunRollback as rollback:
+        return rollback.report
 
-                        if merging:
-                            # 外键引用均已迁出，删除旧 Statistics 记录
-                            session.delete(old_stat)
-                            session.flush()
-                            logger.info(
-                                f"Removed merged Statistics record: {old_tg_id} -> {new_tg_id}"
-                            )
 
-                return updated
-        except Exception as e:
-            logger.error(f"Error rebinding user tg_id: {e}")
-            traceback.print_exc()
-            return False
+def rebind_tg_id_tx(
+    session,
+    *,
+    new_tg_id: int,
+    from_tg_id: int | None = None,
+    plex_email: str | None = None,
+    emby_username: str | None = None,
+) -> RebindReport:
+    new_tg_id = int(new_tg_id)
+    located = locate_old_identity_tx(
+        session,
+        from_tg_id=from_tg_id,
+        plex_email=plex_email,
+        emby_username=emby_username,
+    )
+    if located.tg_id is None:
+        counts = _reassign_unbound_media_tx(session, located, new_tg_id)
+        return RebindReport(
+            old_tg_id=0, new_tg_id=new_tg_id, dry_run=False, counts=counts
+        )
+    old_tg_id = int(located.tg_id)
+    if old_tg_id == new_tg_id:
+        raise TgRebindSameId()
+
+    source = TgIdReassignSource(
+        tg_id=old_tg_id,
+        media_service=located.media_kind,
+        media_record_key=located.media_key,
+        media_id=located.media_id,
+    )
+    if not identity_repository.lock_tg_id_reassign_tx(session, source, new_tg_id):
+        raise TgRebindAccountNotFound(str(old_tg_id))
+    issues: list[TgIdReassignIssue] = []
+    participants = _participants()
+    for domain, module in participants:
+        issues.extend(module.check_tg_id_reassign_tx(session, old_tg_id, new_tg_id))
+    if issues:
+        raise TgRebindRejected(issues)
+
+    identity_repository.ensure_statistics_tx(session, new_tg_id)
+    counts: dict[str, dict[str, int]] = {}
+    for domain, module in participants:
+        result = module.reassign_tg_id_tx(session, old_tg_id, new_tg_id)
+        counts[domain] = dict(result)
+    session.flush()
+    return RebindReport(old_tg_id, new_tg_id, False, counts)
+
+
+__all__ = ["locate_old_identity_tx", "rebind_tg_id", "rebind_tg_id_tx"]

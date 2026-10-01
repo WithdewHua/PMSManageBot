@@ -61,3 +61,86 @@ class _BlackjackRepositoryWallet:
             )
         )
         return after
+
+    def _move_tournament_wallet(self, session, old_tg_id: int, new_tg_id: int) -> float:
+        """在调用方事务内转移争霸赛余额及计数器，返回转移的余额。
+
+        按 TG ID 升序取行锁（与 credits 锁序一致），对源和目标均采用 SQL 增量更新，
+        完整保留源浮点精度（不截断为两位小数），绝不使用源绝对写 0。
+        """
+        if int(old_tg_id) == int(new_tg_id):
+            return 0.0
+
+        ordered_ids = sorted((int(old_tg_id), int(new_tg_id)))
+        for tid in ordered_ids:
+            session.execute(
+                select(Statistics).where(Statistics.tg_id == tid).with_for_update()
+            )
+
+        old_stats = session.get(Statistics, int(old_tg_id))
+        new_stats = session.get(Statistics, int(new_tg_id))
+
+        if new_stats is None:
+            raise blackjack_error("用户积分信息不存在")
+
+        if old_stats is None:
+            return 0.0
+
+        amount = float(old_stats.tournament_wallet_credits or 0.0)
+        old_streak = int(old_stats.blackjack_lose_streak or 0)
+        old_freespin = int(old_stats.blackjack_hands_since_freespin or 0)
+
+        old_values = {}
+        if amount != 0.0:
+            old_values[Statistics.tournament_wallet_credits] = (
+                Statistics.tournament_wallet_credits - amount
+            )
+        if old_streak != 0:
+            old_values[Statistics.blackjack_lose_streak] = (
+                Statistics.blackjack_lose_streak - old_streak
+            )
+        if old_freespin != 0:
+            old_values[Statistics.blackjack_hands_since_freespin] = (
+                Statistics.blackjack_hands_since_freespin - old_freespin
+            )
+
+        if old_values:
+            session.execute(
+                update(Statistics)
+                .where(Statistics.tg_id == int(old_tg_id))
+                .values(old_values)
+            )
+
+        new_values = {}
+        if amount != 0.0:
+            new_values[Statistics.tournament_wallet_credits] = (
+                Statistics.tournament_wallet_credits + amount
+            )
+        if old_streak != 0:
+            new_values[Statistics.blackjack_lose_streak] = (
+                Statistics.blackjack_lose_streak + old_streak
+            )
+        if old_freespin != 0:
+            new_values[Statistics.blackjack_hands_since_freespin] = (
+                Statistics.blackjack_hands_since_freespin + old_freespin
+            )
+
+        if new_values:
+            session.execute(
+                update(Statistics)
+                .where(Statistics.tg_id == int(new_tg_id))
+                .values(new_values)
+            )
+
+        return amount
+
+    move_tournament_wallet_tx = _move_tournament_wallet
+
+
+def _move_tournament_wallet_module(session, old_tg_id: int, new_tg_id: int) -> float:
+    return _BlackjackRepositoryWallet()._move_tournament_wallet(
+        session, old_tg_id, new_tg_id
+    )
+
+
+move_tournament_wallet_tx = _move_tournament_wallet_module

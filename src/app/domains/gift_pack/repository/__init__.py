@@ -9,6 +9,11 @@ from .claims import _GiftPackRepositoryClaims
 from .conditions import _GiftPackRepositoryConditions
 from .notices import _GiftPackRepositoryNotices
 from .packs import _GiftPackRepositoryPacks
+from .reassign import (
+    REASSIGNED_TG_ID_COLUMNS,
+    check_tg_id_reassign_tx,
+    reassign_tg_id_tx,
+)
 from .rewards import _GiftPackRepositoryRewards
 
 
@@ -122,6 +127,8 @@ def mark_gift_pack_expiry_notified(pack_id: int) -> bool:
 
 
 __all__ = [
+    "REASSIGNED_TG_ID_COLUMNS",
+    "check_tg_id_reassign_tx",
     "claim_gift_pack",
     "claim_gift_pack_start_dm_candidates",
     "create_gift_pack",
@@ -134,6 +141,7 @@ __all__ = [
     "get_gift_packs_for_user",
     "mark_gift_pack_expiry_notified",
     "prompt_check_gift_packs",
+    "reassign_tg_id_tx",
     "resolve_gift_pack_users",
     "set_gift_pack_enabled",
     "update_gift_pack",

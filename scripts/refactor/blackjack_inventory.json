@@ -645,6 +645,20 @@
       "target_role": "blackjack.service"
     },
     {
+      "kind": "facade_import",
+      "line": 9,
+      "path": "src/app/domains/blackjack/repository/reassign.py",
+      "symbol": "app.domains.blackjack",
+      "target_role": "blackjack.service"
+    },
+    {
+      "kind": "facade_import",
+      "line": 10,
+      "path": "src/app/domains/blackjack/repository/reassign.py",
+      "symbol": "app.domains.blackjack.repository",
+      "target_role": "blackjack.service"
+    },
+    {
       "kind": "model_import",
       "line": 13,
       "path": "src/app/domains/blackjack/repository/retention.py",
@@ -1326,6 +1340,13 @@
     {
       "kind": "domain_error_raise",
       "line": 44,
+      "path": "src/app/domains/blackjack/repository/wallet.py",
+      "symbol": "blackjack_error('用户积分信息不存在')",
+      "target_role": "blackjack.errors"
+    },
+    {
+      "kind": "domain_error_raise",
+      "line": 84,
       "path": "src/app/domains/blackjack/repository/wallet.py",
       "symbol": "blackjack_error('用户积分信息不存在')",
       "target_role": "blackjack.errors"
@@ -2179,5 +2200,5 @@
     }
   ],
   "schema_version": 1,
-  "total": 311
+  "total": 314
 }

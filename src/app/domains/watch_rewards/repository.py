@@ -14,6 +14,7 @@ from app.domains.credits import repository as credits_repository
 from app.domains.credits.types import CreditAccount
 from app.domains.identity import repository as identity_repository
 from app.domains.identity.models import EmbyUser, PlexUser, Statistics
+from app.domains.identity.types import TgIdReassignIssue
 from app.domains.premium import repository as premium_repository
 from app.domains.watch_rewards.models import GhostSessionLog, WatchRewardSettlement
 
@@ -378,3 +379,34 @@ class WatchRewardsRepository:
             user_id: value["hours"]
             for user_id, value in get_pending_ghost_compensation_rows().items()
         }
+
+
+REASSIGNED_TG_ID_COLUMNS: tuple[str, ...] = (
+    "watch_reward_settlement.tg_id",
+    "watch_reward_settlement.inviter_tg_id",
+)
+
+
+def check_tg_id_reassign_tx(
+    session: Session, old_tg_id: int, new_tg_id: int
+) -> list[TgIdReassignIssue]:
+    return []
+
+
+def reassign_tg_id_tx(
+    session: Session, old_tg_id: int, new_tg_id: int
+) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for model, column in (
+        (WatchRewardSettlement, WatchRewardSettlement.tg_id),
+        (WatchRewardSettlement, WatchRewardSettlement.inviter_tg_id),
+    ):
+        result = session.execute(
+            update(model)
+            .where(column == int(old_tg_id))
+            .values({column: int(new_tg_id)})
+        )
+        counts[f"{model.__tablename__}.{column.key}"] = max(
+            0, int(result.rowcount or 0)
+        )
+    return counts

@@ -69,7 +69,7 @@ name = "Top-level architecture"
 type = "layers"
 layers = [
     "(app.main)",
-    "(app.api) | (app.bot) | (app.schedule) | (app.model_registry)",
+    "(app.api) | (app.bot) | (app.schedule) | (app.model_registry) | (app.manage)",
     "(app.subscriptions)",
     "(app.domains) : (app.databases)",
     "(app.transport)",
@@ -246,8 +246,7 @@ ignore_imports = [
     # restructure-backend-architecture: transitional facade composition hides
     # domain-to-domain dependencies; AST cross-domain checks still cover self/db.
     "app.databases.db -> app.domains.invitation.repository",
-    "app.databases.db -> app.domains.tg_rebind.repository",
-    "app.databases.db -> app.domains.watch_rewards.repository",
+        "app.databases.db -> app.domains.watch_rewards.repository",
 
 
 
@@ -313,8 +312,7 @@ ignore_imports = [
     "app.domains.traffic.repository -> app.domains.lines.catalog",
     # restructure-backend-architecture: transitional facade composition
     "app.databases.db -> app.domains.invitation.repository",
-    "app.databases.db -> app.domains.tg_rebind.repository",
-    "app.databases.db -> app.domains.watch_rewards.repository",
+        "app.databases.db -> app.domains.watch_rewards.repository",
 ]
 unmatched_ignore_imports_alerting = "error"
 [[tool.importlinter.contracts]]

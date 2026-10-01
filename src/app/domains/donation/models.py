@@ -15,6 +15,7 @@ class DonationRegistrations(Base):
         ForeignKey("statistics.tg_id", onupdate="CASCADE"),
         nullable=False,
         index=True,
+        info={"tg_id": "user"},
     )
     payment_method: Mapped[str] = mapped_column(Text, nullable=False)
     amount: Mapped[float] = mapped_column(Float, nullable=False)
@@ -24,7 +25,10 @@ class DonationRegistrations(Base):
     created_at: Mapped[str] = mapped_column(Text, nullable=False, index=True)
     processed_at: Mapped[str | None] = mapped_column(Text, nullable=True)
     processed_by: Mapped[int | None] = mapped_column(
-        BIGINT, ForeignKey("statistics.tg_id", onupdate="CASCADE"), nullable=True
+        BIGINT,
+        ForeignKey("statistics.tg_id", onupdate="CASCADE"),
+        nullable=True,
+        info={"tg_id": "admin"},
     )
     is_donation_registration: Mapped[int] = mapped_column(
         SMALLINT, default=0, nullable=False

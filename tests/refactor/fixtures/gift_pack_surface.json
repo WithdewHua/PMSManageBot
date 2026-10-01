@@ -267,6 +267,30 @@
       {
         "kind": "from",
         "module": "app.domains.gift_pack.repository",
+        "module_target": "app.domains.gift_pack.repository.reassign",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.repository.reassign.REASSIGNED_TG_ID_COLUMNS"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository",
+        "module_target": "app.domains.gift_pack.repository.reassign",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.repository.reassign.check_tg_id_reassign_tx"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository",
+        "module_target": "app.domains.gift_pack.repository.reassign",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.repository.reassign.reassign_tg_id_tx"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository",
         "module_target": "app.domains.gift_pack.repository.rewards",
         "resolved": true,
         "scope": "module",
@@ -680,6 +704,77 @@
         "resolved": true,
         "scope": "function",
         "target": "re"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.reassign",
+        "module_target": "__future__",
+        "resolved": true,
+        "scope": "module",
+        "target": "__future__.annotations"
+      },
+      {
+        "kind": "import",
+        "module": "app.domains.gift_pack.repository.reassign",
+        "resolved": true,
+        "scope": "module",
+        "target": "json"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.reassign",
+        "module_target": "typing",
+        "resolved": true,
+        "scope": "module",
+        "target": "typing.TYPE_CHECKING"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.reassign",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.select"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.reassign",
+        "module_target": "sqlalchemy",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.update"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.reassign",
+        "module_target": "app.domains.gift_pack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.models.GiftPack"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.reassign",
+        "module_target": "app.domains.gift_pack.models",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.gift_pack.models.GiftPackUserState"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.reassign",
+        "module_target": "app.domains.identity.types",
+        "resolved": true,
+        "scope": "module",
+        "target": "app.domains.identity.types.TgIdReassignIssue"
+      },
+      {
+        "kind": "from",
+        "module": "app.domains.gift_pack.repository.reassign",
+        "module_target": "sqlalchemy.orm",
+        "resolved": true,
+        "scope": "module",
+        "target": "sqlalchemy.orm.Session"
       },
       {
         "kind": "import",

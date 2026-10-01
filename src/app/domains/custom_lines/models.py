@@ -24,7 +24,7 @@ class CustomLineSettlement(Base):
 
     id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
     line_id: Mapped[int] = mapped_column(BIGINT, nullable=False)
-    tg_id: Mapped[int] = mapped_column(BIGINT, nullable=False)
+    tg_id: Mapped[int] = mapped_column(BIGINT, nullable=False, info={"tg_id": "user"})
     domain: Mapped[str] = mapped_column(Text, nullable=False)
     year_month: Mapped[str] = mapped_column(Text, nullable=False)
     trigger: Mapped[str] = mapped_column(String, nullable=False)
@@ -55,6 +55,7 @@ class CustomLine(Base):
         ForeignKey("statistics.tg_id", onupdate="CASCADE"),
         nullable=False,
         index=True,
+        info={"tg_id": "user"},
     )  # 提交用户的 Telegram ID
     domain: Mapped[str] = mapped_column(
         String, nullable=False, unique=True, index=True
@@ -94,7 +95,10 @@ class CustomLine(Base):
     )  # 标签列表（由管理员设置）
     approved_at: Mapped[int | None] = mapped_column(BIGINT, nullable=True)  # 批准时间戳
     approved_by: Mapped[int | None] = mapped_column(
-        BIGINT, ForeignKey("statistics.tg_id", onupdate="CASCADE"), nullable=True
+        BIGINT,
+        ForeignKey("statistics.tg_id", onupdate="CASCADE"),
+        nullable=True,
+        info={"tg_id": "admin"},
     )  # 批准管理员的 Telegram ID
     expires_at: Mapped[int | None] = mapped_column(
         BIGINT, nullable=True, index=True

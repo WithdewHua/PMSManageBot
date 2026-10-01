@@ -13,7 +13,7 @@
   - 合并时调用不存在的 `credits_service.add_tx`，只要旧 ID 有积分就失败。
   - Emby 用户名区分大小写。
   - 返回 bool，异常全部吞掉。
-- **存 TG ID 的位置**：共 33 个数值列，外加 1 个 JSON 字段（`gift_pack.audience`）和 1 种字符串编码（`invitation.used_by = "credits_by_<ID>"`）。
+- **存 TG ID 的位置**：共 35 个数值列（包括 `statistics.tg_id` 根列，业务记录列 34 个），外加 1 个 JSON 字段（`gift_pack.audience`）和 1 种字符串编码（`invitation.used_by = "credits_by_<ID>"`）。
   - 其中 13 列有外键指向 `statistics.tg_id`（`ON UPDATE CASCADE`，没有 `ON DELETE`，也不是 DEFERRABLE）。
   - 7 列是管理员审计列，其中 `approved_by`、`processed_by` 带外键。
 - **SQLite 不打开外键**，所以同样的代码在不同数据库上结果不同。

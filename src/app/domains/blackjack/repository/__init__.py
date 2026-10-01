@@ -24,6 +24,15 @@ from .constants import (
 )
 from .hands import _BlackjackRepositoryHands
 from .jackpot import _BlackjackRepositoryJackpot
+from .reassign import (
+    REASSIGNED_TG_ID_COLUMNS,
+)
+from .reassign import (
+    check_tg_id_reassign_tx as _check_tg_id_reassign_tx,
+)
+from .reassign import (
+    reassign_tg_id_tx as _reassign_tg_id_tx,
+)
 from .retention import _BlackjackRepositoryRetention
 from .settlement import _BlackjackRepositorySettlement
 from .stats import _BlackjackRepositoryStats
@@ -285,6 +294,7 @@ __all__ = [
     "JACKPOT_CONFIG_KEY",
     "JACKPOT_CONFIG_TYPE",
     "JACKPOT_NOTIFY_CURSOR_KEY",
+    "REASSIGNED_TG_ID_COLUMNS",
     "TOURNAMENT_CANCELLED",
     "TOURNAMENT_REGISTERING",
     "TOURNAMENT_RUNNING",
@@ -309,6 +319,7 @@ __all__ = [
     "cancel_blackjack_tournament",
     "cash_hand_metrics_tx",
     "check_blackjack_tournament_consistency",
+    "check_tg_id_reassign_tx",
     "claim_tournament_reminder",
     "claim_unannounced_jackpot_wins",
     "count_registering_blackjack_tournaments",
@@ -341,6 +352,7 @@ __all__ = [
     "list_blackjack_tournaments",
     "list_blackjack_tournaments_with_playing_entries",
     "read_fund_balance",
+    "reassign_tg_id_tx",
     "register_blackjack_tournament",
     "register_blackjack_tournament_tx",
     "seed_blackjack_jackpot",
@@ -500,3 +512,12 @@ def blackjack_week_start_ms(*, now=None) -> int:
 
 def lock_running_tournament(session, tournament_id: int):
     return _repository._lock_running_tournament(session, tournament_id)
+
+
+# Stable module-level wrappers keep the public repository API owned by this module.
+def check_tg_id_reassign_tx(session, old_tg_id: int, new_tg_id: int):
+    return _check_tg_id_reassign_tx(session, old_tg_id, new_tg_id)
+
+
+def reassign_tg_id_tx(session, old_tg_id: int, new_tg_id: int):
+    return _reassign_tg_id_tx(session, old_tg_id, new_tg_id)

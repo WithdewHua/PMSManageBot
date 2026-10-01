@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 
 from sqlalchemy import delete, func, select, update
+from sqlalchemy.orm import Session
 
 from app.core.db import get_session, register_post_commit
 from app.core.log import logger
@@ -18,6 +19,8 @@ from app.domains.identity.types import (
     EmbyAccount,
     OverseerrAccount,
     PlexAccount,
+    TgIdReassignIssue,
+    TgIdReassignSource,
     UserStatistics,
 )
 
@@ -719,4 +722,261 @@ __all__ = [
     "update_plex_last_viewed",
     "update_plex_last_viewed_tx",
     "write_user_info_cache",
+]
+
+
+REASSIGNED_TG_ID_COLUMNS: tuple[str, ...] = (
+    "statistics.tg_id",
+    "plex_user.tg_id",
+    "emby_user.tg_id",
+    "overseerr.tg_id",
+)
+
+
+def check_tg_id_reassign_tx(
+    session: Session, old_tg_id: int, new_tg_id: int
+) -> list[TgIdReassignIssue]:
+    issues: list[TgIdReassignIssue] = []
+    old_plex = session.execute(
+        select(PlexUser).where(PlexUser.tg_id == old_tg_id)
+    ).scalar_one_or_none()
+    old_emby = session.execute(
+        select(EmbyUser).where(EmbyUser.tg_id == old_tg_id)
+    ).scalar_one_or_none()
+    if (
+        old_plex
+        and session.execute(
+            select(PlexUser.id).where(PlexUser.tg_id == new_tg_id)
+        ).scalar_one_or_none()
+    ):
+        issues.append(
+            TgIdReassignIssue(
+                "conflict",
+                "identity",
+                "new ID already owns a Plex account",
+                (str(old_plex.id),),
+            )
+        )
+    if (
+        old_emby
+        and session.execute(
+            select(EmbyUser.emby_username).where(EmbyUser.tg_id == new_tg_id)
+        ).scalar_one_or_none()
+    ):
+        issues.append(
+            TgIdReassignIssue(
+                "conflict",
+                "identity",
+                "new ID already owns an Emby account",
+                (old_emby.emby_username,),
+            )
+        )
+    old_overseerr = (
+        session.execute(select(Overseerr.user_id).where(Overseerr.tg_id == old_tg_id))
+        .scalars()
+        .all()
+    )
+    new_overseerr = (
+        session.execute(select(Overseerr.user_id).where(Overseerr.tg_id == new_tg_id))
+        .scalars()
+        .all()
+    )
+    if old_overseerr and new_overseerr:
+        issues.append(
+            TgIdReassignIssue(
+                "conflict",
+                "identity",
+                "both IDs own Overseerr accounts",
+                tuple(map(str, (*old_overseerr, *new_overseerr))),
+            )
+        )
+    return issues
+
+
+def reassign_tg_id_tx(
+    session: Session, old_tg_id: int, new_tg_id: int
+) -> dict[str, int]:
+    """Run last: move all media identities, then remove the drained statistics row."""
+    counts: dict[str, int] = {}
+    for model, column in (
+        (PlexUser, PlexUser.tg_id),
+        (EmbyUser, EmbyUser.tg_id),
+        (Overseerr, Overseerr.tg_id),
+    ):
+        result = session.execute(
+            update(model).where(column == old_tg_id).values({column: new_tg_id})
+        )
+        counts[f"{model.__tablename__}.{column.key}"] = result.rowcount
+    session.flush()
+    counts["statistics.tg_id"] = session.execute(
+        delete(Statistics).where(Statistics.tg_id == old_tg_id)
+    ).rowcount
+    return counts
+
+
+def locate_tg_id_reassign_tx(
+    session: Session,
+    *,
+    from_tg_id: int | None = None,
+    plex_email: str | None = None,
+    emby_username: str | None = None,
+) -> TgIdReassignSource | None:
+    """Exact, case-insensitive media lookup; never treats %/_ as wildcards."""
+    if from_tg_id is not None:
+        found = session.execute(
+            select(Statistics.tg_id).where(Statistics.tg_id == from_tg_id)
+        ).scalar_one_or_none()
+        return TgIdReassignSource(found) if found is not None else None
+    if plex_email is not None:
+        user = session.execute(
+            select(PlexUser).where(
+                func.lower(PlexUser.plex_email) == plex_email.lower()
+            )
+        ).scalar_one_or_none()
+        return (
+            TgIdReassignSource(user.tg_id, "plex", user.id, user.plex_id)
+            if user
+            else None
+        )
+    if emby_username is not None:
+        user = session.execute(
+            select(EmbyUser).where(
+                func.lower(EmbyUser.emby_username) == emby_username.lower()
+            )
+        ).scalar_one_or_none()
+        return (
+            TgIdReassignSource(user.tg_id, "emby", user.emby_username, user.emby_id)
+            if user
+            else None
+        )
+    return None
+
+
+def lock_tg_id_reassign_tx(
+    session: Session, source: TgIdReassignSource, new_tg_id: int
+) -> bool:
+    """Lock statistics in numeric ID order, then media rows in fixed table order."""
+    ids = sorted({tg_id for tg_id in (source.tg_id, new_tg_id) if tg_id is not None})
+    found_ids = (
+        session.execute(
+            select(Statistics.tg_id)
+            .where(Statistics.tg_id.in_(ids))
+            .order_by(Statistics.tg_id)
+            .with_for_update()
+        )
+        .scalars()
+        .all()
+    )
+    if source.tg_id is not None and source.tg_id not in found_ids:
+        return False
+    # Lock both identities' media rows and the selected unbound row. No implicit
+    # stats PK change or database cascade is ever used by this workflow.
+    plex_predicate = PlexUser.tg_id.in_(ids)
+    emby_predicate = EmbyUser.tg_id.in_(ids)
+    if source.media_service == "plex":
+        plex_predicate |= PlexUser.id == source.media_record_key
+    if source.media_service == "emby":
+        emby_predicate |= EmbyUser.emby_username == source.media_record_key
+    session.execute(
+        select(PlexUser).where(plex_predicate).order_by(PlexUser.id).with_for_update()
+    ).scalars().all()
+    session.execute(
+        select(EmbyUser)
+        .where(emby_predicate)
+        .order_by(EmbyUser.emby_username)
+        .with_for_update()
+    ).scalars().all()
+    session.execute(
+        select(Overseerr)
+        .where(Overseerr.tg_id.in_(ids))
+        .order_by(Overseerr.user_id)
+        .with_for_update()
+    ).scalars().all()
+    return True
+
+
+def check_unbound_media_reassign_tx(
+    session: Session, source: TgIdReassignSource, new_tg_id: int
+) -> list[TgIdReassignIssue]:
+    if source.media_service == "plex":
+        user = session.get(PlexUser, source.media_record_key, populate_existing=True)
+        bound = session.execute(
+            select(PlexUser.id).where(PlexUser.tg_id == new_tg_id)
+        ).scalar_one_or_none()
+    elif source.media_service == "emby":
+        user = session.get(EmbyUser, source.media_record_key, populate_existing=True)
+        bound = session.execute(
+            select(EmbyUser.emby_username).where(EmbyUser.tg_id == new_tg_id)
+        ).scalar_one_or_none()
+    else:
+        raise ValueError("invalid unbound media source")
+    issues: list[TgIdReassignIssue] = []
+    if user is None or user.tg_id is not None:
+        issues.append(
+            TgIdReassignIssue(
+                "conflict",
+                "identity",
+                "media account is missing or already bound",
+                (str(source.media_record_key),),
+            )
+        )
+    if bound is not None:
+        issues.append(
+            TgIdReassignIssue(
+                "conflict",
+                "identity",
+                f"new ID already owns a {source.media_service} account",
+                (str(bound),),
+            )
+        )
+    return issues
+
+
+def bind_unbound_media_reassign_tx(
+    session: Session, source: TgIdReassignSource, new_tg_id: int
+) -> dict[str, int]:
+    if source.media_service == "plex":
+        model, key = PlexUser, PlexUser.id
+    elif source.media_service == "emby":
+        model, key = EmbyUser, EmbyUser.emby_username
+    else:
+        raise ValueError("invalid unbound media source")
+    result = session.execute(
+        update(model)
+        .where(key == source.media_record_key, model.tg_id.is_(None))
+        .values(tg_id=new_tg_id)
+    )
+    if result.rowcount != 1:
+        raise ValueError("unbound media account changed during reassignment")
+    return {f"{model.__tablename__}.tg_id": result.rowcount}
+
+
+def refresh_user_info_for_tg(tg_id: int) -> None:
+    """Refresh only the committed target identity, not every gateway account."""
+    with get_session() as session:
+        plex_users = (
+            session.execute(select(PlexUser).where(PlexUser.tg_id == tg_id))
+            .scalars()
+            .all()
+        )
+        emby_users = (
+            session.execute(select(EmbyUser).where(EmbyUser.tg_id == tg_id))
+            .scalars()
+            .all()
+        )
+    for user in plex_users:
+        _publish_plex_cache(user)
+    for user in emby_users:
+        _publish_emby_cache(user)
+
+
+__all__ += [
+    "REASSIGNED_TG_ID_COLUMNS",
+    "bind_unbound_media_reassign_tx",
+    "check_tg_id_reassign_tx",
+    "check_unbound_media_reassign_tx",
+    "locate_tg_id_reassign_tx",
+    "lock_tg_id_reassign_tx",
+    "reassign_tg_id_tx",
+    "refresh_user_info_for_tg",
 ]

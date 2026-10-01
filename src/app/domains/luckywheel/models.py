@@ -10,7 +10,9 @@ class WheelStats(Base):
     __tablename__ = "wheel_stats"
 
     id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
-    tg_id: Mapped[int] = mapped_column(BIGINT, index=True, nullable=False)
+    tg_id: Mapped[int] = mapped_column(
+        BIGINT, index=True, nullable=False, info={"tg_id": "user"}
+    )
     item_name: Mapped[str] = mapped_column(Text, nullable=False)
     cost_credits: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     credits_change: Mapped[float] = mapped_column(Float, nullable=False)
@@ -52,6 +54,7 @@ class LuckywheelFreeSpin(Base):
         BIGINT,
         ForeignKey("statistics.tg_id", onupdate="CASCADE"),
         nullable=False,
+        info={"tg_id": "user"},
     )
     source: Mapped[str] = mapped_column(Text, nullable=False, default="blackjack")
     cost_credits_snapshot: Mapped[float] = mapped_column(

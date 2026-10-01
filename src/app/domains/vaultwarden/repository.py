@@ -6,10 +6,11 @@ from datetime import datetime
 from time import time
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from app.core.config import settings
 from app.core.db import get_session
+from app.domains.identity.types import TgIdReassignIssue
 from app.domains.vaultwarden.models import VaultwardenRedeemRecords
 
 if TYPE_CHECKING:
@@ -98,11 +99,34 @@ def list_records_by_tg_id(tg_id: int) -> list[VaultwardenRedeemRecords]:
         return records
 
 
+REASSIGNED_TG_ID_COLUMNS: tuple[str, ...] = ("vaultwarden_redeem_records.tg_id",)
+
+
+def check_tg_id_reassign_tx(
+    session: Session, old_tg_id: int, new_tg_id: int
+) -> list[TgIdReassignIssue]:
+    return []
+
+
+def reassign_tg_id_tx(
+    session: Session, old_tg_id: int, new_tg_id: int
+) -> dict[str, int]:
+    result = session.execute(
+        update(VaultwardenRedeemRecords)
+        .where(VaultwardenRedeemRecords.tg_id == int(old_tg_id))
+        .values(tg_id=int(new_tg_id))
+    )
+    return {"vaultwarden_redeem_records.tg_id": max(0, int(result.rowcount or 0))}
+
+
 __all__ = [
+    "REASSIGNED_TG_ID_COLUMNS",
+    "check_tg_id_reassign_tx",
     "count_redemptions",
     "count_redemptions_tx",
     "list_records_by_tg_id",
     "list_records_by_tg_id_tx",
+    "reassign_tg_id_tx",
     "record_redemption",
     "record_redemption_tx",
 ]

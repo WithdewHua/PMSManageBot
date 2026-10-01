@@ -180,7 +180,15 @@ def move_tx(session, source: CreditAccount, target: CreditAccount) -> CreditTran
     """Move the entire source balance to another account under one transaction."""
     if source == target:
         raise ValueError("cannot move credits to the same account")
-    ordered = sorted((source, target), key=lambda account: account.label)
+    ordered = sorted(
+        (source, target),
+        key=lambda account: (
+            account.kind,
+            int(account.identifier)
+            if account.kind in {"tg", "plex"}
+            else str(account.identifier),
+        ),
+    )
     locked = {
         account.label: get_tx(session, account, for_update=True) for account in ordered
     }
@@ -304,3 +312,62 @@ def list_cache_media_balances(service: str) -> list[tuple]:
                 EmbyUser.emby_username,
             )
         return [tuple(row) for row in session.execute(query).all()]
+
+
+REASSIGNED_TG_ID_COLUMNS: tuple[str, ...] = ()
+
+
+def check_tg_id_reassign_tx(session, old_tg_id: int, new_tg_id: int) -> list:
+    """Credits have no uniqueness conflict; the locked move is the check boundary."""
+    return []
+
+
+def reassign_tg_id_tx(session, old_tg_id: int, new_tg_id: int) -> dict[str, int]:
+    """Move the complete Telegram credit balance through the credit ledger."""
+    mutation = move_tx(
+        session, CreditAccount.tg(int(old_tg_id)), CreditAccount.tg(int(new_tg_id))
+    )
+    queue_cache_invalidation(session, mutation.cache_keys)
+    return {"statistics.credits": 1 if mutation.amount else 0}
+
+
+def move_unbound_media_tx(
+    session, *, media_service: str, media_record_key: int | str, new_tg_id: int
+) -> dict[str, int]:
+    """Move an unbound row's balance even before its external ID is resolved."""
+    if media_service == "plex":
+        model, key, balance = PlexUser, PlexUser.id, PlexUser.credits
+    elif media_service == "emby":
+        model, key, balance = EmbyUser, EmbyUser.emby_username, EmbyUser.emby_credits
+    else:
+        raise ValueError("unsupported media credit source")
+    target = CreditAccount.tg(new_tg_id)
+    _, target_keys = get_tx(session, target, for_update=True)
+    row = session.execute(
+        select(model)
+        .where(key == media_record_key, model.tg_id.is_(None))
+        .with_for_update()
+    ).scalar_one_or_none()
+    if row is None:
+        raise CreditAccountNotFound(f"{media_service}:{media_record_key}")
+    amount = float(getattr(row, balance.key))
+    if not isfinite(amount):
+        raise ValueError("source balance must be finite")
+    source_name = row.plex_username if media_service == "plex" else row.emby_username
+    source_keys = (f"{media_service}:{source_name.lower()}",) if source_name else ()
+    if amount:
+        session.execute(
+            update(model)
+            .where(key == media_record_key)
+            .values({balance: balance - amount})
+        )
+        session.execute(
+            update(Statistics)
+            .where(Statistics.tg_id == new_tg_id)
+            .values(credits=Statistics.credits + amount)
+        )
+    queue_cache_invalidation(session, (*source_keys, *target_keys))
+    return {
+        f"{model.__tablename__}.{balance.key}": int(bool(amount)),
+        "statistics.credits": int(bool(amount)),
+    }
