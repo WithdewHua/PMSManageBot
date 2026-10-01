@@ -8,7 +8,7 @@
 重新生成快照：
 
     UPDATE_ACTIVITY_REJECTIONS=1 .venv/bin/python -m pytest \
-      tests/refactor/test_activity_rejections.py
+      tests/test_activity_rejections.py
 
 外部副作用（TG 通知、调度提交、勋章检查、ETH RPC）在本用例内全部替换成
 no-op：契约只描述 HTTP 层可见的行为。行 id 与时间戳都用固定常量，用例

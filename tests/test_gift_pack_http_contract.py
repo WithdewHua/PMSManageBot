@@ -4,7 +4,7 @@
 重新生成快照：
 
     UPDATE_GIFT_PACK_CONTRACT=1 .venv/bin/python -m pytest \
-      tests/refactor/test_gift_pack_http_contract.py
+      tests/test_gift_pack_http_contract.py
 
 外部副作用（媒体服务器同步、管理员通知、调度提交）在本用例内全部替换为
 no-op：契约只描述 HTTP 层可见的行为。行 id 从固定基数开始分配，使快照与
