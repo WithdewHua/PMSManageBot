@@ -22,7 +22,7 @@
 
 - [ ] 4.1 把 `snapshot.py` 和 `check_metadata_pg.py` 移到 `scripts/verify/`，去掉门面方法清单、BASE 回退和字符串引用解析；删除 `main.py` 中的兼容垫片；更新对应的测试。验证：连续生成两次快照，输出逐字节一致；与改动前的快照相比，只少了被删除的那几项。
 - [ ] 4.2 删除 `scripts/refactor/` 中其余的脚本和数据文件，以及 21 点试点的冻结夹具和测试；把 `tests/refactor/` 中测试生产代码的 5 个文件移到 `tests/`，然后删除 `tests/refactor/`。验证：全量测试通过；`scripts/refactor/` 和 `tests/refactor/` 都不存在；`pre-commit run --all-files` 通过，而且不再创建 git worktree。
-- [ ] 4.3 对 `migrate_redis_to_database.py` 和 `migrate_line_traffic_stats.py`，核对手动运维清单并请维护者逐个确认：保留的改用领域 API，并登记进清单；不需要的删除。验证：确认结论记录在本变更中；`scripts` 中不再导入 `app.databases`。
+- [x] 4.3 对 `migrate_redis_to_database.py` 和 `migrate_line_traffic_stats.py`，核对手动运维清单并请维护者逐个确认：保留的改用领域 API，并登记进清单；不需要的删除。验证：确认结论记录在本变更中；`scripts` 中不再导入 `app.databases`。
 
 ## 5. 文档与集成验证
 

@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.log import logger
-from app.databases import db
+from app.domains.traffic import service as traffic_service
 from app.domains.traffic.models import LineTrafficStats
 
 
@@ -157,7 +157,7 @@ def migrate_historical_traffic_data(
                 logger.info(f"月份 {month} 包含 {original_count:,} 条原始记录")
 
                 # 第一步：数据聚合
-                success, message = db.aggregate_monthly_traffic_data(month)
+                success, message = traffic_service.aggregate_monthly_traffic_data(month)
 
                 if success:
                     logger.info(f"✅ 月份 {month} 聚合成功: {message}")
@@ -178,7 +178,7 @@ def migrate_historical_traffic_data(
 
                     if should_cleanup:
                         cleanup_success, cleanup_message = (
-                            db.cleanup_monthly_traffic_data(month)
+                            traffic_service.cleanup_monthly_traffic_data(month)
                         )
                         if cleanup_success:
                             logger.info(f"🗑️ 月份 {month} 清理成功: {cleanup_message}")

@@ -131,6 +131,8 @@ core/（公共设施）
 | TG 用户换绑（旧入口） | `db.rebind_user_tg_id(...)` | 已删除；`scripts/refactor/smoke_b1.py` 的旧门面检查不再适用，以 `rebind-tg-id` CLI 和 `tests/test_tg_rebind.py` 为准 |
 | 捐赠倍率重算 | `from app.domains.donation import service; service.update_donation_credits(old_multiplier, new_multiplier)`，仅由维护者在运维 Python 环境显式调用 | 历史捐赠积分的人工调整工具；无日常代码调用方不代表可删除。必须先审查旧/新倍率与目标数据库，并遵循积分领域事务接口 |
 | 过期下载权限清单 | `scripts/list_expired_download_holders.py`；默认只读，确认名单后用 `--apply --input <json>` 仅撤销名单项 | `scripts/sync_download_permissions.py` 是单向同步脚本，不能用于对账或撤销，也不得代替本清单脚本 |
+| 历史流量月度迁移 | `scripts/migrate_line_traffic_stats.py` | 历史月度流量数据批量聚合与清理工具；调用 `app.domains.traffic.service` 聚合与清理接口，支持按月范围或自动检测最早月份逐月确认/批量处理 |
+| Redis 配置历史迁移 | `scripts/migrate_redis_to_database.py` | 历史 Redis 配置（免费高级线路、线路标签、大转盘配置）向数据库单向迁移工具；调用 `app.domains.lines.catalog` 和 `app.domains.luckywheel.service` 接口 |
 
 ## Core 与 transport 边界
 
