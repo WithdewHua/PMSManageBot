@@ -88,10 +88,10 @@ async def refresh_tg_user_info(
                 cache = await asyncio.to_thread(load_tg_user_info_cache)
             if (
                 user_id in cache
-                and time() - cache.get(user_id).get("added") <= 24 * 3600
+                and time() - (cache.get(user_id) or {}).get("added", 0) <= 24 * 3600
             ):
                 logger.info(
-                    f"{cache.get(user_id).get('username')}({user_id}) info is not expired, skip"
+                    f"{(cache.get(user_id) or {}).get('username')}({user_id}) info is not expired, skip"
                 )
                 continue
             retry = 10
@@ -166,6 +166,23 @@ def get_user_names_from_tg_ids(chat_ids) -> dict:
     return names
 
 
+def get_usernames_from_tg_ids(chat_ids) -> dict[int, str | None]:
+    """Read cached Telegram usernames without exposing numeric IDs as fallbacks."""
+    ids = [int(i) for i in chat_ids]
+    if not ids:
+        return {}
+    try:
+        cache = load_tg_user_info_cache()
+    except Exception as error:
+        logger.error(f"读取 Telegram 用户缓存失败: {error}")
+        cache = {}
+    usernames: dict[int, str | None] = {}
+    for tg_id in ids:
+        username = (cache.get(tg_id) or {}).get("username")
+        usernames[tg_id] = str(username) if username else None
+    return usernames
+
+
 def get_user_avatar_from_tg_id(chat_id: int, token=settings.TG_API_TOKEN):
     """Return a cached Telegram avatar URL."""
     user_info = get_user_info_from_tg_id(chat_id, token=token)
@@ -177,6 +194,7 @@ __all__ = [
     "get_user_info_from_tg_id",
     "get_user_name_from_tg_id",
     "get_user_names_from_tg_ids",
+    "get_usernames_from_tg_ids",
     "load_tg_user_info_cache",
     "refresh_tg_user_info",
     "refresh_tg_user_profile",

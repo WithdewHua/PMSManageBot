@@ -447,6 +447,23 @@ def test_initialization_report_cannot_cross_week(monkeypatch):
     assert _count(WheelInviteQuotaWeek) == 0
 
 
+def test_service_stats_expose_usernames_without_telegram_ids(monkeypatch):
+    raw_stats = {"users": [{"tg_id": 42, "issued": 3}], "sources": []}
+    monkeypatch.setattr(
+        service.repository.quotas, "get_stats", lambda **kwargs: raw_stats
+    )
+    monkeypatch.setattr(
+        service.telegram_profiles,
+        "get_usernames_from_tg_ids",
+        lambda tg_ids: {42: "quota_user"},
+    )
+
+    stats = service.get_invite_quota_stats()
+
+    assert stats["users"] == [{"username": "quota_user", "issued": 3}]
+    assert "tg_id" not in stats["users"][0]
+
+
 def test_ten_reads_one_quota_snapshot(monkeypatch, deterministic):
     add_user(1, credits=1000)
     _bootstrap()

@@ -6,6 +6,7 @@ from app.integrations.telegram.profiles import (
     get_user_info_from_tg_id,
     get_user_name_from_tg_id,
     get_user_names_from_tg_ids,
+    get_usernames_from_tg_ids,
     refresh_tg_user_info,
     refresh_tg_user_profile,
 )
@@ -15,6 +16,7 @@ __all__ = [
     "get_user_info_from_tg_id",
     "get_user_name_from_tg_id",
     "get_user_names_from_tg_ids",
+    "get_usernames_from_tg_ids",
     "refresh_tg_user_info",
     "refresh_tg_user_profile",
     "send_message",

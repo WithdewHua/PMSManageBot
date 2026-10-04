@@ -118,7 +118,7 @@ class LuckyWheelInviteQuotaConfig(BaseModel):
 
 
 class LuckyWheelInviteQuotaUserStats(BaseModel):
-    tg_id: int
+    username: str | None = None
     issued: int = Field(..., ge=0)
 
 

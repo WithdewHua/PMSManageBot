@@ -117,13 +117,17 @@ def test_telegram_profile_cache_is_local_read_only_and_has_string_batch_fallback
     monkeypatch.setattr(profiles.settings, "DATA_DIR", str(tmp_path))
     cache_path = profiles.settings.TG_USER_INFO_CACHE_PATH
     lock = filelock.FileLock(str(cache_path) + ".lock")
-    profiles.save_tg_user_info_cache({1: {"first_name": "Alice", "added": 1}}, lock)
+    profiles.save_tg_user_info_cache(
+        {1: {"first_name": "Alice", "username": "alice", "added": 1}}, lock
+    )
     assert profiles.get_user_info_from_tg_id(1) == {
         "first_name": "Alice",
+        "username": "alice",
         "added": 1,
     }
     assert profiles.get_user_name_from_tg_id(1) == "Alice"
     assert profiles.get_user_names_from_tg_ids([1, "2"]) == {1: "Alice", 2: "2"}
+    assert profiles.get_usernames_from_tg_ids([1, "2"]) == {1: "alice", 2: None}
     assert profiles.get_user_avatar_from_tg_id(2) is None
 
 

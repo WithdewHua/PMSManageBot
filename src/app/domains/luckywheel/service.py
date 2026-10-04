@@ -23,6 +23,7 @@ from app.domains.luckywheel.schemas import (
 )
 from app.domains.luckywheel.types import FreeSpinProgressProvider
 from app.domains.premium import service as premium_service
+from app.integrations.telegram import profiles as telegram_profiles
 
 DEFAULT_WHEEL_CONFIG = wheel_config.DEFAULT_WHEEL_CONFIG
 RandomnessConfig = luckywheel_rules.RandomnessConfig
@@ -416,7 +417,18 @@ def update_invite_quota_config(changes: dict) -> dict:
 
 
 def get_invite_quota_stats(week_start_ms: int | None = None) -> dict:
-    return repository.quotas.get_stats(week_start_ms=week_start_ms)
+    stats = repository.quotas.get_stats(week_start_ms=week_start_ms)
+    usernames = telegram_profiles.get_usernames_from_tg_ids(
+        [user["tg_id"] for user in stats["users"]]
+    )
+    stats["users"] = [
+        {
+            "username": usernames.get(user["tg_id"]),
+            "issued": user["issued"],
+        }
+        for user in stats["users"]
+    ]
+    return stats
 
 
 def get_invite_quota_initialization_report() -> dict:

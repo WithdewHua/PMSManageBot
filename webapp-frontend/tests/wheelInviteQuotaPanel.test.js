@@ -12,7 +12,7 @@ const stats = () => ({
   global_used: 24, global_limit: 30, personal_limit: 5,
   historical_issued: 24, new_issued: 0,
   global_blocked_count: 0, personal_blocked_count: 0, both_blocked_count: 0,
-  first_exhausted_at_ms: null, users: [{ tg_id: 1, issued: 4 }], sources: [],
+  first_exhausted_at_ms: null, users: [{ username: 'quota_user', issued: 4 }], sources: [],
 })
 
 function instance(overrides = {}) {
@@ -40,6 +40,9 @@ test('successful load preserves actual accounting and allows zero limit', async 
   assert.equal(state.canSave, false)
   await state.load()
   assert.equal(state.stats.global_used, 24)
+  assert.equal(state.stats.users[0].username, 'quota_user')
+  assert.equal(state.formatUsername('quota_user'), '@quota_user')
+  assert.equal(state.formatUsername(null), '未设置用户名')
   assert.equal(state.canSave, true)
   state.limits.global_weekly_limit = 0
   assert.equal(state.canSave, true)
@@ -112,6 +115,13 @@ test('saved configuration and failed statistics refresh are distinguished', asyn
   assert.match(state.notice, /已保存/)
   assert.match(state.error, /统计刷新失败/)
   assert.equal(state.stats.global_used, 24)
+})
+
+test('quota users render Telegram usernames rather than numeric IDs', () => {
+  const raw = fs.readFileSync(path.join(root, 'src/components/WheelInviteQuotaPanel.vue'), 'utf8')
+  assert.match(raw, /Telegram 用户名/)
+  assert.doesNotMatch(raw, /Telegram ID/)
+  assert.match(raw, /formatUsername\(user\.username\)/)
 })
 
 test('management and public helpers use distinct HTTP routes', async () => {

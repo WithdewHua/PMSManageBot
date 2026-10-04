@@ -20,7 +20,9 @@ def load_tg_user_info_cache() -> dict:
         return pickle.load(file)
 
 
-def save_tg_user_info_cache(cache: dict, cache_file_lock: filelock.FileLock) -> None:
+def save_tg_user_info_cache(
+    cache: dict, cache_file_lock: filelock.BaseFileLock
+) -> None:
     """Write the cache while holding its cross-process file lock."""
     with cache_file_lock, open(settings.TG_USER_INFO_CACHE_PATH, "wb") as file:
         pickle.dump(cache, file)

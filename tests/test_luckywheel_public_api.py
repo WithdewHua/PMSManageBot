@@ -108,7 +108,7 @@ def api(monkeypatch):
             "personal_blocked_count": 2,
             "both_blocked_count": 0,
             "first_exhausted_at_ms": None,
-            "users": [{"tg_id": USER, "issued": 4}],
+            "users": [{"username": "test_user", "issued": 4}],
             "sources": [
                 {"source": None, "issued": 20},
                 {"source": "paid", "issued": 4},
@@ -243,6 +243,7 @@ def test_admin_keeps_full_config_and_reads_accounting(api):
     )
     assert stats.status_code == 200
     assert stats.json()["global_used"] == 24
+    assert stats.json()["users"] == [{"username": "test_user", "issued": 4}]
     assert stats.json()["first_exhausted_at_ms"] is None
     assert stats.json()["sources"][0]["source"] is None
 

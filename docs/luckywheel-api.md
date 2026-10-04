@@ -86,7 +86,7 @@
 - `historical_issued`、`new_issued`：历史回填量与上线后新增量，两者之和应等于实际发行量。
 - `global_blocked_count`、`personal_blocked_count`、`both_blocked_count`：限额命中计数；全服/个人标志可以同时为真，汇总时不要把三个值直接相加当作独立抽奖次数。
 - `first_exhausted_at_ms`：可从证据确定的首次耗尽时间，未知时为 `null`。
-- `users`：`[{"tg_id": ..., "issued": ...}]`，按用户核对。
+- `users`：`[{"username": ..., "issued": ...}]`，按 Telegram username 核对；本地缓存没有 username 时为 `null`，前端显示“未设置用户名”，不返回 Telegram ID。
 - `sources`：`[{"source": ..., "issued": ...}]`，历史无法确定的来源保持 `null`，不要根据参与费用推断。
 
 管理读取失败应明确显示错误，不能把连接失败解释成零用量或保存成功。管理员也不能根据当前未使用邀请码库存推算剩余额度。
