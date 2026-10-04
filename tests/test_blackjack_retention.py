@@ -793,6 +793,7 @@ def test_release_freespin_restores_availability():
     assert luckywheel_repository.consume_free_spin(1) is not None  # 机会回来了
 
 
+@pytest.mark.usefixtures("initialized_luckywheel")
 async def test_free_spin_execute_skips_cost(monkeypatch):
     """免费机会走 execute_single_spin：不扣参与费、记录来源。"""
     from app.domains.luckywheel.router import (
@@ -833,6 +834,7 @@ async def test_free_spin_execute_skips_cost(monkeypatch):
         assert record.source == "blackjack_free"
 
 
+@pytest.mark.usefixtures("initialized_luckywheel")
 async def test_free_spin_negative_prize_truncates_at_zero(monkeypatch):
     """0 余额玩家的免费盘：负分奖品截断为 0，不会出现负积分。"""
     from app.domains.luckywheel.router import (
@@ -978,6 +980,7 @@ def test_user_and_admin_stats_include_relief(monkeypatch):
     assert admin_stats["net_credits"] == -105.0
 
 
+@pytest.mark.usefixtures("initialized_luckywheel")
 async def test_admin_notification_failure_does_not_break_spin(monkeypatch):
     """邀请码的管理员通知抛异常不得影响抽奖结果——否则免费机会路径会
     触发补偿释放，变成「奖品与机会双收」（review 第二轮 #1）。"""
@@ -989,7 +992,10 @@ async def test_admin_notification_failure_does_not_break_spin(monkeypatch):
     assert claimed is not None
 
     config = lw.LuckyWheelConfig(
-        items=[lw.LuckyWheelItem(name="邀请码", probability=100.0)],
+        items=[
+            lw.LuckyWheelItem(name="邀请码", probability=99.0),
+            lw.LuckyWheelItem(name="谢谢参与", probability=1.0),
+        ],
         cost_credits=10,
         min_credits_required=30,
     )
@@ -997,7 +1003,10 @@ async def test_admin_notification_failure_does_not_break_spin(monkeypatch):
     async def _boom(**kwargs):
         raise ValueError("chat_id malformed")
 
-    monkeypatch.setattr(lw, "send_message_by_url", _boom)
+    from app.domains.luckywheel import notifications, rules
+
+    monkeypatch.setattr(rules, "pick_prize", lambda items, **kwargs: items[0])
+    monkeypatch.setattr(notifications, "send_message_by_url", _boom)
     from app.core.config import settings as app_settings
 
     monkeypatch.setattr(app_settings, "TG_ADMIN_CHAT_ID", [12345], raising=False)
@@ -1110,6 +1119,7 @@ def test_consume_returns_source_and_orders_by_expiry_across_sources():
     "spin_source, wheel_source",
     [("blackjack", "blackjack_free"), ("gift_pack", "gift_pack_free")],
 )
+@pytest.mark.usefixtures("initialized_luckywheel")
 async def test_spin_records_free_spin_source(spin_source, wheel_source):
     """单次转盘按消耗到的机会来源映射参与记录的 source。"""
     from app.domains.luckywheel import router as lw
@@ -1141,6 +1151,7 @@ async def test_spin_records_free_spin_source(spin_source, wheel_source):
         assert record.source == wheel_source
 
 
+@pytest.mark.usefixtures("initialized_luckywheel")
 async def test_paid_spin_has_no_free_spin_source():
     from app.domains.luckywheel import router as lw
 

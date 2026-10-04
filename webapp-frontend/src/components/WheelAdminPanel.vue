@@ -90,6 +90,8 @@
         </v-col>
       </v-row>
 
+      <WheelInviteQuotaPanel />
+
       <!-- 转盘预览 -->
       <v-row class="mt-4 mt-sm-6">
         <v-col cols="12">
@@ -1205,12 +1207,14 @@
 
 <script>
 import LuckyWheel from '@/components/LuckyWheel.vue'
-import { getLuckyWheelRandomnessConfig, getLuckyWheelRandomnessStats, updateLuckyWheelRandomnessConfig, getLuckyWheelConfig, updateLuckyWheelConfig } from '@/services/wheelService'
+import WheelInviteQuotaPanel from './WheelInviteQuotaPanel.vue'
+import { getLuckyWheelRandomnessConfig, getLuckyWheelRandomnessStats, updateLuckyWheelRandomnessConfig, getAdminLuckyWheelConfig, updateLuckyWheelConfig } from '@/services/wheelService'
 
 export default {
   name: 'WheelAdminPanel',
   components: {
-    LuckyWheel
+    LuckyWheel,
+    WheelInviteQuotaPanel
   },
   data() {
     return {
@@ -1397,7 +1401,7 @@ export default {
 
     async loadWheelConfig() {
       try {
-        const response = await getLuckyWheelConfig()
+        const response = await getAdminLuckyWheelConfig()
         this.wheelItems = response.data.items || []
         this.wheelConfig = {
           cost_credits: response.data.cost_credits || 10,

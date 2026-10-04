@@ -52,6 +52,14 @@ def save_wheel_config(config: LuckyWheelConfig) -> bool:
 def update_wheel_config(
     config_update_request: LuckyWheelConfigUpdateRequest,
 ) -> None:
+    try:
+        luckywheel_rules.non_invite_items(config_update_request.items)
+    except ValueError as error:
+        raise luckywheel_exceptions.LuckywheelError(
+            "luckywheel.invalid_pool",
+            "奖池需要至少一个有效的非邀请码奖项",
+            status_code=400,
+        ) from error
     total_probability = sum(item.probability for item in config_update_request.items)
     if abs(total_probability - 100.0) > 0.01:
         raise luckywheel_exceptions.invalid_probability_total(total_probability)
@@ -240,10 +248,11 @@ async def spin(
 ) -> LuckyWheelSpinResult:
     """Execute a paid-or-free single spin and notify only after commit."""
     current_config = config or get_wheel_config()
+    randomness = wheel_config.get_randomness_config()
     winner = luckywheel_rules.pick_prize(
         current_config.items,
         user_id=int(tg_id),
-        randomness=wheel_config.get_randomness_config(),
+        randomness=randomness,
     )
     data = repository.spin(
         tg_id=int(tg_id),
@@ -251,6 +260,7 @@ async def spin(
         winner_name=winner.name,
         winner_probability=winner.probability,
         use_free_spin=use_free_spin,
+        randomness=randomness,
     )
     committed = _to_committed_spin(data)
     events.emit(luckywheel_events.WheelSpun(int(tg_id)))
@@ -268,10 +278,11 @@ async def execute_single_spin(
 ) -> tuple[LuckyWheelSpinResult, float, bool]:
     """Compatibility workflow for callers that already claimed a free-spin row."""
     del current_credits
+    randomness = wheel_config.get_randomness_config()
     winner = luckywheel_rules.pick_prize(
         config.items,
         user_id=int(user_id),
-        randomness=wheel_config.get_randomness_config(),
+        randomness=randomness,
     )
     data = repository.spin(
         tg_id=int(user_id),
@@ -282,6 +293,7 @@ async def execute_single_spin(
         enforce_minimum=False,
         cost_credits_override=cost_credits,
         source_override=source,
+        randomness=randomness,
     )
     committed = _to_committed_spin(data)
     await _post_commit([committed], int(user_id))
@@ -308,12 +320,10 @@ async def spin_ten_times(
         )
     ]
     data_rows = repository.spin_ten(
-        tg_id=int(tg_id), config=current_config, winners=winners
+        tg_id=int(tg_id), config=current_config, winners=winners, randomness=randomness
     )
     committed_spins = [_to_committed_spin(data) for data in data_rows]
     events.emit(luckywheel_events.WheelSpun(int(tg_id)))
-    if any(spin.privileged for spin in committed_spins):
-        current_config.gen_privileged_code = False
 
     await _post_commit(committed_spins, int(tg_id), repeat_privileged_notice=True)
     return LuckyWheelTenSpinResult(
@@ -395,3 +405,27 @@ def get_wheel_invite_code_rank() -> list[tuple[int, int]]:
 
 
 invite_code_prize_counts = get_wheel_invite_code_rank
+
+
+def get_invite_quota_config() -> dict:
+    return repository.quotas.get_config()
+
+
+def update_invite_quota_config(changes: dict) -> dict:
+    return wheel_config.INVITE_QUOTA_CONFIG.update(**changes).model_dump()
+
+
+def get_invite_quota_stats(week_start_ms: int | None = None) -> dict:
+    return repository.quotas.get_stats(week_start_ms=week_start_ms)
+
+
+def get_invite_quota_initialization_report() -> dict:
+    return repository.quotas.initialization_report()
+
+
+def initialize_invite_quotas(
+    report: dict, *, history_verified: bool, writers_stopped: bool
+) -> dict:
+    return repository.quotas.initialize(
+        report, history_verified=history_verified, writers_stopped=writers_stopped
+    )

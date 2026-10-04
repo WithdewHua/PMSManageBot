@@ -30,7 +30,7 @@ _SUSPICIOUS_SUFFIXES = (
     "user_id",
 )
 
-EXPECTED_TAGGED_NUMERIC_COUNT = 35
+EXPECTED_TAGGED_NUMERIC_COUNT = 36
 
 
 def _is_suspicious(column: ColumnType) -> bool:
@@ -152,7 +152,7 @@ def test_marked_columns_are_declared_and_owned() -> None:
 
 
 def test_tagged_numeric_column_count_and_statistics_root() -> None:
-    """Verify exact count of 35 tagged numeric TG columns and statistics root ownership."""
+    """Verify exact count of 36 tagged numeric TG columns and statistics root ownership."""
     tagged = [
         f"{table.name}.{column.name}"
         for table in Base.metadata.tables.values()

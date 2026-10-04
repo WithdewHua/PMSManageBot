@@ -1,4 +1,14 @@
-from sqlalchemy import BIGINT, CheckConstraint, Float, ForeignKey, Index, Integer, Text
+from sqlalchemy import (
+    BIGINT,
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -9,7 +19,11 @@ class WheelStats(Base):
 
     __tablename__ = "wheel_stats"
 
-    id: Mapped[int] = mapped_column(BIGINT, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        primary_key=True,
+        autoincrement=True,
+    )
     tg_id: Mapped[int] = mapped_column(
         BIGINT, index=True, nullable=False, info={"tg_id": "user"}
     )
@@ -76,4 +90,69 @@ class LuckywheelFreeSpin(Base):
             "expires_at_ms > granted_at_ms",
             name="ck_luckywheel_free_spins_expiry_after_grant",
         ),
+    )
+
+
+class WheelInviteQuotaWeek(Base):
+    """One write-locked issuance counter per Beijing natural week."""
+
+    __tablename__ = "wheel_invite_quota_week"
+
+    week_start_ms: Mapped[int] = mapped_column(
+        BIGINT, primary_key=True, autoincrement=False
+    )
+    issued: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    initialized_at_ms: Mapped[int] = mapped_column(BIGINT, nullable=False)
+    is_baseline: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    baseline_digest: Mapped[str | None] = mapped_column(Text, nullable=True)
+    baseline_cutoff_ms: Mapped[int | None] = mapped_column(BIGINT, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("issued >= 0", name="ck_wheel_invite_quota_issued"),
+    )
+
+
+class WheelInviteAudit(Base):
+    """Committed invite candidates, including historical issuance and rerolls.
+
+    Personal usage is SUM(issued) by week/tg_id; reassignment moves rows rather
+    than overwriting a unique per-user counter. No invitation code is copied.
+    """
+
+    __tablename__ = "wheel_invite_audit"
+
+    id: Mapped[int] = mapped_column(
+        BigInteger().with_variant(Integer, "sqlite"),
+        primary_key=True,
+        autoincrement=True,
+    )
+    wheel_stats_id: Mapped[int] = mapped_column(
+        BIGINT,
+        ForeignKey("wheel_stats.id"),
+        nullable=False,
+        unique=True,
+        info={"tg_id": False},
+    )
+    week_start_ms: Mapped[int] = mapped_column(
+        BIGINT, ForeignKey("wheel_invite_quota_week.week_start_ms"), nullable=False
+    )
+    tg_id: Mapped[int] = mapped_column(BIGINT, nullable=False, info={"tg_id": "user"})
+    issued: Mapped[int] = mapped_column(Integer, nullable=False)
+    source: Mapped[str | None] = mapped_column(Text, nullable=True)
+    candidate_name: Mapped[str] = mapped_column(Text, nullable=False)
+    final_name: Mapped[str] = mapped_column(Text, nullable=False)
+    global_blocked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    personal_blocked: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    global_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    personal_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    global_used_after: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    recorded_at_ms: Mapped[int] = mapped_column(BIGINT, nullable=False)
+    historical: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    privileged: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+
+    __table_args__ = (
+        Index("ix_wheel_invite_audit_week_user", "week_start_ms", "tg_id"),
+        CheckConstraint("issued IN (0, 1)", name="ck_wheel_invite_audit_issued"),
     )

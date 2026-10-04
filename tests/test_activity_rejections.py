@@ -24,6 +24,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+import pytest
 from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy import event
 from starlette.requests import Request
@@ -1510,6 +1511,7 @@ def _dump(value: dict) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
 
 
+@pytest.mark.usefixtures("initialized_luckywheel")
 async def test_activity_rejections(monkeypatch) -> None:
     _install_noops(monkeypatch)
     _seed()

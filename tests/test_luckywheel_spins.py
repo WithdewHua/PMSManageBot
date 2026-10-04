@@ -84,6 +84,10 @@ def _config(**overrides) -> LuckyWheelConfig:
 @pytest.fixture
 def wheel_env(monkeypatch):
     """统一的替身：外部通知、媒体同步、配置读写、邀请码生成。"""
+    report = luckywheel_service.get_invite_quota_initialization_report()
+    luckywheel_service.initialize_invite_quotas(
+        report, history_verified=True, writers_stopped=True
+    )
 
     async def _noop(*args, **kwargs):
         return None

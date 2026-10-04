@@ -16,6 +16,7 @@ from app.domains.tg_rebind.constants import ENCODED_TG_ID_LOCATIONS
 DEFAULT_OLD_TG_ID = 101
 DEFAULT_NEW_TG_ID = 202
 DEFAULT_ADMIN_TG_ID = 9001
+QUOTA_WEEK_START_MS = int(datetime(2026, 3, 29, 16, tzinfo=UTC).timestamp() * 1000)
 
 # Table insertion order respecting foreign key constraints
 TABLE_INSERTION_ORDER: tuple[str, ...] = (
@@ -49,6 +50,7 @@ TABLE_INSERTION_ORDER: tuple[str, ...] = (
     "vaultwarden_redeem_records",
     "watch_reward_settlement",
     "wheel_stats",
+    "wheel_invite_audit",
 )
 
 
@@ -451,12 +453,27 @@ def _wheel_stats_override(old: int, new: int, admin: int) -> dict[str, Any]:
     return {
         "id": 101,
         "tg_id": old,
-        "item_name": "credits_10",
+        "item_name": "邀请码 1 枚",
         "cost_credits": 10.0,
-        "credits_change": 10.0,
-        "timestamp": 1000,
-        "date": "2026-04-01",
+        "credits_change": 0.0,
+        "timestamp": QUOTA_WEEK_START_MS // 1000 + 1000,
+        "date": "2026-03-30",
         "source": "paid",
+    }
+
+
+def _wheel_invite_audit_override(old: int, new: int, admin: int) -> dict[str, Any]:
+    return {
+        "id": 101,
+        "wheel_stats_id": 101,
+        "week_start_ms": QUOTA_WEEK_START_MS,
+        "tg_id": old,
+        "issued": 1,
+        "source": "paid",
+        "candidate_name": "邀请码 1 枚",
+        "final_name": "邀请码 1 枚",
+        "recorded_at_ms": QUOTA_WEEK_START_MS + 1_000_000,
+        "historical": True,
     }
 
 
@@ -488,6 +505,7 @@ TABLE_OVERRIDES: dict[str, Callable[[int, int, int], dict[str, Any]]] = {
     "vaultwarden_redeem_records": _vaultwarden_redeem_records_override,
     "watch_reward_settlement": _watch_reward_settlement_override,
     "wheel_stats": _wheel_stats_override,
+    "wheel_invite_audit": _wheel_invite_audit_override,
 }
 
 
@@ -579,6 +597,19 @@ def seed_rebind_fixtures(
             is_enabled=1,
             created_at=1000,
             updated_at=1000,
+        )
+    )
+
+    # Quota week has no TG column but is the audit row's required parent.
+    session.execute(
+        Base.metadata.tables["wheel_invite_quota_week"]
+        .insert()
+        .values(
+            week_start_ms=QUOTA_WEEK_START_MS,
+            issued=1,
+            initialized_at_ms=QUOTA_WEEK_START_MS + 2_000_000,
+            is_baseline=True,
+            baseline_digest="fixture-only",
         )
     )
 

@@ -114,6 +114,17 @@ def session_env():
 
 
 @pytest.fixture
+def initialized_luckywheel(session_env):
+    """Opt in to a verified empty baseline; uninitialized failure tests stay explicit."""
+    from app.domains.luckywheel import service
+
+    report = service.get_invite_quota_initialization_report()
+    return service.initialize_invite_quotas(
+        report, history_verified=True, writers_stopped=True
+    )
+
+
+@pytest.fixture
 def business_config(session_env):
     """Create isolated DomainConfig declarations backed by the test database."""
     from app.core.domain_config import DomainConfig

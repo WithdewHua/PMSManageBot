@@ -36,8 +36,11 @@ EXPECTED_HANDLER_CALLBACKS = [
 
 def test_api_route_and_openapi_surfaces_are_assembled():
     surface = _route_surface(current_app)
-    assert len(surface) == 218
+    assert len(surface) == 222
     assert {
+        "/api/luckywheel/admin/config",
+        "/api/luckywheel/admin/invite-quotas",
+        "/api/luckywheel/admin/invite-quota-stats",
         "/api/admin/settings/credits-cost-per-10gb",
         "/api/admin/settings/nsfw-libs",
         "/api/admin/settings/donation-multiplier",

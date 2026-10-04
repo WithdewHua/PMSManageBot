@@ -6,6 +6,8 @@ import re
 import secrets
 import time
 from dataclasses import dataclass
+from datetime import datetime, timedelta, tzinfo
+from typing import cast
 
 from app.domains.luckywheel.schemas import LuckyWheelItem
 
@@ -53,7 +55,7 @@ def pick_prize(
     Both a list of items and a ``LuckyWheelConfig``-like object are accepted so
     callers can keep configuration loading outside this pure rules module.
     """
-    items = getattr(items, "items", items)
+    items = cast(list[LuckyWheelItem], getattr(items, "items", items))
     if not items:
         raise ValueError("奖品列表不能为空")
 
@@ -128,3 +130,24 @@ __all__ = [
     "pick_prize",
     "prize_effects",
 ]
+
+
+def natural_week_start_ms(now_ms: int, timezone: tzinfo) -> int:
+    """Return Monday midnight in the explicitly supplied business timezone."""
+    now = datetime.fromtimestamp(now_ms / 1000, timezone)
+    monday = (now - timedelta(days=now.weekday())).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    return int(monday.timestamp() * 1000)
+
+
+def non_invite_items(items: list[LuckyWheelItem]) -> list[LuckyWheelItem]:
+    """Filter using actual prize effects, never a single display-name match."""
+    remaining = [
+        item
+        for item in items
+        if item.probability > 0 and not prize_effects(item).invite_codes
+    ]
+    if not remaining:
+        raise ValueError("奖池需要至少一个有效的非邀请码奖项")
+    return remaining

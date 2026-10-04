@@ -120,3 +120,19 @@ __all__ = [
     "save_randomness_config",
     "save_wheel_config",
 ]
+
+
+class InviteQuotaConfigModel(BaseModel):
+    """Hard issuance limits, separate from the user-visible wheel document."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    global_weekly_limit: int = Field(default=30, ge=0, le=2_147_483_647, strict=True)
+    personal_weekly_limit: int = Field(default=5, ge=0, le=2_147_483_647, strict=True)
+
+
+INVITE_QUOTA_CONFIG_KEY = "invite_quotas"
+INVITE_QUOTA_CONFIG = DomainConfig(
+    "luckywheel.invite_quotas",
+    InviteQuotaConfigModel,
+    JsonDocument(CONFIG_TYPE, INVITE_QUOTA_CONFIG_KEY),
+)

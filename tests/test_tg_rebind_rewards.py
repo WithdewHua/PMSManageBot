@@ -39,6 +39,7 @@ def test_reassigned_tg_id_columns_registry():
     assert luckywheel_repository.REASSIGNED_TG_ID_COLUMNS == (
         "wheel_stats.tg_id",
         "luckywheel_free_spins.tg_id",
+        "wheel_invite_audit.tg_id",
     )
     assert gift_pack_repository.REASSIGNED_TG_ID_COLUMNS == (
         "gift_pack.created_by",
@@ -463,6 +464,7 @@ def test_luckywheel_check_and_reassign(session_env):
         assert counts == {
             "wheel_stats.tg_id": 2,
             "luckywheel_free_spins.tg_id": 1,
+            "wheel_invite_audit.tg_id": 0,
         }
 
         # Verify DB updates

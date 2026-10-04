@@ -42,7 +42,7 @@ def test_rebind_new_id_all_columns_and_counts(backend_name: str) -> None:
         assert report.old_tg_id == DEFAULT_OLD_TG_ID
         assert report.new_tg_id == DEFAULT_NEW_TG_ID
         assert report.dry_run is False
-        assert report.total_rows == 42
+        assert report.total_rows == 43
 
         # Verify exact domain counts
         assert report.counts["credits"] == {"statistics.credits": 1}
@@ -60,6 +60,7 @@ def test_rebind_new_id_all_columns_and_counts(backend_name: str) -> None:
         assert report.counts["luckywheel"] == {
             "wheel_stats.tg_id": 1,
             "luckywheel_free_spins.tg_id": 1,
+            "wheel_invite_audit.tg_id": 1,
         }
 
         # Verify no old residues remain
@@ -104,7 +105,7 @@ def test_rebind_merge_existing_balances_sum(backend_name: str) -> None:
             session.commit()
 
         report = rebind_service.rebind(DEFAULT_NEW_TG_ID, from_tg_id=DEFAULT_OLD_TG_ID)
-        assert report.total_rows == 42
+        assert report.total_rows == 43
 
         with backend.sessions() as session:
             assert_no_old_tg_id_residues(session, DEFAULT_OLD_TG_ID)
@@ -132,7 +133,7 @@ def test_rebind_negative_credits_overdraft(backend_name: str) -> None:
             session.commit()
 
         report = rebind_service.rebind(DEFAULT_NEW_TG_ID, from_tg_id=DEFAULT_OLD_TG_ID)
-        assert report.total_rows == 42
+        assert report.total_rows == 43
 
         with backend.sessions() as session:
             stat = session.get(Statistics, DEFAULT_NEW_TG_ID)
@@ -155,7 +156,7 @@ def test_rebind_dry_run_leaves_database_and_caches_unchanged(
         )
 
         assert dry_report.dry_run is True
-        assert dry_report.total_rows == 42
+        assert dry_report.total_rows == 43
         assert dry_report.old_tg_id == DEFAULT_OLD_TG_ID
         assert dry_report.new_tg_id == DEFAULT_NEW_TG_ID
 
@@ -215,7 +216,7 @@ def test_rebind_case_insensitive_media_locators(backend_name: str) -> None:
         report1 = rebind_service.rebind(
             DEFAULT_NEW_TG_ID, plex_email="PLEX_101@EXAMPLE.COM"
         )
-        assert report1.total_rows == 42
+        assert report1.total_rows == 43
         assert report1.old_tg_id == DEFAULT_OLD_TG_ID
 
         # Prepare for second test: locate by uppercase Emby username
@@ -227,7 +228,7 @@ def test_rebind_case_insensitive_media_locators(backend_name: str) -> None:
             session.commit()
 
         report2 = rebind_service.rebind(303, emby_username="EMBY_USER_101")
-        assert report2.total_rows == 42
+        assert report2.total_rows == 43
         assert report2.old_tg_id == DEFAULT_NEW_TG_ID
 
 
@@ -445,3 +446,69 @@ def test_fixture_automatically_covers_new_marked_field_in_existing_table() -> No
     finally:
         # Remove dynamically added column from table
         table._columns.remove(new_col)
+
+
+@pytest.mark.parametrize("backend_name", BACKEND_NAMES)
+def test_rebind_merges_invite_quota_history_without_new_budget(
+    backend_name: str,
+) -> None:
+    from sqlalchemy import func, update
+
+    from app.domains.luckywheel.models import (
+        WheelInviteAudit,
+        WheelInviteQuotaWeek,
+        WheelStats,
+    )
+    from tests.tg_rebind_fixture import QUOTA_WEEK_START_MS
+
+    with rebind_backend(backend_name) as backend:
+        with backend.sessions() as session:
+            seed_rebind_fixtures(session, seed_new_stats=True)
+            for row_id, tg_id in [
+                (102, DEFAULT_OLD_TG_ID),
+                (103, DEFAULT_OLD_TG_ID),
+                (104, DEFAULT_NEW_TG_ID),
+                (105, DEFAULT_NEW_TG_ID),
+            ]:
+                session.add(
+                    WheelStats(
+                        id=row_id,
+                        tg_id=tg_id,
+                        item_name="邀请码 1 枚",
+                        cost_credits=10,
+                        credits_change=0,
+                        timestamp=QUOTA_WEEK_START_MS // 1000 + 1000,
+                        date="2026-03-30",
+                        source="paid",
+                    )
+                )
+                session.flush()
+                session.add(
+                    WheelInviteAudit(
+                        id=row_id,
+                        wheel_stats_id=row_id,
+                        week_start_ms=QUOTA_WEEK_START_MS,
+                        tg_id=tg_id,
+                        issued=1,
+                        source="paid",
+                        candidate_name="邀请码 1 枚",
+                        final_name="邀请码 1 枚",
+                        recorded_at_ms=QUOTA_WEEK_START_MS + 1_000_000,
+                        historical=True,
+                    )
+                )
+            session.execute(update(WheelInviteQuotaWeek).values(issued=5))
+            session.commit()
+        report = rebind_service.rebind(DEFAULT_NEW_TG_ID, from_tg_id=DEFAULT_OLD_TG_ID)
+        assert report.counts["luckywheel"]["wheel_invite_audit.tg_id"] == 3
+        with backend.sessions() as session:
+            assert_no_old_tg_id_residues(session, DEFAULT_OLD_TG_ID)
+            assert (
+                session.scalar(
+                    select(func.sum(WheelInviteAudit.issued)).where(
+                        WheelInviteAudit.tg_id == DEFAULT_NEW_TG_ID,
+                    )
+                )
+                == 5
+            )
+            assert session.scalar(select(WheelInviteQuotaWeek.issued)) == 5

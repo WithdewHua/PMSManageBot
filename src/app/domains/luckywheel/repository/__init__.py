@@ -1,10 +1,11 @@
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from math import isfinite
+from typing import Any, cast
 
 from sqlalchemy import func, select, update
+from sqlalchemy.engine import CursorResult
 
-from app.core import kv as core_kv
 from app.core.config import settings
 from app.core.db import get_session
 from app.core.kv import SystemConfig
@@ -21,7 +22,12 @@ from app.domains.luckywheel.exceptions import (
     ten_spin_insufficient_credits,
     user_not_found,
 )
-from app.domains.luckywheel.models import LuckywheelFreeSpin, WheelStats
+from app.domains.luckywheel.models import (
+    LuckywheelFreeSpin,
+    WheelInviteAudit,
+    WheelStats,
+)
+from app.domains.luckywheel.repository import quotas
 from app.domains.luckywheel.types import FreeSpinProgressProvider
 from app.domains.premium import repository as premium_repository
 
@@ -29,6 +35,7 @@ FREE_SPIN_SOURCES = frozenset({"blackjack", "gift_pack"})
 REASSIGNED_TG_ID_COLUMNS: tuple[str, ...] = (
     "wheel_stats.tg_id",
     "luckywheel_free_spins.tg_id",
+    "wheel_invite_audit.tg_id",
 )
 _free_spin_progress_provider: FreeSpinProgressProvider | None = None
 
@@ -125,20 +132,20 @@ def add_wheel_spin_record_tx(
     credits_change: float,
     cost_credits: float,
     source: str = "paid",
-) -> None:
-    """Append a wheel-statistics row to the caller's transaction."""
-    session.add(
-        WheelStats(
-            tg_id=int(tg_id),
-            item_name=item_name,
-            cost_credits=float(cost_credits),
-            credits_change=float(credits_change),
-            timestamp=int(time.time()),
-            date=datetime.now(settings.TZ).strftime("%Y-%m-%d"),
-            source=source,
-        )
+) -> WheelStats:
+    """Append a wheel-statistics row and return its flushed audit anchor."""
+    record = WheelStats(
+        tg_id=int(tg_id),
+        item_name=item_name,
+        cost_credits=float(cost_credits),
+        credits_change=float(credits_change),
+        timestamp=int(time.time()),
+        date=datetime.now(settings.TZ).strftime("%Y-%m-%d"),
+        source=source,
     )
+    session.add(record)
     session.flush()
+    return record
 
 
 def spin_tx(
@@ -152,8 +159,15 @@ def spin_tx(
     enforce_minimum: bool = True,
     cost_credits_override: float | None = None,
     source_override: str | None = None,
+    randomness: dict | None = None,
+    _quota_context: quotas.QuotaContext | None = None,
 ) -> dict:
     """Execute one complete spin inside the caller-owned transaction."""
+    quota_context = _quota_context or quotas.prepare_tx(
+        session, config, randomness=randomness
+    )
+    candidate_name = winner_name
+    quota_decision = None
     free_spin = consume_free_spin_tx(session, tg_id) if use_free_spin else None
     balance_before, _ = credits_repository.get_tx(
         session, CreditAccount.tg(int(tg_id)), for_update=True
@@ -185,6 +199,18 @@ def spin_tx(
         free_spin_source = str(free_spin.get("source") or "blackjack")
 
     effects = luckywheel_rules.prize_effects(winner_name, balance_after_cost)
+    if effects.invite_codes:
+        quota_decision = quotas.reserve_tx(session, quota_context, int(tg_id))
+        if not quota_decision["allowed"]:
+            replacement = luckywheel_rules.pick_prize(
+                quota_context.fallback,
+                user_id=int(tg_id),
+                randomness=quota_context.randomness,
+            )
+            winner_name, winner_probability = replacement.name, replacement.probability
+            effects = luckywheel_rules.prize_effects(replacement, balance_after_cost)
+            if effects.invite_codes:
+                raise quotas.unavailable()
     privileged = False
     issued_codes: list[str] = []
     if effects.invite_codes:
@@ -193,6 +219,8 @@ def spin_tx(
         issued_codes = invitation_repository.issue_codes_tx(
             session, int(tg_id), effects.invite_codes, privileged=privileged
         )
+        if len(issued_codes) != effects.invite_codes:
+            raise quotas.unavailable()
     premium_services: list[str] = []
     if effects.premium_days:
         for service in ("plex", "emby"):
@@ -216,7 +244,7 @@ def spin_tx(
             session, CreditAccount.tg(int(tg_id)), -actual_credits_change
         )
 
-    add_wheel_spin_record_tx(
+    record = add_wheel_spin_record_tx(
         session,
         int(tg_id),
         winner_name,
@@ -224,6 +252,15 @@ def spin_tx(
         cost_credits,
         source,
     )
+    if quota_decision is not None:
+        quotas.record_tx(
+            session,
+            context=quota_context,
+            decision=quota_decision,
+            record=record,
+            candidate_name=candidate_name,
+            privileged=privileged,
+        )
     final_credits, _ = credits_repository.get_tx(
         session, CreditAccount.tg(int(tg_id)), for_update=True
     )
@@ -253,6 +290,8 @@ def spin(
     enforce_minimum: bool = True,
     cost_credits_override: float | None = None,
     source_override: str | None = None,
+    randomness: dict | None = None,
+    _quota_context: quotas.QuotaContext | None = None,
 ) -> dict:
     """Repository-owned transaction wrapper for a complete single spin."""
     try:
@@ -267,6 +306,8 @@ def spin(
                 enforce_minimum=enforce_minimum,
                 cost_credits_override=cost_credits_override,
                 source_override=source_override,
+                randomness=randomness,
+                _quota_context=_quota_context,
             )
     except ValueError as error:
         if error.__class__.__name__ == "CreditAccountNotFound":
@@ -279,10 +320,12 @@ def spin_ten(
     tg_id: int,
     config,
     winners: list[tuple[str, float]],
+    randomness: dict | None = None,
 ) -> list[dict]:
     """Run ten paid spins in one repository-owned transaction."""
     try:
         with get_session() as session:
+            quota_context = quotas.prepare_tx(session, config, randomness=randomness)
             balance, _ = credits_repository.get_tx(
                 session, CreditAccount.tg(int(tg_id)), for_update=True
             )
@@ -300,6 +343,7 @@ def spin_ten(
                     winner_probability=probability,
                     use_free_spin=False,
                     enforce_minimum=False,
+                    _quota_context=quota_context,
                 )
                 for name, probability in winners
             ]
@@ -345,7 +389,7 @@ def release_free_spin(spin_id: int, *, claimed_at_ms: int) -> bool:
                 )
                 .values(used_at_ms=None)
             )
-            return released.rowcount == 1
+            return cast(CursorResult[Any], released).rowcount == 1
     except Exception as exc:
         logger.error(f"归还免费大转盘机会失败 (spin_id={spin_id}): {exc}")
         return False
@@ -416,313 +460,9 @@ def grant_free_spins(
         )
 
 
-class LuckywheelRepository:
-    def add_wheel_spin_record(
-        self,
-        tg_id: int,
-        item_name: str,
-        credits_change: float,
-        cost_credits: float,
-        source: str = "paid",
-    ) -> bool:
-        """记录转盘旋转记录。
+from app.domains.luckywheel.repository import statistics as _statistics
 
-        source 区分参与来源：'paid'（正常付费）/ 'blackjack_free'
-        （21 点打满手数获得的免费机会）/ 'gift_pack_free'（礼包发放的免费机会）。免费机会的发放成本需要可审计，
-        不能只靠 cost_credits=0 判断——管理员把参与费调为 0 后两者会混同。
-        """
-        try:
-            with get_session() as session:
-                timestamp = int(time.time())
-                date = datetime.now(settings.TZ).strftime("%Y-%m-%d")
-
-                wheel_record = WheelStats(
-                    tg_id=tg_id,
-                    item_name=item_name,
-                    cost_credits=cost_credits,
-                    credits_change=credits_change,
-                    timestamp=timestamp,
-                    date=date,
-                    source=source,
-                )
-                session.add(wheel_record)
-                return True
-        except Exception as e:
-            logger.error(f"Error adding wheel spin record: {e}")
-            return False
-
-    def get_wheel_stats(self) -> dict:
-        """获取转盘统计数据"""
-        try:
-            with get_session() as session:
-                today = datetime.now(settings.TZ).strftime("%Y-%m-%d")
-                week_ago = (datetime.now(settings.TZ) - timedelta(days=7)).strftime(
-                    "%Y-%m-%d"
-                )
-
-                # 总抽奖次数
-                total_spins = session.execute(
-                    select(func.count(WheelStats.id))
-                ).scalar()
-
-                # 参与用户数（去重）
-                active_users = session.execute(
-                    select(func.count(func.distinct(WheelStats.tg_id)))
-                ).scalar()
-
-                # 今日抽奖次数
-                today_spins = session.execute(
-                    select(func.count(WheelStats.id)).where(WheelStats.date == today)
-                ).scalar()
-
-                # 本周抽奖次数
-                week_spins = session.execute(
-                    select(func.count(WheelStats.id)).where(WheelStats.date >= week_ago)
-                ).scalar()
-
-                # 转盘总积分变化
-                total_credits_change = (
-                    session.execute(
-                        select(func.sum(WheelStats.credits_change))
-                    ).scalar()
-                    or 0.0
-                )
-
-                # 转盘参与总消耗积分
-                total_cost_credits = (
-                    session.execute(select(func.sum(WheelStats.cost_credits))).scalar()
-                    or 0.0
-                )
-
-                # 总邀请码发放数
-                total_invite_codes = (
-                    session.execute(
-                        select(func.count(WheelStats.id)).where(
-                            WheelStats.item_name == "邀请码 1 枚"
-                        )
-                    ).scalar()
-                    or 0
-                )
-
-                return {
-                    "totalSpins": total_spins,
-                    "activeUsers": active_users,
-                    "todaySpins": today_spins,
-                    "lastWeekSpins": week_spins,
-                    "totalCreditsChange": float(total_credits_change),
-                    "totalCostCredits": float(total_cost_credits),
-                    "totalInviteCodes": total_invite_codes,
-                }
-        except Exception as e:
-            logger.error(f"Error getting wheel stats: {e}")
-            return {
-                "totalSpins": 0,
-                "activeUsers": 0,
-                "todaySpins": 0,
-                "lastWeekSpins": 0,
-                "totalCreditsChange": 0.0,
-                "totalCostCredits": 0.0,
-                "totalInviteCodes": 0,
-            }
-
-    def get_user_wheel_stats(self, tg_id: int) -> dict:
-        """获取用户个人转盘统计数据"""
-        try:
-            with get_session() as session:
-                today = datetime.now(settings.TZ).strftime("%Y-%m-%d")
-                week_ago = (datetime.now(settings.TZ) - timedelta(days=7)).strftime(
-                    "%Y-%m-%d"
-                )
-
-                # 用户今日游戏次数
-                today_spins = session.execute(
-                    select(func.count(WheelStats.id)).where(
-                        WheelStats.tg_id == tg_id, WheelStats.date == today
-                    )
-                ).scalar()
-
-                # 用户总游戏次数
-                total_spins = session.execute(
-                    select(func.count(WheelStats.id)).where(WheelStats.tg_id == tg_id)
-                ).scalar()
-
-                # 用户本周游戏次数
-                week_spins = session.execute(
-                    select(func.count(WheelStats.id)).where(
-                        WheelStats.tg_id == tg_id, WheelStats.date >= week_ago
-                    )
-                ).scalar()
-
-                # 用户总积分变化
-                total_credits_change = (
-                    session.execute(
-                        select(func.sum(WheelStats.credits_change)).where(
-                            WheelStats.tg_id == tg_id
-                        )
-                    ).scalar()
-                    or 0.0
-                )
-
-                # 用户总参与消耗积分
-                total_cost_credits = (
-                    session.execute(
-                        select(func.sum(WheelStats.cost_credits)).where(
-                            WheelStats.tg_id == tg_id
-                        )
-                    ).scalar()
-                    or 0.0
-                )
-
-                # 用户今日积分变化
-                today_credits_change = (
-                    session.execute(
-                        select(func.sum(WheelStats.credits_change)).where(
-                            WheelStats.tg_id == tg_id, WheelStats.date == today
-                        )
-                    ).scalar()
-                    or 0.0
-                )
-
-                # 用户今日参与消耗积分
-                today_cost_credits = (
-                    session.execute(
-                        select(func.sum(WheelStats.cost_credits)).where(
-                            WheelStats.tg_id == tg_id, WheelStats.date == today
-                        )
-                    ).scalar()
-                    or 0.0
-                )
-
-                # 用户本周积分变化
-                week_credits_change = (
-                    session.execute(
-                        select(func.sum(WheelStats.credits_change)).where(
-                            WheelStats.tg_id == tg_id, WheelStats.date >= week_ago
-                        )
-                    ).scalar()
-                    or 0.0
-                )
-
-                # 用户本周参与消耗积分
-                week_cost_credits = (
-                    session.execute(
-                        select(func.sum(WheelStats.cost_credits)).where(
-                            WheelStats.tg_id == tg_id, WheelStats.date >= week_ago
-                        )
-                    ).scalar()
-                    or 0.0
-                )
-
-                # 用户获得的邀请码数量
-                invite_codes_earned = session.execute(
-                    select(func.count(WheelStats.id)).where(
-                        WheelStats.tg_id == tg_id, WheelStats.item_name == "邀请码 1 枚"
-                    )
-                ).scalar()
-
-                # 用户今日获得的邀请码数量
-                today_invite_codes = session.execute(
-                    select(func.count(WheelStats.id)).where(
-                        WheelStats.tg_id == tg_id,
-                        WheelStats.item_name == "邀请码 1 枚",
-                        WheelStats.date == today,
-                    )
-                ).scalar()
-
-                # 用户本周获得的邀请码数量
-                week_invite_codes = session.execute(
-                    select(func.count(WheelStats.id)).where(
-                        WheelStats.tg_id == tg_id,
-                        WheelStats.item_name == "邀请码 1 枚",
-                        WheelStats.date >= week_ago,
-                    )
-                ).scalar()
-
-                # 最近5次游戏记录
-                stmt = (
-                    select(
-                        WheelStats.item_name,
-                        WheelStats.cost_credits,
-                        WheelStats.credits_change,
-                        WheelStats.date,
-                        WheelStats.timestamp,
-                    )
-                    .where(WheelStats.tg_id == tg_id)
-                    .order_by(WheelStats.timestamp.desc())
-                    .limit(5)
-                )
-                recent_games_result = session.execute(stmt).fetchall()
-
-                recent_games_list = [
-                    {
-                        "item_name": game[0],
-                        "cost_credits": float(game[1] or 0),
-                        "credits_change": game[2],
-                        "date": game[3],
-                        "timestamp": game[4],
-                    }
-                    for game in recent_games_result
-                ]
-
-                return {
-                    "today_spins": today_spins,
-                    "total_spins": total_spins,
-                    "week_spins": week_spins,
-                    "total_credits_change": float(total_credits_change),
-                    "today_credits_change": float(today_credits_change),
-                    "week_credits_change": float(week_credits_change),
-                    "total_cost_credits": float(total_cost_credits),
-                    "today_cost_credits": float(today_cost_credits),
-                    "week_cost_credits": float(week_cost_credits),
-                    "total_invite_codes": invite_codes_earned,
-                    "today_invite_codes": today_invite_codes,
-                    "week_invite_codes": week_invite_codes,
-                    "recent_games": recent_games_list,
-                }
-        except Exception as e:
-            logger.error(f"Error getting user wheel stats: {e}")
-            return {
-                "today_spins": 0,
-                "total_spins": 0,
-                "week_spins": 0,
-                "total_credits_change": 0.0,
-                "today_credits_change": 0.0,
-                "week_credits_change": 0.0,
-                "total_cost_credits": 0.0,
-                "today_cost_credits": 0.0,
-                "week_cost_credits": 0.0,
-                "total_invite_codes": 0,
-                "today_invite_codes": 0,
-                "week_invite_codes": 0,
-                "recent_games": [],
-            }
-
-    def get_lucky_wheel_config(self, config_key: str = "config") -> str | None:
-        """
-        获取幸运大转盘配置
-
-        Args:
-            config_key: 配置键 (config 或 randomness_config)
-
-        Returns:
-            配置的 JSON 字符串
-        """
-        return core_kv.get("lucky_wheel", config_key)
-
-    def set_lucky_wheel_config(self, config_key: str, config_json: str) -> bool:
-        """
-        设置幸运大转盘配置
-
-        Args:
-            config_key: 配置键 (config 或 randomness_config)
-            config_json: 配置的 JSON 字符串
-
-        Returns:
-            是否成功
-        """
-        core_kv.upsert("lucky_wheel", config_key, config_json)
-        return True
-
+LuckywheelRepository = _statistics.LuckywheelRepository
 
 _repository = LuckywheelRepository()
 
@@ -926,7 +666,13 @@ def reassign_tg_id_tx(session, old_tg_id: int, new_tg_id: int) -> dict[str, int]
         .where(LuckywheelFreeSpin.tg_id == int(old_tg_id))
         .values(tg_id=int(new_tg_id))
     )
+    res_audit = session.execute(
+        update(WheelInviteAudit)
+        .where(WheelInviteAudit.tg_id == int(old_tg_id))
+        .values(tg_id=int(new_tg_id))
+    )
     return {
+        "wheel_invite_audit.tg_id": res_audit.rowcount,
         "wheel_stats.tg_id": res_stats.rowcount,
         "luckywheel_free_spins.tg_id": res_free_spins.rowcount,
     }

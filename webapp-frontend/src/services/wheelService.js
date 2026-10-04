@@ -92,3 +92,15 @@ export const getWheelConfigStats = async () => {
 export const getUserActivityStats = () => {
   return apiClient.get('/api/luckywheel/user-activity-stats')
 }
+
+
+// Administrator-only reads must never replace the ordinary wheel getter.
+export const getAdminLuckyWheelConfig = () => apiClient.get('/api/luckywheel/admin/config')
+
+export const getLuckyWheelInviteQuotas = () => apiClient.get('/api/luckywheel/admin/invite-quotas')
+
+export const updateLuckyWheelInviteQuotas = (config) => apiClient.put('/api/luckywheel/admin/invite-quotas', config)
+
+export const getLuckyWheelInviteQuotaStats = (weekStartMs) => apiClient.get('/api/luckywheel/admin/invite-quota-stats', {
+  params: { week_start_ms: weekStartMs },
+})

@@ -12,7 +12,11 @@ from app.domains.crypto_donation.config import CRYPTO_DONATION_CONFIG
 from app.domains.donation.config import DONATION_CONFIG
 from app.domains.invitation.config import INVITATION_CONFIG
 from app.domains.lines.config import LINES_CONFIG
-from app.domains.luckywheel.config import RANDOMNESS_CONFIG, WHEEL_CONFIG
+from app.domains.luckywheel.config import (
+    INVITE_QUOTA_CONFIG,
+    RANDOMNESS_CONFIG,
+    WHEEL_CONFIG,
+)
 from app.domains.media_access.config import MEDIA_ACCESS_CONFIG
 from app.domains.premium.config import PREMIUM_CONFIG
 from app.domains.traffic.config import TRAFFIC_CONFIG
@@ -32,6 +36,7 @@ CONFIGS: tuple[DomainConfig, ...] = (
     BLACKJACK_CONFIG,
     WHEEL_CONFIG,
     RANDOMNESS_CONFIG,
+    INVITE_QUOTA_CONFIG,
     BADGE_CENTER_CONFIG,
 )
 
@@ -60,7 +65,9 @@ LEGACY_ENV = _bind_legacy_sources()
 def seed_all() -> list[SeedReport]:
     """Seed missing configuration rows without overwriting existing values."""
     LEGACY_ENV.warn_migrated_keys()
-    reports = [config.seed() for config in CONFIGS]
+    # Quota defaults are created by its owning repository only before the first
+    # ledger initialization. Startup must not replace lost restrictive limits.
+    reports = [config.seed() for config in CONFIGS if config is not INVITE_QUOTA_CONFIG]
     for report in reports:
         if report.inserted:
             from app.core.log import logger

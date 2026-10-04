@@ -1,12 +1,21 @@
 import time
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    status,
+)
 from fastapi.responses import JSONResponse
 
 from app.core.log import logger
 from app.domains.luckywheel import constants as luckywheel_constants
 from app.domains.luckywheel import exceptions as luckywheel_exceptions
 from app.domains.luckywheel import notifications as luckywheel_notifications
+from app.domains.luckywheel import schemas as luckywheel_schemas
 from app.domains.luckywheel import service as luckywheel_service
 from app.domains.luckywheel.schemas import (
     LuckyWheelConfig,
@@ -63,8 +72,8 @@ async def execute_single_spin(
         luckywheel_notifications.send_message_by_url = previous
 
 
-@router.get("/config", response_model=LuckyWheelConfig)
-async def get_config():
+@router.get("/config", response_model=luckywheel_schemas.PublicLuckyWheelConfig)
+async def get_config() -> LuckyWheelConfig:
     """获取转盘配置"""
     try:
         return luckywheel_service.get_wheel_config()
@@ -123,13 +132,13 @@ async def get_free_spins(
     )
 
 
-@router.post("/spin", response_model=LuckyWheelSpinResult)
+@router.post("/spin", response_model=luckywheel_schemas.PublicLuckyWheelSpinResult)
 @require_telegram_auth
 async def spin_wheel(
     request: Request,
     background_tasks: BackgroundTasks,
     current_user: TelegramUser = Depends(get_telegram_user),
-):
+) -> LuckyWheelSpinResult:
     """转动转盘。数据库工作与奖励发放由 luckywheel service 原子完成。"""
     try:
         user_id = int(current_user.id)
@@ -137,7 +146,7 @@ async def spin_wheel(
             user_id, config=luckywheel_service.get_wheel_config()
         )
         logger.info(
-            f"用户 {get_user_name_from_tg_id(user_id)} 转盘结果: "
+            f"用户 {user_id} 转盘结果: "
             f"{spin_result.item.name}, 积分变化: {spin_result.credits_change}, "
             f"最终积分: {spin_result.current_credits}"
         )
@@ -155,13 +164,15 @@ async def spin_wheel(
         )
 
 
-@router.post("/spin-ten", response_model=LuckyWheelTenSpinResult)
+@router.post(
+    "/spin-ten", response_model=luckywheel_schemas.PublicLuckyWheelTenSpinResult
+)
 @require_telegram_auth
 async def spin_wheel_ten_times(
     request: Request,
     background_tasks: BackgroundTasks,
     current_user: TelegramUser = Depends(get_telegram_user),
-):
+) -> LuckyWheelTenSpinResult:
     """转盘十连抽；十次抽奖共享一个数据库事务。"""
     try:
         user_id = int(current_user.id)
@@ -169,7 +180,7 @@ async def spin_wheel_ten_times(
             user_id, config=luckywheel_service.get_wheel_config()
         )
         logger.info(
-            f"用户 {get_user_name_from_tg_id(user_id)} 十连抽完成, "
+            f"用户 {user_id} 十连抽完成, "
             f"总积分变化: {result.total_credits_change}, "
             f"最终积分: {result.current_credits}"
         )
@@ -343,3 +354,96 @@ async def get_user_activity_stats(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="获取用户活动统计失败",
         ) from error
+
+
+@router.get("/admin/config", response_model=LuckyWheelConfig)
+@require_telegram_auth
+async def get_admin_config(
+    request: Request,
+    current_user: TelegramUser = Depends(get_telegram_user),
+) -> LuckyWheelConfig:
+    """Read the complete wheel document only after administrator authorization."""
+    check_admin_permission(current_user)
+    try:
+        return luckywheel_service.get_wheel_config()
+    except luckywheel_exceptions.LuckywheelError as error:
+        raise HTTPException(
+            status_code=error.status_code, detail=error.message
+        ) from error
+    except Exception as error:
+        logger.error(f"读取管理员转盘配置失败: {error}")
+        raise HTTPException(status_code=500, detail="获取配置失败") from error
+
+
+@router.get(
+    "/admin/invite-quotas",
+    response_model=luckywheel_schemas.LuckyWheelInviteQuotaConfig,
+)
+@require_telegram_auth
+async def get_invite_quotas(
+    request: Request,
+    current_user: TelegramUser = Depends(get_telegram_user),
+) -> dict[str, int]:
+    """Read persistent invitation limits without exposing them on public routes."""
+    check_admin_permission(current_user)
+    try:
+        return luckywheel_service.get_invite_quota_config()
+    except luckywheel_exceptions.LuckywheelError as error:
+        raise HTTPException(
+            status_code=error.status_code, detail=error.message
+        ) from error
+    except Exception as error:
+        logger.error(f"读取转盘邀请码限额失败: {error}")
+        raise HTTPException(status_code=500, detail="获取配置失败") from error
+
+
+@router.put(
+    "/admin/invite-quotas",
+    response_model=luckywheel_schemas.LuckyWheelInviteQuotaConfig,
+)
+@require_telegram_auth
+async def update_invite_quotas(
+    request: Request,
+    quota_config: luckywheel_schemas.LuckyWheelInviteQuotaConfig,
+    current_user: TelegramUser = Depends(get_telegram_user),
+) -> dict[str, int]:
+    """Update limits; storage is responsible for preserving existing usage."""
+    check_admin_permission(current_user)
+    try:
+        return luckywheel_service.update_invite_quota_config(quota_config.model_dump())
+    except luckywheel_exceptions.LuckywheelError as error:
+        raise HTTPException(
+            status_code=error.status_code, detail=error.message
+        ) from error
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400, detail="无效的转盘邀请码限额配置"
+        ) from error
+    except Exception as error:
+        logger.error(f"更新转盘邀请码限额失败: {error}")
+        raise HTTPException(status_code=500, detail="更新配置失败") from error
+
+
+@router.get(
+    "/admin/invite-quota-stats",
+    response_model=luckywheel_schemas.LuckyWheelInviteQuotaStats,
+)
+@require_telegram_auth
+async def get_invite_quota_stats(
+    request: Request,
+    week_start_ms: int | None = Query(default=None, ge=0),
+    current_user: TelegramUser = Depends(get_telegram_user),
+) -> dict:
+    """Read a natural week's issuance and replacement accounting (admin only)."""
+    check_admin_permission(current_user)
+    try:
+        return luckywheel_service.get_invite_quota_stats(week_start_ms=week_start_ms)
+    except luckywheel_exceptions.LuckywheelError as error:
+        raise HTTPException(
+            status_code=error.status_code, detail=error.message
+        ) from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail="无效的统计周期") from error
+    except Exception as error:
+        logger.error(f"读取转盘邀请码统计失败: {error}")
+        raise HTTPException(status_code=500, detail="获取统计数据失败") from error
