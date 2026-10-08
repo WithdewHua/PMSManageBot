@@ -427,8 +427,8 @@ def check_line_permission(is_premium: bool, line: str) -> tuple[bool, str]:
 
     # 高级线路需要进一步检查
     if is_premium_free_enabled():
-        # 检查该高级线路是否在免费列表中
-        free_premium_lines = lines_repository.get_free_premium_lines()
+        # 与线路列表使用同一目录，避免读取迁移前的旧配置
+        free_premium_lines = catalog.free_premium_lines()
         if line in free_premium_lines:
             return True, ""
         else:
