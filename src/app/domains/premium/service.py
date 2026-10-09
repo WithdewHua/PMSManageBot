@@ -249,9 +249,33 @@ def set_credits_cost_per_10gb(credits: int) -> int:
     )
 
 
-async def check_premium_expiry():
-    """Expire each Premium account independently and perform cleanup post-commit."""
+def _update_media_download_permission(
+    service: str, target: str, *, allow_download: bool
+) -> None:
+    """Normalize media adapters' results so best-effort failures are not successes."""
+    if service == "plex":
+        from app.integrations import plex
 
+        if not plex.Plex().update_sync_for_user(target, allow_sync=allow_download):
+            raise RuntimeError("Plex 同步权限更新失败，请检查接口异常日志")
+    elif service == "emby":
+        from app.integrations import emby
+
+        result = emby.Emby().update_download_permission_for_user(
+            target, allow_download=allow_download
+        )
+        if isinstance(result, tuple):
+            succeeded, message = result
+        else:
+            succeeded, message = result, "媒体接口未确认成功"
+        if not succeeded:
+            raise RuntimeError(f"Emby 下载权限更新失败: {message}")
+    else:
+        raise ValueError("不支持的服务类型")
+
+
+async def check_premium_expiry() -> None:
+    """Downgrade expired accounts, retrying unfinished post-commit cleanup."""
     try:
         expired_users = premium_repository.get_expired_premium_users()
     except Exception:
@@ -259,42 +283,43 @@ async def check_premium_expiry():
         return
 
     failures: list[str] = []
-    query_failures: list[str] = []
     for candidate in expired_users:
-        tg_id = int(candidate["tg_id"])
+        tg_id = candidate["tg_id"]
         service = str(candidate["service"])
         try:
-            now = datetime.now(settings.TZ)
+            tg_id = int(tg_id)
             expired = premium_repository.expire_user(
-                tg_id=tg_id, service=service, now=now
+                tg_id=tg_id, service=service, now=datetime.now(settings.TZ)
             )
             if expired is None:
                 continue
 
-            username = expired.get("username") or tg_id
+            username = str(expired.get("username") or tg_id)
             target = expired.get("target")
+            cleanup_complete = True
+            already_unlocked = None
             try:
                 already_unlocked = is_download_unlocked(tg_id, service)
             except Exception as error:
-                failure = f"{service} {username}: 查询下载权限失败: {error}"
-                failures.append(failure)
-                query_failures.append(failure)
+                failures.append(f"{service} {username}: 查询下载权限失败: {error}")
+                cleanup_complete = False
+
+            # 授权查询期间可能已有续费或其他清理者完成了工作，不操作旧快照。
+            if not premium_repository.is_expiry_cleanup_pending(
+                tg_id, service, expired["expiry_time"]
+            ):
                 continue
 
-            if not already_unlocked and target:
+            if already_unlocked is False:
                 try:
-                    if service == "plex":
-                        from app.integrations.plex import Plex
-
-                        Plex().update_sync_for_user(target, allow_sync=False)
-                    else:
-                        from app.integrations.emby import Emby
-
-                        Emby().update_download_permission_for_user(
-                            target, allow_download=False
-                        )
+                    if not target:
+                        raise RuntimeError("缺少媒体账号标识")
+                    _update_media_download_permission(
+                        service, target, allow_download=False
+                    )
                 except Exception as error:
                     failures.append(f"{service} {username}: 撤销下载权限失败: {error}")
+                    cleanup_complete = False
 
             line = expired.get("line")
             display_line = line or "自动线路"
@@ -308,33 +333,43 @@ async def check_premium_expiry():
                     )
                 except Exception as error:
                     failures.append(f"{service} {username}: 解绑会员线路失败: {error}")
+                    cleanup_complete = False
                     new_line = display_line
             else:
                 new_line = display_line
 
-            try:
-                await send_message_by_url(
-                    tg_id,
-                    f"您的 {service} Premium 已过期，到期时间为 {expired['expiry_time']}。"
-                    f"当前线路为: {new_line}。请重新解锁 Premium 以继续使用高级功能。",
+            if expired["newly_expired"]:
+                try:
+                    await send_message_by_url(
+                        tg_id,
+                        f"您的 {service} Premium 已过期，到期时间为 {expired['expiry_time']}。"
+                        f"当前线路为: {new_line}。请重新解锁 Premium 以继续使用高级功能。",
+                    )
+                except Exception as error:
+                    failures.append(f"{service} {username}: 发送通知失败: {error}")
+
+            if cleanup_complete and not premium_repository.complete_expiry_cleanup(
+                tg_id, service, expired["expiry_time"]
+            ):
+                logger.warning(
+                    "Premium 到期清理确认失败或状态已变更: %s/%s", service, tg_id
                 )
-            except Exception as error:
-                failures.append(f"{service} {username}: 发送通知失败: {error}")
         except Exception as error:
             logger.exception("处理 Premium 过期用户 %s/%s 失败", service, tg_id)
             failures.append(f"{service} {tg_id}: {error}")
 
     for failure in failures:
         logger.warning("Premium 过期处理未完成: %s", failure)
-    if query_failures:
-        summary = "Premium 过期权限查询失败:\n" + "\n".join(
-            f"- {failure}" for failure in query_failures
+    if failures:
+        summary = (
+            "Premium 过期处理未完成（待清理账号将在后续检查中重试）:\n"
+            + "\n".join(f"- {failure}" for failure in failures)
         )
         for chat_id in settings.TG_ADMIN_CHAT_ID:
             try:
                 await send_message_by_url(chat_id, summary)
             except Exception:
-                logger.exception("发送 Premium 过期查询失败汇总失败")
+                logger.exception("发送 Premium 过期处理失败汇总失败")
 
 
 async def check_premium_expiring_soon(days: int = 3):
@@ -418,34 +453,25 @@ def sync_premium_media_access(
 ) -> None:
     """把 Premium 对应的下载/同步权限同步到媒体服务器（提交后 best-effort）。
 
-    这是纯外部副作用：失败只记 warning，不影响 Premium 本身的发放，也不会把
-    HTTP 往返关进事务。`services` 为空时检查用户绑定过的 Plex 与 Emby；已经用
-    积分解锁下载权限的用户直接跳过，保持原有行为。签名里不再需要门面实例。
+    这是纯外部副作用：失败只记日志，不影响 Premium 本身的发放，也不会把
+    HTTP 往返关进事务。已解锁下载权限的用户保留原有行为。
     """
     for service in services if services is not None else ("plex", "emby"):
         if service not in ("plex", "emby"):
             continue
-        target = premium_repository.get_premium_sync_target(tg_id, service)
-        if not target:
-            continue
-        if media_access_service.is_download_unlocked(tg_id, service):
-            logger.info(
-                f"用户 {tg_id} 已用积分解锁 {service.capitalize()} 下载权限，跳过 Premium 授权"
-            )
-            continue
         try:
-            if service == "plex":
-                from app.integrations.plex import Plex
-
-                Plex().update_sync_for_user(target, allow_sync=True)
-                logger.info(f"已为 Premium 用户 {tg_id} 启用 Plex 同步权限")
-            else:
-                from app.integrations.emby import Emby
-
-                Emby().update_download_permission_for_user(target, allow_download=True)
-                logger.info(f"已为 Premium 用户 {tg_id} 启用 Emby 下载权限")
-        except Exception as e:
-            logger.warning(f"为 Premium 用户 {tg_id} 启用 {service} 权限失败: {e}")
+            target = premium_repository.get_premium_sync_target(tg_id, service)
+            if not target:
+                continue
+            if media_access_service.is_download_unlocked(tg_id, service):
+                logger.info(
+                    "用户 %s 已具备 %s 下载权限，跳过 Premium 授权", tg_id, service
+                )
+                continue
+            _update_media_download_permission(service, target, allow_download=True)
+            logger.info("已为 Premium 用户 %s 启用 %s 下载权限", tg_id, service)
+        except Exception:
+            logger.exception("为 Premium 用户 %s 启用 %s 权限失败", tg_id, service)
 
 
 def apply_download_unlock_to_media(tg_id: int, service: str) -> None:

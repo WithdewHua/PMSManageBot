@@ -437,23 +437,30 @@ class Plex:
             return result
 
     def update_sync_for_user(self, email: str, allow_sync: bool = True) -> bool:
-        """更新指定用户的同步（下载）权限，返回是否成功"""
-
-        user_info = self.users_by_email.get(email)
-        if not user_info:
-            logger.error(f"无法找到 Plex 用户 {email}")
-            return False
-
+        """只更新同步（下载）权限，不修改用户已有的媒体库共享范围。"""
+        username = email
         try:
+            user_info = self.users_by_email.get(email.strip().lower())
+            if not user_info:
+                logger.error("无法找到 Plex 用户 %s", email)
+                return False
+
+            username = user_info[1].username
             logger.info(
-                f"为 Plex 用户 {user_info[1].username} 更新同步权限: {'允许' if allow_sync else '禁止'}"
+                "为 Plex 用户 %s 更新同步权限: %s",
+                username,
+                "允许" if allow_sync else "禁止",
             )
-            self.my_plex_account.updateFriend(
-                email,
-                self.plex_server,
-                allowSync=allow_sync,
+            # 与 PlexAPI updateFriend 的权限请求一致，但不进入它的媒体库修改
+            # 分支；sections=None 的警告与权限更新无关，也不应为消除它重写共享。
+            self.my_plex_account.query(
+                self.my_plex_account.FRIENDUPDATE.format(userId=user_info[0]),
+                method=self.my_plex_account._session.put,
+                params={"allowSync": int(allow_sync)},
             )
             return True
         except Exception:
-            logger.error(f"无法为 Plex 用户 {user_info[1].username} 更新同步权限")
+            logger.exception(
+                "无法为 Plex 用户 %s 更新同步权限 (allowSync=%s)", username, allow_sync
+            )
             return False

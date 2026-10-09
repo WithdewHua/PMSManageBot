@@ -35,7 +35,7 @@ def get_emby_premium_debt_record(emby_username: str) -> tuple | None:
 
 
 def get_expired_premium_users() -> list:
-    """获取所有 Premium 已过期的用户"""
+    """获取已到期会员，以及已降级但提交后清理尚未完成的账号。"""
     expired_users = []
     current_time = datetime.now(settings.TZ).isoformat()
 
@@ -47,7 +47,7 @@ def get_expired_premium_users() -> list:
             PlexUser.premium_expiry_time,
             PlexUser.plex_line,
         ).where(
-            PlexUser.is_premium == 1,
+            PlexUser.is_premium.in_((0, 1)),
             PlexUser.premium_expiry_time.isnot(None),
             PlexUser.premium_expiry_time < current_time,
         )
@@ -71,7 +71,7 @@ def get_expired_premium_users() -> list:
             EmbyUser.premium_expiry_time,
             EmbyUser.emby_line,
         ).where(
-            EmbyUser.is_premium == 1,
+            EmbyUser.is_premium.in_((0, 1)),
             EmbyUser.premium_expiry_time.isnot(None),
             EmbyUser.premium_expiry_time < current_time,
         )
@@ -92,7 +92,7 @@ def get_expired_premium_users() -> list:
 
 
 def update_expired_premium_status() -> int:
-    """批量更新已过期的 Premium 用户状态"""
+    """批量降级过期会员，保留到期时间供后续媒体权限清理。"""
     current_time = datetime.now(settings.TZ).isoformat()
     current_timestamp = int(datetime.now(settings.TZ).timestamp())
 
@@ -107,7 +107,6 @@ def update_expired_premium_status() -> int:
             )
             .values(
                 is_premium=0,
-                premium_expiry_time=None,
                 premium_status_updated_at=current_timestamp,
             )
         )
@@ -122,7 +121,6 @@ def update_expired_premium_status() -> int:
             )
             .values(
                 is_premium=0,
-                premium_expiry_time=None,
                 premium_status_updated_at=current_timestamp,
             )
         )
@@ -363,9 +361,57 @@ def get_all_users_for_traffic_debt() -> tuple[list, list]:
 
 
 def expire_user(tg_id: int, service: str, now: datetime) -> dict | None:
-    """在独立事务中执行单用户到期，返回处理结果。"""
+    """降级到期账号或恢复待清理记录；外部副作用由 service 在提交后执行。"""
     with get_session() as session:
         return expire_user_tx(session, tg_id=tg_id, service=service, now=now)
+
+
+def is_expiry_cleanup_pending(tg_id: int, service: str, expiry_time: str) -> bool:
+    """外部清理前重查原到期记录，避免继续处理已续费或已完成的账号。"""
+    model = PlexUser if service == "plex" else EmbyUser
+    if service not in ("plex", "emby"):
+        raise ValueError("不支持的服务类型")
+    try:
+        with get_session() as session:
+            return (
+                session.execute(
+                    select(model.tg_id).where(
+                        model.tg_id == int(tg_id),
+                        model.is_premium == 0,
+                        model.premium_expiry_time == expiry_time,
+                    )
+                ).scalar_one_or_none()
+                is not None
+            )
+    except Exception:
+        logger.exception("检查 Premium 待清理记录失败: %s/%s", service, tg_id)
+        return False
+
+
+def complete_expiry_cleanup(tg_id: int, service: str, expiry_time: str) -> bool:
+    """确认清理成功，仅清除本次到期记录，不能覆盖并发续费的新状态。"""
+    model = PlexUser if service == "plex" else EmbyUser
+    if service not in ("plex", "emby"):
+        raise ValueError("不支持的服务类型")
+    try:
+        with get_session() as session:
+            row = session.execute(
+                select(model)
+                .where(
+                    model.tg_id == int(tg_id),
+                    model.is_premium == 0,
+                    model.premium_expiry_time == expiry_time,
+                )
+                .with_for_update()
+            ).scalar_one_or_none()
+            if row is None:
+                return False
+            row.premium_expiry_time = None
+            session.flush()
+            return True
+    except Exception:
+        logger.exception("完成 Premium 到期清理失败: %s/%s", service, tg_id)
+        return False
 
 
 def grant_premium_days(tg_id: int, service: str, days: int = 30) -> datetime | None:
@@ -472,14 +518,14 @@ def get_premium_sync_target(tg_id: int, service: str) -> str | None:
 def _expire_user_tx_impl(
     session, *, tg_id: int, service: str, now: datetime
 ) -> dict | None:
-    """Atomically claim one expired Premium account for post-commit cleanup."""
+    """Expire membership atomically, retaining its expiry until cleanup succeeds."""
     model = PlexUser if service == "plex" else EmbyUser
     if service not in ("plex", "emby"):
         raise ValueError("不支持的服务类型")
     row = session.execute(
         select(model).where(model.tg_id == int(tg_id)).with_for_update()
     ).scalar_one_or_none()
-    if row is None or not row.is_premium or not row.premium_expiry_time:
+    if row is None or not row.premium_expiry_time:
         return None
     raw_expiry = str(row.premium_expiry_time)
     try:
@@ -488,13 +534,16 @@ def _expire_user_tx_impl(
         expiry = datetime.fromtimestamp(float(raw_expiry), tz=settings.TZ)
     if expiry >= now:
         return None
-    old_expiry = row.premium_expiry_time
+    newly_expired = bool(row.is_premium)
     username = row.plex_username if service == "plex" else row.emby_username
     target = row.plex_email if service == "plex" else row.emby_id
     line = row.plex_line if service == "plex" else row.emby_line
     row.is_premium = 0
-    row.premium_expiry_time = None
-    row.premium_status_updated_at = int(now.timestamp())
+    # 已降级 + 过期时间仍存在代表提交后清理待完成；下次扫描可重试。
+    # 规范化历史 Unix 时间戳，避免等待重试的账号续费时无法解析旧值。
+    row.premium_expiry_time = expiry.isoformat()
+    if newly_expired:
+        row.premium_status_updated_at = int(now.timestamp())
     session.flush()
     return {
         "tg_id": int(tg_id),
@@ -502,7 +551,8 @@ def _expire_user_tx_impl(
         "username": username,
         "target": target,
         "line": line,
-        "expiry_time": old_expiry,
+        "expiry_time": row.premium_expiry_time,
+        "newly_expired": newly_expired,
     }
 
 

@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import time
+from unittest.mock import Mock
 
 import pytest
 from fastapi import BackgroundTasks, HTTPException
@@ -155,6 +156,19 @@ async def test_expiry_handles_null_line_user(session_env, monkeypatch):
         notified.append(chat_id)
 
     monkeypatch.setattr(premium_service, "send_message_by_url", _record)
+    # 本用例只检查空线路和批处理，不连接真实媒体服务器。
+    monkeypatch.setattr(
+        "app.integrations.plex.Plex",
+        Mock(return_value=Mock(update_sync_for_user=Mock(return_value=True))),
+    )
+    monkeypatch.setattr(
+        "app.integrations.emby.Emby",
+        Mock(
+            return_value=Mock(
+                update_download_permission_for_user=Mock(return_value=(True, "ok"))
+            )
+        ),
+    )
 
     # 三个用户同时到期：1 号线路为空，2、3 号绑定高级线路
     now = int(time.time())

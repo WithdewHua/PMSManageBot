@@ -110,6 +110,8 @@ core/（公共设施）
 | `plex_user` / `emby_user` | `is_premium`、`premium_expiry_time`、`premium_status_updated_at`、`premium_traffic_debt_bytes`、`premium_traffic_debt_updated_date` | premium |
 | `overseerr` | 全部 | identity |
 
+Premium 到期先降级，保留过期时间直到提交后的媒体权限清理成功；重试与历史失败处理见 [Premium 到期清理](premium-expiry-cleanup.md)。
+
 ## 已知例外
 
 - **读模型直读跨域表**：T5 的 rankings、reports、profile repository 只能直接执行不包含业务规则的只读聚合，例如对原始列计数、求和、排序、过滤；不得构造领域模型、写入数据或管理业务变更。涉及奖品类别、奖金口径、有效邀请去重、线路分类、Premium 欠额等业务规则时，通过拥有该规则的领域 service 提供的只读分析能力获取数据，再由读模型 service 组织展示。不能因为查询只有读模型调用，就把规则复制到读模型。`tests/architecture/test_read_model_readonly.py` 对写操作、模型构造和属性赋值进行正反例检查。
