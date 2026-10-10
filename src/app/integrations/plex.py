@@ -1,5 +1,6 @@
 import pickle
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from xml.etree.ElementTree import Element
 
 import filelock
 import requests
@@ -436,28 +437,135 @@ class Plex:
                     result[user.id] = 0
             return result
 
+    def _read_sharing_state(
+        self, url: str, user_id: int
+    ) -> tuple[dict[str, str], list[int], bool]:
+        """从现有共享记录读取权限和库范围；缺失字段不能当成禁用权限。"""
+        root = self.my_plex_account.query(url, headers={"Accept": "application/xml"})
+        if not isinstance(root, Element) or root.tag != "sharedServer":
+            raise ValueError("Plex 共享记录响应格式无效")
+        if (
+            root.get("id") != url.rsplit("/", 1)[-1]
+            or root.get("invitedId") != str(user_id)
+            or root.get("machineIdentifier") != self.plex_server.machineIdentifier
+        ):
+            raise ValueError("Plex 共享记录与目标用户或服务器不匹配")
+        sharing_settings = root.find("sharingSettings")
+        if sharing_settings is None or sharing_settings.get("allowSync") not in (
+            "0",
+            "1",
+        ):
+            raise ValueError("Plex 共享记录缺少明确的 allowSync 权限")
+        if root.get("allLibraries") not in ("0", "1"):
+            raise ValueError("Plex 共享记录缺少明确的 allLibraries 状态")
+        libraries = root.find("libraries")
+        if libraries is None:
+            raise ValueError("Plex 共享记录缺少媒体库范围")
+        library_ids = [int(library.attrib["id"]) for library in libraries]
+        if any(library_id <= 0 for library_id in library_ids):
+            raise ValueError("Plex 共享记录包含无效的媒体库 ID")
+        return (
+            dict(sharing_settings.attrib),
+            library_ids,
+            root.get("allLibraries") == "1",
+        )
+
     def update_sync_for_user(self, email: str, allow_sync: bool = True) -> bool:
-        """只更新同步（下载）权限，不修改用户已有的媒体库共享范围。"""
+        """确保下载权限达到目标状态，并保留现有共享范围和其他限制。"""
         username = email
         try:
-            user_info = self.users_by_email.get(email.strip().lower())
-            if not user_info:
+            if not isinstance(allow_sync, bool):
+                raise TypeError("allow_sync 必须是布尔值")
+            # 不能使用 self.users 的旧缓存确认外部权限或共享标识。
+            self.users = []
+            user = next(
+                (
+                    user
+                    for user in self.my_plex_account.users()
+                    if (user.email or "").casefold() == email.strip().casefold()
+                ),
+                None,
+            )
+            if user is None:
                 logger.error("无法找到 Plex 用户 %s", email)
                 return False
-
-            username = user_info[1].username
+            username = user.username
+            shares = [
+                share
+                for share in user.servers
+                if share.machineIdentifier == self.plex_server.machineIdentifier
+            ]
+            if len(shares) != 1:
+                raise ValueError("Plex 用户没有唯一的当前服务器共享记录")
+            url = (
+                f"{settings.PLEX_TV_BASE_URL.rstrip('/')}/api/v2/shared_servers/"
+                f"{int(shares[0].id)}"
+            )
+            before_settings, library_ids, all_libraries = self._read_sharing_state(
+                url, user.id
+            )
+            desired = "1" if allow_sync else "0"
+            if before_settings["allowSync"] == desired:
+                logger.info("Plex 用户 %s 的下载权限已符合目标状态", username)
+                return True
             logger.info(
                 "为 Plex 用户 %s 更新同步权限: %s",
                 username,
                 "允许" if allow_sync else "禁止",
             )
-            # 与 PlexAPI updateFriend 的权限请求一致，但不进入它的媒体库修改
-            # 分支；sections=None 的警告与权限更新无关，也不应为消除它重写共享。
-            self.my_plex_account.query(
-                self.my_plex_account.FRIENDUPDATE.format(userId=user_info[0]),
-                method=self.my_plex_account._session.put,
-                params={"allowSync": int(allow_sync)},
-            )
+            payload: dict[str, object] = {
+                "machineIdentifier": self.plex_server.machineIdentifier,
+                "invitedId": user.id,
+                "settings": {**before_settings, "allowSync": int(allow_sync)},
+            }
+            # v2 POST 省略 librarySectionIds 会切换到全部媒体库，不能在受限
+            # 共享中省略；原本全库共享则保留此语义，不能变成固定库列表。
+            if not all_libraries:
+                if not library_ids:
+                    raise ValueError("无法安全更新没有媒体库的 Plex 共享记录")
+                payload["librarySectionIds"] = library_ids
+            request_error: Exception | None = None
+            try:
+                self.my_plex_account.query(
+                    url,
+                    method=self.my_plex_account._session.post,
+                    headers={"Accept": "application/xml"},
+                    json=payload,
+                )
+            except Exception as error:
+                request_error = error
+            try:
+                after_settings, after_libraries, after_all = self._read_sharing_state(
+                    url, user.id
+                )
+            except Exception:
+                if request_error is not None:
+                    logger.error(
+                        "Plex 权限更新请求失败且无法回读状态",
+                        exc_info=(
+                            type(request_error),
+                            request_error,
+                            request_error.__traceback__,
+                        ),
+                    )
+                raise
+            if (
+                after_all != all_libraries
+                or set(after_libraries) != set(library_ids)
+                or {k: v for k, v in after_settings.items() if k != "allowSync"}
+                != {k: v for k, v in before_settings.items() if k != "allowSync"}
+            ):
+                raise RuntimeError("Plex 权限更新后媒体库范围或其他限制发生变化")
+            if after_settings["allowSync"] != desired:
+                if request_error is not None:
+                    raise request_error
+                raise RuntimeError("Plex 请求返回成功但下载权限回读未达到目标状态")
+            if request_error is not None:
+                logger.warning(
+                    "Plex 请求异常，但新请求已确认用户 %s 的下载权限符合目标: %s",
+                    username,
+                    request_error,
+                )
             return True
         except Exception:
             logger.exception(

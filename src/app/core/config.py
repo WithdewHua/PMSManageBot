@@ -62,6 +62,7 @@ class Settings(BaseSettings):
 
     # plex
     PLEX_BASE_URL: str = ""
+    PLEX_TV_BASE_URL: str = "https://clients.plex.tv"
     PLEX_API_TOKEN: str = ""
     PLEX_ADMIN_USER: str = ""
     PLEX_ADMIN_EMAIL: str = ""

@@ -15,7 +15,19 @@ Premium 到期检查每 5 分钟运行一次，应用启动后约 30 秒执行�
 
 ## Plex 调用与诊断
 
-Plex 同步权限通过 PlexAPI 已有的好友权限端点和认证会话更新，只提交 `allowSync`，不经过 `updateFriend` 的媒体库修改分支，也不提交共享媒体库列表。
+Plex 同步权限仍使用 PlexAPI 的认证、HTTP 会话和 XML 解析，但通过 `POST /api/v2/shared_servers/{share.id}` 更新现有共享记录。云端地址由 `settings.PLEX_TV_BASE_URL` 提供，默认 `https://clients.plex.tv`，不是媒体服务器的 `PLEX_BASE_URL`，通常无需额外配置。
+
+- 使用新请求读取用户和当前服务器的共享 ID，再读取完整 `sharedServer` 记录，不能用 `self.users` 或 `MyPlexUser.allowSync` 的旧缓存确认结果。
+- 初始下载权限已经符合目标时直接完成，不重复写入。缺失或未知的 `allowSync` / 共享范围不视为已禁用。
+- 限定媒体库共享必须提交刚读取的 `librarySectionIds` 原样列表；仅提交 `settings.allowSync` 会被 Plex 切换成 `allLibraries=1` 并扩大授权，禁止这样处理受限共享。原本全库共享则保留全库策略，不转换为固定列表。其他限制从刚读取的设置保留，只改变 `allowSync`。
+- 写入后发起新的 GET，必须确认下载权限达到目标、媒体库范围与其他限制未变，才返回成功。HTTP 成功响应本身不足以证明更新生效。
+- 写入抛异常时也尝试回读。只有确认目标状态且其他授权未变才视为已完成（记录警告）；404、超时、回读失败或状态不符不能一律视为成功。
+
+### 2026-10-10 生产接口验证
+
+生产 PlexAPI `4.18.3` 已是当时最新正式版。其 `updateFriend(user, server, allowSync=True/False)` 经直接实测均在权限更新分支请求 `/api/v2/sharings/{userId}` 并返回 `404 NotFound`，新请求回读没有发生变化；上游主分支也仍使用这个路径。关闭请求后看到 `allowSync=0` 只是初始状态已关闭，不能据此证明请求成功。
+
+使用 v2 `shared_servers/{share.id}` POST 并携带现有库范围，已实测完成 `0 → 1 → 0`，返回共享记录并由新 GET 确认；测试结束恢复且核验了原媒体库范围、全库策略与全部其他限制。不新增数据库字段或迁移。
 
 PlexAPI 4.13.0 的 `updateFriend(..., sections=None)` 会打印：
 
@@ -34,3 +46,9 @@ Section name, number of section object is required changing library sections
 对历史失败，应先根据日志和实际媒体权限核对账号，并确认当前没有有效 Premium 或独立下载授权。维护者确认后，才可使用 `scripts/list_expired_download_holders.py --apply --input <json>` 处理明确列出的账号。该脚本的默认扫描针对数据库中已有下载解锁标记的记录，不保证发现仅在媒体服务器上残留的权限，不能直接将扫描结果视为撤权授权。
 
 禁止用 `scripts/sync_download_permissions.py` 做撤销或对账；它是单向同步脚本。
+
+## Plex 历史权限对账
+
+`python -m scripts.reconcile_plex_download_permissions --output <audit.json>` 默认只读，按数据库记录与 Plex 新请求结果生成差异名单，不把服务器上的现有权限回写成永久解锁。确认名单后使用 `--apply --input <audit.json> --output <result.json>` 修复明确列出的账号；撤权复用 `list_expired_download_holders` 的名单入口。
+
+有效 Premium（含永久会员）或有完整永久下载解锁记录的账号应开启下载；无永久解锁且 Premium 已结束的账号应关闭下载。管理员、身份不匹配、授权字段损坏、未登记账号，以及没有会员历史证据的手动授权账号不自动撤权。执行前和执行后重新检查授权，避免旧名单误伤续费或新兑换；每项修复均重新读取实际权限并核验媒体库范围及其他限制，结果文件逐项落盘。该操作不修改积分、会员状态或数据库授权标记。
