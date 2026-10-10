@@ -12,6 +12,7 @@ from __future__ import annotations
 import ast
 from datetime import datetime, timedelta
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 
@@ -205,17 +206,128 @@ def test_sync_skips_services_without_a_bound_media_account(
     premium_service.sync_premium_media_access(9)
 
 
-def test_sync_premium_media_access_skips_unlocked_downloads(
-    session_env, monkeypatch
-) -> None:
-    _bind_plex(10, unlock_time=123)
-    monkeypatch.setattr(
-        "app.domains.media_access.service.is_download_unlocked",
-        lambda tg_id, service: True,
-    )
+@pytest.fixture
+def media_permissions(monkeypatch) -> dict[str, Mock]:
+    calls = {"plex": Mock(return_value=True), "emby": Mock(return_value=(True, "ok"))}
     monkeypatch.setattr(
         "app.integrations.plex.Plex",
-        lambda: pytest.fail("已解锁下载的用户不应再推送 Plex 同步权限"),
+        lambda: Mock(update_sync_for_user=calls["plex"]),
+    )
+    monkeypatch.setattr(
+        "app.integrations.emby.Emby",
+        lambda: Mock(update_download_permission_for_user=calls["emby"]),
+    )
+    return calls
+
+
+@pytest.mark.parametrize("media_service", ["plex", "emby"])
+@pytest.mark.parametrize("renewal", [False, True])
+def test_real_grant_enables_media_download_after_commit(
+    session_env, media_permissions, media_service, renewal, caplog
+) -> None:
+    bind = _bind_plex if media_service == "plex" else _bind_emby
+    cols = _plex_cols if media_service == "plex" else _emby_cols
+    initial = (
+        {
+            "is_premium": 1,
+            "premium_expiry_time": (
+                datetime.now(settings.TZ) + timedelta(days=3)
+            ).isoformat(),
+        }
+        if renewal
+        else {}
+    )
+    bind(10, **initial)
+
+    def verify_committed_membership(target, **kwargs):
+        # A separate DB session can already see the committed membership when
+        # the media adapter is invoked; permission qualification stays real.
+        persisted = cols(10)
+        assert persisted["is_premium"] == 1
+        assert datetime.fromisoformat(persisted["expiry"]) > datetime.now(settings.TZ)
+        assert kwargs == (
+            {"allow_sync": True}
+            if media_service == "plex"
+            else {"allow_download": True}
+        )
+        return True if media_service == "plex" else (True, "ok")
+
+    media_permissions[media_service].side_effect = verify_committed_membership
+
+    assert premium_service.update_premium_status(10, media_service, 7) is not None
+    assert "权限失败" not in caplog.text
+
+    media_permissions[media_service].assert_called_once_with(
+        "10@x" if media_service == "plex" else "emby-10",
+        **(
+            {"allow_sync": True}
+            if media_service == "plex"
+            else {"allow_download": True}
+        ),
     )
 
-    premium_service.sync_premium_media_access(10, ("plex",))
+
+@pytest.mark.parametrize("media_service", ["plex", "emby"])
+def test_permanent_premium_confirms_real_media_permission(
+    session_env, media_permissions, media_service
+) -> None:
+    (_bind_plex if media_service == "plex" else _bind_emby)(
+        11, is_premium=1, premium_expiry_time=None
+    )
+
+    premium_service.sync_premium_media_access(11, (media_service,))
+
+    media_permissions[media_service].assert_called_once_with(
+        "11@x" if media_service == "plex" else "emby-11",
+        **(
+            {"allow_sync": True}
+            if media_service == "plex"
+            else {"allow_download": True}
+        ),
+    )
+
+
+@pytest.mark.parametrize("media_service", ["plex", "emby"])
+@pytest.mark.parametrize("active_premium", [False, True])
+def test_independent_download_unlock_still_confirms_media_permission(
+    session_env, media_permissions, media_service, active_premium
+) -> None:
+    initial = {"is_premium": int(active_premium), "premium_expiry_time": None}
+    if media_service == "plex":
+        initial.update(sync_unlocked=1, sync_unlock_time=123)
+    else:
+        initial.update(download_unlocked=1, download_unlock_time=123)
+    (_bind_plex if media_service == "plex" else _bind_emby)(11, **initial)
+
+    premium_service.sync_premium_media_access(11, (media_service,))
+
+    media_permissions[media_service].assert_called_once_with(
+        "11@x" if media_service == "plex" else "emby-11",
+        **(
+            {"allow_sync": True}
+            if media_service == "plex"
+            else {"allow_download": True}
+        ),
+    )
+
+
+@pytest.mark.parametrize("media_service", ["plex", "emby"])
+@pytest.mark.parametrize("expired", [False, True])
+def test_late_sync_does_not_grant_download_without_current_entitlement(
+    session_env, media_permissions, media_service, expired
+) -> None:
+    initial = (
+        {
+            "is_premium": 1,
+            "premium_expiry_time": (
+                datetime.now(settings.TZ) - timedelta(days=3)
+            ).isoformat(),
+        }
+        if expired
+        else {}
+    )
+    (_bind_plex if media_service == "plex" else _bind_emby)(12, **initial)
+
+    premium_service.sync_premium_media_access(12, (media_service,))
+
+    media_permissions[media_service].assert_not_called()

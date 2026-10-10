@@ -41,8 +41,13 @@ def _seed_account(
     paid_download: bool = False,
     legacy_expiry: bool = False,
     line: str | None = None,
+    active: bool = False,
 ) -> str:
-    expiry = datetime.now(settings.TZ) - timedelta(hours=1)
+    expiry = (
+        datetime.now(settings.TZ) + timedelta(hours=1)
+        if active
+        else datetime.now(settings.TZ) - timedelta(hours=1)
+    )
     expiry_text = str(int(expiry.timestamp())) if legacy_expiry else expiry.isoformat()
     with get_session() as session:
         session.add(Statistics(tg_id=tg_id, credits=100.0, donation=0.0))
@@ -151,9 +156,11 @@ async def test_permission_query_failure_keeps_cleanup_pending(
     external_services, monkeypatch
 ) -> None:
     expiry = _seed_account()
-    original_check = service.is_download_unlocked
+    original_check = service.media_access_service.check_download_unlock
     monkeypatch.setattr(
-        service, "is_download_unlocked", Mock(side_effect=RuntimeError("query failed"))
+        service.media_access_service,
+        "check_download_unlock",
+        Mock(side_effect=RuntimeError("query failed")),
     )
 
     await service.check_premium_expiry()
@@ -163,7 +170,9 @@ async def test_permission_query_failure_keeps_cleanup_pending(
     assert _account_state()["premium_expiry_time"] == expiry
     assert len(_user_notifications(external_services.notify)) == 1
 
-    monkeypatch.setattr(service, "is_download_unlocked", original_check)
+    monkeypatch.setattr(
+        service.media_access_service, "check_download_unlock", original_check
+    )
     await service.check_premium_expiry()
 
     external_services.plex.assert_called_once()
@@ -319,10 +328,7 @@ def test_bulk_expiration_preserves_pending_cleanup() -> None:
 def test_premium_grant_sync_does_not_log_false_success(
     external_services, monkeypatch, caplog, media_service, failure
 ) -> None:
-    _seed_account(media_service)
-    monkeypatch.setattr(
-        service.media_access_service, "is_download_unlocked", lambda *_: False
-    )
+    _seed_account(media_service, active=True)
     getattr(external_services, media_service).return_value = failure
 
     service.sync_premium_media_access(1, (media_service,))
@@ -338,7 +344,7 @@ def test_permission_query_error_does_not_turn_a_committed_grant_into_failure(
     _seed_account()
     monkeypatch.setattr(
         service.media_access_service,
-        "is_download_unlocked",
+        "check_download_unlock",
         Mock(side_effect=RuntimeError("permission query failed")),
     )
 

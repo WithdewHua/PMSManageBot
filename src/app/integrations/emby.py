@@ -783,56 +783,89 @@ class Emby:
             logger.error(f"Error fetching all users last activity: {e}")
             return {}
 
+    def _read_download_policy(self, user_id: str) -> tuple[str, dict[str, Any]]:
+        """直接读取目标用户策略；未知权限不能当成已关闭。"""
+        response = requests.get(
+            url=f"{self.base_url.rstrip('/')}/Users/{user_id}",
+            headers={"accept": "application/json", "X-Emby-Token": self.api_token},
+            timeout=30,
+        )
+        response.raise_for_status()
+        user = response.json()
+        if (
+            not isinstance(user, dict)
+            or str(user.get("Id", "")).casefold() != user_id.casefold()
+        ):
+            raise ValueError("Emby 策略响应与目标用户不匹配")
+        policy = user.get("Policy")
+        if not isinstance(policy, dict) or not isinstance(
+            policy.get("EnableContentDownloading"), bool
+        ):
+            raise TypeError("无法获取明确的 Emby 下载权限")
+        return str(user.get("Name") or user_id), dict(policy)
+
     def update_download_permission_for_user(
         self, user_id: str, allow_download: bool = True
     ) -> tuple[bool, str]:
-        """
-        更新指定用户的下载权限
-
-        Args:
-            user_id: Emby 用户 ID
-            allow_download: 是否允许下载
-
-        Returns:
-            (是否成功, 消息)
-        """
-        headers = {"accept": "application/json", "Content-Type": "application/json"}
-        params = {"api_key": self.api_token}
-
+        """确保下载权限达到目标状态，并回读确认其他策略未变。"""
         try:
-            # 先获取该用户的 policy
-            response = requests.get(
-                url=self.base_url + f"/Users/{user_id}", params=params, headers=headers
-            )
-            response.raise_for_status()
-            policy = response.json().get("Policy")
-
-            if not policy:
-                return False, "无法获取用户策略"
-
-            # 更新下载权限
-            policy["EnableContentDownloading"] = allow_download
-
-            # 更新权限设置
-            response = requests.post(
-                url=self.base_url + f"/Users/{user_id}/Policy",
-                data=json.dumps(policy),
-                params=params,
-                headers=headers,
-            )
-
-            if response.status_code in [200, 204]:
-                username = self.get_username_from_uid(user_id)
-                logger.info(
-                    f"为 Emby 用户 {username} ({user_id}) 更新下载权限: {'允许' if allow_download else '禁止'}"
-                )
+            if not isinstance(allow_download, bool):
+                raise TypeError("allow_download 必须是布尔值")
+            username, before = self._read_download_policy(user_id)
+            if before["EnableContentDownloading"] is allow_download:
+                logger.info("Emby 用户 %s 的下载权限已符合目标状态", username)
                 return True, "ok"
-            else:
-                return False, response.text
+            policy = {**before, "EnableContentDownloading": allow_download}
+            request_error: Exception | None = None
+            try:
+                response = requests.post(
+                    url=f"{self.base_url.rstrip('/')}/Users/{user_id}/Policy",
+                    json=policy,
+                    headers={
+                        "accept": "application/json",
+                        "Content-Type": "application/json",
+                        "X-Emby-Token": self.api_token,
+                    },
+                    timeout=30,
+                )
+                if response.status_code not in (200, 204):
+                    raise RuntimeError(f"Emby 策略更新返回 HTTP {response.status_code}")
+            except Exception as error:
+                request_error = error
 
-        except Exception as e:
-            logger.error(f"更新 Emby 用户 {user_id} 下载权限失败: {e!s}")
-            return False, str(e)
+            _, after = self._read_download_policy(user_id)
+            if after["EnableContentDownloading"] is not allow_download:
+                raise RuntimeError("Emby 下载权限回读与目标不一致") from request_error
+            if {
+                key: value
+                for key, value in before.items()
+                if key != "EnableContentDownloading"
+            } != {
+                key: value
+                for key, value in after.items()
+                if key != "EnableContentDownloading"
+            }:
+                raise RuntimeError("Emby 下载权限更新后其他策略发生变化")
+            if request_error is not None:
+                logger.warning(
+                    "Emby 用户 %s 权限请求异常，但新请求回读确认目标及其他策略均正确",
+                    username,
+                    exc_info=(
+                        type(request_error),
+                        request_error,
+                        request_error.__traceback__,
+                    ),
+                )
+            logger.info(
+                "为 Emby 用户 %s (%s) 更新下载权限: %s",
+                username,
+                user_id,
+                "允许" if allow_download else "禁止",
+            )
+            return True, "ok"
+        except Exception as error:
+            logger.exception("更新 Emby 用户 %s 下载权限失败", user_id)
+            return False, str(error)
 
     def update_download_permission_by_username(
         self, username: str, allow_download: bool = True

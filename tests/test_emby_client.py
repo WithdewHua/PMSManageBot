@@ -149,3 +149,146 @@ def test_emby_get_user_info_from_username_not_found(emby_client: Emby) -> None:
     with patch("requests.get", return_value=fake_resp):
         info = emby_client.get_user_info_from_username("NonExistent")
         assert info == {}
+
+
+@pytest.fixture
+def download_requests(monkeypatch):
+    from unittest.mock import Mock
+
+    def response(policy: dict, *, user_id: str = "user_123"):
+        result = Mock()
+        result.json.return_value = {"Id": user_id, "Name": "member", "Policy": policy}
+        return result
+
+    read = Mock()
+    write = Mock(return_value=Mock(status_code=204))
+    monkeypatch.setattr("app.integrations.emby.requests.get", read)
+    monkeypatch.setattr("app.integrations.emby.requests.post", write)
+    return read, write, response
+
+
+@pytest.mark.parametrize("allowed", [False, True])
+def test_download_permission_already_satisfied_is_read_only(
+    emby_client, download_requests, allowed
+) -> None:
+    read, write, response = download_requests
+    read.return_value = response(
+        {"EnableContentDownloading": allowed, "EnabledFolders": ["restricted"]}
+    )
+
+    assert emby_client.update_download_permission_for_user("user_123", allowed) == (
+        True,
+        "ok",
+    )
+
+    write.assert_not_called()
+    read.assert_called_once()
+    assert read.call_args.kwargs["timeout"] == 30
+
+
+@pytest.mark.parametrize("allowed", [False, True])
+def test_download_write_preserves_policy_and_verifies_fresh_state(
+    emby_client, download_requests, allowed
+) -> None:
+    read, write, response = download_requests
+    other = {
+        "EnabledFolders": ["restricted"],
+        "EnableAllFolders": False,
+        "IsAdministrator": False,
+        "EnableRemoteAccess": True,
+    }
+    before = {**other, "EnableContentDownloading": not allowed}
+    after = {**other, "EnableContentDownloading": allowed}
+    read.side_effect = [response(before), response(after)]
+
+    assert emby_client.update_download_permission_for_user("user_123", allowed) == (
+        True,
+        "ok",
+    )
+
+    assert write.call_args.kwargs["json"] == after
+    assert before["EnableContentDownloading"] is not allowed
+    assert write.call_args.kwargs["timeout"] == 30
+    assert write.call_args.kwargs["headers"]["X-Emby-Token"] == "test-token"
+    assert read.call_count == 2
+
+
+@pytest.mark.parametrize(
+    "policy",
+    [{}, {"EnableContentDownloading": None}, {"EnableContentDownloading": "false"}],
+)
+def test_unknown_download_state_does_not_write(
+    emby_client, download_requests, policy
+) -> None:
+    read, write, response = download_requests
+    read.return_value = response(policy)
+
+    assert (
+        emby_client.update_download_permission_for_user("user_123", False)[0] is False
+    )
+
+    write.assert_not_called()
+
+
+def test_wrong_user_policy_does_not_write(emby_client, download_requests) -> None:
+    read, write, response = download_requests
+    read.return_value = response(
+        {"EnableContentDownloading": False}, user_id="other-user"
+    )
+
+    assert emby_client.update_download_permission_for_user("user_123", True)[0] is False
+
+    write.assert_not_called()
+
+
+def test_successful_http_without_permission_change_is_failure(
+    emby_client, download_requests
+) -> None:
+    read, write, response = download_requests
+    read.return_value = response({"EnableContentDownloading": False})
+
+    assert emby_client.update_download_permission_for_user("user_123", True)[0] is False
+
+    write.assert_called_once()
+    assert read.call_count == 2
+
+
+def test_other_policy_change_is_not_reported_as_success(
+    emby_client, download_requests
+) -> None:
+    read, _, response = download_requests
+    read.side_effect = [
+        response({"EnableContentDownloading": False, "EnableAllFolders": False}),
+        response({"EnableContentDownloading": True, "EnableAllFolders": True}),
+    ]
+
+    assert emby_client.update_download_permission_for_user("user_123", True)[0] is False
+
+
+@pytest.mark.parametrize("target_reached", [False, True])
+def test_timeout_requires_confirmed_actual_target(
+    emby_client, download_requests, target_reached
+) -> None:
+    read, write, response = download_requests
+    write.side_effect = TimeoutError("request timed out")
+    read.side_effect = [
+        response({"EnableContentDownloading": False}),
+        response({"EnableContentDownloading": target_reached}),
+    ]
+
+    assert (
+        emby_client.update_download_permission_for_user("user_123", True)[0]
+        is target_reached
+    )
+
+
+def test_failed_readback_after_write_is_not_success(
+    emby_client, download_requests
+) -> None:
+    read, _, response = download_requests
+    read.side_effect = [
+        response({"EnableContentDownloading": False}),
+        TimeoutError("readback failed"),
+    ]
+
+    assert emby_client.update_download_permission_for_user("user_123", True)[0] is False

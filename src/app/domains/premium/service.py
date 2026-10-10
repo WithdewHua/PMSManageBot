@@ -454,7 +454,8 @@ def sync_premium_media_access(
     """把 Premium 对应的下载/同步权限同步到媒体服务器（提交后 best-effort）。
 
     这是纯外部副作用：失败只记日志，不影响 Premium 本身的发放，也不会把
-    HTTP 往返关进事务。已解锁下载权限的用户保留原有行为。
+    HTTP 往返关进事务。有下载资格不代表服务器权限已经生效，必须由媒体
+    适配器确认实际状态；已符合目标的权限由适配器幂等跳过写入。
     """
     for service in services if services is not None else ("plex", "emby"):
         if service not in ("plex", "emby"):
@@ -463,9 +464,12 @@ def sync_premium_media_access(
             target = premium_repository.get_premium_sync_target(tg_id, service)
             if not target:
                 continue
-            if media_access_service.is_download_unlocked(tg_id, service):
-                logger.info(
-                    "用户 %s 已具备 %s 下载权限，跳过 Premium 授权", tg_id, service
+            permission = media_access_service.check_download_unlock(tg_id, service)
+            if not permission.get("is_unlocked"):
+                logger.warning(
+                    "用户 %s 当前没有有效 %s 下载资格，跳过媒体权限同步",
+                    tg_id,
+                    service,
                 )
                 continue
             _update_media_download_permission(service, target, allow_download=True)

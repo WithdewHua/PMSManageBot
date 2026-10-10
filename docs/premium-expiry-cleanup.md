@@ -52,3 +52,11 @@ Section name, number of section object is required changing library sections
 `python -m scripts.reconcile_plex_download_permissions --output <audit.json>` 默认只读，按数据库记录与 Plex 新请求结果生成差异名单，不把服务器上的现有权限回写成永久解锁。确认名单后使用 `--apply --input <audit.json> --output <result.json>` 修复明确列出的账号；撤权复用 `list_expired_download_holders` 的名单入口。
 
 有效 Premium（含永久会员）或有完整永久下载解锁记录的账号应开启下载；无永久解锁且 Premium 已结束的账号应关闭下载。管理员、身份不匹配、授权字段损坏、未登记账号，以及没有会员历史证据的手动授权账号不自动撤权。执行前和执行后重新检查授权，避免旧名单误伤续费或新兑换；每项修复均重新读取实际权限并核验媒体库范围及其他限制，结果文件逐项落盘。该操作不修改积分、会员状态或数据库授权标记。
+
+## Premium 发放后的媒体权限同步
+
+购买、续费、礼包和转盘奖励提交后，`premium.service.sync_premium_media_access` 重新查询当前下载资格。有效 Premium 或独立积分兑换授权是允许同步的依据，不代表服务器实际权限已经开启，不能以此提前跳过适配器；当前已无资格时跳过授权，避免滞后的回调重新开通已失效权限。到期撤权仍使用当前完整资格判断，保留续费者及独立兑换者的下载权限。
+
+Plex 和 Emby 适配器都先读实际权限；已满足目标则不重复写入。Emby 通过新的 `/Users/{id}` 请求读取明确的 `EnableContentDownloading`，仅修改该字段并保留完整 Policy，写入后重新读取确认目标和其他策略。字段缺失、身份不符、回读失败或其他策略变化均不得宣称成功。Emby 请求使用带超时的认证请求，避免把 API token 放入 URL 和异常日志。
+
+Emby 存量对账采用一次性只读脚本生成名单，管理员、模板及无法明确判断的授权不自动修改；执行明确名单前后重查数据库资格和服务器策略，不改会员、积分或兑换标记。一次性脚本不编写测试；正式同步逻辑及媒体适配器保留回归测试。
