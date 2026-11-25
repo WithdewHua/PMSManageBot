@@ -321,4 +321,5 @@ webapp-frontend/yarn.lock
 deploy.sh
 
 # Local Pi background task logs
-/.pi/tasks/
+.pi/tasks/
+.pi/delegate/

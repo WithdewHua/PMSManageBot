@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import json
+from copy import deepcopy
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import filelock
 import pytest
@@ -27,65 +27,262 @@ def test_emby_client_initialization_and_sentinel(emby_client: Emby) -> None:
     assert Emby.FETCH_TIMEOUT is not None
 
 
-def test_emby_add_user_success(emby_client: Emby, monkeypatch) -> None:
-    monkeypatch.setattr(emby_client, "get_uid_from_username", lambda name: "tpl_uid")
+@pytest.fixture
+def creation_requests(monkeypatch):
+    policy = {
+        "IsAdministrator": False,
+        "IsDisabled": False,
+        "IsHidden": False,
+        "EnableAudioPlaybackTranscoding": False,
+        "EnableVideoPlaybackTranscoding": False,
+        "EnablePlaybackRemuxing": False,
+        "EnableContentDownloading": False,
+        "SimultaneousStreamLimit": 3,
+        "RemoteClientBitrateLimit": 20000000,
+        "EnableAllFolders": False,
+        "EnabledFolders": ["allowed-library"],
+        "ExcludedSubFolders": ["restricted-subfolder"],
+    }
+
+    def response(body=None, status=200):
+        result = Mock(status_code=status)
+        result.json.return_value = body
+        if status >= 400:
+            result.raise_for_status.side_effect = RuntimeError(f"HTTP {status}")
+        return result
+
+    template = {"Id": "tpl_uid", "Name": "UserTemplate", "Policy": policy}
+    created = {"Id": "new_uid", "Name": "testuser", "Policy": deepcopy(policy)}
+    read = Mock(
+        side_effect=[
+            response({"Items": [template]}),
+            response(template),
+            response(created),
+        ]
+    )
+    write = Mock(side_effect=[response(created), response(status=204)])
+    delete = Mock(return_value=response(status=204))
+    monkeypatch.setattr("app.integrations.emby.requests.get", read)
+    monkeypatch.setattr("app.integrations.emby.requests.post", write)
+    monkeypatch.setattr("app.integrations.emby.requests.delete", delete)
+    return read, write, delete, response, template, created
+
+
+def test_emby_add_user_success(emby_client, creation_requests, monkeypatch) -> None:
+    read, write, delete, _, template, _ = creation_requests
     monkeypatch.setattr(
-        emby_client, "change_user_password", lambda uid, new_password: True
+        emby_client,
+        "get_uid_from_username",
+        Mock(side_effect=AssertionError("Do not use cached/filtered lookup")),
     )
 
-    fake_resp = MagicMock()
-    fake_resp.status_code = 200
-    fake_resp.json.return_value = {"Id": "created_emby_id"}
-
-    with patch("requests.post", return_value=fake_resp) as mock_post:
-        success, emby_id = emby_client.add_user(
-            "testuser", "secretpass", "template_user"
-        )
-        assert success is True
-        assert emby_id == "created_emby_id"
-        mock_post.assert_called_once()
-        call_kwargs = mock_post.call_args[1]
-        data = json.loads(call_kwargs["data"])
-        assert data["Name"] == "testuser"
-        assert data["CopyFromUserId"] == "tpl_uid"
-
-
-def test_emby_add_user_http_error(emby_client: Emby, monkeypatch) -> None:
-    monkeypatch.setattr(emby_client, "get_uid_from_username", lambda name: "tpl_uid")
-
-    fake_resp = MagicMock()
-    fake_resp.status_code = 400
-    fake_resp.text = "Username already exists"
-
-    with patch("requests.post", return_value=fake_resp):
-        success, msg = emby_client.add_user("testuser", "secretpass")
-        assert success is False
-        assert msg == "Username already exists"
-
-
-def test_emby_add_user_password_change_failure(emby_client: Emby, monkeypatch) -> None:
-    monkeypatch.setattr(emby_client, "get_uid_from_username", lambda name: "tpl_uid")
-    monkeypatch.setattr(
-        emby_client, "change_user_password", lambda uid, new_password: False
+    assert emby_client.add_user("testuser", "secretpass", "UserTemplate") == (
+        True,
+        "new_uid",
     )
 
-    fake_resp = MagicMock()
-    fake_resp.status_code = 200
-    fake_resp.json.return_value = {"Id": "new_uid"}
+    assert write.call_args_list[0].kwargs["json"] == {
+        "Name": "testuser",
+        "CopyFromUserId": "tpl_uid",
+        "UserCopyOptions": ["userpolicy"],
+    }
+    assert read.call_args_list[0].kwargs["params"] == {
+        "NameStartsWithOrGreater": "UserTemplate",
+        "Limit": 1,
+        "SortOrder": "Ascending",
+    }
+    assert template["Policy"]["SimultaneousStreamLimit"] == 3
+    assert read.call_count == 3
+    assert write.call_args_list[1].kwargs["json"] == {
+        "Id": "new_uid",
+        "NewPw": "secretpass",
+        "ResetPassword": False,
+    }
+    for call in read.call_args_list + write.call_args_list:
+        assert call.kwargs["timeout"] == 30
+        assert call.kwargs["headers"]["X-Emby-Token"] == "test-token"
+        assert "api_key" not in call.kwargs["url"]
+    delete.assert_not_called()
 
-    with patch("requests.post", return_value=fake_resp):
-        success, msg = emby_client.add_user("testuser", "secretpass")
-        assert success is False
-        assert msg == "Failed to change user password"
+
+@pytest.mark.parametrize("name", ["", " "])
+def test_empty_template_never_creates(emby_client, creation_requests, name) -> None:
+    read, write, delete, *_ = creation_requests
+    assert not emby_client.add_user("testuser", "secretpass", name)[0]
+    read.assert_not_called()
+    write.assert_not_called()
+    delete.assert_not_called()
 
 
-def test_emby_add_user_network_exception(emby_client: Emby, monkeypatch) -> None:
-    monkeypatch.setattr(emby_client, "get_uid_from_username", lambda name: "tpl_uid")
+@pytest.mark.parametrize(
+    "items",
+    [[], [{"Id": "wrong", "Name": "UserTemplate2"}], [{"Name": "UserTemplate"}]],
+)
+def test_missing_or_invalid_template_never_creates(
+    emby_client, creation_requests, items
+) -> None:
+    read, write, delete, response, *_ = creation_requests
+    read.side_effect = [response({"Items": items})]
+    assert not emby_client.add_user("testuser", "secretpass", "UserTemplate")[0]
+    write.assert_not_called()
+    delete.assert_not_called()
 
-    with patch("requests.post", side_effect=ConnectionError("Host unreachable")):
-        success, msg = emby_client.add_user("testuser", "secretpass")
-        assert success is False
-        assert "Host unreachable" in msg
+
+@pytest.mark.parametrize(
+    "field,value",
+    [("IsAdministrator", True), ("IsDisabled", True), ("IsAdministrator", None)],
+)
+def test_unsafe_template_never_creates(
+    emby_client, creation_requests, field, value
+) -> None:
+    _, write, delete, _, template, _ = creation_requests
+    template["Policy"][field] = value
+    assert not emby_client.add_user("testuser", "secretpass", "UserTemplate")[0]
+    write.assert_not_called()
+    delete.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "template_change",
+    [{"Id": "another_id"}, {"Name": "another_name"}, {"Policy": {}}, {"Policy": None}],
+)
+def test_template_detail_must_match(
+    emby_client, creation_requests, template_change
+) -> None:
+    read, write, delete, response, template, _ = creation_requests
+    read.side_effect = [
+        response({"Items": [template]}),
+        response({**template, **template_change}),
+    ]
+    assert not emby_client.add_user("testuser", "secretpass", "UserTemplate")[0]
+    write.assert_not_called()
+    delete.assert_not_called()
+
+
+def test_template_read_failure_never_creates(emby_client, creation_requests) -> None:
+    read, write, delete, *_ = creation_requests
+    read.side_effect = TimeoutError("template request failed")
+    assert not emby_client.add_user("testuser", "secretpass", "UserTemplate")[0]
+    write.assert_not_called()
+    delete.assert_not_called()
+
+
+def test_emby_add_user_http_error(emby_client, creation_requests) -> None:
+    _, write, delete, response, *_ = creation_requests
+    write.side_effect = [response(status=400)]
+    success, msg = emby_client.add_user("testuser", "secretpass", "UserTemplate")
+    assert not success
+    assert "HTTP 400" in msg
+    delete.assert_not_called()
+
+
+def test_emby_add_user_network_exception(emby_client, creation_requests) -> None:
+    _, write, delete, *_ = creation_requests
+    write.side_effect = ConnectionError("Host unreachable")
+    success, msg = emby_client.add_user("testuser", "secretpass", "UserTemplate")
+    assert not success
+    assert "Host unreachable" in msg
+    delete.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("EnableAudioPlaybackTranscoding", True),
+        ("EnableVideoPlaybackTranscoding", True),
+        ("EnablePlaybackRemuxing", True),
+        ("SimultaneousStreamLimit", 0),
+        ("EnableAllFolders", True),
+        ("EnabledFolders", []),
+        ("ExcludedSubFolders", []),
+        ("EnableContentDownloading", True),
+        ("RemoteClientBitrateLimit", 0),
+        ("NewUnexpectedPermission", True),
+    ],
+)
+def test_policy_mismatch_deletes_new_user(
+    emby_client, creation_requests, field, value
+) -> None:
+    read, _, delete, response, template, created = creation_requests
+    created["Policy"][field] = value
+    read.side_effect = [
+        response({"Items": [template]}),
+        response(template),
+        response(created),
+        response(status=404),
+    ]
+    success, msg = emby_client.add_user("testuser", "secretpass", "UserTemplate")
+    assert not success
+    assert "权限与模板不一致" in msg
+    delete.assert_called_once_with(
+        url="http://fake-emby:8096/Users/new_uid",
+        headers={"accept": "application/json", "X-Emby-Token": "test-token"},
+        timeout=30,
+    )
+    assert read.call_count == 4
+
+
+def test_failed_policy_readback_deletes_new_user(
+    emby_client, creation_requests
+) -> None:
+    read, _, delete, response, template, _ = creation_requests
+    read.side_effect = [
+        response({"Items": [template]}),
+        response(template),
+        TimeoutError("readback failed"),
+        response(status=404),
+    ]
+    assert not emby_client.add_user("testuser", "secretpass", "UserTemplate")[0]
+    delete.assert_called_once()
+
+
+def test_emby_add_user_password_change_failure(emby_client, creation_requests) -> None:
+    read, write, delete, response, template, created = creation_requests
+    write.side_effect = [response(created), response(status=500)]
+    read.side_effect = [
+        response({"Items": [template]}),
+        response(template),
+        response(status=404),
+    ]
+    success, msg = emby_client.add_user("testuser", "secretpass", "UserTemplate")
+    assert not success
+    assert "密码失败" in msg
+    delete.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {},
+        {"Id": "tpl_uid", "Name": "testuser"},
+        {"Id": "other_id", "Name": "someone_else"},
+    ],
+)
+def test_invalid_creation_response_never_changes_or_deletes_other_user(
+    emby_client, creation_requests, body
+) -> None:
+    _, write, delete, response, *_ = creation_requests
+    write.side_effect = [response(body)]
+    assert not emby_client.add_user("testuser", "secretpass", "UserTemplate")[0]
+    assert write.call_count == 1
+    delete.assert_not_called()
+
+
+@pytest.mark.parametrize("gone", [False, True])
+def test_failed_creation_cleanup_requires_confirmed_absence(
+    emby_client, creation_requests, gone
+) -> None:
+    read, write, delete, response, template, created = creation_requests
+    write.side_effect = [response(created), response(status=500)]
+    delete.side_effect = TimeoutError("delete timeout")
+    read.side_effect = [
+        response({"Items": [template]}),
+        response(template),
+        response(status=404 if gone else 200),
+    ]
+    success, msg = emby_client.add_user("testuser", "secretpass", "UserTemplate")
+    assert not success
+    assert ("清理失败" in msg) is not gone
 
 
 def test_emby_change_user_password_success(emby_client: Emby) -> None:
@@ -292,3 +489,48 @@ def test_failed_readback_after_write_is_not_success(
     ]
 
     assert emby_client.update_download_permission_for_user("user_123", True)[0] is False
+
+
+@pytest.mark.parametrize("hidden", [False, True])
+def test_template_visibility_does_not_filter_creation(
+    emby_client, creation_requests, hidden
+) -> None:
+    _, _, _, _, template, created = creation_requests
+    template["Policy"]["IsHidden"] = hidden
+    created["Policy"]["IsHidden"] = hidden
+    assert emby_client.add_user("testuser", "secretpass", "UserTemplate") == (
+        True,
+        "new_uid",
+    )
+
+
+@pytest.mark.parametrize(
+    "change", [{"Id": "another_id"}, {"Name": "another_user"}, {"Policy": {}}]
+)
+def test_new_user_readback_identity_and_policy_must_be_valid(
+    emby_client, creation_requests, change
+) -> None:
+    read, _, delete, response, template, created = creation_requests
+    read.side_effect = [
+        response({"Items": [template]}),
+        response(template),
+        response({**created, **change}),
+        response(status=404),
+    ]
+    assert not emby_client.add_user("testuser", "secretpass", "UserTemplate")[0]
+    assert delete.call_args.kwargs["url"].endswith(f"/Users/{created['Id']}")
+
+
+def test_delete_success_without_confirmed_absence_still_reports_cleanup_failure(
+    emby_client, creation_requests
+) -> None:
+    read, write, _, response, template, created = creation_requests
+    write.side_effect = [response(created), response(status=500)]
+    read.side_effect = [
+        response({"Items": [template]}),
+        response(template),
+        response(created),
+    ]
+    success, msg = emby_client.add_user("testuser", "secretpass", "UserTemplate")
+    assert not success
+    assert "清理失败" in msg

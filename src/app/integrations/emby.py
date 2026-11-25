@@ -35,51 +35,103 @@ class Emby:
         password: str,
         user_template: str = settings.EMBY_USER_TEMPLATE,
     ) -> tuple[bool, str]:
-        header = {"accept": "application/json", "Content-Type": "application/json"}
-
-        data = {
-            "Name": username,
-            "CopyFromUserId": self.get_uid_from_username(user_template),
-            "UserCopyOptions": ["UserPolicy"],
-        }
-        logger.info(
-            f"Adding Emby user {username} with data: {data}, coping from {user_template}"
-        )
-
+        headers = {"accept": "application/json", "X-Emby-Token": self.api_token}
+        emby_id: str | None = None
         try:
-            response = requests.post(
-                url=self.base_url + "/Users/New" + f"?api_key={self.api_token}",
-                data=json.dumps(data),
-                headers=header,
+            if not user_template or not user_template.strip():
+                raise ValueError("未配置 Emby 模板用户，已停止创建")
+            # 模板不是普通用户查询：不用七天缓存，也不按隐藏/禁用状态过滤。
+            response = requests.get(
+                url=f"{self.base_url.rstrip('/')}/Users/Query",
+                params={
+                    "NameStartsWithOrGreater": user_template,
+                    "Limit": 1,
+                    "SortOrder": "Ascending",
+                },
+                headers=headers,
+                timeout=30,
             )
+            response.raise_for_status()
+            items = response.json().get("Items", [])
+            if len(items) != 1 or items[0].get("Name") != user_template:
+                raise ValueError(f"找不到 Emby 模板用户 {user_template}，已停止创建")
+            template_id = items[0].get("Id")
+            if not isinstance(template_id, str) or not template_id:
+                raise ValueError("Emby 模板用户 ID 无效，已停止创建")
+            template_name, policy = self._read_user_policy(template_id)
+            if template_name != user_template:
+                raise ValueError("Emby 模板用户身份不匹配，已停止创建")
+            if (
+                policy.get("IsAdministrator") is not False
+                or policy.get("IsDisabled") is not False
+            ):
+                raise ValueError("Emby 模板必须是非管理员且未禁用的用户，已停止创建")
+            logger.info("创建 Emby 用户 %s，复制模板 %s", username, user_template)
+            response = requests.post(
+                url=f"{self.base_url.rstrip('/')}/Users/New",
+                json={
+                    "Name": username,
+                    "CopyFromUserId": template_id,
+                    # 4.10 接受旧 UserPolicy 但静默忽略；必须用精确的小写选项 ID。
+                    "UserCopyOptions": ["userpolicy"],
+                },
+                headers=headers,
+                timeout=30,
+            )
+            if response.status_code != 200:
+                raise RuntimeError(f"Emby 创建用户返回 HTTP {response.status_code}")
+            created = response.json()
+            created_id = created.get("Id")
+            if (
+                not isinstance(created_id, str)
+                or not created_id
+                or created_id.casefold() == template_id.casefold()
+                or created.get("Name") != username
+            ):
+                raise ValueError("Emby 创建响应身份无效，请管理员核查是否残留账号")
+            emby_id = created_id
+            if not self.change_user_password(emby_id, new_password=password):
+                raise RuntimeError("设置 Emby 用户密码失败")
+            actual_name, actual_policy = self._read_user_policy(emby_id)
+            if actual_name != username or actual_policy != policy:
+                raise RuntimeError("Emby 新用户权限与模板不一致")
+            return True, emby_id
+        except Exception as error:
+            logger.exception("创建 Emby 用户 %s 失败", username)
+            if emby_id and not self._remove_failed_new_user(emby_id):
+                return False, "创建失败且异常账号清理失败，请立即联系管理员处理"
+            return False, str(error)
 
-            if response:
-                if response.status_code == 200:
-                    emby_id = response.json()["Id"]
-                    # 修改密码
-                    if self.change_user_password(emby_id, new_password=password):
-                        return True, response.json()["Id"]
-                    else:
-                        return False, "Failed to change user password"
-                else:
-                    return False, response.text
-            else:
-                return False, "Unknown error"
-        except Exception as e:
-            return False, str(e)
+    def _remove_failed_new_user(self, user_id: str) -> bool:
+        """只清理本次创建响应已确认的新账号，并用新请求确认删除。"""
+        headers = {"accept": "application/json", "X-Emby-Token": self.api_token}
+        url = f"{self.base_url.rstrip('/')}/Users/{user_id}"
+        try:
+            try:
+                requests.delete(url=url, headers=headers, timeout=30).raise_for_status()
+            except Exception:
+                logger.exception("删除本次创建的 Emby 异常账号 %s 请求失败", user_id)
+            response = requests.get(url=url, headers=headers, timeout=30)
+            if response.status_code == 404:
+                return True
+            raise RuntimeError(f"删除后回读返回 HTTP {response.status_code}")
+        except Exception:
+            logger.critical(
+                "Emby 异常账号 %s 未确认删除，需管理员立即处理", user_id, exc_info=True
+            )
+            return False
 
-    def change_user_password(self, emby_id, new_password: str):
+    def change_user_password(self, emby_id: str, new_password: str) -> bool:
         """修改用户密码"""
-        header = {"accept": "application/json", "Content-Type": "application/json"}
+        header = {"accept": "application/json", "X-Emby-Token": self.api_token}
 
         data = {"Id": emby_id, "NewPw": new_password.strip(), "ResetPassword": False}
         try:
             response = requests.post(
-                url=self.base_url
-                + f"/Users/{emby_id}/Password"
-                + f"?api_key={self.api_token}",
-                data=json.dumps(data),
+                url=f"{self.base_url.rstrip('/')}/Users/{emby_id}/Password",
+                json=data,
                 headers=header,
+                timeout=30,
             )
             if response.status_code in [200, 204]:
                 return True
@@ -783,8 +835,8 @@ class Emby:
             logger.error(f"Error fetching all users last activity: {e}")
             return {}
 
-    def _read_download_policy(self, user_id: str) -> tuple[str, dict[str, Any]]:
-        """直接读取目标用户策略；未知权限不能当成已关闭。"""
+    def _read_user_policy(self, user_id: str) -> tuple[str, dict[str, Any]]:
+        """绕过用户缓存读取策略，并核验目标身份。"""
         response = requests.get(
             url=f"{self.base_url.rstrip('/')}/Users/{user_id}",
             headers={"accept": "application/json", "X-Emby-Token": self.api_token},
@@ -798,11 +850,16 @@ class Emby:
         ):
             raise ValueError("Emby 策略响应与目标用户不匹配")
         policy = user.get("Policy")
-        if not isinstance(policy, dict) or not isinstance(
-            policy.get("EnableContentDownloading"), bool
-        ):
-            raise TypeError("无法获取明确的 Emby 下载权限")
+        if not isinstance(policy, dict) or not policy:
+            raise TypeError("无法获取完整的 Emby 用户策略")
         return str(user.get("Name") or user_id), dict(policy)
+
+    def _read_download_policy(self, user_id: str) -> tuple[str, dict[str, Any]]:
+        """未知下载权限不能当成已关闭。"""
+        username, policy = self._read_user_policy(user_id)
+        if not isinstance(policy.get("EnableContentDownloading"), bool):
+            raise TypeError("无法获取明确的 Emby 下载权限")
+        return username, policy
 
     def update_download_permission_for_user(
         self, user_id: str, allow_download: bool = True
